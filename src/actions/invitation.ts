@@ -9,7 +9,7 @@ export async function createInvitation(formData: FormData) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { error: "Não autenticado" };
+  if (!user) redirect("/login");
 
   const groupId = formData.get("groupId") as string;
   const email = formData.get("email") as string;
@@ -24,7 +24,7 @@ export async function createInvitation(formData: FormData) {
     .single();
 
   if (!membership || membership.role !== "admin") {
-    return { error: "Apenas administradores podem convidar membros" };
+    redirect("/convite/enviar?error=" + encodeURIComponent("Apenas administradores podem convidar membros"));
   }
 
   const { data: invitation, error } = await supabase
@@ -40,12 +40,10 @@ export async function createInvitation(formData: FormData) {
     .single();
 
   if (error) {
-    return { error: error.message };
+    redirect("/convite/enviar?error=" + encodeURIComponent(error.message));
   }
 
-  // TODO: Send email with invitation link
-  // For now, return the token for manual sharing
-  return { success: true, token: invitation.token };
+  redirect("/convite/enviar?success=true&token=" + invitation.token);
 }
 
 export async function acceptInvitation(token: string) {
@@ -65,12 +63,12 @@ export async function acceptInvitation(token: string) {
     .single();
 
   if (invError || !invitation) {
-    return { error: "Convite inválido ou expirado" };
+    redirect("/login?error=" + encodeURIComponent("Convite invalido ou expirado"));
   }
 
   // Check if expired
   if (new Date(invitation.expires_at) < new Date()) {
-    return { error: "Este convite expirou" };
+    redirect("/login?error=" + encodeURIComponent("Este convite expirou"));
   }
 
   // Add user to group
@@ -82,9 +80,9 @@ export async function acceptInvitation(token: string) {
 
   if (memberError) {
     if (memberError.code === "23505") {
-      return { error: "Você já faz parte deste grupo" };
+      redirect("/dashboard");
     }
-    return { error: memberError.message };
+    redirect("/dashboard?error=" + encodeURIComponent(memberError.message));
   }
 
   // Update invitation status

@@ -1,5 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { signOut } from "@/actions/auth";
+import Link from "next/link";
 
 export default async function AppLayout({
   children,
@@ -25,12 +27,12 @@ export default async function AppLayout({
     <div className="min-h-screen bg-light">
       {/* Top Bar */}
       <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <h1 className="text-xl font-bold text-primary">CoPais</h1>
+        <Link href="/dashboard" className="text-xl font-bold text-primary">CoPais</Link>
         <div className="flex items-center gap-3">
-          <span className="text-sm text-muted">
+          <Link href="/perfil" className="text-sm text-muted hover:text-dark transition-colors">
             {profile?.full_name || user.email}
-          </span>
-          <form action="/api/auth/signout" method="POST">
+          </Link>
+          <form action={signOut}>
             <button
               type="submit"
               className="text-sm text-muted hover:text-error transition-colors"
