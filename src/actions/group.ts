@@ -36,7 +36,7 @@ export async function createGroup(formData: FormData) {
     });
   }
 
-  redirect("/dashboard");
+  redirect("/onboarding/convite");
 }
 
 export async function addChild(formData: FormData) {

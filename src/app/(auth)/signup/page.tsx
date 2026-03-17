@@ -1,12 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/actions/auth";
 
 export default function SignUpPage() {
+  return (
+    <Suspense fallback={<div className="bg-white rounded-2xl shadow-lg p-8 text-center"><p className="text-muted">Carregando...</p></div>}>
+      <SignUpForm />
+    </Suspense>
+  );
+}
+
+function SignUpForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const conviteToken = searchParams.get("convite");
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -30,7 +41,14 @@ export default function SignUpPage() {
     <div className="bg-white rounded-2xl shadow-lg p-8">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-dark">2Lares</h1>
-        <p className="text-muted mt-2">Crie sua conta</p>
+        {conviteToken ? (
+          <div className="mt-2">
+            <p className="text-primary font-medium">Voce foi convidado!</p>
+            <p className="text-muted text-sm mt-1">Crie sua conta para entrar no grupo familiar</p>
+          </div>
+        ) : (
+          <p className="text-muted mt-2">Crie sua conta</p>
+        )}
       </div>
 
       {error && (
@@ -40,6 +58,9 @@ export default function SignUpPage() {
       )}
 
       <form action={handleSubmit} className="space-y-4">
+        {/* Pass invite token through signup flow */}
+        {conviteToken && <input type="hidden" name="convite" value={conviteToken} />}
+
         <div>
           <label htmlFor="fullName" className="block text-sm font-medium text-dark mb-1">
             Seu nome completo
@@ -78,7 +99,7 @@ export default function SignUpPage() {
             type="password"
             required
             minLength={8}
-            placeholder="Mínimo 8 caracteres"
+            placeholder="Minimo 8 caracteres"
             className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-dark"
           />
         </div>
@@ -98,7 +119,7 @@ export default function SignUpPage() {
             </Link>{" "}
             e a{" "}
             <Link href="/privacidade" className="text-primary hover:underline">
-              Política de Privacidade
+              Politica de Privacidade
             </Link>
             , conforme a LGPD.
           </label>
@@ -114,8 +135,11 @@ export default function SignUpPage() {
       </form>
 
       <p className="text-center mt-6 text-sm text-muted">
-        Já tem conta?{" "}
-        <Link href="/login" className="text-primary font-medium hover:underline">
+        Ja tem conta?{" "}
+        <Link
+          href={conviteToken ? `/login?convite=${conviteToken}` : "/login"}
+          className="text-primary font-medium hover:underline"
+        >
           Entrar
         </Link>
       </p>

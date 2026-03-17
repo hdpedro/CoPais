@@ -10,6 +10,12 @@ export async function signUp(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const fullName = formData.get("fullName") as string;
+  const convite = formData.get("convite") as string | null;
+
+  // If user has an invite token, include it in the callback URL
+  const callbackUrl = convite
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/convite/${convite}`
+    : `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`;
 
   const { error } = await supabase.auth.signUp({
     email,
@@ -18,7 +24,7 @@ export async function signUp(formData: FormData) {
       data: {
         full_name: fullName,
       },
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`,
+      emailRedirectTo: callbackUrl,
     },
   });
 
@@ -34,6 +40,7 @@ export async function signIn(formData: FormData) {
 
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
+  const convite = formData.get("convite") as string | null;
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -45,6 +52,12 @@ export async function signIn(formData: FormData) {
   }
 
   revalidatePath("/", "layout");
+
+  // If user has an invite token, redirect to accept it
+  if (convite) {
+    redirect(`/convite/${convite}`);
+  }
+
   redirect("/dashboard");
 }
 

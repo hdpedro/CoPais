@@ -14,6 +14,7 @@ export async function createInvitation(formData: FormData) {
   const groupId = formData.get("groupId") as string;
   const email = formData.get("email") as string;
   const role = (formData.get("role") as string) || "parent";
+  const returnTo = (formData.get("returnTo") as string) || "/convite/enviar";
 
   // Check if user is admin of the group
   const { data: membership } = await supabase
@@ -24,7 +25,7 @@ export async function createInvitation(formData: FormData) {
     .single();
 
   if (!membership || membership.role !== "admin") {
-    redirect("/convite/enviar?error=" + encodeURIComponent("Apenas administradores podem convidar membros"));
+    redirect(returnTo + "?error=" + encodeURIComponent("Apenas administradores podem convidar membros"));
   }
 
   const { data: invitation, error } = await supabase
@@ -40,10 +41,10 @@ export async function createInvitation(formData: FormData) {
     .single();
 
   if (error) {
-    redirect("/convite/enviar?error=" + encodeURIComponent(error.message));
+    redirect(returnTo + "?error=" + encodeURIComponent(error.message));
   }
 
-  redirect("/convite/enviar?success=true&token=" + invitation.token);
+  redirect(returnTo + "?success=true&token=" + invitation.token);
 }
 
 export async function acceptInvitation(token: string) {

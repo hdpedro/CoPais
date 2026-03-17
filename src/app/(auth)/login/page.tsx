@@ -1,12 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "@/actions/auth";
 
 export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="bg-white rounded-2xl shadow-lg p-8 text-center"><p className="text-muted">Carregando...</p></div>}>
+      <LoginForm />
+    </Suspense>
+  );
+}
+
+function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const searchParams = useSearchParams();
+  const conviteToken = searchParams.get("convite");
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -16,13 +27,24 @@ export default function LoginPage() {
       setError(result.error);
       setLoading(false);
     }
+    // If login succeeds with invite token, redirect to accept invite
+    if (!result?.error && conviteToken) {
+      window.location.href = `/convite/${conviteToken}`;
+    }
   }
 
   return (
     <div className="bg-white rounded-2xl shadow-lg p-8">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-dark">2Lares</h1>
-        <p className="text-muted mt-2">Entre na sua conta</p>
+        {conviteToken ? (
+          <div className="mt-2">
+            <p className="text-primary font-medium">Voce foi convidado!</p>
+            <p className="text-muted text-sm mt-1">Entre para aceitar o convite</p>
+          </div>
+        ) : (
+          <p className="text-muted mt-2">Entre na sua conta</p>
+        )}
       </div>
 
       {error && (
@@ -32,6 +54,8 @@ export default function LoginPage() {
       )}
 
       <form action={handleSubmit} className="space-y-4">
+        {conviteToken && <input type="hidden" name="convite" value={conviteToken} />}
+
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-dark mb-1">
             E-mail
@@ -76,8 +100,11 @@ export default function LoginPage() {
       </form>
 
       <p className="text-center mt-6 text-sm text-muted">
-        Ainda não tem conta?{" "}
-        <Link href="/signup" className="text-primary font-medium hover:underline">
+        Ainda nao tem conta?{" "}
+        <Link
+          href={conviteToken ? `/signup?convite=${conviteToken}` : "/signup"}
+          className="text-primary font-medium hover:underline"
+        >
           Criar conta
         </Link>
       </p>
