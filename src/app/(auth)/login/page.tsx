@@ -21,7 +21,7 @@ export default function LoginPage() {
   return (
     <div className="bg-white rounded-2xl shadow-lg p-8">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold text-dark">CoPais</h1>
+        <h1 className="text-3xl font-bold text-dark">2Lares</h1>
         <p className="text-muted mt-2">Entre na sua conta</p>
       </div>
 

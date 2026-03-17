@@ -27,7 +27,7 @@ export default async function AppLayout({
     <div className="min-h-screen bg-light">
       {/* Top Bar */}
       <header className="bg-white border-b border-gray-100 px-4 py-3 flex items-center justify-between">
-        <Link href="/dashboard" className="text-xl font-bold text-primary">CoPais</Link>
+        <Link href="/dashboard" className="text-xl font-bold text-primary">2Lares</Link>
         <div className="flex items-center gap-3">
           <Link href="/perfil" className="text-sm text-muted hover:text-dark transition-colors">
             {profile?.full_name || user.email}
@@ -50,8 +50,8 @@ export default async function AppLayout({
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-4 py-2 flex justify-around md:hidden">
         <NavItem href="/dashboard" icon="home" label="Inicio" />
         <NavItem href="/calendario" icon="calendar" label="Calendario" />
-        <NavItem href="/despesas" icon="money" label="Despesas" />
         <NavItem href="/chat" icon="chat" label="Chat" />
+        <NavItem href="/mais" icon="grid" label="Mais" />
         <NavItem href="/perfil" icon="user" label="Perfil" />
       </nav>
     </div>
@@ -72,6 +72,7 @@ function NavItem({
     calendar: "M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z",
     money: "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
     chat: "M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z",
+    grid: "M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z",
     user: "M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z",
   };
 

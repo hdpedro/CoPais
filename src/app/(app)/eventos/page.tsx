@@ -1,0 +1,140 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { createEvent } from "@/actions/events";
+
+export default async function EventosPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: memberships } = await supabase
+    .from("group_members")
+    .select("group_id")
+    .eq("user_id", user.id);
+
+  if (!memberships || memberships.length === 0) redirect("/onboarding");
+  const groupId = memberships[0].group_id;
+
+  const { data: children } = await supabase
+    .from("children")
+    .select("id, full_name")
+    .eq("group_id", groupId);
+
+  const { data: events } = await supabase
+    .from("events")
+    .select("*, children(full_name), profiles!events_created_by_fkey(full_name)")
+    .eq("group_id", groupId)
+    .order("event_date", { ascending: true });
+
+  const today = new Date().toISOString().split("T")[0];
+  const upcoming = events?.filter(e => e.event_date >= today) || [];
+  const past = events?.filter(e => e.event_date < today) || [];
+
+  return (
+    <div className="space-y-6 pb-20">
+      <div>
+        <h1 className="text-2xl font-bold text-dark">Eventos</h1>
+        <p className="text-sm text-muted mt-1">Festas, encontros e compromissos sociais das criancas.</p>
+      </div>
+
+      {/* New Event Form */}
+      <form action={createEvent} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
+        <h3 className="font-semibold text-dark">Novo evento</h3>
+        <input type="hidden" name="groupId" value={groupId} />
+
+        <input type="text" name="title" required placeholder="Nome do evento (ex: Festa do Joao)"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+
+        <textarea name="description" rows={2} placeholder="Detalhes do evento..."
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <input type="date" name="eventDate" required
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          </div>
+          <div>
+            <input type="time" name="eventTime" placeholder="Horario"
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <input type="text" name="location" placeholder="Local"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          <select name="childId"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+            <option value="">Crianca...</option>
+            {children?.map((c) => (
+              <option key={c.id} value={c.id}>{c.full_name}</option>
+            ))}
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-xs text-muted mb-1">Convite / Arte (imagem)</label>
+          <input type="file" name="image" accept="image/*"
+            className="w-full text-sm text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent hover:file:bg-accent/20" />
+        </div>
+
+        <button type="submit"
+          className="w-full py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
+          Adicionar Evento
+        </button>
+      </form>
+
+      {/* Upcoming Events */}
+      {upcoming.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-dark mb-3">Proximos eventos</h3>
+          <div className="space-y-3">
+            {upcoming.map((event) => (
+              <div key={event.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
+                {event.image_url && (
+                  <img src={event.image_url} alt={event.title} className="w-full h-40 object-cover" />
+                )}
+                <div className="p-4">
+                  <div className="flex items-center justify-between mb-1">
+                    <h3 className="font-semibold text-dark">{event.title}</h3>
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                      {new Date(event.event_date).toLocaleDateString("pt-BR")}
+                    </span>
+                  </div>
+                  {event.description && <p className="text-sm text-muted mb-2">{event.description}</p>}
+                  <div className="flex items-center gap-3 text-xs text-muted">
+                    {event.event_time && <span>🕐 {event.event_time}</span>}
+                    {event.location && <span>📍 {event.location}</span>}
+                    {(event.children as any)?.full_name && <span>👶 {(event.children as any).full_name}</span>}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Past Events */}
+      {past.length > 0 && (
+        <div>
+          <h3 className="text-lg font-semibold text-dark mb-3">Eventos passados</h3>
+          <div className="space-y-2">
+            {past.map((event) => (
+              <div key={event.id} className="bg-white rounded-xl p-3 shadow-sm opacity-70">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium text-dark text-sm">{event.title}</span>
+                  <span className="text-xs text-muted">{new Date(event.event_date).toLocaleDateString("pt-BR")}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {(!events || events.length === 0) && (
+        <div className="bg-white rounded-xl p-8 shadow-sm text-center">
+          <p className="text-muted">Nenhum evento cadastrado ainda.</p>
+        </div>
+      )}
+    </div>
+  );
+}

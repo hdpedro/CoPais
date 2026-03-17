@@ -98,10 +98,14 @@ export default async function DashboardPage() {
       <div>
         <h3 className="text-lg font-semibold text-dark mb-3">Acoes Rapidas</h3>
         <div className="grid grid-cols-4 gap-3">
-          <QuickAction icon="+" label="Despesa" href="/despesas/nova" />
-          <QuickAction icon="📅" label="Evento" href="/calendario/novo" />
           <QuickAction icon="💬" label="Chat" href="/chat" />
-          <QuickAction icon="📋" label="Saude" href="/saude" />
+          <QuickAction icon="📅" label="Calendario" href="/calendario" />
+          <QuickAction icon="💰" label="Despesas" href="/despesas" />
+          <QuickAction icon="🤝" label="Acordos" href="/acordos" />
+          <QuickAction icon="🎉" label="Eventos" href="/eventos" />
+          <QuickAction icon="🎒" label="Escola" href="/escola" />
+          <QuickAction icon="🏥" label="Saude" href="/saude" />
+          <QuickAction icon="🛡️" label="Sensiveis" href="/temas-sensiveis" />
         </div>
       </div>
 
