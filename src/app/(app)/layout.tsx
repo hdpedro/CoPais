@@ -51,8 +51,8 @@ export default async function AppLayout({
         <NavItem href="/dashboard" icon="home" label="Inicio" />
         <NavItem href="/calendario" icon="calendar" label="Calendario" />
         <NavItem href="/chat" icon="chat" label="Chat" />
+        <NavItem href="/financeiro" icon="money" label="Financeiro" />
         <NavItem href="/mais" icon="grid" label="Mais" />
-        <NavItem href="/perfil" icon="user" label="Perfil" />
       </nav>
     </div>
   );

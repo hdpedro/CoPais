@@ -30,3 +30,34 @@ export const USER_ROLES = [
   { value: "mediator", label: "Mediador" },
   { value: "lawyer", label: "Advogado" },
 ] as const;
+
+export const PARENT_COLORS = {
+  primary: "#0EA5A0",
+  secondary: "#FF6B5B",
+} as const;
+
+export const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"] as const;
+
+export const MONTH_NAMES = [
+  "Janeiro", "Fevereiro", "Marco", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
+] as const;
+
+export const CUSTODY_TYPE_LABELS: Record<string, string> = {
+  regular: "Regular",
+  holiday: "Feriado",
+  swap: "Troca",
+  vacation: "Ferias",
+  special: "Especial",
+};
+
+export const CHECKIN_CATEGORIES = [
+  { value: "screen_time", label: "Tempo de Tela", icon: "📱" },
+  { value: "food", label: "Alimentacao", icon: "🍽️" },
+  { value: "sleep", label: "Sono", icon: "😴" },
+  { value: "mood", label: "Humor", icon: "😊" },
+  { value: "health", label: "Saude", icon: "🏥" },
+  { value: "activity", label: "Atividade", icon: "⚽" },
+  { value: "school", label: "Escola", icon: "🎒" },
+  { value: "other", label: "Outro", icon: "📝" },
+] as const;

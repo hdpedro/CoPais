@@ -3,6 +3,7 @@ import Link from "next/link";
 const features = [
   { href: "/dashboard", icon: "🏠", label: "Inicio", color: "bg-primary/10" },
   { href: "/calendario", icon: "📅", label: "Calendario", color: "bg-blue-50" },
+  { href: "/financeiro", icon: "📊", label: "Financeiro", color: "bg-lime-50" },
   { href: "/despesas", icon: "💰", label: "Despesas", color: "bg-green-50" },
   { href: "/chat", icon: "💬", label: "Chat", color: "bg-purple-50" },
   { href: "/criancas", icon: "👶", label: "Criancas", color: "bg-pink-50" },
@@ -11,6 +12,7 @@ const features = [
   { href: "/acordos", icon: "🤝", label: "Acordos", color: "bg-teal-50" },
   { href: "/eventos", icon: "🎉", label: "Eventos", color: "bg-orange-50" },
   { href: "/escola", icon: "🎒", label: "Escola", color: "bg-indigo-50" },
+  { href: "/checkin", icon: "✅", label: "Check-in", color: "bg-emerald-50" },
   { href: "/temas-sensiveis", icon: "🛡️", label: "Temas Sensiveis", color: "bg-gray-50" },
   { href: "/convite/enviar", icon: "✉️", label: "Convidar", color: "bg-cyan-50" },
 ];

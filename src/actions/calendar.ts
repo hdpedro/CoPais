@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export async function createCustodyEvent(formData: FormData) {
@@ -15,18 +16,374 @@ export async function createCustodyEvent(formData: FormData) {
   const endDate = formData.get("endDate") as string;
   const custodyType = formData.get("custodyType") as string;
   const notes = formData.get("notes") as string;
+  const startTime = formData.get("startTime") as string | null;
+  const endTime = formData.get("endTime") as string | null;
+  const isRecurring = formData.get("isRecurring") === "true";
+  const recurrenceRule = formData.get("recurrenceRule") as string | null;
+  const recurrenceUntil = formData.get("recurrenceUntil") as string | null;
 
-  const { error } = await supabase.from("custody_events").insert({
+  // If recurring, generate individual events
+  if (isRecurring && recurrenceRule && recurrenceUntil) {
+    const events = generateRecurringEvents({
+      groupId,
+      childId,
+      responsibleUserId,
+      startDate,
+      endDate,
+      custodyType,
+      notes,
+      startTime,
+      endTime,
+      recurrenceRule,
+      recurrenceUntil,
+      createdBy: user.id,
+    });
+
+    if (events.length > 0) {
+      const { error } = await supabase.from("custody_events").insert(events);
+      if (error) redirect("/calendario/novo?error=" + encodeURIComponent(error.message));
+    }
+  } else {
+    const eventData: Record<string, unknown> = {
+      group_id: groupId,
+      child_id: childId,
+      responsible_user_id: responsibleUserId,
+      start_date: startDate,
+      end_date: endDate,
+      custody_type: custodyType,
+      notes: notes || null,
+      created_by: user.id,
+    };
+    // Only include time/recurring fields if they have values (columns may not exist yet)
+    if (startTime) eventData.start_time = startTime;
+    if (endTime) eventData.end_time = endTime;
+    if (isRecurring) eventData.is_recurring = true;
+
+    const { error } = await supabase.from("custody_events").insert(eventData);
+
+    if (error) redirect("/calendario/novo?error=" + encodeURIComponent(error.message));
+  }
+
+  redirect("/calendario");
+}
+
+function generateRecurringEvents(params: {
+  groupId: string;
+  childId: string;
+  responsibleUserId: string;
+  startDate: string;
+  endDate: string;
+  custodyType: string;
+  notes: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  recurrenceRule: string;
+  recurrenceUntil: string;
+  createdBy: string;
+}) {
+  const events: Array<Record<string, unknown>> = [];
+  const start = new Date(params.startDate + "T12:00:00");
+  const until = new Date(params.recurrenceUntil + "T12:00:00");
+
+  // Calculate event duration in days
+  const eventStart = new Date(params.startDate + "T12:00:00");
+  const eventEnd = new Date(params.endDate + "T12:00:00");
+  const durationDays = Math.round((eventEnd.getTime() - eventStart.getTime()) / (86400000));
+
+  let interval = 7; // weekly by default
+  if (params.recurrenceRule === "daily") interval = 1;
+  else if (params.recurrenceRule === "biweekly") interval = 14;
+  else if (params.recurrenceRule === "monthly") interval = 30;
+
+  const current = new Date(start);
+  while (current <= until && events.length < 52) {
+    const endD = new Date(current);
+    endD.setDate(endD.getDate() + durationDays);
+
+    const fmt = (d: Date) => {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    };
+
+    const ev: Record<string, unknown> = {
+      group_id: params.groupId,
+      child_id: params.childId,
+      responsible_user_id: params.responsibleUserId,
+      start_date: fmt(current),
+      end_date: fmt(endD),
+      custody_type: params.custodyType,
+      notes: params.notes || null,
+      created_by: params.createdBy,
+    };
+    if (params.startTime) ev.start_time = params.startTime;
+    if (params.endTime) ev.end_time = params.endTime;
+    ev.is_recurring = true;
+    ev.recurrence_rule = params.recurrenceRule;
+
+    events.push(ev);
+
+    current.setDate(current.getDate() + interval);
+  }
+
+  return events;
+}
+
+export async function createSwapRequest(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado" };
+
+  const groupId = formData.get("groupId") as string;
+  const originalDate = formData.get("originalDate") as string;
+  const proposedDate = formData.get("proposedDate") as string;
+  const reason = formData.get("reason") as string;
+  const targetUserId = formData.get("targetUserId") as string;
+
+  if (!targetUserId) return { error: "Responsavel nao encontrado para este dia." };
+
+  const { error } = await supabase.from("swap_requests").insert({
     group_id: groupId,
-    child_id: childId,
-    responsible_user_id: responsibleUserId,
-    start_date: startDate,
-    end_date: endDate,
-    custody_type: custodyType,
-    notes: notes || null,
-    created_by: user.id,
+    requester_id: user.id,
+    target_user_id: targetUserId,
+    original_date: originalDate,
+    proposed_date: proposedDate || null,
+    reason: reason || null,
+    status: "pending",
   });
 
-  if (error) redirect("/calendario/novo?error=" + encodeURIComponent(error.message));
-  redirect("/calendario");
+  if (error) return { error: error.message };
+
+  revalidatePath("/calendario");
+  return { success: true };
+}
+
+export async function respondToSwapRequest(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const requestId = formData.get("requestId") as string;
+  const response = formData.get("response") as "approved" | "rejected";
+
+  // Fetch the swap request
+  const { data: req } = await supabase
+    .from("swap_requests")
+    .select("*")
+    .eq("id", requestId)
+    .single();
+
+  if (!req || req.target_user_id !== user.id) {
+    return { error: "Solicitacao nao encontrada" };
+  }
+
+  // Update status
+  await supabase
+    .from("swap_requests")
+    .update({ status: response, responded_at: new Date().toISOString() })
+    .eq("id", requestId);
+
+  // If approved, swap custody for those dates
+  if (response === "approved" && req.proposed_date) {
+    // Find events that cover the original and proposed dates
+    const { data: origEvents } = await supabase
+      .from("custody_events")
+      .select("*")
+      .eq("group_id", req.group_id)
+      .lte("start_date", req.original_date)
+      .gte("end_date", req.original_date)
+      .limit(1);
+
+    const { data: propEvents } = await supabase
+      .from("custody_events")
+      .select("*")
+      .eq("group_id", req.group_id)
+      .lte("start_date", req.proposed_date)
+      .gte("end_date", req.proposed_date)
+      .limit(1);
+
+    // Create swap events for single days
+    const swapEvents = [];
+
+    if (origEvents && origEvents[0]) {
+      swapEvents.push({
+        group_id: req.group_id,
+        child_id: origEvents[0].child_id,
+        responsible_user_id: req.requester_id,
+        start_date: req.original_date,
+        end_date: req.original_date,
+        custody_type: "swap",
+        notes: `Troca aprovada: ${req.reason || "sem motivo"}`,
+        created_by: user.id,
+      });
+    }
+
+    if (propEvents && propEvents[0]) {
+      swapEvents.push({
+        group_id: req.group_id,
+        child_id: propEvents[0].child_id,
+        responsible_user_id: req.target_user_id,
+        start_date: req.proposed_date,
+        end_date: req.proposed_date,
+        custody_type: "swap",
+        notes: `Troca aprovada: ${req.reason || "sem motivo"}`,
+        created_by: user.id,
+      });
+    }
+
+    if (swapEvents.length > 0) {
+      await supabase.from("custody_events").insert(swapEvents);
+    }
+  }
+
+  revalidatePath("/calendario");
+  return { success: true };
+}
+
+export async function generateSchedule(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado" };
+
+  const groupId = formData.get("groupId") as string;
+  const childId = formData.get("childId") as string;
+  const patternJson = formData.get("pattern") as string;
+  const startDateStr = formData.get("startDate") as string;
+  const months = parseInt(formData.get("months") as string, 10);
+
+  if (!groupId || !childId || !patternJson || !startDateStr || !months) {
+    return { error: "Dados incompletos." };
+  }
+
+  const pattern: (string | null)[] = JSON.parse(patternJson);
+  if (pattern.length !== 14 || pattern.every((p) => p === null)) {
+    return { error: "Padrao de escala invalido." };
+  }
+
+  // Generate events by repeating the 14-day pattern
+  const startDate = new Date(startDateStr + "T12:00:00");
+  const endDate = new Date(startDate);
+  endDate.setMonth(endDate.getMonth() + months);
+
+  const fmt = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  };
+
+  // Walk through each day, grouping consecutive days with the same parent into ranges
+  const events: Array<Record<string, unknown>> = [];
+  const current = new Date(startDate);
+  let rangeStart: Date | null = null;
+  let rangeUserId: string | null = null;
+  let dayIndex = 0;
+
+  while (current < endDate) {
+    const patternIdx = dayIndex % 14;
+    const userId = pattern[patternIdx];
+
+    if (userId !== null) {
+      if (rangeUserId === userId) {
+        // Continue current range
+      } else {
+        // Close previous range if any
+        if (rangeStart && rangeUserId) {
+          const prevDay = new Date(current);
+          prevDay.setDate(prevDay.getDate() - 1);
+          events.push({
+            group_id: groupId,
+            child_id: childId,
+            responsible_user_id: rangeUserId,
+            start_date: fmt(rangeStart),
+            end_date: fmt(prevDay),
+            custody_type: "regular",
+            notes: "Gerado pela escala quinzenal",
+            created_by: user.id,
+          });
+        }
+        // Start new range
+        rangeStart = new Date(current);
+        rangeUserId = userId;
+      }
+    } else {
+      // Unassigned day — close any open range
+      if (rangeStart && rangeUserId) {
+        const prevDay = new Date(current);
+        prevDay.setDate(prevDay.getDate() - 1);
+        events.push({
+          group_id: groupId,
+          child_id: childId,
+          responsible_user_id: rangeUserId,
+          start_date: fmt(rangeStart),
+          end_date: fmt(prevDay),
+          custody_type: "regular",
+          notes: "Gerado pela escala quinzenal",
+          created_by: user.id,
+        });
+        rangeStart = null;
+        rangeUserId = null;
+      }
+    }
+
+    current.setDate(current.getDate() + 1);
+    dayIndex++;
+  }
+
+  // Close final range
+  if (rangeStart && rangeUserId) {
+    const lastDay = new Date(current);
+    lastDay.setDate(lastDay.getDate() - 1);
+    events.push({
+      group_id: groupId,
+      child_id: childId,
+      responsible_user_id: rangeUserId,
+      start_date: fmt(rangeStart),
+      end_date: fmt(lastDay),
+      custody_type: "regular",
+      notes: "Gerado pela escala quinzenal",
+      created_by: user.id,
+    });
+  }
+
+  if (events.length === 0) {
+    return { error: "Nenhum evento gerado. Verifique o padrao." };
+  }
+
+  // Insert in batches of 100 to avoid payload limits
+  for (let i = 0; i < events.length; i += 100) {
+    const batch = events.slice(i, i + 100);
+    const { error } = await supabase.from("custody_events").insert(batch);
+    if (error) return { error: error.message };
+  }
+
+  revalidatePath("/calendario");
+  return { success: true, count: events.length };
+}
+
+export async function getOrCreateCalendarToken(groupId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado" };
+
+  // Check existing token
+  const { data: existing } = await supabase
+    .from("calendar_tokens")
+    .select("token")
+    .eq("user_id", user.id)
+    .eq("group_id", groupId)
+    .single();
+
+  if (existing) return { token: existing.token };
+
+  // Create new token
+  const { data: newToken, error } = await supabase
+    .from("calendar_tokens")
+    .insert({ user_id: user.id, group_id: groupId })
+    .select("token")
+    .single();
+
+  if (error) return { error: error.message };
+  return { token: newToken.token };
 }

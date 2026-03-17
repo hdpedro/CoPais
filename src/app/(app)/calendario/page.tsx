@@ -1,6 +1,15 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { PARENT_COLORS } from "@/lib/constants";
+import {
+  buildCustodyMap,
+  getNextWeekends,
+  formatDateKey,
+  type ParentColorMap,
+  type CustodyEvent,
+} from "@/lib/calendar-utils";
+import CalendarClient from "./CalendarClient";
 
 export default async function CalendarPage() {
   const supabase = await createClient();
@@ -15,116 +24,99 @@ export default async function CalendarPage() {
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
 
-  // Get current month events
+  // Get all members ordered by join date (for color assignment)
+  const { data: members } = await supabase
+    .from("group_members")
+    .select("user_id, role, joined_at, profiles(full_name)")
+    .eq("group_id", groupId)
+    .order("joined_at", { ascending: true });
+
+  // Assign colors by join order
+  const colors = [PARENT_COLORS.primary, PARENT_COLORS.secondary];
+  const parentColors: ParentColorMap = {};
+  (members || []).forEach((m, i) => {
+    const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+    parentColors[m.user_id] = {
+      name: p?.full_name || "Usuario",
+      color: colors[i] || colors[1],
+    };
+  });
+
+  // Get custody events (wide range for weekend planner)
   const now = new Date();
-  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split("T")[0];
-  const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split("T")[0];
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  const threeMonthsAhead = new Date(now.getFullYear(), now.getMonth() + 4, 0);
 
   const { data: events } = await supabase
     .from("custody_events")
     .select("*, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
     .eq("group_id", groupId)
-    .gte("end_date", firstDay)
-    .lte("start_date", lastDay)
+    .gte("end_date", formatDateKey(threeMonthsAgo))
+    .lte("start_date", formatDateKey(threeMonthsAhead))
     .order("start_date");
 
-  // Get all events from today forward
-  const today = new Date().toISOString().split("T")[0];
-  const { data: upcomingEvents } = await supabase
-    .from("custody_events")
-    .select("*, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
+  const custodyEvents = (events || []) as CustodyEvent[];
+  const custodyMap = buildCustodyMap(custodyEvents, parentColors);
+
+  // Convert map to serializable object for client
+  const custodyMapObj: Record<string, { userId: string; userName: string; color: string }> = {};
+  custodyMap.forEach((v, k) => { custodyMapObj[k] = v; });
+
+  // Weekend planner
+  const weekends = getNextWeekends(8, custodyMap, user.id);
+
+  // Swap requests
+  const { data: swapRequests } = await supabase
+    .from("swap_requests")
+    .select("*, requester:profiles!swap_requests_requester_id_fkey(full_name), target:profiles!swap_requests_target_user_id_fkey(full_name)")
     .eq("group_id", groupId)
-    .gte("end_date", today)
-    .order("start_date")
-    .limit(20);
-
-  const monthNames = [
-    "Janeiro", "Fevereiro", "Marco", "Abril", "Maio", "Junho",
-    "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
-  ];
-
-  const typeLabels: Record<string, string> = {
-    regular: "Regular",
-    holiday: "Feriado",
-    swap: "Troca",
-    vacation: "Ferias",
-    special: "Especial",
-  };
-
-  const typeColors: Record<string, string> = {
-    regular: "bg-primary/10 text-primary",
-    holiday: "bg-accent/10 text-accent",
-    swap: "bg-secondary/10 text-secondary",
-    vacation: "bg-success/10 text-success",
-    special: "bg-purple-100 text-purple-600",
-  };
+    .in("status", ["pending", "approved"])
+    .order("created_at", { ascending: false })
+    .limit(10);
 
   return (
-    <div className="space-y-6 pb-20">
+    <div className="space-y-4 pb-20">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-dark">Calendario</h1>
-          <p className="text-muted text-sm">{monthNames[now.getMonth()]} {now.getFullYear()}</p>
+        <h1 className="text-2xl font-bold text-dark">Calendario</h1>
+        <div className="flex gap-2">
+          <Link
+            href="/calendario/escala"
+            className="px-4 py-2 bg-white text-primary text-sm font-semibold rounded-lg border border-primary hover:bg-primary/5 transition-colors"
+          >
+            Escala
+          </Link>
+          <Link
+            href="/calendario/novo"
+            className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors"
+          >
+            + Evento
+          </Link>
         </div>
-        <Link href="/calendario/novo"
-          className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
-          + Evento
-        </Link>
       </div>
 
-      {/* Month Summary */}
-      {events && events.length > 0 ? (
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <h3 className="font-semibold text-dark mb-3">Eventos do mes</h3>
-          <div className="space-y-2">
-            {events.map((event) => (
-              <div key={event.id} className="flex items-center gap-3 p-3 bg-light rounded-lg">
-                <div className="w-12 text-center flex-shrink-0">
-                  <p className="text-lg font-bold text-primary">{new Date(event.start_date).getDate()}</p>
-                  <p className="text-xs text-muted">
-                    {event.start_date !== event.end_date ? `- ${new Date(event.end_date).getDate()}` : ""}
-                  </p>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-medium text-dark text-sm truncate">{(event.children as any)?.full_name}</p>
-                  <p className="text-xs text-muted">Com {(event.profiles as any)?.full_name}</p>
-                </div>
-                <span className={`text-xs px-2 py-1 rounded-full ${typeColors[event.custody_type] || typeColors.regular}`}>
-                  {typeLabels[event.custody_type] || event.custody_type}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl p-8 shadow-sm text-center">
-          <p className="text-muted">Nenhum evento neste mes.</p>
-        </div>
-      )}
-
-      {/* Upcoming */}
-      {upcomingEvents && upcomingEvents.length > 0 && (
-        <div>
-          <h3 className="text-lg font-semibold text-dark mb-3">Proximos eventos</h3>
-          <div className="space-y-2">
-            {upcomingEvents.map((event) => (
-              <div key={event.id} className="bg-white rounded-xl p-4 shadow-sm">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="font-medium text-dark text-sm">{(event.children as any)?.full_name}</span>
-                  <span className={`text-xs px-2 py-1 rounded-full ${typeColors[event.custody_type] || typeColors.regular}`}>
-                    {typeLabels[event.custody_type] || event.custody_type}
-                  </span>
-                </div>
-                <p className="text-xs text-muted">
-                  {new Date(event.start_date).toLocaleDateString("pt-BR")} - {new Date(event.end_date).toLocaleDateString("pt-BR")}
-                </p>
-                <p className="text-xs text-muted">Responsavel: {(event.profiles as any)?.full_name}</p>
-                {event.notes && <p className="text-xs text-muted mt-1 italic">{event.notes}</p>}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
+      {/* Client wrapper for interactive parts */}
+      <CalendarClient
+        initialYear={now.getFullYear()}
+        initialMonth={now.getMonth()}
+        custodyMap={custodyMapObj}
+        parentColors={parentColors}
+        currentUserId={user.id}
+        groupId={groupId}
+        weekends={weekends}
+        swapRequests={(swapRequests || []).map((r) => ({
+          id: r.id,
+          original_date: r.original_date,
+          proposed_date: r.proposed_date,
+          reason: r.reason,
+          status: r.status,
+          created_at: r.created_at,
+          requester: Array.isArray(r.requester) ? r.requester[0] : r.requester,
+          target: Array.isArray(r.target) ? r.target[0] : r.target,
+          requester_id: r.requester_id,
+          target_user_id: r.target_user_id,
+        }))}
+      />
     </div>
   );
 }

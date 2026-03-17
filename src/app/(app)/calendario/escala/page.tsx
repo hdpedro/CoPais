@@ -1,9 +1,9 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import NewEventForm from "./NewEventForm";
+import ScheduleBuilder from "./ScheduleBuilder";
 
-export default async function NewEventPage() {
+export default async function SchedulePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -24,11 +24,13 @@ export default async function NewEventPage() {
   const { data: members } = await supabase
     .from("group_members")
     .select("user_id, profiles(full_name)")
-    .eq("group_id", groupId);
+    .eq("group_id", groupId)
+    .order("joined_at", { ascending: true });
 
-  const membersList = (members || []).map((m) => ({
+  const membersList = (members || []).map((m, i) => ({
     user_id: m.user_id,
     full_name: (Array.isArray(m.profiles) ? m.profiles[0] : m.profiles)?.full_name || "Usuario",
+    color: i === 0 ? "#0EA5A0" : "#FF6B5B",
   }));
 
   return (
@@ -39,13 +41,17 @@ export default async function NewEventPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <h1 className="text-2xl font-bold text-dark">Novo Evento</h1>
+        <div>
+          <h1 className="text-2xl font-bold text-dark">Configurar Escala</h1>
+          <p className="text-sm text-muted">Monte o padrao de guarda quinzenal</p>
+        </div>
       </div>
 
-      <NewEventForm
+      <ScheduleBuilder
         groupId={groupId}
         children={children || []}
         members={membersList}
+        currentUserId={user.id}
       />
     </div>
   );
