@@ -14,6 +14,7 @@ const features = [
   { href: "/escola", icon: "🎒", label: "Escola", color: "bg-indigo-50" },
   { href: "/checkin", icon: "✅", label: "Check-in", color: "bg-emerald-50" },
   { href: "/temas-sensiveis", icon: "🛡️", label: "Temas Sensiveis", color: "bg-gray-50" },
+  { href: "/familia", icon: "👥", label: "Familia", color: "bg-sky-50" },
   { href: "/convite/enviar", icon: "✉️", label: "Convidar", color: "bg-cyan-50" },
 ];
 
