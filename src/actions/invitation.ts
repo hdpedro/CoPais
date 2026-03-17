@@ -1,0 +1,107 @@
+"use server";
+
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+
+export async function createInvitation(formData: FormData) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado" };
+
+  const groupId = formData.get("groupId") as string;
+  const email = formData.get("email") as string;
+  const role = (formData.get("role") as string) || "parent";
+
+  // Check if user is admin of the group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", groupId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership || membership.role !== "admin") {
+    return { error: "Apenas administradores podem convidar membros" };
+  }
+
+  const { data: invitation, error } = await supabase
+    .from("invitations")
+    .insert({
+      group_id: groupId,
+      invited_by: user.id,
+      email,
+      role,
+      group_role: role === "mediator" || role === "lawyer" ? "readonly" : "member",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  // TODO: Send email with invitation link
+  // For now, return the token for manual sharing
+  return { success: true, token: invitation.token };
+}
+
+export async function acceptInvitation(token: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Find the invitation
+  const { data: invitation, error: invError } = await supabase
+    .from("invitations")
+    .select("*")
+    .eq("token", token)
+    .eq("status", "pending")
+    .single();
+
+  if (invError || !invitation) {
+    return { error: "Convite inválido ou expirado" };
+  }
+
+  // Check if expired
+  if (new Date(invitation.expires_at) < new Date()) {
+    return { error: "Este convite expirou" };
+  }
+
+  // Add user to group
+  const { error: memberError } = await supabase.from("group_members").insert({
+    group_id: invitation.group_id,
+    user_id: user.id,
+    role: invitation.group_role,
+  });
+
+  if (memberError) {
+    if (memberError.code === "23505") {
+      return { error: "Você já faz parte deste grupo" };
+    }
+    return { error: memberError.message };
+  }
+
+  // Update invitation status
+  await supabase
+    .from("invitations")
+    .update({
+      status: "accepted",
+      accepted_by: user.id,
+      accepted_at: new Date().toISOString(),
+    })
+    .eq("id", invitation.id);
+
+  // Update user profile role if needed
+  await supabase
+    .from("profiles")
+    .update({ role: invitation.role })
+    .eq("id", user.id);
+
+  redirect("/dashboard");
+}

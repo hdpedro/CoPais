@@ -1,0 +1,25 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f DEV/package.json)",
+      "Bash(npx create-next-app@latest copais-temp --typescript --tailwind --eslint --app --src-dir --import-alias \"@/*\" --use-npm)",
+      "Bash(cp -r copais-temp/. DEV/)",
+      "Bash(rm -rf copais-temp)",
+      "Bash(mkdir -p .claude)",
+      "Bash(mkdir -p supabase/migrations)",
+      "Bash(mkdir -p src/lib/supabase)",
+      "Bash(mkdir -p src/lib/types)",
+      "Bash(mkdir -p src/actions)",
+      "Bash(mkdir -p \"src/app/\\(auth\\)/login\")",
+      "Bash(mkdir -p \"src/app/\\(auth\\)/signup\")",
+      "Bash(mkdir -p \"src/app/\\(auth\\)/verify-email\")",
+      "Bash(mkdir -p \"src/app/\\(auth\\)/forgot-password\")",
+      "Bash(mkdir -p \"src/app/\\(auth\\)/reset-password\")",
+      "Bash(mkdir -p src/app/auth/callback)",
+      "Bash(mkdir -p \"src/app/convite/[token]\")",
+      "Bash(mkdir -p \"src/app/\\(app\\)/dashboard\")",
+      "Bash(mkdir -p src/components/ui)",
+      "Bash(mkdir -p src/components/auth)"
+    ]
+  }
+}
