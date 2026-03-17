@@ -60,11 +60,21 @@ export default async function DashboardPage() {
     .lte("start_date", today)
     .gte("end_date", today);
 
-  // Find who has the child today and next swap
-  const todayEvent = todayEvents?.[0];
-  const todayResponsibleId = todayEvent?.responsible_user_id;
-  const todayResponsibleName = (todayEvent?.profiles as any)?.full_name?.split(" ")[0];
-  const isWithMe = todayResponsibleId === user.id;
+  // Build per-child custody map for today
+  const todayCustodyByChild: Record<string, { responsibleId: string; responsibleName: string; isWithMe: boolean }> = {};
+  if (todayEvents) {
+    for (const event of todayEvents) {
+      const childId = event.child_id;
+      if (!childId || todayCustodyByChild[childId]) continue; // first match wins per child
+      const responsibleName = (event.profiles as any)?.full_name?.split(" ")[0] || "?";
+      todayCustodyByChild[childId] = {
+        responsibleId: event.responsible_user_id,
+        responsibleName,
+        isWithMe: event.responsible_user_id === user.id,
+      };
+    }
+  }
+  const hasTodayCustody = Object.keys(todayCustodyByChild).length > 0;
 
   // Get next custody change (first event starting after today with different responsible)
   const { data: futureEvents } = await supabase
@@ -75,9 +85,11 @@ export default async function DashboardPage() {
     .order("start_date")
     .limit(5);
 
-  const nextSwapEvent = futureEvents?.find(
-    (e) => e.responsible_user_id !== todayResponsibleId
-  );
+  // Find next custody change — look for any event where the responsible parent differs from today
+  const nextSwapEvent = futureEvents?.find((e) => {
+    const todayInfo = todayCustodyByChild[e.child_id];
+    return todayInfo ? e.responsible_user_id !== todayInfo.responsibleId : true;
+  });
 
   // Get current month expenses for financial summary
   const now = new Date();
@@ -145,7 +157,6 @@ export default async function DashboardPage() {
     .limit(4);
 
   const firstName = profile?.full_name?.split(" ")[0] || "Pai";
-  const childName = children?.[0]?.full_name?.split(" ")[0] || "";
 
   // Format next swap date
   const formatSwapDate = (dateStr: string) => {
@@ -161,42 +172,67 @@ export default async function DashboardPage() {
   return (
     <div className="space-y-4 pb-20">
 
-      {/* === CARD 1: Hoje esta com quem === */}
-      {todayEvent && childName ? (
+      {/* === CARD 1: Hoje esta com quem (multi-child) === */}
+      {hasTodayCustody && children && children.length > 0 ? (
         <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <div
-            className="px-5 py-4 flex items-center gap-4"
-            style={{ borderLeft: `4px solid ${isWithMe ? myColor : parentColors[todayResponsibleId]?.color || PARENT_COLORS.secondary}` }}
-          >
-            <div className="flex-1">
-              <p className="text-muted text-xs font-medium uppercase tracking-wide">Hoje</p>
-              <p className="text-dark text-lg font-bold mt-0.5">
-                {childName} esta com {isWithMe ? "voce" : todayResponsibleName}
-                {" "}
-                <span
-                  className="inline-block w-2.5 h-2.5 rounded-full"
-                  style={{ backgroundColor: isWithMe ? myColor : parentColors[todayResponsibleId]?.color || PARENT_COLORS.secondary }}
-                />
-              </p>
-              {nextSwapEvent && (
-                <p className="text-muted text-sm mt-1">
-                  Proxima troca: <span className="font-medium text-dark">{formatSwapDate(nextSwapEvent.start_date)}</span>
-                </p>
-              )}
-            </div>
-            <div
-              className="w-12 h-12 rounded-full flex items-center justify-center text-white text-lg font-bold flex-shrink-0"
-              style={{ backgroundColor: isWithMe ? myColor : parentColors[todayResponsibleId]?.color || PARENT_COLORS.secondary }}
-            >
-              {isWithMe ? "V" : todayResponsibleName?.[0] || "?"}
-            </div>
+          <div className="px-5 pt-4 pb-2">
+            <p className="text-muted text-xs font-medium uppercase tracking-wide">Hoje</p>
           </div>
+          <div className="divide-y divide-gray-100">
+            {children.map((child) => {
+              const custody = todayCustodyByChild[child.id];
+              if (!custody) return null;
+              const cName = child.full_name?.split(" ")[0];
+              const color = custody.isWithMe ? myColor : parentColors[custody.responsibleId]?.color || PARENT_COLORS.secondary;
+              return (
+                <div
+                  key={child.id}
+                  className="px-5 py-3 flex items-center gap-4"
+                  style={{ borderLeft: `4px solid ${color}` }}
+                >
+                  <div className="flex-1">
+                    <p className="text-dark text-base font-bold">
+                      {cName} esta com {custody.isWithMe ? "voce" : custody.responsibleName}
+                      {" "}
+                      <span
+                        className="inline-block w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: color }}
+                      />
+                    </p>
+                  </div>
+                  <div
+                    className="w-10 h-10 rounded-full flex items-center justify-center text-white text-sm font-bold flex-shrink-0"
+                    style={{ backgroundColor: color }}
+                  >
+                    {custody.isWithMe ? "V" : custody.responsibleName?.[0] || "?"}
+                  </div>
+                </div>
+              );
+            })}
+            {/* Children without custody events today */}
+            {children.filter((c) => !todayCustodyByChild[c.id]).length > 0 && (
+              <div className="px-5 py-2">
+                {children.filter((c) => !todayCustodyByChild[c.id]).map((child) => (
+                  <p key={child.id} className="text-sm text-muted">
+                    {child.full_name?.split(" ")[0]}: sem guarda definida hoje
+                  </p>
+                ))}
+              </div>
+            )}
+          </div>
+          {nextSwapEvent && (
+            <div className="px-5 pb-3 pt-1">
+              <p className="text-muted text-sm">
+                Proxima troca: <span className="font-medium text-dark">{formatSwapDate(nextSwapEvent.start_date)}</span>
+              </p>
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-white rounded-xl p-5 shadow-sm">
           <h2 className="text-xl font-bold text-dark">Ola, {firstName}!</h2>
           <p className="text-muted text-sm mt-1">{groupName}</p>
-          {children && children.length > 0 && !todayEvent && (
+          {children && children.length > 0 && !hasTodayCustody && (
             <p className="text-sm text-accent mt-2">
               Nenhum evento de guarda cadastrado para hoje.{" "}
               <Link href="/calendario/escala" className="text-primary font-medium underline">Criar escala</Link>

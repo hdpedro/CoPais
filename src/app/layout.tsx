@@ -10,7 +10,7 @@ const geistSans = Geist({
 export const metadata: Metadata = {
   title: "2Lares - Coparentalidade Inteligente",
   description:
-    "Organize a rotina do seu filho com seu ex de forma clara, transparente e colaborativa.",
+    "Organize a rotina do seu filho com mais clareza e tranquilidade.",
 };
 
 export default function RootLayout({
