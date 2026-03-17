@@ -150,6 +150,7 @@ async function main() {
       end_date: nextWeek.toISOString().split("T")[0],
       custody_type: "regular",
       notes: "Semana com o pai",
+      created_by: brunoId,
     },
     {
       group_id: groupId,
@@ -159,6 +160,7 @@ async function main() {
       end_date: nextWeek2.toISOString().split("T")[0],
       custody_type: "regular",
       notes: "Semana com a mae",
+      created_by: martinaId,
     },
   ]);
   console.log("Custody events created.");
@@ -172,8 +174,9 @@ async function main() {
       description: "Mensalidade escola - Marco",
       amount: 1200.0,
       paid_by: brunoId,
-      split_ratio: 50,
+      split_ratio: { default: 50 },
       status: "pending",
+      expense_date: today.toISOString().split("T")[0],
     },
     {
       group_id: groupId,
@@ -182,8 +185,9 @@ async function main() {
       description: "Consulta pediatra",
       amount: 350.0,
       paid_by: martinaId,
-      split_ratio: 50,
+      split_ratio: { default: 50 },
       status: "approved",
+      expense_date: today.toISOString().split("T")[0],
     },
   ]);
   console.log("Sample expenses created.");
@@ -193,27 +197,27 @@ async function main() {
     {
       group_id: groupId,
       sender_id: brunoId,
-      content: "Oi Martina, o Kleber tem consulta no dentista quarta-feira as 14h. Voce pode levar?",
+      text: "Oi Martina, o Kleber tem consulta no dentista quarta-feira as 14h. Voce pode levar?",
     },
     {
       group_id: groupId,
       sender_id: martinaId,
-      content: "Oi Bruno! Posso sim, sem problema. Ele precisa levar algum documento?",
+      text: "Oi Bruno! Posso sim, sem problema. Ele precisa levar algum documento?",
     },
     {
       group_id: groupId,
       sender_id: brunoId,
-      content: "Sim, o cartao do plano de saude. Vou deixar na mochila dele.",
+      text: "Sim, o cartao do plano de saude. Vou deixar na mochila dele.",
     },
     {
       group_id: groupId,
       sender_id: martinaId,
-      content: "Perfeito, obrigada! Ah, a reuniao de pais na escola e dia 25. Vamos os dois?",
+      text: "Perfeito, obrigada! Ah, a reuniao de pais na escola e dia 25. Vamos os dois?",
     },
     {
       group_id: groupId,
       sender_id: brunoId,
-      content: "Sim, ja marquei na agenda. Podemos ir juntos se quiser, fica mais facil pro Kleber.",
+      text: "Sim, ja marquei na agenda. Podemos ir juntos se quiser, fica mais facil pro Kleber.",
     },
   ]);
   console.log("Sample chat messages created.");
