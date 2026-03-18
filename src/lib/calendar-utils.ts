@@ -139,6 +139,59 @@ export function getNextWeekends(
   return weekends;
 }
 
+export interface SwapBalance {
+  balanceByUser: Record<string, number>;
+  totalSwapDays: number;
+}
+
+/** Compute swap balance between parents by comparing regular schedule vs actual (with swaps) */
+export function computeSwapBalance(
+  events: CustodyEvent[],
+  parentColors: ParentColorMap,
+  startDate: string,
+  endDate: string
+): SwapBalance {
+  const parentIds = new Set(Object.keys(parentColors));
+
+  // Build regular-only map (original schedule without swaps)
+  const regularEvents = events.filter((e) => e.custody_type !== "swap");
+  const regularMap = buildCustodyMap(regularEvents, parentColors);
+
+  // Build all-events map (actual schedule including swaps)
+  const allMap = buildCustodyMap(events, parentColors);
+
+  const balanceByUser: Record<string, number> = {};
+  for (const id of parentIds) {
+    balanceByUser[id] = 0;
+  }
+
+  let totalSwapDays = 0;
+
+  // Iterate through each date in the range
+  const current = parseDateKey(startDate);
+  const end = parseDateKey(endDate);
+
+  while (current <= end) {
+    const key = formatDateKey(current);
+    const regularInfo = regularMap.get(key);
+    const actualInfo = allMap.get(key);
+
+    // Only count when the responsible parent changed due to a swap
+    if (regularInfo && actualInfo && regularInfo.userId !== actualInfo.userId) {
+      // Only track balance between actual parents
+      if (parentIds.has(regularInfo.userId) && parentIds.has(actualInfo.userId)) {
+        balanceByUser[actualInfo.userId] = (balanceByUser[actualInfo.userId] || 0) + 1;
+        balanceByUser[regularInfo.userId] = (balanceByUser[regularInfo.userId] || 0) - 1;
+        totalSwapDays++;
+      }
+    }
+
+    current.setDate(current.getDate() + 1);
+  }
+
+  return { balanceByUser, totalSwapDays };
+}
+
 /** Check if a date string is today */
 export function isToday(dateKey: string): boolean {
   return dateKey === formatDateKey(new Date());

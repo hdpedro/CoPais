@@ -6,6 +6,7 @@ import {
   buildCustodyMap,
   getNextWeekends,
   formatDateKey,
+  computeSwapBalance,
   type ParentColorMap,
   type CustodyEvent,
 } from "@/lib/calendar-utils";
@@ -66,6 +67,14 @@ export default async function CalendarPage() {
   const custodyMapObj: Record<string, { userId: string; userName: string; color: string }> = {};
   custodyMap.forEach((v, k) => { custodyMapObj[k] = v; });
 
+  // Swap balance
+  const swapBalance = computeSwapBalance(
+    custodyEvents,
+    parentColors,
+    formatDateKey(threeMonthsAgo),
+    formatDateKey(threeMonthsAhead)
+  );
+
   // Weekend planner
   const weekends = getNextWeekends(8, custodyMap, user.id);
 
@@ -109,6 +118,7 @@ export default async function CalendarPage() {
         currentUserRole={currentUserRole}
         groupId={groupId}
         weekends={weekends}
+        swapBalance={swapBalance}
         swapRequests={(swapRequests || []).map((r) => ({
           id: r.id,
           original_date: r.original_date,

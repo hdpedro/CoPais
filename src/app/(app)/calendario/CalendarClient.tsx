@@ -6,7 +6,8 @@ import WeekendPlanner from "./WeekendPlanner";
 import SwapRequestModal from "./SwapRequestModal";
 import SwapRequestList from "./SwapRequestList";
 import CalendarExportButton from "./CalendarExportButton";
-import type { CustodyDayInfo, ParentColorMap, WeekendInfo } from "@/lib/calendar-utils";
+import SwapBalanceCard from "./SwapBalanceCard";
+import type { CustodyDayInfo, ParentColorMap, WeekendInfo, SwapBalance } from "@/lib/calendar-utils";
 
 interface SwapRequest {
   id: string;
@@ -30,6 +31,7 @@ interface CalendarClientProps {
   currentUserRole: string;
   groupId: string;
   weekends: WeekendInfo[];
+  swapBalance: SwapBalance;
   swapRequests: SwapRequest[];
 }
 
@@ -42,6 +44,7 @@ export default function CalendarClient({
   currentUserRole,
   groupId,
   weekends,
+  swapBalance,
   swapRequests,
 }: CalendarClientProps) {
   const [swapModal, setSwapModal] = useState<{
@@ -73,6 +76,12 @@ export default function CalendarClient({
         currentUserId={currentUserId}
         groupId={groupId}
         onDayClick={handleDayClick}
+      />
+
+      <SwapBalanceCard
+        balanceByUser={swapBalance.balanceByUser}
+        totalSwapDays={swapBalance.totalSwapDays}
+        parentColors={parentColors}
       />
 
       <WeekendPlanner weekends={weekends} currentUserId={currentUserId} />
