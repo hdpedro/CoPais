@@ -34,12 +34,12 @@ export default async function SendInvitePage({
   const groupName = (memberships[0].coparenting_groups as any)?.name || "Grupo";
   const firstName = user.user_metadata?.full_name?.split(" ")[0] || "voce";
 
-  // Check for pending invitations
-  const { data: pendingInvites } = await supabase
+  // Fetch all invitations (pending, accepted, expired, revoked)
+  const { data: allInvites } = await supabase
     .from("invitations")
     .select("id, email, role, token, created_at, expires_at, status")
     .eq("group_id", groupId)
-    .eq("status", "pending")
+    .in("status", ["pending", "accepted"])
     .order("created_at", { ascending: false });
 
   const inviteToken = params.token;
@@ -113,29 +113,48 @@ export default async function SendInvitePage({
         </>
       )}
 
-      {/* Show pending invitations */}
-      {pendingInvites && pendingInvites.length > 0 && !inviteSuccess && (
+      {/* Show invitations list */}
+      {allInvites && allInvites.length > 0 && !inviteSuccess && (
         <div className="mt-6">
-          <h3 className="text-sm font-semibold text-dark mb-3 px-1">Convites pendentes</h3>
+          <h3 className="text-sm font-semibold text-dark mb-3 px-1">Convites enviados</h3>
           <div className="space-y-2">
-            {pendingInvites.map((inv) => {
+            {allInvites.map((inv) => {
               const expires = new Date(inv.expires_at);
-              const isExpired = expires < new Date();
+              const isExpired = inv.status === "pending" && expires < new Date();
+              const isAccepted = inv.status === "accepted";
+              const isPending = inv.status === "pending" && !isExpired;
+
               return (
                 <div key={inv.id} className="bg-white rounded-xl p-4 shadow-sm">
                   <div className="flex items-center justify-between">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium text-dark text-sm truncate">{inv.email}</p>
-                      <p className="text-xs text-muted">
-                        {inv.role === "parent" ? "Pai/Mae" : inv.role} — {isExpired ? (
-                          <span className="text-error">Expirado</span>
-                        ) : (
-                          <span>Expira em {Math.ceil((expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias</span>
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-dark text-sm truncate">{inv.email}</p>
+                        {isAccepted && (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-green-100 text-green-700">
+                            Aceito
+                          </span>
+                        )}
+                        {isPending && (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                            Pendente
+                          </span>
+                        )}
+                        {isExpired && (
+                          <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-red-100 text-red-600">
+                            Expirado
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-muted mt-0.5">
+                        {inv.role === "parent" ? "Pai/Mae" : inv.role}
+                        {isPending && (
+                          <span> — Expira em {Math.ceil((expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias</span>
                         )}
                       </p>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
-                      {!isExpired && (
+                      {isPending && (
                         <Link
                           href={`/convite/enviar?success=true&token=${inv.token}`}
                           className="text-xs text-primary font-medium px-3 py-1 bg-primary/5 rounded-lg hover:bg-primary/10"
@@ -143,17 +162,19 @@ export default async function SendInvitePage({
                           Compartilhar
                         </Link>
                       )}
-                      <form action={deleteInvitation}>
-                        <input type="hidden" name="invitationId" value={inv.id} />
-                        <input type="hidden" name="returnTo" value="/convite/enviar" />
-                        <button
-                          type="submit"
-                          className="text-xs text-red-500 font-medium px-3 py-1 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
-                          title="Excluir convite"
-                        >
-                          Excluir
-                        </button>
-                      </form>
+                      {!isAccepted && (
+                        <form action={deleteInvitation}>
+                          <input type="hidden" name="invitationId" value={inv.id} />
+                          <input type="hidden" name="returnTo" value="/convite/enviar" />
+                          <button
+                            type="submit"
+                            className="text-xs text-red-500 font-medium px-3 py-1 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                            title="Excluir convite"
+                          >
+                            Excluir
+                          </button>
+                        </form>
+                      )}
                     </div>
                   </div>
                 </div>

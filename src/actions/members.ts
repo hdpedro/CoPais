@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export async function changeMemberRole(formData: FormData) {
   const supabase = await createClient();
@@ -145,7 +146,13 @@ export async function deleteInvitation(formData: FormData) {
     redirect(returnTo + "?error=" + encodeURIComponent("Apenas administradores podem excluir convites"));
   }
 
-  const { error } = await supabase
+  // Use service role to bypass RLS (no DELETE policy on invitations table)
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { error } = await adminClient
     .from("invitations")
     .delete()
     .eq("id", invitationId);
