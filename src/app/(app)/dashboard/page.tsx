@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { formatDateKey } from "@/lib/calendar-utils";
+import { formatDateKey, computeSwapBalance, buildCustodyMap, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
 import { PARENT_COLORS, CHECKIN_CATEGORIES } from "@/lib/constants";
 import { getHolidaysForYear } from "@/lib/brazilian-holidays";
 
@@ -34,7 +34,7 @@ export default async function DashboardPage() {
     .eq("group_id", groupId)
     .order("joined_at");
 
-  const parentColors: Record<string, { name: string; color: string }> = {};
+  const parentColors: ParentColorMap = {};
   members?.forEach((m, i) => {
     const p = m.profiles as any;
     parentColors[m.user_id] = {
@@ -249,6 +249,28 @@ export default async function DashboardPage() {
   // Holidays
   const holidays = getHolidaysForYear(now.getFullYear());
   const todayHoliday = holidays.find((h) => h.date === today);
+
+  // Swap balance
+  const threeMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 3, 1);
+  const threeMonthsAhead = new Date(now.getFullYear(), now.getMonth() + 4, 0);
+
+  const { data: swapEvents } = await supabase
+    .from("custody_events")
+    .select("*, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
+    .eq("group_id", groupId)
+    .gte("end_date", formatDateKey(threeMonthsAgo))
+    .lte("start_date", formatDateKey(threeMonthsAhead))
+    .order("start_date");
+
+  const custodyEvents = (swapEvents || []) as CustodyEvent[];
+  const swapBalance = computeSwapBalance(
+    custodyEvents,
+    parentColors,
+    formatDateKey(threeMonthsAgo),
+    formatDateKey(threeMonthsAhead)
+  );
+
+  const mySwapDays = swapBalance.balanceByUser[user.id] || 0;
 
   const myColor = parentColors[user.id]?.color || PARENT_COLORS.primary;
 
@@ -536,8 +558,16 @@ export default async function DashboardPage() {
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 flex items-center justify-between">
         <span className="text-sm text-[#7A8C8B]">Saldo de trocas</span>
         <div className="text-right">
-          <p className="text-xl font-bold text-[#1A3B3A]">+0 dias</p>
-          <p className="text-xs text-[#0EA5A0] font-medium">Tudo em dia &#10003;</p>
+          <p className="text-xl font-bold text-[#1A3B3A]">
+            {mySwapDays > 0 ? "+" : ""}{mySwapDays} {Math.abs(mySwapDays) === 1 ? "dia" : "dias"}
+          </p>
+          {mySwapDays === 0 ? (
+            <p className="text-xs text-[#0EA5A0] font-medium">Tudo em dia &#10003;</p>
+          ) : mySwapDays > 0 ? (
+            <p className="text-xs text-[#E8734A] font-medium">A seu favor</p>
+          ) : (
+            <p className="text-xs text-amber-600 font-medium">Voce deve dias</p>
+          )}
         </div>
       </div>
 

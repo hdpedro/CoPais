@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { verifyGroupMembership } from "@/lib/auth-utils";
 
 export async function createAgreement(formData: FormData) {
   const supabase = await createClient();
@@ -9,6 +10,13 @@ export async function createAgreement(formData: FormData) {
   if (!user) redirect("/login");
 
   const groupId = formData.get("groupId") as string;
+
+  // Verify user belongs to this group
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
+  }
+
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const category = formData.get("category") as string;
@@ -33,6 +41,23 @@ export async function acceptAgreement(formData: FormData) {
   if (!user) redirect("/login");
 
   const agreementId = formData.get("agreementId") as string;
+
+  // Fetch the agreement to verify group membership
+  const { data: agreement } = await supabase
+    .from("agreements")
+    .select("group_id")
+    .eq("id", agreementId)
+    .single();
+
+  if (!agreement) {
+    redirect("/acordos?error=" + encodeURIComponent("Acordo nao encontrado."));
+  }
+
+  // Verify user belongs to the agreement's group
+  const membership = await verifyGroupMembership(supabase, agreement.group_id, user.id);
+  if (!membership) {
+    redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
+  }
 
   const { error } = await supabase
     .from("agreements")

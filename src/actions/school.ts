@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { verifyGroupMembership } from "@/lib/auth-utils";
 
 export async function createSchoolLog(formData: FormData) {
   const supabase = await createClient();
@@ -9,6 +10,13 @@ export async function createSchoolLog(formData: FormData) {
   if (!user) redirect("/login");
 
   const groupId = formData.get("groupId") as string;
+
+  // Verify user belongs to this group
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
+  }
+
   const childId = formData.get("childId") as string;
   const logType = formData.get("logType") as string;
   const title = formData.get("title") as string;

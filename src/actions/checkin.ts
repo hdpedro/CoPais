@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { verifyGroupMembership } from "@/lib/auth-utils";
 
 export async function createCheckin(formData: FormData) {
   const supabase = await createClient();
@@ -9,6 +10,13 @@ export async function createCheckin(formData: FormData) {
   if (!user) return { error: "Nao autenticado" };
 
   const groupId = formData.get("groupId") as string;
+
+  // Verify user belongs to this group
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    return { error: "Sem permissao para este grupo." };
+  }
+
   const childId = formData.get("childId") as string;
   const category = formData.get("category") as string;
   const title = formData.get("title") as string;

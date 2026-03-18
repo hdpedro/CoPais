@@ -103,6 +103,29 @@ export async function cancelInvitation(formData: FormData) {
 
   const invitationId = formData.get("invitationId") as string;
 
+  // Fetch the invitation to verify admin access
+  const { data: invitation } = await supabase
+    .from("invitations")
+    .select("id, group_id")
+    .eq("id", invitationId)
+    .single();
+
+  if (!invitation) {
+    redirect("/familia?error=" + encodeURIComponent("Convite nao encontrado"));
+  }
+
+  // Verify requester is admin of the group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", invitation.group_id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership || membership.role !== "admin") {
+    redirect("/familia?error=" + encodeURIComponent("Apenas administradores podem cancelar convites"));
+  }
+
   const { error } = await supabase
     .from("invitations")
     .update({ status: "revoked" })

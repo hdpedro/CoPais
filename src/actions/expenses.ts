@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { verifyGroupMembership } from "@/lib/auth-utils";
 
 export async function createExpense(formData: FormData) {
   const supabase = await createClient();
@@ -9,12 +10,23 @@ export async function createExpense(formData: FormData) {
   if (!user) redirect("/login");
 
   const groupId = formData.get("groupId") as string;
+
+  // Verify user belongs to this group
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
+  }
+
   const childId = formData.get("childId") as string;
   const category = formData.get("category") as string;
   const description = formData.get("description") as string;
   const amount = parseFloat(formData.get("amount") as string);
   const expenseDate = formData.get("expenseDate") as string;
   const receiptUrl = formData.get("receiptUrl") as string;
+
+  if (isNaN(amount) || amount <= 0) {
+    redirect("/despesas/nova?error=" + encodeURIComponent("Valor invalido."));
+  }
 
   const { error } = await supabase.from("expenses").insert({
     group_id: groupId,
@@ -38,6 +50,23 @@ export async function updateExpenseStatus(formData: FormData) {
 
   const expenseId = formData.get("expenseId") as string;
   const status = formData.get("status") as string;
+
+  // Fetch the expense to verify authorization
+  const { data: expense } = await supabase
+    .from("expenses")
+    .select("group_id")
+    .eq("id", expenseId)
+    .single();
+
+  if (!expense) {
+    redirect("/despesas?error=" + encodeURIComponent("Despesa nao encontrada."));
+  }
+
+  // Verify user belongs to the expense's group
+  const membership = await verifyGroupMembership(supabase, expense.group_id, user.id);
+  if (!membership) {
+    redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
+  }
 
   const { error } = await supabase
     .from("expenses")

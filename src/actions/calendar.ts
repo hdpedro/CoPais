@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { verifyGroupMembership } from "@/lib/auth-utils";
 
 export async function createCustodyEvent(formData: FormData) {
   const supabase = await createClient();
@@ -11,6 +12,13 @@ export async function createCustodyEvent(formData: FormData) {
   if (!user) redirect("/login");
 
   const groupId = formData.get("groupId") as string;
+
+  // Verify user belongs to this group
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
+  }
+
   const childId = formData.get("childId") as string;
   const responsibleUserId = formData.get("responsibleUserId") as string;
   const startDate = formData.get("startDate") as string;
@@ -137,6 +145,13 @@ export async function createSwapRequest(formData: FormData) {
   if (!user) return { error: "Nao autenticado" };
 
   const groupId = formData.get("groupId") as string;
+
+  // Verify user belongs to this group
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    return { error: "Sem permissao para este grupo." };
+  }
+
   const originalDate = formData.get("originalDate") as string;
   const proposedDate = formData.get("proposedDate") as string;
   const reason = formData.get("reason") as string;
@@ -180,10 +195,14 @@ export async function respondToSwapRequest(formData: FormData) {
   }
 
   // Update status
-  await supabase
+  const { error: updateError } = await supabase
     .from("swap_requests")
     .update({ status: response, responded_at: new Date().toISOString() })
     .eq("id", requestId);
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
 
   // If approved, swap custody for those dates
   if (response === "approved" && req.proposed_date) {
@@ -234,7 +253,10 @@ export async function respondToSwapRequest(formData: FormData) {
     }
 
     if (swapEvents.length > 0) {
-      await supabase.from("custody_events").insert(swapEvents);
+      const { error: insertError } = await supabase.from("custody_events").insert(swapEvents);
+      if (insertError) {
+        return { error: insertError.message };
+      }
     }
   }
 
@@ -248,6 +270,13 @@ export async function generateSchedule(formData: FormData) {
   if (!user) return { error: "Nao autenticado" };
 
   const groupId = formData.get("groupId") as string;
+
+  // Verify user belongs to this group
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    return { error: "Sem permissao para este grupo." };
+  }
+
   const childId = formData.get("childId") as string;
   const patternJson = formData.get("pattern") as string;
   const startDateStr = formData.get("startDate") as string;
@@ -257,7 +286,12 @@ export async function generateSchedule(formData: FormData) {
     return { error: "Dados incompletos." };
   }
 
-  const pattern: (string | null)[] = JSON.parse(patternJson);
+  let pattern: (string | null)[];
+  try {
+    pattern = JSON.parse(patternJson);
+  } catch {
+    return { error: "Padrao de escala com formato invalido." };
+  }
   if (pattern.length !== 14 || pattern.every((p) => p === null)) {
     return { error: "Padrao de escala invalido." };
   }
