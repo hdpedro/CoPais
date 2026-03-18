@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
 export async function createCustodyEvent(formData: FormData) {
   const supabase = await createClient();
@@ -351,10 +352,16 @@ export async function generateSchedule(formData: FormData) {
     return { error: "Nenhum evento gerado. Verifique o padrao." };
   }
 
+  // Use service role to bypass RLS for batch insert
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   // Insert in batches of 100 to avoid payload limits
   for (let i = 0; i < events.length; i += 100) {
     const batch = events.slice(i, i + 100);
-    const { error } = await supabase.from("custody_events").insert(batch);
+    const { error } = await adminClient.from("custody_events").insert(batch);
     if (error) return { error: error.message };
   }
 

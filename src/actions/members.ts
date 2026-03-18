@@ -76,7 +76,13 @@ export async function removeMember(formData: FormData) {
     redirect("/familia?error=" + encodeURIComponent("Voce nao pode se remover do grupo"));
   }
 
-  const { error } = await supabase
+  // Use service role to bypass RLS (no DELETE policy on group_members table)
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { error } = await adminClient
     .from("group_members")
     .delete()
     .eq("group_id", groupId)
