@@ -96,6 +96,68 @@ export async function removeMember(formData: FormData) {
   redirect("/familia?success=" + encodeURIComponent("Membro removido com sucesso"));
 }
 
+export async function leaveGroup(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const groupId = formData.get("groupId") as string;
+
+  // Get current user's membership
+  const { data: myMembership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", groupId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!myMembership) {
+    redirect("/familia?error=" + encodeURIComponent("Voce nao pertence a este grupo"));
+  }
+
+  // If user is admin, check if there's another admin in the group
+  if (myMembership.role === "admin") {
+    const { data: otherAdmins } = await supabase
+      .from("group_members")
+      .select("user_id")
+      .eq("group_id", groupId)
+      .eq("role", "admin")
+      .neq("user_id", user.id);
+
+    if (!otherAdmins || otherAdmins.length === 0) {
+      redirect("/familia?error=" + encodeURIComponent("Voce e o unico administrador. Promova outro membro antes de sair."));
+    }
+  }
+
+  // Use service role to bypass RLS for DELETE
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { error } = await adminClient
+    .from("group_members")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("user_id", user.id);
+
+  if (error) {
+    redirect("/familia?error=" + encodeURIComponent(error.message));
+  }
+
+  // Check if user has other groups
+  const { data: otherGroups } = await supabase
+    .from("group_members")
+    .select("group_id")
+    .eq("user_id", user.id);
+
+  if (otherGroups && otherGroups.length > 0) {
+    redirect("/dashboard");
+  }
+
+  redirect("/onboarding");
+}
+
 export async function cancelInvitation(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
