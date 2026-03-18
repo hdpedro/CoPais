@@ -5,27 +5,27 @@ const aggressivePatterns = {
   // CAPS LOCK contínuo (10+ caracteres)
   allCaps: /[A-ZÀÁÂÃÉÊÍÓÔÕÚÇ\s!?]{10,}/,
 
-  // Palavras absolutistas
+  // Palavras absolutistas (sem \b por causa de acentos; sem /g para evitar lastIndex bug)
   absolutist:
-    /\b(nunca|sempre|jamais|todo mundo|toda vez|ninguém|incompetente|incapaz|irresponsável|irresponsavel)\b/gi,
+    /(?<=\s|^)(nunca|sempre|jamais|todo mundo|toda vez|ningu[eé]m|incompetente|incapaz|irrespons[aá]vel|irresponsavel)(?=\s|[.,!?]|$)/i,
 
   // Ataques pessoais
   personalAttacks:
-    /\b(você é|voce é|voce e|você faz|voce faz|sua culpa|é sua|tua culpa|por sua causa|por culpa sua)\b/gi,
+    /(?<=\s|^)(voc[eê]\s+[eé]|voce\s+e|voc[eê]\s+faz|sua culpa|[eé] sua|tua culpa|por sua causa|por culpa sua)(?=\s|[.,!?]|$)/i,
 
   // Exclamações/interrogações demais (3+)
   excessivePunctuation: /[!?]{3,}/,
 
   // Sarcasmo agressivo
-  sarcasm: /\b(claro|óbvio|obvio|lógico|logico|é claro|naturalmente|parabéns|parabens)\b.*[!?]{2,}/gi,
+  sarcasm: /(?<=\s|^)(claro|[oó]bvio|l[oó]gico|[eé] claro|naturalmente|parab[eé]ns)(?=\s|[.,!?]|$).*[!?]{2,}/i,
 
   // Palavrões/insultos
   insults:
-    /\b(merda|porcaria|idiota|burr[oa]|lixo|miserável|miseravel|imbecil|vagabund[oa]|inútil|inutil|ridícul[oa]|ridicul[oa]|nojent[oa]|cretino|otári[oa]|otari[oa])\b/gi,
+    /(?<=\s|^)(merda|porcaria|idiota|burr[oa]|lixo|miser[aá]vel|imbecil|vagabund[oa]|in[uú]til|rid[ií]cul[oa]|nojent[oa]|cretino|ot[aá]ri[oa])(?=\s|[.,!?]|$)/i,
 
   // Ameaças veladas
   threats:
-    /\b(vai se arrepender|vou tirar|vou levar|vou processar|vai perder a guarda|não vai ver|nao vai ver|se prepara|se prepare)\b/gi,
+    /(?<=\s|^)(vai se arrepender|vou tirar|vou levar|vou processar|vai perder a guarda|n[aã]o vai ver|se prepara|se prepare)(?=\s|[.,!?]|$)/i,
 };
 
 const AGGRESSION_THRESHOLD = 40;
@@ -86,38 +86,38 @@ function rewriteToNeutral(text: string): string {
     [/\bjamais\b/gi, "raramente"],
     [/\btodo mundo\b/gi, "algumas pessoas"],
     [/\btoda vez\b/gi, "em algumas ocasioes"],
-    [/\bninguém\b/gi, "poucas pessoas"],
+    [/(?<=\s|^)ningu[eé]m(?=\s|[.,!?]|$)/gi, "poucas pessoas"],
 
     // Ataques pessoais → observações
-    [/\bvoc[eê] [eé]\b/gi, "percebi que voce"],
-    [/\bvoce e\b/gi, "percebi que voce"],
-    [/\bvoc[eê] faz\b/gi, "notei que voce"],
-    [/\bsua culpa\b/gi, "isso pode ser melhorado"],
-    [/\b[eé] sua\b/gi, "seria bom ajustar"],
-    [/\btua culpa\b/gi, "isso pode ser melhorado"],
-    [/\bpor sua causa\b/gi, "por conta dessa situacao"],
-    [/\bpor culpa sua\b/gi, "por conta dessa situacao"],
+    [/(?<=\s|^)voc[eê]\s+[eé](?=\s|[.,!?]|$)/gi, "percebi que voce esta"],
+    [/(?<=\s|^)voce\s+e(?=\s|[.,!?]|$)/gi, "percebi que voce esta"],
+    [/(?<=\s|^)voc[eê]\s+faz(?=\s|[.,!?]|$)/gi, "notei que voce"],
+    [/(?<=\s|^)sua culpa(?=\s|[.,!?]|$)/gi, "isso pode ser melhorado"],
+    [/(?<=\s|^)[eé] sua(?=\s|[.,!?]|$)/gi, "seria bom ajustar"],
+    [/(?<=\s|^)tua culpa(?=\s|[.,!?]|$)/gi, "isso pode ser melhorado"],
+    [/(?<=\s|^)por sua causa(?=\s|[.,!?]|$)/gi, "por conta dessa situacao"],
+    [/(?<=\s|^)por culpa sua(?=\s|[.,!?]|$)/gi, "por conta dessa situacao"],
 
     // Qualificadores negativos
     [/\bincompetente\b/gi, "com dificuldade"],
     [/\bincapaz\b/gi, "precisando de apoio"],
-    [/\birrespons[aá]vel\b/gi, "desatento"],
+    [/(?<=\s|^)irrespons[aá]vel(?=\s|[.,!?]|$)/gi, "desatento"],
     [/\bidiot[ao]\b/gi, ""],
     [/\bburr[ao]\b/gi, ""],
     [/\bimbecil\b/gi, ""],
     [/\bvagabund[oa]\b/gi, ""],
-    [/\bin[uú]til\b/gi, ""],
-    [/\brid[ií]cul[oa]\b/gi, ""],
+    [/(?<=\s|^)in[uú]til(?=\s|[.,!?]|$)/gi, ""],
+    [/(?<=\s|^)rid[ií]cul[oa](?=\s|[.,!?]|$)/gi, ""],
     [/\bnojent[oa]\b/gi, ""],
     [/\bcretino\b/gi, ""],
-    [/\bot[aá]ri[oa]\b/gi, ""],
-    [/\bmiser[aá]vel\b/gi, ""],
+    [/(?<=\s|^)ot[aá]ri[oa](?=\s|[.,!?]|$)/gi, ""],
+    [/(?<=\s|^)miser[aá]vel(?=\s|[.,!?]|$)/gi, ""],
     [/\blixo\b/gi, ""],
     [/\bmerda\b/gi, ""],
     [/\bporcaria\b/gi, "situacao dificil"],
 
     // Ameaças → pedidos
-    [/\bvai se arrepender\b/gi, "precisamos resolver isso"],
+    [/(?<=\s|^)vai se arrepender(?=\s|[.,!?]|$)/gi, "precisamos resolver isso"],
     [/\bvou tirar\b/gi, "gostaria de conversar sobre"],
     [/\bvou processar\b/gi, "precisamos alinhar isso"],
     [/\bse prepara\b/gi, "vamos conversar"],
@@ -147,6 +147,11 @@ function rewriteToNeutral(text: string): string {
 
   // Remove espaços duplos criados por remoção de palavrões
   neutral = neutral.replace(/\s{2,}/g, " ").trim();
+
+  // Remove pontuação duplicada/solta (ex: ", ." ou ",," ou ", ,")
+  neutral = neutral.replace(/[,;]\s*\./g, ".");
+  neutral = neutral.replace(/[,;]\s*[,;]/g, ",");
+  neutral = neutral.replace(/\.\s*\./g, ".");
 
   // Remove pontuação solta no início
   neutral = neutral.replace(/^\s*[.,;:]\s*/, "");
