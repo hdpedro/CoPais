@@ -16,6 +16,7 @@ interface ScheduleBuilderProps {
   children: { id: string; full_name: string }[];
   members: Member[];
   currentUserId: string;
+  hasExistingSchedule?: boolean;
 }
 
 export default function ScheduleBuilder({
@@ -23,6 +24,7 @@ export default function ScheduleBuilder({
   children,
   members,
   currentUserId,
+  hasExistingSchedule = false,
 }: ScheduleBuilderProps) {
   const router = useRouter();
   // 14-day pattern: null = unassigned, user_id = assigned
@@ -375,7 +377,11 @@ export default function ScheduleBuilder({
         disabled={submitting || pattern.every((p) => p === null)}
         className="w-full py-4 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-50 text-lg"
       >
-        {submitting ? "Gerando escala..." : "Gerar Escala de Guarda"}
+        {submitting
+          ? "Gerando escala..."
+          : hasExistingSchedule
+            ? "Atualizar Escala de Guarda"
+            : "Gerar Escala de Guarda"}
       </button>
     </div>
   );

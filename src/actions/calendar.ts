@@ -394,6 +394,18 @@ export async function generateSchedule(formData: FormData) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  // Delete existing schedule events for this child/group before inserting new ones
+  // This allows users to reconfigure the schedule without duplicating events
+  const { error: deleteError } = await adminClient
+    .from("custody_events")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("child_id", childId)
+    .eq("custody_type", "regular")
+    .eq("notes", "Gerado pela escala quinzenal");
+
+  if (deleteError) return { error: "Erro ao limpar escala anterior: " + deleteError.message };
+
   // Insert in batches of 100 to avoid payload limits
   for (let i = 0; i < events.length; i += 100) {
     const batch = events.slice(i, i + 100);
