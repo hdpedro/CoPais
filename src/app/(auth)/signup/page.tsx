@@ -24,8 +24,14 @@ function SignUpForm() {
     setError(null);
 
     const password = formData.get("password") as string;
+    const confirmPassword = formData.get("confirmPassword") as string;
     if (password.length < 8) {
       setError("A senha deve ter pelo menos 8 caracteres.");
+      setLoading(false);
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("As senhas nao coincidem.");
       setLoading(false);
       return;
     }
@@ -100,6 +106,21 @@ function SignUpForm() {
             required
             minLength={8}
             placeholder="Minimo 8 caracteres"
+            className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-dark"
+          />
+        </div>
+
+        <div>
+          <label htmlFor="confirmPassword" className="block text-sm font-medium text-dark mb-1">
+            Confirmar senha
+          </label>
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            required
+            minLength={8}
+            placeholder="Digite a senha novamente"
             className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-dark"
           />
         </div>
