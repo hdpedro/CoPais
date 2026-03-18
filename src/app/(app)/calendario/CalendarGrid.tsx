@@ -123,19 +123,19 @@ export default function CalendarGrid({
               className={`
                 aspect-square rounded-lg flex flex-col items-center justify-center relative
                 text-sm transition-all
-                ${holiday ? "bg-red-50" : weekend ? "bg-gray-50" : ""}
+                ${holiday ? "bg-purple-50" : weekend ? "bg-gray-50" : ""}
                 ${today ? "ring-2 ring-primary ring-offset-1" : ""}
                 hover:bg-gray-100
               `}
             >
               <span className={`text-xs font-medium ${
-                holiday ? "text-red-500 font-bold" : today ? "text-primary font-bold" : "text-dark"
+                holiday ? "text-purple-600 font-bold" : today ? "text-primary font-bold" : "text-dark"
               }`}>
                 {dayNum}
               </span>
               <div className="flex items-center gap-0.5 mt-0.5">
                 {holiday && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
                 )}
                 {info && (
                   <div
@@ -164,7 +164,7 @@ export default function CalendarGrid({
           </div>
         ))}
         <div className="flex items-center gap-2">
-          <div className="w-3 h-3 rounded-full bg-red-400" />
+          <div className="w-3 h-3 rounded-full bg-purple-400" />
           <span className="text-xs text-muted">Feriado</span>
         </div>
       </div>
