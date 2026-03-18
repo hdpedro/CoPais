@@ -1,120 +1,591 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { createHealthLog } from "@/actions/health";
 
-export default async function HealthPage() {
+export default async function SaudePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ crianca?: string; success?: string; error?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
+  // Get user's group membership
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role, coparenting_groups(id, name)")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
+
   const groupId = memberships[0].group_id;
 
+  // Get group's children
   const { data: children } = await supabase
     .from("children")
-    .select("id, full_name")
-    .eq("group_id", groupId);
-
-  const { data: logs } = await supabase
-    .from("health_logs")
-    .select("*, children(full_name), profiles!health_logs_logged_by_fkey(full_name)")
+    .select("id, full_name, birth_date")
     .eq("group_id", groupId)
-    .order("logged_at", { ascending: false })
-    .limit(30);
+    .order("birth_date");
 
-  const typeLabels: Record<string, string> = {
-    fever: "Febre",
-    medication: "Medicacao",
-    mood: "Humor",
-    screen_time: "Tempo de tela",
-    food: "Alimentacao",
-    sleep: "Sono",
-    weight: "Peso",
-    height: "Altura",
-    vaccine: "Vacina",
-    other: "Outro",
+  if (!children || children.length === 0) {
+    return (
+      <div className="max-w-lg mx-auto pb-20">
+        <div className="flex items-center gap-3 mb-6">
+          <Link href="/dashboard" className="text-muted hover:text-dark">
+            <svg
+              className="w-6 h-6"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </Link>
+          <div>
+            <h1 className="text-2xl font-bold text-dark">Saude</h1>
+            <p className="text-sm text-muted">Acompanhamento medico</p>
+          </div>
+        </div>
+        <div className="bg-white rounded-xl p-8 shadow-sm text-center">
+          <p className="text-4xl mb-3">👶</p>
+          <p className="text-muted mb-4">
+            Adicione uma crianca para comecar a usar o modulo de saude.
+          </p>
+          <Link
+            href="/criancas/nova"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg"
+          >
+            Adicionar crianca
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // Determine selected child
+  const selectedChildId =
+    params.crianca && children.find((c) => c.id === params.crianca)
+      ? params.crianca
+      : children[0].id;
+
+  const selectedChild = children.find((c) => c.id === selectedChildId)!;
+
+  // Fetch data for selected child in parallel
+  const today = new Date().toISOString();
+
+  const [
+    { data: allergies },
+    { data: medications },
+    { data: nextAppointment },
+    { data: healthLogs },
+    { data: vaccineCount },
+    { data: growthCount },
+    { data: illnessCount },
+    { data: appointmentCount },
+  ] = await Promise.all([
+    // Allergies
+    supabase
+      .from("child_allergies")
+      .select("id, name, allergy_type, severity, reaction")
+      .eq("child_id", selectedChildId)
+      .order("severity"),
+
+    // Active medications
+    supabase
+      .from("active_medications")
+      .select(
+        "id, name, dosage, frequency, frequency_hours, start_date, end_date, reason"
+      )
+      .eq("child_id", selectedChildId)
+      .eq("status", "active"),
+
+    // Next appointment with professional info
+    supabase
+      .from("medical_appointments")
+      .select(
+        "id, title, appointment_date, location, notes, medical_professionals(name, specialty)"
+      )
+      .eq("child_id", selectedChildId)
+      .eq("status", "scheduled")
+      .gte("appointment_date", today)
+      .order("appointment_date", { ascending: true })
+      .limit(1),
+
+    // Recent health logs
+    supabase
+      .from("health_logs")
+      .select(
+        "id, log_type, value, notes, logged_at, profiles!health_logs_logged_by_fkey(full_name)"
+      )
+      .eq("child_id", selectedChildId)
+      .order("logged_at", { ascending: false })
+      .limit(5),
+
+    // Counts for quick access cards
+    supabase
+      .from("vaccination_records")
+      .select("id", { count: "exact", head: true })
+      .eq("child_id", selectedChildId),
+
+    supabase
+      .from("growth_records")
+      .select("id", { count: "exact", head: true })
+      .eq("child_id", selectedChildId),
+
+    supabase
+      .from("illness_episodes")
+      .select("id", { count: "exact", head: true })
+      .eq("child_id", selectedChildId),
+
+    supabase
+      .from("medical_appointments")
+      .select("id", { count: "exact", head: true })
+      .eq("child_id", selectedChildId),
+  ]);
+
+  const appointment = nextAppointment?.[0] || null;
+
+  // Severity colors for allergies
+  const severityConfig: Record<string, { bg: string; text: string; label: string }> = {
+    severe: { bg: "bg-red-100", text: "text-red-700", label: "Grave" },
+    moderate: { bg: "bg-amber-100", text: "text-amber-700", label: "Moderada" },
+    mild: { bg: "bg-green-100", text: "text-green-700", label: "Leve" },
   };
 
-  const typeIcons: Record<string, string> = {
-    fever: "🌡️",
-    medication: "💊",
-    mood: "😊",
-    screen_time: "📱",
-    food: "🍽️",
-    sleep: "😴",
-    weight: "⚖️",
-    height: "📏",
-    vaccine: "💉",
-    other: "📝",
+  // Type config for health logs
+  const typeConfig: Record<string, { icon: string; label: string; color: string }> = {
+    fever: { icon: "🌡️", label: "Febre", color: "bg-red-400" },
+    medication: { icon: "💊", label: "Medicacao", color: "bg-blue-400" },
+    mood: { icon: "😊", label: "Humor", color: "bg-yellow-400" },
+    screen_time: { icon: "📱", label: "Tempo de tela", color: "bg-purple-400" },
+    food: { icon: "🍽️", label: "Alimentacao", color: "bg-orange-400" },
+    sleep: { icon: "😴", label: "Sono", color: "bg-indigo-400" },
+    weight: { icon: "⚖️", label: "Peso", color: "bg-teal-400" },
+    height: { icon: "📏", label: "Altura", color: "bg-emerald-400" },
+    vaccine: { icon: "💉", label: "Vacina", color: "bg-cyan-400" },
+    other: { icon: "📝", label: "Outro", color: "bg-gray-400" },
   };
+
+  // Quick access grid items
+  const quickAccess = [
+    {
+      icon: "📅",
+      label: "Consultas",
+      href: "/saude/consultas",
+      subtitle: `${appointmentCount?.length ?? 0} agendada${(appointmentCount?.length ?? 0) !== 1 ? "s" : ""}`,
+      color: "text-primary",
+    },
+    {
+      icon: "💊",
+      label: "Medicamentos",
+      href: "/saude/medicamentos",
+      subtitle: `${medications?.length ?? 0} ativo${(medications?.length ?? 0) !== 1 ? "s" : ""}`,
+      color: "text-blue-500",
+    },
+    {
+      icon: "💉",
+      label: "Vacinas",
+      href: "/saude/vacinas",
+      subtitle: `${vaccineCount?.length ?? 0} registro${(vaccineCount?.length ?? 0) !== 1 ? "s" : ""}`,
+      color: "text-cyan-500",
+    },
+    {
+      icon: "📏",
+      label: "Crescimento",
+      href: "/saude/crescimento",
+      subtitle: `${growthCount?.length ?? 0} medicao${(growthCount?.length ?? 0) !== 1 ? "es" : ""}`,
+      color: "text-emerald-500",
+    },
+    {
+      icon: "🤒",
+      label: "Doencas",
+      href: "/saude/doencas",
+      subtitle: `${illnessCount?.length ?? 0} episodio${(illnessCount?.length ?? 0) !== 1 ? "s" : ""}`,
+      color: "text-amber-500",
+    },
+    {
+      icon: "⚠️",
+      label: "Alergias",
+      href: "/saude/alergias",
+      subtitle: `${allergies?.length ?? 0} registrada${(allergies?.length ?? 0) !== 1 ? "s" : ""}`,
+      color: "text-red-500",
+    },
+  ];
+
+  // Calculate medication progress
+  function getMedProgress(startDate: string, endDate: string | null) {
+    if (!endDate) return null;
+    const start = new Date(startDate).getTime();
+    const end = new Date(endDate).getTime();
+    const now = Date.now();
+    const totalDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
+    const elapsedDays = Math.max(0, Math.ceil((now - start) / (1000 * 60 * 60 * 24)));
+    const percent = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
+    return { totalDays, elapsedDays: Math.min(elapsedDays, totalDays), percent };
+  }
 
   return (
-    <div className="space-y-6 pb-20">
-      <h1 className="text-2xl font-bold text-dark">Saude</h1>
-
-      {/* Quick Log Form */}
-      <form action={createHealthLog} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
-        <h3 className="font-semibold text-dark">Novo registro</h3>
-        <input type="hidden" name="groupId" value={groupId} />
-
-        <div className="grid grid-cols-2 gap-3">
-          <select name="childId" required
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-            <option value="">Crianca...</option>
-            {children?.map((c) => (
-              <option key={c.id} value={c.id}>{c.full_name}</option>
-            ))}
-          </select>
-          <select name="logType" required
-            className="px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-            <option value="">Tipo...</option>
-            {Object.entries(typeLabels).map(([k, v]) => (
-              <option key={k} value={k}>{typeIcons[k]} {v}</option>
-            ))}
-          </select>
+    <div className="max-w-lg mx-auto pb-20">
+      {/* Header */}
+      <div className="flex items-center gap-3 mb-6">
+        <Link href="/dashboard" className="text-muted hover:text-dark">
+          <svg
+            className="w-6 h-6"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M15 19l-7-7 7-7"
+            />
+          </svg>
+        </Link>
+        <div>
+          <h1 className="text-2xl font-bold text-dark">Saude</h1>
+          <p className="text-sm text-muted">Acompanhamento medico</p>
         </div>
+      </div>
 
-        <input type="text" name="value" placeholder="Valor (ex: 38.5°C, Bom, 2h)"
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-        <textarea name="notes" rows={2} placeholder="Observacoes..."
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-
-        <button type="submit"
-          className="w-full py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
-          Registrar
-        </button>
-      </form>
-
-      {/* Logs */}
-      {logs && logs.length > 0 ? (
-        <div className="space-y-2">
-          {logs.map((log) => (
-            <div key={log.id} className="bg-white rounded-xl p-4 shadow-sm">
-              <div className="flex items-center justify-between mb-1">
-                <div className="flex items-center gap-2">
-                  <span>{typeIcons[log.log_type] || "📝"}</span>
-                  <span className="font-medium text-dark text-sm">{typeLabels[log.log_type] || log.log_type}</span>
-                  <span className="text-xs text-muted">- {(log.children as any)?.full_name}</span>
-                </div>
-                <span className="text-xs text-muted">{new Date(log.logged_at).toLocaleDateString("pt-BR")}</span>
-              </div>
-              {log.value && <p className="text-sm text-dark">{log.value}</p>}
-              {log.notes && <p className="text-xs text-muted mt-1">{log.notes}</p>}
-              <p className="text-xs text-muted mt-1">Por {(log.profiles as any)?.full_name}</p>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="bg-white rounded-xl p-8 shadow-sm text-center">
-          <p className="text-muted">Nenhum registro de saude ainda.</p>
+      {/* Alerts */}
+      {params.success && (
+        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 mb-4 text-sm">
+          {decodeURIComponent(params.success)}
         </div>
       )}
+      {params.error && (
+        <div className="bg-red-50 border border-error/20 text-error rounded-lg p-3 mb-4 text-sm">
+          {decodeURIComponent(params.error)}
+        </div>
+      )}
+
+      {/* Child Selector */}
+      {children.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-hide">
+          {children.map((child) => {
+            const isActive = child.id === selectedChildId;
+            return (
+              <Link
+                key={child.id}
+                href={`/saude?crianca=${child.id}`}
+                className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+                  isActive
+                    ? "bg-primary text-white border-2 border-primary"
+                    : "bg-white text-dark border-2 border-gray-200 hover:border-primary/40"
+                }`}
+              >
+                {child.full_name.split(" ")[0]}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Selected child name if only one */}
+      {children.length === 1 && (
+        <div className="mb-6">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
+            <span className="text-sm">👶</span>
+            <span className="text-sm font-medium text-primary">
+              {selectedChild.full_name}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Alert Cards */}
+      <div className="space-y-3 mb-6">
+        {/* Allergies Alert */}
+        {allergies && allergies.length > 0 && (
+          <div className="bg-red-50 border-l-4 border-red-400 rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🔴</span>
+              <h3 className="text-sm font-semibold text-dark uppercase tracking-wide">
+                Alergias
+              </h3>
+              <span className="text-xs text-muted ml-auto">
+                {allergies.length} registrada{allergies.length !== 1 ? "s" : ""}
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {allergies.map((allergy) => {
+                const config = severityConfig[allergy.severity] || severityConfig.mild;
+                return (
+                  <div
+                    key={allergy.id}
+                    className={`${config.bg} ${config.text} px-3 py-1.5 rounded-lg text-xs font-medium`}
+                  >
+                    <span>{allergy.name}</span>
+                    <span className="opacity-70 ml-1">({config.label})</span>
+                  </div>
+                );
+              })}
+            </div>
+            {allergies.some((a) => a.reaction) && (
+              <div className="mt-2 space-y-1">
+                {allergies
+                  .filter((a) => a.reaction)
+                  .map((a) => (
+                    <p key={a.id} className="text-xs text-red-600">
+                      <span className="font-medium">{a.name}:</span> {a.reaction}
+                    </p>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Active Medication Alert */}
+        {medications && medications.length > 0 && (
+          <div className="space-y-3">
+            {medications.map((med) => {
+              const progress = getMedProgress(med.start_date, med.end_date);
+              return (
+                <div
+                  key={med.id}
+                  className="bg-amber-50 border-l-4 border-amber-400 rounded-xl p-4 shadow-sm"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-lg">🟡</span>
+                    <h3 className="text-sm font-semibold text-dark uppercase tracking-wide">
+                      Medicamento ativo
+                    </h3>
+                  </div>
+                  <div className="space-y-1.5">
+                    <p className="text-sm font-semibold text-dark">{med.name}</p>
+                    <div className="flex items-center gap-3 text-xs text-muted">
+                      <span className="flex items-center gap-1">
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
+                          />
+                        </svg>
+                        {med.dosage}
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <svg
+                          className="w-3.5 h-3.5"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                          />
+                        </svg>
+                        {med.frequency}
+                      </span>
+                    </div>
+                    {med.frequency_hours && (
+                      <p className="text-xs text-amber-600 font-medium">
+                        A cada {med.frequency_hours}h
+                      </p>
+                    )}
+                    {med.reason && (
+                      <p className="text-xs text-muted">Motivo: {med.reason}</p>
+                    )}
+                    {progress && (
+                      <div className="mt-2">
+                        <div className="flex items-center justify-between text-[11px] text-muted mb-1">
+                          <span>
+                            Dia {progress.elapsedDays} de {progress.totalDays}
+                          </span>
+                          <span>{progress.percent}%</span>
+                        </div>
+                        <div className="w-full bg-amber-200 rounded-full h-2">
+                          <div
+                            className="bg-amber-500 h-2 rounded-full transition-all"
+                            style={{ width: `${progress.percent}%` }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Next Appointment Alert */}
+        {appointment && (
+          <div className="bg-white border-l-4 border-primary rounded-xl p-4 shadow-sm">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🟢</span>
+              <h3 className="text-sm font-semibold text-dark uppercase tracking-wide">
+                Proxima consulta
+              </h3>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="flex-shrink-0 bg-primary/10 rounded-xl px-3 py-2 text-center">
+                <p className="text-2xl font-bold text-primary">
+                  {new Date(appointment.appointment_date).toLocaleDateString("pt-BR", {
+                    day: "2-digit",
+                  })}
+                </p>
+                <p className="text-xs text-primary font-medium uppercase">
+                  {new Date(appointment.appointment_date).toLocaleDateString("pt-BR", {
+                    month: "short",
+                  })}
+                </p>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-dark truncate">
+                  {appointment.title}
+                </p>
+                {(appointment.medical_professionals as any)?.name && (
+                  <p className="text-xs text-dark mt-0.5">
+                    Dr(a). {(appointment.medical_professionals as any).name}
+                    {(appointment.medical_professionals as any).specialty && (
+                      <span className="text-muted">
+                        {" "}
+                        — {(appointment.medical_professionals as any).specialty}
+                      </span>
+                    )}
+                  </p>
+                )}
+                {appointment.location && (
+                  <p className="text-xs text-muted mt-1 flex items-center gap-1">
+                    <svg
+                      className="w-3 h-3"
+                      fill="none"
+                      viewBox="0 0 24 24"
+                      stroke="currentColor"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
+                      />
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
+                      />
+                    </svg>
+                    {appointment.location}
+                  </p>
+                )}
+                <p className="text-xs text-primary font-medium mt-1">
+                  {new Date(appointment.appointment_date).toLocaleTimeString("pt-BR", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Quick Access Grid */}
+      <section className="mb-6">
+        <h2 className="text-sm font-semibold text-dark mb-3 px-1">Acesso rapido</h2>
+        <div className="grid grid-cols-3 gap-3">
+          {quickAccess.map((item) => (
+            <Link
+              key={item.href}
+              href={`${item.href}?crianca=${selectedChildId}`}
+              className="bg-white rounded-xl p-3 shadow-sm text-center hover:shadow-md transition-shadow"
+            >
+              <span className="text-2xl block mb-1">{item.icon}</span>
+              <p className="text-xs font-semibold text-dark">{item.label}</p>
+              <p className="text-[10px] text-muted mt-0.5">{item.subtitle}</p>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* Recent Health Logs */}
+      <section className="mb-6">
+        <h2 className="text-sm font-semibold text-dark mb-3 px-1">
+          Ultimos registros
+        </h2>
+        {healthLogs && healthLogs.length > 0 ? (
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="space-y-4">
+              {healthLogs.map((log, index) => {
+                const config = typeConfig[log.log_type] || typeConfig.other;
+                const logDate = new Date(log.logged_at);
+                const isLast = index === healthLogs.length - 1;
+
+                return (
+                  <div key={log.id} className="flex gap-3">
+                    {/* Timeline dot and line */}
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={`w-3 h-3 rounded-full flex-shrink-0 ${config.color}`}
+                      />
+                      {!isLast && (
+                        <div className="w-0.5 bg-gray-200 flex-1 mt-1" />
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className={`flex-1 min-w-0 ${!isLast ? "pb-2" : ""}`}>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm">{config.icon}</span>
+                        <span className="text-xs font-semibold text-dark">
+                          {config.label}
+                        </span>
+                        <span className="text-[10px] text-muted ml-auto">
+                          {logDate.toLocaleDateString("pt-BR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                          })}{" "}
+                          {logDate.toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </div>
+                      {log.value && (
+                        <p className="text-sm text-dark mt-0.5">{log.value}</p>
+                      )}
+                      {log.notes && (
+                        <p className="text-xs text-muted mt-0.5">{log.notes}</p>
+                      )}
+                      <p className="text-[10px] text-muted mt-0.5">
+                        Por {(log.profiles as any)?.full_name || "—"}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="bg-white rounded-xl p-6 shadow-sm text-center">
+            <p className="text-muted text-sm">
+              Nenhum registro de saude para {selectedChild.full_name.split(" ")[0]}.
+            </p>
+          </div>
+        )}
+      </section>
     </div>
   );
 }
