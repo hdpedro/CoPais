@@ -110,6 +110,10 @@ export default function ScheduleBuilder({
     return members.find((m) => m.user_id === userId) || null;
   }
 
+  function getFirstName(fullName: string) {
+    return fullName.split(" ")[0];
+  }
+
   // Count events that would be generated
   function countEvents() {
     const assignedDays = pattern.filter((p) => p !== null).length;
@@ -207,9 +211,26 @@ export default function ScheduleBuilder({
       {/* Pattern builder */}
       <div className="bg-white rounded-xl p-4 shadow-sm">
         <h3 className="text-sm font-semibold text-dark mb-1">Escala quinzenal</h3>
-        <p className="text-xs text-muted mb-4">
-          Toque em cada dia para alternar entre os responsaveis. O padrao se repete a cada 2 semanas.
+        <p className="text-xs text-muted mb-3">
+          Toque em cada dia para alternar entre os responsaveis.
         </p>
+
+        {/* Legend - top, clear identification */}
+        <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
+          {members.map((m) => (
+            <div key={m.user_id} className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded" style={{ backgroundColor: m.color }} />
+              <span className="text-sm font-medium text-dark">
+                {getFirstName(m.full_name)}
+                {m.user_id === currentUserId ? " (voce)" : ""}
+              </span>
+            </div>
+          ))}
+          <div className="flex items-center gap-2">
+            <div className="w-4 h-4 rounded border-2 border-dashed border-gray-300" />
+            <span className="text-sm text-muted">Livre</span>
+          </div>
+        </div>
 
         {[0, 1].map((weekIdx) => (
           <div key={weekIdx} className="mb-4">
@@ -228,53 +249,76 @@ export default function ScheduleBuilder({
                 ))}
               </div>
             </div>
-            <div className="grid grid-cols-7 gap-1">
-              {DAY_NAMES.map((day, i) => (
-                <div key={`h-${weekIdx}-${i}`} className="text-center text-xs text-muted">
-                  {day}
-                </div>
-              ))}
-              {Array.from({ length: 7 }, (_, dayIdx) => {
-                const idx = weekIdx * 7 + dayIdx;
-                const member = getMemberInfo(pattern[idx]);
-                const isWeekend = dayIdx === 0 || dayIdx === 6;
+            {/* Days grid: 5 weekdays + gap + 2 weekend */}
+            <div className="flex gap-1">
+              {/* Weekdays */}
+              <div className="flex-1 grid grid-cols-5 gap-1">
+                {[1, 2, 3, 4, 5].map((i) => (
+                  <div key={`h-${weekIdx}-${i}`} className="text-center text-xs text-muted">
+                    {DAY_NAMES[i]}
+                  </div>
+                ))}
+                {[1, 2, 3, 4, 5].map((dayIdx) => {
+                  const idx = weekIdx * 7 + dayIdx;
+                  const member = getMemberInfo(pattern[idx]);
 
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => toggleDay(idx)}
-                    className={`
-                      aspect-square rounded-lg flex items-center justify-center
-                      text-xs font-medium transition-all border-2
-                      ${isWeekend ? "bg-gray-50" : ""}
-                      ${member ? "border-transparent text-white" : "border-dashed border-gray-300 text-muted hover:border-gray-400"}
-                    `}
-                    style={member ? { backgroundColor: member.color } : {}}
-                    title={member ? member.full_name : "Nao atribuido"}
-                  >
-                    {member ? member.full_name.charAt(0) : "?"}
-                  </button>
-                );
-              })}
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => toggleDay(idx)}
+                      className={`
+                        py-2 rounded-lg flex items-center justify-center
+                        text-[10px] font-semibold transition-all border-2 min-h-[44px]
+                        ${member ? "border-transparent text-white shadow-sm" : "border-dashed border-gray-300 text-muted hover:border-gray-400 bg-white"}
+                      `}
+                      style={member ? { backgroundColor: member.color } : {}}
+                      title={member ? member.full_name : "Nao atribuido"}
+                    >
+                      {member ? getFirstName(member.full_name) : "?"}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Separator */}
+              <div className="w-px bg-gray-200 mx-1 self-stretch" />
+
+              {/* Weekend */}
+              <div className="grid grid-cols-2 gap-1" style={{ width: "28%" }}>
+                {[6, 0].map((i) => (
+                  <div key={`h-${weekIdx}-${i}`} className="text-center text-xs font-medium text-amber-600">
+                    {DAY_NAMES[i]}
+                  </div>
+                ))}
+                {[6, 0].map((dayIdx) => {
+                  const idx = weekIdx * 7 + dayIdx;
+                  const member = getMemberInfo(pattern[idx]);
+
+                  return (
+                    <button
+                      key={idx}
+                      onClick={() => toggleDay(idx)}
+                      className={`
+                        py-2 rounded-lg flex items-center justify-center
+                        text-[10px] font-semibold transition-all border-2 min-h-[44px]
+                        ${member ? "border-transparent text-white shadow-sm" : "border-dashed border-amber-300 text-amber-400 hover:border-amber-400 bg-amber-50"}
+                      `}
+                      style={member ? { backgroundColor: member.color } : {}}
+                      title={member ? member.full_name : "Nao atribuido"}
+                    >
+                      {member ? getFirstName(member.full_name) : "?"}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
         ))}
 
-        {/* Legend */}
-        <div className="flex items-center gap-4 pt-2 border-t border-gray-100">
-          {members.map((m) => (
-            <div key={m.user_id} className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: m.color }} />
-              <span className="text-xs text-muted">
-                {m.full_name} {m.user_id === currentUserId ? "(voce)" : ""}
-              </span>
-            </div>
-          ))}
-          <div className="flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full border-2 border-dashed border-gray-300" />
-            <span className="text-xs text-muted">Livre</span>
-          </div>
-        </div>
+        {/* Tip */}
+        <p className="text-xs text-center text-muted pt-2 border-t border-gray-100">
+          O padrao acima se repete automaticamente a cada 2 semanas
+        </p>
       </div>
 
       {/* Configuration */}
