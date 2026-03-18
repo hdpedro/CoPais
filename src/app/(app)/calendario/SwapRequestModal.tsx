@@ -11,6 +11,7 @@ interface SwapRequestModalProps {
   dayInfo: CustodyDayInfo | null;
   groupId: string;
   currentUserId: string;
+  isVisitRequest?: boolean;
 }
 
 export default function SwapRequestModal({
@@ -20,6 +21,7 @@ export default function SwapRequestModal({
   dayInfo,
   groupId,
   currentUserId,
+  isVisitRequest = false,
 }: SwapRequestModalProps) {
   const [proposedDate, setProposedDate] = useState("");
   const [reason, setReason] = useState("");
@@ -36,7 +38,7 @@ export default function SwapRequestModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!proposedDate) {
+    if (!isVisitRequest && !proposedDate) {
       setError("Selecione uma data para troca.");
       return;
     }
@@ -46,7 +48,9 @@ export default function SwapRequestModal({
     const formData = new FormData();
     formData.set("groupId", groupId);
     formData.set("originalDate", selectedDate);
-    formData.set("proposedDate", proposedDate);
+    if (!isVisitRequest && proposedDate) {
+      formData.set("proposedDate", proposedDate);
+    }
     formData.set("reason", reason);
     formData.set("targetUserId", dayInfo?.userId || "");
 
@@ -62,11 +66,14 @@ export default function SwapRequestModal({
     }
   }
 
+  const title = isVisitRequest ? "Solicitar Visita" : "Solicitar Troca";
+  const submitLabel = isVisitRequest ? "Solicitar Visita" : "Solicitar Troca";
+
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
       <div className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6 max-h-[80vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-bold text-dark">Solicitar Troca</h3>
+          <h3 className="text-lg font-bold text-dark">{title}</h3>
           <button
             onClick={onClose}
             className="p-1 hover:bg-gray-100 rounded-lg"
@@ -89,28 +96,41 @@ export default function SwapRequestModal({
           )}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-dark mb-1">
-              Data proposta para troca
-            </label>
-            <input
-              type="date"
-              value={proposedDate}
-              onChange={(e) => setProposedDate(e.target.value)}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-              min={new Date().toISOString().split("T")[0]}
-            />
+        {isVisitRequest && (
+          <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
+            <p className="text-sm text-blue-700">
+              Voce esta solicitando uma visita nesta data. O responsavel precisara aprovar.
+            </p>
           </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {!isVisitRequest && (
+            <div>
+              <label className="block text-sm font-medium text-dark mb-1">
+                Data proposta para troca
+              </label>
+              <input
+                type="date"
+                value={proposedDate}
+                onChange={(e) => setProposedDate(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
+                min={new Date().toISOString().split("T")[0]}
+              />
+            </div>
+          )}
 
           <div>
             <label className="block text-sm font-medium text-dark mb-1">
-              Motivo (opcional)
+              {isVisitRequest ? "Motivo da visita" : "Motivo (opcional)"}
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder="Ex: Preciso viajar a trabalho nesse dia..."
+              placeholder={isVisitRequest
+                ? "Ex: Gostaria de passar o dia com o neto..."
+                : "Ex: Preciso viajar a trabalho nesse dia..."
+              }
               rows={3}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
             />
@@ -133,7 +153,7 @@ export default function SwapRequestModal({
               disabled={submitting}
               className="flex-1 px-4 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-50"
             >
-              {submitting ? "Enviando..." : "Solicitar"}
+              {submitting ? "Enviando..." : submitLabel}
             </button>
           </div>
         </form>

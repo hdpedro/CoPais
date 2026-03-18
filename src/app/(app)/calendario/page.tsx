@@ -34,12 +34,16 @@ export default async function CalendarPage() {
   // Assign colors by join order
   const colors = [PARENT_COLORS.primary, PARENT_COLORS.secondary];
   const parentColors: ParentColorMap = {};
+  let currentUserRole = "member";
   (members || []).forEach((m, i) => {
     const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
     parentColors[m.user_id] = {
       name: p?.full_name || "Usuario",
       color: colors[i] || colors[1],
     };
+    if (m.user_id === user.id) {
+      currentUserRole = m.role;
+    }
   });
 
   // Get custody events (wide range for weekend planner)
@@ -102,6 +106,7 @@ export default async function CalendarPage() {
         custodyMap={custodyMapObj}
         parentColors={parentColors}
         currentUserId={user.id}
+        currentUserRole={currentUserRole}
         groupId={groupId}
         weekends={weekends}
         swapRequests={(swapRequests || []).map((r) => ({

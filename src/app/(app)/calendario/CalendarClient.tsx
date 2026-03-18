@@ -27,6 +27,7 @@ interface CalendarClientProps {
   custodyMap: Record<string, CustodyDayInfo>;
   parentColors: ParentColorMap;
   currentUserId: string;
+  currentUserRole: string;
   groupId: string;
   weekends: WeekendInfo[];
   swapRequests: SwapRequest[];
@@ -38,6 +39,7 @@ export default function CalendarClient({
   custodyMap,
   parentColors,
   currentUserId,
+  currentUserRole,
   groupId,
   weekends,
   swapRequests,
@@ -48,8 +50,14 @@ export default function CalendarClient({
     dayInfo: CustodyDayInfo | null;
   }>({ isOpen: false, dateKey: "", dayInfo: null });
 
+  // Parents who have custody days assigned
+  const isParentWithCustody = Object.values(custodyMap).some(
+    (d) => d.userId === currentUserId
+  );
+
   function handleDayClick(dateKey: string, info: CustodyDayInfo | null) {
-    // Only allow swap requests for days assigned to the other parent
+    // Parents: can request swap for days assigned to the other parent
+    // Non-parents (grandparents, etc.): can request a visit for any assigned day
     if (info && info.userId !== currentUserId) {
       setSwapModal({ isOpen: true, dateKey, dayInfo: info });
     }
@@ -80,6 +88,7 @@ export default function CalendarClient({
         dayInfo={swapModal.dayInfo}
         groupId={groupId}
         currentUserId={currentUserId}
+        isVisitRequest={!isParentWithCustody}
       />
     </>
   );
