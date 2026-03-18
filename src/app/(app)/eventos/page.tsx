@@ -43,42 +43,50 @@ export default async function EventosPage() {
         <input type="hidden" name="groupId" value={groupId} />
 
         <input type="text" name="title" required placeholder="Nome do evento (ex: Festa do Joao)"
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          className="w-full px-3 py-3 border border-gray-200 rounded-lg text-base text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50" />
 
-        <textarea name="description" rows={2} placeholder="Detalhes do evento..."
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+        <textarea name="description" rows={3} placeholder="Detalhes do evento..."
+          className="w-full px-3 py-3 border border-gray-200 rounded-lg text-base text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50" />
 
         <div className="grid grid-cols-2 gap-3">
           <div>
+            <label className="block text-sm font-medium text-dark mb-1">Data</label>
             <input type="date" name="eventDate" required
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+              className="w-full px-3 py-3 border border-gray-200 rounded-lg text-base text-dark focus:outline-none focus:ring-2 focus:ring-primary/50" />
           </div>
           <div>
+            <label className="block text-sm font-medium text-dark mb-1">Horario</label>
             <input type="time" name="eventTime" placeholder="Horario"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+              className="w-full px-3 py-3 border border-gray-200 rounded-lg text-base text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50" />
           </div>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <input type="text" name="location" placeholder="Local"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
-          <select name="childId"
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-            <option value="">Crianca...</option>
-            {children?.map((c) => (
-              <option key={c.id} value={c.id}>{c.full_name}</option>
-            ))}
-          </select>
+          <div>
+            <label className="block text-sm font-medium text-dark mb-1">Local</label>
+            <input type="text" name="location" placeholder="Local do evento"
+              className="w-full px-3 py-3 border border-gray-200 rounded-lg text-base text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-dark mb-1">Crianca</label>
+            <select name="childId"
+              className="w-full px-3 py-3 border border-gray-200 rounded-lg text-base text-dark focus:outline-none focus:ring-2 focus:ring-primary/50">
+              <option value="">Selecione...</option>
+              {children?.map((c) => (
+                <option key={c.id} value={c.id}>{c.full_name}</option>
+              ))}
+            </select>
+          </div>
         </div>
 
         <div>
-          <label className="block text-xs text-muted mb-1">Convite / Arte (imagem)</label>
+          <label className="block text-sm font-medium text-dark mb-1">Convite / Arte (imagem)</label>
           <input type="file" name="image" accept="image/*"
             className="w-full text-sm text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-accent/10 file:text-accent hover:file:bg-accent/20" />
         </div>
 
         <button type="submit"
-          className="w-full py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
+          className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors">
           Adicionar Evento
         </button>
       </form>
@@ -94,14 +102,14 @@ export default async function EventosPage() {
                   <img src={event.image_url} alt={event.title} className="w-full h-40 object-cover" />
                 )}
                 <div className="p-4">
-                  <div className="flex items-center justify-between mb-1">
-                    <h3 className="font-semibold text-dark">{event.title}</h3>
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full">
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold text-dark text-base">{event.title}</h3>
+                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full whitespace-nowrap ml-2">
                       {new Date(event.event_date).toLocaleDateString("pt-BR")}
                     </span>
                   </div>
-                  {event.description && <p className="text-sm text-muted mb-2">{event.description}</p>}
-                  <div className="flex items-center gap-3 text-xs text-muted">
+                  {event.description && <p className="text-base text-dark/80 mb-3 leading-relaxed">{event.description}</p>}
+                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
                     {event.event_time && <span>🕐 {event.event_time}</span>}
                     {event.location && <span>📍 {event.location}</span>}
                     {(event.children as any)?.full_name && <span>👶 {(event.children as any).full_name}</span>}
