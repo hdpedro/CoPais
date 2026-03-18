@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createInvitation } from "@/actions/invitation";
+import { deleteInvitation } from "@/actions/members";
 import Link from "next/link";
 import InviteShareCard from "../../onboarding/convite/InviteShareCard";
 
@@ -43,6 +44,7 @@ export default async function SendInvitePage({
 
   const inviteToken = params.token;
   const inviteSuccess = params.success === "true";
+  const inviteDeleted = params.success === "deleted";
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://2lares.vercel.app";
   const inviteLink = inviteToken ? `${appUrl}/convite/${inviteToken}` : null;
 
@@ -56,6 +58,12 @@ export default async function SendInvitePage({
         </Link>
         <h1 className="text-2xl font-bold text-dark">Convidar Membro</h1>
       </div>
+
+      {inviteDeleted && (
+        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 mb-4 text-sm text-center">
+          Convite excluido com sucesso. Voce pode reenviar para o mesmo e-mail.
+        </div>
+      )}
 
       {/* Show share card if invite was just created */}
       {inviteSuccess && inviteLink ? (
@@ -111,14 +119,13 @@ export default async function SendInvitePage({
           <h3 className="text-sm font-semibold text-dark mb-3 px-1">Convites pendentes</h3>
           <div className="space-y-2">
             {pendingInvites.map((inv) => {
-              const link = `${appUrl}/convite/${inv.token}`;
               const expires = new Date(inv.expires_at);
               const isExpired = expires < new Date();
               return (
                 <div key={inv.id} className="bg-white rounded-xl p-4 shadow-sm">
                   <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-medium text-dark text-sm">{inv.email}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-dark text-sm truncate">{inv.email}</p>
                       <p className="text-xs text-muted">
                         {inv.role === "parent" ? "Pai/Mae" : inv.role} — {isExpired ? (
                           <span className="text-error">Expirado</span>
@@ -127,14 +134,27 @@ export default async function SendInvitePage({
                         )}
                       </p>
                     </div>
-                    {!isExpired && (
-                      <Link
-                        href={`/convite/enviar?success=true&token=${inv.token}`}
-                        className="text-xs text-primary font-medium px-3 py-1 bg-primary/5 rounded-lg hover:bg-primary/10"
-                      >
-                        Compartilhar
-                      </Link>
-                    )}
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      {!isExpired && (
+                        <Link
+                          href={`/convite/enviar?success=true&token=${inv.token}`}
+                          className="text-xs text-primary font-medium px-3 py-1 bg-primary/5 rounded-lg hover:bg-primary/10"
+                        >
+                          Compartilhar
+                        </Link>
+                      )}
+                      <form action={deleteInvitation}>
+                        <input type="hidden" name="invitationId" value={inv.id} />
+                        <input type="hidden" name="returnTo" value="/convite/enviar" />
+                        <button
+                          type="submit"
+                          className="text-xs text-red-500 font-medium px-3 py-1 bg-red-50 rounded-lg hover:bg-red-100 transition-colors"
+                          title="Excluir convite"
+                        >
+                          Excluir
+                        </button>
+                      </form>
+                    </div>
                   </div>
                 </div>
               );

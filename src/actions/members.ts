@@ -108,3 +108,53 @@ export async function cancelInvitation(formData: FormData) {
   revalidatePath("/familia");
   redirect("/familia?success=" + encodeURIComponent("Convite cancelado"));
 }
+
+export async function deleteInvitation(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const invitationId = formData.get("invitationId") as string;
+  const returnTo = (formData.get("returnTo") as string) || "/convite/enviar";
+
+  // Verify the invitation exists and belongs to a group where user is admin
+  const { data: invitation } = await supabase
+    .from("invitations")
+    .select("id, group_id, status")
+    .eq("id", invitationId)
+    .single();
+
+  if (!invitation) {
+    redirect(returnTo + "?error=" + encodeURIComponent("Convite nao encontrado"));
+  }
+
+  // Only allow deleting pending/expired/revoked invitations (not accepted ones)
+  if (invitation.status === "accepted") {
+    redirect(returnTo + "?error=" + encodeURIComponent("Nao e possivel excluir um convite ja aceito"));
+  }
+
+  // Verify requester is admin of the group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("role")
+    .eq("group_id", invitation.group_id)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership || membership.role !== "admin") {
+    redirect(returnTo + "?error=" + encodeURIComponent("Apenas administradores podem excluir convites"));
+  }
+
+  const { error } = await supabase
+    .from("invitations")
+    .delete()
+    .eq("id", invitationId);
+
+  if (error) {
+    redirect(returnTo + "?error=" + encodeURIComponent(error.message));
+  }
+
+  revalidatePath("/convite/enviar");
+  revalidatePath("/familia");
+  redirect(returnTo + "?success=deleted");
+}
