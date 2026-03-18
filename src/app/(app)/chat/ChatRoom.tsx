@@ -112,11 +112,25 @@ export default function ChatRoom({
     setShowSuggestion(false);
     setToneResult(null);
 
+    // Refresh session before sending to avoid expired token
+    const { error: refreshError } = await supabase.auth.getSession();
+    if (refreshError) {
+      window.location.href = "/login";
+      return;
+    }
+
     const { error } = await supabase.from("chat_messages").insert({
       group_id: groupId,
       sender_id: userId,
       text: text.trim(),
     });
+
+    if (error) {
+      if (error.message?.includes("JWT") || error.code === "PGRST301") {
+        window.location.href = "/login";
+        return;
+      }
+    }
 
     if (!error) {
       setNewMessage("");
