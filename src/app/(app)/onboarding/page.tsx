@@ -1,11 +1,12 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createGroup } from "@/actions/group";
+import OnboardingForm from "./OnboardingForm";
 
 export default async function OnboardingPage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) redirect("/login");
+  const user = session.user;
 
   // Check if user already has a group
   const { data: memberships } = await supabase
@@ -29,49 +30,7 @@ export default async function OnboardingPage() {
         <p className="text-muted mt-2">Vamos configurar seu grupo familiar para comecar.</p>
       </div>
 
-      <form action={createGroup} className="bg-white rounded-xl p-6 shadow-sm space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-dark mb-1">Nome da familia</label>
-          <input
-            type="text"
-            name="name"
-            required
-            placeholder="Ex: Familia Silva"
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-          />
-        </div>
-
-        <hr className="my-4" />
-        <h3 className="text-lg font-semibold text-dark">Adicionar primeira crianca</h3>
-
-        <div>
-          <label className="block text-sm font-medium text-dark mb-1">Nome completo da crianca</label>
-          <input
-            type="text"
-            name="childName"
-            required
-            placeholder="Nome da crianca"
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-dark mb-1">Data de nascimento</label>
-          <input
-            type="date"
-            name="childBirthDate"
-            required
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors"
-        >
-          Criar grupo e continuar
-        </button>
-      </form>
+      <OnboardingForm />
     </div>
   );
 }

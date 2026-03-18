@@ -9,13 +9,17 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
 
-  if (!user) {
+  // Use getSession() first (local JWT check, no network call) to avoid
+  // token refresh race conditions with the middleware.
+  // The middleware already handles auth redirects for unauthenticated users.
+  const { data: { session } } = await supabase.auth.getSession();
+
+  if (!session) {
     redirect("/login");
   }
+
+  const user = session.user;
 
   const { data: profile } = await supabase
     .from("profiles")

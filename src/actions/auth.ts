@@ -51,7 +51,9 @@ export async function signIn(formData: FormData) {
     return { error: error.message };
   }
 
-  revalidatePath("/", "layout");
+  // Don't call revalidatePath here — it triggers concurrent revalidation of
+  // all pages/layouts, causing Supabase token refresh race conditions.
+  // The redirect below will load fresh data anyway.
 
   // If user has an invite token, redirect to accept it
   if (convite) {

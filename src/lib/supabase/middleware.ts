@@ -29,13 +29,18 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Refresh the auth token
+  // Use getSession() instead of getUser() to avoid token refresh race
+  // conditions when Next.js makes concurrent requests (e.g. React Strict Mode,
+  // prefetches). getSession() reads the JWT locally without a network call.
+  // The middleware already refreshes tokens via the Supabase client constructor.
   const {
-    data: { user },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  const user = session?.user ?? null;
 
   // Redirect unauthenticated users to login (except public routes)
-  const publicRoutes = ["/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/auth/callback", "/convite"];
+  const publicRoutes = ["/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/auth/callback", "/convite", "/api/calendar"];
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
   );

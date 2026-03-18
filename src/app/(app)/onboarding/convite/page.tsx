@@ -11,8 +11,9 @@ export default async function OnboardingConvitePage({
 }) {
   const params = await searchParams;
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) redirect("/login");
+  const user = session.user;
 
   // Get user's group (just created in step 1)
   const { data: memberships } = await supabase

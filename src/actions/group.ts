@@ -1,42 +1,51 @@
 "use server";
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
-export async function createGroup(formData: FormData) {
+export async function createGroup(formData: FormData): Promise<{ error?: string; success?: boolean }> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  if (!user) return { error: "Sessao expirada. Faca login novamente." };
 
   const name = formData.get("name") as string;
   const childName = formData.get("childName") as string;
   const childBirthDate = formData.get("childBirthDate") as string;
 
-  // Create group
-  const { data: group, error: groupError } = await supabase
-    .from("coparenting_groups")
-    .insert({ name, created_by: user.id })
-    .select()
-    .single();
+  // Generate UUID upfront so we don't need .select() after insert
+  // (RLS SELECT policy requires group membership which doesn't exist yet)
+  const groupId = crypto.randomUUID();
 
-  if (groupError) redirect("/onboarding?error=" + encodeURIComponent(groupError.message));
+  // Create group
+  const { error: groupError } = await supabase
+    .from("coparenting_groups")
+    .insert({ id: groupId, name, created_by: user.id });
+
+  if (groupError) return { error: groupError.message };
 
   // Add creator as admin
-  await supabase.from("group_members").insert({
-    group_id: group.id,
+  const { error: memberError } = await supabase.from("group_members").insert({
+    group_id: groupId,
     user_id: user.id,
     role: "admin",
   });
 
+  if (memberError) return { error: memberError.message };
+
   // Add child if provided
   if (childName && childBirthDate) {
-    await supabase.from("children").insert({
-      group_id: group.id,
+    const { error: childError } = await supabase.from("children").insert({
+      group_id: groupId,
       full_name: childName,
       birth_date: childBirthDate,
     });
+    if (childError) return { error: childError.message };
   }
 
-  redirect("/onboarding/convite");
+  // Don't call revalidatePath here — it triggers a page re-render during
+  // the server action which causes redirect loops with auth token refresh.
+  // The client component will navigate with router.push() + router.refresh().
+  return { success: true };
 }
 
 export async function addChild(formData: FormData) {
