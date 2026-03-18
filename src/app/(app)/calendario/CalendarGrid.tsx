@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useMemo } from "react";
 import {
   getMonthGrid,
   isToday,
@@ -10,6 +11,7 @@ import {
 } from "@/lib/calendar-utils";
 import type { CustodyDayInfo, ParentColorMap } from "@/lib/calendar-utils";
 import { DAY_NAMES, MONTH_NAMES } from "@/lib/constants";
+import { getHolidayMap } from "@/lib/brazilian-holidays";
 
 interface CalendarGridProps {
   initialYear: number;
@@ -34,6 +36,7 @@ export default function CalendarGrid({
 
   const grid = getMonthGrid(year, month);
   const todayKey = formatDateKey(new Date());
+  const holidayMap = useMemo(() => getHolidayMap(year), [year]);
 
   function prevMonth() {
     if (month === 0) {
@@ -110,36 +113,45 @@ export default function CalendarGrid({
           const dayNum = parseDateKey(dateKey).getDate();
           const today = dateKey === todayKey;
           const weekend = isWeekend(dateKey);
+          const holiday = holidayMap[dateKey];
 
           return (
             <button
               key={dateKey}
               onClick={() => handleDayClick(dateKey)}
+              title={holiday || undefined}
               className={`
                 aspect-square rounded-lg flex flex-col items-center justify-center relative
                 text-sm transition-all
-                ${weekend ? "bg-gray-50" : ""}
+                ${holiday ? "bg-red-50" : weekend ? "bg-gray-50" : ""}
                 ${today ? "ring-2 ring-primary ring-offset-1" : ""}
                 hover:bg-gray-100
               `}
             >
-              <span className={`text-xs font-medium ${today ? "text-primary font-bold" : "text-dark"}`}>
+              <span className={`text-xs font-medium ${
+                holiday ? "text-red-500 font-bold" : today ? "text-primary font-bold" : "text-dark"
+              }`}>
                 {dayNum}
               </span>
-              {info && (
-                <div
-                  className="w-2 h-2 rounded-full mt-0.5"
-                  style={{ backgroundColor: info.color }}
-                  title={info.userName}
-                />
-              )}
+              <div className="flex items-center gap-0.5 mt-0.5">
+                {holiday && (
+                  <div className="w-1.5 h-1.5 rounded-full bg-red-400" />
+                )}
+                {info && (
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: info.color }}
+                    title={info.userName}
+                  />
+                )}
+              </div>
             </button>
           );
         })}
       </div>
 
       {/* Legend */}
-      <div className="flex items-center gap-4 mt-4 pt-3 border-t border-gray-100">
+      <div className="flex flex-wrap items-center gap-4 mt-4 pt-3 border-t border-gray-100">
         {Object.entries(parentColors).map(([userId, { name, color }]) => (
           <div key={userId} className="flex items-center gap-2">
             <div
@@ -151,6 +163,10 @@ export default function CalendarGrid({
             </span>
           </div>
         ))}
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-red-400" />
+          <span className="text-xs text-muted">Feriado</span>
+        </div>
       </div>
     </div>
   );

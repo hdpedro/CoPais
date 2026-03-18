@@ -1,6 +1,7 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist } from "next/font/google";
 import "./globals.css";
+import { ServiceWorkerRegister } from "./sw-register";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -9,8 +10,31 @@ const geistSans = Geist({
 
 export const metadata: Metadata = {
   title: "2Lares - Coparentalidade Inteligente",
-  description:
-    "Organize a rotina do seu filho com mais clareza e tranquilidade.",
+  description: "Organize a rotina do seu filho com mais clareza e tranquilidade.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "2Lares",
+  },
+  icons: {
+    icon: [
+      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
+      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
+    ],
+    apple: [
+      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
+    ],
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1A3B3A",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: "cover",
 };
 
 export default function RootLayout({
@@ -20,7 +44,18 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR">
-      <body className={`${geistSans.variable} antialiased`}>{children}</body>
+      <head>
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="2Lares" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/* Splash screens for iOS */}
+        <meta name="mobile-web-app-capable" content="yes" />
+      </head>
+      <body className={`${geistSans.variable} antialiased`}>
+        {children}
+        <ServiceWorkerRegister />
+      </body>
     </html>
   );
 }

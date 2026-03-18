@@ -68,7 +68,20 @@ export default function ChatRoom({
         (payload) => {
           const msg = payload.new as Message;
           msg.profiles = { full_name: memberNames[msg.sender_id] || "Usuario" };
-          setMessages((prev) => [...prev, msg]);
+          setMessages((prev) => {
+            // Replace optimistic message if it matches (same sender + same text)
+            const optimisticIdx = prev.findIndex(
+              (m) => m.id.startsWith("optimistic-") && m.sender_id === msg.sender_id && m.text === msg.text
+            );
+            if (optimisticIdx !== -1) {
+              const updated = [...prev];
+              updated[optimisticIdx] = msg;
+              return updated;
+            }
+            // Skip if already in list (duplicate from realtime)
+            if (prev.some((m) => m.id === msg.id)) return prev;
+            return [...prev, msg];
+          });
         }
       )
       .subscribe();
@@ -108,6 +121,20 @@ export default function ChatRoom({
   async function sendMessage(text: string) {
     if (!text.trim() || sending) return;
 
+    const trimmed = text.trim();
+    const optimisticId = `optimistic-${Date.now()}`;
+
+    // Optimistic: show message instantly
+    const optimisticMsg: Message = {
+      id: optimisticId,
+      sender_id: userId,
+      text: trimmed,
+      created_at: new Date().toISOString(),
+      profiles: { full_name: memberNames[userId] || "Usuario" },
+    };
+
+    setMessages((prev) => [...prev, optimisticMsg]);
+    setNewMessage("");
     setSending(true);
     setShowSuggestion(false);
     setToneResult(null);
@@ -122,19 +149,20 @@ export default function ChatRoom({
     const { error } = await supabase.from("chat_messages").insert({
       group_id: groupId,
       sender_id: userId,
-      text: text.trim(),
+      text: trimmed,
     });
 
     if (error) {
+      // Remove optimistic message on failure
+      setMessages((prev) => prev.filter((m) => m.id !== optimisticId));
+      setNewMessage(trimmed);
+
       if (error.message?.includes("JWT") || error.code === "PGRST301") {
         window.location.href = "/login";
         return;
       }
     }
 
-    if (!error) {
-      setNewMessage("");
-    }
     setSending(false);
   }
 
