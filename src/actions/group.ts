@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { verifyGroupMembership } from "@/lib/auth-utils";
 
 export async function createGroup(formData: FormData): Promise<{ error?: string; success?: boolean }> {
   const supabase = await createClient();
@@ -54,6 +55,13 @@ export async function addChild(formData: FormData) {
   if (!user) redirect("/login");
 
   const groupId = formData.get("groupId") as string;
+
+  // Verify user belongs to this group
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
+  }
+
   const fullName = formData.get("fullName") as string;
   const birthDate = formData.get("birthDate") as string;
   const allergies = formData.get("allergies") as string;
@@ -77,6 +85,23 @@ export async function updateChild(formData: FormData) {
   if (!user) redirect("/login");
 
   const id = formData.get("id") as string;
+
+  // Verify user belongs to the child's group
+  const { data: child } = await supabase
+    .from("children")
+    .select("group_id")
+    .eq("id", id)
+    .single();
+
+  if (!child) {
+    redirect("/criancas?error=" + encodeURIComponent("Crianca nao encontrada."));
+  }
+
+  const membership = await verifyGroupMembership(supabase, child.group_id, user.id);
+  if (!membership) {
+    redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
+  }
+
   const fullName = formData.get("fullName") as string;
   const birthDate = formData.get("birthDate") as string;
   const allergies = formData.get("allergies") as string;

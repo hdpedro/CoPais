@@ -51,6 +51,12 @@ export async function updateExpenseStatus(formData: FormData) {
   const expenseId = formData.get("expenseId") as string;
   const status = formData.get("status") as string;
 
+  // Validate status value
+  const validStatuses = ["approved", "rejected", "pending"];
+  if (!validStatuses.includes(status)) {
+    redirect("/despesas?error=" + encodeURIComponent("Status invalido."));
+  }
+
   // Fetch the expense to verify authorization
   const { data: expense } = await supabase
     .from("expenses")
@@ -68,13 +74,19 @@ export async function updateExpenseStatus(formData: FormData) {
     redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
   }
 
+  // Use correct fields based on status
+  const updateData: Record<string, unknown> = { status };
+  if (status === "approved") {
+    updateData.approved_by = user.id;
+    updateData.approved_at = new Date().toISOString();
+  } else if (status === "rejected") {
+    updateData.approved_by = null;
+    updateData.approved_at = null;
+  }
+
   const { error } = await supabase
     .from("expenses")
-    .update({
-      status,
-      approved_by: user.id,
-      approved_at: new Date().toISOString(),
-    })
+    .update(updateData)
     .eq("id", expenseId);
 
   if (error) redirect("/despesas?error=" + encodeURIComponent(error.message));

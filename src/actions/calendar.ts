@@ -226,11 +226,13 @@ export async function respondToSwapRequest(formData: FormData) {
     // Create swap events for single days
     const swapEvents = [];
 
+    // Swap logic: requester wants original_date covered by target,
+    // and in return covers target's proposed_date
     if (origEvents && origEvents[0]) {
       swapEvents.push({
         group_id: req.group_id,
         child_id: origEvents[0].child_id,
-        responsible_user_id: req.requester_id,
+        responsible_user_id: req.target_user_id, // target covers requester's date
         start_date: req.original_date,
         end_date: req.original_date,
         custody_type: "swap",
@@ -243,7 +245,7 @@ export async function respondToSwapRequest(formData: FormData) {
       swapEvents.push({
         group_id: req.group_id,
         child_id: propEvents[0].child_id,
-        responsible_user_id: req.target_user_id,
+        responsible_user_id: req.requester_id, // requester covers target's date
         start_date: req.proposed_date,
         end_date: req.proposed_date,
         custody_type: "swap",

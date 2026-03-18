@@ -96,11 +96,19 @@ export async function acceptInvitation(token: string) {
     })
     .eq("id", invitation.id);
 
-  // Update user profile role if needed
-  await supabase
+  // Update user profile role only if not already set (avoid overwriting existing role)
+  const { data: currentProfile } = await supabase
     .from("profiles")
-    .update({ role: invitation.role })
-    .eq("id", user.id);
+    .select("role")
+    .eq("id", user.id)
+    .single();
+
+  if (!currentProfile?.role || currentProfile.role === "parent") {
+    await supabase
+      .from("profiles")
+      .update({ role: invitation.role })
+      .eq("id", user.id);
+  }
 
   redirect("/dashboard");
 }

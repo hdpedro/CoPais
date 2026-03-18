@@ -55,7 +55,7 @@ export default async function ProfilePage() {
 
         <div className="py-2 border-t border-gray-100">
           <p className="text-xs text-muted">Membro desde</p>
-          <p className="text-sm text-dark">{new Date(profile?.created_at || "").toLocaleDateString("pt-BR")}</p>
+          <p className="text-sm text-dark">{profile?.created_at ? new Date(profile.created_at).toLocaleDateString("pt-BR") : "—"}</p>
         </div>
       </div>
 
