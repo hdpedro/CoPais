@@ -48,14 +48,15 @@ export default async function AppointmentsPage({
 
   function formatDate(dateStr: string) {
     const date = new Date(dateStr);
-    const day = date.getDate();
-    const month = date.toLocaleDateString("pt-BR", { month: "short" });
+    const day = date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "numeric" });
+    const month = date.toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "short" });
     return { day, month };
   }
 
   function formatTime(dateStr: string) {
     const date = new Date(dateStr);
     return date.toLocaleTimeString("pt-BR", {
+      timeZone: "America/Sao_Paulo",
       hour: "2-digit",
       minute: "2-digit",
     });

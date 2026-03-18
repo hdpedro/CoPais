@@ -17,6 +17,8 @@ interface ScheduleBuilderProps {
   members: Member[];
   currentUserId: string;
   hasExistingSchedule?: boolean;
+  initialPattern?: (string | null)[] | null;
+  initialStartDate?: string | null;
 }
 
 export default function ScheduleBuilder({
@@ -25,15 +27,19 @@ export default function ScheduleBuilder({
   members,
   currentUserId,
   hasExistingSchedule = false,
+  initialPattern,
+  initialStartDate,
 }: ScheduleBuilderProps) {
   const router = useRouter();
   // 14-day pattern: null = unassigned, user_id = assigned
   const [pattern, setPattern] = useState<(string | null)[]>(
-    Array(14).fill(null)
+    initialPattern && initialPattern.length === 14
+      ? initialPattern
+      : Array(14).fill(null)
   );
   const [childId, setChildId] = useState(children[0]?.id || "");
   const [startDate, setStartDate] = useState(
-    new Date().toISOString().split("T")[0]
+    initialStartDate || new Date().toISOString().split("T")[0]
   );
   const [months, setMonths] = useState(6);
   const [submitting, setSubmitting] = useState(false);
@@ -152,6 +158,7 @@ export default function ScheduleBuilder({
       setError(result.error);
     } else {
       router.push("/calendario");
+      router.refresh();
     }
   }
 

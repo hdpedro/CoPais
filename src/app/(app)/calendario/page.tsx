@@ -32,15 +32,22 @@ export default async function CalendarPage() {
     .eq("group_id", groupId)
     .order("joined_at", { ascending: true });
 
-  // Assign colors by join order
-  const colors = [PARENT_COLORS.primary, PARENT_COLORS.secondary];
-  const parentColors: ParentColorMap = {};
+  // Assign distinct colors by join order
+  const allColors = [
+    PARENT_COLORS.primary,   // teal
+    PARENT_COLORS.secondary, // coral/red
+    "#8B5CF6",               // violet
+    "#F59E0B",               // amber
+    "#3B82F6",               // blue
+    "#EC4899",               // pink
+  ];
+  const allMembersMap: ParentColorMap = {};
   let currentUserRole = "member";
   (members || []).forEach((m, i) => {
     const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-    parentColors[m.user_id] = {
+    allMembersMap[m.user_id] = {
       name: p?.full_name || "Usuario",
-      color: colors[i] || colors[1],
+      color: allColors[i] || allColors[allColors.length - 1],
     };
     if (m.user_id === user.id) {
       currentUserRole = m.role;
@@ -61,16 +68,26 @@ export default async function CalendarPage() {
     .order("start_date");
 
   const custodyEvents = (events || []) as CustodyEvent[];
-  const custodyMap = buildCustodyMap(custodyEvents, parentColors);
+  const custodyMap = buildCustodyMap(custodyEvents, allMembersMap);
 
   // Convert map to serializable object for client
   const custodyMapObj: Record<string, { userId: string; userName: string; color: string }> = {};
   custodyMap.forEach((v, k) => { custodyMapObj[k] = v; });
 
+  // Build parentColors with only members who have events (for legend)
+  const usersWithEvents = new Set<string>();
+  custodyEvents.forEach((evt) => usersWithEvents.add(evt.responsible_user_id));
+  const parentColors: ParentColorMap = {};
+  for (const userId of usersWithEvents) {
+    if (allMembersMap[userId]) {
+      parentColors[userId] = allMembersMap[userId];
+    }
+  }
+
   // Swap balance
   const swapBalance = computeSwapBalance(
     custodyEvents,
-    parentColors,
+    allMembersMap,
     formatDateKey(threeMonthsAgo),
     formatDateKey(threeMonthsAhead)
   );

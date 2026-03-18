@@ -91,6 +91,7 @@ export default async function SaudePage({
     { data: growthCount },
     { data: illnessCount },
     { data: appointmentCount },
+    { data: professionalsCount },
   ] = await Promise.all([
     // Allergies
     supabase
@@ -150,6 +151,11 @@ export default async function SaudePage({
       .from("medical_appointments")
       .select("id", { count: "exact", head: true })
       .eq("child_id", selectedChildId),
+
+    supabase
+      .from("medical_professionals")
+      .select("id", { count: "exact", head: true })
+      .eq("group_id", groupId),
   ]);
 
   const appointment = nextAppointment?.[0] || null;
@@ -218,6 +224,13 @@ export default async function SaudePage({
       href: "/saude/alergias",
       subtitle: `${allergies?.length ?? 0} registrada${(allergies?.length ?? 0) !== 1 ? "s" : ""}`,
       color: "text-red-500",
+    },
+    {
+      icon: "🩺",
+      label: "Profissionais",
+      href: "/saude/profissionais",
+      subtitle: `${professionalsCount?.length ?? 0} cadastrado${(professionalsCount?.length ?? 0) !== 1 ? "s" : ""}`,
+      color: "text-violet-500",
     },
   ];
 
@@ -442,11 +455,13 @@ export default async function SaudePage({
               <div className="flex-shrink-0 bg-primary/10 rounded-xl px-3 py-2 text-center">
                 <p className="text-2xl font-bold text-primary">
                   {new Date(appointment.appointment_date).toLocaleDateString("pt-BR", {
+                    timeZone: "America/Sao_Paulo",
                     day: "2-digit",
                   })}
                 </p>
                 <p className="text-xs text-primary font-medium uppercase">
                   {new Date(appointment.appointment_date).toLocaleDateString("pt-BR", {
+                    timeZone: "America/Sao_Paulo",
                     month: "short",
                   })}
                 </p>
@@ -492,6 +507,7 @@ export default async function SaudePage({
                 )}
                 <p className="text-xs text-primary font-medium mt-1">
                   {new Date(appointment.appointment_date).toLocaleTimeString("pt-BR", {
+                    timeZone: "America/Sao_Paulo",
                     hour: "2-digit",
                     minute: "2-digit",
                   })}
@@ -509,7 +525,7 @@ export default async function SaudePage({
           {quickAccess.map((item) => (
             <Link
               key={item.href}
-              href={`${item.href}?crianca=${selectedChildId}`}
+              href={item.href === "/saude/profissionais" ? item.href : `${item.href}?crianca=${selectedChildId}`}
               className="bg-white rounded-xl p-3 shadow-sm text-center hover:shadow-md transition-shadow"
             >
               <span className="text-2xl block mb-1">{item.icon}</span>

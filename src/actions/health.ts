@@ -128,8 +128,8 @@ export async function createAppointment(formData: FormData) {
   const location = formData.get("location") as string;
   const notes = formData.get("notes") as string;
 
-  // Combine date + time into a TIMESTAMPTZ value
-  const appointmentDatetime = `${appointmentDate}T${appointmentTime}:00`;
+  // Combine date + time into a TIMESTAMPTZ value (Brazil timezone)
+  const appointmentDatetime = `${appointmentDate}T${appointmentTime}:00-03:00`;
 
   const { data: appointment, error } = await supabase
     .from("medical_appointments")
