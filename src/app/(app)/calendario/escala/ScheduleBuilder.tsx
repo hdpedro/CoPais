@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { generateSchedule } from "@/actions/calendar";
 import { DAY_NAMES } from "@/lib/constants";
 
@@ -30,7 +29,6 @@ export default function ScheduleBuilder({
   initialPattern,
   initialStartDate,
 }: ScheduleBuilderProps) {
-  const router = useRouter();
   // 14-day pattern: null = unassigned, user_id = assigned
   const [pattern, setPattern] = useState<(string | null)[]>(
     initialPattern && initialPattern.length === 14
@@ -157,8 +155,8 @@ export default function ScheduleBuilder({
     if (result?.error) {
       setError(result.error);
     } else {
-      router.push("/calendario");
-      router.refresh();
+      // Force full page reload to bypass Next.js client-side cache
+      window.location.href = "/calendario";
     }
   }
 
