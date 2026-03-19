@@ -43,13 +43,12 @@ export default async function SchedulePage() {
     color: i === 0 ? "#0EA5A0" : "#FF6B5B",
   }));
 
-  // Check if there's already a schedule configured
+  // Check if there's already a schedule configured (any regular events)
   const { data: existingEvents } = await supabase
     .from("custody_events")
     .select("id")
     .eq("group_id", groupId)
     .eq("custody_type", "regular")
-    .eq("notes", "Gerado pela escala quinzenal")
     .limit(1);
 
   const hasExistingSchedule = (existingEvents || []).length > 0;
@@ -76,8 +75,7 @@ export default async function SchedulePage() {
       .select("start_date, end_date, responsible_user_id")
       .eq("group_id", groupId)
       .eq("custody_type", "regular")
-      .eq("notes", "Gerado pela escala quinzenal")
-      .order("start_date", { ascending: true });
+            .order("start_date", { ascending: true });
 
     if (scheduleEvents && scheduleEvents.length > 0) {
       existingStartDate = scheduleEvents[0].start_date;
