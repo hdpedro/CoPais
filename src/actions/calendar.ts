@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { verifyGroupMembership } from "@/lib/auth-utils";
+import { createNotificationWithPush } from "@/lib/push";
 
 export async function createCustodyEvent(formData: FormData) {
   const supabase = await createClient();
@@ -171,6 +172,32 @@ export async function createSwapRequest(formData: FormData) {
 
   if (error) return { error: error.message };
 
+  // Send push notification to target user
+  try {
+    const { data: requesterProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .single();
+
+    const requesterName = requesterProfile?.full_name?.split(" ")[0] || "Alguem";
+    const isVisit = !proposedDate;
+    const dateFormatted = new Date(originalDate + "T12:00:00").toLocaleDateString("pt-BR", {
+      day: "numeric",
+      month: "short",
+    });
+
+    await createNotificationWithPush(
+      targetUserId,
+      "swap_request",
+      isVisit ? "Solicitacao de Visita" : "Solicitacao de Troca",
+      `${requesterName} ${isVisit ? "quer visitar" : "quer trocar o dia"} ${dateFormatted}`,
+      "/calendario"
+    );
+  } catch {
+    // Push failure shouldn't block the swap request
+  }
+
   revalidatePath("/calendario");
   return { success: true };
 }
@@ -260,6 +287,29 @@ export async function respondToSwapRequest(formData: FormData) {
         return { error: insertError.message };
       }
     }
+  }
+
+  // Send push notification to requester about the response
+  try {
+    const { data: responderProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .single();
+
+    const responderName = responderProfile?.full_name?.split(" ")[0] || "Alguem";
+
+    await createNotificationWithPush(
+      req.requester_id,
+      "swap_response",
+      response === "approved" ? "Troca Aceita!" : "Troca Recusada",
+      response === "approved"
+        ? `${responderName} aceitou sua solicitacao de troca`
+        : `${responderName} recusou sua solicitacao de troca`,
+      "/calendario"
+    );
+  } catch {
+    // Push failure shouldn't block the response
   }
 
   revalidatePath("/calendario");

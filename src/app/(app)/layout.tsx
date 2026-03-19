@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { signOut } from "@/actions/auth";
 import ResponsiveShell from "@/components/ResponsiveShell";
+import PushNotificationManager from "@/components/PushNotificationManager";
 
 export default async function AppLayout({
   children,
@@ -32,6 +33,8 @@ export default async function AppLayout({
       <ResponsiveShell initial={initial} fullName={fullName}>
         {children}
       </ResponsiveShell>
+
+      <PushNotificationManager />
 
       {/* Hidden sign-out form for profile page */}
       <form id="signout-form" action={signOut} className="hidden">

@@ -1,4 +1,4 @@
-const CACHE_NAME = "2lares-v1";
+const CACHE_NAME = "2lares-v2";
 const OFFLINE_URL = "/login";
 
 // Pre-cache essential assets on install
@@ -67,4 +67,62 @@ self.addEventListener("fetch", (event) => {
     );
     return;
   }
+});
+
+// ============================================================
+// PUSH NOTIFICATIONS
+// ============================================================
+
+self.addEventListener("push", (event) => {
+  if (!event.data) return;
+
+  let data;
+  try {
+    data = event.data.json();
+  } catch {
+    data = {
+      title: "2Lares",
+      body: event.data.text(),
+      icon: "/icon-192x192.png",
+    };
+  }
+
+  const options = {
+    body: data.body || "",
+    icon: data.icon || "/icon-192x192.png",
+    badge: "/icon-96x96.png",
+    tag: data.tag || "default",
+    data: {
+      url: data.url || "/dashboard",
+    },
+    vibrate: [200, 100, 200],
+    actions: data.actions || [],
+    renotify: true,
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || "2Lares", options)
+  );
+});
+
+// Handle notification click — open the app at the right page
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+
+  const targetUrl = event.notification.data?.url || "/dashboard";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      // If app is already open, focus it and navigate
+      for (const client of windowClients) {
+        if (client.url.includes(self.location.origin)) {
+          client.focus();
+          client.navigate(targetUrl);
+          return;
+        }
+      }
+      // Otherwise open new window
+      return clients.openWindow(targetUrl);
+    })
+  );
 });

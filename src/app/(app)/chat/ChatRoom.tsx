@@ -161,6 +161,13 @@ export default function ChatRoom({
         window.location.href = "/login";
         return;
       }
+    } else {
+      // Notify other members via push (fire and forget)
+      fetch("/api/push/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ groupId, messageText: trimmed }),
+      }).catch(() => {});
     }
 
     setSending(false);
