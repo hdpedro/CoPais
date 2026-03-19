@@ -1,6 +1,10 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createEvent } from "@/actions/events";
+import EventCard from "./EventCard";
+
+// Force dynamic rendering — never cache this page
+export const dynamic = "force-dynamic";
 
 export default async function EventosPage() {
   const supabase = await createClient();
@@ -27,8 +31,11 @@ export default async function EventosPage() {
     .order("event_date", { ascending: true });
 
   const today = new Date().toISOString().split("T")[0];
-  const upcoming = events?.filter(e => e.event_date >= today) || [];
-  const past = events?.filter(e => e.event_date < today) || [];
+
+  // Active upcoming events (not cancelled, future date)
+  const upcoming = events?.filter(e => e.event_date >= today && e.status !== "cancelled") || [];
+  // Past events OR cancelled events (regardless of date)
+  const pastAndCancelled = events?.filter(e => e.event_date < today || e.status === "cancelled") || [];
 
   return (
     <div className="space-y-6 pb-20">
@@ -91,48 +98,36 @@ export default async function EventosPage() {
         </button>
       </form>
 
-      {/* Upcoming Events */}
+      {/* Upcoming Events (active only) */}
       {upcoming.length > 0 && (
         <div>
           <h3 className="text-lg font-semibold text-dark mb-3">Proximos eventos</h3>
           <div className="space-y-3">
             {upcoming.map((event) => (
-              <div key={event.id} className="bg-white rounded-xl shadow-sm overflow-hidden">
-                {event.image_url && (
-                  <img src={event.image_url} alt={event.title} className="w-full h-40 object-cover" />
-                )}
-                <div className="p-4">
-                  <div className="flex items-center justify-between mb-2">
-                    <h3 className="font-semibold text-dark text-base">{event.title}</h3>
-                    <span className="text-xs bg-primary/10 text-primary px-2 py-1 rounded-full whitespace-nowrap ml-2">
-                      {new Date(event.event_date).toLocaleDateString("pt-BR")}
-                    </span>
-                  </div>
-                  {event.description && <p className="text-base text-dark/80 mb-3 leading-relaxed">{event.description}</p>}
-                  <div className="flex flex-wrap items-center gap-3 text-sm text-muted">
-                    {event.event_time && <span>🕐 {event.event_time}</span>}
-                    {event.location && <span>📍 {event.location}</span>}
-                    {(event.children as any)?.full_name && <span>👶 {(event.children as any).full_name}</span>}
-                  </div>
-                </div>
-              </div>
+              <EventCard
+                key={event.id}
+                event={event}
+                groupId={groupId}
+                childrenList={children || []}
+              />
             ))}
           </div>
         </div>
       )}
 
-      {/* Past Events */}
-      {past.length > 0 && (
+      {/* Past & Cancelled Events */}
+      {pastAndCancelled.length > 0 && (
         <div>
-          <h3 className="text-lg font-semibold text-dark mb-3">Eventos passados</h3>
+          <h3 className="text-lg font-semibold text-dark mb-3">Eventos passados e cancelados</h3>
           <div className="space-y-2">
-            {past.map((event) => (
-              <div key={event.id} className="bg-white rounded-xl p-3 shadow-sm opacity-70">
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-dark text-sm">{event.title}</span>
-                  <span className="text-xs text-muted">{new Date(event.event_date).toLocaleDateString("pt-BR")}</span>
-                </div>
-              </div>
+            {pastAndCancelled.map((event) => (
+              <EventCard
+                key={event.id}
+                event={event}
+                groupId={groupId}
+                childrenList={children || []}
+                isPast
+              />
             ))}
           </div>
         </div>

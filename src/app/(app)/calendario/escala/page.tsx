@@ -3,6 +3,9 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import ScheduleBuilder from "./ScheduleBuilder";
 
+// Force dynamic rendering — never cache this page
+export const dynamic = "force-dynamic";
+
 export default async function SchedulePage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -40,47 +43,80 @@ export default async function SchedulePage() {
     color: i === 0 ? "#0EA5A0" : "#FF6B5B",
   }));
 
-  // Check if there's already a schedule configured and reconstruct pattern
+  // Check if there's already a schedule configured
   const { data: existingEvents } = await supabase
     .from("custody_events")
-    .select("start_date, end_date, responsible_user_id")
+    .select("id")
     .eq("group_id", groupId)
     .eq("custody_type", "regular")
     .eq("notes", "Gerado pela escala quinzenal")
-    .order("start_date", { ascending: true });
+    .limit(1);
 
   const hasExistingSchedule = (existingEvents || []).length > 0;
 
-  // Reconstruct the 14-day pattern from existing events
+  // Try to load saved schedule configuration first
   let existingPattern: (string | null)[] | null = null;
   let existingStartDate: string | null = null;
 
-  if (hasExistingSchedule && existingEvents && existingEvents.length > 0) {
-    // Use the first event's start_date as the schedule origin
-    existingStartDate = existingEvents[0].start_date;
-    const originDate = new Date(existingStartDate + "T12:00:00");
+  const { data: savedSchedule } = await supabase
+    .from("custody_schedules")
+    .select("pattern, start_date")
+    .eq("group_id", groupId)
+    .limit(1)
+    .single();
 
-    // Build a map: dayOffset -> responsible_user_id for the first 14 days
-    const patternMap = new Map<number, string>();
+  if (savedSchedule) {
+    // Use saved configuration (reliable)
+    existingPattern = savedSchedule.pattern as (string | null)[];
+    existingStartDate = savedSchedule.start_date;
+  } else if (hasExistingSchedule) {
+    // Fallback: reconstruct pattern from events (for schedules created before this update)
+    const { data: scheduleEvents } = await supabase
+      .from("custody_events")
+      .select("start_date, end_date, responsible_user_id")
+      .eq("group_id", groupId)
+      .eq("custody_type", "regular")
+      .eq("notes", "Gerado pela escala quinzenal")
+      .order("start_date", { ascending: true });
 
-    for (const evt of existingEvents) {
-      const evtStart = new Date(evt.start_date + "T12:00:00");
-      const evtEnd = new Date(evt.end_date + "T12:00:00");
+    if (scheduleEvents && scheduleEvents.length > 0) {
+      existingStartDate = scheduleEvents[0].start_date;
+      const originDate = new Date(existingStartDate + "T12:00:00");
 
-      let d = new Date(evtStart);
-      while (d <= evtEnd) {
-        const diffMs = d.getTime() - originDate.getTime();
-        const dayOffset = Math.round(diffMs / (1000 * 60 * 60 * 24));
-        const patternIdx = ((dayOffset % 14) + 14) % 14; // handle negatives
-        if (patternIdx >= 0 && patternIdx < 14 && !patternMap.has(patternIdx)) {
-          patternMap.set(patternIdx, evt.responsible_user_id);
+      // Only examine the first 14 days to reconstruct the pattern
+      const patternMap = new Map<number, string>();
+      const fmt = (d: Date) => {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return `${y}-${m}-${day}`;
+      };
+
+      for (let dayIdx = 0; dayIdx < 14; dayIdx++) {
+        const targetDate = new Date(originDate);
+        targetDate.setDate(targetDate.getDate() + dayIdx);
+        const targetDateStr = fmt(targetDate);
+
+        // Find which event covers this specific date
+        for (const evt of scheduleEvents) {
+          if (targetDateStr >= evt.start_date && targetDateStr <= evt.end_date) {
+            patternMap.set(dayIdx, evt.responsible_user_id);
+            break;
+          }
         }
-        d.setDate(d.getDate() + 1);
       }
-    }
 
-    existingPattern = Array.from({ length: 14 }, (_, i) => patternMap.get(i) || null);
+      existingPattern = Array.from({ length: 14 }, (_, i) => patternMap.get(i) || null);
+    }
   }
+
+  // Count total events for display
+  const { count: eventCount } = await supabase
+    .from("custody_events")
+    .select("id", { count: "exact", head: true })
+    .eq("group_id", groupId)
+    .eq("custody_type", "regular")
+    .eq("notes", "Gerado pela escala quinzenal");
 
   return (
     <div className="max-w-lg mx-auto pb-20">
@@ -107,7 +143,7 @@ export default async function SchedulePage() {
             <div>
               <p className="text-sm font-medium text-amber-800">Escala ja configurada</p>
               <p className="text-xs text-amber-600 mt-1">
-                Voce ja possui {existingEvents?.length || 0} eventos de guarda gerados. Ao gerar uma nova escala, os eventos anteriores serao substituidos automaticamente.
+                Voce ja possui {eventCount || 0} eventos de guarda gerados. Ao gerar uma nova escala, os eventos anteriores serao substituidos automaticamente.
               </p>
             </div>
           </div>

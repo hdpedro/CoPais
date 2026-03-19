@@ -155,8 +155,8 @@ export default function ScheduleBuilder({
     if (result?.error) {
       setError(result.error);
     } else {
-      // Force full page reload to bypass Next.js client-side cache
-      window.location.href = "/calendario";
+      // Force full page reload with cache-busting to bypass all caches
+      window.location.href = "/calendario?t=" + Date.now();
     }
   }
 

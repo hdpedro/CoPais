@@ -12,6 +12,9 @@ import {
 } from "@/lib/calendar-utils";
 import CalendarClient from "./CalendarClient";
 
+// Force dynamic rendering — never cache this page
+export const dynamic = "force-dynamic";
+
 export default async function CalendarPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

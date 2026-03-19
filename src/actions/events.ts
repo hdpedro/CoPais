@@ -55,3 +55,76 @@ export async function createEvent(formData: FormData) {
   if (error) redirect("/eventos?error=" + encodeURIComponent(error.message));
   redirect("/eventos");
 }
+
+export async function updateEvent(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const eventId = formData.get("eventId") as string;
+  const groupId = formData.get("groupId") as string;
+
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    redirect("/eventos?error=" + encodeURIComponent("Sem permissao."));
+  }
+
+  const childId = formData.get("childId") as string;
+  const title = formData.get("title") as string;
+  const description = formData.get("description") as string;
+  const eventDate = formData.get("eventDate") as string;
+  const eventTime = formData.get("eventTime") as string;
+  const location = formData.get("location") as string;
+
+  const { error } = await supabase.from("events").update({
+    child_id: childId || null,
+    title,
+    description: description || null,
+    event_date: eventDate,
+    event_time: eventTime || null,
+    location: location || null,
+  }).eq("id", eventId).eq("group_id", groupId);
+
+  if (error) redirect("/eventos?error=" + encodeURIComponent(error.message));
+  redirect("/eventos");
+}
+
+export async function deleteEvent(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const eventId = formData.get("eventId") as string;
+  const groupId = formData.get("groupId") as string;
+
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    redirect("/eventos?error=" + encodeURIComponent("Sem permissao."));
+  }
+
+  const { error } = await supabase.from("events").delete()
+    .eq("id", eventId).eq("group_id", groupId);
+
+  if (error) redirect("/eventos?error=" + encodeURIComponent(error.message));
+  redirect("/eventos");
+}
+
+export async function cancelEvent(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const eventId = formData.get("eventId") as string;
+  const groupId = formData.get("groupId") as string;
+
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    redirect("/eventos?error=" + encodeURIComponent("Sem permissao."));
+  }
+
+  const { error } = await supabase.from("events").update({ status: "cancelled" })
+    .eq("id", eventId).eq("group_id", groupId);
+
+  if (error) redirect("/eventos?error=" + encodeURIComponent(error.message));
+  redirect("/eventos");
+}

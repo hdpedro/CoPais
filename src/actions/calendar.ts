@@ -413,6 +413,22 @@ export async function generateSchedule(formData: FormData) {
     if (error) return { error: error.message };
   }
 
+  // Save schedule configuration for future editing (upsert)
+  await adminClient
+    .from("custody_schedules")
+    .upsert(
+      {
+        group_id: groupId,
+        child_id: childId,
+        pattern: pattern,
+        start_date: startDateStr,
+        months,
+        created_by: user.id,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "group_id,child_id" }
+    );
+
   revalidatePath("/calendario");
   return { success: true, count: events.length };
 }
