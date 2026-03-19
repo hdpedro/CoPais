@@ -316,11 +316,15 @@ export async function generateSchedule(formData: FormData) {
   // We must map each date to its correct day-of-week in the pattern,
   // NOT just apply sequentially from the start date.
 
-  // Reference point: the Sunday of the start date's week
-  // This anchors the 14-day cycle so day-of-week always matches pattern index
+  // Reference point: the MONDAY of the start date's week
+  // This anchors the 14-day cycle so Mon-Sun belong to the SAME week.
+  // Without this, Sunday would be grouped with the NEXT week's Monday,
+  // causing the calendar to show Sunday assigned to the wrong parent.
   const startDayOfWeek = startDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-  const refSunday = new Date(startDate);
-  refSunday.setDate(refSunday.getDate() - startDayOfWeek);
+  const refMonday = new Date(startDate);
+  // Calculate days back to Monday: Sun(0)->-6, Mon(1)->0, Tue(2)->-1, etc.
+  const daysToMonday = startDayOfWeek === 0 ? -6 : -(startDayOfWeek - 1);
+  refMonday.setDate(refMonday.getDate() + daysToMonday);
 
   // Walk through each day, grouping consecutive days with the same parent into ranges
   const events: Array<Record<string, unknown>> = [];
@@ -330,7 +334,7 @@ export async function generateSchedule(formData: FormData) {
 
   while (current < endDate) {
     const dayOfWeek = current.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
-    const daysSinceRef = Math.round((current.getTime() - refSunday.getTime()) / 86400000);
+    const daysSinceRef = Math.round((current.getTime() - refMonday.getTime()) / 86400000);
     const weekInCycle = Math.floor(daysSinceRef / 7) % 2; // 0=Week1, 1=Week2
     const patternIdx = weekInCycle * 7 + dayOfWeek;
     const userId = pattern[patternIdx];
