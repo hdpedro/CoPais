@@ -119,32 +119,35 @@ export default function CalendarGrid({
             <button
               key={dateKey}
               onClick={() => handleDayClick(dateKey)}
-              title={holiday || undefined}
+              title={info ? info.userName : holiday || undefined}
               className={`
                 aspect-square rounded-lg flex flex-col items-center justify-center relative
-                text-sm transition-all
-                ${holiday ? "bg-purple-50" : weekend ? "bg-gray-50" : ""}
+                text-sm transition-all overflow-hidden
+                ${holiday && !info ? "bg-purple-50" : weekend && !info ? "bg-gray-50" : !info ? "" : ""}
                 ${today ? "ring-2 ring-primary ring-offset-1" : ""}
-                hover:bg-gray-100
+                hover:opacity-80
               `}
+              style={info ? { backgroundColor: info.color + "20" } : {}}
             >
               <span className={`text-xs font-medium ${
                 holiday ? "text-purple-600 font-bold" : today ? "text-primary font-bold" : "text-dark"
               }`}>
                 {dayNum}
               </span>
-              <div className="flex items-center gap-0.5 mt-0.5">
-                {holiday && (
-                  <div className="w-1.5 h-1.5 rounded-full bg-purple-400" />
-                )}
-                {info && (
-                  <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: info.color }}
-                    title={info.userName}
-                  />
-                )}
-              </div>
+              {/* Custody indicator: colored bar at bottom of cell */}
+              {info && (
+                <div
+                  className="absolute bottom-0 left-1 right-1 h-1.5 rounded-t-full"
+                  style={{ backgroundColor: info.color }}
+                />
+              )}
+              {/* Holiday indicator */}
+              {holiday && !info && (
+                <div className="w-1.5 h-1.5 rounded-full bg-purple-400 mt-0.5" />
+              )}
+              {holiday && info && (
+                <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-purple-400" />
+              )}
             </button>
           );
         })}
