@@ -310,15 +310,29 @@ export async function generateSchedule(formData: FormData) {
     return `${y}-${m}-${day}`;
   };
 
+  // CRITICAL: Pattern indices are day-of-week aligned:
+  // pattern[0]=Dom, pattern[1]=Seg, ..., pattern[6]=Sab (Week 1)
+  // pattern[7]=Dom, pattern[8]=Seg, ..., pattern[13]=Sab (Week 2)
+  // We must map each date to its correct day-of-week in the pattern,
+  // NOT just apply sequentially from the start date.
+
+  // Reference point: the Sunday of the start date's week
+  // This anchors the 14-day cycle so day-of-week always matches pattern index
+  const startDayOfWeek = startDate.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+  const refSunday = new Date(startDate);
+  refSunday.setDate(refSunday.getDate() - startDayOfWeek);
+
   // Walk through each day, grouping consecutive days with the same parent into ranges
   const events: Array<Record<string, unknown>> = [];
   const current = new Date(startDate);
   let rangeStart: Date | null = null;
   let rangeUserId: string | null = null;
-  let dayIndex = 0;
 
   while (current < endDate) {
-    const patternIdx = dayIndex % 14;
+    const dayOfWeek = current.getDay(); // 0=Sun, 1=Mon, ..., 6=Sat
+    const daysSinceRef = Math.round((current.getTime() - refSunday.getTime()) / 86400000);
+    const weekInCycle = Math.floor(daysSinceRef / 7) % 2; // 0=Week1, 1=Week2
+    const patternIdx = weekInCycle * 7 + dayOfWeek;
     const userId = pattern[patternIdx];
 
     if (userId !== null) {
@@ -365,7 +379,6 @@ export async function generateSchedule(formData: FormData) {
     }
 
     current.setDate(current.getDate() + 1);
-    dayIndex++;
   }
 
   // Close final range
