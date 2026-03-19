@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import CalendarGrid from "./CalendarGrid";
 import WeekendPlanner from "./WeekendPlanner";
-import SwapRequestModal from "./SwapRequestModal";
+import DayDetailSheet from "./DayDetailSheet";
 import SwapRequestList from "./SwapRequestList";
 import CalendarExportButton from "./CalendarExportButton";
 import SwapBalanceCard from "./SwapBalanceCard";
@@ -47,7 +47,7 @@ export default function CalendarClient({
   swapBalance,
   swapRequests,
 }: CalendarClientProps) {
-  const [swapModal, setSwapModal] = useState<{
+  const [dayDetail, setDayDetail] = useState<{
     isOpen: boolean;
     dateKey: string;
     dayInfo: CustodyDayInfo | null;
@@ -58,11 +58,21 @@ export default function CalendarClient({
     (d) => d.userId === currentUserId
   );
 
+  // Build set of dates with pending swap requests
+  const pendingSwapDates = useMemo(() => {
+    const dates = new Set<string>();
+    swapRequests.forEach((r) => {
+      if (r.status === "pending") {
+        dates.add(r.original_date);
+      }
+    });
+    return dates;
+  }, [swapRequests]);
+
   function handleDayClick(dateKey: string, info: CustodyDayInfo | null) {
-    // Parents: can request swap for days assigned to the other parent
-    // Non-parents (grandparents, etc.): can request a visit for any assigned day
-    if (info && info.userId !== currentUserId) {
-      setSwapModal({ isOpen: true, dateKey, dayInfo: info });
+    // Open day detail for any day with custody info
+    if (info) {
+      setDayDetail({ isOpen: true, dateKey, dayInfo: info });
     }
   }
 
@@ -76,6 +86,7 @@ export default function CalendarClient({
         currentUserId={currentUserId}
         groupId={groupId}
         onDayClick={handleDayClick}
+        pendingSwapDates={pendingSwapDates}
       />
 
       <SwapBalanceCard
@@ -90,14 +101,16 @@ export default function CalendarClient({
 
       <CalendarExportButton groupId={groupId} />
 
-      <SwapRequestModal
-        isOpen={swapModal.isOpen}
-        onClose={() => setSwapModal({ isOpen: false, dateKey: "", dayInfo: null })}
-        selectedDate={swapModal.dateKey}
-        dayInfo={swapModal.dayInfo}
+      {/* Day Detail Bottom Sheet with Quick Swap */}
+      <DayDetailSheet
+        isOpen={dayDetail.isOpen}
+        onClose={() => setDayDetail({ isOpen: false, dateKey: "", dayInfo: null })}
+        dateKey={dayDetail.dateKey}
+        dayInfo={dayDetail.dayInfo}
         groupId={groupId}
         currentUserId={currentUserId}
-        isVisitRequest={!isParentWithCustody}
+        isParent={isParentWithCustody}
+        pendingSwapForDay={pendingSwapDates.has(dayDetail.dateKey)}
       />
     </>
   );

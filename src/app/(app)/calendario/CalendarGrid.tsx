@@ -21,6 +21,7 @@ interface CalendarGridProps {
   currentUserId: string;
   groupId: string;
   onDayClick?: (dateKey: string, info: CustodyDayInfo | null) => void;
+  pendingSwapDates?: Set<string>;
 }
 
 export default function CalendarGrid({
@@ -30,6 +31,7 @@ export default function CalendarGrid({
   parentColors,
   currentUserId,
   onDayClick,
+  pendingSwapDates,
 }: CalendarGridProps) {
   const [year, setYear] = useState(initialYear);
   const [month, setMonth] = useState(initialMonth);
@@ -114,6 +116,7 @@ export default function CalendarGrid({
           const today = dateKey === todayKey;
           const weekend = isWeekend(dateKey);
           const holiday = holidayMap[dateKey];
+          const hasPendingSwap = pendingSwapDates?.has(dateKey) || false;
 
           return (
             <button
@@ -147,6 +150,14 @@ export default function CalendarGrid({
               )}
               {holiday && info && (
                 <div className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-purple-400" />
+              )}
+              {/* Pending swap indicator */}
+              {hasPendingSwap && (
+                <div className="absolute top-0.5 left-0.5 w-3 h-3 rounded-full bg-amber-400 flex items-center justify-center">
+                  <svg className="w-2 h-2 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                  </svg>
+                </div>
               )}
             </button>
           );
