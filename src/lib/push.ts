@@ -26,20 +26,133 @@ interface PushPayload {
   actions?: Array<{ action: string; title: string }>;
 }
 
+interface PushSubscriptionData {
+  endpoint: string;
+  p256dh: string;
+  auth: string;
+}
+
+// ============================================================
+// STORAGE: uses notifications table with type='system' and
+// title='push_sub' to store push subscriptions.
+// message column stores JSON: {endpoint, p256dh, auth}
+// This avoids needing a new table.
+// ============================================================
+
+/**
+ * Save a push subscription for a user
+ */
+export async function savePushSubscription(
+  userId: string,
+  subscription: PushSubscriptionData
+) {
+  const supabase = getAdminClient();
+  const subJson = JSON.stringify(subscription);
+
+  // Check if this subscription already exists for this user
+  const { data: existing } = await supabase
+    .from("notifications")
+    .select("id, message")
+    .eq("user_id", userId)
+    .eq("type", "system")
+    .eq("title", "push_sub");
+
+  // Check if endpoint already stored
+  if (existing) {
+    for (const row of existing) {
+      try {
+        const stored = JSON.parse(row.message);
+        if (stored.endpoint === subscription.endpoint) {
+          // Update keys if changed
+          if (stored.p256dh !== subscription.p256dh || stored.auth !== subscription.auth) {
+            await supabase
+              .from("notifications")
+              .update({ message: subJson })
+              .eq("id", row.id);
+          }
+          return; // Already exists
+        }
+      } catch {
+        // Invalid JSON, skip
+      }
+    }
+  }
+
+  // Insert new subscription
+  await supabase.from("notifications").insert({
+    user_id: userId,
+    type: "system",
+    title: "push_sub",
+    message: subJson,
+    link: null,
+    is_read: true, // Hidden from notification UI
+  });
+}
+
+/**
+ * Remove a push subscription
+ */
+export async function removePushSubscription(userId: string, endpoint: string) {
+  const supabase = getAdminClient();
+
+  const { data: subs } = await supabase
+    .from("notifications")
+    .select("id, message")
+    .eq("user_id", userId)
+    .eq("type", "system")
+    .eq("title", "push_sub");
+
+  if (!subs) return;
+
+  for (const row of subs) {
+    try {
+      const stored = JSON.parse(row.message);
+      if (stored.endpoint === endpoint) {
+        await supabase.from("notifications").delete().eq("id", row.id);
+        return;
+      }
+    } catch {
+      // skip
+    }
+  }
+}
+
+/**
+ * Get all push subscriptions for a user
+ */
+async function getUserSubscriptions(userId: string): Promise<PushSubscriptionData[]> {
+  const supabase = getAdminClient();
+
+  const { data } = await supabase
+    .from("notifications")
+    .select("message")
+    .eq("user_id", userId)
+    .eq("type", "system")
+    .eq("title", "push_sub");
+
+  if (!data) return [];
+
+  const subs: PushSubscriptionData[] = [];
+  for (const row of data) {
+    try {
+      const parsed = JSON.parse(row.message);
+      if (parsed.endpoint && parsed.p256dh && parsed.auth) {
+        subs.push(parsed);
+      }
+    } catch {
+      // skip invalid
+    }
+  }
+  return subs;
+}
+
 /**
  * Send push notification to a specific user (all their devices)
  */
 export async function sendPushToUser(userId: string, payload: PushPayload) {
   try {
-    const supabase = getAdminClient();
-
-    const { data: subscriptions, error } = await supabase
-      .from("push_subscriptions")
-      .select("*")
-      .eq("user_id", userId);
-
-    // If table doesn't exist or query fails, skip silently
-    if (error || !subscriptions || subscriptions.length === 0) return;
+    const subscriptions = await getUserSubscriptions(userId);
+    if (subscriptions.length === 0) return;
 
     const jsonPayload = JSON.stringify(payload);
 
@@ -60,10 +173,7 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
           // If subscription expired (410 Gone or 404), remove it
           const statusCode = (err as { statusCode?: number })?.statusCode;
           if (statusCode === 410 || statusCode === 404) {
-            await supabase
-              .from("push_subscriptions")
-              .delete()
-              .eq("id", sub.id);
+            await removePushSubscription(userId, sub.endpoint);
           }
         }
       })
@@ -84,7 +194,7 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
 }
 
 /**
- * Also insert into notifications table for in-app history
+ * Also insert into notifications table for in-app history + send push
  */
 export async function createNotificationWithPush(
   userId: string,
@@ -95,7 +205,7 @@ export async function createNotificationWithPush(
 ) {
   const supabase = getAdminClient();
 
-  // Insert in-app notification (notifications table exists from initial schema)
+  // Insert in-app notification
   try {
     await supabase.from("notifications").insert({
       user_id: userId,
@@ -106,7 +216,7 @@ export async function createNotificationWithPush(
       is_read: false,
     });
   } catch {
-    // Don't crash if notifications table has issues
+    // Don't crash if insert fails
   }
 
   // Send push
