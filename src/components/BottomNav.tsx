@@ -7,53 +7,60 @@ const navItems = [
   {
     href: "/dashboard",
     label: "Inicio",
-    icon: (
-      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 3l9 8h-3v9h-5v-6h-2v6H6v-9H3l9-8z" />
+    // Feather: home
+    icon: (active: boolean) => (
+      <svg className="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
+        <polyline points="9 22 9 12 15 12 15 22" />
       </svg>
     ),
   },
   {
     href: "/calendario",
     label: "Agenda",
-    icon: (
-      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-        <rect x="3" y="4" width="18" height="18" rx="2" />
-        <path d="M16 2v4M8 2v4M3 10h18" />
-        <rect x="7" y="14" width="3" height="3" rx="0.5" fill="currentColor" stroke="none" />
+    // Feather: calendar
+    icon: (active: boolean) => (
+      <svg className="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
+        <line x1="16" y1="2" x2="16" y2="6" />
+        <line x1="8" y1="2" x2="8" y2="6" />
+        <line x1="3" y1="10" x2="21" y2="10" />
       </svg>
     ),
   },
   {
     href: "/chat",
     label: "Chat",
-    icon: (
-      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-        <path d="M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-        <circle cx="8.5" cy="12" r="1" fill="currentColor" stroke="none" />
-        <circle cx="12" cy="12" r="1" fill="currentColor" stroke="none" />
-        <circle cx="15.5" cy="12" r="1" fill="currentColor" stroke="none" />
+    // Feather: message-square
+    icon: (active: boolean) => (
+      <svg className="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
       </svg>
     ),
   },
   {
     href: "/familia",
     label: "Familia",
-    icon: (
-      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.5}>
-        <circle cx="9" cy="7" r="3" />
-        <circle cx="17" cy="7" r="2.5" />
-        <path d="M2 21v-1a5 5 0 0110 0v1" />
-        <path d="M14 21v-1a4 4 0 016 0v1" />
+    // Feather: users
+    icon: (active: boolean) => (
+      <svg className="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+        <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
+        <circle cx="9" cy="7" r="4" />
+        <path d="M23 21v-2a4 4 0 00-3-3.87" />
+        <path d="M16 3.13a4 4 0 010 7.75" />
       </svg>
     ),
   },
   {
     href: "/mais",
     label: "Mais",
-    icon: (
-      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8}>
-        <path d="M4 6h16M4 12h16M4 18h16" />
+    // Feather: more-horizontal (grid style)
+    icon: (active: boolean) => (
+      <svg className="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
+        <rect x="3" y="3" width="7" height="7" rx="1" />
+        <rect x="14" y="3" width="7" height="7" rx="1" />
+        <rect x="3" y="14" width="7" height="7" rx="1" />
+        <rect x="14" y="14" width="7" height="7" rx="1" />
       </svg>
     ),
   },
@@ -63,23 +70,26 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 px-2 py-2 flex justify-around md:hidden safe-area-bottom">
-      {navItems.map((item) => {
-        const active = pathname === item.href || pathname.startsWith(item.href + "/");
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex flex-col items-center gap-0.5 min-w-[56px] min-h-[44px] justify-center transition-colors ${
-              active ? "text-[#E8734A]" : "text-[#7A8C8B] hover:text-[#1A3B3A]"
-            }`}
-          >
-            {item.icon}
-            <span className={`text-[10px] font-medium ${active ? "text-[#E8734A]" : ""}`}>{item.label}</span>
-            {active && <span className="w-1 h-1 rounded-full bg-[#E8734A] -mt-0.5" />}
-          </Link>
-        );
-      })}
+    <nav className="fixed bottom-0 left-0 right-0 z-40 safe-area-bottom">
+      <div className="bg-white/80 backdrop-blur-2xl border-t border-black/[0.04] px-2 py-1.5 flex justify-around">
+        {navItems.map((item) => {
+          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          return (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex flex-col items-center gap-0.5 min-w-[56px] min-h-[44px] justify-center transition-colors ${
+                active ? "text-[#E8734A]" : "text-[#9CA3AF] hover:text-[#6B7280]"
+              }`}
+            >
+              {item.icon(active)}
+              <span className={`text-[10px] tracking-wide ${active ? "font-semibold text-[#E8734A]" : "font-medium"}`}>
+                {item.label}
+              </span>
+            </Link>
+          );
+        })}
+      </div>
     </nav>
   );
 }

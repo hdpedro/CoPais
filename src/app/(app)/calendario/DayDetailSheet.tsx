@@ -26,6 +26,8 @@ export default function DayDetailSheet({
   pendingSwapForDay = false,
 }: DayDetailSheetProps) {
   const [showSwapForm, setShowSwapForm] = useState(false);
+  const [swapType, setSwapType] = useState<"swap" | "visit">("swap");
+  const [proposedDate, setProposedDate] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
@@ -43,8 +45,12 @@ export default function DayDetailSheet({
   const isFutureDate = dateKey >= new Date().toISOString().split("T")[0];
   const canRequestSwap = isOtherParentDay && isFutureDate && !pendingSwapForDay;
 
+  const todayStr = new Date().toISOString().split("T")[0];
+
   function handleClose() {
     setShowSwapForm(false);
+    setSwapType("swap");
+    setProposedDate("");
     setReason("");
     setError("");
     setSuccess(false);
@@ -61,6 +67,9 @@ export default function DayDetailSheet({
     formData.set("originalDate", dateKey);
     formData.set("reason", reason);
     formData.set("targetUserId", dayInfo?.userId || "");
+    if (swapType === "swap" && proposedDate) {
+      formData.set("proposedDate", proposedDate);
+    }
 
     const result = await createSwapRequest(formData);
     setSubmitting(false);
@@ -153,38 +162,104 @@ export default function DayDetailSheet({
           {/* Swap Form */}
           {showSwapForm && !success ? (
             <form onSubmit={handleSwapSubmit} className="space-y-4">
+              {/* Swap Type Toggle */}
+              {isParent && (
+                <div>
+                  <label className="block text-sm font-medium text-[#1A3B3A] mb-2">Tipo de solicitacao</label>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setSwapType("swap")}
+                      className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors border ${
+                        swapType === "swap"
+                          ? "bg-[#E8734A]/10 border-[#E8734A]/30 text-[#E8734A]"
+                          : "bg-white border-gray-200 text-[#7A8C8B] hover:bg-gray-50"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 inline mr-1.5 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                      </svg>
+                      Trocar dias
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => { setSwapType("visit"); setProposedDate(""); }}
+                      className={`flex-1 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors border ${
+                        swapType === "visit"
+                          ? "bg-blue-50 border-blue-200 text-blue-600"
+                          : "bg-white border-gray-200 text-[#7A8C8B] hover:bg-gray-50"
+                      }`}
+                    >
+                      <svg className="w-4 h-4 inline mr-1.5 -mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                      </svg>
+                      Solicitar visita
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Date requested summary */}
+              <div className="bg-gray-50 rounded-xl p-3">
+                <p className="text-xs text-[#7A8C8B] mb-1">Dia solicitado</p>
+                <p className="text-sm font-semibold text-[#1A3B3A] capitalize">{formattedDate}</p>
+                <p className="text-xs text-[#7A8C8B]">Responsavel: {dayInfo?.userName}</p>
+              </div>
+
+              {/* Proposed date picker (only for swap type) */}
+              {swapType === "swap" && (
+                <div>
+                  <label className="block text-sm font-medium text-[#1A3B3A] mb-1">
+                    Dia que voce oferece em troca <span className="text-[#E8734A]">*</span>
+                  </label>
+                  <p className="text-xs text-[#7A8C8B] mb-2">Escolha um dia seu que {dayInfo?.userName.split(" ")[0]} ficaria no seu lugar</p>
+                  <input
+                    type="date"
+                    value={proposedDate}
+                    onChange={(e) => setProposedDate(e.target.value)}
+                    min={todayStr}
+                    required={swapType === "swap"}
+                    className="w-full px-3 py-2.5 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E8734A]/50 text-sm text-[#1A3B3A]"
+                  />
+                </div>
+              )}
+
+              {/* Reason */}
               <div>
-                <label className="block text-sm font-medium text-dark mb-1">
-                  Observacao (opcional)
+                <label className="block text-sm font-medium text-[#1A3B3A] mb-1">
+                  Motivo {swapType === "swap" ? "(opcional)" : "(opcional)"}
                 </label>
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="Ex: Preciso viajar a trabalho nesse dia..."
-                  rows={3}
-                  className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none text-sm"
-                  autoFocus
+                  placeholder={swapType === "swap"
+                    ? "Ex: Tenho um compromisso de trabalho nesse dia..."
+                    : "Ex: Gostaria de passar o dia com as criancas..."
+                  }
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#E8734A]/50 resize-none text-sm"
                 />
               </div>
 
               {error && (
-                <p className="text-sm text-error bg-error/10 px-3 py-2 rounded-lg">{error}</p>
+                <p className="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</p>
               )}
 
               <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowSwapForm(false)}
-                  className="flex-1 px-4 py-3 border border-gray-200 text-dark font-medium rounded-xl hover:bg-gray-50 transition-colors"
+                  className="flex-1 px-4 py-3 border border-gray-200 text-[#1A3B3A] font-medium rounded-xl hover:bg-gray-50 transition-colors"
                 >
                   Voltar
                 </button>
                 <button
                   type="submit"
-                  disabled={submitting}
-                  className="flex-1 px-4 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-50"
+                  disabled={submitting || (swapType === "swap" && !proposedDate)}
+                  className="flex-1 px-4 py-3 bg-[#E8734A] text-white font-semibold rounded-xl hover:bg-[#D4623E] transition-colors disabled:opacity-50"
                 >
-                  {submitting ? "Enviando..." : "Solicitar Troca"}
+                  {submitting ? "Enviando..." : (swapType === "swap" ? "Solicitar Troca" : "Solicitar Visita")}
                 </button>
               </div>
             </form>

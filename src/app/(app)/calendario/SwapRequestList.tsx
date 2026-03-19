@@ -23,11 +23,13 @@ interface SwapRequestListProps {
 
 export default function SwapRequestList({ requests, currentUserId }: SwapRequestListProps) {
   const [responding, setResponding] = useState<string | null>(null);
+  const [confirmAction, setConfirmAction] = useState<{ requestId: string; response: "approved" | "rejected"; requesterName: string } | null>(null);
 
   if (requests.length === 0) return null;
 
   async function handleRespond(requestId: string, response: "approved" | "rejected") {
     setResponding(requestId);
+    setConfirmAction(null);
     const formData = new FormData();
     formData.set("requestId", requestId);
     formData.set("response", response);
@@ -116,18 +118,18 @@ export default function SwapRequestList({ requests, currentUserId }: SwapRequest
               {isPending && isTarget && (
                 <div className="flex gap-2 mt-3">
                   <button
-                    onClick={() => handleRespond(req.id, "approved")}
+                    onClick={() => setConfirmAction({ requestId: req.id, response: "approved", requesterName: req.requester?.full_name?.split(" ")[0] || "Usuario" })}
                     disabled={responding === req.id}
                     className="flex-1 px-3 py-2 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
                   >
-                    Aceitar
+                    {responding === req.id ? "..." : "Aceitar"}
                   </button>
                   <button
-                    onClick={() => handleRespond(req.id, "rejected")}
+                    onClick={() => setConfirmAction({ requestId: req.id, response: "rejected", requesterName: req.requester?.full_name?.split(" ")[0] || "Usuario" })}
                     disabled={responding === req.id}
                     className="flex-1 px-3 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
                   >
-                    Recusar
+                    {responding === req.id ? "..." : "Recusar"}
                   </button>
                 </div>
               )}
@@ -135,6 +137,54 @@ export default function SwapRequestList({ requests, currentUserId }: SwapRequest
           );
         })}
       </div>
+
+      {/* Confirmation Modal */}
+      {confirmAction && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setConfirmAction(null)}>
+          <div className="bg-white rounded-2xl max-w-sm w-full p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 ${
+              confirmAction.response === "approved" ? "bg-green-100" : "bg-red-100"
+            }`}>
+              {confirmAction.response === "approved" ? (
+                <svg className="w-6 h-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <svg className="w-6 h-6 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              )}
+            </div>
+            <h3 className="text-center text-lg font-bold text-[#1A3B3A] mb-1">
+              {confirmAction.response === "approved" ? "Aceitar solicitacao?" : "Recusar solicitacao?"}
+            </h3>
+            <p className="text-center text-sm text-[#7A8C8B] mb-5">
+              {confirmAction.response === "approved"
+                ? `Ao aceitar, a escala sera atualizada conforme a solicitacao de ${confirmAction.requesterName}. Esta acao nao pode ser desfeita.`
+                : `A solicitacao de ${confirmAction.requesterName} sera recusada. Voce pode conversar pelo chat para combinar outra data.`
+              }
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setConfirmAction(null)}
+                className="flex-1 px-4 py-2.5 border border-gray-200 text-[#1A3B3A] font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleRespond(confirmAction.requestId, confirmAction.response)}
+                className={`flex-1 px-4 py-2.5 text-white font-semibold rounded-xl transition-colors text-sm ${
+                  confirmAction.response === "approved"
+                    ? "bg-green-500 hover:bg-green-600"
+                    : "bg-red-500 hover:bg-red-600"
+                }`}
+              >
+                {confirmAction.response === "approved" ? "Sim, aceitar" : "Sim, recusar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
