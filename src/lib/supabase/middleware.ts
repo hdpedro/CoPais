@@ -40,7 +40,7 @@ export async function updateSession(request: NextRequest) {
   const user = session?.user ?? null;
 
   // Redirect unauthenticated users to login (except public routes)
-  const publicRoutes = ["/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/auth/callback", "/convite", "/api/calendar"];
+  const publicRoutes = ["/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/auth/callback", "/convite", "/api/calendar", "/api/setup-db"];
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
   );
