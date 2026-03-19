@@ -86,26 +86,30 @@ export default function ScheduleBuilder({
         ]);
         break;
       case "5-2-2-5":
-        // Parent A: Mon-Fri, Parent B: Sat-Sun, then swap
+        // Week 1: Parent A Mon-Fri, Parent B Sat-Sun
+        // Week 2: Parent B Mon-Fri, Parent A Sat-Sun
+        // Index: [Dom, Seg, Ter, Qua, Qui, Sex, Sab]
         setPattern([
-          m0, m0, m0, m0, m0, m1, m1,
-          m1, m1, m1, m1, m1, m0, m0,
+          m1, m0, m0, m0, m0, m0, m1,
+          m0, m1, m1, m1, m1, m1, m0,
         ]);
         break;
       case "3-4-4-3":
-        // Parent A: Mon-Wed, Parent B: Thu-Sun, then swap
+        // Week 1: Parent A Mon-Wed, Parent B Thu-Sun
+        // Week 2: Parent B Mon-Wed, Parent A Thu-Sun
+        // Index: [Dom, Seg, Ter, Qua, Qui, Sex, Sab]
         setPattern([
-          m0, m0, m0, m1, m1, m1, m1,
-          m1, m1, m1, m1, m0, m0, m0,
+          m1, m0, m0, m0, m1, m1, m1,
+          m0, m1, m1, m1, m0, m0, m0,
         ]);
         break;
       case "2-3-weekend":
-        // User's described pattern:
-        // Week 1: Mom Mon-Wed, Dad Thu-Fri, Mom weekend
-        // Week 2: Dad Mon-Wed, Mom Thu-Fri, Dad weekend
+        // Week 1: Parent A Mon-Wed, Parent B Thu-Fri, Parent A weekend
+        // Week 2: Parent B Mon-Wed, Parent A Thu-Fri, Parent B weekend
+        // Index: [Dom, Seg, Ter, Qua, Qui, Sex, Sab]
         setPattern([
-          m1, m1, m1, m0, m0, m1, m1,
-          m0, m0, m0, m1, m1, m0, m0,
+          m0, m0, m0, m0, m1, m1, m0,
+          m1, m1, m1, m1, m0, m0, m1,
         ]);
         break;
     }
