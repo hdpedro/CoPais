@@ -1,13 +1,22 @@
 import webpush from "web-push";
 import { createClient } from "@supabase/supabase-js";
 
-// Configure VAPID (only if keys are available)
-if (process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) {
-  webpush.setVapidDetails(
-    "mailto:contato@2lares.com.br",
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-    process.env.VAPID_PRIVATE_KEY
-  );
+// Configure VAPID (only if keys are available, trim whitespace)
+const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
+const vapidPrivate = process.env.VAPID_PRIVATE_KEY?.trim();
+let vapidConfigured = false;
+
+if (vapidPublic && vapidPrivate) {
+  try {
+    webpush.setVapidDetails(
+      "mailto:contato@2lares.com.br",
+      vapidPublic,
+      vapidPrivate
+    );
+    vapidConfigured = true;
+  } catch (e) {
+    console.warn("[PUSH] Failed to configure VAPID:", e);
+  }
 }
 
 function getAdminClient() {
