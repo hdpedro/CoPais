@@ -2,9 +2,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
-import { updateExpenseStatus } from "@/actions/expenses";
+import { updateExpenseStatus, deleteExpense } from "@/actions/expenses";
 
-export default async function ExpensesPage() {
+export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
+  const params = await searchParams;
   const supabase = await createClient();
   const { data: { session } } = await supabase.auth.getSession();
   const user = session?.user;
@@ -56,6 +57,18 @@ export default async function ExpensesPage() {
           </Link>
         )}
       </div>
+
+      {/* Success/Error messages */}
+      {params.success && (
+        <div className="bg-success/10 text-success px-4 py-3 rounded-lg text-sm font-medium">
+          {decodeURIComponent(params.success)}
+        </div>
+      )}
+      {params.error && (
+        <div className="bg-error/10 text-error px-4 py-3 rounded-lg text-sm font-medium">
+          {decodeURIComponent(params.error)}
+        </div>
+      )}
 
       {/* Summary */}
       <div className="grid grid-cols-3 gap-3">
@@ -117,6 +130,21 @@ export default async function ExpensesPage() {
                       <input type="hidden" name="status" value="rejected" />
                       <button type="submit" className="w-full py-2 text-sm font-medium text-error bg-error/10 rounded-lg hover:bg-error/20 transition-colors">
                         Rejeitar
+                      </button>
+                    </form>
+                  </div>
+                )}
+
+                {/* Delete button for creator when expense is NOT approved */}
+                {isOwnExpense && expense.status !== "approved" && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <form action={deleteExpense}>
+                      <input type="hidden" name="expenseId" value={expense.id} />
+                      <button type="submit" className="w-full py-2 text-sm font-medium text-error bg-error/5 rounded-lg hover:bg-error/10 transition-colors flex items-center justify-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                        Excluir despesa
                       </button>
                     </form>
                   </div>

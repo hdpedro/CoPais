@@ -4,6 +4,7 @@ import { createExpense } from "@/actions/expenses";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
 import Link from "next/link";
 import { getBrazilToday } from "@/lib/calendar-utils";
+import ExpenseFormClient from "./ExpenseFormClient";
 
 export default async function NewExpensePage() {
   const supabase = await createClient();
@@ -38,53 +39,13 @@ export default async function NewExpensePage() {
         <h1 className="text-2xl font-bold text-dark">Nova Despesa</h1>
       </div>
 
-      <form action={createExpense} className="bg-white rounded-xl p-6 shadow-sm space-y-4">
-        <input type="hidden" name="groupId" value={groupId} />
-
-        <div>
-          <label className="block text-sm font-medium text-dark mb-1">Descricao</label>
-          <input type="text" name="description" required placeholder="Ex: Mensalidade escola"
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary" />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-dark mb-1">Valor (R$)</label>
-          <input type="number" name="amount" required step="0.01" min="0.01" placeholder="0.00"
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary" />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-dark mb-1">Categoria</label>
-          <select name="category" required
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
-            {EXPENSE_CATEGORIES.map((cat) => (
-              <option key={cat.value} value={cat.value}>{cat.icon} {cat.label}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-dark mb-1">Crianca (opcional)</label>
-          <select name="childId"
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary">
-            <option value="">Geral</option>
-            {children?.map((child) => (
-              <option key={child.id} value={child.id}>{child.full_name}</option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-dark mb-1">Data</label>
-          <input type="date" name="expenseDate" required defaultValue={today}
-            className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary" />
-        </div>
-
-        <button type="submit"
-          className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors">
-          Registrar Despesa
-        </button>
-      </form>
+      <ExpenseFormClient
+        groupId={groupId}
+        children={children || []}
+        categories={EXPENSE_CATEGORIES as unknown as { value: string; label: string; icon: string }[]}
+        today={today}
+        createExpense={createExpense}
+      />
     </div>
   );
 }

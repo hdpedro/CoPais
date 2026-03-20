@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { formatDateKey, computeSwapBalance, getBrazilNow, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
-import { PARENT_COLORS } from "@/lib/constants";
+import { PARENT_COLORS, EXPENSE_CATEGORIES } from "@/lib/constants";
 import { getHolidaysForYear } from "@/lib/brazilian-holidays";
 
 export default async function DashboardPage() {
@@ -68,6 +68,7 @@ export default async function DashboardPage() {
     { data: upcomingEvents },
     { data: swapEvents },
     { data: weekEvents },
+    { data: pendingExpenses },
   ] = await Promise.all([
     // Today custody
     supabase.from("custody_events")
@@ -128,6 +129,11 @@ export default async function DashboardPage() {
           .eq("group_id", groupId).eq("child_id", children[0].id)
           .lte("start_date", formatDateKey(weekEnd)).gte("end_date", formatDateKey(weekStart))
       : Promise.resolve({ data: null }),
+    // Pending expenses awaiting MY approval (created by others, status=pending)
+    supabase.from("expenses")
+      .select("id, description, amount, category, expense_date, paid_by, profiles!expenses_paid_by_fkey(full_name)")
+      .eq("group_id", groupId).eq("status", "pending").neq("paid_by", user.id)
+      .order("created_at", { ascending: false }).limit(5),
   ]);
 
   // Process today custody
@@ -559,6 +565,43 @@ export default async function DashboardPage() {
                       {isToday ? "HOJE" : "AMANHA"}
                     </span>
                   )}
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {/* === PENDING EXPENSES AWAITING APPROVAL === */}
+      {pendingExpenses && pendingExpenses.length > 0 && (
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] font-bold text-[#E8734A] uppercase tracking-wider flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#E8734A" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+              </svg>
+              Despesas para aprovar
+            </p>
+            <Link href="/despesas" prefetch={false} className="text-[10px] font-semibold text-[#E8734A]">ver todas</Link>
+          </div>
+          {pendingExpenses.map((exp: any) => {
+            const cat = EXPENSE_CATEGORIES.find(c => c.value === exp.category);
+            const paidByName = (exp.profiles as any)?.full_name?.split(" ")[0] || "Alguem";
+            const expDate = new Date(exp.expense_date + "T12:00:00");
+            return (
+              <Link key={exp.id} href="/despesas" prefetch={false} className="block">
+                <div className="bg-[#E8734A]/[0.06] border border-[#E8734A]/15 rounded-2xl p-3.5 flex items-center gap-3">
+                  <div className="w-9 h-9 bg-[#E8734A]/10 rounded-full flex items-center justify-center flex-shrink-0 text-lg">
+                    {cat?.icon || "📦"}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold text-[#1A3B3A] truncate">{exp.description}</p>
+                    <p className="text-[11px] text-[#7A8C8B]">{paidByName} &middot; {expDate.getDate()}/{expDate.getMonth() + 1}</p>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <p className="text-[14px] font-bold text-[#1A3B3A]">R$ {Number(exp.amount).toFixed(2)}</p>
+                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#E8734A]/10 text-[#E8734A]">PENDENTE</span>
+                  </div>
                 </div>
               </Link>
             );

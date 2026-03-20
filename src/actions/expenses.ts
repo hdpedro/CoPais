@@ -113,3 +113,46 @@ export async function updateExpenseStatus(formData: FormData) {
   if (error) redirect("/despesas?error=" + encodeURIComponent(error.message));
   redirect("/despesas");
 }
+
+export async function deleteExpense(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const expenseId = formData.get("expenseId") as string;
+
+  // Fetch the expense to verify ownership and status
+  const { data: expense } = await supabase
+    .from("expenses")
+    .select("group_id, paid_by, status")
+    .eq("id", expenseId)
+    .single();
+
+  if (!expense) {
+    redirect("/despesas?error=" + encodeURIComponent("Despesa nao encontrada."));
+  }
+
+  // Only the creator can delete
+  if (expense.paid_by !== user.id) {
+    redirect("/despesas?error=" + encodeURIComponent("Apenas quem criou pode excluir a despesa."));
+  }
+
+  // Can only delete if not yet approved
+  if (expense.status === "approved") {
+    redirect("/despesas?error=" + encodeURIComponent("Despesas aprovadas nao podem ser excluidas."));
+  }
+
+  // Verify user belongs to the expense's group
+  const membership = await verifyGroupMembership(supabase, expense.group_id, user.id);
+  if (!membership) {
+    redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
+  }
+
+  const { error } = await supabase
+    .from("expenses")
+    .delete()
+    .eq("id", expenseId);
+
+  if (error) redirect("/despesas?error=" + encodeURIComponent(error.message));
+  redirect("/despesas?success=" + encodeURIComponent("Despesa excluida com sucesso."));
+}
