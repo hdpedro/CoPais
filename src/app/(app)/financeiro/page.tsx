@@ -17,12 +17,19 @@ export default async function FinanceiroPage() {
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
 
-  // Get all members
-  const { data: members } = await supabase
-    .from("group_members")
-    .select("user_id, role, joined_at, profiles(full_name)")
-    .eq("group_id", groupId)
-    .order("joined_at", { ascending: true });
+  // Parallel fetch: members + expenses
+  const [{ data: members }, { data: expenses }] = await Promise.all([
+    supabase
+      .from("group_members")
+      .select("user_id, role, joined_at, profiles(full_name)")
+      .eq("group_id", groupId)
+      .order("joined_at", { ascending: true }),
+    supabase
+      .from("expenses")
+      .select("id, category, description, amount, paid_by, status, expense_date, split_ratio, child_id, children(full_name), profiles!expenses_paid_by_fkey(full_name)")
+      .eq("group_id", groupId)
+      .order("expense_date", { ascending: false }),
+  ]);
 
   const colors = [PARENT_COLORS.primary, PARENT_COLORS.secondary];
   const memberList = (members || []).map((m, i) => {
@@ -33,13 +40,6 @@ export default async function FinanceiroPage() {
       color: colors[i] || colors[1],
     };
   });
-
-  // Fetch ALL expenses for this group (we'll filter by month client-side)
-  const { data: expenses } = await supabase
-    .from("expenses")
-    .select("id, category, description, amount, paid_by, status, expense_date, split_ratio, child_id, children(full_name), profiles!expenses_paid_by_fkey(full_name)")
-    .eq("group_id", groupId)
-    .order("expense_date", { ascending: false });
 
   const serializedExpenses = (expenses || []).map((e) => ({
     id: e.id,

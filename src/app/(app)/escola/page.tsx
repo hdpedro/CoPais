@@ -18,17 +18,19 @@ export default async function EscolaPage() {
   const groupId = memberships[0].group_id;
   const isReadonly = memberships[0].role === "readonly";
 
-  const { data: children } = await supabase
-    .from("children")
-    .select("id, full_name")
-    .eq("group_id", groupId);
-
-  const { data: logs } = await supabase
-    .from("school_logs")
-    .select("*, children(full_name), profiles!school_logs_logged_by_fkey(full_name)")
-    .eq("group_id", groupId)
-    .order("log_date", { ascending: false })
-    .limit(30);
+  // Parallel fetch: children + logs
+  const [{ data: children }, { data: logs }] = await Promise.all([
+    supabase
+      .from("children")
+      .select("id, full_name")
+      .eq("group_id", groupId),
+    supabase
+      .from("school_logs")
+      .select("*, children(full_name), profiles!school_logs_logged_by_fkey(full_name)")
+      .eq("group_id", groupId)
+      .order("log_date", { ascending: false })
+      .limit(30),
+  ]);
 
   const typeLabels: Record<string, string> = {
     grade: "Nota / Avaliacao",

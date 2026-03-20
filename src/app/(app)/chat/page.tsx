@@ -17,19 +17,19 @@ export default async function ChatPage() {
   const groupId = memberships[0].group_id;
   const isReadonly = memberships[0].role === "readonly";
 
-  // Get initial messages
-  const { data: messages } = await supabase
-    .from("chat_messages")
-    .select("*, profiles!chat_messages_sender_id_fkey(full_name)")
-    .eq("group_id", groupId)
-    .order("created_at", { ascending: false })
-    .limit(50);
-
-  // Get members for display
-  const { data: members } = await supabase
-    .from("group_members")
-    .select("user_id, profiles(full_name)")
-    .eq("group_id", groupId);
+  // Parallel fetch: messages + members
+  const [{ data: messages }, { data: members }] = await Promise.all([
+    supabase
+      .from("chat_messages")
+      .select("*, profiles!chat_messages_sender_id_fkey(full_name)")
+      .eq("group_id", groupId)
+      .order("created_at", { ascending: false })
+      .limit(50),
+    supabase
+      .from("group_members")
+      .select("user_id, profiles(full_name)")
+      .eq("group_id", groupId),
+  ]);
 
   return (
     <ChatRoom

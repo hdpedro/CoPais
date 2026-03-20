@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 
@@ -67,5 +68,6 @@ export async function createDocument(formData: FormData) {
   });
 
   if (error) redirect("/documentos?error=" + encodeURIComponent(error.message));
+  revalidatePath("/documentos");
   redirect("/documentos");
 }

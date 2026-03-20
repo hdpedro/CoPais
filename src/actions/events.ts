@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
 
@@ -64,6 +65,7 @@ export async function createEvent(formData: FormData) {
   });
 
   if (error) redirect("/eventos?error=" + encodeURIComponent(error.message));
+  revalidatePath("/eventos");
   redirect("/eventos");
 }
 
@@ -97,6 +99,7 @@ export async function updateEvent(formData: FormData) {
   }).eq("id", eventId).eq("group_id", groupId);
 
   if (error) redirect("/eventos?error=" + encodeURIComponent(error.message));
+  revalidatePath("/eventos");
   redirect("/eventos");
 }
 
@@ -117,6 +120,7 @@ export async function deleteEvent(formData: FormData) {
     .eq("id", eventId).eq("group_id", groupId);
 
   if (error) redirect("/eventos?error=" + encodeURIComponent(error.message));
+  revalidatePath("/eventos");
   redirect("/eventos");
 }
 
@@ -137,5 +141,6 @@ export async function cancelEvent(formData: FormData) {
     .eq("id", eventId).eq("group_id", groupId);
 
   if (error) redirect("/eventos?error=" + encodeURIComponent(error.message));
+  revalidatePath("/eventos");
   redirect("/eventos");
 }

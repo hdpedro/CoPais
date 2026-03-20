@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
 
@@ -46,5 +47,6 @@ export async function createSensitiveNote(formData: FormData) {
   });
 
   if (error) redirect("/temas-sensiveis?error=" + encodeURIComponent(error.message));
+  revalidatePath("/temas-sensiveis");
   redirect("/temas-sensiveis");
 }
