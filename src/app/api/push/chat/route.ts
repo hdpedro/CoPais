@@ -20,6 +20,18 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
 
+  // Verify user is a member of the group
+  const { data: membership } = await supabase
+    .from("group_members")
+    .select("id")
+    .eq("group_id", groupId)
+    .eq("user_id", user.id)
+    .single();
+
+  if (!membership) {
+    return NextResponse.json({ error: "Sem permissao" }, { status: 403 });
+  }
+
   // Get sender name
   const { data: profile } = await supabase
     .from("profiles")

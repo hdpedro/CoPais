@@ -41,6 +41,41 @@ function getServiceClient() {
   );
 }
 
+async function verifyChildInGroup(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  childId: string,
+  groupId: string,
+) {
+  if (!childId) return;
+  const { data } = await supabase
+    .from("children")
+    .select("id")
+    .eq("id", childId)
+    .eq("group_id", groupId)
+    .single();
+  if (!data) {
+    redirect("/dashboard?error=" + encodeURIComponent("Crianca nao pertence a este grupo."));
+  }
+}
+
+async function getGroupIdFromRecord(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  table: string,
+  recordId: string,
+  userId: string,
+) {
+  const { data } = await supabase
+    .from(table)
+    .select("group_id")
+    .eq("id", recordId)
+    .single();
+  if (!data) {
+    redirect("/dashboard?error=" + encodeURIComponent("Registro nao encontrado."));
+  }
+  await verifyMembership(supabase, data.group_id, userId);
+  return data.group_id;
+}
+
 // ---------------------------------------------------------------------------
 // 1. createHealthLog
 // ---------------------------------------------------------------------------
@@ -53,6 +88,7 @@ export async function createHealthLog(formData: FormData) {
   await verifyMembership(supabase, groupId, user.id);
 
   const childId = formData.get("childId") as string;
+  await verifyChildInGroup(supabase, childId, groupId);
   const logType = formData.get("logType") as string;
   const value = formData.get("value") as string;
   const notes = formData.get("notes") as string;
@@ -197,6 +233,9 @@ export async function updateAppointmentStatus(formData: FormData) {
   const status = formData.get("status") as string;
   const summary = formData.get("summary") as string;
 
+  // Verify user belongs to the appointment's group
+  await getGroupIdFromRecord(supabase, "medical_appointments", appointmentId, user.id);
+
   // Fetch existing appointment to get calendar_event_id
   const { data: existing } = await supabase
     .from("medical_appointments")
@@ -204,10 +243,11 @@ export async function updateAppointmentStatus(formData: FormData) {
     .eq("id", appointmentId)
     .single();
 
+  const validStatuses = ["scheduled", "completed", "cancelled", "missed"];
   const { error } = await supabase
     .from("medical_appointments")
     .update({
-      status,
+      status: validStatuses.includes(status) ? status : "scheduled",
       summary: summary || null,
     })
     .eq("id", appointmentId);
@@ -280,6 +320,9 @@ export async function logMedicationDose(formData: FormData) {
 
   const medicationId = formData.get("medicationId") as string;
 
+  // Verify user belongs to the medication's group
+  await getGroupIdFromRecord(supabase, "active_medications", medicationId, user.id);
+
   const { error } = await supabase.from("medication_doses").insert({
     medication_id: medicationId,
     administered_at: new Date().toISOString(),
@@ -303,9 +346,13 @@ export async function updateMedicationStatus(formData: FormData) {
   const medicationId = formData.get("medicationId") as string;
   const status = formData.get("status") as string;
 
+  // Verify user belongs to the medication's group
+  await getGroupIdFromRecord(supabase, "active_medications", medicationId, user.id);
+
+  const validStatuses = ["active", "paused", "completed", "cancelled"];
   const { error } = await supabase
     .from("active_medications")
-    .update({ status })
+    .update({ status: validStatuses.includes(status) ? status : "active" })
     .eq("id", medicationId);
 
   if (error) redirect("/saude/medicamentos?error=" + encodeURIComponent(error.message));
@@ -365,10 +412,14 @@ export async function updateIllnessEpisode(formData: FormData) {
   const endDate = formData.get("endDate") as string;
   const diagnosis = formData.get("diagnosis") as string;
 
+  // Verify user belongs to the episode's group
+  await getGroupIdFromRecord(supabase, "illness_episodes", episodeId, user.id);
+
+  const validStatuses = ["active", "resolved", "chronic"];
   const { error } = await supabase
     .from("illness_episodes")
     .update({
-      status: status || undefined,
+      status: validStatuses.includes(status) ? status : undefined,
       end_date: endDate || null,
       diagnosis: diagnosis || null,
     })

@@ -24,8 +24,21 @@ export async function createExpense(formData: FormData) {
   const expenseDate = formData.get("expenseDate") as string;
   const receiptUrl = formData.get("receiptUrl") as string;
 
-  if (isNaN(amount) || amount <= 0) {
+  if (isNaN(amount) || amount <= 0 || !isFinite(amount) || amount > 999999.99) {
     redirect("/despesas/nova?error=" + encodeURIComponent("Valor invalido."));
+  }
+
+  // Verify child belongs to group if provided
+  if (childId) {
+    const { data: child } = await supabase
+      .from("children")
+      .select("id")
+      .eq("id", childId)
+      .eq("group_id", groupId)
+      .single();
+    if (!child) {
+      redirect("/despesas/nova?error=" + encodeURIComponent("Crianca nao pertence a este grupo."));
+    }
   }
 
   const { error } = await supabase.from("expenses").insert({
