@@ -4,6 +4,7 @@ import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "@/actions/auth";
+import SocialLoginButtons from "@/components/SocialLoginButtons";
 
 export default function LoginPage() {
   return (
@@ -52,6 +53,20 @@ function LoginForm() {
           {error}
         </div>
       )}
+
+      <SocialLoginButtons
+        redirectPath={conviteToken ? `/convite/${conviteToken}` : undefined}
+        label="Entrar"
+      />
+
+      <div className="relative my-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-gray-200" />
+        </div>
+        <div className="relative flex justify-center text-sm">
+          <span className="bg-white px-4 text-muted">ou entre com e-mail</span>
+        </div>
+      </div>
 
       <form action={handleSubmit} className="space-y-4">
         {conviteToken && <input type="hidden" name="convite" value={conviteToken} />}

@@ -85,6 +85,31 @@ export async function resetPassword(formData: FormData) {
   return { success: "E-mail de recuperação enviado!" };
 }
 
+export async function signInWithOAuth(provider: "google" | "apple" | "facebook", redirectPath?: string) {
+  const supabase = await createClient();
+
+  const callbackUrl = redirectPath
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=${redirectPath}`
+    : `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`;
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider,
+    options: {
+      redirectTo: callbackUrl,
+    },
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (data.url) {
+    redirect(data.url);
+  }
+
+  return { error: "Erro ao iniciar login social." };
+}
+
 export async function updatePassword(formData: FormData) {
   const supabase = await createClient();
 
