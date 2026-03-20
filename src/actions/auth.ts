@@ -3,6 +3,22 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
+// Translate common Supabase auth errors to Portuguese
+function translateAuthError(message: string): string {
+  const translations: Record<string, string> = {
+    "Invalid login credentials": "E-mail ou senha incorretos.",
+    "Email not confirmed": "E-mail ainda não confirmado. Verifique sua caixa de entrada.",
+    "User already registered": "Este e-mail já está cadastrado.",
+    "Password should be at least 6 characters": "A senha deve ter pelo menos 6 caracteres.",
+    "New password should be different from the old password.": "A nova senha deve ser diferente da senha atual.",
+    "Auth session missing!": "Sessão expirada. Faça login novamente.",
+    "User not found": "Usuário não encontrado.",
+    "Email rate limit exceeded": "Muitas tentativas. Aguarde alguns minutos.",
+    "For security purposes, you can only request this once every 60 seconds": "Por segurança, aguarde 60 segundos entre tentativas.",
+  };
+  return translations[message] || message;
+}
+
 export async function signUp(formData: FormData) {
   const supabase = await createClient();
 
@@ -29,7 +45,7 @@ export async function signUp(formData: FormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: translateAuthError(error.message) };
   }
 
   redirect("/verify-email");
@@ -48,7 +64,7 @@ export async function signIn(formData: FormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: translateAuthError(error.message) };
   }
 
   // Don't call revalidatePath here — it triggers concurrent revalidation of
@@ -85,7 +101,7 @@ export async function resetPassword(formData: FormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: translateAuthError(error.message) };
   }
 
   return { success: "E-mail de recuperação enviado!" };
@@ -107,7 +123,7 @@ export async function signInWithOAuth(provider: "google" | "apple" | "facebook",
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: translateAuthError(error.message) };
   }
 
   if (data.url) {
@@ -127,7 +143,7 @@ export async function updatePassword(formData: FormData) {
   });
 
   if (error) {
-    return { error: error.message };
+    return { error: translateAuthError(error.message) };
   }
 
   redirect("/dashboard");
