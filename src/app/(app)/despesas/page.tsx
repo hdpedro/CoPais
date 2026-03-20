@@ -24,9 +24,11 @@ export default async function ExpensesPage() {
     .eq("group_id", groupId)
     .order("expense_date", { ascending: false });
 
-  // Calculate totals
-  const total = expenses?.reduce((sum, e) => sum + Number(e.amount), 0) || 0;
+  // Calculate totals (exclude rejected from total)
+  const approvedAndPending = expenses?.filter(e => e.status !== "rejected") || [];
+  const total = approvedAndPending.reduce((sum, e) => sum + Number(e.amount), 0);
   const pending = expenses?.filter(e => e.status === "pending").length || 0;
+  const rejected = expenses?.filter(e => e.status === "rejected").length || 0;
 
   const statusLabels: Record<string, string> = {
     pending: "Pendente",
@@ -53,15 +55,21 @@ export default async function ExpensesPage() {
       </div>
 
       {/* Summary */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <div className="bg-white rounded-xl p-4 shadow-sm">
-          <p className="text-xs text-muted">Total</p>
+          <p className="text-xs text-muted">Total aprovado</p>
           <p className="text-xl font-bold text-dark">R$ {total.toFixed(2)}</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <p className="text-xs text-muted">Pendentes</p>
           <p className="text-xl font-bold text-accent">{pending}</p>
         </div>
+        {rejected > 0 && (
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <p className="text-xs text-muted">Rejeitadas</p>
+            <p className="text-xl font-bold text-error">{rejected}</p>
+          </div>
+        )}
       </div>
 
       {/* Expense List */}

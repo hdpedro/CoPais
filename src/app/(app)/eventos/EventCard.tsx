@@ -114,19 +114,24 @@ export default function EventCard({ event, groupId, childrenList, isPast = false
   }
 
   return (
-    <div className={`bg-white rounded-xl shadow-sm overflow-hidden ${isCancelled ? "opacity-60" : ""}`}>
+    <div className={`bg-white rounded-xl shadow-sm overflow-hidden ${isCancelled || isPast ? "opacity-60" : ""}`}>
       {event.image_url && (
         <img src={event.image_url} alt={event.title} className="w-full h-40 object-cover" />
       )}
       <div className="p-4">
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
-            <h3 className={`font-semibold text-base ${isCancelled ? "text-muted line-through" : "text-dark"}`}>
+            <h3 className={`font-semibold text-base ${isCancelled || isPast ? "text-muted" : "text-dark"} ${isCancelled ? "line-through" : ""}`}>
               {event.title}
             </h3>
             {isCancelled && (
               <span className="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded-full font-medium">
                 Cancelado
+              </span>
+            )}
+            {isPast && !isCancelled && (
+              <span className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full font-medium">
+                Passado
               </span>
             )}
           </div>
@@ -137,7 +142,7 @@ export default function EventCard({ event, groupId, childrenList, isPast = false
           </span>
         </div>
         {event.description && (
-          <p className={`text-base mb-3 leading-relaxed ${isCancelled ? "text-muted" : "text-dark/80"}`}>
+          <p className={`text-base mb-3 leading-relaxed ${isCancelled ? "text-muted" : "text-dark/80"} line-clamp-3`}>
             {event.description}
           </p>
         )}
@@ -149,8 +154,8 @@ export default function EventCard({ event, groupId, childrenList, isPast = false
           )}
         </div>
 
-        {/* Action buttons - only show for non-cancelled events */}
-        {!isCancelled && (
+        {/* Action buttons - only show for non-cancelled, non-past events */}
+        {!isCancelled && !isPast && (
           <div className="flex items-center gap-2 mt-3 pt-3 border-t border-gray-100">
             <button
               onClick={() => setEditing(true)}
