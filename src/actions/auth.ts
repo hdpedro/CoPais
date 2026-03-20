@@ -1,6 +1,5 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
@@ -13,9 +12,10 @@ export async function signUp(formData: FormData) {
   const convite = formData.get("convite") as string | null;
 
   // If user has an invite token, include it in the callback URL
-  const callbackUrl = convite
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/convite/${convite}`
-    : `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`;
+  const callbackUrl = new URL("/auth/callback", process.env.NEXT_PUBLIC_APP_URL);
+  if (convite) {
+    callbackUrl.searchParams.set("next", `/convite/${convite}`);
+  }
 
   const { error } = await supabase.auth.signUp({
     email,
@@ -24,7 +24,7 @@ export async function signUp(formData: FormData) {
       data: {
         full_name: fullName,
       },
-      emailRedirectTo: callbackUrl,
+      emailRedirectTo: callbackUrl.toString(),
     },
   });
 
@@ -74,8 +74,14 @@ export async function resetPassword(formData: FormData) {
 
   const email = formData.get("email") as string;
 
+  // Use dedicated redirect URL so the callback knows this is a recovery flow.
+  // Supabase appends code/token_hash params to this URL.
+  const redirectUrl = new URL("/auth/callback", process.env.NEXT_PUBLIC_APP_URL);
+  redirectUrl.searchParams.set("next", "/reset-password");
+  redirectUrl.searchParams.set("type", "recovery");
+
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=/reset-password`,
+    redirectTo: redirectUrl.toString(),
   });
 
   if (error) {
@@ -88,14 +94,15 @@ export async function resetPassword(formData: FormData) {
 export async function signInWithOAuth(provider: "google" | "apple" | "facebook", redirectPath?: string) {
   const supabase = await createClient();
 
-  const callbackUrl = redirectPath
-    ? `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback?next=${redirectPath}`
-    : `${process.env.NEXT_PUBLIC_APP_URL}/auth/callback`;
+  const callbackUrl = new URL("/auth/callback", process.env.NEXT_PUBLIC_APP_URL);
+  if (redirectPath) {
+    callbackUrl.searchParams.set("next", redirectPath);
+  }
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider,
     options: {
-      redirectTo: callbackUrl,
+      redirectTo: callbackUrl.toString(),
     },
   });
 

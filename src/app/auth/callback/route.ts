@@ -5,15 +5,61 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const code = searchParams.get("code");
   const next = searchParams.get("next") ?? "/dashboard";
+  const token_hash = searchParams.get("token_hash");
+  const type = searchParams.get("type");
+  const error = searchParams.get("error");
+  const error_description = searchParams.get("error_description");
 
-  if (code) {
-    const supabase = await createClient();
-    const { error } = await supabase.auth.exchangeCodeForSession(code);
-    if (!error) {
-      return NextResponse.redirect(`${origin}${next}`);
-    }
+  // If Supabase returned an error, redirect to login with message
+  if (error) {
+    const message = error_description || error;
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent(message)}`
+    );
   }
 
-  // Return the user to an error page with instructions
+  const supabase = await createClient();
+
+  // Handle PKCE code exchange (used for email confirmation, OAuth, password reset)
+  if (code) {
+    const { error: exchangeError } =
+      await supabase.auth.exchangeCodeForSession(code);
+
+    if (!exchangeError) {
+      // For recovery flow, always go to reset-password page
+      if (type === "recovery" || next === "/reset-password") {
+        return NextResponse.redirect(`${origin}/reset-password`);
+      }
+      return NextResponse.redirect(`${origin}${next}`);
+    }
+
+    // If code exchange fails, show specific error
+    console.error("Auth callback code exchange error:", exchangeError.message);
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent("Link expirado ou já utilizado. Tente novamente.")}`
+    );
+  }
+
+  // Handle token_hash verification (used by some Supabase email templates)
+  if (token_hash && type) {
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      type: type as "recovery" | "signup" | "email",
+      token_hash,
+    });
+
+    if (!verifyError) {
+      if (type === "recovery") {
+        return NextResponse.redirect(`${origin}/reset-password`);
+      }
+      return NextResponse.redirect(`${origin}${next}`);
+    }
+
+    console.error("Auth callback token verify error:", verifyError.message);
+    return NextResponse.redirect(
+      `${origin}/login?error=${encodeURIComponent("Link expirado ou já utilizado. Tente novamente.")}`
+    );
+  }
+
+  // No auth params found — redirect to login
   return NextResponse.redirect(`${origin}/login?error=auth`);
 }

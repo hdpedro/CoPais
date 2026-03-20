@@ -1,11 +1,50 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { updatePassword } from "@/actions/auth";
 
 export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+  const router = useRouter();
+
+  useEffect(() => {
+    // Create a browser-side Supabase client to handle hash-based auth tokens
+    // (Supabase sometimes sends recovery tokens as URL hash fragments)
+    const supabase = createClient();
+
+    // Listen for auth state changes (handles hash fragment tokens)
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "PASSWORD_RECOVERY") {
+        // User arrived via recovery link — session is set, show the form
+        setChecking(false);
+      } else if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
+        // Already signed in (session from server callback), show the form
+        setChecking(false);
+      }
+    });
+
+    // Fallback: if no auth event fires within 2s, check session directly
+    const timeout = setTimeout(async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        setChecking(false);
+      } else {
+        // No session at all — user shouldn't be on this page
+        router.push("/forgot-password");
+      }
+    }, 2000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
+  }, [router]);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -31,6 +70,14 @@ export default function ResetPasswordPage() {
       setError(result.error);
       setLoading(false);
     }
+  }
+
+  if (checking) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+        <p className="text-muted">Verificando autenticação...</p>
+      </div>
+    );
   }
 
   return (

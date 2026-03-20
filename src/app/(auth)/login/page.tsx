@@ -15,10 +15,19 @@ export default function LoginPage() {
 }
 
 function LoginForm() {
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const conviteToken = searchParams.get("convite");
+  const urlError = searchParams.get("error");
+
+  // Show URL error (from auth callback) or form error
+  const [error, setError] = useState<string | null>(
+    urlError && urlError !== "auth"
+      ? decodeURIComponent(urlError)
+      : urlError === "auth"
+        ? "Erro de autenticação. Tente novamente."
+        : null
+  );
+  const [loading, setLoading] = useState(false);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
