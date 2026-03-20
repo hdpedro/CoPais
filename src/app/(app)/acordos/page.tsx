@@ -30,6 +30,11 @@ export default async function AcordosPage() {
     rule: "Regra",
     boundary: "Limite",
     routine: "Rotina",
+    education: "Educacao",
+    health: "Saude",
+    safety: "Seguranca",
+    communication: "Comunicacao",
+    financial: "Financeiro",
   };
 
   return (
@@ -44,7 +49,7 @@ export default async function AcordosPage() {
       {/* Reminder Card */}
       <div className="bg-primary/5 border border-primary/20 rounded-xl p-4">
         <p className="text-sm text-dark font-medium">Lembrete importante</p>
-        <p className="text-xs text-muted mt-1">
+        <p className="text-xs text-muted mt-1 leading-relaxed">
           O bem-estar da crianca e prioridade. Os responsaveis sao os adultos da relacao.
           Uma boa coparentalidade exige dialogo e respeito mutuo.
         </p>

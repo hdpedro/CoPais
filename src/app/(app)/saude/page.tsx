@@ -212,7 +212,7 @@ export default async function SaudePage({
       icon: "📏",
       label: "Crescimento",
       href: "/saude/crescimento",
-      subtitle: `${growthCount ?? 0} medicao${(growthCount ?? 0) !== 1 ? "es" : ""}`,
+      subtitle: `${growthCount ?? 0} ${(growthCount ?? 0) !== 1 ? "medicoes" : "medicao"}`,
       color: "text-emerald-500",
     },
     {
