@@ -648,8 +648,10 @@ export default async function DashboardPage() {
                 const color = parentColors[rid]?.color || PARENT_COLORS.secondary;
                 const eDate = new Date(event.start_date + "T12:00:00");
                 const tc = typeConfig[event.custody_type] || typeConfig.regular;
+                const childName = (event.children as any)?.full_name?.split(" ")[0];
                 const hasNote = event.notes && !event.notes.includes("Gerado pela escala");
-                const name = hasNote ? event.notes.substring(0, 20) : (isMe ? "Com voce" : rName);
+                const responsibleLabel = isMe ? "com voce" : `com ${rName}`;
+                const name = hasNote ? event.notes : (childName ? `${childName} ${responsibleLabel}` : (isMe ? "Com voce" : rName));
 
                 return (
                   <Link key={event.id} href="/calendario" prefetch={false} className="flex items-center gap-2.5">
