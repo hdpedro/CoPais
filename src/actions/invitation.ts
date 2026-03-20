@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function createInvitation(formData: FormData) {
   const supabase = await createClient();
@@ -43,6 +44,11 @@ export async function createInvitation(formData: FormData) {
   if (error) {
     redirect(returnTo + "?error=" + encodeURIComponent(error.message));
   }
+
+  captureServerEvent(user.id, "invitation_sent", {
+    group_id: groupId,
+    role,
+  });
 
   redirect(returnTo + "?success=true&token=" + invitation.token);
 }
@@ -109,6 +115,11 @@ export async function acceptInvitation(token: string) {
       .update({ role: invitation.role })
       .eq("id", user.id);
   }
+
+  captureServerEvent(user.id, "invitation_accepted", {
+    group_id: invitation.group_id,
+    role: invitation.role,
+  });
 
   redirect("/dashboard");
 }

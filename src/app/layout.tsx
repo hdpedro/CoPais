@@ -9,8 +9,36 @@ const geistSans = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "2Lares - Coparentalidade Inteligente",
-  description: "Organize a rotina do seu filho com mais clareza e tranquilidade.",
+  title: {
+    default: "2Lares - Coparentalidade Inteligente",
+    template: "%s | 2Lares",
+  },
+  description:
+    "Organize a rotina dos seus filhos entre dois lares com clareza, respeito e tranquilidade. Calendario compartilhado, chat mediado, controle financeiro e muito mais.",
+  keywords: [
+    "coparentalidade",
+    "guarda compartilhada",
+    "organizacao familiar",
+    "calendario familiar",
+    "copais",
+    "dois lares",
+    "filhos",
+  ],
+  authors: [{ name: "2Lares" }],
+  openGraph: {
+    type: "website",
+    locale: "pt_BR",
+    siteName: "2Lares",
+    title: "2Lares - Coparentalidade Inteligente para Familias Modernas",
+    description:
+      "Organize a rotina dos seus filhos entre dois lares com clareza, respeito e tranquilidade. Gratuito para comecar.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "2Lares - Coparentalidade Inteligente",
+    description:
+      "Organize a rotina dos seus filhos entre dois lares com clareza, respeito e tranquilidade.",
+  },
   manifest: "/manifest.json",
   appleWebApp: {
     capable: true,

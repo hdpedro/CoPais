@@ -9,10 +9,13 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@sentry/nextjs": "^10.45.0",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.99.2",
     "next": "16.1.7",
     "postgres": "^3.4.8",
+    "posthog-js": "^1.363.1",
+    "posthog-node": "^5.28.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
     "web-push": "^3.6.7"
@@ -26,6 +29,7 @@
     "docx": "^9.6.1",
     "eslint": "^9",
     "eslint-config-next": "16.1.7",
+    "pg": "^8.20.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

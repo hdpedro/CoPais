@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function createExpense(formData: FormData) {
   const supabase = await createClient();
@@ -53,6 +54,13 @@ export async function createExpense(formData: FormData) {
   });
 
   if (error) redirect("/despesas/nova?error=" + encodeURIComponent(error.message));
+
+  captureServerEvent(user.id, "expense_created", {
+    category,
+    amount,
+    group_id: groupId,
+  });
+
   redirect("/despesas");
 }
 

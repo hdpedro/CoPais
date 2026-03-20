@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { analyzeTone } from "@/lib/tone-moderator";
+import { getPostHogClient } from "@/lib/posthog";
 
 interface Message {
   id: string;
@@ -164,6 +165,9 @@ export default function ChatRoom({
         return;
       }
     } else {
+      // Track message sent
+      getPostHogClient()?.capture("message_sent", { group_id: groupId });
+
       // Notify other members via push (fire and forget)
       fetch("/api/push/chat", {
         method: "POST",

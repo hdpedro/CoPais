@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { verifyGroupMembership } from "@/lib/auth-utils";
 import { createNotificationWithPush } from "@/lib/push";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function createCustodyEvent(formData: FormData) {
   const supabase = await createClient();
@@ -53,6 +54,13 @@ export async function createCustodyEvent(formData: FormData) {
       const { error } = await supabase.from("custody_events").insert(events);
       if (error) redirect("/calendario/novo?error=" + encodeURIComponent(error.message));
     }
+
+    captureServerEvent(user.id, "event_created", {
+      group_id: groupId,
+      custody_type: custodyType,
+      is_recurring: true,
+      event_count: events.length,
+    });
   } else {
     const eventData: Record<string, unknown> = {
       group_id: groupId,
@@ -72,6 +80,12 @@ export async function createCustodyEvent(formData: FormData) {
     const { error } = await supabase.from("custody_events").insert(eventData);
 
     if (error) redirect("/calendario/novo?error=" + encodeURIComponent(error.message));
+
+    captureServerEvent(user.id, "event_created", {
+      group_id: groupId,
+      custody_type: custodyType,
+      is_recurring: false,
+    });
   }
 
   redirect("/calendario");

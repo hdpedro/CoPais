@@ -2,6 +2,7 @@
 
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 // Translate common Supabase auth errors to Portuguese
 function translateAuthError(message: string): string {
@@ -48,6 +49,8 @@ export async function signUp(formData: FormData) {
     return { error: translateAuthError(error.message) };
   }
 
+  captureServerEvent(email, "user_signup", { has_invite: !!convite });
+
   redirect("/verify-email");
 }
 
@@ -66,6 +69,8 @@ export async function signIn(formData: FormData) {
   if (error) {
     return { error: translateAuthError(error.message) };
   }
+
+  captureServerEvent(email, "user_login", { has_invite: !!convite });
 
   // Don't call revalidatePath here — it triggers concurrent revalidation of
   // all pages/layouts, causing Supabase token refresh race conditions.
@@ -103,6 +108,8 @@ export async function resetPassword(formData: FormData) {
   if (error) {
     return { error: translateAuthError(error.message) };
   }
+
+  captureServerEvent(email, "password_reset");
 
   return { success: "E-mail de recuperação enviado!" };
 }
