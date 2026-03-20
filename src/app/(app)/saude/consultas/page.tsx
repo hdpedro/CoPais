@@ -17,11 +17,12 @@ export default async function AppointmentsPage({
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: appointments } = await supabase
     .from("medical_appointments")
@@ -273,12 +274,14 @@ export default async function AppointmentsPage({
       )}
 
       {/* Add appointment button */}
-      <Link
-        href="/saude/consultas/nova"
-        className="block w-full py-3 bg-primary text-white text-center font-semibold rounded-xl hover:bg-primary-dark transition-colors"
-      >
-        + Agendar Consulta
-      </Link>
+      {!isReadonly && (
+        <Link
+          href="/saude/consultas/nova"
+          className="block w-full py-3 bg-primary text-white text-center font-semibold rounded-xl hover:bg-primary-dark transition-colors"
+        >
+          + Agendar Consulta
+        </Link>
+      )}
     </div>
   );
 }

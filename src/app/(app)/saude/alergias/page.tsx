@@ -18,12 +18,13 @@ export default async function AlergiasPage({
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
 
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: children } = await supabase
     .from("children")
@@ -151,12 +152,14 @@ export default async function AlergiasPage({
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3 px-1">
           <h2 className="text-sm font-semibold text-dark">Alergias</h2>
-          <Link
-            href="/saude/alergias/nova"
-            className="text-xs font-semibold text-primary hover:text-primary/80"
-          >
-            + Adicionar
-          </Link>
+          {!isReadonly && (
+            <Link
+              href="/saude/alergias/nova"
+              className="text-xs font-semibold text-primary hover:text-primary/80"
+            >
+              + Adicionar
+            </Link>
+          )}
         </div>
 
         {allergies && allergies.length > 0 ? (
@@ -207,12 +210,14 @@ export default async function AlergiasPage({
       <section className="mb-6">
         <div className="flex items-center justify-between mb-3 px-1">
           <h2 className="text-sm font-semibold text-dark">Info Medica</h2>
-          <Link
-            href="/saude/alergias/editar-info"
-            className="text-xs font-semibold text-primary hover:text-primary/80"
-          >
-            Editar
-          </Link>
+          {!isReadonly && (
+            <Link
+              href="/saude/alergias/editar-info"
+              className="text-xs font-semibold text-primary hover:text-primary/80"
+            >
+              Editar
+            </Link>
+          )}
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <div className="grid grid-cols-2 gap-4">

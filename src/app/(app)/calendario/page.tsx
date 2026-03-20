@@ -110,6 +110,7 @@ export default async function CalendarPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-dark">Calendario</h1>
+        {currentUserRole !== "readonly" && (
         <div className="flex gap-2">
           <Link
             href="/calendario/escala"
@@ -124,6 +125,7 @@ export default async function CalendarPage() {
             + Evento
           </Link>
         </div>
+        )}
       </div>
 
       {/* Client wrapper for interactive parts */}

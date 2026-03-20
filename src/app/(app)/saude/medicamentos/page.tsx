@@ -19,11 +19,12 @@ export default async function MedicamentosPage({
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   // Fetch all medications for the group, joined with children
   const { data: medications } = await supabase
@@ -212,27 +213,29 @@ export default async function MedicamentosPage({
                 )}
 
                 {/* Action Buttons */}
-                <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
-                  <form action={logMedicationDose} className="flex-1">
-                    <input type="hidden" name="medicationId" value={med.id} />
-                    <button
-                      type="submit"
-                      className="w-full py-2 bg-[#5B9B8A] text-white text-xs font-semibold rounded-lg hover:bg-[#4a8a79] transition-colors"
-                    >
-                      Registrar Dose
-                    </button>
-                  </form>
-                  <form action={updateMedicationStatus}>
-                    <input type="hidden" name="medicationId" value={med.id} />
-                    <input type="hidden" name="status" value="completed" />
-                    <button
-                      type="submit"
-                      className="px-3 py-2 text-xs text-[#8E8E93] hover:text-[#2D2D2D] transition-colors"
-                    >
-                      Concluir Tratamento
-                    </button>
-                  </form>
-                </div>
+                {!isReadonly && (
+                  <div className="mt-3 pt-3 border-t border-gray-100 flex items-center gap-2">
+                    <form action={logMedicationDose} className="flex-1">
+                      <input type="hidden" name="medicationId" value={med.id} />
+                      <button
+                        type="submit"
+                        className="w-full py-2 bg-[#5B9B8A] text-white text-xs font-semibold rounded-lg hover:bg-[#4a8a79] transition-colors"
+                      >
+                        Registrar Dose
+                      </button>
+                    </form>
+                    <form action={updateMedicationStatus}>
+                      <input type="hidden" name="medicationId" value={med.id} />
+                      <input type="hidden" name="status" value="completed" />
+                      <button
+                        type="submit"
+                        className="px-3 py-2 text-xs text-[#8E8E93] hover:text-[#2D2D2D] transition-colors"
+                      >
+                        Concluir Tratamento
+                      </button>
+                    </form>
+                  </div>
+                )}
               </div>
             );
           })
@@ -275,12 +278,14 @@ export default async function MedicamentosPage({
       )}
 
       {/* Add Button */}
-      <Link
-        href="/saude/medicamentos/novo"
-        className="block w-full py-3 bg-[#E8913A] text-white text-sm font-semibold rounded-xl text-center hover:bg-[#d6812f] transition-colors shadow-sm"
-      >
-        + Adicionar Medicamento
-      </Link>
+      {!isReadonly && (
+        <Link
+          href="/saude/medicamentos/novo"
+          className="block w-full py-3 bg-[#E8913A] text-white text-sm font-semibold rounded-xl text-center hover:bg-[#d6812f] transition-colors shadow-sm"
+        >
+          + Adicionar Medicamento
+        </Link>
+      )}
     </div>
   );
 }

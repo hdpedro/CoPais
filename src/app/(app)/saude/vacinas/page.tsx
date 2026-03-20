@@ -18,12 +18,13 @@ export default async function VacinasPage({
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
 
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: children } = await supabase
     .from("children")
@@ -301,15 +302,17 @@ export default async function VacinasPage({
       </section>
 
       {/* Add button */}
-      <Link
-        href="/saude/vacinas/nova"
-        className="fixed bottom-24 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-2 px-5 py-3 bg-accent text-white text-sm font-semibold rounded-full shadow-lg hover:shadow-xl transition-all"
-      >
-        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-        </svg>
-        Registrar Vacina
-      </Link>
+      {!isReadonly && (
+        <Link
+          href="/saude/vacinas/nova"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-2 px-5 py-3 bg-accent text-white text-sm font-semibold rounded-full shadow-lg hover:shadow-xl transition-all"
+        >
+          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+          </svg>
+          Registrar Vacina
+        </Link>
+      )}
     </div>
   );
 }

@@ -24,6 +24,7 @@ export default async function SaudePage({
   if (!memberships || memberships.length === 0) redirect("/onboarding");
 
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   // Get group's children
   const { data: children } = await supabase
@@ -61,12 +62,14 @@ export default async function SaudePage({
           <p className="text-muted mb-4">
             Adicione uma crianca para comecar a usar o modulo de saude.
           </p>
-          <Link
-            href="/criancas/nova"
-            className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg"
-          >
-            Adicionar crianca
-          </Link>
+          {!isReadonly && (
+            <Link
+              href="/criancas/nova"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg"
+            >
+              Adicionar crianca
+            </Link>
+          )}
         </div>
       </div>
     );

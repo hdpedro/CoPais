@@ -24,6 +24,7 @@ export default async function DoencasPage({
   if (!memberships || memberships.length === 0) redirect("/onboarding");
 
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: episodes } = await supabase
     .from("illness_episodes")
@@ -138,17 +139,19 @@ export default async function DoencasPage({
                   </p>
                 )}
 
-                <form action={updateIllnessEpisode}>
-                  <input type="hidden" name="episodeId" value={ep.id} />
-                  <input type="hidden" name="status" value="recovered" />
-                  <input type="hidden" name="endDate" value={today} />
-                  <button
-                    type="submit"
-                    className="w-full text-center text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg py-2 transition-colors"
-                  >
-                    Marcar como recuperada
-                  </button>
-                </form>
+                {!isReadonly && (
+                  <form action={updateIllnessEpisode}>
+                    <input type="hidden" name="episodeId" value={ep.id} />
+                    <input type="hidden" name="status" value="recovered" />
+                    <input type="hidden" name="endDate" value={today} />
+                    <button
+                      type="submit"
+                      className="w-full text-center text-xs font-semibold text-green-700 bg-green-50 hover:bg-green-100 rounded-lg py-2 transition-colors"
+                    >
+                      Marcar como recuperada
+                    </button>
+                  </form>
+                )}
               </div>
             ))}
           </div>
@@ -232,25 +235,27 @@ export default async function DoencasPage({
       )}
 
       {/* Add button */}
-      <Link
-        href="/saude/doencas/nova"
-        className="fixed bottom-24 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-2 px-5 py-3 bg-accent text-white text-sm font-semibold rounded-full shadow-lg hover:shadow-xl transition-all"
-      >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
+      {!isReadonly && (
+        <Link
+          href="/saude/doencas/nova"
+          className="fixed bottom-24 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-2 px-5 py-3 bg-accent text-white text-sm font-semibold rounded-full shadow-lg hover:shadow-xl transition-all"
         >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M12 4v16m8-8H4"
-          />
-        </svg>
-        Registrar Episodio
-      </Link>
+          <svg
+            className="w-5 h-5"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M12 4v16m8-8H4"
+            />
+          </svg>
+          Registrar Episodio
+        </Link>
+      )}
     </div>
   );
 }

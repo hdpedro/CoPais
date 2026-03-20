@@ -10,11 +10,12 @@ export default async function ChildrenPage() {
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: children } = await supabase
     .from("children")
@@ -26,12 +27,14 @@ export default async function ChildrenPage() {
     <div className="space-y-6 pb-20">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-dark">Criancas</h1>
+        {!isReadonly && (
         <Link
           href="/criancas/nova"
           className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors"
         >
           + Adicionar
         </Link>
+        )}
       </div>
 
       {children && children.length > 0 ? (
@@ -68,7 +71,7 @@ export default async function ChildrenPage() {
       ) : (
         <div className="bg-white rounded-xl p-8 shadow-sm text-center">
           <p className="text-muted">Nenhuma crianca cadastrada ainda.</p>
-          <Link href="/criancas/nova" className="text-primary font-medium mt-2 inline-block">Adicionar crianca</Link>
+          {!isReadonly && <Link href="/criancas/nova" className="text-primary font-medium mt-2 inline-block">Adicionar crianca</Link>}
         </div>
       )}
     </div>

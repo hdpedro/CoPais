@@ -16,11 +16,12 @@ export default async function ProfessionalsPage({
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: professionals } = await supabase
     .from("medical_professionals")
@@ -151,22 +152,26 @@ export default async function ProfessionalsPage({
           <p className="text-muted mb-2">
             Nenhum profissional cadastrado ainda.
           </p>
-          <Link
-            href="/saude/profissionais/novo"
-            className="text-primary font-medium"
-          >
-            Cadastrar profissional
-          </Link>
+          {!isReadonly && (
+            <Link
+              href="/saude/profissionais/novo"
+              className="text-primary font-medium"
+            >
+              Cadastrar profissional
+            </Link>
+          )}
         </div>
       )}
 
       {/* Floating add button */}
-      <Link
-        href="/saude/profissionais/novo"
-        className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-primary-dark transition-colors z-10"
-      >
-        +
-      </Link>
+      {!isReadonly && (
+        <Link
+          href="/saude/profissionais/novo"
+          className="fixed bottom-24 right-6 w-14 h-14 bg-primary text-white rounded-full shadow-lg flex items-center justify-center text-2xl hover:bg-primary-dark transition-colors z-10"
+        >
+          +
+        </Link>
+      )}
     </div>
   );
 }
