@@ -1,8 +1,8 @@
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 // Test-only login route - accepts email/password via query params
-// Should be removed or protected in real production
+// Only allows @2lares.test emails for safety
 export async function GET(request: NextRequest) {
   const email = request.nextUrl.searchParams.get("email");
   const password = request.nextUrl.searchParams.get("password");
@@ -11,17 +11,36 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "email and password required" }, { status: 400 });
   }
 
-  // Only allow @2lares.test emails for safety
   if (!email.endsWith("@2lares.test")) {
     return NextResponse.json({ error: "only test accounts allowed" }, { status: 403 });
   }
 
-  const supabase = await createClient();
+  // Build redirect response first so we can set cookies on it
+  const redirectUrl = new URL("/dashboard", request.nextUrl.origin);
+  const response = NextResponse.redirect(redirectUrl);
+
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            response.cookies.set(name, value, options);
+          });
+        },
+      },
+    }
+  );
+
   const { error } = await supabase.auth.signInWithPassword({ email, password });
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 401 });
   }
 
-  return NextResponse.redirect(new URL("/dashboard", request.nextUrl.origin));
+  return response;
 }
