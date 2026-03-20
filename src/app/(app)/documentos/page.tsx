@@ -10,11 +10,12 @@ export default async function DocumentsPage() {
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: children } = await supabase
     .from("children")
@@ -54,6 +55,7 @@ export default async function DocumentsPage() {
       <h1 className="text-2xl font-bold text-dark">Documentos</h1>
 
       {/* Upload Form */}
+      {!isReadonly && (
       <form action={createDocument} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
         <h3 className="font-semibold text-dark">Enviar documento</h3>
         <input type="hidden" name="groupId" value={groupId} />
@@ -85,6 +87,7 @@ export default async function DocumentsPage() {
           Enviar
         </button>
       </form>
+      )}
 
       {/* Document List */}
       {documents && documents.length > 0 ? (

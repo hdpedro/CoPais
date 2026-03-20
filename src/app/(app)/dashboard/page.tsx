@@ -210,7 +210,13 @@ export default async function DashboardPage() {
     (activeIllnesses && activeIllnesses.length > 0);
 
   // UI constants
-  const firstName = profile?.full_name?.split(" ")[0] || "Pai";
+  const nameParts = profile?.full_name?.split(" ") || [];
+  // Handle prefixes like "Dr.", "Dra.", "Sr.", "Sra." — use prefix + next word
+  const prefixes = ["dr.", "dra.", "sr.", "sra.", "prof."];
+  const firstName = nameParts.length > 1 && prefixes.includes(nameParts[0].toLowerCase())
+    ? `${nameParts[0]} ${nameParts[1]}`
+    : nameParts[0] || "Pai";
+  const isReadonly = memberships[0].role === "readonly";
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
@@ -669,6 +675,7 @@ export default async function DashboardPage() {
       </div>
 
       {/* === ACOES RAPIDAS === */}
+      {!isReadonly && (
       <div>
         <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider mb-3">Acoes rapidas</p>
 
@@ -712,6 +719,7 @@ export default async function DashboardPage() {
           />
         </div>
       </div>
+      )}
 
       {/* === CHILDREN === */}
       {children && children.length > 0 && (

@@ -10,11 +10,12 @@ export default async function AcordosPage() {
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: agreements } = await supabase
     .from("agreements")
@@ -50,37 +51,39 @@ export default async function AcordosPage() {
       </div>
 
       {/* New Agreement Form */}
-      <form action={createAgreement} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
-        <h3 className="font-semibold text-dark">Novo acordo</h3>
-        <input type="hidden" name="groupId" value={groupId} />
+      {!isReadonly && (
+        <form action={createAgreement} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
+          <h3 className="font-semibold text-dark">Novo acordo</h3>
+          <input type="hidden" name="groupId" value={groupId} />
 
-        <input type="text" name="title" required placeholder="Titulo do acordo"
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          <input type="text" name="title" required placeholder="Titulo do acordo"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
 
-        <textarea name="description" required rows={3} placeholder="Descreva o acordo, principio ou valor..."
-          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
+          <textarea name="description" required rows={3} placeholder="Descreva o acordo, principio ou valor..."
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
 
-        <div className="flex gap-3 items-center">
-          <select name="category" required
-            className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
-            <option value="principle">Principio</option>
-            <option value="value">Valor</option>
-            <option value="rule">Regra</option>
-            <option value="boundary">Limite</option>
-            <option value="routine">Rotina</option>
-          </select>
+          <div className="flex gap-3 items-center">
+            <select name="category" required
+              className="flex-1 px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50">
+              <option value="principle">Principio</option>
+              <option value="value">Valor</option>
+              <option value="rule">Regra</option>
+              <option value="boundary">Limite</option>
+              <option value="routine">Rotina</option>
+            </select>
 
-          <label className="flex items-center gap-2 text-sm text-dark">
-            <input type="checkbox" name="isNonNegotiable" className="rounded border-gray-300 text-primary focus:ring-primary" />
-            Inegociavel
-          </label>
-        </div>
+            <label className="flex items-center gap-2 text-sm text-dark">
+              <input type="checkbox" name="isNonNegotiable" className="rounded border-gray-300 text-primary focus:ring-primary" />
+              Inegociavel
+            </label>
+          </div>
 
-        <button type="submit"
-          className="w-full py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
-          Adicionar Acordo
-        </button>
-      </form>
+          <button type="submit"
+            className="w-full py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
+            Adicionar Acordo
+          </button>
+        </form>
+      )}
 
       {/* Agreements List */}
       {agreements && agreements.length > 0 ? (
@@ -103,7 +106,7 @@ export default async function AcordosPage() {
                 </div>
                 {agreement.accepted_by ? (
                   <span className="text-xs bg-success/10 text-success px-2 py-1 rounded-full">Aceito</span>
-                ) : agreement.created_by !== user.id ? (
+                ) : !isReadonly && agreement.created_by !== user.id ? (
                   <form action={acceptAgreement}>
                     <input type="hidden" name="agreementId" value={agreement.id} />
                     <button type="submit" className="text-xs bg-primary/10 text-primary px-3 py-1 rounded-full hover:bg-primary/20 transition-colors font-medium">

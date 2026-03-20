@@ -12,11 +12,12 @@ export default async function ExpensesPage() {
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: expenses } = await supabase
     .from("expenses")
@@ -48,10 +49,12 @@ export default async function ExpensesPage() {
     <div className="space-y-6 pb-20">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-dark">Despesas</h1>
-        <Link href="/despesas/nova"
-          className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
-          + Nova
-        </Link>
+        {!isReadonly && (
+          <Link href="/despesas/nova"
+            className="px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors">
+            + Nova
+          </Link>
+        )}
       </div>
 
       {/* Summary */}
@@ -100,7 +103,7 @@ export default async function ExpensesPage() {
                 </div>
 
                 {/* Approve/Reject buttons for other user's pending expenses */}
-                {!isOwnExpense && expense.status === "pending" && (
+                {!isReadonly && !isOwnExpense && expense.status === "pending" && (
                   <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
                     <form action={updateExpenseStatus} className="flex-1">
                       <input type="hidden" name="expenseId" value={expense.id} />
@@ -125,7 +128,7 @@ export default async function ExpensesPage() {
       ) : (
         <div className="bg-white rounded-xl p-8 shadow-sm text-center">
           <p className="text-muted">Nenhuma despesa registrada.</p>
-          <Link href="/despesas/nova" className="text-primary font-medium mt-2 inline-block">Adicionar despesa</Link>
+          {!isReadonly && <Link href="/despesas/nova" className="text-primary font-medium mt-2 inline-block">Adicionar despesa</Link>}
         </div>
       )}
     </div>

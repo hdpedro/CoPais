@@ -11,11 +11,12 @@ export default async function EventosPage() {
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: children } = await supabase
     .from("children")
@@ -43,6 +44,7 @@ export default async function EventosPage() {
       </div>
 
       {/* New Event Form */}
+      {!isReadonly && (
       <form action={createEvent} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
         <h3 className="font-semibold text-dark">Novo evento</h3>
         <input type="hidden" name="groupId" value={groupId} />
@@ -95,6 +97,7 @@ export default async function EventosPage() {
           Adicionar Evento
         </button>
       </form>
+      )}
 
       {/* Upcoming Events (active only) */}
       {upcoming.length > 0 && (

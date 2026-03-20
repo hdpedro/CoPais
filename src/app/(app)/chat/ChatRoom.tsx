@@ -29,11 +29,13 @@ export default function ChatRoom({
   userId,
   initialMessages,
   members,
+  isReadonly = false,
 }: {
   groupId: string;
   userId: string;
   initialMessages: Message[];
   members: Member[];
+  isReadonly?: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   const [newMessage, setNewMessage] = useState("");
@@ -290,28 +292,34 @@ export default function ChatRoom({
       )}
 
       {/* Input */}
-      <form onSubmit={handleSend} className="flex gap-2">
-        <input
-          type="text"
-          value={newMessage}
-          onChange={handleInputChange}
-          placeholder="Digite uma mensagem..."
-          className={`flex-1 px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-colors ${
-            showSuggestion && toneResult?.isAggressive
-              ? "border-amber-300 focus:ring-amber-200 focus:border-amber-400"
-              : "border-gray-200 focus:ring-primary/50 focus:border-primary"
-          }`}
-        />
-        <button
-          type="submit"
-          disabled={sending || !newMessage.trim() || (showSuggestion && !!toneResult?.isAggressive)}
-          className="px-4 py-3 bg-primary text-white rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-50"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-          </svg>
-        </button>
-      </form>
+      {isReadonly ? (
+        <div className="text-center py-3 text-sm text-muted bg-gray-50 rounded-xl">
+          Voce tem acesso somente leitura neste grupo.
+        </div>
+      ) : (
+        <form onSubmit={handleSend} className="flex gap-2">
+          <input
+            type="text"
+            value={newMessage}
+            onChange={handleInputChange}
+            placeholder="Digite uma mensagem..."
+            className={`flex-1 px-4 py-3 border rounded-xl focus:outline-none focus:ring-2 transition-colors ${
+              showSuggestion && toneResult?.isAggressive
+                ? "border-amber-300 focus:ring-amber-200 focus:border-amber-400"
+                : "border-gray-200 focus:ring-primary/50 focus:border-primary"
+            }`}
+          />
+          <button
+            type="submit"
+            disabled={sending || !newMessage.trim() || (showSuggestion && !!toneResult?.isAggressive)}
+            className="px-4 py-3 bg-primary text-white rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-50"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
+        </form>
+      )}
     </div>
   );
 }

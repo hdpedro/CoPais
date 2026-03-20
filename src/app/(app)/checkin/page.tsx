@@ -12,11 +12,12 @@ export default async function CheckinPage() {
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
   const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
 
   const { data: children } = await supabase
     .from("children")
@@ -71,10 +72,12 @@ export default async function CheckinPage() {
       </div>
 
       {/* Quick add form */}
-      <CheckinForm
-        groupId={groupId}
-        children={children || []}
-      />
+      {!isReadonly && (
+        <CheckinForm
+          groupId={groupId}
+          children={children || []}
+        />
+      )}
 
       {/* Today's checkins */}
       {todayCheckins && todayCheckins.length > 0 && (
