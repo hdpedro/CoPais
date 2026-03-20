@@ -17,6 +17,10 @@ export async function createDocument(formData: FormData) {
 
   if (!file || file.size === 0) redirect("/documentos?error=" + encodeURIComponent("Selecione um arquivo"));
 
+  // Limit file size to 10MB
+  const MAX_FILE_SIZE = 10 * 1024 * 1024;
+  if (file.size > MAX_FILE_SIZE) redirect("/documentos?error=" + encodeURIComponent("Arquivo muito grande. Maximo 10MB."));
+
   // Verify user belongs to this group
   const { data: membership } = await supabase
     .from("group_members")
@@ -26,6 +30,12 @@ export async function createDocument(formData: FormData) {
     .single();
 
   if (!membership) redirect("/documentos?error=" + encodeURIComponent("Sem permissao"));
+
+  // Verify child belongs to group
+  if (childId) {
+    const { data: child } = await supabase.from("children").select("id").eq("id", childId).eq("group_id", groupId).single();
+    if (!child) redirect("/documentos?error=" + encodeURIComponent("Crianca nao pertence a este grupo."));
+  }
 
   // Use service role to bypass storage RLS policies
   const adminClient = createSupabaseClient(

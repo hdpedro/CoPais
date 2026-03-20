@@ -18,15 +18,26 @@ export async function createEvent(formData: FormData) {
   }
 
   const childId = formData.get("childId") as string;
+
+  // Verify child belongs to group
+  if (childId) {
+    const { data: child } = await supabase.from("children").select("id").eq("id", childId).eq("group_id", groupId).single();
+    if (!child) redirect("/eventos?error=" + encodeURIComponent("Crianca nao pertence a este grupo."));
+  }
+
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
   const eventDate = formData.get("eventDate") as string;
   const eventTime = formData.get("eventTime") as string;
   const location = formData.get("location") as string;
 
-  // Handle image upload
+  // Handle image upload (max 5MB)
   const image = formData.get("image") as File;
   let imageUrl: string | null = null;
+
+  if (image && image.size > 5 * 1024 * 1024) {
+    redirect("/eventos?error=" + encodeURIComponent("Imagem muito grande. Maximo 5MB."));
+  }
 
   if (image && image.size > 0) {
     const fileName = `events/${groupId}/${Date.now()}-${image.name}`;

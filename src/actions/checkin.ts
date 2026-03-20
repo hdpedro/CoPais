@@ -18,7 +18,15 @@ export async function createCheckin(formData: FormData) {
   }
 
   const childId = formData.get("childId") as string;
+
+  // Verify child belongs to group
+  if (childId) {
+    const { data: child } = await supabase.from("children").select("id").eq("id", childId).eq("group_id", groupId).single();
+    if (!child) return { error: "Crianca nao pertence a este grupo." };
+  }
+
   const category = formData.get("category") as string;
+  const validCategories = ["screen_time", "food", "sleep", "mood", "health", "activity", "school", "other"];
   const title = formData.get("title") as string;
   const description = formData.get("description") as string;
 
@@ -28,7 +36,7 @@ export async function createCheckin(formData: FormData) {
     group_id: groupId,
     child_id: childId,
     logged_by: user.id,
-    category,
+    category: validCategories.includes(category) ? category : "other",
     title: title.trim(),
     description: description?.trim() || null,
   });
