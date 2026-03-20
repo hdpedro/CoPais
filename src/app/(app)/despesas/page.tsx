@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
 import { updateExpenseStatus, deleteExpense } from "@/actions/expenses";
+import RejectExpenseButton from "./RejectExpenseButton";
 
 export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
   const params = await searchParams;
@@ -22,7 +23,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
 
   const { data: expenses } = await supabase
     .from("expenses")
-    .select("*, profiles!expenses_paid_by_fkey(full_name), children(full_name)")
+    .select("*, rejection_reason, profiles!expenses_paid_by_fkey(full_name), children(full_name)")
     .eq("group_id", groupId)
     .order("expense_date", { ascending: false });
 
@@ -71,9 +72,9 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
       )}
 
       {/* Summary */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className={`grid gap-3 ${rejected > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
         <div className="bg-white rounded-xl p-4 shadow-sm">
-          <p className="text-xs text-muted">Total aprovado</p>
+          <p className="text-xs text-muted">Total (excl. rejeitadas)</p>
           <p className="text-xl font-bold text-dark">R$ {total.toFixed(2)}</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -103,7 +104,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
                     <div>
                       <p className="font-medium text-dark text-sm">{expense.description}</p>
                       <p className="text-xs text-muted">
-                        {(expense.profiles as any)?.full_name} - {new Date(expense.expense_date).toLocaleDateString("pt-BR")}
+                        {(expense.profiles as any)?.full_name} - {new Date(expense.expense_date + "T12:00:00").toLocaleDateString("pt-BR")}
                       </p>
                     </div>
                   </div>
@@ -115,6 +116,13 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
                   </div>
                 </div>
 
+                {/* Show rejection reason */}
+                {expense.status === "rejected" && (expense as any).rejection_reason && (
+                  <div className="mt-2 px-3 py-2 bg-error/5 rounded-lg">
+                    <p className="text-xs text-error font-medium">Motivo: {(expense as any).rejection_reason}</p>
+                  </div>
+                )}
+
                 {/* Approve/Reject buttons for other user's pending expenses */}
                 {!isReadonly && !isOwnExpense && expense.status === "pending" && (
                   <div className="flex gap-2 mt-3 pt-3 border-t border-gray-100">
@@ -125,13 +133,9 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
                         Aprovar
                       </button>
                     </form>
-                    <form action={updateExpenseStatus} className="flex-1">
-                      <input type="hidden" name="expenseId" value={expense.id} />
-                      <input type="hidden" name="status" value="rejected" />
-                      <button type="submit" className="w-full py-2 text-sm font-medium text-error bg-error/10 rounded-lg hover:bg-error/20 transition-colors">
-                        Rejeitar
-                      </button>
-                    </form>
+                    <div className="flex-1">
+                      <RejectExpenseButton expenseId={expense.id} />
+                    </div>
                   </div>
                 )}
 

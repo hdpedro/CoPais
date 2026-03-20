@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useRef, useState, useTransition, useMemo } from "react";
 
 interface Props {
   groupId: string;
@@ -8,21 +8,40 @@ interface Props {
   categories: { value: string; label: string; icon: string }[];
   today: string;
   createExpense: (formData: FormData) => Promise<void>;
+  members: { user_id: string; full_name: string }[];
+  currentUserId: string;
 }
 
-export default function ExpenseFormClient({ groupId, children, categories, today, createExpense }: Props) {
+type SplitMode = "equal" | "custom" | "solo";
+
+export default function ExpenseFormClient({ groupId, children, categories, today, createExpense, members, currentUserId }: Props) {
   const [isPending, startTransition] = useTransition();
   const [submitted, setSubmitted] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+  const [splitMode, setSplitMode] = useState<SplitMode>("equal");
+  const [customPercent, setCustomPercent] = useState(50);
+
+  const otherMember = members.find((m) => m.user_id !== currentUserId);
+
+  const splitRatioJson = useMemo(() => {
+    if (members.length < 2 || !otherMember) return null;
+    if (splitMode === "equal") {
+      return JSON.stringify({ [currentUserId]: 50, [otherMember.user_id]: 50 });
+    }
+    if (splitMode === "solo") {
+      return JSON.stringify({ [currentUserId]: 100, [otherMember.user_id]: 0 });
+    }
+    // custom
+    return JSON.stringify({ [currentUserId]: customPercent, [otherMember.user_id]: 100 - customPercent });
+  }, [splitMode, customPercent, members, currentUserId, otherMember]);
 
   const handleSubmit = (formData: FormData) => {
-    if (submitted || isPending) return; // Block double submit
+    if (submitted || isPending) return;
     setSubmitted(true);
     startTransition(async () => {
       try {
         await createExpense(formData);
       } catch {
-        // If there's an error, allow retry
         setSubmitted(false);
       }
     });
@@ -33,6 +52,7 @@ export default function ExpenseFormClient({ groupId, children, categories, today
   return (
     <form ref={formRef} action={handleSubmit} className="bg-white rounded-xl p-6 shadow-sm space-y-4">
       <input type="hidden" name="groupId" value={groupId} />
+      {splitRatioJson && <input type="hidden" name="splitRatio" value={splitRatioJson} />}
 
       <div>
         <label className="block text-sm font-medium text-dark mb-1">Descricao</label>
@@ -68,6 +88,80 @@ export default function ExpenseFormClient({ groupId, children, categories, today
           ))}
         </select>
       </div>
+
+      {/* Split ratio selector */}
+      {members.length >= 2 && otherMember && (
+        <div>
+          <label className="block text-sm font-medium text-dark mb-2">Divisao da despesa</label>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              disabled={isDisabled}
+              onClick={() => setSplitMode("equal")}
+              className={`flex-1 py-2 px-3 text-sm font-medium rounded-lg border transition-colors ${
+                splitMode === "equal"
+                  ? "bg-primary/10 border-primary text-primary"
+                  : "border-gray-200 text-muted hover:bg-gray-50"
+              } disabled:opacity-50`}
+            >
+              50/50
+            </button>
+            <button
+              type="button"
+              disabled={isDisabled}
+              onClick={() => setSplitMode("custom")}
+              className={`flex-1 py-2 px-3 text-sm font-medium rounded-lg border transition-colors ${
+                splitMode === "custom"
+                  ? "bg-primary/10 border-primary text-primary"
+                  : "border-gray-200 text-muted hover:bg-gray-50"
+              } disabled:opacity-50`}
+            >
+              Personalizado
+            </button>
+            <button
+              type="button"
+              disabled={isDisabled}
+              onClick={() => setSplitMode("solo")}
+              className={`flex-1 py-2 px-3 text-sm font-medium rounded-lg border transition-colors ${
+                splitMode === "solo"
+                  ? "bg-primary/10 border-primary text-primary"
+                  : "border-gray-200 text-muted hover:bg-gray-50"
+              } disabled:opacity-50`}
+            >
+              100% meu
+            </button>
+          </div>
+
+          {splitMode === "custom" && (
+            <div className="mt-3 space-y-2">
+              <input
+                type="range"
+                min="10"
+                max="90"
+                step="5"
+                value={customPercent}
+                onChange={(e) => setCustomPercent(Number(e.target.value))}
+                disabled={isDisabled}
+                className="w-full accent-primary"
+              />
+              <div className="flex justify-between text-xs">
+                <span className="text-primary font-medium">
+                  Voce: {customPercent}%
+                </span>
+                <span className="text-muted font-medium">
+                  {otherMember.full_name.split(" ")[0]}: {100 - customPercent}%
+                </span>
+              </div>
+            </div>
+          )}
+
+          {splitMode === "solo" && (
+            <p className="mt-2 text-xs text-muted">
+              Esta despesa nao sera dividida com {otherMember.full_name.split(" ")[0]}.
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <label className="block text-sm font-medium text-dark mb-1">Data</label>

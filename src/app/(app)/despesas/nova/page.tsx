@@ -21,10 +21,22 @@ export default async function NewExpensePage() {
   if (memberships[0].role === "readonly") redirect("/dashboard");
   const groupId = memberships[0].group_id;
 
-  const { data: children } = await supabase
-    .from("children")
-    .select("id, full_name")
-    .eq("group_id", groupId);
+  const [{ data: children }, { data: groupMembers }] = await Promise.all([
+    supabase
+      .from("children")
+      .select("id, full_name")
+      .eq("group_id", groupId),
+    supabase
+      .from("group_members")
+      .select("user_id, profiles(full_name)")
+      .eq("group_id", groupId)
+      .order("joined_at", { ascending: true }),
+  ]);
+
+  const members = (groupMembers || []).map((m) => {
+    const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+    return { user_id: m.user_id, full_name: (p as any)?.full_name || "Usuario" };
+  });
 
   const today = getBrazilToday();
 
@@ -45,6 +57,8 @@ export default async function NewExpensePage() {
         categories={EXPENSE_CATEGORIES as unknown as { value: string; label: string; icon: string }[]}
         today={today}
         createExpense={createExpense}
+        members={members}
+        currentUserId={user.id}
       />
     </div>
   );

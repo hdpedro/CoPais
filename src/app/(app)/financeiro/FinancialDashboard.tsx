@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
-import { EXPENSE_CATEGORIES } from "@/lib/constants";
+import { EXPENSE_CATEGORIES, SETTLEMENT_METHODS } from "@/lib/constants";
+import { createSettlement, confirmSettlement } from "@/actions/settlements";
 
 interface Expense {
   id: string;
@@ -17,6 +18,19 @@ interface Expense {
   child_name: string | null;
 }
 
+interface Settlement {
+  id: string;
+  paid_by: string;
+  paid_to: string;
+  amount: number;
+  payment_method: string;
+  reference_note: string | null;
+  status: string;
+  confirmed_at: string | null;
+  settlement_date: string;
+  created_at: string;
+}
+
 interface Member {
   user_id: string;
   full_name: string;
@@ -28,6 +42,7 @@ interface Props {
   members: Member[];
   currentUserId: string;
   groupId: string;
+  settlements: Settlement[];
 }
 
 const MONTH_NAMES = [
@@ -35,11 +50,25 @@ const MONTH_NAMES = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-export default function FinancialDashboard({ expenses, members, currentUserId, groupId }: Props) {
+function getExpenseSplitShare(expense: Expense, memberId: string, members: Member[]): number {
+  // Returns how much of this expense should be borne by memberId
+  if (expense.split_ratio && expense.split_ratio[memberId] !== undefined) {
+    return (expense.split_ratio[memberId] / 100) * expense.amount;
+  }
+  // Default 50/50 for 2 members
+  if (members.length >= 2) {
+    return expense.amount / 2;
+  }
+  return expense.amount;
+}
+
+export default function FinancialDashboard({ expenses, members, currentUserId, groupId, settlements }: Props) {
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
-  const [viewMode, setViewMode] = useState<"dashboard" | "history">("dashboard");
+  const [viewMode, setViewMode] = useState<"dashboard" | "history" | "settlements">("dashboard");
+  const [showPaymentForm, setShowPaymentForm] = useState(false);
+  const [isPending, startTransition] = useTransition();
 
   // Get available months from expenses
   const availableMonths = useMemo(() => {
@@ -48,7 +77,6 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
       const d = new Date(e.expense_date + "T12:00:00");
       months.add(`${d.getFullYear()}-${d.getMonth()}`);
     });
-    // Always include current month
     months.add(`${now.getFullYear()}-${now.getMonth()}`);
     return Array.from(months)
       .map((m) => {
@@ -58,7 +86,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
       .sort((a, b) => b.year - a.year || b.month - a.month);
   }, [expenses]);
 
-  // Filter expenses for selected month (only approved + pending count toward totals)
+  // Filter expenses for selected month
   const monthExpenses = useMemo(() => {
     return expenses.filter((e) => {
       const d = new Date(e.expense_date + "T12:00:00");
@@ -82,20 +110,77 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
 
   const totalMonth = countableExpenses.reduce((sum, e) => sum + e.amount, 0);
 
-  // Balance calculation (50/50 default)
+  // Balance calculation using per-expense split_ratio
   const balance = useMemo(() => {
     if (members.length < 2) return null;
-    const fairShare = totalMonth / 2;
-    const m0Spent = memberSpending[members[0].user_id] || 0;
-    const m1Spent = memberSpending[members[1].user_id] || 0;
-    // Positive means member[1] owes member[0], negative means member[0] owes member[1]
-    const diff = m0Spent - fairShare;
+    const m0 = members[0];
+    const m1 = members[1];
+
+    // Calculate what each member should pay based on split ratios
+    let m0ShouldPay = 0;
+    let m1ShouldPay = 0;
+
+    countableExpenses.forEach((e) => {
+      m0ShouldPay += getExpenseSplitShare(e, m0.user_id, members);
+      m1ShouldPay += getExpenseSplitShare(e, m1.user_id, members);
+    });
+
+    const m0Spent = memberSpending[m0.user_id] || 0;
+    const m1Spent = memberSpending[m1.user_id] || 0;
+
+    // Balance: positive = m1 owes m0, negative = m0 owes m1
+    // diff = what m0 spent - what m0 should have spent
+    const diff = m0Spent - m0ShouldPay;
+
     return {
       amount: Math.abs(diff),
-      owes: diff > 0 ? members[1] : members[0],
-      receives: diff > 0 ? members[0] : members[1],
+      owes: diff > 0 ? m1 : m0,
+      receives: diff > 0 ? m0 : m1,
     };
-  }, [memberSpending, members, totalMonth]);
+  }, [countableExpenses, memberSpending, members]);
+
+  // Overall balance across all time (for settlements section)
+  const overallBalance = useMemo(() => {
+    if (members.length < 2) return null;
+    const m0 = members[0];
+    const m1 = members[1];
+
+    const allCountable = expenses.filter(
+      (e) => e.status === "approved" || e.status === "pending"
+    );
+
+    let m0ShouldPay = 0;
+
+    allCountable.forEach((e) => {
+      m0ShouldPay += getExpenseSplitShare(e, m0.user_id, members);
+    });
+
+    let m0Spent = 0;
+    allCountable.forEach((e) => {
+      if (e.paid_by === m0.user_id) m0Spent += e.amount;
+    });
+
+    // Account for confirmed settlements
+    const confirmedSettlements = settlements.filter((s) => s.status === "confirmed");
+    let settlementAdjustment = 0;
+    confirmedSettlements.forEach((s) => {
+      if (s.paid_by === m0.user_id) {
+        // m0 paid m1, so m0's effective spend decreases (they're settling debt)
+        settlementAdjustment -= s.amount;
+      } else if (s.paid_to === m0.user_id) {
+        // m1 paid m0, so m0's effective spend increases (they received settlement)
+        settlementAdjustment += s.amount;
+      }
+    });
+
+    const diff = (m0Spent + settlementAdjustment) - m0ShouldPay;
+
+    return {
+      amount: Math.abs(diff),
+      owes: diff > 0 ? m1 : m0,
+      receives: diff > 0 ? m0 : m1,
+    };
+  }, [expenses, settlements, members]);
 
   // Category breakdown
   const categoryBreakdown = useMemo(() => {
@@ -117,19 +202,20 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
       .sort((a, b) => b.amount - a.amount);
   }, [countableExpenses, totalMonth]);
 
-  // Monthly history (all months)
+  // Monthly history
   const monthlyHistory = useMemo(() => {
-    const history: Record<string, { total: number; byMember: Record<string, number> }> = {};
+    const history: Record<string, { total: number; byMember: Record<string, number>; expenses: Expense[] }> = {};
     expenses
       .filter((e) => e.status === "approved" || e.status === "pending")
       .forEach((e) => {
         const d = new Date(e.expense_date + "T12:00:00");
         const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
         if (!history[key]) {
-          history[key] = { total: 0, byMember: {} };
+          history[key] = { total: 0, byMember: {}, expenses: [] };
         }
         history[key].total += e.amount;
         history[key].byMember[e.paid_by] = (history[key].byMember[e.paid_by] || 0) + e.amount;
+        history[key].expenses.push(e);
       });
     return Object.entries(history)
       .sort(([a], [b]) => b.localeCompare(a))
@@ -162,6 +248,38 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
     disputed: "bg-orange-100 text-orange-700",
   };
 
+  const settlementStatusLabels: Record<string, string> = {
+    pending: "Aguardando",
+    confirmed: "Confirmado",
+    disputed: "Disputado",
+  };
+
+  const settlementStatusColors: Record<string, string> = {
+    pending: "bg-amber-100 text-amber-700",
+    confirmed: "bg-green-100 text-green-700",
+    disputed: "bg-red-100 text-red-700",
+  };
+
+  const handleCreateSettlement = (formData: FormData) => {
+    startTransition(async () => {
+      await createSettlement(formData);
+    });
+  };
+
+  const handleConfirmSettlement = (formData: FormData) => {
+    startTransition(async () => {
+      await confirmSettlement(formData);
+    });
+  };
+
+  const getMemberName = (userId: string) => {
+    const member = members.find((m) => m.user_id === userId);
+    return member?.full_name.split(" ")[0] || "Usuario";
+  };
+
+  const userOwes = overallBalance && overallBalance.owes.user_id === currentUserId;
+  const otherMember = members.find((m) => m.user_id !== currentUserId);
+
   return (
     <div className="space-y-4">
       {/* View toggle */}
@@ -173,6 +291,14 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
           }`}
         >
           Resumo
+        </button>
+        <button
+          onClick={() => setViewMode("settlements")}
+          className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+            viewMode === "settlements" ? "bg-white text-dark shadow-sm" : "text-muted"
+          }`}
+        >
+          Acertar Contas
         </button>
         <button
           onClick={() => setViewMode("history")}
@@ -231,7 +357,6 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                   <p className="text-xl font-bold text-dark">
                     R$ {spent.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                   </p>
-                  {/* Percentage bar */}
                   <div className="mt-2 h-2 bg-gray-100 rounded-full overflow-hidden">
                     <div
                       className="h-full rounded-full transition-all"
@@ -259,7 +384,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                     </span>{" "}
                     para {balance.receives.full_name.split(" ")[0]}
                   </p>
-                  <p className="text-xs text-muted">Baseado na divisao 50/50</p>
+                  <p className="text-xs text-muted">Neste mes (considerando divisao por despesa)</p>
                 </div>
               </div>
             </div>
@@ -304,6 +429,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                 {monthExpenses.map((e) => {
                   const cat = EXPENSE_CATEGORIES.find((c) => c.value === e.category);
                   const member = members.find((m) => m.user_id === e.paid_by);
+                  const hasSplitRatio = e.split_ratio && Object.keys(e.split_ratio).length > 0;
                   return (
                     <div key={e.id} className="px-4 py-3 flex items-center gap-3">
                       <span className="text-lg">{cat?.icon || "📦"}</span>
@@ -320,6 +446,14 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                           {e.child_name && (
                             <span className="text-xs text-muted">· {e.child_name.split(" ")[0]}</span>
                           )}
+                          {hasSplitRatio && (() => {
+                            const values = Object.values(e.split_ratio!);
+                            const isEqual = values.every((v) => v === 50);
+                            if (!isEqual) {
+                              return <span className="text-xs text-primary font-medium">· {values.join("/")}</span>;
+                            }
+                            return null;
+                          })()}
                         </div>
                       </div>
                       <div className="text-right shrink-0">
@@ -349,12 +483,207 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
             + Nova Despesa
           </Link>
         </>
+      ) : viewMode === "settlements" ? (
+        /* Settlements view */
+        <div className="space-y-4">
+          {/* Overall balance card */}
+          {overallBalance && overallBalance.amount > 0.01 && (
+            <div className="bg-gradient-to-r from-primary/10 to-primary/5 rounded-xl p-5 shadow-sm">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center text-2xl shadow-sm">
+                  ⚖️
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm text-muted">Saldo geral</p>
+                  <p className="text-lg font-bold text-dark">
+                    {overallBalance.owes.full_name.split(" ")[0]} deve{" "}
+                    <span className="text-primary">
+                      R$ {overallBalance.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </span>{" "}
+                    para {overallBalance.receives.full_name.split(" ")[0]}
+                  </p>
+                </div>
+              </div>
+
+              {/* Show payment button if user owes money */}
+              {userOwes && !showPaymentForm && (
+                <button
+                  onClick={() => setShowPaymentForm(true)}
+                  className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm"
+                >
+                  Registrar Pagamento
+                </button>
+              )}
+            </div>
+          )}
+
+          {overallBalance && overallBalance.amount <= 0.01 && (
+            <div className="bg-green-50 rounded-xl p-5 shadow-sm text-center">
+              <div className="text-3xl mb-2">✅</div>
+              <p className="text-sm font-medium text-green-700">Tudo acertado! Nenhum saldo pendente.</p>
+            </div>
+          )}
+
+          {/* Payment form */}
+          {showPaymentForm && otherMember && overallBalance && (
+            <div className="bg-white rounded-xl p-5 shadow-sm">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-dark">Registrar Pagamento</h3>
+                <button
+                  onClick={() => setShowPaymentForm(false)}
+                  className="text-muted hover:text-dark"
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+              <form action={handleCreateSettlement} className="space-y-4">
+                <input type="hidden" name="groupId" value={groupId} />
+                <input type="hidden" name="paidTo" value={overallBalance.receives.user_id} />
+
+                <div>
+                  <label className="block text-sm font-medium text-dark mb-1">Valor (R$)</label>
+                  <input
+                    type="number"
+                    name="amount"
+                    required
+                    step="0.01"
+                    min="0.01"
+                    defaultValue={overallBalance.amount.toFixed(2)}
+                    disabled={isPending}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50 disabled:bg-gray-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-dark mb-1">Metodo de pagamento</label>
+                  <select
+                    name="paymentMethod"
+                    required
+                    disabled={isPending}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50 disabled:bg-gray-50"
+                  >
+                    {SETTLEMENT_METHODS.map((method) => (
+                      <option key={method.value} value={method.value}>
+                        {method.icon} {method.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-dark mb-1">Observacao (opcional)</label>
+                  <input
+                    type="text"
+                    name="referenceNote"
+                    placeholder="Ex: PIX enviado"
+                    disabled={isPending}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50 disabled:bg-gray-50"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-dark mb-1">Data</label>
+                  <input
+                    type="date"
+                    name="settlementDate"
+                    required
+                    defaultValue={new Date().toISOString().split("T")[0]}
+                    disabled={isPending}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50 disabled:bg-gray-50"
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isPending}
+                  className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                >
+                  {isPending ? (
+                    <>
+                      <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      Registrando...
+                    </>
+                  ) : (
+                    "Registrar Pagamento"
+                  )}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Settlement history */}
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            <h3 className="text-sm font-semibold text-dark px-4 pt-4 pb-2">Historico de pagamentos</h3>
+            {settlements.length > 0 ? (
+              <div className="divide-y divide-gray-50">
+                {settlements.map((s) => {
+                  const methodInfo = SETTLEMENT_METHODS.find((m) => m.value === s.payment_method);
+                  const isRecipient = s.paid_to === currentUserId;
+                  const isPayer = s.paid_by === currentUserId;
+
+                  return (
+                    <div key={s.id} className="px-4 py-3">
+                      <div className="flex items-center gap-3">
+                        <span className="text-lg">{methodInfo?.icon || "💸"}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-dark">
+                            {getMemberName(s.paid_by)} pagou para {getMemberName(s.paid_to)}
+                          </p>
+                          <p className="text-xs text-muted">
+                            {new Date(s.settlement_date + "T12:00:00").toLocaleDateString("pt-BR")}
+                            {s.reference_note ? ` · ${s.reference_note}` : ""}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-semibold text-dark">
+                            R$ {s.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                          </p>
+                          <span className={`text-xs px-1.5 py-0.5 rounded-full ${settlementStatusColors[s.status] || ""}`}>
+                            {settlementStatusLabels[s.status] || s.status}
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* Confirm button for recipient of pending settlement */}
+                      {isRecipient && s.status === "pending" && (
+                        <form action={handleConfirmSettlement} className="mt-3 pt-3 border-t border-gray-100">
+                          <input type="hidden" name="settlementId" value={s.id} />
+                          <button
+                            type="submit"
+                            disabled={isPending}
+                            className="w-full py-2 text-sm font-medium text-success bg-success/10 rounded-lg hover:bg-success/20 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {isPending ? (
+                              <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                              </svg>
+                            ) : null}
+                            Confirmar Recebimento
+                          </button>
+                        </form>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="px-4 py-8 text-center">
+                <p className="text-muted text-sm">Nenhum pagamento registrado ainda.</p>
+              </div>
+            )}
+          </div>
+        </div>
       ) : (
         /* History view */
         <div className="space-y-3">
           {monthlyHistory.length > 0 ? (
             monthlyHistory.map((h) => {
-              const fairShare = h.total / 2;
               return (
                 <button
                   key={`${h.year}-${h.month}`}
@@ -404,8 +733,13 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                   {members.length >= 2 && h.total > 0 && (
                     <div className="mt-2 pt-2 border-t border-gray-50">
                       {(() => {
-                        const m0Spent = h.byMember[members[0].user_id] || 0;
-                        const diff = m0Spent - fairShare;
+                        const m0 = members[0];
+                        let m0ShouldPay = 0;
+                        h.expenses.forEach((e) => {
+                          m0ShouldPay += getExpenseSplitShare(e, m0.user_id, members);
+                        });
+                        const m0Spent = h.byMember[m0.user_id] || 0;
+                        const diff = m0Spent - m0ShouldPay;
                         if (Math.abs(diff) < 0.01) {
                           return <p className="text-xs text-green-600">Equilibrado</p>;
                         }

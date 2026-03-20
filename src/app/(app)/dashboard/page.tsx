@@ -80,7 +80,7 @@ export default async function DashboardPage() {
       .eq("group_id", groupId).gt("start_date", today).order("start_date").limit(5),
     // Monthly expenses
     supabase.from("expenses")
-      .select("amount, paid_by, status")
+      .select("amount, paid_by, status, split_ratio")
       .eq("group_id", groupId).gte("expense_date", monthStart).lt("expense_date", monthEnd),
     // Pending swaps
     supabase.from("swap_requests")
@@ -190,6 +190,7 @@ export default async function DashboardPage() {
   // Process financial (exclude rejected expenses, consistent with Financeiro page)
   let myTotal = 0;
   let otherTotal = 0;
+  let myShouldPay = 0;
   let otherName = "";
   if (monthExpenses) {
     for (const exp of monthExpenses) {
@@ -200,6 +201,13 @@ export default async function DashboardPage() {
         otherTotal += amount;
         if (!otherName && parentColors[exp.paid_by]) otherName = parentColors[exp.paid_by].name;
       }
+      // Calculate what user should pay based on split_ratio
+      const sr = exp.split_ratio as Record<string, number> | null;
+      if (sr && sr[user.id] !== undefined) {
+        myShouldPay += (sr[user.id] / 100) * amount;
+      } else {
+        myShouldPay += amount / 2; // default 50/50
+      }
     }
   }
   if (!otherName) {
@@ -207,7 +215,7 @@ export default async function DashboardPage() {
     otherName = parentColors[otherMember?.user_id || ""]?.name || "Outro";
   }
   const totalMonth = myTotal + otherTotal;
-  const balance = myTotal - totalMonth / 2;
+  const balance = myTotal - myShouldPay;
 
   // Health alerts flag
   const hasHealthAlerts = (activeMedications && activeMedications.length > 0) ||

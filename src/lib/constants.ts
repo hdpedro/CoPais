@@ -61,3 +61,10 @@ export const CHECKIN_CATEGORIES = [
   { value: "school", label: "Escola", icon: "🎒" },
   { value: "other", label: "Outro", icon: "📝" },
 ] as const;
+
+export const SETTLEMENT_METHODS = [
+  { value: "pix", label: "PIX", icon: "💸" },
+  { value: "cash", label: "Dinheiro", icon: "💵" },
+  { value: "transfer", label: "Transferencia", icon: "🏦" },
+  { value: "other", label: "Outro", icon: "📝" },
+] as const;
