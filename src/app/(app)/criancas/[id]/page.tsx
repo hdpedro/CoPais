@@ -30,6 +30,18 @@ export default async function ChildDetailPage({ params }: { params: Promise<{ id
     (Date.now() - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
   );
 
+  const healthLogLabels: Record<string, string> = {
+    medication: "Medicacao",
+    fever: "Febre",
+    symptom: "Sintoma",
+    weight: "Peso",
+    height: "Altura",
+    allergy: "Alergia",
+    vaccination: "Vacina",
+    appointment: "Consulta",
+    general: "Geral",
+  };
+
   return (
     <div className="max-w-lg mx-auto space-y-6 pb-20">
       <div className="flex items-center gap-3">
@@ -48,7 +60,6 @@ export default async function ChildDetailPage({ params }: { params: Promise<{ id
             <span className="text-3xl">👶</span>
           </div>
           <div>
-            <h2 className="text-xl font-bold text-dark">{child.full_name}</h2>
             <p className="text-muted">{age} {age === 1 ? "ano" : "anos"} - {new Date(child.birth_date).toLocaleDateString("pt-BR")}</p>
           </div>
         </div>
@@ -114,7 +125,7 @@ export default async function ChildDetailPage({ params }: { params: Promise<{ id
             {healthLogs.map((log) => (
               <div key={log.id} className="bg-white rounded-xl p-3 shadow-sm">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-dark capitalize">{log.log_type}</span>
+                  <span className="text-sm font-medium text-dark">{healthLogLabels[log.log_type] || log.log_type}</span>
                   <span className="text-xs text-muted">{new Date(log.logged_at).toLocaleDateString("pt-BR")}</span>
                 </div>
                 {log.value && <p className="text-sm text-muted mt-1">{log.value}</p>}

@@ -49,6 +49,17 @@ export default async function SendInvitePage({
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || "https://2lares.vercel.app";
   const inviteLink = inviteToken ? `${appUrl}/convite/${inviteToken}` : null;
 
+  const roleLabels: Record<string, string> = {
+    parent: "Pai/Mae",
+    grandparent: "Avo/Avo",
+    caregiver: "Cuidador(a)",
+    mediator: "Mediador(a)",
+    lawyer: "Advogado(a)",
+    admin: "Administrador",
+    member: "Membro",
+    readonly: "Somente leitura",
+  };
+
   return (
     <div className="max-w-lg mx-auto pb-20">
       <div className="flex items-center gap-3 mb-6">
@@ -148,7 +159,7 @@ export default async function SendInvitePage({
                         )}
                       </div>
                       <p className="text-xs text-muted mt-0.5">
-                        {inv.role === "parent" ? "Pai/Mae" : inv.role}
+                        {roleLabels[inv.role] || inv.role}
                         {isPending && (
                           <span> — Expira em {Math.ceil((expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24))} dias</span>
                         )}
