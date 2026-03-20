@@ -10,10 +10,21 @@ export default async function ChildDetailPage({ params }: { params: Promise<{ id
   const user = session?.user;
   if (!user) redirect("/login");
 
+  // Verify group membership
+  const { data: memberships } = await supabase
+    .from("group_members")
+    .select("group_id, role")
+    .eq("user_id", user.id);
+
+  if (!memberships || memberships.length === 0) redirect("/onboarding");
+  const groupId = memberships[0].group_id;
+  const isReadonly = memberships[0].role === "readonly";
+
   const { data: child } = await supabase
     .from("children")
     .select("*")
     .eq("id", id)
+    .eq("group_id", groupId)
     .single();
 
   if (!child) notFound();
@@ -84,6 +95,7 @@ export default async function ChildDetailPage({ params }: { params: Promise<{ id
       </div>
 
       {/* Edit Form */}
+      {!isReadonly && (
       <details className="bg-white rounded-xl shadow-sm">
         <summary className="p-4 font-semibold text-dark cursor-pointer">Editar informacoes</summary>
         <form action={updateChild} className="p-4 pt-0 space-y-4">
@@ -113,6 +125,7 @@ export default async function ChildDetailPage({ params }: { params: Promise<{ id
           </button>
         </form>
       </details>
+      )}
 
       {/* Recent Health Logs */}
       <div>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { createMedication } from "@/actions/health";
 import { MEDICATION_FREQUENCIES } from "@/lib/health-constants";
 import FrequencySelect from "../FrequencySelect";
+import { getBrazilToday } from "@/lib/calendar-utils";
 
 export default async function NovoMedicamentoPage() {
   const supabase = await createClient();
@@ -15,10 +16,11 @@ export default async function NovoMedicamentoPage() {
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
+  if (memberships[0].role === "readonly") redirect("/dashboard");
   const groupId = memberships[0].group_id;
 
   const { data: children } = await supabase
@@ -26,7 +28,7 @@ export default async function NovoMedicamentoPage() {
     .select("id, full_name")
     .eq("group_id", groupId);
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getBrazilToday();
 
   return (
     <div className="max-w-lg mx-auto pb-20 space-y-6">

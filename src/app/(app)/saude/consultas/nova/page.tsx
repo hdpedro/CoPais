@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { createAppointment } from "@/actions/health";
 import WhatsAppScheduleButton from "../WhatsAppScheduleButton";
+import { getBrazilToday } from "@/lib/calendar-utils";
 
 export default async function NewAppointmentPage() {
   const supabase = await createClient();
@@ -14,10 +15,11 @@ export default async function NewAppointmentPage() {
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
+  if (memberships[0].role === "readonly") redirect("/dashboard");
   const groupId = memberships[0].group_id;
 
   const { data: children } = await supabase
@@ -31,7 +33,7 @@ export default async function NewAppointmentPage() {
     .eq("group_id", groupId)
     .order("name", { ascending: true });
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getBrazilToday();
 
   const whatsappProfessionals = (professionals || []).map((p) => ({
     id: p.id,

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { createGrowthRecord } from "@/actions/health";
+import { getBrazilToday } from "@/lib/calendar-utils";
 
 export default async function NovaMedidaPage({
   searchParams,
@@ -18,10 +19,11 @@ export default async function NovaMedidaPage({
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
+  if (memberships[0].role === "readonly") redirect("/dashboard");
 
   const groupId = memberships[0].group_id;
 
@@ -31,7 +33,7 @@ export default async function NovaMedidaPage({
     .eq("group_id", groupId)
     .order("birth_date");
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getBrazilToday();
 
   return (
     <div className="max-w-lg mx-auto pb-20">

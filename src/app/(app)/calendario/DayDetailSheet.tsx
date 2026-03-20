@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createSwapRequest } from "@/actions/calendar";
-import type { CustodyDayInfo } from "@/lib/calendar-utils";
+import { getBrazilToday, type CustodyDayInfo } from "@/lib/calendar-utils";
 
 interface DayDetailSheetProps {
   isOpen: boolean;
@@ -42,10 +42,9 @@ export default function DayDetailSheet({
   });
 
   const isOtherParentDay = dayInfo && dayInfo.userId !== currentUserId;
-  const isFutureDate = dateKey >= new Date().toISOString().split("T")[0];
+  const todayStr = getBrazilToday();
+  const isFutureDate = dateKey >= todayStr;
   const canRequestSwap = isOtherParentDay && isFutureDate && !pendingSwapForDay;
-
-  const todayStr = new Date().toISOString().split("T")[0];
 
   function handleClose() {
     setShowSwapForm(false);

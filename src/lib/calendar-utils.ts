@@ -30,6 +30,18 @@ export interface ParentColorMap {
   [userId: string]: { name: string; color: string };
 }
 
+/** Get today's date in YYYY-MM-DD format using Brazil timezone (America/Sao_Paulo) */
+export function getBrazilToday(): string {
+  return new Date().toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+}
+
+/** Get a Date object representing the current time in Brazil (America/Sao_Paulo) */
+export function getBrazilNow(): Date {
+  const now = new Date();
+  const brazilStr = now.toLocaleString("en-US", { timeZone: "America/Sao_Paulo" });
+  return new Date(brazilStr);
+}
+
 /** Format date as YYYY-MM-DD */
 export function formatDateKey(date: Date): string {
   const y = date.getFullYear();

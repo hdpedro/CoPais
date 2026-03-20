@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { createSwapRequest } from "@/actions/calendar";
-import type { CustodyDayInfo } from "@/lib/calendar-utils";
+import { getBrazilToday, type CustodyDayInfo } from "@/lib/calendar-utils";
 
 interface SwapRequestModalProps {
   isOpen: boolean;
@@ -115,7 +115,7 @@ export default function SwapRequestModal({
                 value={proposedDate}
                 onChange={(e) => setProposedDate(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
-                min={new Date().toISOString().split("T")[0]}
+                min={getBrazilToday()}
               />
             </div>
           )}

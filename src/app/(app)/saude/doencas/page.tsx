@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { updateIllnessEpisode } from "@/actions/health";
+import { getBrazilToday } from "@/lib/calendar-utils";
 
 export default async function DoencasPage({
   searchParams,
@@ -39,7 +40,7 @@ export default async function DoencasPage({
     (e) => e.status === "recovered"
   );
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getBrazilToday();
 
   function formatDate(dateStr: string) {
     return new Date(dateStr + "T12:00:00").toLocaleDateString("pt-BR", {

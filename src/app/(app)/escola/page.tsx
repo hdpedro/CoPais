@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createSchoolLog } from "@/actions/school";
+import { getBrazilToday } from "@/lib/calendar-utils";
 
 export default async function EscolaPage() {
   const supabase = await createClient();
@@ -53,7 +54,7 @@ export default async function EscolaPage() {
     other: "📌",
   };
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getBrazilToday();
 
   return (
     <div className="space-y-6 pb-20">

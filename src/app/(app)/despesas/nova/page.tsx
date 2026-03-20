@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createExpense } from "@/actions/expenses";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
 import Link from "next/link";
+import { getBrazilToday } from "@/lib/calendar-utils";
 
 export default async function NewExpensePage() {
   const supabase = await createClient();
@@ -12,10 +13,11 @@ export default async function NewExpensePage() {
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
+  if (memberships[0].role === "readonly") redirect("/dashboard");
   const groupId = memberships[0].group_id;
 
   const { data: children } = await supabase
@@ -23,7 +25,7 @@ export default async function NewExpensePage() {
     .select("id, full_name")
     .eq("group_id", groupId);
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getBrazilToday();
 
   return (
     <div className="max-w-lg mx-auto pb-20">

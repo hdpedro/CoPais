@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { generateSchedule } from "@/actions/calendar";
 import { DAY_NAMES } from "@/lib/constants";
+import { getBrazilToday } from "@/lib/calendar-utils";
 
 interface Member {
   user_id: string;
@@ -37,7 +38,7 @@ export default function ScheduleBuilder({
   );
   const [childId, setChildId] = useState(children[0]?.id || "");
   const [startDate, setStartDate] = useState(
-    initialStartDate || new Date().toISOString().split("T")[0]
+    initialStartDate || getBrazilToday()
   );
   const [months, setMonths] = useState(6);
   const [submitting, setSubmitting] = useState(false);

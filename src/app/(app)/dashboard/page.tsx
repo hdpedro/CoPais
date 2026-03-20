@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
-import { formatDateKey, computeSwapBalance, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
+import { formatDateKey, computeSwapBalance, getBrazilNow, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
 import { PARENT_COLORS } from "@/lib/constants";
 import { getHolidaysForYear } from "@/lib/brazilian-holidays";
 
@@ -217,13 +217,14 @@ export default async function DashboardPage() {
     ? `${nameParts[0]} ${nameParts[1]}`
     : nameParts[0] || "Pai";
   const isReadonly = memberships[0].role === "readonly";
-  const hour = new Date().getHours();
+  const brazilNow = getBrazilNow();
+  const hour = brazilNow.getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 18 ? "Boa tarde" : "Boa noite";
 
   const dayNames = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"];
   const dayNamesShort = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"];
   const monthNames = ["janeiro", "fevereiro", "marco", "abril", "maio", "junho", "julho", "agosto", "setembro", "outubro", "novembro", "dezembro"];
-  const todayDateObj = new Date();
+  const todayDateObj = brazilNow;
   const formattedDate = `${dayNames[todayDateObj.getDay()]}, ${todayDateObj.getDate()} de ${monthNames[todayDateObj.getMonth()]}`;
 
   const firstChild = children && children.length > 0 ? children[0] : null;
@@ -785,7 +786,7 @@ export default async function DashboardPage() {
         <span className="text-[13px] text-[#7A8C8B]">Saldo de trocas</span>
         <div className="text-right">
           <p className="text-xl font-bold text-[#1A3B3A]">
-            +{mySwapDays} {Math.abs(mySwapDays) === 1 ? "dia" : "dias"}
+            {mySwapDays >= 0 ? "+" : ""}{mySwapDays} {Math.abs(mySwapDays) === 1 ? "dia" : "dias"}
           </p>
           {mySwapDays === 0 ? (
             <p className="text-[11px] text-emerald-600 font-medium">Em dia &#10003;</p>

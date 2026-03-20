@@ -14,10 +14,11 @@ export default async function NewProfessionalPage() {
 
   const { data: memberships } = await supabase
     .from("group_members")
-    .select("group_id")
+    .select("group_id, role")
     .eq("user_id", user.id);
 
   if (!memberships || memberships.length === 0) redirect("/onboarding");
+  if (memberships[0].role === "readonly") redirect("/dashboard");
   const groupId = memberships[0].group_id;
 
   return (

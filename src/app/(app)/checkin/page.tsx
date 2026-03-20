@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import CheckinForm from "./CheckinForm";
 import { CHECKIN_CATEGORIES } from "@/lib/constants";
+import { getBrazilToday } from "@/lib/calendar-utils";
 
 export default async function CheckinPage() {
   const supabase = await createClient();
@@ -25,7 +26,7 @@ export default async function CheckinPage() {
     .eq("group_id", groupId);
 
   // Get today's checkins
-  const today = new Date().toISOString().split("T")[0];
+  const today = getBrazilToday();
   const { data: todayCheckins } = await supabase
     .from("daily_checkins")
     .select("*, profiles!daily_checkins_logged_by_fkey(full_name), children(full_name)")

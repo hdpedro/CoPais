@@ -62,13 +62,13 @@ export default async function ProfessionalsPage({
 
       {params.success && (
         <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm">
-          {params.success}
+          {decodeURIComponent(params.success)}
         </div>
       )}
 
       {params.error && (
         <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-          {params.error}
+          {decodeURIComponent(params.error)}
         </div>
       )}
 

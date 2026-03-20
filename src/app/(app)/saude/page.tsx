@@ -91,11 +91,11 @@ export default async function SaudePage({
     { data: medications },
     { data: nextAppointment },
     { data: healthLogs },
-    { data: vaccineCount },
-    { data: growthCount },
-    { data: illnessCount },
-    { data: appointmentCount },
-    { data: professionalsCount },
+    { count: vaccineCount },
+    { count: growthCount },
+    { count: illnessCount },
+    { count: appointmentCount },
+    { count: professionalsCount },
   ] = await Promise.all([
     // Allergies
     supabase
@@ -191,7 +191,7 @@ export default async function SaudePage({
       icon: "📅",
       label: "Consultas",
       href: "/saude/consultas",
-      subtitle: `${appointmentCount?.length ?? 0} agendada${(appointmentCount?.length ?? 0) !== 1 ? "s" : ""}`,
+      subtitle: `${appointmentCount ?? 0} agendada${(appointmentCount ?? 0) !== 1 ? "s" : ""}`,
       color: "text-primary",
     },
     {
@@ -205,21 +205,21 @@ export default async function SaudePage({
       icon: "💉",
       label: "Vacinas",
       href: "/saude/vacinas",
-      subtitle: `${vaccineCount?.length ?? 0} registro${(vaccineCount?.length ?? 0) !== 1 ? "s" : ""}`,
+      subtitle: `${vaccineCount ?? 0} registro${(vaccineCount ?? 0) !== 1 ? "s" : ""}`,
       color: "text-cyan-500",
     },
     {
       icon: "📏",
       label: "Crescimento",
       href: "/saude/crescimento",
-      subtitle: `${growthCount?.length ?? 0} medicao${(growthCount?.length ?? 0) !== 1 ? "es" : ""}`,
+      subtitle: `${growthCount ?? 0} medicao${(growthCount ?? 0) !== 1 ? "es" : ""}`,
       color: "text-emerald-500",
     },
     {
       icon: "🤒",
       label: "Doencas",
       href: "/saude/doencas",
-      subtitle: `${illnessCount?.length ?? 0} episodio${(illnessCount?.length ?? 0) !== 1 ? "s" : ""}`,
+      subtitle: `${illnessCount ?? 0} episodio${(illnessCount ?? 0) !== 1 ? "s" : ""}`,
       color: "text-amber-500",
     },
     {
@@ -233,7 +233,7 @@ export default async function SaudePage({
       icon: "🩺",
       label: "Profissionais",
       href: "/saude/profissionais",
-      subtitle: `${professionalsCount?.length ?? 0} cadastrado${(professionalsCount?.length ?? 0) !== 1 ? "s" : ""}`,
+      subtitle: `${professionalsCount ?? 0} cadastrado${(professionalsCount ?? 0) !== 1 ? "s" : ""}`,
       color: "text-violet-500",
     },
   ];

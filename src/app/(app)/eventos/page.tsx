@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createEvent } from "@/actions/events";
 import EventCard from "./EventCard";
+import { getBrazilToday } from "@/lib/calendar-utils";
 
 export default async function EventosPage() {
   const supabase = await createClient();
@@ -29,7 +30,7 @@ export default async function EventosPage() {
     .eq("group_id", groupId)
     .order("event_date", { ascending: true });
 
-  const today = new Date().toISOString().split("T")[0];
+  const today = getBrazilToday();
 
   // Active upcoming events (not cancelled, future date)
   const upcoming = events?.filter(e => e.event_date >= today && e.status !== "cancelled") || [];
