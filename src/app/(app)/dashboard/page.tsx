@@ -181,12 +181,13 @@ export default async function DashboardPage() {
     return todayInfo ? e.responsible_user_id !== todayInfo.responsibleId : true;
   });
 
-  // Process financial
+  // Process financial (exclude rejected expenses, consistent with Financeiro page)
   let myTotal = 0;
   let otherTotal = 0;
   let otherName = "";
   if (monthExpenses) {
     for (const exp of monthExpenses) {
+      if (exp.status === "rejected") continue;
       const amount = Number(exp.amount);
       if (exp.paid_by === user.id) myTotal += amount;
       else {
