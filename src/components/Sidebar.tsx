@@ -211,6 +211,7 @@ export default function Sidebar({ initial, fullName }: { initial: string; fullNa
                   <Link
                     key={item.href}
                     href={item.href}
+                    prefetch={false}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-medium transition-colors ${
                       active
                         ? "bg-[#E8734A]/[0.08] text-[#E8734A]"

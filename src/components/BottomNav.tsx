@@ -78,6 +78,7 @@ export default function BottomNav() {
             <Link
               key={item.href}
               href={item.href}
+              prefetch={false}
               className={`flex flex-col items-center gap-0.5 min-w-[56px] min-h-[44px] justify-center transition-colors ${
                 active ? "text-[#E8734A]" : "text-[#9CA3AF] hover:text-[#6B7280]"
               }`}

@@ -294,7 +294,7 @@ export default async function DashboardPage() {
             const requesterName = (swap.requester as any)?.full_name?.split(" ")[0] || "Alguem";
             const swapDate = new Date(swap.original_date + "T12:00:00");
             return (
-              <Link key={swap.id} href="/calendario" className="block">
+              <Link key={swap.id} href="/calendario" prefetch={false} className="block">
                 <div className="bg-[#E8734A]/[0.08] border border-[#E8734A]/20 rounded-2xl p-4 flex items-center gap-3">
                   <div className="w-10 h-10 bg-[#E8734A]/10 rounded-full flex items-center justify-center flex-shrink-0">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#E8734A" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -375,7 +375,7 @@ export default async function DashboardPage() {
           <h2 className="text-xl font-bold tracking-tight">Ola, {firstName}</h2>
           <p className="text-white/50 text-[13px] mt-1">{groupName}</p>
           {children && children.length > 0 && !hasTodayCustody && (
-            <Link href="/calendario/escala" className="inline-flex items-center gap-2 mt-4 text-sm font-semibold text-[#1A3B3A] bg-white rounded-xl px-5 py-3 hover:bg-white/90 transition-colors active:scale-[0.98]">
+            <Link href="/calendario/escala" prefetch={false} className="inline-flex items-center gap-2 mt-4 text-sm font-semibold text-[#1A3B3A] bg-white rounded-xl px-5 py-3 hover:bg-white/90 transition-colors active:scale-[0.98]">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
               </svg>
@@ -394,6 +394,7 @@ export default async function DashboardPage() {
               <Link
                 key={day.dateKey}
                 href="/calendario"
+                prefetch={false}
                 className={`flex flex-col items-center gap-1.5 py-2 px-2 rounded-xl transition-all ${
                   day.isToday ? "bg-[#E8734A] text-white shadow-sm" : "text-[#7A8C8B] hover:bg-gray-50"
                 }`}
@@ -432,7 +433,7 @@ export default async function DashboardPage() {
               </svg>
               Saude
             </p>
-            <Link href="/saude" className="text-[10px] font-semibold text-[#E8734A]">ver tudo</Link>
+            <Link href="/saude" prefetch={false} className="text-[10px] font-semibold text-[#E8734A]">ver tudo</Link>
           </div>
 
           {/* Active illness episodes — HIGHEST PRIORITY */}
@@ -442,7 +443,7 @@ export default async function DashboardPage() {
             const daysAgo = Math.round((Date.now() - startDate.getTime()) / 86400000);
             const symptoms = (illness.symptoms as string[])?.slice(0, 3).join(", ") || "";
             return (
-              <Link key={illness.id} href="/saude/doencas" className="block">
+              <Link key={illness.id} href="/saude/doencas" prefetch={false} className="block">
                 <div className="bg-red-50 border border-red-200/60 rounded-2xl p-3.5 flex items-center gap-3">
                   <div className="w-9 h-9 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -464,7 +465,7 @@ export default async function DashboardPage() {
 
           {/* Active medications */}
           {activeMedications && activeMedications.length > 0 && (
-            <Link href="/saude/medicamentos" className="block">
+            <Link href="/saude/medicamentos" prefetch={false} className="block">
               <div className="bg-amber-50 border border-amber-200/60 rounded-2xl p-3.5 flex items-center gap-3">
                 <div className="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -487,7 +488,7 @@ export default async function DashboardPage() {
 
           {/* Critical allergies */}
           {criticalAllergies && criticalAllergies.length > 0 && (
-            <Link href="/saude/alergias" className="block">
+            <Link href="/saude/alergias" prefetch={false} className="block">
               <div className="bg-orange-50 border border-orange-200/60 rounded-2xl p-3.5 flex items-center gap-3">
                 <div className="w-9 h-9 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -526,7 +527,7 @@ export default async function DashboardPage() {
             })();
             const timeStr = apptDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
             return (
-              <Link key={appt.id} href="/saude/consultas" className="block">
+              <Link key={appt.id} href="/saude/consultas" prefetch={false} className="block">
                 <div className="bg-blue-50 border border-blue-200/60 rounded-2xl p-3.5 flex items-center gap-3">
                   <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -555,7 +556,7 @@ export default async function DashboardPage() {
       )}
 
       {/* === ANALISE DA SEMANA === */}
-      <Link href="/financeiro" className="block">
+      <Link href="/financeiro" prefetch={false} className="block">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 border-l-4 border-l-[#E8734A] flex items-center gap-3 hover:shadow-md transition-shadow">
           <div className="w-9 h-9 rounded-full bg-[#E8734A]/10 flex items-center justify-center flex-shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#E8734A" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -582,7 +583,7 @@ export default async function DashboardPage() {
 
       {/* === SALDO + AGENDA (2 columns) === */}
       <div className="grid grid-cols-2 gap-3">
-        <Link href="/financeiro" className="block">
+        <Link href="/financeiro" prefetch={false} className="block">
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 h-full">
             <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">Saldo</p>
             <p className="text-[22px] font-bold text-[#1A3B3A] tracking-tight">
@@ -626,7 +627,7 @@ export default async function DashboardPage() {
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider">Agenda</p>
-            <Link href="/calendario" className="text-[10px] font-semibold text-[#E8734A]">ver mais</Link>
+            <Link href="/calendario" prefetch={false} className="text-[10px] font-semibold text-[#E8734A]">ver mais</Link>
           </div>
           {upcomingEvents && upcomingEvents.length > 0 ? (
             <div className="space-y-2.5">
@@ -641,7 +642,7 @@ export default async function DashboardPage() {
                 const name = hasNote ? event.notes.substring(0, 20) : (isMe ? "Com voce" : rName);
 
                 return (
-                  <Link key={event.id} href="/calendario" className="flex items-center gap-2.5">
+                  <Link key={event.id} href="/calendario" prefetch={false} className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0" style={{ backgroundColor: color + "12" }}>
                       <span className="text-[9px] font-bold uppercase leading-none" style={{ color: color + "99" }}>
                         {dayNamesShort[eDate.getDay()].substring(0, 3).toLowerCase()}
@@ -668,7 +669,7 @@ export default async function DashboardPage() {
         <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider mb-3">Acoes rapidas</p>
 
         {/* Primary action - Nova despesa (terracotta full-width) */}
-        <Link href="/despesas/nova" className="block mb-3">
+        <Link href="/despesas/nova" prefetch={false} className="block mb-3">
           <div className="bg-[#E8734A] rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:bg-[#D4623E] transition-colors active:scale-[0.99]">
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -719,7 +720,7 @@ export default async function DashboardPage() {
             const childCheckin = recentCheckins?.find((ci) => (ci.children as any)?.full_name === child.full_name);
 
             return (
-              <Link key={child.id} href={`/criancas/${child.id}`} className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
+              <Link key={child.id} href={`/criancas/${child.id}`} prefetch={false} className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
                 {/* Header */}
                 <div className="flex items-center gap-3 mb-3">
                   <div className="w-12 h-12 bg-[#FFF3E0] rounded-full flex items-center justify-center flex-shrink-0">
@@ -792,7 +793,7 @@ export default async function DashboardPage() {
           </div>
           <h3 className="text-[15px] font-bold text-[#1A3B3A] mb-1">Convide o outro responsavel</h3>
           <p className="text-[#7A8C8B] text-[13px] mb-4">Para usar todas as funcionalidades, convide o outro pai/mae.</p>
-          <Link href="/convite/enviar" className="inline-block px-6 py-2.5 bg-[#1A3B3A] text-white font-semibold rounded-xl hover:bg-[#0D2525] transition-colors text-sm">
+          <Link href="/convite/enviar" prefetch={false} className="inline-block px-6 py-2.5 bg-[#1A3B3A] text-white font-semibold rounded-xl hover:bg-[#0D2525] transition-colors text-sm">
             Enviar Convite
           </Link>
         </div>
@@ -805,6 +806,7 @@ function QuickAction({ label, href, color, icon }: { label: string; href: string
   return (
     <Link
       href={href}
+      prefetch={false}
       className="flex flex-col items-center justify-center gap-2 bg-white rounded-2xl p-3 border border-gray-100/80 hover:shadow-sm transition-all active:scale-95 min-h-[76px]"
     >
       <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: color + "10" }}>

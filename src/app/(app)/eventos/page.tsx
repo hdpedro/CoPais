@@ -3,9 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { createEvent } from "@/actions/events";
 import EventCard from "./EventCard";
 
-// Force dynamic rendering — never cache this page
-export const dynamic = "force-dynamic";
-
 export default async function EventosPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

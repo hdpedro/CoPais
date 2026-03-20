@@ -19,11 +19,14 @@ export default async function AppLayout({
 
   const user = session.user;
 
-  const { data: profile } = await supabase
+  // Profile query runs in parallel with page rendering via Suspense
+  const profilePromise = supabase
     .from("profiles")
-    .select("*")
+    .select("full_name")
     .eq("id", user.id)
     .single();
+
+  const { data: profile } = await profilePromise;
 
   const initial = profile?.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U";
   const fullName = profile?.full_name || user.email || "Usuario";
