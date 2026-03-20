@@ -51,6 +51,7 @@ export default function SocialLoginButtons({ redirectPath, label = "Entrar" }: S
         </span>
       </button>
 
+      {/* Apple e Facebook desativados por enquanto - ativar quando configurar os providers
       <button
         type="button"
         onClick={() => handleOAuth("apple")}
@@ -78,6 +79,7 @@ export default function SocialLoginButtons({ redirectPath, label = "Entrar" }: S
           {loading === "facebook" ? "Conectando..." : `${label} com Facebook`}
         </span>
       </button>
+      */}
     </div>
   );
 }
