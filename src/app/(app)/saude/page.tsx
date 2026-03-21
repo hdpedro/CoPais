@@ -325,23 +325,16 @@ export default async function SaudePage({
     return { totalDays, elapsedDays: Math.min(elapsedDays, totalDays), percent };
   }
 
+  // Count active illnesses
+  const activeIllnessCount = recentIllnesses?.filter((e) => e.status === "active").length ?? 0;
+
   return (
     <div className="max-w-lg mx-auto pb-20">
       {/* Header */}
       <div className="flex items-center gap-3 mb-6">
         <Link href="/dashboard" className="text-muted hover:text-dark">
-          <svg
-            className="w-6 h-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 19l-7-7 7-7"
-            />
+          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
         <div>
@@ -394,6 +387,95 @@ export default async function SaudePage({
             </span>
           </div>
         </div>
+      )}
+
+      {/* Doencas Section — Prominent */}
+      <section className="mb-6">
+        <div className="flex items-center gap-2 mb-3 px-1">
+          <span className="text-lg">🏥</span>
+          <h2 className="text-sm font-semibold text-dark">Doencas</h2>
+          {activeIllnessCount > 0 && (
+            <span className="flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full">
+              <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
+              {activeIllnessCount} ativa{activeIllnessCount !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          {/* Historico de Doencas */}
+          <Link
+            href={`/saude/doencas?crianca=${selectedChildId}`}
+            className="bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-all border-2 border-transparent hover:border-primary/20 group"
+          >
+            <div className="flex items-center justify-center w-10 h-10 bg-amber-100 rounded-xl mb-3 group-hover:scale-105 transition-transform">
+              <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
+              </svg>
+            </div>
+            <p className="text-sm font-semibold text-dark">Historico</p>
+            <p className="text-xs text-muted mt-0.5">
+              {illnessCount ?? 0} episodio{(illnessCount ?? 0) !== 1 ? "s" : ""}
+            </p>
+          </Link>
+
+          {/* Registrar Doenca */}
+          {!isReadonly && (
+            <Link
+              href="/saude/doencas/nova"
+              className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl p-4 shadow-sm hover:shadow-md transition-all hover:from-red-600 hover:to-red-700 group"
+            >
+              <div className="flex items-center justify-center w-10 h-10 bg-white/20 rounded-xl mb-3 group-hover:scale-105 transition-transform">
+                <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </div>
+              <p className="text-sm font-semibold text-white">Registrar Doenca</p>
+              <p className="text-xs text-white/70 mt-0.5">Novo episodio</p>
+            </Link>
+          )}
+        </div>
+      </section>
+
+      {/* Active illness mini-cards */}
+      {recentIllnesses && recentIllnesses.filter((e) => e.status === "active").length > 0 && (
+        <section className="mb-6">
+          <div className="space-y-2">
+            {recentIllnesses
+              .filter((e) => e.status === "active")
+              .map((ep) => {
+                const sevColors: Record<string, string> = {
+                  grave: "border-red-400 bg-red-50",
+                  moderado: "border-amber-400 bg-amber-50",
+                  leve: "border-green-400 bg-green-50",
+                };
+                const sevIcons: Record<string, string> = { grave: "🔴", moderado: "🟡", leve: "🟢" };
+                return (
+                  <Link
+                    key={ep.id}
+                    href={`/saude/doencas?crianca=${selectedChildId}`}
+                    className={`block rounded-xl p-3 border-l-4 shadow-sm ${sevColors[ep.severity || "leve"] || sevColors.leve}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm">{sevIcons[ep.severity || "leve"] || "🟢"}</span>
+                      <span className="text-sm font-semibold text-dark">{ep.title}</span>
+                      <span className="text-[10px] font-semibold text-red-600 bg-red-100 px-1.5 py-0.5 rounded-full ml-auto flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
+                        Ativo
+                      </span>
+                    </div>
+                    {ep.symptoms && ep.symptoms.length > 0 && (
+                      <p className="text-xs text-muted mt-1 truncate">
+                        {ep.symptoms.slice(0, 4).join(", ")}{ep.symptoms.length > 4 ? "..." : ""}
+                      </p>
+                    )}
+                    {ep.hospital_visit && (
+                      <p className="text-xs text-red-600 mt-1">🏥 Hospital{ep.hospital_name ? `: ${ep.hospital_name}` : ""}</p>
+                    )}
+                  </Link>
+                );
+              })}
+          </div>
+        </section>
       )}
 
       {/* Alert Cards */}
@@ -458,34 +540,14 @@ export default async function SaudePage({
                     <p className="text-sm font-semibold text-dark">{med.name}</p>
                     <div className="flex items-center gap-3 text-xs text-muted">
                       <span className="flex items-center gap-1">
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"
-                          />
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
                         </svg>
                         {med.dosage}
                       </span>
                       <span className="flex items-center gap-1">
-                        <svg
-                          className="w-3.5 h-3.5"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth={2}
-                            d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-                          />
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                         </svg>
                         {med.frequency}
                       </span>
@@ -501,16 +563,11 @@ export default async function SaudePage({
                     {progress && (
                       <div className="mt-2">
                         <div className="flex items-center justify-between text-[11px] text-muted mb-1">
-                          <span>
-                            Dia {progress.elapsedDays} de {progress.totalDays}
-                          </span>
+                          <span>Dia {progress.elapsedDays} de {progress.totalDays}</span>
                           <span>{progress.percent}%</span>
                         </div>
                         <div className="w-full bg-amber-200 rounded-full h-2">
-                          <div
-                            className="bg-amber-500 h-2 rounded-full transition-all"
-                            style={{ width: `${progress.percent}%` }}
-                          />
+                          <div className="bg-amber-500 h-2 rounded-full transition-all" style={{ width: `${progress.percent}%` }} />
                         </div>
                       </div>
                     )}
@@ -533,63 +590,33 @@ export default async function SaudePage({
             <div className="flex items-start gap-4">
               <div className="flex-shrink-0 bg-primary/10 rounded-xl px-3 py-2 text-center">
                 <p className="text-2xl font-bold text-primary">
-                  {new Date(appointment.appointment_date).toLocaleDateString("pt-BR", {
-                    timeZone: "America/Sao_Paulo",
-                    day: "2-digit",
-                  })}
+                  {new Date(appointment.appointment_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit" })}
                 </p>
                 <p className="text-xs text-primary font-medium uppercase">
-                  {new Date(appointment.appointment_date).toLocaleDateString("pt-BR", {
-                    timeZone: "America/Sao_Paulo",
-                    month: "short",
-                  })}
+                  {new Date(appointment.appointment_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", month: "short" })}
                 </p>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-dark truncate">
-                  {appointment.title}
-                </p>
+                <p className="text-sm font-semibold text-dark truncate">{appointment.title}</p>
                 {(appointment.medical_professionals as any)?.name && (
                   <p className="text-xs text-dark mt-0.5">
                     Dr(a). {(appointment.medical_professionals as any).name}
                     {(appointment.medical_professionals as any).specialty && (
-                      <span className="text-muted">
-                        {" "}
-                        — {(appointment.medical_professionals as any).specialty}
-                      </span>
+                      <span className="text-muted"> — {(appointment.medical_professionals as any).specialty}</span>
                     )}
                   </p>
                 )}
                 {appointment.location && (
                   <p className="text-xs text-muted mt-1 flex items-center gap-1">
-                    <svg
-                      className="w-3 h-3"
-                      fill="none"
-                      viewBox="0 0 24 24"
-                      stroke="currentColor"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"
-                      />
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"
-                      />
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
                     {appointment.location}
                   </p>
                 )}
                 <p className="text-xs text-primary font-medium mt-1">
-                  {new Date(appointment.appointment_date).toLocaleTimeString("pt-BR", {
-                    timeZone: "America/Sao_Paulo",
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
+                  {new Date(appointment.appointment_date).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" })}
                 </p>
               </div>
             </div>
@@ -597,19 +624,33 @@ export default async function SaudePage({
         )}
       </div>
 
-      {/* Quick Access Grid */}
+      {/* Other Modules */}
       <section className="mb-6">
-        <h2 className="text-sm font-semibold text-dark mb-3 px-1">Acesso rapido</h2>
-        <div className="grid grid-cols-3 gap-3">
-          {quickAccess.map((item) => (
+        <h2 className="text-sm font-semibold text-dark mb-3 px-1">Modulos</h2>
+        <div className="bg-white rounded-xl shadow-sm divide-y divide-gray-100">
+          {[
+            { icon: "📅", label: "Consultas", href: `/saude/consultas?crianca=${selectedChildId}`, subtitle: `${appointmentCount ?? 0} agendada${(appointmentCount ?? 0) !== 1 ? "s" : ""}`, iconBg: "bg-primary/10" },
+            { icon: "💊", label: "Medicamentos", href: `/saude/medicamentos?crianca=${selectedChildId}`, subtitle: `${medications?.length ?? 0} ativo${(medications?.length ?? 0) !== 1 ? "s" : ""}`, iconBg: "bg-blue-100" },
+            { icon: "💉", label: "Vacinas", href: `/saude/vacinas?crianca=${selectedChildId}`, subtitle: `${vaccineCount ?? 0} registro${(vaccineCount ?? 0) !== 1 ? "s" : ""}`, iconBg: "bg-cyan-100" },
+            { icon: "📏", label: "Crescimento", href: `/saude/crescimento?crianca=${selectedChildId}`, subtitle: `${growthCount ?? 0} ${(growthCount ?? 0) !== 1 ? "medicoes" : "medicao"}`, iconBg: "bg-emerald-100" },
+            { icon: "⚠️", label: "Alergias", href: `/saude/alergias?crianca=${selectedChildId}`, subtitle: `${allergies?.length ?? 0} registrada${(allergies?.length ?? 0) !== 1 ? "s" : ""}`, iconBg: "bg-red-100" },
+            { icon: "🩺", label: "Profissionais", href: "/saude/profissionais", subtitle: `${professionalsCount ?? 0} cadastrado${(professionalsCount ?? 0) !== 1 ? "s" : ""}`, iconBg: "bg-violet-100" },
+          ].map((item) => (
             <Link
               key={item.href}
-              href={item.href === "/saude/profissionais" ? item.href : `${item.href}?crianca=${selectedChildId}`}
-              className="bg-white rounded-xl p-3 shadow-sm text-center hover:shadow-md transition-shadow"
+              href={item.href}
+              className="flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors"
             >
-              <span className="text-2xl block mb-1">{item.icon}</span>
-              <p className="text-xs font-semibold text-dark">{item.label}</p>
-              <p className="text-[10px] text-muted mt-0.5">{item.subtitle}</p>
+              <div className={`flex items-center justify-center w-9 h-9 rounded-lg ${item.iconBg}`}>
+                <span className="text-lg">{item.icon}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-dark">{item.label}</p>
+                <p className="text-xs text-muted">{item.subtitle}</p>
+              </div>
+              <svg className="w-4 h-4 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
             </Link>
           ))}
         </div>
@@ -625,58 +666,30 @@ export default async function SaudePage({
             <div className="space-y-4">
               {timeline.map((item, index) => {
                 const isLast = index === timeline.length - 1;
-
                 return (
                   <div key={`${item.type}-${item.id}`} className="flex gap-3">
-                    {/* Timeline dot and line */}
                     <div className="flex flex-col items-center">
-                      <div
-                        className={`w-3 h-3 rounded-full flex-shrink-0 ${item.color}`}
-                      />
-                      {!isLast && (
-                        <div className="w-0.5 bg-gray-200 flex-1 mt-1" />
-                      )}
+                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${item.color}`} />
+                      {!isLast && <div className="w-0.5 bg-gray-200 flex-1 mt-1" />}
                     </div>
-
-                    {/* Content */}
                     <div className={`flex-1 min-w-0 ${!isLast ? "pb-2" : ""}`}>
                       <div className="flex items-center gap-2">
                         <span className="text-sm">{item.icon}</span>
-                        <span className="text-xs font-semibold text-dark">
-                          {item.label}
-                        </span>
+                        <span className="text-xs font-semibold text-dark">{item.label}</span>
                         {item.type === "illness" && item.status === "active" && (
-                          <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">
-                            Ativo
-                          </span>
+                          <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">Ativo</span>
                         )}
                         {item.type === "illness" && item.status === "recovered" && (
-                          <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
-                            Recuperada
-                          </span>
+                          <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">Recuperada</span>
                         )}
                         <span className="text-[10px] text-muted ml-auto">
-                          {item.date.toLocaleDateString("pt-BR", {
-                            day: "2-digit",
-                            month: "2-digit",
-                          })}{" "}
-                          {item.date.toLocaleTimeString("pt-BR", {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}
+                          {item.date.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}{" "}
+                          {item.date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
                         </span>
                       </div>
-                      {item.value && (
-                        <p className="text-sm text-dark mt-0.5">{item.value}</p>
-                      )}
-                      {item.notes && (
-                        <p className="text-xs text-muted mt-0.5">{item.notes}</p>
-                      )}
-                      {item.author && (
-                        <p className="text-[10px] text-muted mt-0.5">
-                          Por {item.author}
-                        </p>
-                      )}
+                      {item.value && <p className="text-sm text-dark mt-0.5">{item.value}</p>}
+                      {item.notes && <p className="text-xs text-muted mt-0.5">{item.notes}</p>}
+                      {item.author && <p className="text-[10px] text-muted mt-0.5">Por {item.author}</p>}
                     </div>
                   </div>
                 );
