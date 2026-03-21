@@ -64,11 +64,14 @@ export default async function SaudePage({
   const today = new Date().toISOString();
 
   // Fetch all data in parallel
+  const todayDate = today.split("T")[0];
+
   const [
     { data: activeIllnesses },
     { data: medications },
     { data: allergies },
     { data: nextAppointment },
+    { data: pendingReturns },
     { count: illnessCount },
     { count: vaccineCount },
     { count: growthCount },
@@ -96,12 +99,23 @@ export default async function SaudePage({
 
     supabase
       .from("medical_appointments")
-      .select("id, title, appointment_date, location, medical_professionals(name, specialty)")
+      .select("id, title, appointment_type, appointment_date, location, medical_professionals(name, specialty)")
       .eq("child_id", selectedChildId)
       .eq("status", "scheduled")
       .gte("appointment_date", today)
       .order("appointment_date", { ascending: true })
       .limit(1),
+
+    // Pending returns
+    supabase
+      .from("medical_appointments")
+      .select("id, title, return_date, return_notes, appointment_type, medical_professionals(name, specialty)")
+      .eq("child_id", selectedChildId)
+      .not("return_date", "is", null)
+      .gte("return_date", todayDate)
+      .neq("status", "cancelled")
+      .order("return_date", { ascending: true })
+      .limit(5),
 
     supabase.from("illness_episodes").select("id", { count: "exact", head: true }).eq("child_id", selectedChildId),
     supabase.from("vaccination_records").select("id", { count: "exact", head: true }).eq("child_id", selectedChildId),
@@ -326,6 +340,48 @@ export default async function SaudePage({
           </Link>
         )}
       </div>
+
+      {/* ═══════════════════════════════════════════ */}
+      {/* ─── RETORNOS PREVISTOS ─── */}
+      {/* ═══════════════════════════════════════════ */}
+      {pendingReturns && pendingReturns.length > 0 && (
+        <section className="mb-5">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1">Retornos previstos</h2>
+          <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+            {pendingReturns.map((apt, i) => {
+              const professional = apt.medical_professionals as any;
+              const returnD = new Date(apt.return_date + "T12:00:00");
+              const daysUntil = Math.ceil((returnD.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              const isUrgent = daysUntil <= 7;
+              return (
+                <Link
+                  key={apt.id}
+                  href={`/saude/consultas`}
+                  className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${i > 0 ? "border-t border-gray-100" : ""}`}
+                >
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${isUrgent ? "bg-amber-100" : "bg-blue-50"}`}>
+                    <span className="text-base">🔄</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-dark">
+                      {professional?.specialty || apt.title}
+                    </p>
+                    <p className="text-[11px] text-muted">
+                      {returnD.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}
+                      {apt.return_notes ? ` — ${apt.return_notes}` : ""}
+                    </p>
+                  </div>
+                  <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${
+                    isUrgent ? "bg-amber-100 text-amber-700" : "bg-blue-50 text-blue-600"
+                  }`}>
+                    {daysUntil <= 0 ? "Hoje" : daysUntil === 1 ? "Amanha" : `${daysUntil} dias`}
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        </section>
+      )}
 
       {/* ═══════════════════════════════════════════ */}
       {/* ─── ACOES: Doencas ─── */}

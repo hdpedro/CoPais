@@ -50,6 +50,13 @@ export const APPOINTMENT_STATUSES: Record<string, { label: string; color: string
   cancelled: { label: "Cancelada", color: "bg-gray-100 text-gray-500" },
 };
 
+export const APPOINTMENT_TYPES = [
+  { value: "rotina", label: "Rotina", icon: "🩺", desc: "Consulta periodica de acompanhamento", color: "bg-primary/10 text-primary border-primary/30" },
+  { value: "emergencia", label: "Emergencia", icon: "🚨", desc: "Pronto-socorro, urgencia", color: "bg-red-50 text-red-600 border-red-200" },
+  { value: "retorno", label: "Retorno", icon: "🔄", desc: "Retorno de consulta anterior", color: "bg-amber-50 text-amber-600 border-amber-200" },
+  { value: "exame", label: "Exame", icon: "🔬", desc: "Exame laboratorial ou de imagem", color: "bg-violet-50 text-violet-600 border-violet-200" },
+];
+
 export const ILLNESS_COMMON_SYMPTOMS = [
   "Febre",
   "Tosse",

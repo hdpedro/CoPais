@@ -163,22 +163,31 @@ export async function createAppointment(formData: FormData) {
   const appointmentTime = formData.get("appointmentTime") as string;
   const location = formData.get("location") as string;
   const notes = formData.get("notes") as string;
+  const appointmentType = formData.get("appointmentType") as string;
+  const returnDate = formData.get("returnDate") as string;
+  const returnNotes = formData.get("returnNotes") as string;
 
   // Combine date + time into a TIMESTAMPTZ value (Brazil timezone)
   const appointmentDatetime = `${appointmentDate}T${appointmentTime}:00-03:00`;
 
+  const insertData: Record<string, unknown> = {
+    group_id: groupId,
+    child_id: childId,
+    professional_id: professionalId || null,
+    title,
+    appointment_date: appointmentDatetime,
+    location: location || null,
+    notes: notes || null,
+    created_by: user.id,
+  };
+
+  if (appointmentType) insertData.appointment_type = appointmentType;
+  if (returnDate) insertData.return_date = returnDate;
+  if (returnNotes) insertData.return_notes = returnNotes;
+
   const { data: appointment, error } = await supabase
     .from("medical_appointments")
-    .insert({
-      group_id: groupId,
-      child_id: childId,
-      professional_id: professionalId || null,
-      title,
-      appointment_date: appointmentDatetime,
-      location: location || null,
-      notes: notes || null,
-      created_by: user.id,
-    })
+    .insert(insertData)
     .select("id")
     .single();
 
@@ -232,6 +241,8 @@ export async function updateAppointmentStatus(formData: FormData) {
   const appointmentId = formData.get("appointmentId") as string;
   const status = formData.get("status") as string;
   const summary = formData.get("summary") as string;
+  const returnDate = formData.get("returnDate") as string;
+  const returnNotes = formData.get("returnNotes") as string;
 
   // Verify user belongs to the appointment's group
   await getGroupIdFromRecord(supabase, "medical_appointments", appointmentId, user.id);
@@ -244,12 +255,16 @@ export async function updateAppointmentStatus(formData: FormData) {
     .single();
 
   const validStatuses = ["scheduled", "completed", "cancelled", "missed"];
+  const updateData: Record<string, unknown> = {
+    status: validStatuses.includes(status) ? status : "scheduled",
+    summary: summary || null,
+  };
+  if (returnDate) updateData.return_date = returnDate;
+  if (returnNotes) updateData.return_notes = returnNotes;
+
   const { error } = await supabase
     .from("medical_appointments")
-    .update({
-      status: validStatuses.includes(status) ? status : "scheduled",
-      summary: summary || null,
-    })
+    .update(updateData)
     .eq("id", appointmentId);
 
   if (error) redirect("/saude/consultas?error=" + encodeURIComponent(error.message));
@@ -381,8 +396,12 @@ export async function createIllnessEpisode(formData: FormData) {
   const startDate = formData.get("startDate") as string;
   const diagnosis = formData.get("diagnosis") as string;
   const notes = formData.get("notes") as string;
+  const severity = formData.get("severity") as string;
+  const hospitalVisit = formData.get("hospitalVisit") === "true";
+  const hospitalName = formData.get("hospitalName") as string;
+  const hospitalDate = formData.get("hospitalDate") as string;
 
-  const { error } = await supabase.from("illness_episodes").insert({
+  const insertData: Record<string, unknown> = {
     group_id: groupId,
     child_id: childId,
     title,
@@ -391,7 +410,15 @@ export async function createIllnessEpisode(formData: FormData) {
     diagnosis: diagnosis || null,
     notes: notes || null,
     created_by: user.id,
-  });
+  };
+
+  // Add new fields only if they have values (columns may not exist in older DBs)
+  if (severity) insertData.severity = severity;
+  if (hospitalVisit) insertData.hospital_visit = true;
+  if (hospitalName) insertData.hospital_name = hospitalName;
+  if (hospitalDate) insertData.hospital_date = hospitalDate;
+
+  const { error } = await supabase.from("illness_episodes").insert(insertData);
 
   if (error) redirect("/saude/doencas?error=" + encodeURIComponent(error.message));
 
