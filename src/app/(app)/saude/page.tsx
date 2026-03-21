@@ -91,6 +91,7 @@ export default async function SaudePage({
     { data: medications },
     { data: nextAppointment },
     { data: healthLogs },
+    { data: recentIllnesses },
     { count: vaccineCount },
     { count: growthCount },
     { count: illnessCount },
@@ -133,6 +134,14 @@ export default async function SaudePage({
       )
       .eq("child_id", selectedChildId)
       .order("logged_at", { ascending: false })
+      .limit(5),
+
+    // Recent illness episodes
+    supabase
+      .from("illness_episodes")
+      .select("id, title, severity, status, symptoms, hospital_visit, hospital_name, start_date, created_at, profiles:created_by(full_name)")
+      .eq("child_id", selectedChildId)
+      .order("created_at", { ascending: false })
       .limit(5),
 
     // Counts for quick access cards
@@ -184,6 +193,72 @@ export default async function SaudePage({
     vaccine: { icon: "💉", label: "Vacina", color: "bg-cyan-400" },
     other: { icon: "📝", label: "Outro", color: "bg-gray-400" },
   };
+
+  // Merge health logs and illness episodes into a unified timeline
+  type TimelineItem = {
+    id: string;
+    type: "log" | "illness";
+    date: Date;
+    icon: string;
+    label: string;
+    color: string;
+    value?: string | null;
+    notes?: string | null;
+    author?: string | null;
+    severity?: string | null;
+    status?: string | null;
+    hospital?: boolean;
+  };
+
+  const timelineItems: TimelineItem[] = [];
+
+  // Add health logs
+  if (healthLogs) {
+    for (const log of healthLogs) {
+      const config = typeConfig[log.log_type] || typeConfig.other;
+      timelineItems.push({
+        id: log.id,
+        type: "log",
+        date: new Date(log.logged_at),
+        icon: config.icon,
+        label: config.label,
+        color: config.color,
+        value: log.value,
+        notes: log.notes,
+        author: (log.profiles as any)?.full_name || null,
+      });
+    }
+  }
+
+  // Add illness episodes
+  if (recentIllnesses) {
+    for (const ep of recentIllnesses) {
+      const sevConfig: Record<string, { icon: string; color: string; label: string }> = {
+        grave: { icon: "🔴", color: "bg-red-400", label: "Grave" },
+        moderado: { icon: "🟡", color: "bg-amber-400", label: "Moderado" },
+        leve: { icon: "🟢", color: "bg-green-400", label: "Leve" },
+      };
+      const sev = sevConfig[ep.severity || "leve"] || sevConfig.leve;
+      timelineItems.push({
+        id: ep.id,
+        type: "illness",
+        date: new Date(ep.created_at || ep.start_date + "T12:00:00"),
+        icon: "🤒",
+        label: ep.title,
+        color: sev.color,
+        value: ep.symptoms?.join(", ") || null,
+        notes: ep.hospital_visit ? `🏥 Hospital${ep.hospital_name ? `: ${ep.hospital_name}` : ""}` : null,
+        author: (ep.profiles as any)?.full_name || null,
+        severity: ep.severity,
+        status: ep.status,
+        hospital: ep.hospital_visit,
+      });
+    }
+  }
+
+  // Sort by date descending and take first 8
+  timelineItems.sort((a, b) => b.date.getTime() - a.date.getTime());
+  const timeline = timelineItems.slice(0, 8);
 
   // Quick access grid items
   const quickAccess = [
@@ -540,25 +615,23 @@ export default async function SaudePage({
         </div>
       </section>
 
-      {/* Recent Health Logs */}
+      {/* Recent Timeline */}
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-dark mb-3 px-1">
           Ultimos registros
         </h2>
-        {healthLogs && healthLogs.length > 0 ? (
+        {timeline.length > 0 ? (
           <div className="bg-white rounded-xl p-4 shadow-sm">
             <div className="space-y-4">
-              {healthLogs.map((log, index) => {
-                const config = typeConfig[log.log_type] || typeConfig.other;
-                const logDate = new Date(log.logged_at);
-                const isLast = index === healthLogs.length - 1;
+              {timeline.map((item, index) => {
+                const isLast = index === timeline.length - 1;
 
                 return (
-                  <div key={log.id} className="flex gap-3">
+                  <div key={`${item.type}-${item.id}`} className="flex gap-3">
                     {/* Timeline dot and line */}
                     <div className="flex flex-col items-center">
                       <div
-                        className={`w-3 h-3 rounded-full flex-shrink-0 ${config.color}`}
+                        className={`w-3 h-3 rounded-full flex-shrink-0 ${item.color}`}
                       />
                       {!isLast && (
                         <div className="w-0.5 bg-gray-200 flex-1 mt-1" />
@@ -568,30 +641,42 @@ export default async function SaudePage({
                     {/* Content */}
                     <div className={`flex-1 min-w-0 ${!isLast ? "pb-2" : ""}`}>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm">{config.icon}</span>
+                        <span className="text-sm">{item.icon}</span>
                         <span className="text-xs font-semibold text-dark">
-                          {config.label}
+                          {item.label}
                         </span>
+                        {item.type === "illness" && item.status === "active" && (
+                          <span className="text-[10px] font-semibold text-red-600 bg-red-50 px-1.5 py-0.5 rounded-full">
+                            Ativo
+                          </span>
+                        )}
+                        {item.type === "illness" && item.status === "recovered" && (
+                          <span className="text-[10px] font-semibold text-green-600 bg-green-50 px-1.5 py-0.5 rounded-full">
+                            Recuperada
+                          </span>
+                        )}
                         <span className="text-[10px] text-muted ml-auto">
-                          {logDate.toLocaleDateString("pt-BR", {
+                          {item.date.toLocaleDateString("pt-BR", {
                             day: "2-digit",
                             month: "2-digit",
                           })}{" "}
-                          {logDate.toLocaleTimeString("pt-BR", {
+                          {item.date.toLocaleTimeString("pt-BR", {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}
                         </span>
                       </div>
-                      {log.value && (
-                        <p className="text-sm text-dark mt-0.5">{log.value}</p>
+                      {item.value && (
+                        <p className="text-sm text-dark mt-0.5">{item.value}</p>
                       )}
-                      {log.notes && (
-                        <p className="text-xs text-muted mt-0.5">{log.notes}</p>
+                      {item.notes && (
+                        <p className="text-xs text-muted mt-0.5">{item.notes}</p>
                       )}
-                      <p className="text-[10px] text-muted mt-0.5">
-                        Por {(log.profiles as any)?.full_name || "—"}
-                      </p>
+                      {item.author && (
+                        <p className="text-[10px] text-muted mt-0.5">
+                          Por {item.author}
+                        </p>
+                      )}
                     </div>
                   </div>
                 );
