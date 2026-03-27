@@ -13,7 +13,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **Auth & Database:** Supabase (Auth, Postgres, Realtime, RLS)
 - **Estilo:** Tailwind CSS 4
 - **Linguagem:** TypeScript 5
-- **IA:** Groq (Llama) — assistente com 2 camadas (local parser + fallback cloud)
+- **IA:** Groq (Llama 3.3 70B) — assistente conversacional com function calling (12 tools)
 - **Deploy:** Vercel
 - **Analytics:** PostHog (30+ eventos rastreados)
 - **Error Tracking:** Sentry
@@ -237,16 +237,23 @@ O app suporta **5 idiomas** completos:
 - Status visual: Aceito (verde), Pendente (amarelo), Expirado (vermelho)
 - Roles: Pai/Mae, Avo, Cuidador, Mediador, Advogado
 
-### 17. Assistente IA (`/api/ai/assistant`)
-- **Voz e texto**: input por voz ou digitacao
-- **2 camadas**: local parser (0ms, sem custo, 12 padroes) + Groq fallback (~500ms)
-- **12 padroes de acao**: criar despesa, agendar consulta, registrar medicamento, etc.
+### 17. Assistente IA Kindar (`/api/ai/assistant`)
+- **Assistente conversacional completo** com interface de chat, sugestoes rapidas e input por voz (Speech Recognition API)
+- **Modelo**: Groq `llama-3.3-70b-versatile` com function calling
+- **12 tools Groq-compatible** (`ai-tools.ts`):
+  - **6 tools de acao**: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
+  - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
+  - **1 tool de comunicacao**: `draft_message`
+- **Multi-round tool calling**: ate 3 rodadas com `tool_choice: "auto"` + resposta final forcada com `tool_choice: "none"`
+- **Contexto familiar** (`ai-context.ts`): injeta dados de filhos, membros e custodia para respostas personalizadas
+- **React Portal**: componente `AIAssistant.tsx` renderiza em `document.body` via `createPortal` (escapa CSS `backdrop-blur` containing block no header mobile)
+- **Integracao no shell**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)
+- **Rate limiting** (`ai-rate-limit.ts`) por usuario com mensagens amigaveis
 - **Cache de respostas** (`ai-cache.ts`) com TTL de 5 minutos
-- **Rate limiting** (`ai-rate-limit.ts`) 20 req/min por usuario
-- **Contexto familiar** (`ai-context.ts`): injeta dados do grupo para respostas personalizadas
-- Componente `AIAssistant.tsx` com interface conversacional
-- **16 bugs corrigidos** no parser local
+- **Compatibilidade com Groq**: todos os parametros de tools usam `type: "string"` (evita erros de validacao com output do LLM)
+- **Tabela children**: usa coluna `full_name`; info escolar vem de `child_education` (join separado)
 - **50 testes unitarios** (Vitest) com **98.5% de acuracia** em load test
+- **SSR-safe**: container do Portal usa `useState` + `useEffect` para compatibilidade com server-side rendering
 
 ### 18. Notificacoes (`/notificacoes`)
 - **In-app**: lista de notificacoes com marcacao de lida (`markNotificationRead`, `markAllNotificationsRead`)
@@ -312,7 +319,7 @@ Todos os PostgREST FK joins foram removidos e substituidos por **joins manuais**
 ### API Routes (12 total)
 | Rota | Funcao |
 |------|--------|
-| `/api/ai/assistant` | Endpoint do assistente IA (Groq) |
+| `/api/ai/assistant` | Assistente IA conversacional (Groq function calling, 12 tools, multi-round) |
 | `/api/ai/context` | Contexto familiar para IA |
 | `/api/auth/signout` | Logout via API |
 | `/api/auth/test-login` | Login de teste (dev) |
@@ -401,9 +408,10 @@ src/
   lib/
     ai-actions.ts          # Acoes do assistente IA
     ai-cache.ts            # Cache de respostas IA
-    ai-context.ts          # Contexto familiar para IA
+    ai-context.ts          # Contexto familiar para IA (filhos, membros, custodia)
     ai-local-parser.ts     # Parser local (12 padroes, 0ms)
     ai-rate-limit.ts       # Rate limiting por usuario
+    ai-tools.ts            # 12 tool definitions Groq-compatible (acoes, consultas, comunicacao)
     brazilian-holidays.ts  # Feriados nacionais BR (fixos + moveis)
     calendar-utils.ts      # Utilitarios do calendario, custodia e computeSwapBalance()
     capacitor.ts           # Bridge para Capacitor (haptics, status bar, splash screen)

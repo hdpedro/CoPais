@@ -20,7 +20,7 @@
 | Estilizacao | Tailwind CSS | ^4 |
 | Backend/BaaS | Supabase (PostgreSQL) | ^2.99.2 |
 | Auth | Supabase Auth + SSR | ^0.9.0 |
-| IA | Groq (Llama) | Cloud API |
+| IA | Groq (Llama 3.3 70B) | Cloud API |
 | i18n | Custom (I18nProvider + useI18n) | 5 idiomas, ~1405 chaves, 38 secoes |
 | Analytics | PostHog | 30+ eventos |
 | Error Tracking | Sentry | — |
@@ -50,7 +50,7 @@ src/
 │   └── locales/      # pt.json, en.json, es.json, fr.json, de.json (~1405 chaves, 38 secoes)
 ├── lib/
 │   ├── supabase/     # Client, Server, Middleware
-│   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts
+│   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts, ai-tools.ts
 │   ├── constants.ts  # Constantes do app (cores, categorias, checklist items)
 │   ├── calendar-utils.ts  # Utilidades de data/calendario + computeSwapBalance()
 │   ├── recurrence-utils.ts # Motor de recorrencia (diario, semanal, etc.)
@@ -638,14 +638,22 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - **Seletor de grupo** (`GroupSelector`) para multi-grupo
 - Sincronizacao de calendario (iCal)
 
-### 26. Assistente IA
-- Interface conversacional (`AIAssistant.tsx`) com voz e texto
-- **2 camadas**: local parser (0ms, 12 padroes) + Groq fallback (~500ms)
-- **Cache de respostas** com TTL de 5 minutos
-- **Rate limiting** 20 req/min por usuario
-- **Contexto familiar** injetado para respostas personalizadas
-- **16 bugs corrigidos** no parser local
-- **50 testes unitarios** (Vitest) com **98.5% de acuracia** em load test (~500ms avg)
+### 26. Assistente IA Kindar
+- **Interface conversacional completa** (`AIAssistant.tsx`): message bubbles, typing indicator, sugestoes rapidas, input por voz (Speech Recognition API), multi-turn conversation
+- **Modelo**: Groq `llama-3.3-70b-versatile` com function calling
+- **12 tools Groq-compatible** (`src/lib/ai-tools.ts`):
+  - **6 tools de acao**: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
+  - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
+  - **1 tool de comunicacao**: `draft_message`
+- **API Route**: `src/app/api/ai/assistant/route.ts` — multi-round tool calling (ate 3 rodadas com `tool_choice: "auto"`, resposta final forcada com `tool_choice: "none"`)
+- **Contexto familiar** (`ai-context.ts`): constroi contexto com filhos, membros do grupo e custodia
+- **React Portal**: renderiza em `document.body` via `createPortal` (escapa CSS `backdrop-blur` containing block no header mobile)
+- **Integracao**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)
+- **Rate limiting** (`ai-rate-limit.ts`) por usuario com mensagens amigaveis
+- **Cache de respostas** (`ai-cache.ts`) com TTL de 5 minutos
+- **Decisoes tecnicas**: parametros de tools usam `type: "string"` (Groq rejeita `"number"` com outputs do LLM); tabela `children` usa `full_name`; info escolar via join com `child_education`
+- **SSR-safe**: container do Portal usa `useState` + `useEffect`
+- **50 testes unitarios** (Vitest) com **98.5% de acuracia** em load test
 - API Routes: `/api/ai/assistant`, `/api/ai/context`
 
 ### 27. Notificacoes (`/notificacoes`)
@@ -807,7 +815,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 
 | Rota | Metodo | Funcao |
 |------|--------|--------|
-| `/api/ai/assistant` | POST | Endpoint do assistente IA (local parser + Groq) |
+| `/api/ai/assistant` | POST | Assistente IA conversacional (Groq function calling, 12 tools, multi-round) |
 | `/api/ai/context` | GET | Contexto familiar para IA |
 | `/api/auth/signout` | POST | Logout via API |
 | `/api/auth/test-login` | POST | Login de teste (dev only) |
@@ -958,7 +966,7 @@ src/
 │   └── locales/          # pt.json, en.json, es.json, fr.json, de.json (~1405 chaves, 38 secoes)
 ├── lib/
 │   ├── supabase/         # client.ts, server.ts, middleware.ts
-│   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts
+│   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts, ai-tools.ts
 │   ├── calendar-utils.ts # getDaysInMonth, getMonthGrid, buildCustodyMap, computeSwapBalance, getBrazilToday, getBrazilNow
 │   ├── recurrence-utils.ts # getOccurrences, occursOnDate, getNextOccurrence, RECURRENCE_OPTIONS
 │   ├── constants.ts      # COLORS, EXPENSE_CATEGORIES, CHECKIN_CATEGORIES, ACTIVITY_CATEGORIES, DEFAULT_CHECKLIST_ITEMS, PARENT_COLORS

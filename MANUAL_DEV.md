@@ -55,7 +55,7 @@
 | Auth | Supabase Auth + SSR | ^0.9.0 | Session management com cookies no server |
 | i18n | Custom (I18nProvider + useI18n) | — | 5 idiomas, ~1405 chaves, 38 secoes |
 | Deploy | Vercel | Hobby | Zero-config para Next.js, auto-deploy |
-| IA | Groq (Llama) | Cloud API | Assistente com 2 camadas (local parser + fallback cloud) |
+| IA | Groq (Llama 3.3 70B) | Cloud API | Assistente conversacional com function calling (12 tools, multi-round) |
 | Analytics | PostHog | — | 30+ eventos rastreados |
 | Error Tracking | Sentry | — | Monitoramento de erros em producao |
 | Testes E2E | Playwright | — | 34 testes |
@@ -1208,6 +1208,23 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - Alergias editaveis e deletaveis com formulario inline (service role para query)
 - Fix de link /saude/alergias/editar-info e coluna notes inexistente
 
+### Assistente IA Kindar
+- **Assistente conversacional completo** com interface de chat, sugestoes rapidas, typing indicator e input por voz (Speech Recognition API)
+- **Frontend**: `src/components/AIAssistant.tsx` — React Portal (`createPortal` em `document.body`) para escapar CSS `backdrop-blur` containing block no header mobile
+- **API Route**: `src/app/api/ai/assistant/route.ts` — Groq function calling com `llama-3.3-70b-versatile`
+- **12 tools Groq-compatible** (`src/lib/ai-tools.ts`):
+  - 6 tools de acao: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
+  - 5 tools de consulta: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
+  - 1 tool de comunicacao: `draft_message`
+- **Multi-round tool calling**: ate 3 rodadas com `tool_choice: "auto"`, resposta final forcada com `tool_choice: "none"`
+- **Contexto familiar**: constroi contexto com filhos (tabela `children`, coluna `full_name`), membros e custodia. Info escolar via join com `child_education`
+- **Integracao no shell**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)
+- **Rate limiting** por usuario (`ai-rate-limit.ts`) com mensagens amigaveis de erro
+- **Cache** com TTL de 5 minutos (`ai-cache.ts`)
+- **Decisao tecnica**: todos os parametros de tools usam `type: "string"` (nao `"number"`) para evitar erros de validacao do Groq com outputs do LLM
+- **SSR-safe**: container do Portal usa `useState` + `useEffect` para evitar erros de hydration
+- **50 testes unitarios** (Vitest) com 98.5% de acuracia
+
 ### Atividades e Calendario
 - Activity report modal reseta campos ao abrir nova atividade
 - Editar ocorrencia unica vs todas (estilo Google Calendar)
@@ -1541,6 +1558,18 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - Zero dependencias externas (menor bundle)
 - Implementacao simples com Context + JSON
 - Controle total sobre fallbacks e interpolacao
+
+### Por que React Portal no AIAssistant?
+- O header mobile usa `backdrop-blur` que cria um novo containing block no CSS
+- Modais posicionados com `fixed` ficam presos dentro desse containing block
+- `createPortal(modal, document.body)` renderiza o modal fora da arvore DOM do header
+- Container do Portal usa `useState` + `useEffect` para compatibilidade SSR (evita `document is not defined`)
+
+### Por que Groq function calling com tool_choice "auto"/"none"?
+- `tool_choice: "auto"` permite ao LLM decidir quais tools chamar em cada rodada
+- Multi-round (ate 3 rodadas) permite encadear consultas + acoes em uma unica conversa
+- Rodada final com `tool_choice: "none"` forca resposta em texto (evita loop infinito de tools)
+- Todos os parametros de tools usam `type: "string"` porque Groq rejeita `"number"` quando o LLM gera output em formato inesperado
 
 ---
 
