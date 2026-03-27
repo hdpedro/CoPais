@@ -13,6 +13,10 @@ const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 const MODEL_PRIMARY = "llama-3.3-70b-versatile";
 const MODEL_FALLBACK = "llama-3.1-8b-instant";
 const MAX_TOOL_ROUNDS = 3;
+const GROQ_TIMEOUT_MS = 8000; // 8s per Groq call to stay within Vercel limits
+
+// Increase Vercel function timeout (hobby: max 60s, pro: 300s)
+export const maxDuration = 60;
 
 /* ------------------------------------------------------------------ */
 /* Build context                                                       */
@@ -153,14 +157,21 @@ REGRAS OBRIGATORIAS:
 /* Groq call with automatic model fallback                             */
 /* ------------------------------------------------------------------ */
 
+function groqWithTimeout(params: any) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
+  return groq.chat.completions
+    .create(params, { signal: controller.signal as any })
+    .finally(() => clearTimeout(timer));
+}
+
 async function callGroqWithFallback(
   messages: any[],
   toolChoice: "auto" | "none" = "auto"
 ) {
   // Try primary model first
-  let useFallback = false;
   try {
-    return await groq.chat.completions.create({
+    return await groqWithTimeout({
       model: MODEL_PRIMARY,
       messages,
       tools: AI_TOOLS as any,
@@ -175,16 +186,16 @@ async function callGroqWithFallback(
       msg.includes("429") ||
       msg.includes("Limit") ||
       msg.includes("tokens") ||
-      msg.includes("TPD");
+      msg.includes("TPD") ||
+      msg.includes("abort");
 
     if (!isRateLimit) throw err;
-    useFallback = true;
   }
 
   // Fallback to smaller model (8B)
   console.log(`Groq 70B rate limited, falling back to ${MODEL_FALLBACK}`);
   try {
-    return await groq.chat.completions.create({
+    return await groqWithTimeout({
       model: MODEL_FALLBACK,
       messages,
       tools: AI_TOOLS as any,
@@ -204,7 +215,7 @@ async function callGroqWithFallback(
     const textOnlyMessages = messages.filter(
       (m: any) => m.role === "system" || m.role === "user" || (m.role === "assistant" && !m.tool_calls)
     );
-    return await groq.chat.completions.create({
+    return await groqWithTimeout({
       model: MODEL_FALLBACK,
       messages: textOnlyMessages,
       temperature: 0.4,

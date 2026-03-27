@@ -195,7 +195,15 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
           body: JSON.stringify({ messages: apiMessages, groupId }),
         });
 
-        const data = await response.json();
+        let data;
+        try {
+          data = await response.json();
+        } catch {
+          // 504/502 may return HTML instead of JSON
+          data = { content: response.status === 504
+            ? "O assistente demorou para responder. Tente uma pergunta mais simples ou aguarde um momento. ⏳"
+            : "Desculpe, ocorreu um erro. Tente novamente. 🙏" };
+        }
 
         const assistantMsg: ChatMessage = {
           id: uid(),
