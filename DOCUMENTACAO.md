@@ -652,6 +652,10 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
   - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
   - **1 tool de comunicacao**: `draft_message`
 - **API Route**: `src/app/api/ai/assistant/route.ts` — multi-round tool calling (ate 3 rodadas com `tool_choice: "auto"`, resposta final forcada com `tool_choice: "none"`)
+- **`sanitizeResponse()`**: funcao que remove tags XML malformadas (`<function=...>`) que o modelo 8B pode gerar, limpando a resposta antes de enviar ao frontend
+- **`groqWithTimeout()`**: wrapper com `AbortController` e timeout de 8s (`GROQ_TIMEOUT_MS = 8000`) por chamada a API Groq, evitando que o request fique preso indefinidamente. `AbortError` e tratado como condicao de rate-limit (dispara fallback para 8B)
+- **`export const maxDuration = 60`**: configurado na API route do assistente e nas paginas SSR (`/dashboard`, `/calendario`) para evitar timeout de Vercel Functions (padrao 10s)
+- **Frontend resiliente**: `AIAssistant.tsx` trata respostas nao-JSON (504/502) graciosamente com try/catch no `response.json()`, exibindo mensagem amigavel de timeout
 - **Contexto familiar** (`ai-context.ts`): constroi contexto com filhos, membros do grupo e custodia
 - **React Portal**: renderiza em `document.body` via `createPortal` (escapa CSS `backdrop-blur` containing block no header mobile)
 - **Integracao**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)

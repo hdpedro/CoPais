@@ -1224,6 +1224,10 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
   - 5 tools de consulta: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
   - 1 tool de comunicacao: `draft_message`
 - **Multi-round tool calling**: ate 3 rodadas com `tool_choice: "auto"`, resposta final forcada com `tool_choice: "none"`
+- **Timeout por chamada Groq**: `groqWithTimeout()` usa `AbortController` com timeout de 8s (`GROQ_TIMEOUT_MS = 8000`). Se a chamada exceder 8s, `AbortError` e capturado e tratado como rate-limit (dispara fallback 8B)
+- **`sanitizeResponse()`**: remove tags XML malformadas (`<function=...>`) das respostas do modelo 8B antes de retornar ao frontend
+- **`export const maxDuration = 60`**: nas rotas `/api/ai/assistant`, `/dashboard` e `/calendario` para evitar timeout padrao de 10s do Vercel
+- **Frontend resiliente a erros de rede**: `AIAssistant.tsx` usa try/catch no `response.json()` para tratar respostas nao-JSON (504/502 do gateway), exibindo mensagem amigavel
 - **Contexto familiar**: constroi contexto com filhos (tabela `children`, coluna `full_name`), membros e custodia. Info escolar via join com `child_education`
 - **Integracao no shell**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)
 - **Rate limiting** por usuario (`ai-rate-limit.ts`) com mensagens amigaveis de erro
@@ -1583,6 +1587,13 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - Quando rate limited, sistema faz fallback automatico para `llama-3.1-8b-instant` (mais rapido, menos rate limited)
 - 8B pode falhar em `tool_use` — recuperacao retenta a chamada sem tools para obter resposta text-only
 - Se 8B retornar resposta pobre (apenas emojis), sistema usa os resultados ja coletados das tools como fallback
+- `sanitizeResponse()` limpa tags XML malformadas (`<function=...>`) que o 8B pode gerar
+
+### Por que groqWithTimeout e maxDuration?
+- Cada chamada a API Groq usa `groqWithTimeout()` com `AbortController` de 8s — evita que uma unica chamada trave todo o request
+- `AbortError` e tratado como condicao de rate-limit, disparando fallback para o modelo 8B
+- `export const maxDuration = 60` em routes e paginas SSR pesadas (`/api/ai/assistant`, `/dashboard`, `/calendario`) aumenta o limite do Vercel de 10s para 60s
+- Frontend (`AIAssistant.tsx`) trata respostas 504/502 com try/catch no `response.json()` — mostra mensagem amigavel em vez de crash
 
 ### Por que parsers robustos para PT-BR?
 - Usuarios brasileiros digitam valores como "45,00", "120 conto" — `parseAmount()` normaliza para numero
