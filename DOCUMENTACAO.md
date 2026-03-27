@@ -20,7 +20,7 @@
 | Estilizacao | Tailwind CSS | ^4 |
 | Backend/BaaS | Supabase (PostgreSQL) | ^2.99.2 |
 | Auth | Supabase Auth + SSR | ^0.9.0 |
-| IA | Groq (Llama 3.3 70B) | Cloud API |
+| IA | Groq (Llama 3.3 70B → 8B fallback) | Cloud API |
 | i18n | Custom (I18nProvider + useI18n) | 5 idiomas, ~1405 chaves, 38 secoes |
 | Analytics | PostHog | 30+ eventos |
 | Error Tracking | Sentry | — |
@@ -640,7 +640,13 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 
 ### 26. Assistente IA Kindar
 - **Interface conversacional completa** (`AIAssistant.tsx`): message bubbles, typing indicator, sugestoes rapidas, input por voz (Speech Recognition API), multi-turn conversation
-- **Modelo**: Groq `llama-3.3-70b-versatile` com function calling
+- **Modelo**: Groq `llama-3.3-70b-versatile` (primario) → `llama-3.1-8b-instant` (fallback automatico quando rate limited). 8B tem recuperacao `tool_use_failed` (retenta sem tools para resposta text-only)
+- **Fallback de qualidade de resposta**: quando modelo 8B retorna respostas pobres (apenas emojis), sistema usa resultados coletados das tools como resposta de fallback
+- **Parsers robustos para PT-BR**:
+  - `parseAmount()`: aceita "R$ 45,00", "120 conto", "50 reais"
+  - `parseDate()`: aceita "DD/MM/YYYY", "DD/MM"
+  - `parseTime()`: aceita "14h", "14h30", "14:00" — usado tambem no campo de horario de atividades
+  - `parseDaysOfWeek()`: mapeia "terca", "quinta", etc para formato DB
 - **12 tools Groq-compatible** (`src/lib/ai-tools.ts`):
   - **6 tools de acao**: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
   - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`

@@ -61,6 +61,78 @@ function formatBRL(v: number): string {
   return `R$ ${v.toFixed(2).replace(".", ",")}`;
 }
 
+/* Parse monetary values from various formats: "R$ 45,00", "45.00", "45", "30 conto" */
+function parseAmount(raw: unknown): number {
+  const s = String(raw || "0");
+  // Remove "R$", spaces, "reais", "conto", "pila"
+  const cleaned = s
+    .replace(/r\$\s*/gi, "")
+    .replace(/\s*(reais|conto|contos|pila|pilas)\s*/gi, "")
+    .trim();
+  // Handle Brazilian format: "45,00" → "45.00"
+  const normalized = cleaned.includes(",") && !cleaned.includes(".")
+    ? cleaned.replace(",", ".")
+    : cleaned.replace(/\./g, "").replace(",", "."); // "1.500,00" → "1500.00"
+  return Number(normalized) || 0;
+}
+
+/* Parse date from various formats: "DD/MM/YYYY", "YYYY-MM-DD", "DD-MM-YYYY" */
+function parseDate(raw: unknown, fallback?: string): string {
+  const s = String(raw || "").trim();
+  if (!s) return fallback || todayISO();
+
+  // Already ISO format
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // DD/MM/YYYY or DD-MM-YYYY
+  const brMatch = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{4})$/);
+  if (brMatch) {
+    const [, d, m, y] = brMatch;
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+
+  // DD/MM (assume current year)
+  const shortMatch = s.match(/^(\d{1,2})[/\-.](\d{1,2})$/);
+  if (shortMatch) {
+    const [, d, m] = shortMatch;
+    const y = new Date().getFullYear();
+    return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+  }
+
+  return fallback || todayISO();
+}
+
+/* Parse time from various formats: "14h", "14:00", "14h30", "2pm" */
+function parseTime(raw: unknown): string | null {
+  const s = String(raw || "").trim();
+  if (!s) return null;
+
+  // Already HH:MM
+  if (/^\d{2}:\d{2}$/.test(s)) return s;
+
+  // "14h" or "14h30"
+  const hMatch = s.match(/^(\d{1,2})h(\d{0,2})$/i);
+  if (hMatch) {
+    const h = hMatch[1].padStart(2, "0");
+    const m = (hMatch[2] || "00").padStart(2, "0");
+    return `${h}:${m}`;
+  }
+
+  // "14:3" → "14:30"
+  const partialMatch = s.match(/^(\d{1,2}):(\d{1})$/);
+  if (partialMatch) {
+    return `${partialMatch[1].padStart(2, "0")}:${partialMatch[2]}0`;
+  }
+
+  // Just a number like "14" → "14:00"
+  const numMatch = s.match(/^(\d{1,2})$/);
+  if (numMatch) {
+    return `${numMatch[1].padStart(2, "0")}:00`;
+  }
+
+  return s.length >= 5 ? s.slice(0, 5) : null;
+}
+
 const CAT_LABELS: Record<string, string> = {
   education: "Educacao", health: "Saude", food: "Alimentacao",
   clothing: "Vestuario", leisure: "Lazer", transport: "Transporte",
@@ -327,10 +399,11 @@ export async function executeTool(
 /* ------------------------------------------------------------------ */
 
 async function execCreateExpense(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
-  const amount = Number(p.amount) || 0;
+  const amount = parseAmount(p.amount);
   if (amount <= 0) return { success: false, message: "Valor da despesa deve ser maior que zero." };
   const desc = String(p.description || "Despesa");
   const child = resolveChild(String(p.child_name || ""), ctx.children);
+  const date = parseDate(p.date, todayISO());
 
   const { error } = await ctx.supabase.from("expenses").insert({
     group_id: ctx.groupId,
@@ -339,7 +412,7 @@ async function execCreateExpense(p: Record<string, unknown>, ctx: ToolContext): 
     category: p.category || "other",
     child_id: child?.id || null,
     paid_by: ctx.userId,
-    expense_date: todayISO(),
+    expense_date: date,
     split_ratio: buildSplitRatio(ctx.members),
     status: "pending",
   });
@@ -356,18 +429,19 @@ async function execCreateExpense(p: Record<string, unknown>, ctx: ToolContext): 
 
 async function execCreateEvent(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const title = String(p.title || "");
-  const date = String(p.date || todayISO());
+  const date = parseDate(p.date, todayISO());
   if (!title) return { success: false, message: "Titulo do evento e obrigatorio." };
 
+  const time = parseTime(p.time);
   const insert: Record<string, unknown> = {
     group_id: ctx.groupId,
     title: title.slice(0, 200),
     event_date: date,
-    all_day: !p.time,
+    all_day: !time,
     created_by: ctx.userId,
     status: "active",
   };
-  if (p.time) insert.event_time = String(p.time);
+  if (time) insert.event_time = time;
   if (p.description) insert.description = String(p.description).slice(0, 500);
   if (p.location) insert.location = String(p.location).slice(0, 200);
   const child = resolveChild(String(p.child_name || ""), ctx.children);
@@ -376,7 +450,7 @@ async function execCreateEvent(p: Record<string, unknown>, ctx: ToolContext): Pr
   const { error } = await ctx.supabase.from("events").insert(insert);
   if (error) return { success: false, message: `Erro: ${error.message}` };
 
-  const timeStr = p.time ? ` as ${p.time}` : "";
+  const timeStr = time ? ` as ${time}` : "";
   return {
     success: true,
     message: `Evento criado: "${title}" em ${date.split("-").reverse().join("/")}${timeStr}`,
@@ -387,8 +461,8 @@ async function execCreateAppointment(p: Record<string, unknown>, ctx: ToolContex
   const child = resolveChild(String(p.child_name || ""), ctx.children);
   if (!child) return { success: false, message: "Nao encontrei essa crianca. Qual o nome?" };
 
-  const date = String(p.date || todayISO());
-  const time = String(p.time || "09:00");
+  const date = parseDate(p.date, todayISO());
+  const time = parseTime(p.time) || "09:00";
   const specialty = String(p.specialty || "consulta");
   const title = p.doctor_name
     ? `${specialty} — Dr(a). ${p.doctor_name}`
@@ -456,13 +530,30 @@ async function execCreateNote(p: Record<string, unknown>, ctx: ToolContext): Pro
   return { success: true, message: `Nota criada: "${title}"` };
 }
 
+/* Map Portuguese day abbreviations to standard DB format */
+function parseDaysOfWeek(raw: string): string[] {
+  if (!raw) return [];
+  const map: Record<string, string> = {
+    seg: "seg", segunda: "seg", "segunda-feira": "seg", mon: "seg", monday: "seg",
+    ter: "ter", terca: "ter", "terca-feira": "ter", tue: "ter", tuesday: "ter",
+    qua: "qua", quarta: "qua", "quarta-feira": "qua", wed: "qua", wednesday: "qua",
+    qui: "qui", quinta: "qui", "quinta-feira": "qui", thu: "qui", thursday: "qui",
+    sex: "sex", sexta: "sex", "sexta-feira": "sex", fri: "sex", friday: "sex",
+    sab: "sab", sabado: "sab", sat: "sab", saturday: "sab",
+    dom: "dom", domingo: "dom", sun: "dom", sunday: "dom",
+  };
+  return raw.split(",").map((d) => {
+    const key = norm(d);
+    return map[key] || key;
+  }).filter(Boolean);
+}
+
 async function execCreateActivity(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const child = resolveChild(String(p.child_name || ""), ctx.children);
   const name = String(p.name || "");
   if (!name) return { success: false, message: "Nome da atividade e obrigatorio." };
 
-  const daysStr = String(p.days_of_week || "");
-  const days = daysStr ? daysStr.split(",").map((d: string) => d.trim()) : [];
+  const days = parseDaysOfWeek(String(p.days_of_week || ""));
 
   const insert: Record<string, unknown> = {
     group_id: ctx.groupId,
@@ -475,8 +566,10 @@ async function execCreateActivity(p: Record<string, unknown>, ctx: ToolContext):
     created_by: ctx.userId,
   };
   if (days.length > 0) insert.days_of_week = days;
-  if (p.time_start) insert.time_start = String(p.time_start);
-  if (p.time_end) insert.time_end = String(p.time_end);
+  const timeStart = parseTime(p.time_start);
+  const timeEnd = parseTime(p.time_end);
+  if (timeStart) insert.time_start = timeStart;
+  if (timeEnd) insert.time_end = timeEnd;
   if (p.location) insert.location = String(p.location).slice(0, 200);
 
   const { error } = await ctx.supabase.from("child_activities").insert(insert);
@@ -491,7 +584,7 @@ async function execCreateActivity(p: Record<string, unknown>, ctx: ToolContext):
 /* ------------------------------------------------------------------ */
 
 async function execGetCustody(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
-  const date = String(p.date || todayISO());
+  const date = parseDate(p.date, todayISO());
 
   const { data } = await ctx.supabase
     .from("custody_events")

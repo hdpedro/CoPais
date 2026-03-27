@@ -55,7 +55,7 @@
 | Auth | Supabase Auth + SSR | ^0.9.0 | Session management com cookies no server |
 | i18n | Custom (I18nProvider + useI18n) | — | 5 idiomas, ~1405 chaves, 38 secoes |
 | Deploy | Vercel | Hobby | Zero-config para Next.js, auto-deploy |
-| IA | Groq (Llama 3.3 70B) | Cloud API | Assistente conversacional com function calling (12 tools, multi-round) |
+| IA | Groq (Llama 3.3 70B → 8B fallback) | Cloud API | Assistente conversacional com function calling (12 tools, multi-round), parsers robustos PT-BR |
 | Analytics | PostHog | — | 30+ eventos rastreados |
 | Error Tracking | Sentry | — | Monitoramento de erros em producao |
 | Testes E2E | Playwright | — | 34 testes |
@@ -1212,6 +1212,13 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - **Assistente conversacional completo** com interface de chat, sugestoes rapidas, typing indicator e input por voz (Speech Recognition API)
 - **Frontend**: `src/components/AIAssistant.tsx` — React Portal (`createPortal` em `document.body`) para escapar CSS `backdrop-blur` containing block no header mobile
 - **API Route**: `src/app/api/ai/assistant/route.ts` — Groq function calling com `llama-3.3-70b-versatile`
+- **Model fallback**: 70B primario → 8B fallback (`llama-3.1-8b-instant`) quando rate limited. 8B tem recuperacao `tool_use_failed` (retenta sem tools para resposta text-only)
+- **Fallback de qualidade**: quando 8B retorna resposta pobre (so emojis), sistema usa resultados coletados das tools como resposta
+- **Parsers robustos para PT-BR**:
+  - `parseAmount()`: "R$ 45,00", "120 conto", "50 reais"
+  - `parseDate()`: "DD/MM/YYYY", "DD/MM"
+  - `parseTime()`: "14h", "14h30", "14:00" — usado tambem para horario de atividades
+  - `parseDaysOfWeek()`: "terca", "quinta" → formato DB
 - **12 tools Groq-compatible** (`src/lib/ai-tools.ts`):
   - 6 tools de acao: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
   - 5 tools de consulta: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
@@ -1570,6 +1577,18 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - Multi-round (ate 3 rodadas) permite encadear consultas + acoes em uma unica conversa
 - Rodada final com `tool_choice: "none"` forca resposta em texto (evita loop infinito de tools)
 - Todos os parametros de tools usam `type: "string"` porque Groq rejeita `"number"` quando o LLM gera output em formato inesperado
+
+### Por que model fallback 70B → 8B?
+- Groq aplica rate limiting agressivo no modelo 70B em planos gratuitos/basicos
+- Quando rate limited, sistema faz fallback automatico para `llama-3.1-8b-instant` (mais rapido, menos rate limited)
+- 8B pode falhar em `tool_use` — recuperacao retenta a chamada sem tools para obter resposta text-only
+- Se 8B retornar resposta pobre (apenas emojis), sistema usa os resultados ja coletados das tools como fallback
+
+### Por que parsers robustos para PT-BR?
+- Usuarios brasileiros digitam valores como "45,00", "120 conto" — `parseAmount()` normaliza para numero
+- Datas em formato BR "DD/MM/YYYY" ou "DD/MM" — `parseDate()` converte para ISO
+- Horarios como "14h", "14h30" — `parseTime()` converte para "HH:MM"
+- Dias da semana em portugues ("terca", "quinta") — `parseDaysOfWeek()` mapeia para formato DB
 
 ---
 

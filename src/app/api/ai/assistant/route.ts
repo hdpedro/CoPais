@@ -10,7 +10,8 @@ import { aiRateLimiter } from "@/lib/ai-rate-limit";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-const MODEL = "llama-3.3-70b-versatile";
+const MODEL_PRIMARY = "llama-3.3-70b-versatile";
+const MODEL_FALLBACK = "llama-3.1-8b-instant";
 const MAX_TOOL_ROUNDS = 3;
 
 /* ------------------------------------------------------------------ */
@@ -75,7 +76,7 @@ async function buildContext(
   const custodyLines = (custody || []).map((e: any) => {
     const child = (children || []).find((c: any) => c.id === e.child_id);
     const member = members.find((m: any) => m.id === e.responsible_user_id);
-    return `${child?.name?.split(" ")[0] || "?"} esta com ${member?.name?.split(" ")[0] || "?"}`;
+    return `${child?.full_name?.split(" ")[0] || "?"} esta com ${member?.name?.split(" ")[0] || "?"}`;
   });
 
   const contextStr = [
@@ -131,6 +132,70 @@ REGRAS OBRIGATORIAS:
 9. Se nao entender, peca para reformular — nao assuma
 10. Seja empatico com situacoes dificeis de coparentalidade
 11. Use emojis com moderacao para tornar a conversa mais amigavel`;
+}
+
+/* ------------------------------------------------------------------ */
+/* Groq call with automatic model fallback                             */
+/* ------------------------------------------------------------------ */
+
+async function callGroqWithFallback(
+  messages: any[],
+  toolChoice: "auto" | "none" = "auto"
+) {
+  // Try primary model first
+  let useFallback = false;
+  try {
+    return await groq.chat.completions.create({
+      model: MODEL_PRIMARY,
+      messages,
+      tools: AI_TOOLS as any,
+      tool_choice: toolChoice,
+      temperature: 0.3,
+      max_tokens: 1000,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "";
+    const isRateLimit =
+      msg.includes("rate_limit") ||
+      msg.includes("429") ||
+      msg.includes("Limit") ||
+      msg.includes("tokens") ||
+      msg.includes("TPD");
+
+    if (!isRateLimit) throw err;
+    useFallback = true;
+  }
+
+  // Fallback to smaller model (8B)
+  console.log(`Groq 70B rate limited, falling back to ${MODEL_FALLBACK}`);
+  try {
+    return await groq.chat.completions.create({
+      model: MODEL_FALLBACK,
+      messages,
+      tools: AI_TOOLS as any,
+      tool_choice: toolChoice,
+      temperature: 0.3,
+      max_tokens: 1000,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : "";
+    const isToolUseFailed = msg.includes("tool_use_failed") || msg.includes("tool call validation");
+
+    if (!isToolUseFailed) throw err;
+
+    // 8B model generated malformed tool call — retry without tools for a text-only response
+    console.log("8B tool_use_failed, retrying without tools for text response");
+    // Filter messages: keep only system + user + assistant text messages (remove tool messages)
+    const textOnlyMessages = messages.filter(
+      (m: any) => m.role === "system" || m.role === "user" || (m.role === "assistant" && !m.tool_calls)
+    );
+    return await groq.chat.completions.create({
+      model: MODEL_FALLBACK,
+      messages: textOnlyMessages,
+      temperature: 0.4,
+      max_tokens: 1000,
+    });
+  }
 }
 
 /* ------------------------------------------------------------------ */
@@ -190,18 +255,12 @@ export async function POST(req: NextRequest) {
     // Keep only last 20 messages to avoid token limits
     const recentMessages = messages.slice(-20);
 
-    // Call Groq with tools
+    // Call Groq with tools (auto-fallback to 8B if 70B rate limited)
     let groqMessages: any[] = [systemMsg, ...recentMessages];
+    const toolResultsSummary: string[] = [];
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const completion = await groq.chat.completions.create({
-        model: MODEL,
-        messages: groqMessages,
-        tools: AI_TOOLS as any,
-        tool_choice: "auto",
-        temperature: 0.3,
-        max_tokens: 1000,
-      });
+      const completion = await callGroqWithFallback(groqMessages, "auto");
 
       const choice = completion.choices[0];
       if (!choice) {
@@ -215,9 +274,17 @@ export async function POST(req: NextRequest) {
 
       // No tool calls — return the response directly
       if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
+        const content = assistantMsg.content || "";
+        // Quality check: if response is too short (just emoji or single word), improve it
+        if (content.length < 5 && toolResultsSummary.length > 0) {
+          return NextResponse.json({
+            role: "assistant",
+            content: toolResultsSummary.join("\n"),
+          });
+        }
         return NextResponse.json({
           role: "assistant",
-          content: assistantMsg.content || "Nao entendi. Pode reformular?",
+          content: content || "Nao entendi. Pode reformular?",
         });
       }
 
@@ -238,6 +305,13 @@ export async function POST(req: NextRequest) {
           toolCtx
         );
 
+        // Collect tool results for fallback summary
+        if (result.message) {
+          toolResultsSummary.push(
+            result.success ? `✅ ${result.message}` : `⚠️ ${result.message}`
+          );
+        }
+
         groqMessages.push({
           role: "tool",
           tool_call_id: toolCall.id,
@@ -250,16 +324,10 @@ export async function POST(req: NextRequest) {
 
     // Exhausted tool rounds — do one final call with tool_choice "none" to force a text response
     try {
-      const finalCompletion = await groq.chat.completions.create({
-        model: MODEL,
-        messages: groqMessages,
-        tools: AI_TOOLS as any,
-        tool_choice: "none",
-        temperature: 0.3,
-        max_tokens: 1000,
-      });
+      const finalCompletion = await callGroqWithFallback(groqMessages, "none");
       const finalContent = finalCompletion.choices[0]?.message?.content;
-      if (finalContent) {
+      // Quality check: if final response is too short, use tool results summary
+      if (finalContent && finalContent.length >= 5) {
         return NextResponse.json({
           role: "assistant",
           content: finalContent,
@@ -267,6 +335,14 @@ export async function POST(req: NextRequest) {
       }
     } catch {
       // Fall through to default
+    }
+
+    // Use collected tool results as a human-readable response
+    if (toolResultsSummary.length > 0) {
+      return NextResponse.json({
+        role: "assistant",
+        content: toolResultsSummary.join("\n"),
+      });
     }
 
     return NextResponse.json({
@@ -279,13 +355,24 @@ export async function POST(req: NextRequest) {
 
     // User-friendly error messages
     const isRateLimit = msg.includes("rate_limit") || msg.includes("429") || msg.includes("Limit") || msg.includes("tokens");
-    const friendlyMsg = isRateLimit
-      ? "O assistente atingiu o limite temporario de uso. Tente novamente em alguns minutos. ⏳"
-      : `Desculpe, ocorreu um erro. Tente novamente. 🙏`;
+    const isToolError = msg.includes("tool_use_failed") || msg.includes("tool call validation");
+
+    let friendlyMsg: string;
+    let statusCode: number;
+    if (isRateLimit) {
+      friendlyMsg = "O assistente atingiu o limite temporario de uso. Tente novamente em alguns minutos. ⏳";
+      statusCode = 429;
+    } else if (isToolError) {
+      friendlyMsg = "Nao consegui processar essa acao agora. Tente reformular o pedido de forma mais simples. 🔄";
+      statusCode = 200;
+    } else {
+      friendlyMsg = "Desculpe, ocorreu um erro. Tente novamente. 🙏";
+      statusCode = 500;
+    }
 
     return NextResponse.json(
       { role: "assistant", content: friendlyMsg },
-      { status: isRateLimit ? 429 : 500 }
+      { status: statusCode }
     );
   }
 }
