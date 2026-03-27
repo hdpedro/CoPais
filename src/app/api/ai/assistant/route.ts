@@ -105,6 +105,21 @@ async function buildContext(
 }
 
 /* ------------------------------------------------------------------ */
+/* Sanitize response — strip malformed function-call XML from 8B      */
+/* ------------------------------------------------------------------ */
+
+function sanitizeResponse(text: string): string {
+  if (!text) return text;
+  // Remove <function=...>...</function> patterns the 8B model sometimes emits as text
+  let cleaned = text.replace(/<function=[^>]*>[\s\S]*?<\/function>/gi, "").trim();
+  // Remove standalone <function>...</function> tags
+  cleaned = cleaned.replace(/<\/?function[^>]*>/gi, "").trim();
+  // Remove ```json blocks that are clearly tool call attempts
+  cleaned = cleaned.replace(/```json\s*\{[^}]*"name"\s*:\s*"[^"]*"[^`]*```/gi, "").trim();
+  return cleaned;
+}
+
+/* ------------------------------------------------------------------ */
 /* System prompt                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -274,7 +289,7 @@ export async function POST(req: NextRequest) {
 
       // No tool calls — return the response directly
       if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
-        const content = assistantMsg.content || "";
+        const content = sanitizeResponse(assistantMsg.content || "");
         // Quality check: if response is too short (just emoji or single word), improve it
         if (content.length < 5 && toolResultsSummary.length > 0) {
           return NextResponse.json({
@@ -325,7 +340,7 @@ export async function POST(req: NextRequest) {
     // Exhausted tool rounds — do one final call with tool_choice "none" to force a text response
     try {
       const finalCompletion = await callGroqWithFallback(groqMessages, "none");
-      const finalContent = finalCompletion.choices[0]?.message?.content;
+      const finalContent = sanitizeResponse(finalCompletion.choices[0]?.message?.content || "");
       // Quality check: if final response is too short, use tool results summary
       if (finalContent && finalContent.length >= 5) {
         return NextResponse.json({
