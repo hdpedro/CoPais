@@ -15,6 +15,8 @@ import { getOccurrences, parseDaysOfWeek, type ActivityRecurrence } from "@/lib/
 import dynamic from "next/dynamic";
 import CalendarHeader from "./CalendarHeader";
 
+export const maxDuration = 60;
+
 const CalendarClient = dynamic(() => import("./CalendarClient"), {
   loading: () => <div className="animate-pulse bg-gray-100 rounded-xl h-96" />,
 });

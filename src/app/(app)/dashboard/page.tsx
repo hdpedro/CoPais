@@ -9,6 +9,9 @@ import { getHolidaysForYear } from "@/lib/brazilian-holidays";
 import dynamic from "next/dynamic";
 import type { DashboardClientProps } from "./DashboardClient";
 
+// Increase Vercel function timeout for dashboard SSR (many parallel DB queries)
+export const maxDuration = 60;
+
 const DashboardClient = dynamic(() => import("./DashboardClient"), {
   loading: () => (
     <div className="space-y-4 animate-pulse">
