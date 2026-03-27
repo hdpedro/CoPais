@@ -1,9 +1,20 @@
 export default function Loading() {
   return (
-    <div className="flex items-center justify-center min-h-[60vh]">
-      <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-3 border-[#E8734A] border-t-transparent rounded-full animate-spin" />
-        <p className="text-sm text-[#7A8C8B] font-medium">Carregando...</p>
+    <div className="space-y-5 pb-4 animate-pulse">
+      {/* Header skeleton */}
+      <div>
+        <div className="h-7 w-40 bg-gray-200 rounded-lg" />
+        <div className="h-4 w-56 bg-gray-100 rounded mt-2" />
+      </div>
+
+      {/* Card skeletons */}
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/80 h-[120px]" />
+      <div className="bg-white rounded-2xl p-5 shadow-sm border border-gray-100/80 h-[80px]" />
+
+      {/* Grid skeleton */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 h-[140px]" />
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 h-[140px]" />
       </div>
     </div>
   );

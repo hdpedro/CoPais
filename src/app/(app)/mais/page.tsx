@@ -1,10 +1,20 @@
-import Link from "next/link";
+"use client";
 
-const features = [
+import Link from "next/link";
+import { useI18n } from "@/i18n/provider";
+
+interface Feature {
+  href: string;
+  labelKey: string;
+  color: string;
+  icon: React.ReactNode;
+}
+
+const features: Feature[] = [
   {
     href: "/dashboard",
-    label: "Inicio",
-    color: "#0EA5A0",
+    labelKey: "nav.home",
+    color: "#5B9E85",
     icon: (
       <>
         <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
@@ -14,7 +24,7 @@ const features = [
   },
   {
     href: "/calendario",
-    label: "Calendario",
+    labelKey: "nav.calendar",
     color: "#3B82F6",
     icon: (
       <>
@@ -27,8 +37,8 @@ const features = [
   },
   {
     href: "/financeiro",
-    label: "Financeiro",
-    color: "#0EA5A0",
+    labelKey: "nav.sectionFinancial",
+    color: "#5B9E85",
     icon: (
       <>
         <line x1="12" y1="1" x2="12" y2="23" />
@@ -38,8 +48,8 @@ const features = [
   },
   {
     href: "/despesas",
-    label: "Despesas",
-    color: "#E8734A",
+    labelKey: "nav.expenses",
+    color: "#D4735A",
     icon: (
       <>
         <rect x="1" y="4" width="22" height="16" rx="2" ry="2" />
@@ -49,14 +59,14 @@ const features = [
   },
   {
     href: "/chat",
-    label: "Chat",
+    labelKey: "nav.chat",
     color: "#8B5CF6",
     icon: <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />,
   },
   {
     href: "/criancas",
-    label: "Criancas",
-    color: "#E8734A",
+    labelKey: "nav.children",
+    color: "#D4735A",
     icon: (
       <>
         <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" />
@@ -66,13 +76,13 @@ const features = [
   },
   {
     href: "/saude",
-    label: "Saude",
+    labelKey: "nav.health",
     color: "#EF4444",
     icon: <path d="M22 12h-4l-3 9L9 3l-3 9H2" />,
   },
   {
     href: "/documentos",
-    label: "Documentos",
+    labelKey: "nav.documents",
     color: "#F59E0B",
     icon: (
       <>
@@ -82,9 +92,20 @@ const features = [
     ),
   },
   {
+    href: "/decisoes",
+    labelKey: "nav.decisions",
+    color: "#8B5CF6",
+    icon: (
+      <>
+        <path d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707" />
+        <circle cx="12" cy="12" r="4" />
+      </>
+    ),
+  },
+  {
     href: "/acordos",
-    label: "Acordos",
-    color: "#0EA5A0",
+    labelKey: "nav.agreements",
+    color: "#5B9E85",
     icon: (
       <>
         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" />
@@ -95,19 +116,8 @@ const features = [
     ),
   },
   {
-    href: "/eventos",
-    label: "Eventos",
-    color: "#E8734A",
-    icon: (
-      <>
-        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" />
-        <path d="M13.73 21a2 2 0 01-3.46 0" />
-      </>
-    ),
-  },
-  {
     href: "/escola",
-    label: "Escola",
+    labelKey: "nav.school",
     color: "#6366F1",
     icon: (
       <>
@@ -118,7 +128,7 @@ const features = [
   },
   {
     href: "/checkin",
-    label: "Check-in",
+    labelKey: "nav.checkin",
     color: "#3B82F6",
     icon: (
       <>
@@ -129,14 +139,14 @@ const features = [
   },
   {
     href: "/temas-sensiveis",
-    label: "Temas Sensiveis",
+    labelKey: "nav.sensitiveTopics",
     color: "#6B7280",
     icon: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
   },
   {
     href: "/familia",
-    label: "Familia",
-    color: "#0EA5A0",
+    labelKey: "nav.family",
+    color: "#5B9E85",
     icon: (
       <>
         <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
@@ -147,8 +157,19 @@ const features = [
     ),
   },
   {
+    href: "/notas",
+    labelKey: "nav.notes",
+    color: "#6366F1",
+    icon: (
+      <>
+        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+        <path d="M7 11V7a5 5 0 0110 0v4" />
+      </>
+    ),
+  },
+  {
     href: "/convite/enviar",
-    label: "Convidar",
+    labelKey: "nav.inviteGuardian",
     color: "#8B5CF6",
     icon: (
       <>
@@ -162,39 +183,45 @@ const features = [
 ];
 
 export default function MaisPage() {
+  const { t } = useI18n();
+
   return (
     <div className="pb-20">
-      <h1 className="text-[22px] font-bold text-[#1A3B3A] mb-1 tracking-tight">Todas as funcionalidades</h1>
-      <p className="text-[13px] text-[#7A8C8B] mb-6">Acesse todas as areas do 2Lares</p>
+      <h1 className="text-[22px] font-bold text-[#2C2C2C] mb-1 tracking-tight">{t("nav.more")}</h1>
+      <p className="text-[13px] text-[#7A8C8B] mb-6">Kindar</p>
       <div className="grid grid-cols-3 gap-3">
-        {features.map((f) => (
-          <Link
-            key={f.href}
-            href={f.href}
-            className="flex flex-col items-center justify-center gap-2.5 bg-white rounded-2xl p-4 border border-gray-100/80 hover:shadow-sm transition-all active:scale-95 min-h-[96px]"
-          >
-            <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center"
-              style={{ backgroundColor: f.color + "10" }}
+        {features.map((f) => {
+          const label = t(f.labelKey);
+          return (
+            <Link
+              key={f.href}
+              href={f.href}
+              aria-label={label}
+              className="flex flex-col items-center justify-center gap-2.5 bg-white rounded-2xl p-4 border border-gray-100/80 hover:shadow-sm transition-all active:scale-95 min-h-[96px]"
             >
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke={f.color}
-                strokeWidth={1.5}
-                strokeLinecap="round"
-                strokeLinejoin="round"
+              <div
+                className="w-11 h-11 rounded-xl flex items-center justify-center"
+                style={{ backgroundColor: f.color + "10" }}
               >
-                {f.icon}
-              </svg>
-            </div>
-            <span className="text-[11px] font-medium text-[#1A3B3A] text-center leading-tight">
-              {f.label}
-            </span>
-          </Link>
-        ))}
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke={f.color}
+                  strokeWidth={1.5}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  {f.icon}
+                </svg>
+              </div>
+              <span className="text-[11px] font-medium text-[#2C2C2C] text-center leading-tight">
+                {label}
+              </span>
+            </Link>
+          );
+        })}
       </div>
     </div>
   );

@@ -1,15 +1,20 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { cookies } from "next/headers";
 
 export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  // Quick cookie check first — avoids slow getUser() call for non-logged-in users
+  const cookieStore = await cookies();
+  const hasAuthCookie = cookieStore.getAll().some(c => c.name.includes("auth-token") || c.name.includes("sb-"));
 
-  if (user) {
-    redirect("/dashboard");
+  if (hasAuthCookie) {
+    // Only call getUser if there's an auth cookie present
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      redirect("/dashboard");
+    }
   }
 
   return (
@@ -18,7 +23,7 @@ export default async function Home() {
       <header className="fixed top-0 left-0 right-0 z-50 bg-light/80 backdrop-blur-lg border-b border-dark/5">
         <nav className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
           <Link href="/" className="text-2xl font-bold text-dark tracking-tight">
-            2Lares
+            Kindar
           </Link>
           <div className="flex items-center gap-3">
             <Link
@@ -82,12 +87,12 @@ export default async function Home() {
             <p className="mt-6 text-lg text-muted max-w-2xl mx-auto leading-relaxed">
               Mensagens perdidas, gastos sem controle, consultas esquecidas...
               A falta de organizacao entre os pais gera estresse para todos,
-              especialmente para as criancas. O 2Lares resolve isso.
+              especialmente para as criancas. O Kindar resolve isso.
             </p>
             <div className="mt-12 grid sm:grid-cols-3 gap-8 text-left">
               <div className="p-6 rounded-2xl bg-error/5 border border-error/10">
                 <div className="text-3xl mb-3">😩</div>
-                <h3 className="font-semibold text-dark mb-2">Sem o 2Lares</h3>
+                <h3 className="font-semibold text-dark mb-2">Sem o Kindar</h3>
                 <p className="text-sm text-muted leading-relaxed">
                   Informacoes espalhadas, conflitos por falta de comunicacao, gastos sem transparencia.
                 </p>
@@ -101,7 +106,7 @@ export default async function Home() {
               </div>
               <div className="p-6 rounded-2xl bg-success/5 border border-success/10">
                 <div className="text-3xl mb-3">✅</div>
-                <h3 className="font-semibold text-dark mb-2">Com o 2Lares</h3>
+                <h3 className="font-semibold text-dark mb-2">Com o Kindar</h3>
                 <p className="text-sm text-muted leading-relaxed">
                   Tudo centralizado, transparente e acessivel para ambos os pais, a qualquer momento.
                 </p>
@@ -354,7 +359,7 @@ export default async function Home() {
         <div className="max-w-6xl mx-auto">
           <div className="grid sm:grid-cols-3 gap-8 sm:gap-12">
             <div>
-              <div className="text-xl font-bold text-white mb-3">2Lares</div>
+              <div className="text-xl font-bold text-white mb-3">Kindar</div>
               <p className="text-sm leading-relaxed">
                 Coparentalidade inteligente para familias modernas. Organize a
                 rotina dos seus filhos com clareza e tranquilidade.
@@ -388,7 +393,7 @@ export default async function Home() {
             </div>
           </div>
           <div className="mt-12 pt-8 border-t border-white/10 text-sm text-center">
-            &copy; 2024-2026 2Lares. Todos os direitos reservados.
+            &copy; 2024-2026 Kindar. Todos os direitos reservados.
           </div>
         </div>
       </footer>

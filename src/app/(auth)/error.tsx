@@ -15,7 +15,7 @@ export default function AuthError({
   }, [error]);
 
   return (
-    <div className="min-h-screen bg-[#FFF9F5] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-[#EEECEA] flex items-center justify-center px-4">
       <div className="flex flex-col items-center gap-4 text-center max-w-sm">
         <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center">
           <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -23,7 +23,7 @@ export default function AuthError({
           </svg>
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-[#1A3B3A]">Erro de autenticacao</h2>
+          <h2 className="text-lg font-semibold text-[#2C2C2C]">Erro de autenticacao</h2>
           <p className="text-sm text-[#7A8C8B] mt-1">
             Ocorreu um erro no processo de login. Tente novamente.
           </p>
@@ -31,13 +31,13 @@ export default function AuthError({
         <div className="flex gap-3">
           <button
             onClick={reset}
-            className="px-5 py-2 bg-[#E8734A] text-white text-sm font-semibold rounded-lg hover:bg-[#D4633D] transition-colors"
+            className="px-5 py-2 bg-[#D4735A] text-white text-sm font-semibold rounded-lg hover:bg-[#D4633D] transition-colors"
           >
             Tentar novamente
           </button>
           <Link
             href="/login"
-            className="px-5 py-2 border border-gray-200 text-sm font-semibold rounded-lg text-[#1A3B3A] hover:bg-gray-50 transition-colors"
+            className="px-5 py-2 border border-gray-200 text-sm font-semibold rounded-lg text-[#2C2C2C] hover:bg-gray-50 transition-colors"
           >
             Ir para login
           </Link>

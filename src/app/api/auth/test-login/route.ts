@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
 
 // Test-only login route - accepts email/password via query params
-// Only allows @2lares.test emails for safety
+// Only allows @kindar.test emails for safety
 export async function GET(request: NextRequest) {
   const email = request.nextUrl.searchParams.get("email");
   const password = request.nextUrl.searchParams.get("password");
@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "email and password required" }, { status: 400 });
   }
 
-  if (!email.endsWith("@2lares.test")) {
+  if (!email.endsWith("@kindar.test")) {
     return NextResponse.json({ error: "only test accounts allowed" }, { status: 403 });
   }
 

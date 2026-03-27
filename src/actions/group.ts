@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function createGroup(formData: FormData): Promise<{ error?: string; success?: boolean }> {
   const supabase = await createClient();
@@ -43,6 +44,8 @@ export async function createGroup(formData: FormData): Promise<{ error?: string;
     if (childError) return { error: childError.message };
   }
 
+  captureServerEvent(user.id, "group_created");
+
   // Don't call revalidatePath here — it triggers a page re-render during
   // the server action which causes redirect loops with auth token refresh.
   // The client component will navigate with router.push() + router.refresh().
@@ -76,6 +79,9 @@ export async function addChild(formData: FormData) {
   });
 
   if (error) redirect("/criancas/nova?error=" + encodeURIComponent(error.message));
+
+  captureServerEvent(user.id, "child_added");
+
   redirect("/criancas");
 }
 
@@ -106,6 +112,8 @@ export async function updateChild(formData: FormData) {
   const birthDate = formData.get("birthDate") as string;
   const allergies = formData.get("allergies") as string;
   const notes = formData.get("notes") as string;
+  const cpf = formData.get("cpf") as string;
+  const rg = formData.get("rg") as string;
 
   const { error } = await supabase
     .from("children")
@@ -114,9 +122,12 @@ export async function updateChild(formData: FormData) {
       birth_date: birthDate,
       allergies: allergies ? allergies.split(",").map(a => a.trim()) : null,
       notes: notes || null,
+      cpf: cpf || null,
+      rg: rg || null,
     })
     .eq("id", id);
 
-  if (error) redirect("/criancas?error=" + encodeURIComponent(error.message));
-  redirect("/criancas");
+  if (error) redirect("/criancas/" + id + "?tab=geral&error=" + encodeURIComponent(error.message));
+  revalidatePath("/criancas/" + id);
+  redirect("/criancas/" + id + "?tab=geral");
 }

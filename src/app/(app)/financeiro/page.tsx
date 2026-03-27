@@ -1,22 +1,23 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { PARENT_COLORS } from "@/lib/constants";
-import FinancialDashboard from "./FinancialDashboard";
+import { getActiveGroup } from "@/lib/group-utils";
+import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
+import dynamic from "next/dynamic";
+import FinanceiroHeader from "./FinanceiroHeader";
+
+const FinancialDashboard = dynamic(() => import("./FinancialDashboard"), {
+  loading: () => <div className="animate-pulse bg-gray-100 rounded-xl h-96" />,
+});
 
 export default async function FinanceiroPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
   const params = await searchParams;
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user;
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: memberships } = await supabase
-    .from("group_members")
-    .select("group_id")
-    .eq("user_id", user.id);
-
-  if (!memberships || memberships.length === 0) redirect("/onboarding");
-  const groupId = memberships[0].group_id;
+  const activeGroup = await getActiveGroup(supabase, user.id);
+  if (!activeGroup) redirect("/onboarding");
+  const { groupId } = activeGroup;
 
   // Parallel fetch: members + expenses + settlements
   const [{ data: members }, { data: expenses }, { data: settlements }] = await Promise.all([
@@ -29,12 +30,14 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
       .from("expenses")
       .select("id, category, description, amount, paid_by, status, expense_date, split_ratio, child_id, children(full_name), profiles!expenses_paid_by_fkey(full_name)")
       .eq("group_id", groupId)
-      .order("expense_date", { ascending: false }),
+      .order("expense_date", { ascending: false })
+      .limit(10000),
     supabase
       .from("settlements")
       .select("id, paid_by, paid_to, amount, payment_method, reference_note, status, confirmed_at, settlement_date, created_at")
       .eq("group_id", groupId)
-      .order("settlement_date", { ascending: false }),
+      .order("settlement_date", { ascending: false })
+      .limit(100),
   ]);
 
   const colors = [PARENT_COLORS.primary, PARENT_COLORS.secondary];
@@ -42,7 +45,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
     const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
     return {
       user_id: m.user_id,
-      full_name: p?.full_name || "Usuario",
+      full_name: getDisplayName(p?.full_name),
       color: colors[i] || colors[1],
     };
   });
@@ -53,7 +56,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
     description: e.description,
     amount: Number(e.amount),
     paid_by: e.paid_by,
-    paid_by_name: (Array.isArray(e.profiles) ? e.profiles[0] : e.profiles)?.full_name || "—",
+    paid_by_name: getDisplayName((Array.isArray(e.profiles) ? e.profiles[0] : e.profiles)?.full_name),
     status: e.status,
     expense_date: e.expense_date,
     split_ratio: e.split_ratio as Record<string, number> | null,
@@ -87,9 +90,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-dark">Financeiro</h1>
-      </div>
+      <FinanceiroHeader />
       <FinancialDashboard
         expenses={serializedExpenses}
         members={memberList}

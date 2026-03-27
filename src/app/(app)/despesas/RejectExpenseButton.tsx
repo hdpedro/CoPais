@@ -2,12 +2,14 @@
 
 import { useState, useTransition } from "react";
 import { updateExpenseStatus } from "@/actions/expenses";
+import { useI18n } from "@/i18n/provider";
 
 interface Props {
   expenseId: string;
 }
 
 export default function RejectExpenseButton({ expenseId }: Props) {
+  const { t } = useI18n();
   const [showReason, setShowReason] = useState(false);
   const [reason, setReason] = useState("");
   const [isPending, startTransition] = useTransition();
@@ -19,7 +21,7 @@ export default function RejectExpenseButton({ expenseId }: Props) {
         onClick={() => setShowReason(true)}
         className="w-full py-2 text-sm font-medium text-error bg-error/10 rounded-lg hover:bg-error/20 transition-colors"
       >
-        Rejeitar
+        {t("expenseForm.reject")}
       </button>
     );
   }
@@ -39,7 +41,7 @@ export default function RejectExpenseButton({ expenseId }: Props) {
       <textarea
         value={reason}
         onChange={(e) => setReason(e.target.value)}
-        placeholder="Motivo da rejeicao (opcional)"
+        placeholder={t("expenseForm.rejectionReasonPlaceholder")}
         disabled={isPending}
         className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-error/50 focus:border-error disabled:opacity-50 resize-none"
         rows={2}
@@ -51,7 +53,7 @@ export default function RejectExpenseButton({ expenseId }: Props) {
           disabled={isPending}
           className="flex-1 py-2 text-sm font-medium text-muted bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
         >
-          Cancelar
+          {t("common.cancel")}
         </button>
         <button
           type="button"
@@ -65,7 +67,7 @@ export default function RejectExpenseButton({ expenseId }: Props) {
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
           ) : null}
-          Confirmar Rejeicao
+          {t("expenseForm.confirmRejection")}
         </button>
       </div>
     </div>

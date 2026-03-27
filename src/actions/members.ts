@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function changeMemberRole(formData: FormData) {
   const supabase = await createClient();
@@ -37,7 +38,13 @@ export async function changeMemberRole(formData: FormData) {
     redirect("/familia?error=" + encodeURIComponent("Papel invalido"));
   }
 
-  const { error } = await supabase
+  // Use service role to bypass RLS (no UPDATE policy on group_members table)
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  const { error } = await adminClient
     .from("group_members")
     .update({ role: newRole })
     .eq("group_id", groupId)
@@ -46,6 +53,8 @@ export async function changeMemberRole(formData: FormData) {
   if (error) {
     redirect("/familia?error=" + encodeURIComponent(error.message));
   }
+
+  captureServerEvent(user.id, "member_role_changed", { newRole });
 
   revalidatePath("/familia");
   redirect("/familia?success=" + encodeURIComponent("Papel atualizado com sucesso"));
@@ -91,6 +100,8 @@ export async function removeMember(formData: FormData) {
   if (error) {
     redirect("/familia?error=" + encodeURIComponent(error.message));
   }
+
+  captureServerEvent(user.id, "member_removed");
 
   revalidatePath("/familia");
   redirect("/familia?success=" + encodeURIComponent("Membro removido com sucesso"));

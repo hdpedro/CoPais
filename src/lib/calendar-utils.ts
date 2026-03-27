@@ -118,7 +118,7 @@ export function getNextWeekends(
   currentUserId: string
 ): WeekendInfo[] {
   const weekends: WeekendInfo[] = [];
-  const today = new Date();
+  const today = getBrazilNow();
   // Find next Saturday
   const current = new Date(today);
   const dayOfWeek = current.getDay();

@@ -14,7 +14,7 @@ export default function InviteShareCard({
   const [copied, setCopied] = useState(false);
 
   const whatsappMessage = encodeURIComponent(
-    `Oi! Estou usando o 2Lares para organizar a rotina do(s) nosso(s) filho(s). ` +
+    `Oi! Estou usando o Kindar para organizar a rotina do(s) nosso(s) filho(s). ` +
     `Criei o grupo "${groupName}" e preciso que voce se cadastre tambem. ` +
     `Clique no link para entrar: ${inviteLink}`
   );

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function createCheckin(formData: FormData) {
   const supabase = await createClient();
@@ -42,6 +43,8 @@ export async function createCheckin(formData: FormData) {
   });
 
   if (error) return { error: error.message };
+
+  captureServerEvent(user.id, "checkin_created", { category });
 
   // Get child name for the chat message
   const { data: child } = await supabase

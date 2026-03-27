@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { generateSchedule } from "@/actions/calendar";
-import { DAY_NAMES } from "@/lib/constants";
+import { DAY_NAMES, getDisplayName } from "@/lib/constants";
 import { getBrazilToday } from "@/lib/calendar-utils";
 
 interface Member {
@@ -87,21 +87,23 @@ export default function ScheduleBuilder({
         ]);
         break;
       case "5-2-2-5":
-        // Week 1: Parent A Mon-Fri, Parent B Sat-Sun
-        // Week 2: Parent B Mon-Fri, Parent A Sat-Sun
+        // Sequential: 5A, 2B, 2A, 5B (14 days total)
+        // Week 1: A Mon-Fri (5), B Sat-Sun (2)
+        // Week 2: A Mon-Tue (2), B Wed-Sun (5)
         // Index: [Dom, Seg, Ter, Qua, Qui, Sex, Sab]
         setPattern([
           m1, m0, m0, m0, m0, m0, m1,
-          m0, m1, m1, m1, m1, m1, m0,
+          m1, m0, m0, m1, m1, m1, m1,
         ]);
         break;
       case "3-4-4-3":
-        // Week 1: Parent A Mon-Wed, Parent B Thu-Sun
-        // Week 2: Parent B Mon-Wed, Parent A Thu-Sun
+        // Sequential: 3A, 4B, 4A, 3B (14 days total)
+        // Week 1: A Mon-Wed (3), B Thu-Sun (4)
+        // Week 2: A Mon-Thu (4), B Fri-Sun (3)
         // Index: [Dom, Seg, Ter, Qua, Qui, Sex, Sab]
         setPattern([
           m1, m0, m0, m0, m1, m1, m1,
-          m0, m1, m1, m1, m0, m0, m0,
+          m1, m0, m0, m0, m0, m1, m1,
         ]);
         break;
       case "2-3-weekend":
@@ -122,7 +124,7 @@ export default function ScheduleBuilder({
   }
 
   function getFirstName(fullName: string) {
-    return fullName.split(" ")[0];
+    return getDisplayName(fullName, true);
   }
 
   // Count events that would be generated
@@ -141,6 +143,12 @@ export default function ScheduleBuilder({
     }
     if (pattern.every((p) => p === null)) {
       setError("Configure pelo menos 1 dia na escala.");
+      return;
+    }
+    // Validate that start date is a Monday
+    const startDay = new Date(startDate + "T12:00:00").getDay();
+    if (startDay !== 1) {
+      setError("A data de inicio deve ser uma segunda-feira para alinhar com a escala quinzenal.");
       return;
     }
 
@@ -201,14 +209,14 @@ export default function ScheduleBuilder({
             className="text-left px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <p className="text-xs font-medium text-dark">5-2 / 2-5</p>
-            <p className="text-xs text-muted">Semana + fim de semana alternado</p>
+            <p className="text-xs text-muted">5 dias + 2 dias alternando</p>
           </button>
           <button
             onClick={() => applyPreset("3-4-4-3")}
             className="text-left px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
           >
             <p className="text-xs font-medium text-dark">3-4 / 4-3</p>
-            <p className="text-xs text-muted">Seg-Qua / Qui-Dom alternado</p>
+            <p className="text-xs text-muted">3 dias + 4 dias alternando</p>
           </button>
           <button
             onClick={() => applyPreset("2-3-weekend")}
@@ -254,9 +262,9 @@ export default function ScheduleBuilder({
                     key={m.user_id}
                     onClick={() => fillWeek(weekIdx, m.user_id)}
                     className="text-xs px-2 py-0.5 rounded-full border border-gray-200 hover:bg-gray-50"
-                    title={`Preencher semana toda com ${m.full_name}`}
+                    title={`Preencher semana toda com ${getDisplayName(m.full_name)}`}
                   >
-                    {m.full_name.split(" ")[0]}
+                    {getDisplayName(m.full_name, true)}
                   </button>
                 ))}
               </div>
@@ -342,12 +350,21 @@ export default function ScheduleBuilder({
           <input
             type="date"
             value={startDate}
-            onChange={(e) => setStartDate(e.target.value)}
+            onChange={(e) => {
+              setStartDate(e.target.value);
+              setError("");
+            }}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
-          <p className="text-xs text-muted mt-1">
-            Escolha uma segunda-feira para alinhar com a semana.
-          </p>
+          {startDate && new Date(startDate + "T12:00:00").getDay() !== 1 ? (
+            <p className="text-xs text-amber-600 font-medium mt-1">
+              A data selecionada nao e uma segunda-feira. A escala deve comecar na segunda.
+            </p>
+          ) : (
+            <p className="text-xs text-muted mt-1">
+              Escolha uma segunda-feira para alinhar com a semana.
+            </p>
+          )}
         </div>
 
         <div>

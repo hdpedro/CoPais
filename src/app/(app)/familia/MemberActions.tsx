@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { changeMemberRole, removeMember } from "@/actions/members";
+import { useI18n } from "@/i18n/provider";
 
 export default function MemberActions({
   memberId,
@@ -14,14 +15,15 @@ export default function MemberActions({
   currentRole: string;
   memberName: string;
 }) {
+  const { t } = useI18n();
   const [showMenu, setShowMenu] = useState(false);
   const [showRoleModal, setShowRoleModal] = useState(false);
   const [showRemoveModal, setShowRemoveModal] = useState(false);
 
   const roles = [
-    { value: "admin", label: "Administrador", desc: "Acesso total + gerenciar membros" },
-    { value: "member", label: "Membro", desc: "Acesso completo ao grupo" },
-    { value: "readonly", label: "Somente leitura", desc: "Apenas visualizacao" },
+    { value: "admin", label: t("memberActions.roleAdmin"), desc: t("memberActions.roleAdminDesc") },
+    { value: "member", label: t("memberActions.roleMember"), desc: t("memberActions.roleMemberDesc") },
+    { value: "readonly", label: t("memberActions.roleReadonly"), desc: t("memberActions.roleReadonlyDesc") },
   ];
 
   return (
@@ -48,7 +50,7 @@ export default function MemberActions({
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              Alterar permissao
+              {t("memberActions.changePermission")}
             </button>
             <button
               onClick={() => { setShowMenu(false); setShowRemoveModal(true); }}
@@ -57,7 +59,7 @@ export default function MemberActions({
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
               </svg>
-              Remover do grupo
+              {t("memberActions.removeFromGroup")}
             </button>
           </div>
         </>
@@ -67,8 +69,8 @@ export default function MemberActions({
       {showRoleModal && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
-            <h3 className="text-lg font-bold text-dark mb-1">Alterar permissao</h3>
-            <p className="text-sm text-muted mb-4">Escolha o papel de {memberName} no grupo</p>
+            <h3 className="text-lg font-bold text-dark mb-1">{t("memberActions.changePermission")}</h3>
+            <p className="text-sm text-muted mb-4">{t("memberActions.chooseRole", { name: memberName })}</p>
 
             <form action={changeMemberRole}>
               <input type="hidden" name="memberId" value={memberId} />
@@ -105,13 +107,13 @@ export default function MemberActions({
                   onClick={() => setShowRoleModal(false)}
                   className="flex-1 py-2.5 text-sm font-medium text-muted bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   type="submit"
                   className="flex-1 py-2.5 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary-dark transition-colors"
                 >
-                  Confirmar
+                  {t("common.confirm")}
                 </button>
               </div>
             </form>
@@ -129,13 +131,13 @@ export default function MemberActions({
               </svg>
             </div>
 
-            <h3 className="text-lg font-bold text-dark text-center mb-1">Remover {memberName}?</h3>
+            <h3 className="text-lg font-bold text-dark text-center mb-1">{t("memberActions.removeTitle", { name: memberName })}</h3>
             <div className="text-sm text-muted text-center mb-5">
-              <p className="mb-2">O que vai acontecer:</p>
+              <p className="mb-2">{t("memberActions.whatWillHappen")}</p>
               <ul className="text-left space-y-1 text-xs bg-gray-50 rounded-lg p-3">
-                <li>• {memberName} perdera acesso ao grupo</li>
-                <li>• Historico de dados sera mantido</li>
-                <li>• Pode ser reconvidado depois</li>
+                <li>{t("memberActions.willLoseAccess", { name: memberName })}</li>
+                <li>{t("memberActions.historyKept")}</li>
+                <li>{t("memberActions.canReinvite")}</li>
               </ul>
             </div>
 
@@ -149,13 +151,13 @@ export default function MemberActions({
                   onClick={() => setShowRemoveModal(false)}
                   className="flex-1 py-2.5 text-sm font-medium text-muted bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
                 >
-                  Cancelar
+                  {t("common.cancel")}
                 </button>
                 <button
                   type="submit"
                   className="flex-1 py-2.5 text-sm font-semibold text-white bg-error rounded-lg hover:bg-red-700 transition-colors"
                 >
-                  Remover
+                  {t("memberActions.remove")}
                 </button>
               </div>
             </form>

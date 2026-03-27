@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { createSwapRequest } from "@/actions/calendar";
 import { getBrazilToday, type CustodyDayInfo } from "@/lib/calendar-utils";
+import { useI18n } from "@/i18n/provider";
 
 interface SwapRequestModalProps {
   isOpen: boolean;
@@ -23,6 +24,7 @@ export default function SwapRequestModal({
   currentUserId,
   isVisitRequest = false,
 }: SwapRequestModalProps) {
+  const { t } = useI18n();
   const [proposedDate, setProposedDate] = useState("");
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -38,10 +40,7 @@ export default function SwapRequestModal({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!isVisitRequest && !proposedDate) {
-      setError("Selecione uma data para troca.");
-      return;
-    }
+    // proposedDate is optional — if empty, the swap counts as a debt day for the requester
     setSubmitting(true);
     setError("");
 
@@ -66,8 +65,8 @@ export default function SwapRequestModal({
     }
   }
 
-  const title = isVisitRequest ? "Solicitar Visita" : "Solicitar Troca";
-  const submitLabel = isVisitRequest ? "Solicitar Visita" : "Solicitar Troca";
+  const title = isVisitRequest ? t("swapModal.requestVisit") : t("swapModal.requestSwap");
+  const submitLabel = isVisitRequest ? t("swapModal.requestVisit") : t("swapModal.requestSwap");
 
   return (
     <div className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center">
@@ -86,12 +85,12 @@ export default function SwapRequestModal({
 
         {/* Current day info */}
         <div className="bg-gray-50 rounded-xl p-4 mb-4">
-          <p className="text-sm text-muted">Dia selecionado</p>
+          <p className="text-sm text-muted">{t("swapModal.selectedDay")}</p>
           <p className="font-semibold text-dark capitalize">{formattedDate}</p>
           {dayInfo && (
             <div className="flex items-center gap-2 mt-1">
               <div className="w-3 h-3 rounded-full" style={{ backgroundColor: dayInfo.color }} />
-              <span className="text-sm text-muted">Responsavel: {dayInfo.userName}</span>
+              <span className="text-sm text-muted">{t("swapModal.responsible")}: {dayInfo.userName}</span>
             </div>
           )}
         </div>
@@ -99,7 +98,7 @@ export default function SwapRequestModal({
         {isVisitRequest && (
           <div className="bg-blue-50 border border-blue-200 rounded-xl p-3 mb-4">
             <p className="text-sm text-blue-700">
-              Voce esta solicitando uma visita nesta data. O responsavel precisara aprovar.
+              {t("swapModal.visitExplanation")}
             </p>
           </div>
         )}
@@ -108,7 +107,7 @@ export default function SwapRequestModal({
           {!isVisitRequest && (
             <div>
               <label className="block text-sm font-medium text-dark mb-1">
-                Data proposta para troca
+                {t("swapModal.dayYouOffer")}
               </label>
               <input
                 type="date"
@@ -117,19 +116,27 @@ export default function SwapRequestModal({
                 className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
                 min={getBrazilToday()}
               />
+              {!proposedDate && (
+                <p className="text-xs text-amber-600 mt-1.5 flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  {t("swapModal.noSwapDateDebt")}
+                </p>
+              )}
             </div>
           )}
 
           <div>
             <label className="block text-sm font-medium text-dark mb-1">
-              {isVisitRequest ? "Motivo da visita" : "Motivo (opcional)"}
+              {isVisitRequest ? t("swapModal.visitReason") : t("swapModal.reasonOptional")}
             </label>
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               placeholder={isVisitRequest
-                ? "Ex: Gostaria de passar o dia com o neto..."
-                : "Ex: Preciso viajar a trabalho nesse dia..."
+                ? t("swapModal.visitReasonPlaceholder")
+                : t("swapModal.swapReasonPlaceholder")
               }
               rows={3}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 resize-none"
@@ -146,14 +153,14 @@ export default function SwapRequestModal({
               onClick={onClose}
               className="flex-1 px-4 py-3 border border-gray-200 text-dark font-medium rounded-xl hover:bg-gray-50 transition-colors"
             >
-              Cancelar
+              {t("common.cancel")}
             </button>
             <button
               type="submit"
               disabled={submitting}
               className="flex-1 px-4 py-3 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors disabled:opacity-50"
             >
-              {submitting ? "Enviando..." : submitLabel}
+              {submitting ? t("swapModal.sending") : submitLabel}
             </button>
           </div>
         </form>

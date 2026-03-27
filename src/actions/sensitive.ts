@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function createSensitiveNote(formData: FormData) {
   const supabase = await createClient();
@@ -47,6 +48,9 @@ export async function createSensitiveNote(formData: FormData) {
   });
 
   if (error) redirect("/temas-sensiveis?error=" + encodeURIComponent(error.message));
+
+  captureServerEvent(user.id, "sensitive_topic_created", { topic });
+
   revalidatePath("/temas-sensiveis");
   redirect("/temas-sensiveis");
 }

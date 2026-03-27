@@ -7,6 +7,7 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { verifyGroupMembership } from "@/lib/auth-utils";
 import { createNotificationWithPush } from "@/lib/push";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { postChatNotification } from "@/lib/chat-notify";
 
 export async function createCustodyEvent(formData: FormData) {
   const supabase = await createClient();
@@ -171,8 +172,12 @@ export async function createSwapRequest(formData: FormData) {
   const proposedDate = formData.get("proposedDate") as string;
   const reason = formData.get("reason") as string;
   const targetUserId = formData.get("targetUserId") as string;
+  const requestType = (formData.get("requestType") as string) || "swap";
 
   if (!targetUserId) return { error: "Responsavel nao encontrado para este dia." };
+
+  const isVisit = requestType === "visit";
+  const isDebtSwap = requestType === "swap" && !proposedDate;
 
   const { error } = await supabase.from("swap_requests").insert({
     group_id: groupId,
@@ -180,7 +185,9 @@ export async function createSwapRequest(formData: FormData) {
     target_user_id: targetUserId,
     original_date: originalDate,
     proposed_date: proposedDate || null,
-    reason: reason || null,
+    reason: isDebtSwap
+      ? `[DIVIDA] ${reason || ""}`.trim()
+      : reason || null,
     status: "pending",
   });
 
@@ -195,24 +202,48 @@ export async function createSwapRequest(formData: FormData) {
       .single();
 
     const requesterName = requesterProfile?.full_name?.split(" ")[0] || "Alguem";
-    const isVisit = !proposedDate;
     const dateFormatted = new Date(originalDate + "T12:00:00").toLocaleDateString("pt-BR", {
       day: "numeric",
       month: "short",
     });
 
+    const notifTitle = isVisit
+      ? "Solicitacao de Visita"
+      : isDebtSwap
+        ? "Solicitacao de Dia (divida)"
+        : "Solicitacao de Troca";
+    const notifBody = isVisit
+      ? `${requesterName} quer visitar em ${dateFormatted}`
+      : isDebtSwap
+        ? `${requesterName} quer pegar o dia ${dateFormatted} (ficara devendo)`
+        : `${requesterName} quer trocar o dia ${dateFormatted}`;
+
     await createNotificationWithPush(
       targetUserId,
       "swap_request",
-      isVisit ? "Solicitacao de Visita" : "Solicitacao de Troca",
-      `${requesterName} ${isVisit ? "quer visitar" : "quer trocar o dia"} ${dateFormatted}`,
+      notifTitle,
+      notifBody,
       "/calendario"
     );
   } catch {
     // Push failure shouldn't block the swap request
   }
 
+  // Post to group chat
+  const chatIcon = isVisit ? "👀" : isDebtSwap ? "📅" : "🔄";
+  const chatMsg = isVisit
+    ? `${chatIcon} Solicitou visita para ${new Date(originalDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short", weekday: "short" })}`
+    : isDebtSwap
+      ? `${chatIcon} Solicitou o dia ${new Date(originalDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short", weekday: "short" })} (divida de dia)`
+      : `${chatIcon} Solicitou troca: ${new Date(originalDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" })} ↔ ${new Date(proposedDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}`;
+  try {
+    await postChatNotification(supabase, groupId, user.id, chatMsg);
+  } catch {
+    // Notification failure should not break the action
+  }
+
   revalidatePath("/calendario");
+  revalidatePath("/chat");
   return { success: true };
 }
 
@@ -246,8 +277,8 @@ export async function respondToSwapRequest(formData: FormData) {
   }
 
   // If approved, swap custody for those dates
-  if (response === "approved" && req.proposed_date) {
-    // Find events that cover the original and proposed dates
+  if (response === "approved") {
+    // Find event that covers the original date
     const { data: origEvents } = await supabase
       .from("custody_events")
       .select("*")
@@ -256,44 +287,49 @@ export async function respondToSwapRequest(formData: FormData) {
       .gte("end_date", req.original_date)
       .limit(1);
 
-    const { data: propEvents } = await supabase
-      .from("custody_events")
-      .select("*")
-      .eq("group_id", req.group_id)
-      .lte("start_date", req.proposed_date)
-      .gte("end_date", req.proposed_date)
-      .limit(1);
-
-    // Create swap events for single days
     const swapEvents = [];
 
-    // Swap logic: requester wants original_date covered by target,
-    // and in return covers target's proposed_date
+    // Original date: requester gets this day from target
     if (origEvents && origEvents[0]) {
       swapEvents.push({
         group_id: req.group_id,
         child_id: origEvents[0].child_id,
-        responsible_user_id: req.target_user_id, // target covers requester's date
+        responsible_user_id: req.requester_id, // requester takes this day
         start_date: req.original_date,
         end_date: req.original_date,
         custody_type: "swap",
-        notes: `Troca aprovada: ${req.reason || "sem motivo"}`,
+        notes: req.proposed_date
+          ? `Troca aprovada: ${req.reason || "sem motivo"}`
+          : `Divida de dia: ${req.reason || "sem motivo"}`,
         created_by: user.id,
       });
     }
 
-    if (propEvents && propEvents[0]) {
-      swapEvents.push({
-        group_id: req.group_id,
-        child_id: propEvents[0].child_id,
-        responsible_user_id: req.requester_id, // requester covers target's date
-        start_date: req.proposed_date,
-        end_date: req.proposed_date,
-        custody_type: "swap",
-        notes: `Troca aprovada: ${req.reason || "sem motivo"}`,
-        created_by: user.id,
-      });
+    // If there's a proposed date, the target gets that day back (balanced swap)
+    if (req.proposed_date) {
+      const { data: propEvents } = await supabase
+        .from("custody_events")
+        .select("*")
+        .eq("group_id", req.group_id)
+        .lte("start_date", req.proposed_date)
+        .gte("end_date", req.proposed_date)
+        .limit(1);
+
+      if (propEvents && propEvents[0]) {
+        swapEvents.push({
+          group_id: req.group_id,
+          child_id: propEvents[0].child_id,
+          responsible_user_id: req.target_user_id, // target gets this day back
+          start_date: req.proposed_date,
+          end_date: req.proposed_date,
+          custody_type: "swap",
+          notes: `Troca aprovada: ${req.reason || "sem motivo"}`,
+          created_by: user.id,
+        });
+      }
     }
+    // If no proposed_date, only one swap event is created
+    // This means the requester gains +1 day (debt) and the swap balance reflects it
 
     if (swapEvents.length > 0) {
       const { error: insertError } = await supabase.from("custody_events").insert(swapEvents);
@@ -326,7 +362,19 @@ export async function respondToSwapRequest(formData: FormData) {
     // Push failure shouldn't block the response
   }
 
+  // Post to group chat
+  const dateStr = new Date(req.original_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+  const chatMsg = response === "approved"
+    ? `✅ Troca aceita para ${dateStr}`
+    : `❌ Troca recusada para ${dateStr}`;
+  try {
+    await postChatNotification(supabase, req.group_id, user.id, chatMsg);
+  } catch {
+    // Notification failure should not break the action
+  }
+
   revalidatePath("/calendario");
+  revalidatePath("/chat");
   return { success: true };
 }
 
@@ -475,8 +523,15 @@ export async function generateSchedule(formData: FormData) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
+  // Fetch existing events before deleting, so we can restore on failure
+  const { data: existingEvents } = await adminClient
+    .from("custody_events")
+    .select("*")
+    .eq("group_id", groupId)
+    .eq("child_id", childId)
+    .eq("custody_type", "regular");
+
   // Delete ALL existing regular schedule events for this child/group before inserting new ones
-  // This catches old events regardless of their notes text (old versions used different text)
   const { error: deleteError } = await adminClient
     .from("custody_events")
     .delete()
@@ -487,10 +542,26 @@ export async function generateSchedule(formData: FormData) {
   if (deleteError) return { error: "Erro ao limpar escala anterior: " + deleteError.message };
 
   // Insert in batches of 100 to avoid payload limits
-  for (let i = 0; i < events.length; i += 100) {
-    const batch = events.slice(i, i + 100);
-    const { error } = await adminClient.from("custody_events").insert(batch);
-    if (error) return { error: error.message };
+  try {
+    for (let i = 0; i < events.length; i += 100) {
+      const batch = events.slice(i, i + 100);
+      const { error } = await adminClient.from("custody_events").insert(batch);
+      if (error) {
+        // Attempt to restore old events on insert failure
+        if (existingEvents && existingEvents.length > 0) {
+          const restoreData = existingEvents.map(({ id, ...rest }) => rest);
+          await adminClient.from("custody_events").insert(restoreData);
+        }
+        return { error: "Erro ao inserir nova escala: " + error.message };
+      }
+    }
+  } catch (e) {
+    // Attempt to restore old events on unexpected failure
+    if (existingEvents && existingEvents.length > 0) {
+      const restoreData = existingEvents.map(({ id, ...rest }) => rest);
+      await adminClient.from("custody_events").insert(restoreData);
+    }
+    return { error: "Erro inesperado ao gerar escala." };
   }
 
   // Save schedule configuration for future editing (upsert)
@@ -509,8 +580,63 @@ export async function generateSchedule(formData: FormData) {
       { onConflict: "group_id,child_id" }
     );
 
+  captureServerEvent(user.id, "schedule_generated");
+
   revalidatePath("/calendario");
   return { success: true, count: events.length };
+}
+
+export async function clearCustodySchedule(groupId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Verify user is group member AND admin
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) {
+    return { error: "Sem permissao para este grupo." };
+  }
+  if (membership.role !== "admin") {
+    return { error: "Apenas administradores podem limpar a escala." };
+  }
+
+  // Use service role to bypass RLS for batch delete
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
+  // Delete all custody_events for this group
+  const { error: deleteError } = await adminClient
+    .from("custody_events")
+    .delete()
+    .eq("group_id", groupId);
+
+  if (deleteError) {
+    return { error: "Erro ao limpar escala: " + deleteError.message };
+  }
+
+  // Also delete saved schedule configuration
+  await adminClient
+    .from("custody_schedules")
+    .delete()
+    .eq("group_id", groupId);
+
+  // Delete related swap requests that are still pending
+  await adminClient
+    .from("swap_requests")
+    .delete()
+    .eq("group_id", groupId)
+    .eq("status", "pending");
+
+  captureServerEvent(user.id, "schedule_cleared", {
+    group_id: groupId,
+  });
+
+  revalidatePath("/calendario");
+  revalidatePath("/calendario/escala");
+  revalidatePath("/dashboard");
+  redirect("/calendario");
 }
 
 export async function getOrCreateCalendarToken(groupId: string) {

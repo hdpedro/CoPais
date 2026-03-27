@@ -43,3 +43,10 @@ yarn-error.log*
 next-env.d.ts
 
 .vercel
+.env.local
+.env.test.local
+
+# Capacitor
+/ios
+/android
+/out

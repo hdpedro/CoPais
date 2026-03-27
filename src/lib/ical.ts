@@ -6,6 +6,8 @@ interface ICalEvent {
   endTime?: string | null; // HH:MM
   summary: string;
   description?: string;
+  location?: string;
+  categories?: string; // GUARDA, EVENTO, ATIVIDADE
 }
 
 function escapeIcal(text: string): string {
@@ -26,7 +28,7 @@ export function generateICalFeed(events: ICalEvent[], calendarName: string): str
   const lines: string[] = [
     "BEGIN:VCALENDAR",
     "VERSION:2.0",
-    "PRODID:-//2Lares//Calendario de Guarda//PT",
+    "PRODID:-//Kindar//Calendario de Guarda//PT",
     "METHOD:PUBLISH",
     `X-WR-CALNAME:${escapeIcal(calendarName)}`,
     "X-WR-TIMEZONE:America/Sao_Paulo",
@@ -56,7 +58,19 @@ export function generateICalFeed(events: ICalEvent[], calendarName: string): str
     if (event.description) {
       lines.push(`DESCRIPTION:${escapeIcal(event.description)}`);
     }
+    if (event.location) {
+      lines.push(`LOCATION:${escapeIcal(event.location)}`);
+    }
+    if (event.categories) {
+      lines.push(`CATEGORIES:${event.categories}`);
+    }
     lines.push(`DTSTAMP:${new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "")}`);
+    // Reminder 1 hour before
+    lines.push("BEGIN:VALARM");
+    lines.push("TRIGGER:-PT1H");
+    lines.push("ACTION:DISPLAY");
+    lines.push(`DESCRIPTION:${escapeIcal(event.summary)}`);
+    lines.push("END:VALARM");
     lines.push("END:VEVENT");
   }
 

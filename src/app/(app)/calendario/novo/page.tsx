@@ -1,22 +1,22 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import Link from "next/link";
-import NewEventForm from "./NewEventForm";
+import { getActiveGroup } from "@/lib/group-utils";
+import dynamic from "next/dynamic";
+import NovoHeader from "./NovoHeader";
 
-export default async function NewEventPage() {
+const NewCompromissoForm = dynamic(() => import("./NewCompromissoForm"), {
+  loading: () => <div className="animate-pulse bg-gray-100 rounded-xl h-96" />,
+});
+
+export default async function NovoCompromissoPage() {
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user;
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: memberships } = await supabase
-    .from("group_members")
-    .select("group_id, role")
-    .eq("user_id", user.id);
-
-  if (!memberships || memberships.length === 0) redirect("/onboarding");
-  if (memberships[0].role === "readonly") redirect("/dashboard");
-  const groupId = memberships[0].group_id;
+  const activeGroup = await getActiveGroup(supabase, user.id);
+  if (!activeGroup) redirect("/onboarding");
+  if (activeGroup.isReadonly) redirect("/dashboard");
+  const { groupId } = activeGroup;
 
   const { data: children } = await supabase
     .from("children")
@@ -35,16 +35,9 @@ export default async function NewEventPage() {
 
   return (
     <div className="max-w-lg mx-auto pb-20">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/calendario" className="text-muted hover:text-dark">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <h1 className="text-2xl font-bold text-dark">Novo Evento</h1>
-      </div>
+      <NovoHeader />
 
-      <NewEventForm
+      <NewCompromissoForm
         groupId={groupId}
         children={children || []}
         members={membersList}

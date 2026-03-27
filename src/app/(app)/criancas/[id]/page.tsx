@@ -1,154 +1,110 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { updateChild } from "@/actions/group";
-import Link from "next/link";
+import { getActiveGroup } from "@/lib/group-utils";
+import dynamic from "next/dynamic";
 
-export default async function ChildDetailPage({ params }: { params: Promise<{ id: string }> }) {
+const ChildDetailClient = dynamic(() => import("./ChildDetailClient"), {
+  loading: () => <div className="animate-pulse bg-gray-100 rounded-xl h-96" />,
+});
+
+export default async function ChildDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ tab?: string }>;
+}) {
   const { id } = await params;
+  const sp = await searchParams;
+  const tab = sp.tab || "geral";
+
   const supabase = await createClient();
-  const { data: { session } } = await supabase.auth.getSession();
-  const user = session?.user;
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Verify group membership
-  const { data: memberships } = await supabase
-    .from("group_members")
-    .select("group_id, role")
-    .eq("user_id", user.id);
+  const activeGroup = await getActiveGroup(supabase, user.id);
+  if (!activeGroup) redirect("/onboarding");
+  const { groupId, isReadonly } = activeGroup;
 
-  if (!memberships || memberships.length === 0) redirect("/onboarding");
-  const groupId = memberships[0].group_id;
-  const isReadonly = memberships[0].role === "readonly";
+  // Fetch all data in parallel
+  const [
+    childRes,
+    medicalInfoRes,
+    latestGrowthRes,
+    allergiesRes,
+    medicationsRes,
+    vaccinationsRes,
+    documentsRes,
+    educationRes,
+  ] = await Promise.all([
+    // Child
+    supabase
+      .from("children")
+      .select("*")
+      .eq("id", id)
+      .eq("group_id", groupId)
+      .single(),
+    // Medical info
+    supabase
+      .from("child_medical_info")
+      .select("*")
+      .eq("child_id", id)
+      .single(),
+    // Latest growth record
+    supabase
+      .from("growth_records")
+      .select("*")
+      .eq("child_id", id)
+      .order("recorded_at", { ascending: false })
+      .limit(1),
+    // Allergies
+    supabase
+      .from("child_allergies")
+      .select("*")
+      .eq("child_id", id)
+      .order("created_at", { ascending: false }),
+    // Active medications
+    supabase
+      .from("active_medications")
+      .select("*")
+      .eq("child_id", id)
+      .eq("status", "active"),
+    // Vaccination records
+    supabase
+      .from("vaccination_records")
+      .select("*")
+      .eq("child_id", id)
+      .order("applied_date", { ascending: false }),
+    // Documents for this child
+    supabase
+      .from("documents")
+      .select("*, profiles!documents_uploaded_by_fkey(full_name)")
+      .eq("group_id", groupId)
+      .eq("child_id", id)
+      .order("created_at", { ascending: false }),
+    // Education
+    supabase
+      .from("child_education")
+      .select("*")
+      .eq("child_id", id)
+      .single(),
+  ]);
 
-  const { data: child } = await supabase
-    .from("children")
-    .select("*")
-    .eq("id", id)
-    .eq("group_id", groupId)
-    .single();
-
-  if (!child) notFound();
-
-  // Get health logs for this child
-  const { data: healthLogs } = await supabase
-    .from("health_logs")
-    .select("*, profiles!health_logs_logged_by_fkey(full_name)")
-    .eq("child_id", id)
-    .order("logged_at", { ascending: false })
-    .limit(5);
-
-  const age = Math.floor(
-    (Date.now() - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-  );
-
-  const healthLogLabels: Record<string, string> = {
-    medication: "Medicacao",
-    fever: "Febre",
-    symptom: "Sintoma",
-    weight: "Peso",
-    height: "Altura",
-    allergy: "Alergia",
-    vaccination: "Vacina",
-    appointment: "Consulta",
-    general: "Geral",
-  };
+  if (!childRes.data) notFound();
 
   return (
-    <div className="max-w-lg mx-auto space-y-6 pb-20">
-      <div className="flex items-center gap-3">
-        <Link href="/criancas" className="text-muted hover:text-dark">
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <h1 className="text-2xl font-bold text-dark">{child.full_name}</h1>
-      </div>
-
-      {/* Info Card */}
-      <div className="bg-white rounded-xl p-6 shadow-sm">
-        <div className="flex items-center gap-4 mb-4">
-          <div className="w-16 h-16 bg-accent/20 rounded-full flex items-center justify-center">
-            <span className="text-3xl">👶</span>
-          </div>
-          <div>
-            <p className="text-muted">{age} {age === 1 ? "ano" : "anos"} - {new Date(child.birth_date).toLocaleDateString("pt-BR")}</p>
-          </div>
-        </div>
-
-        {child.allergies && child.allergies.length > 0 && (
-          <div className="mb-3">
-            <p className="text-sm font-medium text-dark mb-1">Alergias:</p>
-            <div className="flex flex-wrap gap-1">
-              {child.allergies.map((a: string, i: number) => (
-                <span key={i} className="text-xs bg-error/10 text-error px-2 py-1 rounded-full">{a}</span>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {child.notes && (
-          <div>
-            <p className="text-sm font-medium text-dark mb-1">Observacoes:</p>
-            <p className="text-sm text-muted">{child.notes}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Edit Form */}
-      {!isReadonly && (
-      <details className="bg-white rounded-xl shadow-sm">
-        <summary className="p-4 font-semibold text-dark cursor-pointer">Editar informacoes</summary>
-        <form action={updateChild} className="p-4 pt-0 space-y-4">
-          <input type="hidden" name="id" value={child.id} />
-          <div>
-            <label className="block text-sm font-medium text-dark mb-1">Nome completo</label>
-            <input type="text" name="fullName" defaultValue={child.full_name} required
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-dark mb-1">Data de nascimento</label>
-            <input type="date" name="birthDate" defaultValue={child.birth_date} required
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-dark mb-1">Alergias</label>
-            <input type="text" name="allergies" defaultValue={child.allergies?.join(", ")}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-dark mb-1">Observacoes</label>
-            <textarea name="notes" rows={3} defaultValue={child.notes || ""}
-              className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary" />
-          </div>
-          <button type="submit" className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors">
-            Salvar alteracoes
-          </button>
-        </form>
-      </details>
-      )}
-
-      {/* Recent Health Logs */}
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-lg font-semibold text-dark">Registros de Saude</h3>
-          <Link href={`/saude?child=${id}`} className="text-sm text-primary font-medium">Ver todos</Link>
-        </div>
-        {healthLogs && healthLogs.length > 0 ? (
-          <div className="space-y-2">
-            {healthLogs.map((log) => (
-              <div key={log.id} className="bg-white rounded-xl p-3 shadow-sm">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-dark">{healthLogLabels[log.log_type] || log.log_type}</span>
-                  <span className="text-xs text-muted">{new Date(log.logged_at).toLocaleDateString("pt-BR")}</span>
-                </div>
-                {log.value && <p className="text-sm text-muted mt-1">{log.value}</p>}
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className="text-sm text-muted bg-white rounded-xl p-4 shadow-sm">Nenhum registro ainda.</p>
-        )}
-      </div>
-    </div>
+    <ChildDetailClient
+      child={childRes.data}
+      medicalInfo={medicalInfoRes.data || null}
+      latestGrowth={latestGrowthRes.data?.[0] || null}
+      allergies={allergiesRes.data || []}
+      medications={medicationsRes.data || []}
+      vaccinations={vaccinationsRes.data || []}
+      documents={documentsRes.data || []}
+      education={educationRes.data || null}
+      groupId={groupId}
+      isReadonly={isReadonly}
+      tab={tab}
+    />
   );
 }

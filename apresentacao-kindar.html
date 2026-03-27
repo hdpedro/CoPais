@@ -1,0 +1,1527 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kindar - Apresentacao Interativa</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+
+  :root {
+    --primary: #0EA5A0;
+    --primary-dark: #0B8A86;
+    --secondary: #FF6B5B;
+    --accent: #FFB627;
+    --dark: #1a1a2e;
+    --muted: #6b7280;
+    --light: #f8f9fa;
+    --success: #22c55e;
+    --whatsapp: #25D366;
+    --phone-w: 320px;
+    --phone-h: 640px;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: linear-gradient(135deg, #f0fdfa 0%, #f8f9fa 40%, #fff5f5 100%);
+    color: var(--dark);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ==================== HERO ==================== */
+  .hero {
+    text-align: center;
+    padding: 60px 20px 40px;
+    background: linear-gradient(180deg, var(--primary) 0%, #0B8A86 100%);
+    color: white;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle at 30% 70%, rgba(255,182,39,0.15) 0%, transparent 50%),
+                radial-gradient(circle at 70% 30%, rgba(255,107,91,0.1) 0%, transparent 50%);
+    animation: heroGlow 8s ease-in-out infinite alternate;
+  }
+  @keyframes heroGlow {
+    0% { transform: translate(0, 0); }
+    100% { transform: translate(-5%, 5%); }
+  }
+  .hero-content { position: relative; z-index: 1; max-width: 700px; margin: 0 auto; }
+  .hero .logo {
+    font-size: 56px;
+    font-weight: 900;
+    letter-spacing: -2px;
+    margin-bottom: 8px;
+    text-shadow: 0 2px 20px rgba(0,0,0,0.15);
+  }
+  .hero .logo span:first-child { color: var(--accent); }
+  .hero .logo span:last-child { color: white; }
+  .hero .tagline {
+    font-size: 18px;
+    font-weight: 400;
+    opacity: 0.9;
+    max-width: 500px;
+    margin: 0 auto 24px;
+    line-height: 1.5;
+  }
+  .hero .subtitle {
+    display: inline-block;
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(10px);
+    padding: 10px 24px;
+    border-radius: 100px;
+    font-size: 14px;
+    font-weight: 500;
+    border: 1px solid rgba(255,255,255,0.2);
+  }
+  .hero .demo-badge {
+    margin-top: 20px;
+    font-size: 13px;
+    opacity: 0.7;
+  }
+
+  /* ==================== SCENES CONTAINER ==================== */
+  .scenes-header {
+    text-align: center;
+    padding: 48px 20px 24px;
+  }
+  .scenes-header h2 {
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--dark);
+  }
+  .scenes-header p {
+    color: var(--muted);
+    margin-top: 8px;
+    font-size: 15px;
+  }
+
+  .scenes-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+    gap: 48px;
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 20px 32px 60px;
+  }
+
+  /* ==================== SCENE CARD ==================== */
+  .scene {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    animation: fadeInUp 0.6s ease forwards;
+    opacity: 0;
+  }
+  .scene:nth-child(1) { animation-delay: 0.05s; }
+  .scene:nth-child(2) { animation-delay: 0.1s; }
+  .scene:nth-child(3) { animation-delay: 0.15s; }
+  .scene:nth-child(4) { animation-delay: 0.2s; }
+  .scene:nth-child(5) { animation-delay: 0.25s; }
+  .scene:nth-child(6) { animation-delay: 0.3s; }
+  .scene:nth-child(7) { animation-delay: 0.35s; }
+  .scene:nth-child(8) { animation-delay: 0.4s; }
+  .scene:nth-child(9) { animation-delay: 0.45s; }
+  .scene:nth-child(10) { animation-delay: 0.5s; }
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .scene-number {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 14px;
+    margin-bottom: 12px;
+    box-shadow: 0 4px 12px rgba(14,165,160,0.3);
+  }
+  .scene-number.coral { background: var(--secondary); box-shadow: 0 4px 12px rgba(255,107,91,0.3); }
+
+  .scene-label {
+    font-size: 13px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--primary);
+    margin-bottom: 4px;
+  }
+  .scene-label.coral { color: var(--secondary); }
+
+  .scene-title {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--dark);
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  /* ==================== PHONE MOCKUP ==================== */
+  .phone {
+    width: var(--phone-w);
+    height: var(--phone-h);
+    background: #f8f9fa;
+    border-radius: 36px;
+    border: 3px solid #e5e7eb;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.08), 0 4px 16px rgba(0,0,0,0.04), inset 0 0 0 1px rgba(255,255,255,0.8);
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .phone::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 120px;
+    height: 28px;
+    background: #e5e7eb;
+    border-radius: 0 0 16px 16px;
+    z-index: 10;
+  }
+
+  .phone-status {
+    height: 40px;
+    background: white;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 0 20px 4px;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--dark);
+  }
+  .phone-status .time { font-weight: 700; }
+  .phone-status .icons { display: flex; gap: 4px; font-size: 10px; }
+
+  .phone-nav {
+    background: var(--primary);
+    color: white;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  .phone-nav .back { font-size: 18px; cursor: pointer; opacity: 0.8; }
+
+  .phone-content {
+    padding: 12px;
+    overflow-y: auto;
+    height: calc(var(--phone-h) - 40px - 44px - 56px);
+    background: #f8f9fa;
+  }
+  .phone-content.no-nav {
+    height: calc(var(--phone-h) - 40px - 56px);
+  }
+  .phone-content.full {
+    height: calc(var(--phone-h) - 40px);
+    padding: 0;
+  }
+
+  .phone-bottom-bar {
+    height: 56px;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    display: flex;
+    align-items: center;
+    justify-content: space-around;
+    padding: 0 8px;
+  }
+  .bottom-tab {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    font-size: 10px;
+    color: var(--muted);
+    font-weight: 500;
+  }
+  .bottom-tab.active { color: var(--primary); }
+  .bottom-tab .tab-icon { font-size: 18px; }
+
+  /* ==================== UI COMPONENTS ==================== */
+  .card {
+    background: white;
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+  }
+
+  .input-field {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 10px;
+    font-size: 13px;
+    font-family: inherit;
+    color: var(--dark);
+    background: white;
+    margin-bottom: 10px;
+  }
+  .input-field::placeholder { color: #9ca3af; }
+  .input-field.filled { border-color: var(--primary); background: #f0fdfa; }
+
+  .input-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--dark);
+    margin-bottom: 4px;
+    display: block;
+  }
+
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 700;
+    font-family: inherit;
+    cursor: pointer;
+    text-align: center;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+  .btn-primary { background: var(--primary); color: white; }
+  .btn-secondary { background: var(--secondary); color: white; }
+  .btn-whatsapp { background: var(--whatsapp); color: white; }
+  .btn-outline { background: transparent; border: 1.5px solid #e5e7eb; color: var(--dark); }
+
+  .tag {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 100px;
+    font-size: 10px;
+    font-weight: 600;
+  }
+  .tag-teal { background: rgba(14,165,160,0.1); color: var(--primary); }
+  .tag-coral { background: rgba(255,107,91,0.1); color: var(--secondary); }
+  .tag-amber { background: rgba(255,182,39,0.15); color: #b45309; }
+  .tag-green { background: rgba(34,197,94,0.1); color: #16a34a; }
+
+  .text-xs { font-size: 10px; }
+  .text-sm { font-size: 12px; }
+  .text-muted { color: var(--muted); }
+  .text-dark { color: var(--dark); }
+  .text-primary { color: var(--primary); }
+  .font-bold { font-weight: 700; }
+  .font-medium { font-weight: 600; }
+  .mt-1 { margin-top: 4px; }
+  .mt-2 { margin-top: 8px; }
+  .mt-3 { margin-top: 12px; }
+  .mb-1 { margin-bottom: 4px; }
+  .mb-2 { margin-bottom: 8px; }
+  .mb-3 { margin-bottom: 12px; }
+  .uppercase { text-transform: uppercase; letter-spacing: 0.8px; }
+
+  .custody-indicator {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+    margin-left: 4px;
+  }
+
+  .avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-weight: 700;
+    font-size: 14px;
+    flex-shrink: 0;
+  }
+
+  .quick-action-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+  }
+  .quick-action {
+    background: rgba(14,165,160,0.05);
+    border: 1px solid rgba(14,165,160,0.2);
+    border-radius: 12px;
+    padding: 12px 6px;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--primary);
+  }
+  .quick-action .qa-icon { font-size: 20px; margin-bottom: 4px; }
+
+  .chat-bubble {
+    max-width: 78%;
+    padding: 10px 14px;
+    border-radius: 16px;
+    font-size: 13px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+  }
+  .chat-bubble.sent {
+    background: var(--primary);
+    color: white;
+    margin-left: auto;
+    border-bottom-right-radius: 4px;
+  }
+  .chat-bubble.received {
+    background: white;
+    color: var(--dark);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    border-bottom-left-radius: 4px;
+  }
+  .chat-bubble .chat-time {
+    font-size: 9px;
+    opacity: 0.6;
+    margin-top: 4px;
+    text-align: right;
+  }
+  .chat-bubble .chat-sender {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 3px;
+  }
+
+  .chat-input-bar {
+    display: flex;
+    gap: 8px;
+    padding: 8px;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+  }
+  .chat-input-bar input {
+    flex: 1;
+    border: 1.5px solid #e5e7eb;
+    border-radius: 20px;
+    padding: 8px 14px;
+    font-size: 12px;
+    font-family: inherit;
+  }
+  .chat-input-bar .send-btn {
+    width: 36px;
+    height: 36px;
+    background: var(--primary);
+    border: none;
+    border-radius: 50%;
+    color: white;
+    font-size: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .category-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 12px;
+    border-radius: 100px;
+    font-size: 11px;
+    font-weight: 500;
+    margin: 2px;
+  }
+  .category-pill.active {
+    background: var(--primary);
+    color: white;
+  }
+  .category-pill.inactive {
+    background: #f3f4f6;
+    color: var(--dark);
+  }
+
+  .schedule-grid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 3px;
+  }
+  .schedule-day-header {
+    text-align: center;
+    font-size: 9px;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  .schedule-day {
+    aspect-ratio: 1;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 700;
+    color: white;
+  }
+  .schedule-day.teal { background: var(--primary); }
+  .schedule-day.coral { background: var(--secondary); }
+  .schedule-day.empty { background: transparent; border: 1.5px dashed #d1d5db; color: var(--muted); }
+
+  .expense-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 0;
+    border-bottom: 1px solid #f3f4f6;
+  }
+  .expense-row:last-child { border-bottom: none; }
+
+  .progress-bar {
+    height: 8px;
+    background: #f3f4f6;
+    border-radius: 100px;
+    overflow: hidden;
+    margin-top: 6px;
+  }
+  .progress-bar .fill {
+    height: 100%;
+    border-radius: 100px;
+    transition: width 0.5s;
+  }
+
+  /* ==================== SCENE CAPTION ==================== */
+  .scene-caption {
+    max-width: var(--phone-w);
+    margin-top: 16px;
+    text-align: center;
+  }
+  .scene-caption p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .scene-caption .value-tag {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 600;
+    background: rgba(14,165,160,0.08);
+    color: var(--primary);
+  }
+
+  /* ==================== FLOW ARROW ==================== */
+  .flow-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 0;
+    color: var(--primary);
+    opacity: 0.4;
+  }
+  .flow-arrow svg { width: 24px; height: 24px; }
+
+  /* ==================== ROTEIRO SECTION ==================== */
+  .roteiro-section {
+    background: linear-gradient(180deg, #1a1a2e 0%, #2d2d44 100%);
+    color: white;
+    padding: 60px 20px;
+    margin-top: 40px;
+  }
+  .roteiro-section .section-inner {
+    max-width: 800px;
+    margin: 0 auto;
+  }
+  .roteiro-section h2 {
+    font-size: 32px;
+    font-weight: 800;
+    text-align: center;
+    margin-bottom: 8px;
+  }
+  .roteiro-section .subtitle {
+    text-align: center;
+    color: rgba(255,255,255,0.6);
+    font-size: 15px;
+    margin-bottom: 40px;
+  }
+
+  .roteiro-beat {
+    background: rgba(255,255,255,0.05);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 20px;
+    transition: all 0.3s;
+  }
+  .roteiro-beat:hover {
+    background: rgba(255,255,255,0.08);
+    border-color: rgba(14,165,160,0.3);
+  }
+  .beat-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .beat-number {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: var(--primary);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 13px;
+    flex-shrink: 0;
+  }
+  .beat-time {
+    font-size: 12px;
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .beat-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .beat-tag {
+    flex-shrink: 0;
+    width: 80px;
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 10px;
+    font-weight: 700;
+    text-align: center;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .beat-tag.cena { background: rgba(14,165,160,0.2); color: #5eead4; }
+  .beat-tag.narracao { background: rgba(255,182,39,0.2); color: var(--accent); }
+  .beat-tag.tela { background: rgba(255,107,91,0.2); color: #fca5a5; }
+  .beat-tag.visual { background: rgba(139,92,246,0.2); color: #c4b5fd; }
+
+  .beat-content { color: rgba(255,255,255,0.85); }
+
+  .roteiro-footer {
+    text-align: center;
+    margin-top: 40px;
+    padding-top: 32px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  .roteiro-footer .slogan {
+    font-size: 24px;
+    font-weight: 800;
+    color: var(--accent);
+  }
+  .roteiro-footer .sub {
+    font-size: 14px;
+    color: rgba(255,255,255,0.5);
+    margin-top: 8px;
+  }
+
+  /* ==================== FOOTER ==================== */
+  .page-footer {
+    text-align: center;
+    padding: 40px 20px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .page-footer a { color: var(--primary); text-decoration: none; font-weight: 600; }
+
+  /* ==================== RESPONSIVE ==================== */
+  @media (max-width: 480px) {
+    .scenes-grid { grid-template-columns: 1fr; padding: 20px 16px 40px; gap: 32px; }
+    .hero .logo { font-size: 40px; }
+    .hero .tagline { font-size: 15px; }
+    :root { --phone-w: 290px; --phone-h: 580px; }
+  }
+
+  /* Onboarding welcome screen */
+  .welcome-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    padding: 40px 20px;
+    text-align: center;
+    background: linear-gradient(180deg, white 0%, #f0fdfa 100%);
+  }
+
+  .divider {
+    height: 1px;
+    background: #f3f4f6;
+    margin: 10px 0;
+  }
+
+  .link-box {
+    background: var(--light);
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 10px;
+    color: var(--muted);
+    font-family: monospace;
+    word-break: break-all;
+    margin-bottom: 10px;
+  }
+
+  .balance-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+</style>
+</head>
+<body>
+
+<!-- ==================== HERO ==================== -->
+<div class="hero">
+  <div class="hero-content">
+    <div class="logo"><span>2</span><span>Lares</span></div>
+    <p class="tagline">Organize a rotina do seu filho com mais clareza e tranquilidade.</p>
+    <div class="subtitle">Apresentacao Interativa &mdash; Fluxo Real de Uso</div>
+    <p class="demo-badge">Bruno (pai) &amp; Martina (mae) &bull; Filho: Kleber Silva Oliveira</p>
+  </div>
+</div>
+
+<!-- ==================== SCENES ==================== -->
+<div class="scenes-header">
+  <h2>Jornada Completa do Usuario</h2>
+  <p>10 cenas mostrando como Bruno e Martina usam o Kindar no dia a dia</p>
+</div>
+
+<div class="scenes-grid">
+
+  <!-- ======= CENA 1 ======= -->
+  <div class="scene">
+    <div class="scene-number">1</div>
+    <span class="scene-label">Bruno (Pai)</span>
+    <h3 class="scene-title">Bruno faz o cadastro</h3>
+    <div class="phone">
+      <div class="phone-status">
+        <span class="time">09:41</span>
+        <span class="icons">4G 100%</span>
+      </div>
+      <div class="phone-content no-nav" style="background: white; display: flex; flex-direction: column;">
+        <div style="text-align: center; padding: 24px 16px 16px;">
+          <div style="width:52px;height:52px;background:rgba(14,165,160,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;">
+            <span style="font-size:24px;">👨‍👩‍👦</span>
+          </div>
+          <div style="font-size:22px;font-weight:800;color:var(--dark);">Bem-vindo ao Kindar!</div>
+          <p class="text-sm text-muted mt-1">Vamos configurar seu grupo familiar.</p>
+        </div>
+        <div style="padding: 0 16px; flex: 1;">
+          <div class="card" style="border: none; padding: 0; box-shadow: none;">
+            <label class="input-label">Nome da familia</label>
+            <div class="input-field filled">Familia Kleber</div>
+
+            <div class="divider" style="margin: 14px 0;"></div>
+            <div style="font-size:14px;font-weight:700;color:var(--dark);margin-bottom:10px;">Adicionar primeira crianca</div>
+
+            <label class="input-label">Nome completo da crianca</label>
+            <div class="input-field filled">Kleber Silva Oliveira</div>
+
+            <label class="input-label">Data de nascimento</label>
+            <div class="input-field filled">15/03/2019</div>
+
+            <div class="btn btn-primary mt-2">Criar grupo e continuar</div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-bottom-bar">
+        <div class="bottom-tab active"><span class="tab-icon">🏠</span>Inicio</div>
+        <div class="bottom-tab"><span class="tab-icon">📅</span>Calendario</div>
+        <div class="bottom-tab"><span class="tab-icon">💬</span>Chat</div>
+        <div class="bottom-tab"><span class="tab-icon">💰</span>Financeiro</div>
+        <div class="bottom-tab"><span class="tab-icon">⋯</span>Mais</div>
+      </div>
+    </div>
+    <div class="scene-caption">
+      <p>Bruno cria a conta, define o nome do grupo familiar e cadastra Kleber como primeira crianca.</p>
+      <span class="value-tag">Onboarding em 30 segundos</span>
+    </div>
+  </div>
+
+  <!-- ======= CENA 2 ======= -->
+  <div class="scene">
+    <div class="scene-number">2</div>
+    <span class="scene-label">Bruno (Pai)</span>
+    <h3 class="scene-title">Bruno convida Martina</h3>
+    <div class="phone">
+      <div class="phone-status">
+        <span class="time">09:42</span>
+        <span class="icons">4G 100%</span>
+      </div>
+      <div class="phone-nav">
+        <span class="back">&larr;</span>
+        Convite
+      </div>
+      <div class="phone-content">
+        <div class="card" style="text-align: center;">
+          <div style="width:42px;height:42px;background:rgba(34,197,94,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 10px;">
+            <span style="font-size:18px;">🔗</span>
+          </div>
+          <div style="font-size:16px;font-weight:700;color:var(--dark);">Convite gerado!</div>
+          <p class="text-xs text-muted mt-1">Compartilhe com o outro responsavel</p>
+        </div>
+
+        <div class="link-box">
+          https://kindar.vercel.app/convite/abc123xyz
+        </div>
+
+        <div class="btn btn-whatsapp mb-2" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+          <span>📱</span> Enviar por WhatsApp
+        </div>
+
+        <div class="btn btn-outline mb-3" style="display:flex;align-items:center;justify-content:center;gap:8px;">
+          <span>📋</span> Copiar link
+        </div>
+
+        <div class="card" style="background: rgba(14,165,160,0.05); border: none;">
+          <p class="text-sm font-bold text-dark mb-1">Como funciona:</p>
+          <ol style="font-size:11px;color:var(--muted);padding-left:18px;line-height:1.8;">
+            <li>O outro responsavel clica no link</li>
+            <li>Cria uma conta (ou entra se ja tiver)</li>
+            <li>Entra automaticamente no grupo <b>Familia Kleber</b></li>
+            <li>Pronto! Compartilhem a rotina</li>
+          </ol>
+          <p style="font-size:10px;color:var(--accent);font-weight:600;margin-top:8px;">O convite expira em 7 dias.</p>
+        </div>
+      </div>
+      <div class="phone-bottom-bar">
+        <div class="bottom-tab active"><span class="tab-icon">🏠</span>Inicio</div>
+        <div class="bottom-tab"><span class="tab-icon">📅</span>Calendario</div>
+        <div class="bottom-tab"><span class="tab-icon">💬</span>Chat</div>
+        <div class="bottom-tab"><span class="tab-icon">💰</span>Financeiro</div>
+        <div class="bottom-tab"><span class="tab-icon">⋯</span>Mais</div>
+      </div>
+    </div>
+    <div class="scene-caption">
+      <p>Bruno envia o convite por WhatsApp para Martina entrar no grupo familiar.</p>
+      <span class="value-tag">Convite via WhatsApp = alta conversao</span>
+    </div>
+  </div>
+
+  <!-- ======= CENA 3 ======= -->
+  <div class="scene">
+    <div class="scene-number coral">3</div>
+    <span class="scene-label coral">Martina (Mae)</span>
+    <h3 class="scene-title">Martina aceita o convite</h3>
+    <div class="phone">
+      <div class="phone-status">
+        <span class="time">10:15</span>
+        <span class="icons">WiFi 92%</span>
+      </div>
+      <div class="phone-content no-nav" style="background: white;">
+        <div style="text-align:center;padding:32px 16px 20px;">
+          <div style="font-size:36px;font-weight:900;margin-bottom:4px;"><span style="color:var(--accent);">2</span><span style="color:var(--primary);">Lares</span></div>
+          <p class="text-sm text-muted">Bruno convidou voce para</p>
+          <div style="margin:12px 0;padding:14px;background:var(--light);border-radius:12px;">
+            <div style="font-size:16px;font-weight:700;color:var(--dark);">Familia Kleber</div>
+            <div class="text-xs text-muted mt-1">Crianca: Kleber Silva Oliveira</div>
+          </div>
+        </div>
+
+        <div style="padding: 0 16px;">
+          <label class="input-label">Seu nome completo</label>
+          <div class="input-field filled">Martina Oliveira</div>
+
+          <label class="input-label">Email</label>
+          <div class="input-field filled">martina@kindar.test</div>
+
+          <label class="input-label">Senha</label>
+          <div class="input-field filled" style="letter-spacing: 3px;">********</div>
+
+          <div class="btn btn-primary mt-2">Criar conta e entrar no grupo</div>
+
+          <div style="text-align:center;margin-top:14px;">
+            <span class="tag tag-green">Acesso automatico ao grupo</span>
+          </div>
+        </div>
+      </div>
+      <div class="phone-bottom-bar">
+        <div class="bottom-tab active"><span class="tab-icon">🏠</span>Inicio</div>
+        <div class="bottom-tab"><span class="tab-icon">📅</span>Calendario</div>
+        <div class="bottom-tab"><span class="tab-icon">💬</span>Chat</div>
+        <div class="bottom-tab"><span class="tab-icon">💰</span>Financeiro</div>
+        <div class="bottom-tab"><span class="tab-icon">⋯</span>Mais</div>
+      </div>
+    </div>
+    <div class="scene-caption">
+      <p>Martina clica no link do WhatsApp, cria a conta e ja entra automaticamente no grupo Familia Kleber.</p>
+      <span class="value-tag">Zero friccao no segundo cadastro</span>
+    </div>
+  </div>
+
+  <!-- ======= CENA 4 ======= -->
+  <div class="scene">
+    <div class="scene-number">4</div>
+    <span class="scene-label">Bruno (Pai)</span>
+    <h3 class="scene-title">Bruno ve o dashboard</h3>
+    <div class="phone">
+      <div class="phone-status">
+        <span class="time">10:30</span>
+        <span class="icons">4G 98%</span>
+      </div>
+      <div class="phone-content no-nav">
+        <!-- Custody card -->
+        <div class="card">
+          <p class="text-xs text-muted uppercase mb-1" style="letter-spacing:0.8px;">Hoje</p>
+          <div style="display:flex;align-items:center;gap:10px;border-left:4px solid var(--primary);padding-left:12px;">
+            <div style="flex:1;">
+              <div style="font-size:15px;font-weight:700;color:var(--dark);">
+                Kleber esta com voce <span class="custody-indicator" style="background:var(--primary);"></span>
+              </div>
+            </div>
+            <div class="avatar" style="background:var(--primary);">V</div>
+          </div>
+          <p class="text-xs text-muted mt-2">Proxima troca: <b class="text-dark">Segunda, 24/3</b></p>
+        </div>
+
+        <!-- Financial card -->
+        <div class="card">
+          <p class="text-xs text-muted uppercase mb-1" style="letter-spacing:0.8px;">Saldo do mes</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <span style="font-size:18px;font-weight:700;color:var(--dark);">R$ 0,00</span>
+              <span class="tag tag-teal" style="margin-left:6px;">Equilibrado</span>
+            </div>
+            <div style="text-align:right;font-size:10px;color:var(--muted);">
+              <div>Voce: <b class="text-dark">R$ 0,00</b></div>
+              <div>Martina: <b class="text-dark">R$ 0,00</b></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div style="margin-top:6px;">
+          <p class="text-sm font-bold text-dark mb-2">Acoes rapidas</p>
+          <div class="quick-action-grid">
+            <div class="quick-action"><div class="qa-icon">💰</div>Nova Despesa</div>
+            <div class="quick-action"><div class="qa-icon">📅</div>Calendario</div>
+            <div class="quick-action"><div class="qa-icon">💬</div>Chat</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:8px;">
+            <div class="card" style="text-align:center;padding:8px 4px;margin:0;"><span style="font-size:16px;">✅</span><div class="text-xs text-muted" style="margin-top:2px;">Check-in</div></div>
+            <div class="card" style="text-align:center;padding:8px 4px;margin:0;"><span style="font-size:16px;">🤝</span><div class="text-xs text-muted" style="margin-top:2px;">Acordos</div></div>
+            <div class="card" style="text-align:center;padding:8px 4px;margin:0;"><span style="font-size:16px;">🎒</span><div class="text-xs text-muted" style="margin-top:2px;">Escola</div></div>
+            <div class="card" style="text-align:center;padding:8px 4px;margin:0;"><span style="font-size:16px;">🏥</span><div class="text-xs text-muted" style="margin-top:2px;">Saude</div></div>
+          </div>
+        </div>
+
+        <!-- Child card -->
+        <div style="margin-top:10px;">
+          <p class="text-sm font-bold text-dark mb-2">Criancas</p>
+          <div class="card" style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;background:rgba(255,182,39,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;">👶</div>
+            <div>
+              <div class="text-sm font-bold text-dark">Kleber Silva Oliveira</div>
+              <div class="text-xs text-muted">7 anos</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-bottom-bar">
+        <div class="bottom-tab active"><span class="tab-icon">🏠</span>Inicio</div>
+        <div class="bottom-tab"><span class="tab-icon">📅</span>Calendario</div>
+        <div class="bottom-tab"><span class="tab-icon">💬</span>Chat</div>
+        <div class="bottom-tab"><span class="tab-icon">💰</span>Financeiro</div>
+        <div class="bottom-tab"><span class="tab-icon">⋯</span>Mais</div>
+      </div>
+    </div>
+    <div class="scene-caption">
+      <p>Bruno ve que Kleber esta com ele hoje. O card teal indica que a crianca esta sob sua guarda.</p>
+      <span class="value-tag">Informacao essencial em 1 segundo</span>
+    </div>
+  </div>
+
+  <!-- ======= CENA 5 ======= -->
+  <div class="scene">
+    <div class="scene-number coral">5</div>
+    <span class="scene-label coral">Martina (Mae)</span>
+    <h3 class="scene-title">Martina ve o dashboard</h3>
+    <div class="phone">
+      <div class="phone-status">
+        <span class="time">10:32</span>
+        <span class="icons">WiFi 90%</span>
+      </div>
+      <div class="phone-content no-nav">
+        <!-- Custody card - Martina's view -->
+        <div class="card">
+          <p class="text-xs text-muted uppercase mb-1" style="letter-spacing:0.8px;">Hoje</p>
+          <div style="display:flex;align-items:center;gap:10px;border-left:4px solid var(--secondary);padding-left:12px;">
+            <div style="flex:1;">
+              <div style="font-size:15px;font-weight:700;color:var(--dark);">
+                Kleber esta com Bruno <span class="custody-indicator" style="background:var(--primary);"></span>
+              </div>
+            </div>
+            <div class="avatar" style="background:var(--primary);">B</div>
+          </div>
+          <p class="text-xs text-muted mt-2">Proxima troca: <b class="text-dark">Segunda, 24/3</b></p>
+        </div>
+
+        <!-- Empty expenses -->
+        <div class="card" style="display:flex;align-items:center;gap:10px;">
+          <div style="width:36px;height:36px;background:rgba(255,182,39,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center;">💰</div>
+          <div>
+            <div class="text-sm font-bold text-dark">Nenhuma despesa este mes</div>
+            <div class="text-xs text-muted">Toque para registrar a primeira</div>
+          </div>
+        </div>
+
+        <!-- Quick actions -->
+        <div style="margin-top:6px;">
+          <p class="text-sm font-bold text-dark mb-2">Acoes rapidas</p>
+          <div class="quick-action-grid">
+            <div class="quick-action"><div class="qa-icon">💰</div>Nova Despesa</div>
+            <div class="quick-action"><div class="qa-icon">📅</div>Calendario</div>
+            <div class="quick-action"><div class="qa-icon">💬</div>Chat</div>
+          </div>
+        </div>
+
+        <!-- Child card -->
+        <div style="margin-top:10px;">
+          <p class="text-sm font-bold text-dark mb-2">Criancas</p>
+          <div class="card" style="display:flex;align-items:center;gap:10px;">
+            <div style="width:36px;height:36px;background:rgba(255,182,39,0.2);border-radius:50%;display:flex;align-items:center;justify-content:center;">👶</div>
+            <div>
+              <div class="text-sm font-bold text-dark">Kleber Silva Oliveira</div>
+              <div class="text-xs text-muted">7 anos</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-bottom-bar">
+        <div class="bottom-tab active"><span class="tab-icon">🏠</span>Inicio</div>
+        <div class="bottom-tab"><span class="tab-icon">📅</span>Calendario</div>
+        <div class="bottom-tab"><span class="tab-icon">💬</span>Chat</div>
+        <div class="bottom-tab"><span class="tab-icon">💰</span>Financeiro</div>
+        <div class="bottom-tab"><span class="tab-icon">⋯</span>Mais</div>
+      </div>
+    </div>
+    <div class="scene-caption">
+      <p>Do ponto de vista de Martina, ela ve que Kleber esta com Bruno. A perspectiva se adapta ao usuario logado.</p>
+      <span class="value-tag">Perspectiva personalizada por usuario</span>
+    </div>
+  </div>
+
+  <!-- ======= CENA 6 ======= -->
+  <div class="scene">
+    <div class="scene-number">6</div>
+    <span class="scene-label">Bruno (Pai)</span>
+    <h3 class="scene-title">Bruno cria escala de guarda</h3>
+    <div class="phone">
+      <div class="phone-status">
+        <span class="time">11:00</span>
+        <span class="icons">4G 95%</span>
+      </div>
+      <div class="phone-nav">
+        <span class="back">&larr;</span>
+        Escala de Guarda
+      </div>
+      <div class="phone-content" style="height: calc(var(--phone-h) - 40px - 44px - 56px);">
+        <!-- Presets -->
+        <div class="card">
+          <p class="text-sm font-bold text-dark mb-2">Modelos prontos</p>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;">
+            <div style="background:#f3f4f6;padding:8px;border-radius:8px;border:2px solid var(--primary);">
+              <div class="text-xs font-bold text-dark">Semanas alternadas</div>
+              <div style="font-size:9px;color:var(--muted);">1 semana cada</div>
+            </div>
+            <div style="background:#f3f4f6;padding:8px;border-radius:8px;">
+              <div class="text-xs font-bold text-dark">5-2 / 2-5</div>
+              <div style="font-size:9px;color:var(--muted);">Semana + FDS alternado</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Schedule grid -->
+        <div class="card">
+          <p class="text-sm font-bold text-dark mb-1">Escala quinzenal</p>
+          <p style="font-size:9px;color:var(--muted);margin-bottom:10px;">Toque para alternar responsaveis</p>
+
+          <p style="font-size:10px;font-weight:600;color:var(--dark);margin-bottom:4px;">Semana 1</p>
+          <div class="schedule-grid">
+            <div class="schedule-day-header">Dom</div>
+            <div class="schedule-day-header">Seg</div>
+            <div class="schedule-day-header">Ter</div>
+            <div class="schedule-day-header">Qua</div>
+            <div class="schedule-day-header">Qui</div>
+            <div class="schedule-day-header">Sex</div>
+            <div class="schedule-day-header">Sab</div>
+            <div class="schedule-day teal">B</div>
+            <div class="schedule-day teal">B</div>
+            <div class="schedule-day teal">B</div>
+            <div class="schedule-day teal">B</div>
+            <div class="schedule-day teal">B</div>
+            <div class="schedule-day teal">B</div>
+            <div class="schedule-day teal">B</div>
+          </div>
+
+          <p style="font-size:10px;font-weight:600;color:var(--dark);margin:8px 0 4px;">Semana 2</p>
+          <div class="schedule-grid">
+            <div class="schedule-day-header">Dom</div>
+            <div class="schedule-day-header">Seg</div>
+            <div class="schedule-day-header">Ter</div>
+            <div class="schedule-day-header">Qua</div>
+            <div class="schedule-day-header">Qui</div>
+            <div class="schedule-day-header">Sex</div>
+            <div class="schedule-day-header">Sab</div>
+            <div class="schedule-day coral">M</div>
+            <div class="schedule-day coral">M</div>
+            <div class="schedule-day coral">M</div>
+            <div class="schedule-day coral">M</div>
+            <div class="schedule-day coral">M</div>
+            <div class="schedule-day coral">M</div>
+            <div class="schedule-day coral">M</div>
+          </div>
+
+          <div style="display:flex;gap:12px;margin-top:10px;padding-top:8px;border-top:1px solid #f3f4f6;">
+            <div style="display:flex;align-items:center;gap:4px;"><div style="width:10px;height:10px;border-radius:50%;background:var(--primary);"></div><span class="text-xs text-muted">Bruno</span></div>
+            <div style="display:flex;align-items:center;gap:4px;"><div style="width:10px;height:10px;border-radius:50%;background:var(--secondary);"></div><span class="text-xs text-muted">Martina</span></div>
+          </div>
+        </div>
+
+        <div style="background:#f8f9fa;border-radius:10px;padding:10px;text-align:center;margin-bottom:10px;">
+          <p class="text-xs text-muted">Serao gerados aproximadamente <b class="text-dark">182 eventos</b> nos proximos 6 meses</p>
+        </div>
+
+        <div class="btn btn-primary">Gerar Escala de Guarda</div>
+      </div>
+      <div class="phone-bottom-bar">
+        <div class="bottom-tab"><span class="tab-icon">🏠</span>Inicio</div>
+        <div class="bottom-tab active"><span class="tab-icon">📅</span>Calendario</div>
+        <div class="bottom-tab"><span class="tab-icon">💬</span>Chat</div>
+        <div class="bottom-tab"><span class="tab-icon">💰</span>Financeiro</div>
+        <div class="bottom-tab"><span class="tab-icon">⋯</span>Mais</div>
+      </div>
+    </div>
+    <div class="scene-caption">
+      <p>Bruno escolhe o modelo "Semanas alternadas" e gera 6 meses de escala automaticamente.</p>
+      <span class="value-tag">Escala gerada em 3 toques</span>
+    </div>
+  </div>
+
+  <!-- ======= CENA 7 ======= -->
+  <div class="scene">
+    <div class="scene-number">7</div>
+    <span class="scene-label">Bruno &amp; Martina</span>
+    <h3 class="scene-title">Chat entre os pais</h3>
+    <div class="phone">
+      <div class="phone-status">
+        <span class="time">14:20</span>
+        <span class="icons">4G 88%</span>
+      </div>
+      <div class="phone-nav" style="padding: 8px 16px;">
+        <span class="back">&larr;</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;">Chat do Grupo</div>
+          <div style="font-size:10px;opacity:0.7;">2 membros</div>
+        </div>
+      </div>
+      <div class="phone-content" style="height: calc(var(--phone-h) - 40px - 50px - 56px - 52px); display: flex; flex-direction: column; justify-content: flex-end; padding: 12px;">
+        <div class="chat-bubble sent">
+          Oi Martina! O Kleber tem dentista marcado pra quinta?
+          <div class="chat-time">14:18</div>
+        </div>
+        <div class="chat-bubble received">
+          <div class="chat-sender">Martina</div>
+          Sim! Quinta as 15h, Dra. Ana Paula. Posso levar ele?
+          <div class="chat-time">14:19</div>
+        </div>
+        <div class="chat-bubble sent">
+          Perfeito, obrigado! Pode levar sim. Registra a despesa depois?
+          <div class="chat-time">14:20</div>
+        </div>
+        <div class="chat-bubble received">
+          <div class="chat-sender">Martina</div>
+          Claro! Ja coloco no app quando pagar 👍
+          <div class="chat-time">14:20</div>
+        </div>
+      </div>
+      <div class="chat-input-bar">
+        <input type="text" placeholder="Digite uma mensagem..." readonly>
+        <div class="send-btn">▶</div>
+      </div>
+      <div class="phone-bottom-bar">
+        <div class="bottom-tab"><span class="tab-icon">🏠</span>Inicio</div>
+        <div class="bottom-tab"><span class="tab-icon">📅</span>Calendario</div>
+        <div class="bottom-tab active"><span class="tab-icon">💬</span>Chat</div>
+        <div class="bottom-tab"><span class="tab-icon">💰</span>Financeiro</div>
+        <div class="bottom-tab"><span class="tab-icon">⋯</span>Mais</div>
+      </div>
+    </div>
+    <div class="scene-caption">
+      <p>Bruno e Martina combinam a consulta do dentista pelo chat integrado, sem precisar de WhatsApp pessoal.</p>
+      <span class="value-tag">Comunicacao organizada e rastreavel</span>
+    </div>
+  </div>
+
+  <!-- ======= CENA 8 ======= -->
+  <div class="scene">
+    <div class="scene-number coral">8</div>
+    <span class="scene-label coral">Martina (Mae)</span>
+    <h3 class="scene-title">Martina registra despesa</h3>
+    <div class="phone">
+      <div class="phone-status">
+        <span class="time">16:45</span>
+        <span class="icons">WiFi 85%</span>
+      </div>
+      <div class="phone-nav">
+        <span class="back">&larr;</span>
+        Nova Despesa
+      </div>
+      <div class="phone-content">
+        <div class="card" style="border: none; box-shadow: none; padding: 0;">
+          <label class="input-label">Descricao</label>
+          <div class="input-field filled">Consulta pediatra - Dr. Ana Paula</div>
+
+          <label class="input-label">Valor (R$)</label>
+          <div class="input-field filled">350,00</div>
+
+          <label class="input-label">Categoria</label>
+          <div class="input-field filled" style="display:flex;align-items:center;gap:6px;">
+            <span>🏥</span> Saude
+          </div>
+
+          <label class="input-label">Crianca</label>
+          <div class="input-field filled">Kleber Silva Oliveira</div>
+
+          <label class="input-label">Data</label>
+          <div class="input-field filled">20/03/2026</div>
+
+          <div class="btn btn-primary mt-3">Registrar Despesa</div>
+        </div>
+      </div>
+      <div class="phone-bottom-bar">
+        <div class="bottom-tab"><span class="tab-icon">🏠</span>Inicio</div>
+        <div class="bottom-tab"><span class="tab-icon">📅</span>Calendario</div>
+        <div class="bottom-tab"><span class="tab-icon">💬</span>Chat</div>
+        <div class="bottom-tab active"><span class="tab-icon">💰</span>Financeiro</div>
+        <div class="bottom-tab"><span class="tab-icon">⋯</span>Mais</div>
+      </div>
+    </div>
+    <div class="scene-caption">
+      <p>Martina registra a consulta pediatra de R$350. A despesa e automaticamente dividida 50/50.</p>
+      <span class="value-tag">Divisao automatica de despesas</span>
+    </div>
+  </div>
+
+  <!-- ======= CENA 9 ======= -->
+  <div class="scene">
+    <div class="scene-number">9</div>
+    <span class="scene-label">Bruno (Pai)</span>
+    <h3 class="scene-title">Bruno ve o saldo atualizado</h3>
+    <div class="phone">
+      <div class="phone-status">
+        <span class="time">17:00</span>
+        <span class="icons">4G 82%</span>
+      </div>
+      <div class="phone-content no-nav">
+        <!-- Custody card -->
+        <div class="card">
+          <p class="text-xs text-muted uppercase mb-1" style="letter-spacing:0.8px;">Hoje</p>
+          <div style="display:flex;align-items:center;gap:10px;border-left:4px solid var(--primary);padding-left:12px;">
+            <div style="flex:1;">
+              <div style="font-size:15px;font-weight:700;color:var(--dark);">
+                Kleber esta com voce <span class="custody-indicator" style="background:var(--primary);"></span>
+              </div>
+            </div>
+            <div class="avatar" style="background:var(--primary);">V</div>
+          </div>
+        </div>
+
+        <!-- Financial card - UPDATED -->
+        <div class="card">
+          <p class="text-xs text-muted uppercase mb-1" style="letter-spacing:0.8px;">Saldo do mes</p>
+          <div style="display:flex;align-items:center;justify-content:space-between;">
+            <div>
+              <span style="font-size:18px;font-weight:700;color:var(--dark);">R$ 175,00</span>
+              <span class="tag tag-green" style="margin-left:6px;">Martina deve para voce</span>
+            </div>
+            <div style="text-align:right;font-size:10px;color:var(--muted);">
+              <div>Voce: <b class="text-dark">R$ 0,00</b></div>
+              <div>Martina: <b class="text-dark">R$ 350,00</b></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Financial detail -->
+        <div class="card">
+          <div style="display:flex;align-items:center;gap:10px;">
+            <div style="font-size:24px;">⚖️</div>
+            <div>
+              <div class="text-sm font-bold text-dark">
+                Martina deve <span style="color:var(--primary);font-weight:800;">R$ 175,00</span> para Bruno
+              </div>
+              <div class="text-xs text-muted">Baseado na divisao 50/50</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Expense list -->
+        <div class="card">
+          <p class="text-sm font-bold text-dark mb-2">Despesas do mes</p>
+          <div class="expense-row">
+            <span style="font-size:16px;">🏥</span>
+            <div style="flex:1;">
+              <div class="text-sm font-bold text-dark">Consulta pediatra</div>
+              <div style="display:flex;align-items:center;gap:4px;">
+                <div style="width:6px;height:6px;border-radius:50%;background:var(--secondary);"></div>
+                <span class="text-xs text-muted">Martina &bull; 20/03</span>
+              </div>
+            </div>
+            <div style="text-align:right;">
+              <div class="text-sm font-bold text-dark">R$ 350,00</div>
+              <span class="tag tag-amber">Pendente</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="phone-bottom-bar">
+        <div class="bottom-tab active"><span class="tab-icon">🏠</span>Inicio</div>
+        <div class="bottom-tab"><span class="tab-icon">📅</span>Calendario</div>
+        <div class="bottom-tab"><span class="tab-icon">💬</span>Chat</div>
+        <div class="bottom-tab"><span class="tab-icon">💰</span>Financeiro</div>
+        <div class="bottom-tab"><span class="tab-icon">⋯</span>Mais</div>
+      </div>
+    </div>
+    <div class="scene-caption">
+      <p>Bruno ve que Martina pagou R$350 e o saldo mostra que ela tem R$175 a receber dele (50/50).</p>
+      <span class="value-tag">Transparencia financeira total</span>
+    </div>
+  </div>
+
+  <!-- ======= CENA 10 ======= -->
+  <div class="scene">
+    <div class="scene-number coral">10</div>
+    <span class="scene-label coral">Martina (Mae)</span>
+    <h3 class="scene-title">Check-in diario sobre Kleber</h3>
+    <div class="phone">
+      <div class="phone-status">
+        <span class="time">20:30</span>
+        <span class="icons">WiFi 78%</span>
+      </div>
+      <div class="phone-nav">
+        <span class="back">&larr;</span>
+        Check-in Diario
+      </div>
+      <div class="phone-content">
+        <div class="card" style="border: none; box-shadow: none; padding: 0;">
+          <!-- Category pills -->
+          <p class="input-label mb-2">Categoria</p>
+          <div style="margin-bottom: 12px;">
+            <span class="category-pill inactive">😴 Sono</span>
+            <span class="category-pill active">🍎 Alimentacao</span>
+            <span class="category-pill inactive">😊 Humor</span>
+            <span class="category-pill inactive">📱 Tela</span>
+            <span class="category-pill inactive">🏥 Saude</span>
+            <span class="category-pill inactive">🏃 Atividade</span>
+            <span class="category-pill inactive">🎒 Escola</span>
+          </div>
+
+          <!-- Quick templates -->
+          <p style="font-size:10px;color:var(--muted);margin-bottom:4px;">Rapido:</p>
+          <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:14px;">
+            <span style="background:rgba(14,165,160,0.1);color:var(--primary);border:1px solid rgba(14,165,160,0.3);padding:4px 8px;border-radius:8px;font-size:10px;font-weight:500;">Comeu bem no almoco</span>
+            <span style="background:#f9fafb;color:var(--muted);padding:4px 8px;border-radius:8px;font-size:10px;">Comeu hamburguer</span>
+            <span style="background:#f9fafb;color:var(--muted);padding:4px 8px;border-radius:8px;font-size:10px;">Nao quis jantar</span>
+            <span style="background:#f9fafb;color:var(--muted);padding:4px 8px;border-radius:8px;font-size:10px;">Comeu frutas</span>
+          </div>
+
+          <div class="input-field filled">Comeu bem no almoco</div>
+
+          <textarea class="input-field" style="height:52px;resize:none;border-color:var(--primary);background:#f0fdfa;" readonly>Almoçou arroz, feijao e frango. Comeu tudo e repetiu a salada!</textarea>
+
+          <div class="btn btn-primary mt-2" style="background:var(--success);">Registrado! ✓</div>
+        </div>
+
+        <!-- Recent checkin -->
+        <div class="card mt-3">
+          <p class="text-xs text-muted uppercase mb-2" style="letter-spacing:0.8px;">Check-ins de hoje</p>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            <div style="display:flex;align-items:center;gap:4px;background:#f8f9fa;padding:5px 10px;border-radius:8px;">
+              <span>🍎</span>
+              <span class="text-xs font-bold text-dark">Comeu bem no almoco</span>
+            </div>
+          </div>
+          <p class="text-xs text-muted mt-2">por Martina sobre Kleber</p>
+        </div>
+      </div>
+      <div class="phone-bottom-bar">
+        <div class="bottom-tab"><span class="tab-icon">🏠</span>Inicio</div>
+        <div class="bottom-tab"><span class="tab-icon">📅</span>Calendario</div>
+        <div class="bottom-tab"><span class="tab-icon">💬</span>Chat</div>
+        <div class="bottom-tab"><span class="tab-icon">💰</span>Financeiro</div>
+        <div class="bottom-tab"><span class="tab-icon">⋯</span>Mais</div>
+      </div>
+    </div>
+    <div class="scene-caption">
+      <p>Martina registra como foi a alimentacao de Kleber. Bruno tambem vera esse registro no app dele.</p>
+      <span class="value-tag">Ambos os pais informados sobre o dia a dia</span>
+    </div>
+  </div>
+
+</div>
+
+<!-- ==================== ROTEIRO / VIDEO SCRIPT ==================== -->
+<div class="roteiro-section" id="roteiro">
+  <div class="section-inner">
+    <h2>Roteiro de Video &mdash; 60 segundos</h2>
+    <p class="subtitle">Script para geracao de video por IA &bull; Tom: acolhedor, moderno, humano</p>
+
+    <!-- Beat 1 -->
+    <div class="roteiro-beat">
+      <div class="beat-header">
+        <div class="beat-number">1</div>
+        <div><strong style="color:white;">Abertura emocional</strong><br><span class="beat-time">0s &ndash; 8s</span></div>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag visual">Visual</span>
+        <span class="beat-content">Tela dividida ao meio. Lado esquerdo: um pai sozinho na cozinha preparando o cafe da manha. Lado direito: uma mae sozinha em outra cozinha. Ambos olham o celular. Luz quente, matinal. Transicao suave para as duas telas de celular mostrando o logo do Kindar.</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag narracao">Narracao</span>
+        <span class="beat-content">"Dois lares. Uma so preocupacao: o bem-estar do seu filho."</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag tela">Tela</span>
+        <span class="beat-content">Logo Kindar com tagline aparece centralizado sobre fundo teal gradiente.</span>
+      </div>
+    </div>
+
+    <!-- Beat 2 -->
+    <div class="roteiro-beat">
+      <div class="beat-header">
+        <div class="beat-number">2</div>
+        <div><strong style="color:white;">Problema</strong><br><span class="beat-time">8s &ndash; 16s</span></div>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag visual">Visual</span>
+        <span class="beat-content">Montagem rapida: mensagens de WhatsApp confusas, post-its na geladeira, tela de planilha bagunçada, celular com 47 notificacoes. Tudo em tons frios, ligeiramente desfocado. Camera aproxima no rosto cansado do pai.</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag narracao">Narracao</span>
+        <span class="beat-content">"Mensagens perdidas, contas sem controle, escala que ninguem lembra... a coparentalidade nao precisa ser assim."</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag tela">Tela</span>
+        <span class="beat-content">Flash de tela de WhatsApp desfocada com muitas mensagens nao lidas.</span>
+      </div>
+    </div>
+
+    <!-- Beat 3 -->
+    <div class="roteiro-beat">
+      <div class="beat-header">
+        <div class="beat-number">3</div>
+        <div><strong style="color:white;">Solucao &mdash; Dashboard</strong><br><span class="beat-time">16s &ndash; 26s</span></div>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag visual">Visual</span>
+        <span class="beat-content">Cut para tela limpa do celular. O pai abre o app Kindar. Camera faz zoom na tela do celular mostrando o dashboard. Card teal "Kleber esta com voce" aparece com animacao suave. O pai sorri.</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag narracao">Narracao</span>
+        <span class="beat-content">"Com o Kindar, voce sabe exatamente onde seu filho esta, quem e o responsavel hoje, e como foi o dia dele."</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag tela">Tela</span>
+        <span class="beat-content">Dashboard do app com card de custodia, saldo financeiro e acoes rapidas. Cores vibrantes: teal e coral.</span>
+      </div>
+    </div>
+
+    <!-- Beat 4 -->
+    <div class="roteiro-beat">
+      <div class="beat-header">
+        <div class="beat-number">4</div>
+        <div><strong style="color:white;">Funcionalidades em acao</strong><br><span class="beat-time">26s &ndash; 42s</span></div>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag visual">Visual</span>
+        <span class="beat-content">Sequencia rapida de telas do app, cada uma com 2-3 segundos. Tela dividida mostrando os dois pais usando o app simultaneamente em locais diferentes. A mae registra uma despesa, o pai ve o saldo atualizar. O pai manda mensagem no chat, a mae responde.</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag narracao">Narracao</span>
+        <span class="beat-content">"Calendario de guarda que se monta sozinho. Despesas divididas automaticamente. Chat focado so no que importa. Check-in diario pra ninguem ficar no escuro."</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag tela">Tela</span>
+        <span class="beat-content">Sequencia: (1) Calendario com dias teal/coral, (2) Nova despesa R$350, (3) Chat entre pais, (4) Check-in com pills de categoria.</span>
+      </div>
+    </div>
+
+    <!-- Beat 5 -->
+    <div class="roteiro-beat">
+      <div class="beat-header">
+        <div class="beat-number">5</div>
+        <div><strong style="color:white;">Resultado emocional</strong><br><span class="beat-time">42s &ndash; 52s</span></div>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag visual">Visual</span>
+        <span class="beat-content">Cena aquecida: crianca feliz correndo entre os dois pais no parque. Os pais acenam um para o outro com respeito. Sem tensao. Corta para close no celular de cada pai mostrando o dashboard com "Tudo em dia". Luz dourada de fim de tarde.</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag narracao">Narracao</span>
+        <span class="beat-content">"Sem brigas. Sem confusao. So clareza. Para que a unica coisa que importe... seja ele."</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag tela">Tela</span>
+        <span class="beat-content">Dashboard com check verde em todas as areas. Imagem desfoca suavemente para a crianca sorrindo.</span>
+      </div>
+    </div>
+
+    <!-- Beat 6 -->
+    <div class="roteiro-beat">
+      <div class="beat-header">
+        <div class="beat-number">6</div>
+        <div><strong style="color:white;">CTA &mdash; Chamada final</strong><br><span class="beat-time">52s &ndash; 60s</span></div>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag visual">Visual</span>
+        <span class="beat-content">Fundo teal gradiente. Logo Kindar grande no centro com efeito de brilho sutil. Tagline aparece abaixo com animacao de typing. QR Code ou botao "Comece agora" pulsa suavemente.</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag narracao">Narracao</span>
+        <span class="beat-content">"Kindar. Dois lares, um so app. Baixe gratis e comece a organizar hoje."</span>
+      </div>
+      <div class="beat-row">
+        <span class="beat-tag tela">Tela</span>
+        <span class="beat-content">Logo Kindar + "2 lares, 1 so app." + URL kindar.vercel.app + "Comece gratis"</span>
+      </div>
+    </div>
+
+    <div class="roteiro-footer">
+      <div class="slogan">"2 lares, 1 so app."</div>
+      <div class="sub">Duracao total: 60 segundos &bull; Formato: vertical 9:16 (Reels/TikTok/Stories)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== FOOTER ==================== -->
+<div class="page-footer">
+  <p><strong style="font-size:20px;"><span style="color:var(--accent);">2</span><span style="color:var(--primary);">Lares</span></strong></p>
+  <p class="mt-1">Organize a rotina do seu filho com mais clareza e tranquilidade.</p>
+  <p class="mt-2"><a href="https://kindar.vercel.app" target="_blank">kindar.vercel.app</a></p>
+</div>
+
+</body>
+</html>

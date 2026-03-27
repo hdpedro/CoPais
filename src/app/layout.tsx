@@ -1,17 +1,25 @@
 import type { Metadata, Viewport } from "next";
-import { Geist } from "next/font/google";
+import { Plus_Jakarta_Sans, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "./sw-register";
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
+const jakarta = Plus_Jakarta_Sans({
+  variable: "--font-jakarta",
   subsets: ["latin"],
+  display: "swap",
+});
+
+const cormorant = Cormorant_Garamond({
+  variable: "--font-cormorant",
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
   title: {
-    default: "2Lares - Coparentalidade Inteligente",
-    template: "%s | 2Lares",
+    default: "Kindar - Dois Lares, Uma Só Rotina",
+    template: "%s | Kindar",
   },
   description:
     "Organize a rotina dos seus filhos entre dois lares com clareza, respeito e tranquilidade. Calendario compartilhado, chat mediado, controle financeiro e muito mais.",
@@ -24,18 +32,18 @@ export const metadata: Metadata = {
     "dois lares",
     "filhos",
   ],
-  authors: [{ name: "2Lares" }],
+  authors: [{ name: "Kindar" }],
   openGraph: {
     type: "website",
     locale: "pt_BR",
-    siteName: "2Lares",
-    title: "2Lares - Coparentalidade Inteligente para Familias Modernas",
+    siteName: "Kindar",
+    title: "Kindar - Dois Lares, Uma Só Rotina",
     description:
       "Organize a rotina dos seus filhos entre dois lares com clareza, respeito e tranquilidade. Gratuito para comecar.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "2Lares - Coparentalidade Inteligente",
+    title: "Kindar - Dois Lares, Uma Só Rotina",
     description:
       "Organize a rotina dos seus filhos entre dois lares com clareza, respeito e tranquilidade.",
   },
@@ -43,10 +51,11 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "2Lares",
+    title: "Kindar",
   },
   icons: {
     icon: [
+      { url: "/kindar-icon.svg", type: "image/svg+xml" },
       { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
       { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
     ],
@@ -57,12 +66,12 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1A3B3A",
   width: "device-width",
   initialScale: 1,
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
+  themeColor: "#EEECEA",
 };
 
 export default function RootLayout({
@@ -75,12 +84,12 @@ export default function RootLayout({
       <head>
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="2Lares" />
+        <meta name="apple-mobile-web-app-title" content="Kindar" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Splash screens for iOS */}
         <meta name="mobile-web-app-capable" content="yes" />
       </head>
-      <body className={`${geistSans.variable} antialiased`}>
+      <body className={`${jakarta.variable} ${cormorant.variable} antialiased`}>
         {children}
         <ServiceWorkerRegister />
       </body>

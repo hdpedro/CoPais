@@ -22,14 +22,14 @@ export default function Error({
           </svg>
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-[#1A3B3A]">Algo deu errado</h2>
+          <h2 className="text-lg font-semibold text-[#2C2C2C]">Algo deu errado</h2>
           <p className="text-sm text-[#7A8C8B] mt-1">
             Ocorreu um erro inesperado. Tente novamente.
           </p>
         </div>
         <button
           onClick={reset}
-          className="px-6 py-2.5 bg-[#E8734A] text-white text-sm font-semibold rounded-lg hover:bg-[#D4633D] transition-colors"
+          className="px-6 py-2.5 bg-[#D4735A] text-white text-sm font-semibold rounded-lg hover:bg-[#D4633D] transition-colors"
         >
           Tentar novamente
         </button>

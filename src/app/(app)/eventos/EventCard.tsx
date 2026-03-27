@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { updateEvent, deleteEvent, cancelEvent } from "@/actions/events";
 
 interface EventCardProps {
@@ -116,7 +117,7 @@ export default function EventCard({ event, groupId, childrenList, isPast = false
   return (
     <div className={`bg-white rounded-xl shadow-sm overflow-hidden ${isCancelled || isPast ? "opacity-60" : ""}`}>
       {event.image_url && (
-        <img src={event.image_url} alt={event.title} className="w-full h-40 object-cover" />
+        <Image src={event.image_url} alt={event.title} width={400} height={160} className="w-full h-40 object-cover" />
       )}
       <div className="p-4">
         <div className="flex items-center justify-between mb-2">

@@ -4,6 +4,31 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { postChatNotification } from "@/lib/chat-notify";
+import { captureServerEvent } from "@/lib/posthog-server";
+import { sendPushToUsers } from "@/lib/push";
+
+// ---------------------------------------------------------------------------
+// Input sanitization helpers
+// ---------------------------------------------------------------------------
+
+function sanitizeText(val: string | null | undefined, maxLen: number): string {
+  if (!val) return "";
+  return val.trim().slice(0, maxLen);
+}
+
+async function getOtherGroupMembers(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  groupId: string,
+  excludeUserId: string,
+): Promise<string[]> {
+  const { data } = await supabase
+    .from("group_members")
+    .select("user_id")
+    .eq("group_id", groupId)
+    .neq("user_id", excludeUserId);
+  return (data || []).map((m) => m.user_id);
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -90,8 +115,13 @@ export async function createHealthLog(formData: FormData) {
   const childId = formData.get("childId") as string;
   await verifyChildInGroup(supabase, childId, groupId);
   const logType = formData.get("logType") as string;
-  const value = formData.get("value") as string;
-  const notes = formData.get("notes") as string;
+  const value = sanitizeText(formData.get("value") as string, 100);
+  const notes = sanitizeText(formData.get("notes") as string, 2000);
+
+  const allowedLogTypes = ["weight", "height", "temperature", "symptom", "medication", "vaccine", "allergy", "sleep", "feeding", "diaper", "mood", "milestone", "other"];
+  if (!allowedLogTypes.includes(logType)) {
+    redirect("/saude?error=" + encodeURIComponent("Tipo de registro invalido."));
+  }
 
   const { error } = await supabase.from("health_logs").insert({
     group_id: groupId,
@@ -103,6 +133,8 @@ export async function createHealthLog(formData: FormData) {
   });
 
   if (error) redirect("/saude?error=" + encodeURIComponent(error.message));
+
+  captureServerEvent(user.id, "health_log_created", { logType });
 
   revalidatePath("/saude");
   redirect("/saude");
@@ -119,13 +151,13 @@ export async function createProfessional(formData: FormData) {
   const groupId = formData.get("groupId") as string;
   await verifyMembership(supabase, groupId, user.id);
 
-  const name = formData.get("name") as string;
-  const specialty = formData.get("specialty") as string;
-  const crm = formData.get("crm") as string;
-  const phone = formData.get("phone") as string;
-  const whatsapp = formData.get("whatsapp") as string;
-  const address = formData.get("address") as string;
-  const notes = formData.get("notes") as string;
+  const name = sanitizeText(formData.get("name") as string, 200);
+  const specialty = sanitizeText(formData.get("specialty") as string, 200);
+  const crm = sanitizeText(formData.get("crm") as string, 100);
+  const phone = sanitizeText(formData.get("phone") as string, 100);
+  const whatsapp = sanitizeText(formData.get("whatsapp") as string, 100);
+  const address = sanitizeText(formData.get("address") as string, 500);
+  const notes = sanitizeText(formData.get("notes") as string, 2000);
 
   const { error } = await supabase.from("medical_professionals").insert({
     group_id: groupId,
@@ -158,14 +190,14 @@ export async function createAppointment(formData: FormData) {
 
   const childId = formData.get("childId") as string;
   const professionalId = formData.get("professionalId") as string;
-  const title = formData.get("title") as string;
+  const title = sanitizeText(formData.get("title") as string, 200);
   const appointmentDate = formData.get("appointmentDate") as string;
   const appointmentTime = formData.get("appointmentTime") as string;
-  const location = formData.get("location") as string;
-  const notes = formData.get("notes") as string;
+  const location = sanitizeText(formData.get("location") as string, 200);
+  const notes = sanitizeText(formData.get("notes") as string, 2000);
   const appointmentType = formData.get("appointmentType") as string;
   const returnDate = formData.get("returnDate") as string;
-  const returnNotes = formData.get("returnNotes") as string;
+  const returnNotes = sanitizeText(formData.get("returnNotes") as string, 2000);
 
   // Combine date + time into a TIMESTAMPTZ value (Brazil timezone)
   const appointmentDatetime = `${appointmentDate}T${appointmentTime}:00-03:00`;
@@ -193,13 +225,10 @@ export async function createAppointment(formData: FormData) {
 
   if (error) redirect("/saude/consultas?error=" + encodeURIComponent(error.message));
 
+  captureServerEvent(user.id, "appointment_created", { appointmentType });
+
   // Create a calendar event (custody_event) for sync — use service role to bypass RLS
   const serviceClient = getServiceClient();
-
-  // Calculate end time (1 hour later)
-  const [hours, minutes] = appointmentTime.split(":").map(Number);
-  const endHours = String((hours + 1) % 24).padStart(2, "0");
-  const endTime = `${endHours}:${String(minutes).padStart(2, "0")}`;
 
   const { data: calendarEvent, error: calError } = await serviceClient
     .from("custody_events")
@@ -209,8 +238,6 @@ export async function createAppointment(formData: FormData) {
       responsible_user_id: user.id,
       start_date: appointmentDate,
       end_date: appointmentDate,
-      start_time: appointmentTime,
-      end_time: endTime,
       custody_type: "special",
       notes: `Consulta: ${title}`,
       created_by: user.id,
@@ -224,6 +251,23 @@ export async function createAppointment(formData: FormData) {
       .from("medical_appointments")
       .update({ calendar_event_id: calendarEvent.id })
       .eq("id", appointment.id);
+  }
+
+  // Push notification to other group members
+  try {
+    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
+    if (otherMembers.length > 0) {
+      await sendPushToUsers(otherMembers, {
+        title: "Consulta agendada",
+        body: `📅 ${title} — ${childName} (${appointmentDate})`,
+        url: "/saude/consultas",
+        tag: "health_appointment",
+      });
+    }
+  } catch {
+    // Push failure should not break the action
   }
 
   revalidatePath("/saude/consultas");
@@ -283,6 +327,51 @@ export async function updateAppointmentStatus(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
+// 4b. completeAppointment — mark as completed with summary/diagnosis/prescriptions
+// ---------------------------------------------------------------------------
+
+export async function completeAppointment(formData: FormData) {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const appointmentId = formData.get("appointmentId") as string;
+  const summaryText = (formData.get("summary") as string) || "";
+  const diagnosis = (formData.get("diagnosis") as string) || "";
+  const prescriptions = (formData.get("prescriptions") as string) || "";
+  const returnDate = formData.get("returnDate") as string;
+  const returnNotes = formData.get("returnNotes") as string;
+
+  // Verify user belongs to the appointment's group
+  await getGroupIdFromRecord(supabase, "medical_appointments", appointmentId, user.id);
+
+  // Build formatted summary combining all fields
+  const parts: string[] = [];
+  if (summaryText.trim()) parts.push(summaryText.trim());
+  if (diagnosis.trim()) parts.push(`Diagnostico: ${diagnosis.trim()}`);
+  if (prescriptions.trim()) parts.push(`Medicamentos: ${prescriptions.trim()}`);
+
+  const formattedSummary = parts.join("\n") || null;
+
+  const updateData: Record<string, unknown> = {
+    status: "completed",
+    summary: formattedSummary,
+  };
+  if (returnDate) updateData.return_date = returnDate;
+  if (returnNotes) updateData.return_notes = returnNotes;
+
+  const { error } = await supabase
+    .from("medical_appointments")
+    .update(updateData)
+    .eq("id", appointmentId);
+
+  if (error) redirect("/saude/consultas?error=" + encodeURIComponent(error.message));
+
+  revalidatePath("/saude/consultas");
+  revalidatePath("/saude");
+  redirect("/saude/consultas?success=" + encodeURIComponent("Consulta concluida com sucesso"));
+}
+
+// ---------------------------------------------------------------------------
 // 5. createMedication
 // ---------------------------------------------------------------------------
 
@@ -294,15 +383,15 @@ export async function createMedication(formData: FormData) {
   await verifyMembership(supabase, groupId, user.id);
 
   const childId = formData.get("childId") as string;
-  const name = formData.get("name") as string;
-  const dosage = formData.get("dosage") as string;
-  const frequency = formData.get("frequency") as string;
+  const name = sanitizeText(formData.get("name") as string, 200);
+  const dosage = sanitizeText(formData.get("dosage") as string, 200);
+  const frequency = sanitizeText(formData.get("frequency") as string, 200);
   const frequencyHours = formData.get("frequencyHours") as string;
-  const reason = formData.get("reason") as string;
-  const prescribedBy = formData.get("prescribedBy") as string;
+  const reason = sanitizeText(formData.get("reason") as string, 200);
+  const prescribedBy = sanitizeText(formData.get("prescribedBy") as string, 200);
   const startDate = formData.get("startDate") as string;
   const endDate = formData.get("endDate") as string;
-  const notes = formData.get("notes") as string;
+  const notes = sanitizeText(formData.get("notes") as string, 2000);
 
   const { error } = await supabase.from("active_medications").insert({
     group_id: groupId,
@@ -321,7 +410,22 @@ export async function createMedication(formData: FormData) {
 
   if (error) redirect("/saude/medicamentos?error=" + encodeURIComponent(error.message));
 
+  captureServerEvent(user.id, "medication_created", { name });
+
+  // Post to chat
+  try {
+    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    await postChatNotification(
+      supabase, groupId, user.id,
+      `💊 Novo medicamento: ${name}${dosage ? ` (${dosage})` : ""} — ${childName}${frequency ? ` · ${frequency}` : ""}`
+    );
+  } catch {
+    // Notification failure should not break the action
+  }
+
   revalidatePath("/saude/medicamentos");
+  revalidatePath("/chat");
   redirect("/saude/medicamentos?success=Medicamento+adicionado");
 }
 
@@ -334,9 +438,50 @@ export async function logMedicationDose(formData: FormData) {
   const user = await getAuthenticatedUser(supabase);
 
   const medicationId = formData.get("medicationId") as string;
+  const redirectTo = (formData.get("redirectTo") as string) || "/saude/medicamentos";
 
   // Verify user belongs to the medication's group
   await getGroupIdFromRecord(supabase, "active_medications", medicationId, user.id);
+
+  // Server-side dose interval validation
+  const { data: medication } = await supabase
+    .from("active_medications")
+    .select("frequency_hours")
+    .eq("id", medicationId)
+    .single();
+
+  const { data: lastDoseArr } = await supabase
+    .from("medication_doses")
+    .select("administered_at")
+    .eq("medication_id", medicationId)
+    .order("administered_at", { ascending: false })
+    .limit(1);
+
+  if (lastDoseArr && lastDoseArr.length > 0) {
+    const lastDoseTime = new Date(lastDoseArr[0].administered_at).getTime();
+    const minutesSinceLastDose = (Date.now() - lastDoseTime) / (1000 * 60);
+
+    // Hard block: less than 30 minutes since last dose
+    if (minutesSinceLastDose < 30) {
+      redirect(redirectTo + "?error=" + encodeURIComponent("Dose recusada: ultima dose foi ha menos de 30 minutos."));
+    }
+
+    // Warning: less than half the recommended interval
+    const freqHours = medication?.frequency_hours || 8;
+    const halfIntervalMinutes = (freqHours * 60) / 2;
+    if (minutesSinceLastDose < halfIntervalMinutes) {
+      // Allow but add warning in success message
+      const { error } = await supabase.from("medication_doses").insert({
+        medication_id: medicationId,
+        administered_at: new Date().toISOString(),
+        administered_by: user.id,
+      });
+      if (error) redirect(redirectTo + "?error=" + encodeURIComponent(error.message));
+      revalidatePath("/saude/medicamentos");
+      revalidatePath("/saude");
+      redirect(redirectTo + "?success=" + encodeURIComponent("Dose confirmada (intervalo menor que o recomendado)"));
+    }
+  }
 
   const { error } = await supabase.from("medication_doses").insert({
     medication_id: medicationId,
@@ -344,10 +489,11 @@ export async function logMedicationDose(formData: FormData) {
     administered_by: user.id,
   });
 
-  if (error) redirect("/saude/medicamentos?error=" + encodeURIComponent(error.message));
+  if (error) redirect(redirectTo + "?error=" + encodeURIComponent(error.message));
 
   revalidatePath("/saude/medicamentos");
-  redirect("/saude/medicamentos");
+  revalidatePath("/saude");
+  redirect(redirectTo + "?success=" + encodeURIComponent("Dose confirmada"));
 }
 
 // ---------------------------------------------------------------------------
@@ -388,14 +534,14 @@ export async function createIllnessEpisode(formData: FormData) {
   await verifyMembership(supabase, groupId, user.id);
 
   const childId = formData.get("childId") as string;
-  const title = formData.get("title") as string;
+  const title = sanitizeText(formData.get("title") as string, 200);
   const symptomsRaw = formData.get("symptoms") as string;
   const symptoms = symptomsRaw
-    ? symptomsRaw.split(",").map((s) => s.trim()).filter(Boolean)
+    ? symptomsRaw.split(",").map((s) => s.trim().slice(0, 100)).filter(Boolean)
     : [];
   const startDate = formData.get("startDate") as string;
-  const diagnosis = formData.get("diagnosis") as string;
-  const notes = formData.get("notes") as string;
+  const diagnosis = sanitizeText(formData.get("diagnosis") as string, 500);
+  const notes = sanitizeText(formData.get("notes") as string, 2000);
   const severity = formData.get("severity") as string;
   const hospitalVisit = formData.get("hospitalVisit") === "true";
   const hospitalName = formData.get("hospitalName") as string;
@@ -422,7 +568,23 @@ export async function createIllnessEpisode(formData: FormData) {
 
   if (error) redirect("/saude/doencas?error=" + encodeURIComponent(error.message));
 
+  captureServerEvent(user.id, "illness_reported", { title });
+
+  // Get child name for chat
+  try {
+    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    const severityEmoji = severity === "grave" ? "🔴" : severity === "moderado" ? "🟡" : "🟢";
+    await postChatNotification(
+      supabase, groupId, user.id,
+      `🤒 Registrou doenca: ${title} ${severityEmoji} (${childName})${diagnosis ? ` — Diagnostico: ${diagnosis}` : ""}`
+    );
+  } catch {
+    // Notification failure should not break the action
+  }
+
   revalidatePath("/saude/doencas");
+  revalidatePath("/chat");
   redirect("/saude/doencas?success=Episodio+registrado");
 }
 
@@ -443,10 +605,13 @@ export async function updateIllnessEpisode(formData: FormData) {
   await getGroupIdFromRecord(supabase, "illness_episodes", episodeId, user.id);
 
   const validStatuses = ["active", "resolved", "chronic"];
+  if (!validStatuses.includes(status)) {
+    redirect("/saude/doencas?error=" + encodeURIComponent("Status invalido: " + status));
+  }
   const { error } = await supabase
     .from("illness_episodes")
     .update({
-      status: validStatuses.includes(status) ? status : undefined,
+      status,
       end_date: endDate || null,
       diagnosis: diagnosis || null,
     })
@@ -456,6 +621,72 @@ export async function updateIllnessEpisode(formData: FormData) {
 
   revalidatePath("/saude/doencas");
   redirect("/saude/doencas");
+}
+
+// ---------------------------------------------------------------------------
+// 9b. addIllnessEvolution — add evolution note to illness episode
+// ---------------------------------------------------------------------------
+
+export async function addIllnessEvolution(formData: FormData) {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const episodeId = formData.get("episodeId") as string;
+  const evolutionNote = formData.get("evolutionNote") as string;
+
+  // Verify user belongs to the episode's group
+  await getGroupIdFromRecord(supabase, "illness_episodes", episodeId, user.id);
+
+  // Get current notes
+  const { data: episode } = await supabase
+    .from("illness_episodes")
+    .select("notes")
+    .eq("id", episodeId)
+    .single();
+
+  // Get user profile name
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  const authorName = profile?.full_name?.split(" ")[0] || "Responsavel";
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+  const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+
+  const newEntry = `[${dateStr} ${timeStr} - ${authorName}] ${evolutionNote}`;
+  const updatedNotes = episode?.notes
+    ? `${newEntry}\n${episode.notes}`
+    : newEntry;
+
+  const { error } = await supabase
+    .from("illness_episodes")
+    .update({ notes: updatedNotes })
+    .eq("id", episodeId);
+
+  if (error) redirect("/saude/doencas?error=" + encodeURIComponent(error.message));
+
+  // Post evolution to chat
+  try {
+    const { data: ep } = await supabase.from("illness_episodes").select("title, group_id, child_id").eq("id", episodeId).single();
+    if (ep) {
+      const { data: child } = await supabase.from("children").select("full_name").eq("id", ep.child_id).single();
+      const childName = child?.full_name?.split(" ")[0] || "crianca";
+      await postChatNotification(
+        supabase, ep.group_id, user.id,
+        `📋 Atualizou ${ep.title} (${childName}): ${evolutionNote}`
+      );
+    }
+  } catch {
+    // Notification failure should not break the action
+  }
+
+  revalidatePath("/saude/doencas");
+  revalidatePath("/saude");
+  revalidatePath("/chat");
+  redirect("/saude/doencas?success=" + encodeURIComponent("Evolucao registrada"));
 }
 
 // ---------------------------------------------------------------------------
@@ -470,10 +701,10 @@ export async function createAllergy(formData: FormData) {
   await verifyMembership(supabase, groupId, user.id);
 
   const childId = formData.get("childId") as string;
-  const name = formData.get("name") as string;
+  const name = sanitizeText(formData.get("name") as string, 200);
   const allergyType = formData.get("allergyType") as string;
   const severity = formData.get("severity") as string;
-  const reaction = formData.get("reaction") as string;
+  const reaction = sanitizeText(formData.get("reaction") as string, 500);
 
   const { error } = await supabase.from("child_allergies").insert({
     group_id: groupId,
@@ -487,8 +718,109 @@ export async function createAllergy(formData: FormData) {
 
   if (error) redirect("/saude/alergias?error=" + encodeURIComponent(error.message));
 
+  // Push notification to other group members
+  try {
+    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
+    if (otherMembers.length > 0) {
+      await sendPushToUsers(otherMembers, {
+        title: "Nova alergia registrada",
+        body: `⚠️ ${name} (${severity || "leve"}) — ${childName}`,
+        url: "/saude/alergias",
+        tag: "health_allergy",
+      });
+    }
+  } catch {
+    // Push failure should not break the action
+  }
+
   revalidatePath("/saude/alergias");
-  redirect("/saude/alergias?success=Alergia+registrada");
+  redirect("/saude/alergias?crianca=" + childId + "&success=Alergia+registrada");
+}
+
+// ---------------------------------------------------------------------------
+// 10b. updateAllergy
+// ---------------------------------------------------------------------------
+
+export async function updateAllergy(formData: FormData) {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const allergyId = formData.get("allergyId") as string;
+  if (!allergyId) redirect("/saude/alergias?error=" + encodeURIComponent("ID da alergia não informado."));
+
+  // Verify the allergy belongs to a group the user is a member of
+  const { data: allergy } = await supabase
+    .from("child_allergies")
+    .select("id, group_id, child_id")
+    .eq("id", allergyId)
+    .single();
+
+  if (!allergy) redirect("/saude/alergias?error=" + encodeURIComponent("Alergia não encontrada."));
+  await verifyMembership(supabase, allergy.group_id, user.id);
+
+  const name = sanitizeText(formData.get("allergyName") as string, 200);
+  const allergyType = formData.get("allergyType") as string;
+  const severity = formData.get("severity") as string;
+  const reaction = sanitizeText(formData.get("reaction") as string, 500);
+  const notes = sanitizeText(formData.get("notes") as string, 2000);
+
+  const updateData: Record<string, unknown> = {
+    name,
+    allergy_type: allergyType || null,
+    severity: severity || null,
+    reaction: reaction || null,
+  };
+  if (notes !== undefined) updateData.notes = notes || null;
+
+  const { error } = await supabase
+    .from("child_allergies")
+    .update(updateData)
+    .eq("id", allergyId);
+
+  if (error) redirect("/saude/alergias?crianca=" + allergy.child_id + "&error=" + encodeURIComponent(error.message));
+
+  captureServerEvent(user.id, "allergy_updated", { allergyId });
+
+  revalidatePath("/saude/alergias");
+  redirect("/saude/alergias?crianca=" + allergy.child_id + "&success=Alergia+atualizada");
+}
+
+// ---------------------------------------------------------------------------
+// 10c. deleteAllergy
+// ---------------------------------------------------------------------------
+
+export async function deleteAllergy(formData: FormData) {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const allergyId = formData.get("allergyId") as string;
+  if (!allergyId) redirect("/saude/alergias?error=" + encodeURIComponent("ID da alergia não informado."));
+
+  // Verify the allergy belongs to a group the user is a member of
+  const { data: allergy } = await supabase
+    .from("child_allergies")
+    .select("id, group_id, child_id")
+    .eq("id", allergyId)
+    .single();
+
+  if (!allergy) redirect("/saude/alergias?error=" + encodeURIComponent("Alergia não encontrada."));
+  await verifyMembership(supabase, allergy.group_id, user.id);
+
+  // Use service role client to bypass potential missing DELETE RLS policy
+  const serviceClient = getServiceClient();
+  const { error } = await serviceClient
+    .from("child_allergies")
+    .delete()
+    .eq("id", allergyId);
+
+  if (error) redirect("/saude/alergias?crianca=" + allergy.child_id + "&error=" + encodeURIComponent(error.message));
+
+  captureServerEvent(user.id, "allergy_deleted", { allergyId });
+
+  revalidatePath("/saude/alergias");
+  redirect("/saude/alergias?crianca=" + allergy.child_id + "&success=Alergia+excluída");
 }
 
 // ---------------------------------------------------------------------------
@@ -520,7 +852,6 @@ export async function upsertMedicalInfo(formData: FormData) {
       insurance_number: insuranceNumber || null,
       sus_number: susNumber || null,
       primary_pediatrician_id: primaryPediatricianId || null,
-      updated_by: user.id,
     },
     { onConflict: "child_id" },
   );
@@ -543,12 +874,12 @@ export async function createVaccinationRecord(formData: FormData) {
   await verifyMembership(supabase, groupId, user.id);
 
   const childId = formData.get("childId") as string;
-  const vaccineName = formData.get("vaccineName") as string;
-  const doseLabel = formData.get("doseLabel") as string;
+  const vaccineName = sanitizeText(formData.get("vaccineName") as string, 200);
+  const doseLabel = sanitizeText(formData.get("doseLabel") as string, 100);
   const administeredDate = formData.get("administeredDate") as string;
-  const batchNumber = formData.get("batchNumber") as string;
-  const location = formData.get("location") as string;
-  const notes = formData.get("notes") as string;
+  const batchNumber = sanitizeText(formData.get("batchNumber") as string, 100);
+  const location = sanitizeText(formData.get("location") as string, 200);
+  const notes = sanitizeText(formData.get("notes") as string, 2000);
 
   const { error } = await supabase.from("vaccination_records").insert({
     group_id: groupId,
@@ -564,12 +895,62 @@ export async function createVaccinationRecord(formData: FormData) {
 
   if (error) redirect("/saude/vacinas?error=" + encodeURIComponent(error.message));
 
+  captureServerEvent(user.id, "vaccine_recorded");
+
+  // Push notification to other group members
+  try {
+    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
+    if (otherMembers.length > 0) {
+      await sendPushToUsers(otherMembers, {
+        title: "Vacina registrada",
+        body: `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`,
+        url: "/saude/vacinas",
+        tag: "health_vaccine",
+      });
+    }
+  } catch {
+    // Push failure should not break the action
+  }
+
   revalidatePath("/saude/vacinas");
   redirect("/saude/vacinas?success=Vacina+registrada");
 }
 
 // ---------------------------------------------------------------------------
 // 13. createGrowthRecord
+// ---------------------------------------------------------------------------
+
+export async function trackHealthView(formData: FormData) {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const recordType = formData.get("recordType") as string;
+  const recordId = formData.get("recordId") as string | null;
+  const childId = formData.get("childId") as string;
+  const groupId = formData.get("groupId") as string;
+
+  await verifyMembership(supabase, groupId, user.id);
+
+  // Upsert — update viewed_at if already exists
+  await supabase.from("health_views").upsert(
+    {
+      group_id: groupId,
+      record_type: recordType,
+      record_id: recordId || null,
+      child_id: childId,
+      viewed_by: user.id,
+      viewed_at: new Date().toISOString(),
+    },
+    {
+      onConflict: "record_type,record_id,viewed_by",
+    },
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 14. createGrowthRecord
 // ---------------------------------------------------------------------------
 
 export async function createGrowthRecord(formData: FormData) {
@@ -584,7 +965,7 @@ export async function createGrowthRecord(formData: FormData) {
   const weightKg = formData.get("weightKg") as string;
   const heightCm = formData.get("heightCm") as string;
   const headCm = formData.get("headCm") as string;
-  const notes = formData.get("notes") as string;
+  const notes = sanitizeText(formData.get("notes") as string, 2000);
 
   const { error } = await supabase.from("growth_records").insert({
     group_id: groupId,
@@ -598,6 +979,26 @@ export async function createGrowthRecord(formData: FormData) {
   });
 
   if (error) redirect("/saude/crescimento?error=" + encodeURIComponent(error.message));
+
+  // Push notification to other group members
+  try {
+    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
+    if (otherMembers.length > 0) {
+      const parts: string[] = [];
+      if (weightKg) parts.push(`${weightKg}kg`);
+      if (heightCm) parts.push(`${heightCm}cm`);
+      await sendPushToUsers(otherMembers, {
+        title: "Medida registrada",
+        body: `📏 ${childName}: ${parts.join(", ") || "nova medida"}`,
+        url: "/saude/crescimento",
+        tag: "health_growth",
+      });
+    }
+  } catch {
+    // Push failure should not break the action
+  }
 
   revalidatePath("/saude/crescimento");
   redirect("/saude/crescimento?success=Medida+registrada");

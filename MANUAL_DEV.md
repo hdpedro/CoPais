@@ -1,7 +1,7 @@
-# 2Lares - Manual de Desenvolvimento
+# Kindar - Manual de Desenvolvimento
 
-> Manual completo para desenvolvedores que vao trabalhar no projeto 2Lares.
-> Ultima atualizacao: 17/03/2026
+> Manual completo para desenvolvedores que vao trabalhar no projeto Kindar.
+> Ultima atualizacao: 27/03/2026
 
 ---
 
@@ -18,23 +18,28 @@
 9. [Autenticacao e Middleware](#9-autenticacao-e-middleware)
 10. [Banco de Dados - Schema Completo](#10-banco-de-dados---schema-completo)
 11. [Row Level Security (RLS)](#11-row-level-security-rls)
-12. [Design System](#12-design-system)
-13. [Funcionalidades Implementadas](#13-funcionalidades-implementadas)
-14. [Deploy no Vercel](#14-deploy-no-vercel)
-15. [Usuarios de Teste e Seed](#15-usuarios-de-teste-e-seed)
-16. [Guia de Contribuicao](#16-guia-de-contribuicao)
-17. [Troubleshooting](#17-troubleshooting)
-18. [Decisoes Arquiteturais](#18-decisoes-arquiteturais)
+12. [Internacionalizacao (i18n)](#12-internacionalizacao-i18n)
+13. [Design System](#13-design-system)
+14. [Padrao Server/Client Split](#14-padrao-serverclient-split)
+15. [Funcionalidades Implementadas](#15-funcionalidades-implementadas)
+16. [Seguranca](#16-seguranca)
+17. [Performance](#17-performance)
+18. [Acessibilidade](#18-acessibilidade)
+19. [Deploy no Vercel](#19-deploy-no-vercel)
+20. [Usuarios de Teste e Seed](#20-usuarios-de-teste-e-seed)
+21. [Guia de Contribuicao](#21-guia-de-contribuicao)
+22. [Troubleshooting](#22-troubleshooting)
+23. [Decisoes Arquiteturais](#23-decisoes-arquiteturais)
 
 ---
 
 ## 1. Visao Geral do Projeto
 
-**2Lares** e um aplicativo de coparentalidade que ajuda pais separados a organizarem a rotina dos filhos de forma colaborativa, transparente e respeitosa. O nome "2Lares" representa os dois lares da crianca.
+**Kindar** e um aplicativo de coparentalidade que ajuda pais separados a organizarem a rotina dos filhos de forma colaborativa, transparente e respeitosa. O nome "Kindar" representa os dois lares da crianca.
 
-- **URL de producao:** https://2lares.vercel.app
+- **URL de producao:** https://kindar.com.br
 - **Repositorio GitHub:** hdpedro/CoPais
-- **Linguagem da UI:** Portugues (Brasil)
+- **Idiomas da UI:** Portugues (BR), Ingles, Espanhol, Frances, Alemao
 
 ---
 
@@ -48,7 +53,53 @@
 | Estilizacao | Tailwind CSS | ^4 | Utility-first, produtividade, zero CSS custom |
 | Backend/BaaS | Supabase (PostgreSQL) | ^2.99.2 | Auth + DB + RLS em um unico servico |
 | Auth | Supabase Auth + SSR | ^0.9.0 | Session management com cookies no server |
+| i18n | Custom (I18nProvider + useI18n) | — | 5 idiomas, ~1405 chaves, 38 secoes |
 | Deploy | Vercel | Hobby | Zero-config para Next.js, auto-deploy |
+| IA | Groq (Llama) | Cloud API | Assistente com 2 camadas (local parser + fallback cloud) |
+| Analytics | PostHog | — | 30+ eventos rastreados |
+| Error Tracking | Sentry | — | Monitoramento de erros em producao |
+| Testes E2E | Playwright | — | 34 testes |
+| Testes Unitarios | Vitest | — | 50 testes (AI parser) |
+| Mobile | Capacitor | ^7 | Hybrid app iOS/Android via webview nativa |
+
+### Capacitor (iOS App Store)
+
+O app usa Capacitor para distribuicao na App Store. Configuracao em `capacitor.config.ts`.
+
+**Plugins instalados:**
+- `@capacitor/core` + `@capacitor/cli` — Core do Capacitor
+- `@capacitor/ios` — Plataforma iOS
+- `@capacitor/status-bar` — Controle da barra de status nativa
+- `@capacitor/splash-screen` — Splash screen nativa
+- `@capacitor/haptics` — Feedback haptico (vibracoes)
+- `@capacitor/keyboard` — Controle do teclado virtual
+- `@capacitor/app` — Eventos do app (back button, state change)
+
+**Utilitarios:**
+- `src/lib/capacitor.ts` — Bridge com funcoes safe (no-op no browser)
+- `src/lib/haptics.ts` — Haptic feedback com fallback Web Vibration API
+
+**CSS iOS / Mobile UX Nativo:**
+- Safe areas via `env(safe-area-inset-*)` em `globals.css`
+- Classes utilitarias: `.safe-area-top`, `.safe-area-bottom`
+- Prevencao de zoom em inputs (font-size 16px)
+- Overscroll bounce desabilitado (`overscroll-behavior: none`)
+- Tap highlight transparente em botoes/links
+- Touch targets minimos de 44x44px (Apple HIG) em BottomNav, CalendarGrid, ChatRoom, ChannelTabs
+- Active states com `scale(0.97)` em dispositivos touch (media query `hover: none`)
+- Header fixo com backdrop-blur no mobile (nao se move com scroll)
+- Bottom nav se esconde automaticamente quando teclado virtual abre (visualViewport API)
+- Transicao de pagina suave com `page-transition` CSS animation (200ms fade-in + translateY)
+- Haptic feedback via `src/lib/haptics.ts` em: troca de tab, clique em dia, envio de mensagem
+- Loading states em skeleton (animate-pulse), nunca spinners — **7 arquivos loading.tsx**
+- **Service Worker v3** com navigation caching
+- **Pagina offline** dedicada (`/offline.html`)
+- **Viewport fit cover**, sem zoom em inputs (font-size 16px)
+
+**Para buildar (requer Mac + Xcode):**
+```bash
+npx cap add ios && npx cap sync ios && npx cap open ios
+```
 
 ### Dependencias Completas (package.json)
 
@@ -141,7 +192,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 1. Acesse https://supabase.com e crie uma conta
 2. Clique em **"New Project"**
-3. Escolha um nome (ex: `2lares`)
+3. Escolha um nome (ex: `kindar`)
 4. Selecione a regiao mais proxima (ex: `South America (Sao Paulo)`)
 5. Defina uma senha para o banco (guarde-a!)
 6. Aguarde o projeto ser criado (~2 minutos)
@@ -152,9 +203,9 @@ Apos o projeto ser criado:
 
 1. Va em **Settings > API** no painel do Supabase
 2. Copie:
-   - **Project URL** → `NEXT_PUBLIC_SUPABASE_URL`
-   - **anon public key** → `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - **service_role key** → `SUPABASE_SERVICE_ROLE_KEY` (apenas para scripts locais)
+   - **Project URL** -> `NEXT_PUBLIC_SUPABASE_URL`
+   - **anon public key** -> `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **service_role key** -> `SUPABASE_SERVICE_ROLE_KEY` (apenas para scripts locais)
 
 ### 4.3 Executar as Migrations
 
@@ -164,12 +215,14 @@ As migrations estao em `supabase/migrations/`. Execute-as **na ordem** no SQL Ed
 2. Execute cada arquivo na ordem:
 
 ```
-supabase/migrations/00001_initial_schema.sql    → Tabelas, enums, triggers, indexes
-supabase/migrations/00002_rls_policies.sql      → Row Level Security (todas as tabelas)
-supabase/migrations/00003_calendar_tokens.sql   → Tokens de calendario + check-ins + campos recorrentes
+supabase/migrations/00001_initial_schema.sql
+supabase/migrations/00002_rls_policies.sql
+supabase/migrations/00003_calendar_tokens.sql
+...demais migrations na ordem numerica...
+supabase/migrations/00022_child_profile_tabs.sql
 ```
 
-**IMPORTANTE:** Execute na ordem! O 00002 depende do 00001, e o 00003 depende de ambos.
+**IMPORTANTE:** Execute na ordem! Cada migration depende das anteriores.
 
 ### 4.4 O Que Cada Migration Faz
 
@@ -177,15 +230,34 @@ supabase/migrations/00003_calendar_tokens.sql   → Tokens de calendario + check
 |---------|----------|
 | `00001_initial_schema.sql` | Cria 12 tabelas, 9 enums, triggers (auto-profile, chat imutavel, updated_at), 12 indexes |
 | `00002_rls_policies.sql` | Habilita RLS em todas as tabelas, cria funcoes `is_group_member()` e `is_group_admin()`, 22 policies |
-| `00003_calendar_tokens.sql` | Tabela `calendar_tokens`, tabela `daily_checkins`, colunas `start_time`/`end_time`/`is_recurring`/`recurrence_rule` em `custody_events` |
+| `00003_calendar_tokens.sql` | Tabela `calendar_tokens`, tabela `daily_checkins`, colunas recorrentes em `custody_events` |
+| `00010_activities_checklist.sql` | Tabelas `child_activities`, `activity_checklist_items`, `checklist_completions` + RLS |
+| `00011_rename_day_of_week_to_days.sql` | Rename coluna day_of_week para days |
+| `00012_activity_all_children.sql` | child_id nullable em child_activities |
+| `00013_illness_hospital_severity.sql` | Campos hospital e severidade em doencas |
+| `00015_health_views.sql` | Tabela health_views para rastreamento de visualizacoes |
+| `00016_receipts_storage_bucket.sql` | Bucket de storage para comprovantes |
+| `00017_health_indexes.sql` | Indexes otimizados para queries de saude |
+| `00018_documents_storage_bucket.sql` | Bucket de storage para documentos |
+| `00019_private_notes.sql` | Tabela private_notes + RLS |
+| `00020_decisions.sql` | Tabela decisions + RLS |
+| `00021_chat_channels.sql` | Tabela chat_channels + FK em chat_messages |
+| `00022_child_profile_tabs.sql` | Campos cpf/rg em children + tabela child_education |
+| `00023_activity_reports.sql` | Tabela activity_reports (status, humor, notas) + RLS |
+| `00024_events_assigned_to.sql` | Campos assigned_to, end_date, all_day em events |
+| `00025_performance_indexes.sql` | Indexes de performance (chat, swap_requests) |
+| `00026_sensitive_topic_deletion.sql` | Campos de delecao dual-approval em sensitive_notes |
+| `00027_activity_responsible_override.sql` | Campo responsible_override em activity_reports |
+| `00028_activity_extra_fields.sql` | Campos teacher_name, class_name, room, responsible_id em child_activities |
+| `00029_activity_occurrence_overrides.sql` | Campo overrides (JSONB) em activity_reports |
 
 ### 4.5 Verificar a Instalacao
 
 Apos rodar as migrations, verifique no Supabase:
 
-1. **Table Editor** → deve mostrar 14 tabelas
-2. **Authentication > Policies** → cada tabela deve ter RLS habilitado (cadeado verde)
-3. **Database > Functions** → deve ter `is_group_member`, `is_group_admin`, `handle_new_user`, `prevent_chat_delete`, `prevent_chat_text_update`, `update_updated_at`
+1. **Table Editor** -> deve mostrar 23+ tabelas
+2. **Authentication > Policies** -> cada tabela deve ter RLS habilitado (cadeado verde)
+3. **Database > Functions** -> deve ter `is_group_member`, `is_group_admin`, `handle_new_user`, `prevent_chat_delete`, `prevent_chat_text_update`, `update_updated_at`
 
 ### 4.6 Popular com Dados de Teste (Seed)
 
@@ -195,8 +267,8 @@ node scripts/seed-test.mjs
 ```
 
 Isso cria:
-- **Bruno Silva** (bruno@2lares.test) — Pai, admin do grupo
-- **Martina Oliveira** (martina@2lares.test) — Mae, membro do grupo
+- **Bruno Silva** (bruno@kindar.test) — Pai, admin do grupo
+- **Martina Oliveira** (martina@kindar.test) — Mae, membro do grupo
 - **Grupo:** Familia Kleber
 - **Crianca:** Kleber Silva Oliveira (nascimento: 15/06/2020)
 - Eventos de guarda de exemplo
@@ -204,14 +276,14 @@ Isso cria:
 - Mensagens de chat de exemplo
 - Acordos e registros escolares de exemplo
 
-**Senha de ambos:** `2Lares@2026`
+**Senha de ambos:** `Kindar@2026`
 
 ### 4.7 Configuracoes Adicionais do Supabase
 
 No painel do Supabase, configure:
 
 1. **Authentication > URL Configuration:**
-   - Site URL: `https://2lares.vercel.app` (producao) ou `http://localhost:3000` (dev)
+   - Site URL: `https://kindar.vercel.app` (producao) ou `http://localhost:3000` (dev)
    - Redirect URLs: adicione ambas as URLs acima
 
 2. **Authentication > Email Templates:** (opcional)
@@ -238,40 +310,46 @@ Browser
 /login          /dashboard
                     |
                     v
-             [Server Component]
+             [Server Component (page.tsx)]
                     |
                     v
            [Supabase Server Client] ──> PostgreSQL (Supabase)
+              (usa getUser())
                     |
                     v
-             [Client Component]
-                    |
+             [Client Component (*Client.tsx)]
+                    |  (usa useI18n() para traducoes)
             (Server Actions)
                     |
                     v
            [Supabase Server Client] ──> PostgreSQL
+              (usa getUser())
 ```
 
 ### Padroes Principais
 
-1. **Server Components** (padrao): Todas as pages sao Server Components que buscam dados diretamente no Supabase
-2. **Client Components** (`"use client"`): Apenas para interatividade (formularios, modais, navegacao de meses)
-3. **Server Actions** (`"use server"`): Para mutacoes (criar, editar, deletar dados). Ficam em `src/actions/`
-4. **Sem API Routes tradicionais**: A unica API Route e o feed iCal (`/api/calendar/[token]`). Todo o resto usa Server Actions
+1. **Server/Client Split**: Pagina `page.tsx` (Server) busca dados, componente `*Client.tsx` (Client) renderiza com `useI18n()`
+2. **35+ Client Components** seguem este padrao (DashboardClient, SaudeClient, ProfileContent, etc.)
+3. **Server Actions** (`"use server"`): Para mutacoes. Ficam em `src/actions/`. Todos usam `getUser()` para auth
+4. **Sem API Routes tradicionais**: Exceto iCal feed, chat API e cron jobs
 5. **Sem ORM**: Queries diretas com `supabase.from("tabela").select/insert/update`
-6. **Sem state management global**: Cada page busca seus proprios dados. Revalidacao via `revalidatePath()`
+6. **Sem FK Joins**: PostgREST FK joins removidos, substituidos por queries separadas + joins manuais em JS
+7. **Sem state management global**: Cada page busca seus proprios dados. Revalidacao via `revalidatePath()`
+8. **i18n via useI18n()**: Todas as strings de UI traduzidas em 5 idiomas
 
 ### Fluxo de Dados Tipico
 
 ```
 1. Usuario acessa /calendario
-2. page.tsx (Server Component) busca dados via Supabase Server Client
-3. Passa dados serializados para CalendarGrid (Client Component)
-4. Usuario clica em "Aprovar Troca"
-5. Form chama Server Action respondToSwapRequest()
-6. Server Action executa no servidor, faz queries no Supabase
-7. Chama revalidatePath("/calendario") para invalidar cache
-8. Pagina recarrega com dados atualizados
+2. page.tsx (Server Component) verifica auth com getUser()
+3. page.tsx busca dados via Supabase Server Client (queries paralelas com Promise.all)
+4. Passa dados serializados para CalendarClient (Client Component)
+5. CalendarClient usa useI18n() para traduzir labels
+6. Usuario clica em "Aprovar Troca"
+7. Form chama Server Action respondToSwapRequest()
+8. Server Action verifica auth com getUser(), executa no servidor
+9. Chama revalidatePath("/calendario") para invalidar cache
+10. Pagina recarrega com dados atualizados
 ```
 
 ---
@@ -279,28 +357,60 @@ Browser
 ## 6. Estrutura de Pastas Completa
 
 ```
-2Lares/
+Kindar/
 ├── .env.example                    # Template de variaveis de ambiente
 ├── .env.local                      # Variaveis de ambiente (NAO commitado)
 ├── .gitignore
 ├── DOCUMENTACAO.md                 # Documentacao tecnica do projeto
 ├── MANUAL_DEV.md                   # Este manual
-├── next.config.ts                  # Configuracao do Next.js (vazio/padrao)
+├── next.config.ts                  # Configuracao do Next.js
 ├── package.json
 ├── postcss.config.mjs              # Configuracao PostCSS + Tailwind v4
 ├── tsconfig.json                   # TypeScript com alias @/* → ./src/*
 │
 ├── scripts/
-│   └── seed-test.mjs               # Script de seed dos dados de teste
+│   ├── seed-test.mjs               # Script de seed dos dados de teste
+│   ├── seed-diverse-families.mjs   # Seed de familias diversas
+│   ├── apply-migration.mjs         # Aplicar migration via script
+│   ├── delete-group.mjs            # Deletar grupo de teste
+│   └── ...                         # Outros scripts utilitarios
 │
 ├── supabase/
 │   └── migrations/
-│       ├── 00001_initial_schema.sql # Tabelas, enums, triggers
-│       ├── 00002_rls_policies.sql   # Row Level Security
-│       └── 00003_calendar_tokens.sql # Tokens iCal + check-ins + campos recorrentes
+│       ├── 00001_initial_schema.sql
+│       ├── 00002_rls_policies.sql
+│       ├── 00003_calendar_tokens.sql
+│       ├── 00010_activities_checklist.sql
+│       ├── 00011_rename_day_of_week_to_days.sql
+│       ├── 00012_activity_all_children.sql
+│       ├── 00013_illness_hospital_severity.sql
+│       ├── 00015_health_views.sql
+│       ├── 00016_receipts_storage_bucket.sql
+│       ├── 00017_health_indexes.sql
+│       ├── 00018_documents_storage_bucket.sql
+│       ├── 00019_private_notes.sql
+│       ├── 00020_decisions.sql
+│       ├── 00021_chat_channels.sql
+│       ├── 00022_child_profile_tabs.sql
+│       ├── 00023_activity_reports.sql
+│       ├── 00024_events_assigned_to.sql
+│       ├── 00025_performance_indexes.sql
+│       ├── 00026_sensitive_topic_deletion.sql
+│       ├── 00027_activity_responsible_override.sql
+│       ├── 00028_activity_extra_fields.sql
+│       └── 00029_activity_occurrence_overrides.sql
 │
 └── src/
     ├── middleware.ts                 # Auth middleware (intercepta todas as requests)
+    │
+    ├── i18n/                        # === INTERNACIONALIZACAO ===
+    │   ├── index.ts                 # I18nProvider, useI18n hook
+    │   └── locales/
+    │       ├── pt.json              # Portugues (~1405 chaves, 38 secoes)
+    │       ├── en.json              # Ingles
+    │       ├── es.json              # Espanhol
+    │       ├── fr.json              # Frances
+    │       └── de.json              # Alemao
     │
     ├── app/
     │   ├── layout.tsx               # Root layout (fonts, metadata)
@@ -322,85 +432,145 @@ Browser
     │   │   └── [token]/page.tsx     # Aceitar convite via link
     │   │
     │   ├── (app)/                   # === ROTAS PROTEGIDAS ===
-    │   │   ├── layout.tsx           # Layout do app (header + bottom nav + auth check)
-    │   │   ├── dashboard/page.tsx
+    │   │   ├── layout.tsx           # Layout do app (header + nav + auth check + I18nProvider)
+    │   │   ├── dashboard/page.tsx   # Server: busca dados → DashboardClient
     │   │   ├── onboarding/page.tsx
     │   │   ├── mais/page.tsx        # Grid com todas as funcionalidades
     │   │   │
-    │   │   ├── calendario/
-    │   │   │   ├── page.tsx              # Pagina principal (Server Component)
-    │   │   │   ├── CalendarClient.tsx    # Wrapper client para estado do mes
-    │   │   │   ├── CalendarGrid.tsx      # Grade mensal colorida
-    │   │   │   ├── WeekendPlanner.tsx    # Scroll horizontal de fins de semana
-    │   │   │   ├── SwapRequestModal.tsx  # Modal para solicitar troca
+    │   │   ├── calendario/                  # === AGENDA UNIFICADA ===
+    │   │   │   ├── page.tsx              # Server: 5 queries paralelas
+    │   │   │   ├── CalendarClient.tsx    # Client: estado do mes + useI18n()
+    │   │   │   ├── CalendarGrid.tsx      # Grade mensal (useMemo) + dots de atividades
+    │   │   │   ├── DayDetailSheet.tsx    # Sheet do dia (guarda + atividades + troca)
     │   │   │   ├── SwapRequestList.tsx   # Lista de trocas pendentes
+    │   │   │   ├── SwapRequestModal.tsx  # Modal de solicitacao de troca
+    │   │   │   ├── SwapBalanceCard.tsx   # Saldo de trocas (+/- dias por pai)
     │   │   │   ├── CalendarExportButton.tsx # Botao de sincronizacao iCal
     │   │   │   ├── novo/
-    │   │   │   │   ├── page.tsx          # Pagina de novo evento
-    │   │   │   │   └── NewEventForm.tsx  # Formulario de evento (recorrente)
+    │   │   │   │   ├── page.tsx          # Pagina de novo compromisso
+    │   │   │   │   └── NewCompromissoForm.tsx # Formulario unificado
     │   │   │   └── escala/
     │   │   │       ├── page.tsx          # Pagina da escala
     │   │   │       └── ScheduleBuilder.tsx # Builder visual de escala quinzenal
     │   │   │
-    │   │   ├── financeiro/
-    │   │   │   ├── page.tsx              # Busca dados e renderiza dashboard
-    │   │   │   └── FinancialDashboard.tsx # Dashboard com abas Resumo/Historico
+    │   │   ├── atividades/               # Atividades recorrentes
+    │   │   │   ├── page.tsx              # Redirect → /calendario
+    │   │   │   ├── nova/page.tsx         # Redirect → /calendario/novo
+    │   │   │   ├── ActivityChecklistModal.tsx
+    │   │   │   └── DeleteActivityButton.tsx
     │   │   │
-    │   │   ├── despesas/
-    │   │   │   ├── page.tsx              # Lista de despesas
-    │   │   │   └── nova/page.tsx         # Formulario de nova despesa
+    │   │   ├── chat/                     # Chat com IA Mediadora
+    │   │   │   ├── page.tsx              # Server: busca dados
+    │   │   │   ├── ChatRoom.tsx          # Chat em tempo real + otimistic updates
+    │   │   │   └── ChannelTabs.tsx       # Abas de canais tematicos
     │   │   │
-    │   │   ├── chat/
-    │   │   │   ├── page.tsx              # Pagina do chat
-    │   │   │   └── ChatRoom.tsx          # Chat em tempo real
-    │   │   │
-    │   │   ├── checkin/
-    │   │   │   ├── page.tsx              # Pagina de check-in
-    │   │   │   └── CheckinForm.tsx       # Formulario com categorias + templates
-    │   │   │
-    │   │   ├── criancas/
+    │   │   ├── criancas/                 # Perfil de criancas (4 abas)
     │   │   │   ├── page.tsx              # Lista de criancas
     │   │   │   ├── nova/page.tsx         # Adicionar crianca
-    │   │   │   └── [id]/page.tsx         # Detalhe da crianca
+    │   │   │   └── [id]/page.tsx         # Perfil com 4 abas (Geral/Saude/Docs/Educacao)
     │   │   │
-    │   │   ├── saude/page.tsx
-    │   │   ├── documentos/page.tsx
+    │   │   ├── decisoes/                 # Decisoes em grupo
+    │   │   │   └── page.tsx
+    │   │   │
+    │   │   ├── despesas/                 # Gestao de despesas
+    │   │   │   ├── page.tsx              # Lista de despesas
+    │   │   │   ├── DeleteExpenseButton.tsx
+    │   │   │   ├── ReceiptViewer.tsx     # Visualizador de comprovantes
+    │   │   │   └── nova/
+    │   │   │       ├── page.tsx
+    │   │   │       └── ExpenseFormClient.tsx
+    │   │   │
+    │   │   ├── documentos/              # Dashboard de documentos
+    │   │   │   ├── page.tsx
+    │   │   │   ├── DocumentList.tsx
+    │   │   │   └── DocumentViewer.tsx
+    │   │   │
+    │   │   ├── financeiro/
+    │   │   │   ├── page.tsx              # Server: busca dados
+    │   │   │   └── FinancialDashboard.tsx # Client: abas Resumo/Historico
+    │   │   │
+    │   │   ├── notas/                    # Notas privadas
+    │   │   │   └── page.tsx
+    │   │   │
+    │   │   ├── perfil/                   # Perfil do usuario
+    │   │   │   ├── page.tsx
+    │   │   │   └── EditProfileForm.tsx   # Formulario + LanguageSelector
+    │   │   │
+    │   │   ├── saude/                    # Hub de saude (7 sub-modulos)
+    │   │   │   ├── page.tsx              # Dashboard central de saude
+    │   │   │   ├── ConfirmDoseButton.tsx
+    │   │   │   ├── HealthViewTracker.tsx # Registra quem visualizou
+    │   │   │   ├── SubmitButton.tsx      # Botao generico de submit
+    │   │   │   ├── ViewedByBadge.tsx     # Badge de visualizacao
+    │   │   │   ├── alergias/
+    │   │   │   ├── consultas/            # + CompleteAppointmentForm
+    │   │   │   ├── crescimento/          # + GrowthChart
+    │   │   │   ├── doencas/              # + ResolveButton, UpdateEpisodeForm, IllnessFormClient
+    │   │   │   ├── export/               # Exportacao de registros
+    │   │   │   ├── medicamentos/         # + pagina de detalhe [id]
+    │   │   │   ├── profissionais/
+    │   │   │   └── vacinas/
+    │   │   │
+    │   │   ├── checkin/page.tsx + CheckinForm.tsx
     │   │   ├── acordos/page.tsx
-    │   │   ├── eventos/page.tsx
+    │   │   ├── eventos/page.tsx          # Redirect → /calendario
     │   │   ├── escola/page.tsx
+    │   │   ├── familia/page.tsx
     │   │   ├── temas-sensiveis/page.tsx
     │   │   └── convite/enviar/page.tsx
     │   │
     │   └── api/
-    │       └── calendar/
-    │           └── [token]/route.ts  # Feed iCalendar (RFC 5545)
+    │       ├── calendar/[token]/route.ts # Feed iCalendar (RFC 5545)
+    │       ├── chat/                     # Chat API
+    │       └── cron/activity-reminders/  # Cron: push 24h antes
     │
     ├── actions/                      # === SERVER ACTIONS ===
     │   ├── auth.ts                   # signUp, signIn, signOut, resetPassword
-    │   ├── calendar.ts               # createCustodyEvent, createSwapRequest, respondToSwapRequest, generateSchedule, getOrCreateCalendarToken
+    │   ├── calendar.ts               # createCustodyEvent, createSwapRequest, respondToSwapRequest, generateSchedule
+    │   ├── chat-channels.ts          # createChatChannel
     │   ├── checkin.ts                # createCheckin (+ envia msg no chat)
+    │   ├── children.ts               # upsertChildEducation
+    │   ├── decisions.ts              # createDecision, voteDecision
     │   ├── expenses.ts               # createExpense, updateExpenseStatus
+    │   ├── events.ts                 # createEvent, updateEvent, deleteEvent, cancelEvent
     │   ├── group.ts                  # createGroup, joinGroup
+    │   ├── group-switch.ts           # switchActiveGroup
+    │   ├── health.ts                 # createHealthLog, createAppointment, createMedication, etc.
     │   ├── invitation.ts             # sendInvitation, acceptInvitation
-    │   ├── health.ts                 # createHealthLog
-    │   ├── documents.ts              # uploadDocument
+    │   ├── notes.ts                  # createNote, updateNote, deleteNote
+    │   ├── profile.ts                # updateProfile
+    │   ├── activities.ts             # createActivity, deleteActivity, toggleChecklistItem, sendActivityReminders
     │   ├── agreements.ts             # createAgreement
-    │   ├── events.ts                 # createEvent
+    │   ├── documents.ts              # uploadDocument
     │   ├── school.ts                 # createSchoolNote
-    │   └── sensitive.ts              # createSensitiveTopic
+    │   ├── sensitive.ts              # createSensitiveTopic
+    │   └── settlements.ts            # createSettlement, confirmSettlement
     │
     ├── lib/
-    │   ├── constants.ts              # COLORS, EXPENSE_CATEGORIES, CHECKIN_CATEGORIES, PARENT_COLORS, DAY_NAMES, MONTH_NAMES, CUSTODY_TYPE_LABELS, USER_ROLES
-    │   ├── calendar-utils.ts         # getDaysInMonth, getMonthGrid, buildCustodyMap, formatDateKey
+    │   ├── constants.ts              # COLORS, EXPENSE_CATEGORIES, CHECKIN_CATEGORIES, ACTIVITY_CATEGORIES, DEFAULT_CHECKLIST_ITEMS, PARENT_COLORS
+    │   ├── calendar-utils.ts         # getDaysInMonth, getMonthGrid, buildCustodyMap, computeSwapBalance, getBrazilToday, getBrazilNow
+    │   ├── recurrence-utils.ts       # getOccurrences, occursOnDate, getNextOccurrence, RECURRENCE_OPTIONS
+    │   ├── push.ts                   # createNotificationWithPush (web-push VAPID)
+    │   ├── auth-utils.ts             # verifyGroupMembership
+    │   ├── brazilian-holidays.ts     # Feriados nacionais (fixos + moveis)
     │   ├── ical.ts                   # generateICalFeed (RFC 5545)
+    │   ├── tone-moderator.ts         # Analise de tom para chat
+    │   ├── chat-notify.ts            # postChatNotification()
+    │   ├── group-utils.ts            # getActiveGroup()
+    │   ├── health-constants.ts       # Constantes de saude
+    │   ├── sbp-vaccine-calendar.ts   # Calendario vacinal SBP
+    │   ├── who-growth-data.ts        # Dados crescimento WHO
     │   └── supabase/
     │       ├── client.ts             # createBrowserClient (para Client Components)
     │       ├── server.ts             # createServerClient (para Server Components/Actions)
     │       └── middleware.ts          # updateSession (refresh de cookies)
     │
-    └── components/                   # (diretorio vazio, componentes ficam co-localizados com as pages)
-        ├── auth/
-        └── ui/
+    └── components/                   # Componentes globais
+        ├── BottomNav.tsx             # Navegacao inferior mobile (com aria-labels)
+        ├── Sidebar.tsx               # Sidebar desktop (com aria-labels, role="navigation")
+        ├── ResponsiveShell.tsx       # Shell responsivo (sidebar desktop / bottom nav mobile)
+        ├── GroupSelector.tsx          # Seletor de grupo ativo (multi-grupo)
+        └── LanguageSelector.tsx       # Seletor de idioma (5 opcoes)
 ```
 
 ---
@@ -423,29 +593,34 @@ Browser
 
 ### Rotas Protegidas (requerem login)
 
-| Rota | Descricao | Componentes |
-|------|-----------|-------------|
-| `/dashboard` | Pagina inicial | - |
-| `/onboarding` | Primeiro acesso | - |
-| `/calendario` | Calendario visual | CalendarClient, CalendarGrid, WeekendPlanner, SwapRequestList, SwapRequestModal, CalendarExportButton |
-| `/calendario/novo` | Novo evento | NewEventForm |
+| Rota | Descricao | Componentes Principais |
+|------|-----------|----------------------|
+| `/dashboard` | Pagina inicial | DashboardClient |
+| `/onboarding` | Primeiro acesso | — |
+| `/calendario` | Agenda unificada | CalendarClient, CalendarGrid, DayDetailSheet, SwapRequestList, SwapBalanceCard |
+| `/calendario/novo` | Novo compromisso (unificado) | NewCompromissoForm |
 | `/calendario/escala` | Builder de escala | ScheduleBuilder |
 | `/financeiro` | Dashboard financeiro | FinancialDashboard |
-| `/despesas` | Lista de despesas | - |
-| `/despesas/nova` | Nova despesa | - |
-| `/chat` | Chat do grupo | ChatRoom |
+| `/despesas` | Lista de despesas | DeleteExpenseButton, ReceiptViewer |
+| `/despesas/nova` | Nova despesa | ExpenseFormClient |
+| `/chat` | Chat do grupo | ChatRoom, ChannelTabs |
 | `/checkin` | Check-in diario | CheckinForm |
-| `/criancas` | Lista de criancas | - |
-| `/criancas/nova` | Adicionar crianca | - |
-| `/criancas/[id]` | Detalhe da crianca | - |
-| `/saude` | Registros de saude | - |
-| `/documentos` | Documentos | - |
-| `/acordos` | Acordos | - |
-| `/eventos` | Eventos gerais | - |
-| `/escola` | Escola | - |
-| `/temas-sensiveis` | Temas sensiveis | - |
-| `/convite/enviar` | Enviar convite | - |
-| `/mais` | Todas as funcionalidades | - |
+| `/criancas` | Lista de criancas | — |
+| `/criancas/nova` | Adicionar crianca | — |
+| `/criancas/[id]` | Perfil com 4 abas (Geral/Saude/Docs/Educacao) | — |
+| `/saude` | Hub de saude (7 sub-modulos) | SaudeClient, HealthViewTracker, ViewedByBadge |
+| `/documentos` | Dashboard de documentos | DocumentList, DocumentViewer |
+| `/notas` | Notas privadas | — |
+| `/decisoes` | Decisoes em grupo | — |
+| `/acordos` | Acordos | — |
+| `/eventos` | Redirect → /calendario | — |
+| `/atividades` | Redirect → /calendario | — |
+| `/escola` | Escola | — |
+| `/temas-sensiveis` | Temas sensiveis | — |
+| `/perfil` | Perfil do usuario | EditProfileForm, LanguageSelector |
+| `/convite/enviar` | Enviar convite | — |
+| `/familia` | Membros do grupo | — |
+| `/mais` | Todas as funcionalidades | — |
 
 ---
 
@@ -466,24 +641,32 @@ export async function minhaAction(formData: FormData) {
   // 1. Criar client Supabase (server-side, com cookies)
   const supabase = await createClient();
 
-  // 2. Verificar autenticacao
+  // 2. Verificar autenticacao com getUser() (NUNCA getSession!)
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   // 3. Extrair dados do FormData
   const campo = formData.get("campo") as string;
 
-  // 4. Executar operacao no banco
+  // 4. Validar input (ex: Number.isFinite para numeros)
+  const valor = Number(formData.get("valor"));
+  if (!Number.isFinite(valor) || valor <= 0) {
+    return { error: "Valor invalido" };
+  }
+
+  // 5. Executar operacao no banco
   const { error } = await supabase.from("tabela").insert({ campo });
 
-  // 5. Tratar erro
+  // 6. Tratar erro
   if (error) return { error: error.message };
 
-  // 6. Revalidar cache e redirecionar
+  // 7. Revalidar cache e redirecionar
   revalidatePath("/rota");
   return { success: true };
 }
 ```
+
+> **IMPORTANTE:** Sempre use `getUser()` em vez de `getSession()`. O `getUser()` valida o JWT no servidor, enquanto `getSession()` apenas le o cookie (pode ser falsificado).
 
 ### Lista Completa de Actions
 
@@ -498,19 +681,78 @@ export async function minhaAction(formData: FormData) {
 | `respondToSwapRequest` | calendar.ts | Aprova/rejeita troca (cria novos eventos se aprovada) |
 | `generateSchedule` | calendar.ts | Gera escala quinzenal em lote (ate 12 meses, batches de 100) |
 | `getOrCreateCalendarToken` | calendar.ts | Obtem/cria token para feed iCal |
-| `createExpense` | expenses.ts | Registra nova despesa |
-| `updateExpenseStatus` | expenses.ts | Aprova/rejeita despesa |
+| `createExpense` | expenses.ts | Registra nova despesa (WebP aceito, multi-select de criancas) |
+| `updateExpenseStatus` | expenses.ts | Aprova/rejeita despesa (bloqueia auto-aprovacao, impede regressao de status) |
+| `deleteExpense` | expenses.ts | Exclui despesa com confirmacao |
 | `createCheckin` | checkin.ts | Cria check-in + envia mensagem automatica no chat |
 | `createGroup` | group.ts | Cria grupo de coparentalidade |
 | `joinGroup` | group.ts | Entrar em grupo existente |
+| `switchActiveGroup` | group-switch.ts | Troca o grupo ativo do usuario |
 | `sendInvitation` | invitation.ts | Envia convite por email |
 | `acceptInvitation` | invitation.ts | Aceita convite via token |
+| `updateProfile` | profile.ts | Atualiza perfil (nome, idioma, etc.) |
 | `createHealthLog` | health.ts | Registra log de saude |
+| `createProfessional` | health.ts | Cadastra profissional de saude |
+| `createAppointment` | health.ts | Agenda consulta + cria evento no calendario |
+| `updateAppointmentStatus` | health.ts | Atualiza status da consulta |
+| `completeAppointment` | health.ts | Conclui consulta com diagnostico |
+| `createMedication` | health.ts | Cria medicamento |
+| `logMedicationDose` | health.ts | Registra dose tomada (validacao server-side: intervalo minimo 30 min) |
+| `updateMedicationStatus` | health.ts | Atualiza status do medicamento |
+| `createIllnessEpisode` | health.ts | Registra episodio de doenca |
+| `updateIllnessEpisode` | health.ts | Atualiza episodio |
+| `addIllnessEvolution` | health.ts | Adiciona nota de evolucao |
+| `createAllergy` | health.ts | Registra alergia + push notification |
+| `updateAllergy` | health.ts | Edita alergia existente |
+| `deleteAllergy` | health.ts | Exclui alergia (service role) |
+| `upsertMedicalInfo` | health.ts | Atualiza info medica (tipo sanguineo, convenio) |
+| `createVaccinationRecord` | health.ts | Registra vacina + push notification |
+| `trackHealthView` | health.ts | Rastreia visualizacao de registro de saude |
+| `createGrowthRecord` | health.ts | Registra crescimento + push notification |
+| `upsertChildEducation` | children.ts | Cria/atualiza informacoes escolares da crianca |
 | `uploadDocument` | documents.ts | Upload de documento |
 | `createAgreement` | agreements.ts | Registra acordo |
-| `createEvent` | events.ts | Cria evento geral |
-| `createSchoolNote` | school.ts | Registra nota escolar |
-| `createSensitiveTopic` | sensitive.ts | Cria tema sensivel |
+| `createEvent` | events.ts | Cria evento social |
+| `updateEvent` | events.ts | Atualiza evento social |
+| `deleteEvent` | events.ts | Remove evento social |
+| `cancelEvent` | events.ts | Cancela evento social (soft delete) |
+| `createActivity` | activities.ts | Cria atividade com checklist + push notification |
+| `deleteActivity` | activities.ts | Remove atividade e checklist items |
+| `toggleChecklistItem` | activities.ts | Marca/desmarca item do checklist por ocorrencia |
+| `sendActivityReminders` | activities.ts | Envia push 24h antes (chamado via cron) |
+| `submitActivityReport` | activities.ts | Submete relatorio de atividade |
+| `getPendingReports` | activities.ts | Busca relatorios pendentes |
+| `getReportsForDate` | activities.ts | Relatorios por data |
+| `sendMissedReportReminders` | activities.ts | Lembrete de relatorios nao enviados |
+| `cancelActivityOccurrence` | activities.ts | Cancela ocorrencia unica |
+| `changeActivityResponsible` | activities.ts | Troca responsavel (ocorrencia) |
+| `editActivityAll` | activities.ts | Edita atividade completa |
+| `editActivityOccurrence` | activities.ts | Edita ocorrencia unica (overrides JSONB) |
+| `changeActivityResponsibleAll` | activities.ts | Troca responsavel (todas) |
+| `createSettlement` | settlements.ts | Cria acerto financeiro (validacao server-side de saldo) |
+| `confirmSettlement` | settlements.ts | Confirma recebimento de acerto |
+| `createNote` | notes.ts | Cria nota privada |
+| `updateNote` | notes.ts | Atualiza nota privada |
+| `deleteNote` | notes.ts | Remove nota privada |
+| `createDecision` | decisions.ts | Cria decisao em grupo |
+| `voteDecision` | decisions.ts | Vota em decisao |
+| `acceptAgreement` | agreements.ts | Aceita acordo |
+| `ensureDefaultChannels` | chat-channels.ts | Garante canais padrao |
+| `markChannelRead` | chat-channels.ts | Marca canal como lido |
+| `createSchoolLog` | school.ts | Registra nota escolar |
+| `createSensitiveNote` | sensitive.ts | Cria tema sensivel |
+| `requestDeletion` | sensitive-topics.ts | Solicita delecao (dual-approval) |
+| `approveDeletion` | sensitive-topics.ts | Aprova delecao |
+| `cancelDeletion` | sensitive-topics.ts | Cancela solicitacao de delecao |
+| `markNotificationRead` | notifications.ts | Marca notificacao como lida |
+| `markAllNotificationsRead` | notifications.ts | Marca todas como lidas |
+| `changeMemberRole` | members.ts | Altera role de membro |
+| `removeMember` | members.ts | Remove membro do grupo |
+| `leaveGroup` | members.ts | Sair do grupo |
+| `cancelInvitation` | members.ts | Cancela convite |
+| `deleteInvitation` | members.ts | Deleta convite |
+| `switchActiveGroup` | group-switch.ts | Troca grupo ativo |
+| `uploadChildDocument` | children.ts | Upload documento por crianca |
 
 ---
 
@@ -526,6 +768,21 @@ export async function minhaAction(formData: FormData) {
 5. updateSession() verifica/renova o token via cookies
 6. Se token invalido → redirect para /login
 7. Se token valido + rota de auth → redirect para /dashboard
+```
+
+### Migracao getSession() → getUser()
+
+**TODAS as Server Actions e Server Components foram migrados de `getSession()` para `getUser()`** (38 arquivos).
+
+Razao: `getUser()` faz uma chamada ao servidor Supabase para validar o JWT, enquanto `getSession()` apenas le o token do cookie local sem validacao. Isso previne ataques onde um token expirado ou falsificado e aceito.
+
+```typescript
+// ANTES (inseguro):
+const { data: { session } } = await supabase.auth.getSession();
+const user = session?.user;
+
+// DEPOIS (seguro):
+const { data: { user } } = await supabase.auth.getUser();
 ```
 
 ### Middleware (`src/middleware.ts`)
@@ -583,29 +840,42 @@ const supabase = createClient(); // sync!
 | `health_log_type` | fever, medication, mood, screen_time, food, sleep, weight, height, vaccine, other | Tipo de log de saude |
 | `document_category` | personal, health, education, legal, other | Categoria de documento |
 | `swap_status` | pending, approved, rejected, cancelled | Status de troca |
-| `notification_type` | expense_new, expense_approved, expense_rejected, swap_request, swap_response, chat_message, document_uploaded, custody_change, invitation, system | Tipo de notificacao |
+| `notification_type` | expense_new, expense_approved, expense_rejected, swap_request, swap_response, chat_message, document_uploaded, custody_change, invitation, system, activity, activity_reminder | Tipo de notificacao |
 | `invitation_status` | pending, accepted, expired, revoked | Status de convite |
 
 > **CUIDADO:** Ao criar eventos de guarda via `generateSchedule`, SEMPRE use `custody_type: "regular"`. O valor `"schedule"` NAO existe no enum e causara erro.
 
-### Tabelas (14 total)
+### Tabelas (35+ total)
 
-| # | Tabela | Chave Primaria | Principal FK | Descricao |
-|---|--------|---------------|-------------|-----------|
-| 1 | `profiles` | `id` (= auth.users.id) | auth.users | Perfil do usuario |
-| 2 | `coparenting_groups` | `id` (UUID) | profiles.id | Grupo familiar |
-| 3 | `group_members` | `id` (UUID) | groups + profiles | Vinculo usuario-grupo |
-| 4 | `children` | `id` (UUID) | groups | Criancas do grupo |
-| 5 | `custody_events` | `id` (UUID) | groups + children + profiles | Eventos de guarda |
-| 6 | `expenses` | `id` (UUID) | groups + children + profiles | Despesas compartilhadas |
-| 7 | `chat_messages` | `id` (UUID) | groups + profiles | Chat (IMUTAVEL) |
-| 8 | `health_logs` | `id` (UUID) | groups + children + profiles | Logs de saude |
-| 9 | `documents` | `id` (UUID) | groups + children + profiles | Documentos |
-| 10 | `swap_requests` | `id` (UUID) | groups + profiles | Trocas de dia |
-| 11 | `daily_checkins` | `id` (UUID) | groups + children + profiles | Check-ins diarios |
-| 12 | `calendar_tokens` | `id` (UUID) | auth.users + groups | Tokens iCal |
-| 13 | `notifications` | `id` (UUID) | profiles | Notificacoes |
-| 14 | `invitations` | `id` (UUID) | groups + profiles | Convites |
+| # | Tabela | Chave Primaria | Descricao |
+|---|--------|---------------|-----------|
+| 1 | `profiles` | `id` (= auth.users.id) | Perfil do usuario (com campo `locale` para idioma) |
+| 2 | `coparenting_groups` | `id` (UUID) | Grupo familiar |
+| 3 | `group_members` | `id` (UUID) | Vinculo usuario-grupo |
+| 4 | `children` | `id` (UUID) | Criancas do grupo (**com cpf, rg**) |
+| 5 | `custody_events` | `id` (UUID) | Eventos de guarda |
+| 6 | `expenses` | `id` (UUID) | Despesas compartilhadas |
+| 7 | `chat_messages` | `id` (UUID) | Chat (IMUTAVEL, com channel_id) |
+| 8 | `health_logs` | `id` (UUID) | Logs de saude |
+| 9 | `documents` | `id` (UUID) | Documentos |
+| 10 | `swap_requests` | `id` (UUID) | Trocas de dia |
+| 11 | `daily_checkins` | `id` (UUID) | Check-ins diarios |
+| 12 | `calendar_tokens` | `id` (UUID) | Tokens iCal |
+| 13 | `notifications` | `id` (UUID) | Notificacoes |
+| 14 | `invitations` | `id` (UUID) | Convites |
+| 15 | `child_activities` | `id` (UUID) | Atividades recorrentes |
+| 16 | `activity_checklist_items` | `id` (UUID) | Itens do checklist |
+| 17 | `checklist_completions` | `id` (UUID) | Completions por ocorrencia |
+| 18 | `settlements` | `id` (UUID) | Acertos financeiros |
+| 19 | `child_education` | `id` (UUID) | Informacoes escolares (1:1 com children) |
+| 20 | `private_notes` | `id` (UUID) | Notas privadas do usuario |
+| 21 | `decisions` | `id` (UUID) | Decisoes em grupo |
+| 22 | `chat_channels` | `id` (UUID) | Canais tematicos de chat |
+| 23 | `health_views` | `id` (UUID) | Rastreamento de visualizacoes de saude |
+| 24 | `activity_reports` | `id` (UUID) | Relatorios de atividades (status, humor, overrides JSONB) |
+| 25 | `events` | `id` (UUID) | Eventos sociais (com assigned_to, end_date, all_day) |
+| 26 | `sensitive_notes` | `id` (UUID) | Temas sensiveis (com delecao dual-approval) |
+| 27+ | `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals` | `id` (UUID) | Tabelas de saude, financeiro, etc. |
 
 ### Triggers Importantes
 
@@ -634,6 +904,7 @@ idx_invitations_email             → invitations(email)
 idx_daily_checkins_group_date     → daily_checkins(group_id, checkin_date DESC)
 idx_daily_checkins_child          → daily_checkins(child_id, checkin_date DESC)
 idx_calendar_tokens_token         → calendar_tokens(token)
+# + indexes de saude adicionados em 00017_health_indexes.sql
 ```
 
 ---
@@ -670,10 +941,76 @@ is_group_admin(group_id UUID) → BOOLEAN
 | `calendar_tokens` | Apenas proprio | Apenas proprio | - | Apenas proprio |
 | `notifications` | Apenas proprio | - | Apenas proprio | - |
 | `invitations` | Inviter ou invitee | Admin do grupo | Apenas invitee | - |
+| `private_notes` | Apenas proprio | Apenas proprio | Apenas proprio | Apenas proprio |
+| `child_education` | Membro do grupo | Membro do grupo | Membro do grupo | - |
 
 ---
 
-## 12. Design System
+## 12. Internacionalizacao (i18n)
+
+### Visao Geral
+
+O app suporta **5 idiomas** com **~1405 chaves** de traducao cada, organizadas em **38 secoes** tematicas.
+
+| Idioma | Arquivo | Codigo |
+|--------|---------|--------|
+| Portugues (BR) | `src/i18n/locales/pt.json` | `pt` |
+| Ingles | `src/i18n/locales/en.json` | `en` |
+| Espanhol | `src/i18n/locales/es.json` | `es` |
+| Frances | `src/i18n/locales/fr.json` | `fr` |
+| Alemao | `src/i18n/locales/de.json` | `de` |
+
+### Arquitetura
+
+1. **I18nProvider** envolve o layout do app em `src/app/(app)/layout.tsx`
+2. **useI18n() hook** disponivel em todos os Client Components
+3. **LanguageSelector** na pagina `/perfil` permite trocar idioma
+4. Preferencia salva no campo `locale` da tabela `profiles`
+
+### Como Adicionar uma Nova Traducao
+
+1. Adicione a chave em todos os 5 arquivos JSON:
+```json
+// pt.json
+{ "minha_secao": { "minha_chave": "Texto em portugues" } }
+
+// en.json
+{ "minha_secao": { "minha_chave": "Text in English" } }
+```
+
+2. Use no componente:
+```typescript
+const { t } = useI18n();
+return <span>{t("minha_secao.minha_chave")}</span>;
+```
+
+### Secoes de Traducao (38 total)
+
+As 38 secoes cobrem: common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, children, documents, agreements, events, activities, sensitive, school, profile, family, invitations, onboarding, more, notifications, settlements, swap, schedule, export, appointments, medications, illnesses, allergies, vaccines, growth, professionals, decisions, newForm, notes, ai, activityReport.
+
+### Padrao para Novos Componentes
+
+Todo novo componente client **DEVE** usar `useI18n()` em vez de strings hardcoded:
+
+```typescript
+"use client";
+import { useI18n } from "@/i18n";
+
+export default function MeuComponente({ dados }: Props) {
+  const { t } = useI18n();
+
+  return (
+    <div>
+      <h1>{t("secao.titulo")}</h1>
+      <p>{t("secao.descricao")}</p>
+    </div>
+  );
+}
+```
+
+---
+
+## 13. Design System
 
 ### Paleta de Cores
 
@@ -720,47 +1057,275 @@ As cores ficam disponiveis como classes Tailwind: `bg-primary`, `text-secondary`
 
 ### Navegacao
 
-- **Header:** Logo "2Lares" (link para /dashboard), nome do usuario, botao "Sair"
-- **Bottom nav (mobile):** 5 itens — Inicio, Calendario, Chat, Financeiro, Mais
-- **Pagina /mais:** Grid 3x5 com todas as 14 funcionalidades
+- **Header:** Logo "Kindar" (link para /dashboard), nome do usuario, botao "Sair"
+- **Bottom nav (mobile):** 5 itens — Inicio, Agenda, Chat, Familia, Mais (com `aria-labels` e `aria-current="page"`)
+- **Sidebar (desktop):** Secoes: Inicio | Organizacao (Agenda, Check-in) | Comunicacao (Chat, Acordos, Temas Sensiveis) | Familia (Criancas, Familia, Saude, Escola) | Financeiro (Resumo, Despesas, Documentos) | Conta (Convidar) — com `role="navigation"`
+- **Pagina /mais:** Grid com todas as funcionalidades (Eventos e Atividades unificados como "Agenda")
 
 ---
 
-## 13. Funcionalidades Implementadas
+## 14. Padrao Server/Client Split
 
-### Calendario Visual
-- Grade mensal 7 colunas com dias coloridos por responsavel
+### Motivacao
+
+Para suportar i18n com `useI18n()` (que requer contexto React), todos os componentes que exibem texto traduzido precisam ser Client Components. Ao mesmo tempo, a busca de dados deve acontecer no servidor para seguranca e performance.
+
+### Padrao
+
+1. **`page.tsx` (Server Component)**:
+   - Verifica autenticacao com `getUser()`
+   - Busca dados via Supabase Server Client
+   - Passa dados serializados como props para o Client Component
+
+2. **`*Client.tsx` (Client Component)**:
+   - Recebe dados via props (ja buscados no servidor)
+   - Usa `useI18n()` para traduzir strings
+   - Gerencia estado local e interatividade
+   - Chama Server Actions para mutacoes
+
+### Exemplo
+
+```typescript
+// page.tsx (Server Component)
+import { createClient } from "@/lib/supabase/server";
+import { redirect } from "next/navigation";
+import DashboardClient from "./DashboardClient";
+
+export default async function DashboardPage() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const { data: criancas } = await supabase
+    .from("children")
+    .select("*")
+    .eq("group_id", groupId);
+
+  return <DashboardClient criancas={criancas ?? []} user={user} />;
+}
+```
+
+```typescript
+// DashboardClient.tsx (Client Component)
+"use client";
+import { useI18n } from "@/i18n";
+
+interface Props {
+  criancas: Crianca[];
+  user: User;
+}
+
+export default function DashboardClient({ criancas, user }: Props) {
+  const { t } = useI18n();
+
+  return (
+    <div>
+      <h1>{t("dashboard.welcome")}, {user.user_metadata?.full_name}</h1>
+      {criancas.map(c => <div key={c.id}>{c.full_name}</div>)}
+    </div>
+  );
+}
+```
+
+### 35+ Componentes que Seguem este Padrao
+
+Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboard`, `CalendarClient`, `ChatRoom`, `CheckinForm`, `ExpenseFormClient`, `ScheduleBuilder`, `SwapRequestList`, `SwapBalanceCard`, etc.
+
+---
+
+## 15. Funcionalidades Implementadas
+
+### Agenda Unificada (Calendario + Atividades + Eventos)
+- Grade mensal 7 colunas com dias coloridos por responsavel + dots de atividades
 - Navegacao entre meses, destaque do dia atual
+- **Day Detail Sheet**: ao clicar num dia, mostra guarda + atividades + eventos
 - Planejador de fins de semana (scroll horizontal, badges Livre/Parcial)
 - Troca de dias com fluxo de aprovacao
+- **Saldo de trocas (Swap Balance)**: `computeSwapBalance()` + `SwapBalanceCard`
 - Escala quinzenal com 4 presets e geracao em lote
 - Sincronizacao com celular via iCal (RFC 5545)
+- **Escala de guarda opcional**: botao "Limpar escala", dashboard adapta sem escala
+- **Formulario unificado** "Novo Compromisso" redesenhado com UX premium, 11 categorias, 93 chaves i18n
+- **Atividades recorrentes** com motor de 7 tipos de recorrencia
+- **Editar ocorrencia unica vs todas** (estilo Google Calendar) com overrides JSONB
+- **Checklist inteligente** com itens pre-preenchidos por categoria
+- **Push notifications** 24h antes via web-push (VAPID)
+- **Cron job** automatico para lembretes (`/api/cron/activity-reminders`)
+- Suporte a multiplos filhos por atividade (opcao "Todos")
+- Eventos sociais integrados no calendario
+- **Compartilhar atividade via WhatsApp**: `ShareActivityButton` + `share-utils.ts`. Web Share API com fallback `wa.me/?text=`
+- **Performance**: `Promise.all()`, `useMemo`, `useCallback`
 
 ### Dashboard Financeiro
 - Resumo mensal com gastos por responsavel
-- Calculo automatico de balanco 50/50
+- Calculo automatico de balanco Splitwise-style (somente despesas aprovadas)
+- Auto-aprovacao bloqueada, regressao de status impedida
+- Upload de comprovantes (JPG/PNG/HEIC/WebP/PDF), deteccao de PDF corrigida
+- Seletor de crianca multi-select com chips
+- Validacao server-side de acertos financeiros
+- Limite de query: 10000 para calculo preciso
 - Breakdown por categoria
 - Historico mensal com navegacao
+
+### Criancas — Perfil com 4 Abas
+- Lista de criancas com foto e idade
+- **Perfil redesenhado** com 4 abas: Geral, Saude, Documentos, Educacao
+- Novos campos: CPF, RG
+- Nova tabela: `child_education`
+- Server action: `upsertChildEducation`
+
+### Dashboard de Documentos
+- Visao geral de documentos de todas as criancas
+- Barra de completude por crianca (0-100%)
+- Indicadores de documentos faltantes
+
+### Chat com IA Mediadora
+- Canais tematicos (`ChannelTabs`) com inicial da crianca (nao emoji generico)
+- Troca de canal client-side com cache LRU (sem reload)
+- API Route `/api/chat/messages` para busca por canal
+- Atualizacao otimista (fix de duplicacao)
+- Read receipts com `Promise.allSettled`
+- Fix de memory leak
+- Deteccao de teclado — bottom nav se esconde
+- Exportacao com filtro por canal
 
 ### Check-in Diario
 - 8 categorias com icones e templates rapidos
 - Timeline de check-ins recentes
 - Integracao automatica com o chat do grupo
 
-### Chat
-- Mensagens legalmente imutaveis (triggers no banco impedem delete/edit)
-- Suporte a respostas e pins
+### Notas Privadas, Decisoes, Acordos, Temas Sensiveis
+- Modulos completos com CRUD
+
+### Saude (8 sub-modulos)
+- Push notifications para TODOS os eventos de saude (alergias, vacinas, consultas, crescimento)
+- Validacao server-side de intervalo entre doses (< 30 min rejeitado)
+- ConfirmDoseButton na lista de medicamentos
+- i18n para CompleteAppointmentForm, ResolveButton, ViewedByBadge
+- Sanitizacao de input em todos os campos de texto (max length limits)
+- Banner de vacinas atrasadas no dashboard
+- `updateIllnessEpisode` rejeita status invalidos
+- Alergias editaveis e deletaveis com formulario inline (service role para query)
+- Fix de link /saude/alergias/editar-info e coluna notes inexistente
+
+### Atividades e Calendario
+- Activity report modal reseta campos ao abrir nova atividade
+- Editar ocorrencia unica vs todas (estilo Google Calendar)
+- Overrides JSONB em activity_reports
+- Formulario redesenhado: UX premium, 93 novas chaves i18n
+- Escala de guarda opcional, dashboard adapta sem escala
 
 ### Demais
-- Gestao de criancas, saude, documentos, acordos, eventos, escola, temas sensiveis
+- Gestao de criancas, documentos, escola
 - Sistema de convites com token
 - Onboarding para primeiro acesso
+- Perfil com edicao e seletor de idioma
+- Multi-grupo com `GroupSelector`
+- Temas sensiveis com delecao dual-approval
+- Rebrand completo: Kindar (zero referencias a 2Lares)
+- Dominio: kindar.com.br
 
 ---
 
-## 14. Deploy no Vercel
+## 16. Seguranca
 
-### 14.1 Setup Inicial
+### Resumo: 65 Correcoes Aplicadas
+
+**13 fixes de autorizacao:**
+- Verificacao de permissao em events, expenses, calendar Server Actions
+- Validacao de input: `Number.isFinite` para valores numericos
+- `revalidatePath` em todas as actions
+
+**38 arquivos migrados de `getSession()` para `getUser()`:**
+- Todos os Server Actions
+- Todos os Server Components que buscam dados
+- `getUser()` valida JWT no servidor (seguro contra token falsificado)
+
+**Chat (14 fixes):**
+- Fix de atualizacao otimista (duplicacao)
+- Fix de memory leak no Realtime listener
+- Read receipts com `Promise.allSettled`
+- Exportacao com filtro por canal
+
+### Regras de Seguranca para Desenvolvedores
+
+1. **Sempre** use `getUser()`, nunca `getSession()`
+2. **Sempre** valide inputs numericos com `Number.isFinite`
+3. **Sempre** verifique se o usuario pertence ao grupo antes de operar
+4. **Sempre** chame `revalidatePath()` apos mutacoes
+5. **Nunca** exponha a `SUPABASE_SERVICE_ROLE_KEY` no client
+6. **Nunca** faca bypass de RLS no app (use apenas em scripts de seed)
+7. **Nunca** permita auto-aprovacao de despesas (independente de role)
+8. **Nunca** permita regressao de status (approved/rejected nao voltam para pending)
+9. **Sempre** valide valores de acertos financeiros contra saldo real server-side
+10. **Sempre** valide intervalos minimos entre doses de medicamento (30 min)
+11. **Sempre** sanitize inputs de texto com max length limits
+12. **Sempre** valide enums/status server-side antes de gravar no banco
+
+---
+
+## 17. Performance
+
+### Otimizacoes Aplicadas (20+ total)
+
+**Calendario:**
+- `Promise.all()` para 5 queries paralelas (custody_events, children, activities, events, swap_requests)
+- `useMemo` no grid mensal (evita recalculo a cada render)
+- `useCallback` nos handlers de click e navegacao
+- Fix de timezone: `getBrazilNow()` para horario correto no fuso BRT
+- Calendar API otimizada (3.1s em vez de timeout)
+
+**Dashboard:**
+- 5 queries de `custody_events` consolidadas em 1 unica query
+- Todas as queries executam em paralelo com `Promise.all()`
+- `useMemo` em DashboardClient e FinancialDashboard
+
+**Chat:**
+- Cache LRU em memoria (ate 5 canais) para troca instantanea
+- `React.memo` em MessageBubble
+
+**Geral:**
+- Dynamic imports para 6 componentes pesados (AIAssistant, GrowthChart, etc.)
+- i18n lazy loading (apenas locale padrao carregado, demais sob demanda)
+- Landing page otimizada (cookie check antes de `getUser()`)
+- PostHog: 30+ eventos rastreados
+- Sentry: error tracking em producao
+- Performance indexes no banco (migration 00025)
+- Limite de query de despesas: 10000 para calculo preciso de saldo
+
+### Regras de Performance para Desenvolvedores
+
+1. **Sempre** use `Promise.all()` para queries independentes
+2. **Use** `useMemo` para calculos caros em componentes que re-renderizam frequentemente
+3. **Use** `useCallback` para handlers passados como props
+4. **Use** `React.memo` para componentes que recebem mesmas props frequentemente
+5. **Use** dynamic imports para componentes pesados que nao sao vistos na primeira tela
+6. **Evite** FK joins no PostgREST — faca queries separadas
+7. **Consolide** queries repetidas em uma unica query
+
+---
+
+## 18. Acessibilidade
+
+### Implementacoes
+
+- `aria-labels` em todos os links de navegacao (`BottomNav.tsx`, `Sidebar.tsx`)
+- `aria-current="page"` para item ativo na navegacao
+- `role="navigation"` no sidebar e bottom nav
+- Contraste de cores adequado no design system
+
+### Regras para Desenvolvedores
+
+1. **Sempre** adicione `aria-label` em links com icones sem texto visivel
+2. **Sempre** marque o item ativo de navegacao com `aria-current="page"`
+3. **Use** `role` semantico em containers de navegacao
+4. **Mantenha** contraste minimo de 4.5:1 para texto
+
+---
+
+## 19. Deploy no Vercel
+
+### 19.1 Setup Inicial
 
 1. Acesse https://vercel.com e conecte sua conta GitHub
 2. Clique em **"Add New > Project"**
@@ -769,7 +1334,7 @@ As cores ficam disponiveis como classes Tailwind: `bg-primary`, `text-secondary`
 5. **Root Directory:** `.` (raiz)
 6. Nao altere Build & Output Settings
 
-### 14.2 Variaveis de Ambiente no Vercel
+### 19.2 Variaveis de Ambiente no Vercel
 
 **OBRIGATORIO** — sem isso o app da erro 500 (`MIDDLEWARE_INVOCATION_FAILED`).
 
@@ -787,37 +1352,40 @@ As cores ficam disponiveis como classes Tailwind: `bg-primary`, `text-secondary`
 
 3. Apos adicionar, faca um **Redeploy** (Deployments > ... > Redeploy)
 
-### 14.3 Dominio
+### 19.3 Dominio
 
 - **Dominio padrao:** `nome-do-projeto.vercel.app`
 - Para mudar: **Settings > Domains > Edit**
-- O dominio atual e `2lares.vercel.app`
-- Dominios antigos (ex: `copais.vercel.app`) podem ser redirecionados via 307
+- O dominio atual e `kindar.com.br`
+- Dominios antigos (ex: `copais.vercel.app`, `kindar.vercel.app`) podem ser redirecionados via 307
 
-### 14.4 Auto-Deploy
+### 19.4 Auto-Deploy
 
 Qualquer push para a branch `main` dispara automaticamente um novo deploy. O build leva ~30-40 segundos.
 
-### 14.5 Checklist de Verificacao Pos-Deploy
+### 19.5 Checklist de Verificacao Pos-Deploy
 
 - [ ] Acessar a URL e ver a tela de login
-- [ ] Login com bruno@2lares.test → ver dashboard "Ola, Bruno!"
-- [ ] Login com martina@2lares.test → ver dashboard "Ola, Martina!"
+- [ ] Login com bruno@kindar.test → ver dashboard "Ola, Bruno!" (ou traduzido no idioma selecionado)
+- [ ] Login com martina@kindar.test → ver dashboard "Ola, Martina!"
 - [ ] Navegar para /calendario → grid mensal aparece
 - [ ] Navegar para /financeiro → dashboard com valores
 - [ ] Verificar label "(voce)" segue o usuario logado
 - [ ] Verificar que /api/calendar/TOKEN retorna text/calendar
+- [ ] Trocar idioma no perfil → toda a UI muda
+- [ ] Verificar saldo de trocas no calendario
+- [ ] Acessar perfil de crianca → 4 abas funcionam
 
 ---
 
-## 15. Usuarios de Teste e Seed
+## 20. Usuarios de Teste e Seed
 
 ### Contas de Teste
 
 | Usuario | Email | Senha | Papel no Grupo |
 |---------|-------|-------|---------------|
-| Bruno Silva | bruno@2lares.test | 2Lares@2026 | admin (1o membro = teal) |
-| Martina Oliveira | martina@2lares.test | 2Lares@2026 | member (2o membro = coral) |
+| Bruno Silva | bruno@kindar.test | Kindar@2026 | admin (1o membro = teal) |
+| Martina Oliveira | martina@kindar.test | Kindar@2026 | member (2o membro = coral) |
 
 **Grupo:** Familia Kleber
 **Crianca:** Kleber Silva Oliveira (nascimento: 15/06/2020)
@@ -833,28 +1401,32 @@ O script e idempotente — se os usuarios ja existem, ele atualiza a senha e reu
 
 ---
 
-## 16. Guia de Contribuicao
+## 21. Guia de Contribuicao
 
 ### Convencoes de Codigo
 
-1. **Componentes co-localizados:** Components ficam na mesma pasta da page que os usa (ex: `calendario/CalendarGrid.tsx`)
-2. **Server Components por padrao:** So use `"use client"` quando precisar de interatividade
+1. **Server/Client Split**: Page busca dados (Server), componente `*Client.tsx` renderiza (Client) com `useI18n()`
+2. **Componentes co-localizados:** Components ficam na mesma pasta da page que os usa
 3. **Server Actions para mutacoes:** Nunca faca `fetch()` para API Routes — use Server Actions
 4. **Sem bibliotecas de UI:** Componentes feitos com Tailwind puro
 5. **Sem state management global:** Cada page busca seus proprios dados
-6. **Portugues na UI, ingles no codigo:** Labels em PT-BR, variaveis/funcoes em ingles
+6. **i18n obrigatorio:** Toda string de UI deve usar `useI18n()`, nunca hardcode
+7. **getUser() obrigatorio:** Nunca use `getSession()` para auth
+8. **Sem FK Joins:** Faca queries separadas e junte em JS
+9. **Acessibilidade:** aria-labels em navegacao, aria-current no item ativo
 
 ### Padrao de Nova Feature
 
-1. Criar Server Action em `src/actions/nome.ts`
-2. Criar page em `src/app/(app)/rota/page.tsx` (Server Component)
-3. Se precisar de interatividade, criar Client Component na mesma pasta
-4. Adicionar rota no grid de `/mais` (page.tsx)
-5. Se for feature principal, adicionar no bottom nav
+1. Criar Server Action em `src/actions/nome.ts` (com `getUser()`)
+2. Criar page em `src/app/(app)/rota/page.tsx` (Server Component, busca dados)
+3. Criar Client Component `*Client.tsx` na mesma pasta (com `useI18n()`)
+4. Adicionar chaves de traducao nos 5 arquivos JSON em `src/i18n/locales/`
+5. Adicionar rota no grid de `/mais` (page.tsx)
+6. Se for feature principal, adicionar no bottom nav (com aria-label)
 
 ### Padrao de Nova Tabela no Banco
 
-1. Criar migration em `supabase/migrations/00004_nome.sql`
+1. Criar migration em `supabase/migrations/XXXXX_nome.sql`
 2. Incluir `ENABLE ROW LEVEL SECURITY` e policies
 3. Adicionar indexes para queries frequentes
 4. Documentar neste manual
@@ -865,11 +1437,14 @@ O script e idempotente — se os usuarios ja existem, ele atualiza a senha e reu
 # Formato
 feat: descricao curta em ingles
 fix: descricao do bug corrigido
+i18n: adicionar traducoes para nova feature
+perf: otimizar queries do modulo X
+a11y: adicionar aria-labels no componente Y
 ```
 
 ---
 
-## 17. Troubleshooting
+## 22. Troubleshooting
 
 ### Erro 500: MIDDLEWARE_INVOCATION_FAILED
 
@@ -902,9 +1477,21 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 
 **Isso e intencional.** Triggers no banco impedem DELETE e UPDATE no texto de `chat_messages` para conformidade legal.
 
+### Traducoes nao aparecem
+
+**Causa:** O componente nao esta usando `useI18n()` ou a chave de traducao nao existe nos 5 arquivos JSON.
+
+**Debug:** Verifique se o componente e Client Component (`"use client"`) e se a chave existe em todos os locales.
+
+### getSession() retornando usuario nulo
+
+**Causa:** `getSession()` foi depreciado. Use `getUser()` que valida o JWT no servidor.
+
+**Solucao:** Substituir `supabase.auth.getSession()` por `supabase.auth.getUser()`.
+
 ---
 
-## 18. Decisoes Arquiteturais
+## 23. Decisoes Arquiteturais
 
 ### Por que Next.js App Router e nao Pages Router?
 - Server Components reduzem JavaScript no client
@@ -934,6 +1521,26 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - Apps de calendario (iPhone/Google) nao suportam cookies/JWT
 - Token hex de 32 bytes na URL e o padrao da industria para feeds iCal
 - Cada token e unico por usuario+grupo
+
+### Por que Server/Client Split em todas as paginas?
+- `useI18n()` requer contexto React (Client Component)
+- Busca de dados deve ser server-side (seguranca + performance)
+- Padrao consistente facilita manutenibilidade
+
+### Por que getUser() e nao getSession()?
+- `getUser()` valida o JWT no servidor Supabase (seguro)
+- `getSession()` apenas le o cookie sem validacao (vulneravel a tokens falsificados)
+- Recomendacao oficial do Supabase para Server Actions
+
+### Por que remover FK Joins do PostgREST?
+- FK joins podem falhar silenciosamente com RLS
+- Queries separadas sao mais previsiveis e debugaveis
+- Joins manuais em JS dao mais controle
+
+### Por que i18n customizado e nao next-intl/i18next?
+- Zero dependencias externas (menor bundle)
+- Implementacao simples com Context + JSON
+- Controle total sobre fallbacks e interpolacao
 
 ---
 

@@ -8,7 +8,7 @@ export default function DashboardLoading() {
       </div>
 
       {/* Hero card skeleton */}
-      <div className="rounded-2xl bg-[#1A3B3A] p-5 h-[140px]" />
+      <div className="rounded-2xl bg-[#2C2C2C] p-5 h-[140px]" />
 
       {/* Week strip skeleton */}
       <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">

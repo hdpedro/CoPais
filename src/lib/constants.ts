@@ -1,15 +1,16 @@
 export const COLORS = {
-  primary: "#0EA5A0",
-  primaryLight: "#E6F7F7",
-  primaryDark: "#0B8A86",
-  secondary: "#FF6B5B",
-  accent: "#FFB627",
-  dark: "#1A3B3A",
-  light: "#F8FFFE",
+  primary: "#5B9E85",
+  primaryLight: "#EDF5F1",
+  primaryDark: "#4A8A72",
+  secondary: "#D4735A",
+  accent: "#E8A228",
+  dark: "#2C2C2C",
+  light: "#EEECEA",
   success: "#4CAF50",
-  warning: "#FFA500",
+  warning: "#E8A228",
   error: "#E53935",
-  muted: "#7A8C8B",
+  muted: "#8A8A8A",
+  violet: "#7C6FAE",
 } as const;
 
 export const EXPENSE_CATEGORIES = [
@@ -32,8 +33,8 @@ export const USER_ROLES = [
 ] as const;
 
 export const PARENT_COLORS = {
-  primary: "#0EA5A0",
-  secondary: "#FF6B5B",
+  primary: "#5B9E85",   // Lar A (criador) = Sage
+  secondary: "#D4735A", // Lar B (convidado) = Terracota
 } as const;
 
 export const DAY_NAMES = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sab"] as const;
@@ -68,3 +69,61 @@ export const SETTLEMENT_METHODS = [
   { value: "transfer", label: "Transferencia", icon: "🏦" },
   { value: "other", label: "Outro", icon: "📝" },
 ] as const;
+
+export const ACTIVITY_CATEGORIES = [
+  { value: "sport", label: "Esporte", icon: "⚽" },
+  { value: "health", label: "Saude", icon: "🏥" },
+  { value: "school", label: "Escola", icon: "🎒" },
+  { value: "art", label: "Arte", icon: "🎨" },
+  { value: "music", label: "Musica", icon: "🎵" },
+  { value: "therapy", label: "Terapia", icon: "🧠" },
+  { value: "course", label: "Curso", icon: "📚" },
+  { value: "evento", label: "Evento", icon: "🎉" },
+  { value: "guarda", label: "Guarda", icon: "🔄" },
+  { value: "other", label: "Outro", icon: "📋" },
+] as const;
+
+export const NOTE_CATEGORIES = [
+  { value: "lembrete", label: "Lembrete", icon: "📌" },
+  { value: "observacao", label: "Observacao", icon: "👁️" },
+  { value: "preparacao", label: "Preparacao", icon: "📋" },
+  { value: "juridico", label: "Juridico", icon: "⚖️" },
+  { value: "outro", label: "Outro", icon: "📝" },
+] as const;
+
+export const DECISION_CATEGORIES = [
+  { value: "escola", label: "Escola", icon: "🎒" },
+  { value: "saude", label: "Saude", icon: "🏥" },
+  { value: "atividade", label: "Atividade", icon: "⚽" },
+  { value: "viagem", label: "Viagem", icon: "✈️" },
+  { value: "financeiro", label: "Financeiro", icon: "💰" },
+  { value: "moradia", label: "Moradia", icon: "🏠" },
+  { value: "outro", label: "Outro", icon: "📋" },
+] as const;
+
+export const DEFAULT_CHECKLIST_ITEMS: Record<string, string[]> = {
+  sport: ["Uniforme", "Tenis/Chuteira", "Meia", "Garrafinha de agua", "Toalha", "Protetor solar"],
+  health: ["Carteirinha do plano", "Documentos", "Exames anteriores"],
+  school: ["Mochila", "Material escolar", "Lanche", "Garrafinha de agua"],
+  art: ["Materiais de arte", "Avental", "Toalha"],
+  music: ["Instrumento", "Partituras", "Caderno de musica"],
+  therapy: ["Caderno de anotacoes"],
+  other: [],
+};
+
+/**
+ * Returns a display-friendly name from full_name.
+ * If full_name looks like an email, extracts the part before '@' and capitalizes it.
+ * Returns first name only when firstOnly is true.
+ */
+export function getDisplayName(fullName: string | null | undefined, firstOnly = false): string {
+  if (!fullName) return "Usuario";
+  let name = fullName;
+  // If looks like email, extract before @
+  if (name.includes("@")) {
+    name = name.split("@")[0]
+      .replace(/[._-]/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+  return firstOnly ? name.split(" ")[0] : name;
+}

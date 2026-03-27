@@ -1,6 +1,7 @@
 "use client";
 
 import type { ParentColorMap } from "@/lib/calendar-utils";
+import { useI18n } from "@/i18n/provider";
 
 interface SwapBalanceCardProps {
   balanceByUser: Record<string, number>;
@@ -13,6 +14,7 @@ export default function SwapBalanceCard({
   totalSwapDays,
   parentColors,
 }: SwapBalanceCardProps) {
+  const { t } = useI18n();
   if (totalSwapDays === 0) return null;
 
   const entries = Object.entries(balanceByUser)
@@ -27,14 +29,14 @@ export default function SwapBalanceCard({
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
-      <h3 className="text-base font-semibold text-dark mb-3">Saldo de Trocas</h3>
+      <h3 className="text-base font-semibold text-dark mb-3">{t("calendar.swapBalance")}</h3>
 
       {isBalanced ? (
         <div className="flex items-center gap-2 text-green-600">
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
           </svg>
-          <span className="text-sm font-medium">Equilibrado</span>
+          <span className="text-sm font-medium">{t("calendar.balanced")}</span>
         </div>
       ) : (
         <>
@@ -64,7 +66,7 @@ export default function SwapBalanceCard({
                     }`}
                   >
                     {isPositive ? "+" : ""}
-                    {balance} {Math.abs(balance) === 1 ? "dia" : "dias"}
+                    {balance} {Math.abs(balance) === 1 ? t("calendar.day") : t("calendar.days")}
                   </span>
                 </div>
               );
@@ -73,9 +75,12 @@ export default function SwapBalanceCard({
 
           {debtor && creditor && (
             <p className="text-xs text-muted border-t border-gray-100 pt-2">
-              {parentColors[debtor[0]]?.name} deve {Math.abs(debtor[1])}{" "}
-              {Math.abs(debtor[1]) === 1 ? "dia" : "dias"} para{" "}
-              {parentColors[creditor[0]]?.name}
+              {t("calendar.debtMessage", {
+                name: parentColors[debtor[0]]?.name || "",
+                count: Math.abs(debtor[1]),
+                unit: Math.abs(debtor[1]) === 1 ? t("calendar.day") : t("calendar.days"),
+                other: parentColors[creditor[0]]?.name || "",
+              })}
             </p>
           )}
         </>

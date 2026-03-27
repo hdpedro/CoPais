@@ -7,14 +7,14 @@ const supabase = createClient(supabaseUrl, serviceRoleKey, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-const PASSWORD = "2Lares@2026";
+const PASSWORD = "Kindar@2026";
 
 async function main() {
   console.log("Creating test users...\n");
 
   // Create Bruno (pai)
   const { data: bruno, error: brunoErr } = await supabase.auth.admin.createUser({
-    email: "bruno@2lares.test",
+    email: "bruno@kindar.test",
     password: PASSWORD,
     email_confirm: true,
     user_metadata: { full_name: "Bruno Silva" },
@@ -23,7 +23,7 @@ async function main() {
     if (brunoErr.message.includes("already been registered")) {
       console.log("Bruno already exists, fetching...");
       const { data: users } = await supabase.auth.admin.listUsers();
-      const existing = users.users.find((u) => u.email === "bruno@2lares.test");
+      const existing = users.users.find((u) => u.email === "bruno@kindar.test");
       if (existing) {
         await supabase.auth.admin.updateUser(existing.id, { password: PASSWORD });
         var brunoId = existing.id;
@@ -39,7 +39,7 @@ async function main() {
 
   // Create Martina (mae)
   const { data: martina, error: martinaErr } = await supabase.auth.admin.createUser({
-    email: "martina@2lares.test",
+    email: "martina@kindar.test",
     password: PASSWORD,
     email_confirm: true,
     user_metadata: { full_name: "Martina Oliveira" },
@@ -48,7 +48,7 @@ async function main() {
     if (martinaErr.message.includes("already been registered")) {
       console.log("Martina already exists, fetching...");
       const { data: users } = await supabase.auth.admin.listUsers();
-      const existing = users.users.find((u) => u.email === "martina@2lares.test");
+      const existing = users.users.find((u) => u.email === "martina@kindar.test");
       if (existing) {
         await supabase.auth.admin.updateUser(existing.id, { password: PASSWORD });
         var martinaId = existing.id;
@@ -64,8 +64,8 @@ async function main() {
 
   // Create/update profiles
   await supabase.from("profiles").upsert([
-    { id: brunoId, full_name: "Bruno Silva", email: "bruno@2lares.test", role: "parent", lgpd_consent: true },
-    { id: martinaId, full_name: "Martina Oliveira", email: "martina@2lares.test", role: "parent", lgpd_consent: true },
+    { id: brunoId, full_name: "Bruno Silva", email: "bruno@kindar.test", role: "parent", lgpd_consent: true },
+    { id: martinaId, full_name: "Martina Oliveira", email: "martina@kindar.test", role: "parent", lgpd_consent: true },
   ]);
   console.log("Profiles created.");
 
@@ -269,8 +269,8 @@ async function main() {
   console.log("\n========================================");
   console.log("  CONTAS DE TESTE CRIADAS COM SUCESSO!");
   console.log("========================================");
-  console.log(`\n  Pai (Bruno):     bruno@2lares.test`);
-  console.log(`  Mae (Martina):   martina@2lares.test`);
+  console.log(`\n  Pai (Bruno):     bruno@kindar.test`);
+  console.log(`  Mae (Martina):   martina@kindar.test`);
   console.log(`  Senha (ambos):   ${PASSWORD}`);
   console.log(`\n  Filho:           Kleber Silva Oliveira`);
   console.log(`  Grupo:           Familia Kleber`);

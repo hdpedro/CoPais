@@ -1,5 +1,5 @@
-const CACHE_NAME = "2lares-v2";
-const OFFLINE_URL = "/login";
+const CACHE_NAME = "kindar-v3";
+const OFFLINE_URL = "/offline.html";
 
 // Pre-cache essential assets on install
 self.addEventListener("install", (event) => {
@@ -11,6 +11,7 @@ self.addEventListener("install", (event) => {
         "/icon-192x192.png",
         "/icon-512x512.png",
         "/apple-touch-icon.png",
+        "/kindar-icon.svg",
       ]);
     })
   );
@@ -39,13 +40,31 @@ self.addEventListener("fetch", (event) => {
   // Skip external requests
   if (!request.url.startsWith(self.location.origin)) return;
 
-  // Navigation requests: network first, fallback to cache
+  // Navigation requests: network first, fallback to offline page
   if (request.mode === "navigate") {
     event.respondWith(
-      fetch(request).catch(() => {
-        return caches.match(OFFLINE_URL);
-      })
+      fetch(request)
+        .then((response) => {
+          // Cache successful navigation responses for offline use
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          }
+          return response;
+        })
+        .catch(() => {
+          // Try cached version first, then offline page
+          return caches.match(request).then((cached) => {
+            if (cached) return cached;
+            return caches.match(OFFLINE_URL);
+          });
+        })
     );
+    return;
+  }
+
+  // API requests: network only (no caching)
+  if (request.url.includes("/api/")) {
     return;
   }
 
@@ -81,7 +100,7 @@ self.addEventListener("push", (event) => {
     data = event.data.json();
   } catch {
     data = {
-      title: "2Lares",
+      title: "Kindar",
       body: event.data.text(),
       icon: "/icon-192x192.png",
     };
@@ -101,7 +120,7 @@ self.addEventListener("push", (event) => {
   };
 
   event.waitUntil(
-    self.registration.showNotification(data.title || "2Lares", options)
+    self.registration.showNotification(data.title || "Kindar", options)
   );
 });
 

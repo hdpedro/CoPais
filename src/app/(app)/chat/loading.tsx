@@ -12,7 +12,7 @@ export default function Loading() {
           <div className="bg-white rounded-xl p-3 shadow-sm w-3/4 h-[50px]" />
         </div>
         <div className="flex gap-2 justify-end">
-          <div className="bg-[#E8734A]/10 rounded-xl p-3 w-2/3 h-[50px]" />
+          <div className="bg-[#D4735A]/10 rounded-xl p-3 w-2/3 h-[50px]" />
         </div>
         <div className="flex gap-2">
           <div className="w-8 h-8 bg-gray-200 rounded-full flex-shrink-0" />

@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useTransition } from "react";
 import Link from "next/link";
-import { EXPENSE_CATEGORIES, SETTLEMENT_METHODS } from "@/lib/constants";
+import { EXPENSE_CATEGORIES, SETTLEMENT_METHODS, getDisplayName } from "@/lib/constants";
 import { createSettlement, confirmSettlement } from "@/actions/settlements";
+import { useI18n } from "@/i18n/provider";
 
 interface Expense {
   id: string;
@@ -45,11 +46,6 @@ interface Props {
   settlements: Settlement[];
 }
 
-const MONTH_NAMES = [
-  "Janeiro", "Fevereiro", "Marco", "Abril", "Maio", "Junho",
-  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
-];
-
 function getExpenseSplitShare(expense: Expense, memberId: string, members: Member[]): number {
   // Returns how much of this expense should be borne by memberId
   if (expense.split_ratio && expense.split_ratio[memberId] !== undefined) {
@@ -63,6 +59,8 @@ function getExpenseSplitShare(expense: Expense, memberId: string, members: Membe
 }
 
 export default function FinancialDashboard({ expenses, members, currentUserId, groupId, settlements }: Props) {
+  const { t } = useI18n();
+  const MONTH_NAMES = t("calendar.monthNames").split(",");
   const now = new Date();
   const [selectedYear, setSelectedYear] = useState(now.getFullYear());
   const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
@@ -94,9 +92,11 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
     });
   }, [expenses, selectedYear, selectedMonth]);
 
-  const countableExpenses = monthExpenses.filter(
-    (e) => e.status === "approved" || e.status === "pending"
-  );
+  const countableExpenses = useMemo(() =>
+    monthExpenses.filter(
+      (e) => e.status === "approved"
+    ),
+  [monthExpenses]);
 
   // Per-member spending
   const memberSpending = useMemo(() => {
@@ -108,7 +108,9 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
     return spending;
   }, [countableExpenses, members]);
 
-  const totalMonth = countableExpenses.reduce((sum, e) => sum + e.amount, 0);
+  const totalMonth = useMemo(() =>
+    countableExpenses.reduce((sum, e) => sum + e.amount, 0),
+  [countableExpenses]);
 
   // Balance calculation using per-expense split_ratio
   const balance = useMemo(() => {
@@ -130,7 +132,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
 
     // Balance: positive = m1 owes m0, negative = m0 owes m1
     // diff = what m0 spent - what m0 should have spent
-    const diff = m0Spent - m0ShouldPay;
+    const diff = Math.round((m0Spent - m0ShouldPay) * 100) / 100;
 
     return {
       amount: Math.abs(diff),
@@ -146,7 +148,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
     const m1 = members[1];
 
     const allCountable = expenses.filter(
-      (e) => e.status === "approved" || e.status === "pending"
+      (e) => e.status === "approved"
     );
 
     let m0ShouldPay = 0;
@@ -173,7 +175,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
       }
     });
 
-    const diff = (m0Spent + settlementAdjustment) - m0ShouldPay;
+    const diff = Math.round(((m0Spent + settlementAdjustment) - m0ShouldPay) * 100) / 100;
 
     return {
       amount: Math.abs(diff),
@@ -206,7 +208,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
   const monthlyHistory = useMemo(() => {
     const history: Record<string, { total: number; byMember: Record<string, number>; expenses: Expense[] }> = {};
     expenses
-      .filter((e) => e.status === "approved" || e.status === "pending")
+      .filter((e) => e.status === "approved")
       .forEach((e) => {
         const d = new Date(e.expense_date + "T12:00:00");
         const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
@@ -274,7 +276,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
 
   const getMemberName = (userId: string) => {
     const member = members.find((m) => m.user_id === userId);
-    return member?.full_name.split(" ")[0] || "Usuario";
+    return getDisplayName(member?.full_name, true);
   };
 
   const userOwes = overallBalance && overallBalance.owes.user_id === currentUserId;
@@ -350,7 +352,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                   <div className="flex items-center gap-2 mb-2">
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: m.color }} />
                     <p className="text-xs text-muted truncate">
-                      {m.full_name.split(" ")[0]}
+                      {getDisplayName(m.full_name, true)}
                       {m.user_id === currentUserId ? " (voce)" : ""}
                     </p>
                   </div>
@@ -378,11 +380,11 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-dark">
-                    {balance.owes.full_name.split(" ")[0]} deve{" "}
+                    {getDisplayName(balance.owes.full_name, true)} deve{" "}
                     <span className="text-primary font-bold">
                       R$ {balance.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>{" "}
-                    para {balance.receives.full_name.split(" ")[0]}
+                    para {getDisplayName(balance.receives.full_name, true)}
                   </p>
                   <p className="text-xs text-muted">Neste mes (considerando divisao por despesa)</p>
                 </div>
@@ -496,11 +498,11 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                 <div className="flex-1">
                   <p className="text-sm text-muted">Saldo geral</p>
                   <p className="text-lg font-bold text-dark">
-                    {overallBalance.owes.full_name.split(" ")[0]} deve{" "}
+                    {getDisplayName(overallBalance.owes.full_name, true)} deve{" "}
                     <span className="text-primary">
                       R$ {overallBalance.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>{" "}
-                    para {overallBalance.receives.full_name.split(" ")[0]}
+                    para {getDisplayName(overallBalance.receives.full_name, true)}
                   </p>
                 </div>
               </div>
@@ -550,6 +552,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                     required
                     step="0.01"
                     min="0.01"
+                    max={overallBalance.amount.toFixed(2)}
                     defaultValue={overallBalance.amount.toFixed(2)}
                     disabled={isPending}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50 disabled:bg-gray-50"
@@ -723,7 +726,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                         <div key={m.user_id} className="flex items-center gap-1.5">
                           <div className="w-2 h-2 rounded-full" style={{ backgroundColor: m.color }} />
                           <span className="text-xs text-muted">
-                            {m.full_name.split(" ")[0]}: R$ {spent.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                            {getDisplayName(m.full_name, true)}: R$ {spent.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                           </span>
                         </div>
                       );
@@ -739,7 +742,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                           m0ShouldPay += getExpenseSplitShare(e, m0.user_id, members);
                         });
                         const m0Spent = h.byMember[m0.user_id] || 0;
-                        const diff = m0Spent - m0ShouldPay;
+                        const diff = Math.round((m0Spent - m0ShouldPay) * 100) / 100;
                         if (Math.abs(diff) < 0.01) {
                           return <p className="text-xs text-green-600">Equilibrado</p>;
                         }
@@ -747,7 +750,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                         const receives = diff > 0 ? members[0] : members[1];
                         return (
                           <p className="text-xs text-muted">
-                            {owes.full_name.split(" ")[0]} deve R$ {Math.abs(diff).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} para {receives.full_name.split(" ")[0]}
+                            {getDisplayName(owes.full_name, true)} deve R$ {Math.abs(diff).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} para {getDisplayName(receives.full_name, true)}
                           </p>
                         );
                       })()}

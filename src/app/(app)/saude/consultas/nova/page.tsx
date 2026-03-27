@@ -5,23 +5,17 @@ import { createAppointment } from "@/actions/health";
 import WhatsAppScheduleButton from "../WhatsAppScheduleButton";
 import { getBrazilToday } from "@/lib/calendar-utils";
 import AppointmentFormClient from "./AppointmentFormClient";
+import { getActiveGroup } from "@/lib/group-utils";
 
 export default async function NewAppointmentPage() {
   const supabase = await createClient();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
-  const user = session?.user;
+  const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  const { data: memberships } = await supabase
-    .from("group_members")
-    .select("group_id, role")
-    .eq("user_id", user.id);
-
-  if (!memberships || memberships.length === 0) redirect("/onboarding");
-  if (memberships[0].role === "readonly") redirect("/dashboard");
-  const groupId = memberships[0].group_id;
+  const activeGroup = await getActiveGroup(supabase, user.id);
+  if (!activeGroup) redirect("/onboarding");
+  if (activeGroup.isReadonly) redirect("/dashboard");
+  const { groupId } = activeGroup;
 
   const { data: children } = await supabase
     .from("children")
@@ -56,7 +50,7 @@ export default async function NewAppointmentPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </Link>
-        <h1 className="text-xl font-bold text-dark">Agendar Consulta</h1>
+        <h1 className="text-xl font-bold text-dark">Nova Consulta</h1>
       </div>
 
       <AppointmentFormClient

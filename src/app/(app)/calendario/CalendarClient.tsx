@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
+import { useI18n } from "@/i18n/provider";
 import CalendarGrid from "./CalendarGrid";
 import WeekendPlanner from "./WeekendPlanner";
 import DayDetailSheet from "./DayDetailSheet";
@@ -22,6 +23,41 @@ interface SwapRequest {
   target_user_id: string;
 }
 
+export interface ActivityReportInfo {
+  status: string;
+  notes: string | null;
+  child_mood: string | null;
+  responsible_override?: string | null;
+}
+
+export interface ChecklistItemInfo {
+  id: string;
+  name: string;
+  completed: boolean;
+}
+
+export interface ActivityInfo {
+  id: string;
+  name: string;
+  category: string;
+  time_start: string | null;
+  time_end?: string | null;
+  location: string | null;
+  childName: string;
+  checklistCount: number;
+  description?: string | null;
+  all_day?: boolean;
+  assigned_to_name?: string | null;
+  report?: ActivityReportInfo | null;
+  recurrence_type?: string;
+  teacher_name?: string | null;
+  class_name?: string | null;
+  room?: string | null;
+  responsible_id?: string | null;
+  responsible_name?: string | null;
+  checklistItems?: ChecklistItemInfo[];
+}
+
 interface CalendarClientProps {
   initialYear: number;
   initialMonth: number;
@@ -32,7 +68,10 @@ interface CalendarClientProps {
   groupId: string;
   weekends: WeekendInfo[];
   swapBalance: SwapBalance;
+  custodyChangeBanner: { childNames: string; parentName: string } | null;
   swapRequests: SwapRequest[];
+  activities: Record<string, ActivityInfo[]>;
+  memberNames: Record<string, string>;
 }
 
 export default function CalendarClient({
@@ -45,8 +84,12 @@ export default function CalendarClient({
   groupId,
   weekends,
   swapBalance,
+  custodyChangeBanner,
   swapRequests,
+  activities,
+  memberNames,
 }: CalendarClientProps) {
+  const { t } = useI18n();
   const [dayDetail, setDayDetail] = useState<{
     isOpen: boolean;
     dateKey: string;
@@ -69,15 +112,33 @@ export default function CalendarClient({
     return dates;
   }, [swapRequests]);
 
-  function handleDayClick(dateKey: string, info: CustodyDayInfo | null) {
-    // Open day detail for any day with custody info
-    if (info) {
+  const handleDayClick = useCallback((dateKey: string, info: CustodyDayInfo | null) => {
+    // Open day detail for any day with custody info or activities
+    const hasActivities = activities[dateKey] && activities[dateKey].length > 0;
+    if (info || hasActivities) {
       setDayDetail({ isOpen: true, dateKey, dayInfo: info });
     }
-  }
+  }, [activities]);
+
+  const hasCustodyData = Object.keys(custodyMap).length > 0;
 
   return (
     <>
+      {!hasCustodyData && (
+        <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-center">
+          <p className="text-[12px] text-gray-500">{t("schedule.optional")}</p>
+        </div>
+      )}
+
+      {custodyChangeBanner && (
+        <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 p-3">
+          <span className="text-xl leading-none mt-0.5" aria-hidden="true">&#x1F504;</span>
+          <p className="text-sm text-amber-900 font-medium">
+            {t("calendar.custodyChangeTomorrow", { childNames: custodyChangeBanner.childNames, parentName: custodyChangeBanner.parentName })}
+          </p>
+        </div>
+      )}
+
       <CalendarGrid
         initialYear={initialYear}
         initialMonth={initialMonth}
@@ -87,17 +148,24 @@ export default function CalendarClient({
         groupId={groupId}
         onDayClick={handleDayClick}
         pendingSwapDates={pendingSwapDates}
+        activities={activities}
       />
 
-      <SwapBalanceCard
-        balanceByUser={swapBalance.balanceByUser}
-        totalSwapDays={swapBalance.totalSwapDays}
-        parentColors={parentColors}
-      />
+      {hasCustodyData && (
+        <SwapBalanceCard
+          balanceByUser={swapBalance.balanceByUser}
+          totalSwapDays={swapBalance.totalSwapDays}
+          parentColors={parentColors}
+        />
+      )}
 
-      <WeekendPlanner weekends={weekends} currentUserId={currentUserId} />
+      {hasCustodyData && (
+        <WeekendPlanner weekends={weekends} currentUserId={currentUserId} />
+      )}
 
-      <SwapRequestList requests={swapRequests} currentUserId={currentUserId} />
+      {hasCustodyData && (
+        <SwapRequestList requests={swapRequests} currentUserId={currentUserId} />
+      )}
 
       <CalendarExportButton groupId={groupId} />
 
@@ -111,6 +179,8 @@ export default function CalendarClient({
         currentUserId={currentUserId}
         isParent={isParentWithCustody}
         pendingSwapForDay={pendingSwapDates.has(dayDetail.dateKey)}
+        activities={activities[dayDetail.dateKey] || []}
+        memberNames={memberNames}
       />
     </>
   );

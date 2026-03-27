@@ -113,7 +113,7 @@ export default function PushNotificationManager() {
             </svg>
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-[#1A3B3A]">Ativar notificacoes?</p>
+            <p className="text-sm font-semibold text-[#2C2C2C]">Ativar notificacoes?</p>
             <p className="text-xs text-[#7A8C8B] mt-0.5">
               Receba avisos de trocas de dia, mensagens do chat e lembretes importantes.
             </p>
@@ -128,7 +128,7 @@ export default function PushNotificationManager() {
           </button>
           <button
             onClick={handleEnable}
-            className="flex-1 px-3 py-2 bg-[#E8734A] text-white text-sm font-semibold rounded-xl hover:bg-[#D4623E] transition-colors"
+            className="flex-1 px-3 py-2 bg-[#D4735A] text-white text-sm font-semibold rounded-xl hover:bg-[#D4623E] transition-colors"
           >
             Ativar
           </button>

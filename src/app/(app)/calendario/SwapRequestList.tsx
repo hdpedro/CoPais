@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import { respondToSwapRequest } from "@/actions/calendar";
+import { getDisplayName } from "@/lib/constants";
+import { useI18n } from "@/i18n/provider";
 
 interface SwapRequest {
   id: string;
@@ -22,19 +24,30 @@ interface SwapRequestListProps {
 }
 
 export default function SwapRequestList({ requests, currentUserId }: SwapRequestListProps) {
+  const { t } = useI18n();
   const [responding, setResponding] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ requestId: string; response: "approved" | "rejected"; requesterName: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   if (requests.length === 0) return null;
 
   async function handleRespond(requestId: string, response: "approved" | "rejected") {
     setResponding(requestId);
     setConfirmAction(null);
-    const formData = new FormData();
-    formData.set("requestId", requestId);
-    formData.set("response", response);
-    await respondToSwapRequest(formData);
-    setResponding(null);
+    setError(null);
+    try {
+      const formData = new FormData();
+      formData.set("requestId", requestId);
+      formData.set("response", response);
+      const result = await respondToSwapRequest(formData);
+      if (result?.error) {
+        setError(result.error);
+      }
+    } catch {
+      setError(t("swapList.errorResponding"));
+    } finally {
+      setResponding(null);
+    }
   }
 
   const formatDate = (d: string) =>
@@ -45,21 +58,27 @@ export default function SwapRequestList({ requests, currentUserId }: SwapRequest
     });
 
   const statusConfig: Record<string, { label: string; className: string }> = {
-    pending: { label: "Pendente", className: "bg-amber-100 text-amber-700" },
-    approved: { label: "Aprovada", className: "bg-green-100 text-green-700" },
-    rejected: { label: "Recusada", className: "bg-red-100 text-red-700" },
-    cancelled: { label: "Cancelada", className: "bg-gray-100 text-gray-500" },
+    pending: { label: t("swapList.statusPending"), className: "bg-amber-100 text-amber-700" },
+    approved: { label: t("swapList.statusApproved"), className: "bg-green-100 text-green-700" },
+    rejected: { label: t("swapList.statusRejected"), className: "bg-red-100 text-red-700" },
+    cancelled: { label: t("swapList.statusCancelled"), className: "bg-gray-100 text-gray-500" },
   };
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
-      <h3 className="text-base font-semibold text-dark mb-3">Solicitacoes</h3>
+      <h3 className="text-base font-semibold text-dark mb-3">{t("swapList.requests")}</h3>
+      {error && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 mb-3 text-sm text-red-600">
+          {error}
+        </div>
+      )}
       <div className="space-y-3">
         {requests.map((req) => {
           const cfg = statusConfig[req.status] || statusConfig.pending;
           const isTarget = req.target_user_id === currentUserId;
           const isPending = req.status === "pending";
-          const isVisit = !req.proposed_date;
+          const isDebtSwap = !req.proposed_date && req.reason?.startsWith("[DIVIDA]");
+          const isVisit = !req.proposed_date && !isDebtSwap;
           const isRequester = req.requester_id === currentUserId;
 
           return (
@@ -67,19 +86,24 @@ export default function SwapRequestList({ requests, currentUserId }: SwapRequest
               <div className="flex items-start justify-between mb-2">
                 <div>
                   <p className="text-sm font-medium text-dark">
-                    {req.requester?.full_name || "Usuario"}
+                    {getDisplayName(req.requester?.full_name) || t("swapList.user")}
                   </p>
                   <p className="text-xs text-muted">
                     {isRequester
-                      ? (isVisit ? "Voce solicitou visita" : "Voce solicitou troca")
-                      : (isVisit ? "Solicitou visita" : "Solicitou troca")
+                      ? (isVisit ? t("swapList.youRequestedVisit") : isDebtSwap ? t("swapList.youRequestedDebt") : t("swapList.youRequestedSwap"))
+                      : (isVisit ? t("swapList.requestedVisit") : isDebtSwap ? t("swapList.requestedDebt") : t("swapList.requestedSwap"))
                     }
                   </p>
                 </div>
                 <div className="flex items-center gap-1.5">
                   {isVisit && (
                     <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">
-                      Visita
+                      {t("swapList.visit")}
+                    </span>
+                  )}
+                  {isDebtSwap && (
+                    <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">
+                      {t("swapList.debt")}
                     </span>
                   )}
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.className}`}>
@@ -97,6 +121,13 @@ export default function SwapRequestList({ requests, currentUserId }: SwapRequest
                     {formatDate(req.original_date)}
                   </span>
                 </div>
+              ) : isDebtSwap ? (
+                <div className="flex items-center gap-2 text-sm">
+                  <span className="bg-amber-50 px-2 py-1 rounded text-dark font-medium">
+                    {formatDate(req.original_date)}
+                  </span>
+                  <span className="text-xs text-amber-600">{t("swapList.noReturnDate")}</span>
+                </div>
               ) : (
                 <div className="flex items-center gap-2 text-sm">
                   <span className="bg-gray-100 px-2 py-1 rounded text-dark">
@@ -106,30 +137,30 @@ export default function SwapRequestList({ requests, currentUserId }: SwapRequest
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
                   </svg>
                   <span className="bg-gray-100 px-2 py-1 rounded text-dark">
-                    {req.proposed_date ? formatDate(req.proposed_date) : "—"}
+                    {formatDate(req.proposed_date!)}
                   </span>
                 </div>
               )}
 
-              {req.reason && (
-                <p className="text-xs text-muted mt-2 italic">&quot;{req.reason}&quot;</p>
+              {req.reason && req.reason.replace(/^\[DIVIDA\]\s*/, "").length > 0 && (
+                <p className="text-xs text-muted mt-2 italic">&quot;{req.reason.replace(/^\[DIVIDA\]\s*/, "")}&quot;</p>
               )}
 
               {isPending && isTarget && (
                 <div className="flex gap-2 mt-3">
                   <button
-                    onClick={() => setConfirmAction({ requestId: req.id, response: "approved", requesterName: req.requester?.full_name?.split(" ")[0] || "Usuario" })}
+                    onClick={() => setConfirmAction({ requestId: req.id, response: "approved", requesterName: getDisplayName(req.requester?.full_name, true) || t("swapList.user") })}
                     disabled={responding === req.id}
                     className="flex-1 px-3 py-2 bg-green-500 text-white text-sm font-medium rounded-lg hover:bg-green-600 transition-colors disabled:opacity-50"
                   >
-                    {responding === req.id ? "..." : "Aceitar"}
+                    {responding === req.id ? "..." : t("swapList.accept")}
                   </button>
                   <button
-                    onClick={() => setConfirmAction({ requestId: req.id, response: "rejected", requesterName: req.requester?.full_name?.split(" ")[0] || "Usuario" })}
+                    onClick={() => setConfirmAction({ requestId: req.id, response: "rejected", requesterName: getDisplayName(req.requester?.full_name, true) || t("swapList.user") })}
                     disabled={responding === req.id}
                     className="flex-1 px-3 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50"
                   >
-                    {responding === req.id ? "..." : "Recusar"}
+                    {responding === req.id ? "..." : t("swapList.reject")}
                   </button>
                 </div>
               )}
@@ -155,21 +186,21 @@ export default function SwapRequestList({ requests, currentUserId }: SwapRequest
                 </svg>
               )}
             </div>
-            <h3 className="text-center text-lg font-bold text-[#1A3B3A] mb-1">
-              {confirmAction.response === "approved" ? "Aceitar solicitacao?" : "Recusar solicitacao?"}
+            <h3 className="text-center text-lg font-bold text-[#2C2C2C] mb-1">
+              {confirmAction.response === "approved" ? t("swapList.confirmAcceptTitle") : t("swapList.confirmRejectTitle")}
             </h3>
             <p className="text-center text-sm text-[#7A8C8B] mb-5">
               {confirmAction.response === "approved"
-                ? `Ao aceitar, a escala sera atualizada conforme a solicitacao de ${confirmAction.requesterName}. Esta acao nao pode ser desfeita.`
-                : `A solicitacao de ${confirmAction.requesterName} sera recusada. Voce pode conversar pelo chat para combinar outra data.`
+                ? t("swapList.confirmAcceptMessage", { name: confirmAction.requesterName })
+                : t("swapList.confirmRejectMessage", { name: confirmAction.requesterName })
               }
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setConfirmAction(null)}
-                className="flex-1 px-4 py-2.5 border border-gray-200 text-[#1A3B3A] font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm"
+                className="flex-1 px-4 py-2.5 border border-gray-200 text-[#2C2C2C] font-medium rounded-xl hover:bg-gray-50 transition-colors text-sm"
               >
-                Cancelar
+                {t("common.cancel")}
               </button>
               <button
                 onClick={() => handleRespond(confirmAction.requestId, confirmAction.response)}
@@ -179,7 +210,7 @@ export default function SwapRequestList({ requests, currentUserId }: SwapRequest
                     : "bg-red-500 hover:bg-red-600"
                 }`}
               >
-                {confirmAction.response === "approved" ? "Sim, aceitar" : "Sim, recusar"}
+                {confirmAction.response === "approved" ? t("swapList.yesAccept") : t("swapList.yesReject")}
               </button>
             </div>
           </div>

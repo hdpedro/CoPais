@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { useI18n } from "@/i18n/provider";
 
 export default function OnboardingForm() {
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -28,14 +30,14 @@ export default function OnboardingForm() {
       const result = await res.json();
 
       if (!res.ok || result.error) {
-        setError(result.error || "Erro ao criar grupo.");
+        setError(result.error || t("onboardingForm.errorCreating"));
         setLoading(false);
       } else {
         // Full page navigation to avoid any auth token issues
         window.location.href = "/onboarding/convite";
       }
     } catch {
-      setError("Erro inesperado. Tente novamente.");
+      setError(t("onboardingForm.unexpectedError"));
       setLoading(false);
     }
   }
@@ -49,32 +51,32 @@ export default function OnboardingForm() {
       )}
 
       <div>
-        <label className="block text-sm font-medium text-dark mb-1">Nome da familia</label>
+        <label className="block text-sm font-medium text-dark mb-1">{t("onboardingForm.familyName")}</label>
         <input
           type="text"
           name="name"
           required
-          placeholder="Ex: Familia Silva"
+          placeholder={t("onboardingForm.familyNamePlaceholder")}
           className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
         />
       </div>
 
       <hr className="my-4" />
-      <h3 className="text-lg font-semibold text-dark">Adicionar primeira crianca</h3>
+      <h3 className="text-lg font-semibold text-dark">{t("onboardingForm.addFirstChild")}</h3>
 
       <div>
-        <label className="block text-sm font-medium text-dark mb-1">Nome completo da crianca</label>
+        <label className="block text-sm font-medium text-dark mb-1">{t("onboardingForm.childFullName")}</label>
         <input
           type="text"
           name="childName"
           required
-          placeholder="Nome da crianca"
+          placeholder={t("onboardingForm.childNamePlaceholder")}
           className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
         />
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-dark mb-1">Data de nascimento</label>
+        <label className="block text-sm font-medium text-dark mb-1">{t("onboardingForm.birthDate")}</label>
         <input
           type="date"
           name="childBirthDate"
@@ -88,7 +90,7 @@ export default function OnboardingForm() {
         disabled={loading}
         className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
       >
-        {loading ? "Criando..." : "Criar grupo e continuar"}
+        {loading ? t("onboardingForm.creating") : t("onboardingForm.createAndContinue")}
       </button>
     </form>
   );

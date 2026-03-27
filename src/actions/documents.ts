@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function createDocument(formData: FormData) {
   const supabase = await createClient();
@@ -68,6 +69,9 @@ export async function createDocument(formData: FormData) {
   });
 
   if (error) redirect("/documentos?error=" + encodeURIComponent(error.message));
+
+  captureServerEvent(user.id, "document_uploaded", { category });
+
   revalidatePath("/documentos");
   redirect("/documentos");
 }

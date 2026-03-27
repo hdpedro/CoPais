@@ -9,7 +9,7 @@ let vapidConfigured = false;
 if (vapidPublic && vapidPrivate) {
   try {
     webpush.setVapidDetails(
-      "mailto:contato@2lares.com.br",
+      "mailto:contato@kindar.com.br",
       vapidPublic,
       vapidPrivate
     );

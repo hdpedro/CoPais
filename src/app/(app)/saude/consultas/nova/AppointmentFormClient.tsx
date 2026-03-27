@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { APPOINTMENT_TYPES } from "@/lib/health-constants";
+import { useI18n } from "@/i18n/provider";
 
 interface AppointmentFormClientProps {
   groupId: string;
@@ -19,6 +20,7 @@ export default function AppointmentFormClient({
   today,
   createAction,
 }: AppointmentFormClientProps) {
+  const { t } = useI18n();
   const [appointmentType, setAppointmentType] = useState("rotina");
   const [showReturn, setShowReturn] = useState(false);
   const [isPending, startTransition] = useTransition();
@@ -42,7 +44,7 @@ export default function AppointmentFormClient({
       <div className="bg-white rounded-xl p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">1</span>
-          <span className="text-sm font-semibold text-dark">Tipo de consulta</span>
+          <span className="text-sm font-semibold text-dark">{t("health.appointmentForm.appointmentType")}</span>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {APPOINTMENT_TYPES.map((type) => (
@@ -57,8 +59,8 @@ export default function AppointmentFormClient({
               }`}
             >
               <span className="text-lg mb-1">{type.icon}</span>
-              <span className="text-sm font-semibold">{type.label}</span>
-              <span className="text-[11px] text-muted leading-tight">{type.desc}</span>
+              <span className="text-sm font-semibold">{t(`health.appointmentForm.type_${type.value}`)}</span>
+              <span className="text-[11px] text-muted leading-tight">{t(`health.appointmentForm.typeDesc_${type.value}`)}</span>
             </button>
           ))}
         </div>
@@ -68,36 +70,45 @@ export default function AppointmentFormClient({
       <div className="bg-white rounded-xl p-4 shadow-sm space-y-3">
         <div className="flex items-center gap-2 mb-1">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">2</span>
-          <span className="text-sm font-semibold text-dark">Detalhes</span>
+          <span className="text-sm font-semibold text-dark">{t("health.appointmentForm.details")}</span>
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted mb-1">Crianca *</label>
-          <select
-            name="childId"
-            required
-            className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
-          >
-            {children.length === 1 ? (
-              <option value={children[0].id}>{children[0].full_name}</option>
-            ) : (
-              <>
-                <option value="">Selecione...</option>
-                {children.map((child) => (
-                  <option key={child.id} value={child.id}>{child.full_name}</option>
-                ))}
-              </>
-            )}
-          </select>
+          <label className="block text-xs font-medium text-muted mb-1">{t("health.appointmentForm.childRequired")}</label>
+          {children.length > 0 ? (
+            <select
+              name="childId"
+              required
+              className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+            >
+              {children.length === 1 ? (
+                <option value={children[0].id}>{children[0].full_name}</option>
+              ) : (
+                <>
+                  <option value="">{t("health.select")}</option>
+                  {children.map((child) => (
+                    <option key={child.id} value={child.id}>{child.full_name}</option>
+                  ))}
+                </>
+              )}
+            </select>
+          ) : (
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-sm text-amber-800">
+              {t("health.registerChildFirst")}{" "}
+              <Link href="/criancas/nova" className="text-primary font-semibold underline">
+                {t("health.registerChild")}
+              </Link>
+            </div>
+          )}
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted mb-1">Profissional</label>
+          <label className="block text-xs font-medium text-muted mb-1">{t("health.appointmentForm.professional")}</label>
           <select
             name="professionalId"
             className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
           >
-            <option value="">Selecione (opcional)...</option>
+            <option value="">{t("health.appointmentForm.selectOptional")}</option>
             {professionals.map((prof) => (
               <option key={prof.id} value={prof.id}>
                 {prof.name}{prof.specialty ? ` — ${prof.specialty}` : ""}
@@ -105,23 +116,23 @@ export default function AppointmentFormClient({
             ))}
           </select>
           <Link href="/saude/profissionais/novo" className="text-[11px] text-primary hover:underline mt-1 inline-block">
-            + Cadastrar novo profissional
+            {t("health.appointmentForm.registerNewProfessional")}
           </Link>
         </div>
 
         <div>
           <label className="block text-xs font-medium text-muted mb-1">
-            {appointmentType === "emergencia" ? "Motivo da emergencia *" : "Titulo / Motivo *"}
+            {appointmentType === "emergencia" ? t("health.appointmentForm.emergencyReason") : t("health.appointmentForm.titleReason")}
           </label>
           <input
             type="text"
             name="title"
             required
             placeholder={
-              appointmentType === "rotina" ? "Ex: Consulta de rotina, Revisao semestral" :
-              appointmentType === "emergencia" ? "Ex: Febre alta, Queda, Vomitos" :
-              appointmentType === "retorno" ? "Ex: Retorno pediatra, Resultado exames" :
-              "Ex: Hemograma, Raio-X, Ultrassom"
+              appointmentType === "rotina" ? t("health.appointmentForm.placeholderRoutine") :
+              appointmentType === "emergencia" ? t("health.appointmentForm.placeholderEmergency") :
+              appointmentType === "retorno" ? t("health.appointmentForm.placeholderReturn") :
+              t("health.appointmentForm.placeholderExam")
             }
             className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
           />
@@ -133,23 +144,24 @@ export default function AppointmentFormClient({
         <div className="flex items-center gap-2 mb-1">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">3</span>
           <span className="text-sm font-semibold text-dark">
-            {appointmentType === "emergencia" ? "Quando foi?" : "Data e horario"}
+            {appointmentType === "emergencia" ? t("health.appointmentForm.whenWasIt") : t("health.appointmentForm.dateAndTime")}
           </span>
         </div>
 
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-muted mb-1">Data *</label>
+            <label className="block text-xs font-medium text-muted mb-1">{t("health.appointmentForm.date")}</label>
             <input
               type="date"
               name="appointmentDate"
               required
               defaultValue={today}
+              min={appointmentType !== "emergencia" ? today : undefined}
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
           </div>
           <div>
-            <label className="block text-xs font-medium text-muted mb-1">Horario *</label>
+            <label className="block text-xs font-medium text-muted mb-1">{t("health.appointmentForm.time")}</label>
             <input
               type="time"
               name="appointmentTime"
@@ -160,11 +172,11 @@ export default function AppointmentFormClient({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-muted mb-1">Local</label>
+          <label className="block text-xs font-medium text-muted mb-1">{t("health.appointmentForm.locationLabel")}</label>
           <input
             type="text"
             name="location"
-            placeholder={appointmentType === "emergencia" ? "Ex: Pronto-socorro, Hospital..." : "Clinica, hospital, endereco..."}
+            placeholder={appointmentType === "emergencia" ? t("health.appointmentForm.locationPlaceholderEmergency") : t("health.appointmentForm.locationPlaceholder")}
             className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
           />
         </div>
@@ -174,8 +186,8 @@ export default function AppointmentFormClient({
       <div className="bg-white rounded-xl p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">4</span>
-          <span className="text-sm font-semibold text-dark">Retorno</span>
-          <span className="text-xs text-muted">(opcional)</span>
+          <span className="text-sm font-semibold text-dark">{t("health.appointmentForm.returnLabel")}</span>
+          <span className="text-xs text-muted">({t("common.optional")})</span>
         </div>
 
         <button
@@ -187,15 +199,15 @@ export default function AppointmentFormClient({
               : "border-gray-200 bg-white hover:border-gray-300"
           }`}
         >
-          <span className="text-xl">{showReturn ? "🔄" : "📅"}</span>
+          <span className="text-xl">{showReturn ? "\uD83D\uDD04" : "\uD83D\uDCC5"}</span>
           <div className="flex-1 text-left">
             <p className="text-sm font-semibold text-dark">
-              {showReturn ? "Retorno previsto" : "Agendar previsao de retorno?"}
+              {showReturn ? t("health.appointmentForm.returnExpected") : t("health.appointmentForm.scheduleReturn")}
             </p>
             <p className="text-xs text-muted">
               {showReturn
-                ? "Voce sera lembrado quando a data se aproximar"
-                : "Defina quando a crianca deve voltar"}
+                ? t("health.appointmentForm.returnReminder")
+                : t("health.appointmentForm.defineReturnDate")}
             </p>
           </div>
           <div className={`w-11 h-6 rounded-full transition-colors relative ${showReturn ? "bg-primary" : "bg-gray-300"}`}>
@@ -206,7 +218,7 @@ export default function AppointmentFormClient({
         {showReturn && (
           <div className="mt-3 space-y-3 animate-[fadeIn_200ms_ease-out]">
             <div>
-              <label className="block text-xs font-medium text-muted mb-1">Data prevista de retorno</label>
+              <label className="block text-xs font-medium text-muted mb-1">{t("health.appointmentForm.expectedReturnDate")}</label>
               <input
                 type="date"
                 name="returnDate"
@@ -214,11 +226,11 @@ export default function AppointmentFormClient({
               />
             </div>
             <div>
-              <label className="block text-xs font-medium text-muted mb-1">Observacao sobre o retorno</label>
+              <label className="block text-xs font-medium text-muted mb-1">{t("health.appointmentForm.returnNotes")}</label>
               <input
                 type="text"
                 name="returnNotes"
-                placeholder="Ex: Levar resultado de exames, Reavaliar tratamento"
+                placeholder={t("health.appointmentForm.returnNotesPlaceholder")}
                 className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
               />
             </div>
@@ -230,13 +242,13 @@ export default function AppointmentFormClient({
       <div className="bg-white rounded-xl p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-3">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/10 text-primary text-xs font-bold">5</span>
-          <span className="text-sm font-semibold text-dark">Observacoes</span>
-          <span className="text-xs text-muted">(opcional)</span>
+          <span className="text-sm font-semibold text-dark">{t("health.appointmentForm.observations")}</span>
+          <span className="text-xs text-muted">({t("common.optional")})</span>
         </div>
         <textarea
           name="notes"
           rows={3}
-          placeholder="Levar exames, chegar 15min antes, jejum..."
+          placeholder={t("health.appointmentForm.observationsPlaceholder")}
           className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary resize-none"
         />
       </div>
@@ -251,7 +263,7 @@ export default function AppointmentFormClient({
             : "bg-primary text-white hover:bg-primary/90"
         }`}
       >
-        {isPending ? "Salvando..." : appointmentType === "emergencia" ? "Registrar Emergencia" : "Agendar Consulta"}
+        {isPending ? t("health.appointmentForm.saving") : appointmentType === "emergencia" ? t("health.appointmentForm.registerEmergency") : t("health.appointmentForm.scheduleAppointment")}
       </button>
     </form>
   );

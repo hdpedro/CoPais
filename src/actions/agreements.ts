@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function createAgreement(formData: FormData) {
   const supabase = await createClient();
@@ -18,10 +19,17 @@ export async function createAgreement(formData: FormData) {
     redirect("/dashboard?error=" + encodeURIComponent("Sem permissao para este grupo."));
   }
 
-  const title = formData.get("title") as string;
-  const description = formData.get("description") as string;
+  const title = (formData.get("title") as string)?.trim();
+  const description = (formData.get("description") as string)?.trim();
   const category = formData.get("category") as string;
   const isNonNegotiable = formData.get("isNonNegotiable") === "on";
+
+  if (!title) {
+    redirect("/acordos?error=" + encodeURIComponent("Titulo obrigatorio."));
+  }
+  if (!description) {
+    redirect("/acordos?error=" + encodeURIComponent("Descricao obrigatoria."));
+  }
 
   const { error } = await supabase.from("agreements").insert({
     group_id: groupId,
@@ -33,6 +41,9 @@ export async function createAgreement(formData: FormData) {
   });
 
   if (error) redirect("/acordos?error=" + encodeURIComponent(error.message));
+
+  captureServerEvent(user.id, "agreement_created", { category });
+
   revalidatePath("/acordos");
   redirect("/acordos");
 }
@@ -64,9 +75,13 @@ export async function acceptAgreement(formData: FormData) {
   const { error } = await supabase
     .from("agreements")
     .update({ accepted_by: user.id, accepted_at: new Date().toISOString() })
-    .eq("id", agreementId);
+    .eq("id", agreementId)
+    .is("accepted_by", null);
 
   if (error) redirect("/acordos?error=" + encodeURIComponent(error.message));
+
+  captureServerEvent(user.id, "agreement_accepted");
+
   revalidatePath("/acordos");
   redirect("/acordos");
 }
