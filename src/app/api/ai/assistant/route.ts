@@ -380,7 +380,7 @@ export async function POST(req: NextRequest) {
     const msg = error instanceof Error ? error.message : "Erro interno";
 
     // User-friendly error messages
-    const isRateLimit = msg.includes("rate_limit") || msg.includes("429") || msg.includes("Limit") || msg.includes("tokens");
+    const isRateLimit = msg.includes("rate_limit") || msg.includes("429") || msg.includes("Limit") || msg.includes("tokens") || msg.includes("abort") || msg.includes("Abort") || msg.includes("TPD");
     const isToolError = msg.includes("tool_use_failed") || msg.includes("tool call validation");
 
     let friendlyMsg: string;
