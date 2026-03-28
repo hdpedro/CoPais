@@ -430,6 +430,7 @@ Politicas garantem que:
 - Botoes "Escala" e "+ Novo" no header
 - **Ao clicar num dia**: sheet mostra guarda do dia + atividades + eventos (accordion)
 - **Unifica** 3 conceitos: atividades recorrentes, eventos sociais e eventos de guarda
+- **Fix de eventos no calendario**: query SELECT removia coluna `category` inexistente na tabela `events` (Supabase retornava null); categoria agora hardcoded como "evento"
 - **Performance**: `Promise.all()` para 5 queries paralelas, `useMemo` no grid, `useCallback` nos handlers
 
 ### 3. Saldo de Trocas (Swap Balance) (`/calendario`)
@@ -653,6 +654,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
   - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
   - **1 tool de comunicacao**: `draft_message`
 - **API Route**: `src/app/api/ai/assistant/route.ts` — multi-round tool calling (ate 3 rodadas com `tool_choice: "auto"`, resposta final forcada com `tool_choice: "none"`)
+- **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao do usuario antes de executar. Fluxo: pedido → IA retorna "⏳ Confirma? [descricao]" → usuario diz "sim/ok" → executa. Cancelar com "nao/cancela". Tools de consulta (get_*) executam imediatamente. Constantes `CONFIRM_PREFIX`, `CONFIRM_WORDS` e `CANCEL_WORDS` em `route.ts`. System prompt do Groq tambem atualizado
 - **`sanitizeResponse()`**: funcao que remove tags XML malformadas (`<function=...>`) que o modelo 8B pode gerar, limpando a resposta antes de enviar ao frontend
 - **`groqWithTimeout()`**: wrapper com `AbortController` e timeout de 8s (`GROQ_TIMEOUT_MS = 8000`) por chamada a API Groq, evitando que o request fique preso indefinidamente. `AbortError` e tratado como condicao de rate-limit (dispara fallback para 8B)
 - **`export const maxDuration = 60`**: configurado na API route do assistente e nas paginas SSR (`/dashboard`, `/calendario`) para evitar timeout de Vercel Functions (padrao 10s)

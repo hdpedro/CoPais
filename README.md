@@ -101,6 +101,7 @@ O app suporta **5 idiomas** completos:
 - **Dots laranjas** nos dias com atividades/eventos
 - Destaque do dia atual (ring), navegacao entre meses
 - **Day Detail Sheet** com accordion: guarda do dia + atividades + eventos ao clicar num dia
+- **Fix de eventos**: removida coluna `category` inexistente do SELECT na query de eventos (causava retorno null do Supabase); categoria hardcoded como "evento"
 - **Saldo de trocas (Swap Balance)**: componente `SwapBalanceCard` mostra debito/credito de dias entre pais, calculado por `computeSwapBalance()`
 - **Troca como divida**: solicitar dia sem oferecer data de retorno gera divida de 1 dia
 - Planejador de fins de semana (mostra disponibilidade dos proximos weekends)
@@ -247,6 +248,7 @@ O app suporta **5 idiomas** completos:
   - **6 tools de acao**: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
   - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
   - **1 tool de comunicacao**: `draft_message`
+- **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao do usuario antes de executar ("Confirma? [descricao]"). Tools de consulta (get_*) executam imediatamente. Prefixo `CONFIRM_PREFIX` ("⏳"), `CONFIRM_WORDS` e `CANCEL_WORDS` regex em `route.ts`. System prompt do Groq tambem instrui o modelo a pedir confirmacao
 - **Multi-round tool calling**: ate 3 rodadas com `tool_choice: "auto"` + resposta final forcada com `tool_choice: "none"`
 - **Contexto familiar** (`ai-context.ts`): injeta dados de filhos, membros e custodia para respostas personalizadas
 - **React Portal**: componente `AIAssistant.tsx` renderiza em `document.body` via `createPortal` (escapa CSS `backdrop-blur` containing block no header mobile)

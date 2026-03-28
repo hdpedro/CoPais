@@ -1153,6 +1153,7 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - **Cron job** automatico para lembretes (`/api/cron/activity-reminders`)
 - Suporte a multiplos filhos por atividade (opcao "Todos")
 - Eventos sociais integrados no calendario
+- **Fix de eventos no calendario**: removida coluna `category` inexistente do SELECT em `calendario/page.tsx` (Supabase retornava null); categoria hardcoded como "evento"
 - **Compartilhar atividade via WhatsApp**: `ShareActivityButton` + `share-utils.ts`. Web Share API com fallback `wa.me/?text=`
 - **Performance**: `Promise.all()`, `useMemo`, `useCallback`
 
@@ -1223,6 +1224,7 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
   - 6 tools de acao: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
   - 5 tools de consulta: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
   - 1 tool de comunicacao: `draft_message`
+- **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao ao usuario antes de executar. Fluxo: pedido → "⏳ Confirma? [descricao]" → "sim/ok" executa, "nao/cancela" cancela. Tools de consulta (get_*) executam imediatamente. Implementado com `CONFIRM_PREFIX`, `CONFIRM_WORDS`, `CANCEL_WORDS` em `route.ts` + regra no system prompt Groq
 - **Multi-round tool calling**: ate 3 rodadas com `tool_choice: "auto"`, resposta final forcada com `tool_choice: "none"`
 - **Timeout por chamada Groq**: `groqWithTimeout()` usa `AbortController` com timeout de 8s (`GROQ_TIMEOUT_MS = 8000`). Se a chamada exceder 8s, `AbortError` e capturado e tratado como rate-limit (dispara fallback 8B)
 - **`sanitizeResponse()`**: remove tags XML malformadas (`<function=...>`) das respostas do modelo 8B antes de retornar ao frontend
