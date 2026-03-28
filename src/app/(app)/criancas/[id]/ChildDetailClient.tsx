@@ -1,7 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { useFormStatus } from "react-dom";
+import { useState, useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { updateChild } from "@/actions/group";
@@ -127,21 +126,6 @@ const docTypeIcons: Record<string, string> = {
   legal: "\u2696\uFE0F",
   other: "\u{1F4C1}",
 };
-
-/* ───── Upload Button with Loading State ───── */
-
-function UploadSubmitButton({ t }: { t: (key: string) => string }) {
-  const { pending } = useFormStatus();
-  return (
-    <button
-      type="submit"
-      disabled={pending}
-      className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-    >
-      {pending ? t("childProfile.uploading") : t("childProfile.upload")}
-    </button>
-  );
-}
 
 /* ───── Component ───── */
 
@@ -615,11 +599,35 @@ function TabDocumentos({
   dateLocale: string;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [isPending, startTransition] = useTransition();
+  const [submitted, setSubmitted] = useState(false);
+
+  function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (isPending || submitted) return;
+
+    const form = formRef.current;
+    if (!form) return;
+
+    // Basic client-side validation
+    const fileInput = form.querySelector<HTMLInputElement>('input[type="file"]');
+    const nameInput = form.querySelector<HTMLInputElement>('input[name="name"]');
+    if (!fileInput?.files?.length || !nameInput?.value.trim()) return;
+
+    setSubmitted(true);
+    const formData = new FormData(form);
+
+    startTransition(async () => {
+      await uploadChildDocument(formData);
+    });
+  }
+
   return (
     <div className="space-y-4">
       {/* Upload form */}
       {!isReadonly && (
-        <form action={uploadChildDocument} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
+        <form ref={formRef} onSubmit={handleSubmit} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
           <h3 className="font-semibold text-dark text-sm">{t("childProfile.uploadDocument")}</h3>
           <input type="hidden" name="groupId" value={groupId} />
           <input type="hidden" name="childId" value={child.id} />
@@ -652,7 +660,13 @@ function TabDocumentos({
             className="w-full text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
           />
 
-          <UploadSubmitButton t={t} />
+          <button
+            type="submit"
+            disabled={isPending || submitted}
+            className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {isPending || submitted ? t("childProfile.uploading") : t("childProfile.upload")}
+          </button>
         </form>
       )}
 
