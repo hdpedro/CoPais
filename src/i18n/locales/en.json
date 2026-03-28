@@ -55,6 +55,7 @@
     "fullNamePlaceholder": "Full name",
     "emailPlaceholder": "your@email.com",
     "passwordPlaceholder": "Your password",
+    "rememberMe": "Remember me",
     "passwordMinLength": "Minimum 8 characters",
     "confirmPasswordPlaceholder": "Enter password again",
     "lgpdConsent": "I have read and agree to the Terms of Use and the Privacy Policy.",

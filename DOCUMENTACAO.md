@@ -90,6 +90,8 @@ Todos os PostgREST FK joins (ex: `expenses(*, profiles(*))`) foram **removidos**
 4. Redireciona usuarios autenticados de `/login` para `/dashboard`
 5. Rotas publicas: `/login`, `/signup`, `/verify-email`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/convite`
 6. **Todas as Server Actions usam `getUser()`** (nao `getSession()`) para verificacao segura de autenticacao
+7. **"Lembrar-me"**: checkbox na tela de login (marcado por padrao). Quando ativo, cookies de sessao persistem por 30 dias via cookie `remember_me`. Login via OAuth (Google) assume "lembrar-me" automaticamente. Quando desmarcado, cookies sao de sessao (expiram ao fechar navegador).
+8. **Persistencia no browser**: cliente Supabase configurado com `persistSession: true`, `autoRefreshToken: true` e `detectSessionInUrl: true`
 
 ---
 

@@ -55,6 +55,7 @@
     "fullNamePlaceholder": "Nome completo",
     "emailPlaceholder": "seu@email.com",
     "passwordPlaceholder": "Sua senha",
+    "rememberMe": "Lembrar-me",
     "passwordMinLength": "Minimo 8 caracteres",
     "confirmPasswordPlaceholder": "Digite a senha novamente",
     "lgpdConsent": "Li e concordo com os Termos de Uso e a Politica de Privacidade, conforme a LGPD.",

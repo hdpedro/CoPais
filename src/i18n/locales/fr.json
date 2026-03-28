@@ -55,6 +55,7 @@
     "fullNamePlaceholder": "Nom complet",
     "emailPlaceholder": "votre@email.com",
     "passwordPlaceholder": "Votre mot de passe",
+    "rememberMe": "Se souvenir de moi",
     "passwordMinLength": "Minimum 8 caractères",
     "confirmPasswordPlaceholder": "Saisissez le mot de passe à nouveau",
     "lgpdConsent": "J'ai lu et j'accepte les Conditions d'utilisation et la Politique de confidentialité.",

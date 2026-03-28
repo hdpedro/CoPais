@@ -108,7 +108,16 @@ function LoginForm() {
           />
         </div>
 
-        <div className="text-right">
+        <div className="flex items-center justify-between">
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              name="rememberMe"
+              defaultChecked
+              className="w-4 h-4 rounded border-[#E8E0D4] text-[#C07055] focus:ring-[#C07055]/40 accent-[#C07055]"
+            />
+            <span className="text-sm text-[#9A8878]">Lembrar-me</span>
+          </label>
           <Link href="/forgot-password" className="text-sm text-[#C07055] hover:underline">
             Esqueceu a senha?
           </Link>

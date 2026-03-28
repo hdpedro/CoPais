@@ -6,6 +6,10 @@ export async function updateSession(request: NextRequest) {
     request,
   });
 
+  // Check if user opted for "remember me" — if so, persist cookies for 30 days
+  const rememberMe = request.cookies.get("remember_me")?.value === "true";
+  const cookieMaxAge = rememberMe ? 60 * 60 * 24 * 30 : undefined;
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -24,8 +28,7 @@ export async function updateSession(request: NextRequest) {
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, {
               ...options,
-              // Persist cookies for 30 days — prevents iOS PWA logout on app close
-              maxAge: options?.maxAge ?? 60 * 60 * 24 * 30,
+              maxAge: options?.maxAge ?? cookieMaxAge,
               sameSite: options?.sameSite ?? "lax",
               secure: true,
             })

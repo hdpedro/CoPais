@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { captureServerEvent } from "@/lib/posthog-server";
 
@@ -60,6 +61,7 @@ export async function signIn(formData: FormData) {
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
   const convite = formData.get("convite") as string | null;
+  const rememberMe = formData.get("rememberMe") === "on";
 
   const { error } = await supabase.auth.signInWithPassword({
     email,
@@ -70,7 +72,21 @@ export async function signIn(formData: FormData) {
     return { error: translateAuthError(error.message) };
   }
 
-  captureServerEvent(email, "user_login", { has_invite: !!convite });
+  // Set remember_me cookie to control session persistence
+  const cookieStore = await cookies();
+  if (rememberMe) {
+    cookieStore.set("remember_me", "true", {
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+      path: "/",
+      sameSite: "lax",
+      secure: true,
+      httpOnly: true,
+    });
+  } else {
+    cookieStore.delete("remember_me");
+  }
+
+  captureServerEvent(email, "user_login", { has_invite: !!convite, remember_me: rememberMe });
 
   // Don't call revalidatePath here — it triggers concurrent revalidation of
   // all pages/layouts, causing Supabase token refresh race conditions.
@@ -87,6 +103,8 @@ export async function signIn(formData: FormData) {
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+  const cookieStore = await cookies();
+  cookieStore.delete("remember_me");
   redirect("/login");
 }
 

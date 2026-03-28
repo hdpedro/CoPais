@@ -4,6 +4,10 @@ import { cookies } from "next/headers";
 export async function createClient() {
   const cookieStore = await cookies();
 
+  // Check if user opted for "remember me" — if so, persist cookies for 30 days
+  const rememberMe = cookieStore.get("remember_me")?.value === "true";
+  const cookieMaxAge = rememberMe ? 60 * 60 * 24 * 30 : undefined;
+
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -17,8 +21,7 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, {
                 ...options,
-                // Persist cookies for 30 days — prevents iOS PWA logout on app close
-                maxAge: options?.maxAge ?? 60 * 60 * 24 * 30,
+                maxAge: options?.maxAge ?? cookieMaxAge,
                 sameSite: options?.sameSite ?? "lax",
                 secure: true,
               })

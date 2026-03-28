@@ -30,7 +30,20 @@ export async function GET(request: Request) {
       if (type === "recovery" || next === "/reset-password") {
         return NextResponse.redirect(`${origin}/reset-password`);
       }
-      return NextResponse.redirect(`${origin}${next}`);
+
+      // OAuth logins (Google, etc.) default to "remember me" — users expect persistent sessions
+      const rememberMe = searchParams.get("remember_me") !== "false";
+      const response = NextResponse.redirect(`${origin}${next}`);
+      if (rememberMe) {
+        response.cookies.set("remember_me", "true", {
+          maxAge: 60 * 60 * 24 * 30,
+          path: "/",
+          sameSite: "lax",
+          secure: true,
+          httpOnly: true,
+        });
+      }
+      return response;
     }
 
     // If code exchange fails, show specific error
