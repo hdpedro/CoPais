@@ -73,5 +73,5 @@ export async function createDocument(formData: FormData) {
   captureServerEvent(user.id, "document_uploaded", { category });
 
   revalidatePath("/documentos");
-  redirect("/documentos");
+  redirect("/documentos?success=" + encodeURIComponent("Documento enviado com sucesso!"));
 }

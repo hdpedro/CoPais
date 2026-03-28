@@ -1361,6 +1361,7 @@
     "uploadDocument": "Dokument hochladen",
     "documentName": "Dokumentname",
     "upload": "Hochladen",
+    "uploading": "Wird hochgeladen...",
     "noDocuments": "Keine Dokumente fuer dieses Kind.",
     "docTypeRG": "Personalausweis",
     "docTypePassport": "Reisepass",

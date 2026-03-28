@@ -1361,6 +1361,7 @@
     "uploadDocument": "Upload document",
     "documentName": "Document name",
     "upload": "Upload",
+    "uploading": "Uploading...",
     "noDocuments": "No documents for this child.",
     "docTypeRG": "ID Card",
     "docTypePassport": "Passport",

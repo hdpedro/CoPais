@@ -553,7 +553,7 @@ Formulario inteligente que unifica a criacao de atividades, eventos e guardas co
 - **Perfil completo com 4 abas** (`/criancas/[id]`):
   - **Geral**: nome, data de nascimento, CPF, RG, notas
   - **Saude**: peso/altura, tipo sanguineo, convenio, alergias, medicamentos, vacinas (dados agregados)
-  - **Documentos**: upload/visualizacao de documentos por crianca (RG, CPF, passaporte, certidao, etc.)
+  - **Documentos**: upload/visualizacao de documentos por crianca (RG, CPF, passaporte, certidao, etc.) com **feedback de sucesso/erro** e **protecao contra duplo-clique** (botao desabilitado durante envio)
   - **Educacao**: escola (nome/endereco/telefone), serie, professor(a), coordenador(a), horarios, extracurriculares
 - Server actions: `upsertChildEducation`, `uploadChildDocument` em `src/actions/children.ts`
 
@@ -583,6 +583,8 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - Card por crianca com **barra de completude** (0-100%)
 - Indicadores de documentos faltantes (badges)
 - Links para upload na aba Documentos do perfil da crianca
+- **Feedback de upload**: mensagem de sucesso apos envio e erro em caso de falha (via query params)
+- **Protecao contra duplo-clique**: botao desabilitado com texto "Enviando..." durante submissao (`useFormStatus`)
 - Componentes: `DocumentList`, `DocumentViewer`, `DocumentsDashboard`, `DocumentsClient`
 
 ### 17. Acordos (`/acordos`)

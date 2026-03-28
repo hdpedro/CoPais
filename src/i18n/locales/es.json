@@ -1361,6 +1361,7 @@
     "uploadDocument": "Subir documento",
     "documentName": "Nombre del documento",
     "upload": "Subir",
+    "uploading": "Subiendo...",
     "noDocuments": "Sin documentos para este hijo/a.",
     "docTypeRG": "DNI",
     "docTypePassport": "Pasaporte",

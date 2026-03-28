@@ -1361,6 +1361,7 @@
     "uploadDocument": "Telecharger un document",
     "documentName": "Nom du document",
     "upload": "Telecharger",
+    "uploading": "Envoi en cours...",
     "noDocuments": "Aucun document pour cet enfant.",
     "docTypeRG": "Carte d'identite",
     "docTypePassport": "Passeport",

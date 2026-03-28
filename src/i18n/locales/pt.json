@@ -1342,6 +1342,7 @@
     "uploadDocument": "Enviar documento",
     "documentName": "Nome do documento",
     "upload": "Enviar",
+    "uploading": "Enviando...",
     "noDocuments": "Nenhum documento para esta crianca.",
     "docTypeRG": "RG",
     "docTypePassport": "Passaporte",

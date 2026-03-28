@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useFormStatus } from "react-dom";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { updateChild } from "@/actions/group";
@@ -92,6 +93,8 @@ interface ChildDetailClientProps {
   groupId: string;
   isReadonly: boolean;
   tab: string;
+  successMsg?: string | null;
+  errorMsg?: string | null;
 }
 
 /* ───── Helpers ───── */
@@ -125,6 +128,21 @@ const docTypeIcons: Record<string, string> = {
   other: "\u{1F4C1}",
 };
 
+/* ───── Upload Button with Loading State ───── */
+
+function UploadSubmitButton({ t }: { t: (key: string) => string }) {
+  const { pending } = useFormStatus();
+  return (
+    <button
+      type="submit"
+      disabled={pending}
+      className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+    >
+      {pending ? t("childProfile.uploading") : t("childProfile.upload")}
+    </button>
+  );
+}
+
 /* ───── Component ───── */
 
 export default function ChildDetailClient({
@@ -139,9 +157,29 @@ export default function ChildDetailClient({
   groupId,
   isReadonly,
   tab,
+  successMsg,
+  errorMsg,
 }: ChildDetailClientProps) {
   const { t, locale } = useI18n();
   const [selectedDoc, setSelectedDoc] = useState<DocumentRow | null>(null);
+  const [showSuccess, setShowSuccess] = useState(!!successMsg);
+  const [showError, setShowError] = useState(!!errorMsg);
+
+  useEffect(() => {
+    if (successMsg) {
+      setShowSuccess(true);
+      const timer = setTimeout(() => setShowSuccess(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [successMsg]);
+
+  useEffect(() => {
+    if (errorMsg) {
+      setShowError(true);
+      const timer = setTimeout(() => setShowError(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [errorMsg]);
 
   const dateLocale = locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "de-DE";
 
@@ -168,6 +206,20 @@ export default function ChildDetailClient({
 
   return (
     <div className="max-w-lg mx-auto space-y-4 pb-20">
+      {/* Success/Error Alerts */}
+      {showSuccess && successMsg && (
+        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 text-sm flex items-center justify-between">
+          <span>{decodeURIComponent(successMsg)}</span>
+          <button onClick={() => setShowSuccess(false)} className="text-green-500 hover:text-green-700 ml-2">&times;</button>
+        </div>
+      )}
+      {showError && errorMsg && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm flex items-center justify-between">
+          <span>{decodeURIComponent(errorMsg)}</span>
+          <button onClick={() => setShowError(false)} className="text-red-500 hover:text-red-700 ml-2">&times;</button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3">
         <Link href="/criancas" className="text-muted hover:text-dark">
@@ -600,12 +652,7 @@ function TabDocumentos({
             className="w-full text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
           />
 
-          <button
-            type="submit"
-            className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm"
-          >
-            {t("childProfile.upload")}
-          </button>
+          <UploadSubmitButton t={t} />
         </form>
       )}
 
