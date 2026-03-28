@@ -49,7 +49,7 @@ export default async function DashboardPage() {
 
   // === BATCH 2: members + children (parallel, need groupId) ===
   const [{ data: members }, { data: children }] = await Promise.all([
-    supabase.from("group_members").select("*, profiles(id, full_name, email)").eq("group_id", groupId).order("joined_at")
+    supabase.from("group_members").select("user_id, role, profiles(id, full_name, email)").eq("group_id", groupId).order("joined_at")
       .then(r => r, () => ({ data: [] as any[] })),
     supabase.from("children").select("*").eq("group_id", groupId)
       .then(r => r, () => ({ data: [] as any[] })),
@@ -107,7 +107,7 @@ export default async function DashboardPage() {
   ] = await Promise.all([
     // Single custody_events query covering 3-month range (replaces 5 separate queries)
     supabase.from("custody_events")
-      .select("*, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
+      .select("id, start_date, end_date, responsible_user_id, child_id, custody_type, notes, group_id, created_by, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
       .eq("group_id", groupId).gte("end_date", formatDateKey(threeMonthsAgo))
       .lte("start_date", formatDateKey(threeMonthsAhead)).order("start_date")
       .then(r => r, () => ({ data: [] as any[] })),
@@ -118,7 +118,7 @@ export default async function DashboardPage() {
       .then(r => r, () => ({ data: [] as any[] })),
     // Pending swaps
     supabase.from("swap_requests")
-      .select("*, requester:profiles!swap_requests_requester_id_fkey(full_name)")
+      .select("id, status, created_at, original_date, proposed_date, reason, type, requester_id, target_user_id, requester:profiles!swap_requests_requester_id_fkey(full_name)")
       .eq("group_id", groupId).eq("status", "pending").eq("target_user_id", user.id)
       .order("created_at", { ascending: false }).limit(3)
       .then(r => r, () => ({ data: [] as any[] })),
@@ -148,7 +148,7 @@ export default async function DashboardPage() {
       .then(r => r, () => ({ data: [] as any[] })),
     // Recent check-ins
     supabase.from("daily_checkins")
-      .select("*, children(full_name), profiles!daily_checkins_logged_by_fkey(full_name)")
+      .select("id, category, title, notes, checkin_date, created_at, child_id, logged_by, children(full_name), profiles!daily_checkins_logged_by_fkey(full_name)")
       .eq("group_id", groupId).gte("checkin_date", formatDateKey(yesterday))
       .order("created_at", { ascending: false }).limit(4)
       .then(r => r, () => ({ data: [] as any[] })),

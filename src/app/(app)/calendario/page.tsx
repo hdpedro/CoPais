@@ -56,7 +56,7 @@ export default async function CalendarPage() {
       .then(r => r, () => ({ data: [] as any[] })),
     supabase
       .from("custody_events")
-      .select("*, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
+      .select("id, start_date, end_date, responsible_user_id, child_id, custody_type, notes, group_id, created_by, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
       .eq("group_id", groupId)
       .gte("end_date", rangeStart)
       .lte("start_date", rangeEnd)
@@ -86,7 +86,7 @@ export default async function CalendarPage() {
       .then(r => r, () => ({ data: [] as any[] })),
     supabase
       .from("swap_requests")
-      .select("*, requester:profiles!swap_requests_requester_id_fkey(full_name), target:profiles!swap_requests_target_user_id_fkey(full_name)")
+      .select("id, original_date, proposed_date, reason, status, created_at, requester_id, target_user_id, type, swap_type, requester:profiles!swap_requests_requester_id_fkey(full_name), target:profiles!swap_requests_target_user_id_fkey(full_name)")
       .eq("group_id", groupId)
       .in("status", ["pending", "approved"])
       .order("created_at", { ascending: false })
