@@ -114,7 +114,7 @@ O app suporta **5 idiomas** completos:
 ### 3. Atividades Recorrentes (integrado na Agenda)
 - **Atividades recorrentes** das criancas (futsal, natacao, dentista, etc.) com 7 opcoes de recorrencia
 - **Checklist inteligente**: itens pre-preenchidos por categoria (ex: esporte -> uniforme, chuteira, meia)
-- **Relatorios de atividade (Activity Reports)**: status da atividade (completa/faltou/cancelada), humor da crianca, notas. **Modal reseta campos** ao abrir para nova atividade
+- **Relatorios de atividade (Activity Reports)**: status da atividade (completa/faltou/cancelada), humor da crianca, notas. **Modal reseta campos** ao abrir para nova atividade. **Fix de cor de texto** no textarea (cor explicita + placeholder para evitar texto invisivel)
 - **Editar ocorrencia unica vs todas** (estilo Google Calendar): `editActivityOccurrence` para overrides JSONB de uma data, `editActivityAll` para alterar atividade inteira
 - **Cancelar ocorrencia unica** (`cancelActivityOccurrence`): cancelar apenas uma data especifica
 - **Trocar responsavel** (`changeActivityResponsible` / `changeActivityResponsibleAll`): trocar responsavel para uma ocorrencia ou para todas
@@ -249,6 +249,7 @@ O app suporta **5 idiomas** completos:
   - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
   - **1 tool de comunicacao**: `draft_message`
 - **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao do usuario antes de executar ("Confirma? [descricao]"). Tools de consulta (get_*) executam imediatamente. Prefixo `CONFIRM_PREFIX` ("⏳"), `CONFIRM_WORDS` e `CANCEL_WORDS` regex em `route.ts`. System prompt do Groq tambem instrui o modelo a pedir confirmacao
+- **Fix de categorias em portugues**: `create_note` usava categorias em ingles (reminder, observation, etc.) que violavam o check constraint do banco `private_notes`. Corrigido em `ai-tools.ts`, `ai-actions.ts` e `route.ts` para usar categorias em PT (lembrete, observacao, preparacao, juridico, outro)
 - **Multi-round tool calling**: ate 3 rodadas com `tool_choice: "auto"` + resposta final forcada com `tool_choice: "none"`
 - **Contexto familiar** (`ai-context.ts`): injeta dados de filhos, membros e custodia para respostas personalizadas
 - **React Portal**: componente `AIAssistant.tsx` renderiza em `document.body` via `createPortal` (escapa CSS `backdrop-blur` containing block no header mobile)

@@ -609,7 +609,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - **Atividades recorrentes** das criancas (futsal, natacao, dentista, etc.)
 - **Motor de recorrencia** com 7 opcoes: Nunca, Todos os dias, Toda semana, A cada 2 semanas, Todo mes, Todo ano, Personalizar
 - **Checklist inteligente**: itens pre-preenchidos por categoria (esporte -> uniforme, chuteira, etc.)
-- **Relatorios de atividade**: status (completa/faltou/cancelada), humor da crianca, notas. **Modal reseta campos** ao abrir para nova atividade
+- **Relatorios de atividade**: status (completa/faltou/cancelada), humor da crianca, notas. **Modal reseta campos** ao abrir para nova atividade. **Fix de cor de texto** no textarea do ActivityReportModal (cor explicita + placeholder para evitar texto invisivel)
 - **Editar ocorrencia unica vs todas** (estilo Google Calendar): overrides JSONB para nome, horario, local de uma data especifica
 - **Cancelar ocorrencia**: cancelar apenas uma data
 - **Trocar responsavel**: por ocorrencia ou para todas
@@ -655,6 +655,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
   - **1 tool de comunicacao**: `draft_message`
 - **API Route**: `src/app/api/ai/assistant/route.ts` — multi-round tool calling (ate 3 rodadas com `tool_choice: "auto"`, resposta final forcada com `tool_choice: "none"`)
 - **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao do usuario antes de executar. Fluxo: pedido → IA retorna "⏳ Confirma? [descricao]" → usuario diz "sim/ok" → executa. Cancelar com "nao/cancela". Tools de consulta (get_*) executam imediatamente. Constantes `CONFIRM_PREFIX`, `CONFIRM_WORDS` e `CANCEL_WORDS` em `route.ts`. System prompt do Groq tambem atualizado
+- **Fix de categorias em portugues**: `create_note` enviava categorias em ingles (reminder, observation, etc.) que violavam check constraint da tabela `private_notes`. Corrigido em `ai-tools.ts`, `ai-actions.ts` e `route.ts` para usar valores em PT (lembrete, observacao, preparacao, juridico, outro)
 - **`sanitizeResponse()`**: funcao que remove tags XML malformadas (`<function=...>`) que o modelo 8B pode gerar, limpando a resposta antes de enviar ao frontend
 - **`groqWithTimeout()`**: wrapper com `AbortController` e timeout de 8s (`GROQ_TIMEOUT_MS = 8000`) por chamada a API Groq, evitando que o request fique preso indefinidamente. `AbortError` e tratado como condicao de rate-limit (dispara fallback para 8B)
 - **`export const maxDuration = 60`**: configurado na API route do assistente e nas paginas SSR (`/dashboard`, `/calendario`) para evitar timeout de Vercel Functions (padrao 10s)

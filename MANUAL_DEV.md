@@ -1237,9 +1237,11 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - **Decisao tecnica**: todos os parametros de tools usam `type: "string"` (nao `"number"`) para evitar erros de validacao do Groq com outputs do LLM
 - **SSR-safe**: container do Portal usa `useState` + `useEffect` para evitar erros de hydration
 - **50 testes unitarios** (Vitest) com 98.5% de acuracia
+- **Fix de categorias em portugues**: `create_note` usava enum em ingles (reminder, observation, etc.) que violava check constraint da tabela `private_notes`. Corrigido em `ai-tools.ts`, `ai-actions.ts` e `route.ts` para valores em PT (lembrete, observacao, preparacao, juridico, outro)
 
 ### Atividades e Calendario
 - Activity report modal reseta campos ao abrir nova atividade
+- Fix de cor de texto no textarea do ActivityReportModal (adicionada cor explicita e placeholder color para evitar texto invisivel)
 - Editar ocorrencia unica vs todas (estilo Google Calendar)
 - Overrides JSONB em activity_reports
 - Formulario redesenhado: UX premium, 93 novas chaves i18n
