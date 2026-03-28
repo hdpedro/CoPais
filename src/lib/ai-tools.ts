@@ -252,7 +252,7 @@ export const AI_TOOLS = [
           content: { type: "string", description: "Conteudo da nota" },
           category: {
             type: "string",
-            enum: ["reminder", "observation", "preparation", "legal", "other"],
+            enum: ["lembrete", "observacao", "preparacao", "juridico", "outro"],
           },
         },
         required: ["title", "content"],
@@ -569,7 +569,7 @@ async function execCreateNote(p: Record<string, unknown>, ctx: ToolContext): Pro
     group_id: ctx.groupId,
     title: title.slice(0, 200),
     content: content.slice(0, 5000),
-    category: p.category || "other",
+    category: p.category || "lembrete",
   };
 
   console.log("[TOOL] create_note INSERT:", JSON.stringify(insertNote));

@@ -205,7 +205,7 @@ export default function ActivityReportModal({
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder={t("activityReport.notesPlaceholder")}
                 rows={3}
-                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4735A]/50 resize-none text-sm"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-[#D4735A]/50 resize-none text-sm text-[#2C2C2C] placeholder:text-[#7A8C8B]"
               />
             </div>
 

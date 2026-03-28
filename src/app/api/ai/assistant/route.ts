@@ -236,7 +236,7 @@ function mapLocalActionToTool(
         toolParams: {
           title: p.title || "Nota",
           content: p.content || p.title || "",
-          category: "reminder",
+          category: p.category || "lembrete",
         },
       };
     }

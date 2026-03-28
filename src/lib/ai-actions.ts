@@ -246,7 +246,7 @@ export const AI_ACTIONS: AIAction[] = [
         type: "string",
         required: false,
         description:
-          "Categoria: reminder, observation, preparation, legal, other",
+          "Categoria: lembrete, observacao, preparacao, juridico, outro",
       },
     ],
   },
