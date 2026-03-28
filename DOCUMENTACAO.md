@@ -152,7 +152,8 @@ common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, ch
 ### Otimizacoes Aplicadas
 
 **Calendario:**
-- `Promise.all()` para executar 5 queries em paralelo (custody_events, children, activities, events, swap_requests)
+- `Promise.all()` para executar 7 queries em paralelo (members, custody_events, activities, events, appointments, swaps, reports)
+- Resiliencia: cada query tem `.then(r => r, () => ({ data: [] }))` — falha individual nao derruba a pagina
 - `useMemo` no grid mensal para evitar recalculos desnecessarios
 - `useCallback` nos handlers de click/navegacao
 - Fix de timezone: `getBrazilNow()` para horario correto no fuso BR
@@ -160,6 +161,7 @@ common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, ch
 **Dashboard:**
 - 5 queries de `custody_events` consolidadas em 1 unica query
 - Todas as queries do dashboard executam em paralelo
+- Resiliencia: cada query nas 3 batches paralelas tem `.then(r => r, () => ({ data: [] }))` — falha individual nao derruba a pagina
 
 **Chat:**
 - Cache LRU em memoria (ate 5 canais) para troca instantanea de canais
@@ -417,7 +419,7 @@ Politicas garantem que:
 - Despesas pendentes de aprovacao
 - Check-ins recentes
 - Acoes rapidas (Agenda, Despesas, Check-in, Chat, Saude, Documentos)
-- **Performance**: queries consolidadas e paralelas
+- **Performance**: queries consolidadas e paralelas com resiliencia a falhas individuais
 - **i18n**: todas as strings traduzidas via `useI18n()`
 
 ### 2. Agenda Unificada (`/calendario`)
@@ -431,7 +433,7 @@ Politicas garantem que:
 - **Ao clicar num dia**: sheet mostra guarda do dia + atividades + eventos (accordion)
 - **Unifica** 3 conceitos: atividades recorrentes, eventos sociais e eventos de guarda
 - **Fix de eventos no calendario**: query SELECT removia coluna `category` inexistente na tabela `events` (Supabase retornava null); categoria agora hardcoded como "evento"
-- **Performance**: `Promise.all()` para 5 queries paralelas, `useMemo` no grid, `useCallback` nos handlers
+- **Performance**: `Promise.all()` para 7 queries paralelas com resiliencia a falhas, `useMemo` no grid, `useCallback` nos handlers
 
 ### 3. Saldo de Trocas (Swap Balance) (`/calendario`)
 - Componente `SwapBalanceCard` mostra +/- dias por responsavel
@@ -660,6 +662,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - **`groqWithTimeout()`**: wrapper com `AbortController` e timeout de 8s (`GROQ_TIMEOUT_MS = 8000`) por chamada a API Groq, evitando que o request fique preso indefinidamente. `AbortError` e tratado como condicao de rate-limit (dispara fallback para 8B)
 - **`export const maxDuration = 60`**: configurado na API route do assistente e nas paginas SSR (`/dashboard`, `/calendario`) para evitar timeout de Vercel Functions (padrao 10s)
 - **Frontend resiliente**: `AIAssistant.tsx` trata respostas nao-JSON (504/502) graciosamente com try/catch no `response.json()`, exibindo mensagem amigavel de timeout
+- **Client-side timeout**: `AIAssistant.tsx` usa `AbortController` com timeout de 15s no fetch ao `/api/ai/assistant`. Se o servidor nao responder a tempo, exibe mensagem amigavel em PT e cancela o request
 - **Contexto familiar** (`ai-context.ts`): constroi contexto com filhos, membros do grupo e custodia
 - **React Portal**: renderiza em `document.body` via `createPortal` (escapa CSS `backdrop-blur` containing block no header mobile)
 - **Integracao**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)

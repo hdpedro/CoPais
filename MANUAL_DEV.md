@@ -1230,6 +1230,7 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - **`sanitizeResponse()`**: remove tags XML malformadas (`<function=...>`) das respostas do modelo 8B antes de retornar ao frontend
 - **`export const maxDuration = 60`**: nas rotas `/api/ai/assistant`, `/dashboard` e `/calendario` para evitar timeout padrao de 10s do Vercel
 - **Frontend resiliente a erros de rede**: `AIAssistant.tsx` usa try/catch no `response.json()` para tratar respostas nao-JSON (504/502 do gateway), exibindo mensagem amigavel
+- **Client-side fetch timeout**: `AIAssistant.tsx` usa `AbortController` com timeout de 15s no fetch. `AbortError` e detectado no catch e exibe mensagem amigavel em PT ao usuario
 - **Contexto familiar**: constroi contexto com filhos (tabela `children`, coluna `full_name`), membros e custodia. Info escolar via join com `child_education`
 - **Integracao no shell**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)
 - **Rate limiting** por usuario (`ai-rate-limit.ts`) com mensagens amigaveis de erro
@@ -1598,6 +1599,7 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - `AbortError` e tratado como condicao de rate-limit, disparando fallback para o modelo 8B
 - `export const maxDuration = 60` em routes e paginas SSR pesadas (`/api/ai/assistant`, `/dashboard`, `/calendario`) aumenta o limite do Vercel de 10s para 60s
 - Frontend (`AIAssistant.tsx`) trata respostas 504/502 com try/catch no `response.json()` — mostra mensagem amigavel em vez de crash
+- Frontend (`AIAssistant.tsx`) usa `AbortController` com timeout de 15s no fetch — se o servidor nao responder, cancela o request e exibe mensagem de timeout em PT
 
 ### Por que parsers robustos para PT-BR?
 - Usuarios brasileiros digitam valores como "45,00", "120 conto" — `parseAmount()` normaliza para numero

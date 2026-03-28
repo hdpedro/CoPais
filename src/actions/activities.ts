@@ -112,16 +112,20 @@ export async function createActivity(formData: FormData) {
     childName = child?.full_name?.split(" ")[0] || "Crianca";
   }
 
-  if (members) {
-    for (const m of members) {
-      await createNotificationWithPush(
-        m.user_id,
-        "activity",
-        `Nova atividade: ${name}`,
-        `${childName} tem uma nova atividade cadastrada: ${name}`,
-        "/calendario"
+  if (members && members.length > 0) {
+    try {
+      await Promise.all(
+        members.map((m) =>
+          createNotificationWithPush(
+            m.user_id,
+            "activity",
+            `Nova atividade: ${name}`,
+            `${childName} tem uma nova atividade cadastrada: ${name}`,
+            "/calendario"
+          ).catch(() => {/* notification failure is non-critical */})
+        )
       );
-    }
+    } catch { /* notification failure is non-critical */ }
   }
 
   redirect("/calendario?success=Compromisso+criado+com+sucesso");
@@ -271,20 +275,24 @@ export async function sendActivityReminders() {
 
     const members = membersByGroup[activity.group_id] || [];
 
-    for (const userId of members) {
-      const body = itemList
-        ? `${childName} tem ${activity.name}${timeStr} amanha! Preparar: ${itemList}`
-        : `${childName} tem ${activity.name}${timeStr} amanha!`;
+    try {
+      await Promise.all(
+        members.map((userId) => {
+          const body = itemList
+            ? `${childName} tem ${activity.name}${timeStr} amanha! Preparar: ${itemList}`
+            : `${childName} tem ${activity.name}${timeStr} amanha!`;
 
-      await createNotificationWithPush(
-        userId,
-        "activity_reminder",
-        `${activity.name} amanha!`,
-        body,
-        "/atividades"
+          return createNotificationWithPush(
+            userId,
+            "activity_reminder",
+            `${activity.name} amanha!`,
+            body,
+            "/atividades"
+          ).catch(() => {/* notification failure is non-critical */});
+        })
       );
-      sentCount++;
-    }
+      sentCount += members.length;
+    } catch { /* notification failure is non-critical */ }
   }
 
   return { sent: sentCount };
@@ -587,19 +595,22 @@ export async function sendMissedReportReminders() {
 
     if (!members) continue;
 
-    for (const act of unreported) {
-      const childName = (act.children as any)?.full_name?.split(" ")[0] || "Crianca";
-      for (const member of members) {
-        await createNotificationWithPush(
-          member.user_id,
-          "activity_report",
-          `${act.name} de ontem - como foi?`,
-          `${childName} teve ${act.name} ontem. Como foi a atividade?`,
-          "/calendario"
+    try {
+      const notificationPromises = unreported.flatMap((act) => {
+        const childName = (act.children as any)?.full_name?.split(" ")[0] || "Crianca";
+        return members.map((member) =>
+          createNotificationWithPush(
+            member.user_id,
+            "activity_report",
+            `${act.name} de ontem - como foi?`,
+            `${childName} teve ${act.name} ontem. Como foi a atividade?`,
+            "/calendario"
+          ).catch(() => {/* notification failure is non-critical */})
         );
-        sentCount++;
-      }
-    }
+      });
+      await Promise.all(notificationPromises);
+      sentCount += unreported.length * members.length;
+    } catch { /* notification failure is non-critical */ }
   }
 
   return { sent: sentCount };

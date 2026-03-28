@@ -52,46 +52,53 @@ export default async function CalendarPage() {
       .from("group_members")
       .select("user_id, role, joined_at, profiles(full_name)")
       .eq("group_id", groupId)
-      .order("joined_at", { ascending: true }),
+      .order("joined_at", { ascending: true })
+      .then(r => r, () => ({ data: [] as any[] })),
     supabase
       .from("custody_events")
       .select("*, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
       .eq("group_id", groupId)
       .gte("end_date", rangeStart)
       .lte("start_date", rangeEnd)
-      .order("start_date"),
+      .order("start_date")
+      .then(r => r, () => ({ data: [] as any[] })),
     supabase
       .from("child_activities")
       .select("id, name, category, recurrence_type, start_date, end_date, days_of_week, day_of_month, custom_interval, custom_unit, time_start, time_end, location, notes, child_id, teacher_name, class_name, room, responsible_id, children(full_name), activity_checklist_items(id, name, sort_order)")
       .eq("group_id", groupId)
-      .eq("is_active", true),
+      .eq("is_active", true)
+      .then(r => r, () => ({ data: [] as any[] })),
     supabase
       .from("events")
       .select("id, title, description, event_date, event_time, location, child_id, status, all_day, end_date, assigned_to, children(full_name)")
       .eq("group_id", groupId)
       .neq("status", "cancelled")
       .gte("event_date", rangeStart)
-      .lte("event_date", rangeEnd),
+      .lte("event_date", rangeEnd)
+      .then(r => r, () => ({ data: [] as any[] })),
     supabase
       .from("medical_appointments")
       .select("id, title, appointment_type, appointment_date, location, child_id, status, children(full_name)")
       .eq("group_id", groupId)
       .eq("status", "scheduled")
       .gte("appointment_date", rangeStart + "T00:00:00-03:00")
-      .lte("appointment_date", rangeEnd + "T23:59:59-03:00"),
+      .lte("appointment_date", rangeEnd + "T23:59:59-03:00")
+      .then(r => r, () => ({ data: [] as any[] })),
     supabase
       .from("swap_requests")
       .select("*, requester:profiles!swap_requests_requester_id_fkey(full_name), target:profiles!swap_requests_target_user_id_fkey(full_name)")
       .eq("group_id", groupId)
       .in("status", ["pending", "approved"])
       .order("created_at", { ascending: false })
-      .limit(10),
+      .limit(10)
+      .then(r => r, () => ({ data: [] as any[] })),
     supabase
       .from("activity_reports")
       .select("activity_id, occurrence_date, status, notes, child_mood, responsible_override, responsible_override_id, overrides")
       .eq("group_id", groupId)
       .gte("occurrence_date", rangeStart)
-      .lte("occurrence_date", rangeEnd),
+      .lte("occurrence_date", rangeEnd)
+      .then(r => r, () => ({ data: [] as any[] })),
   ]);
 
   // Fetch checklist completions for the visible range

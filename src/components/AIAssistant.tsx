@@ -189,11 +189,17 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
           content: m.content,
         }));
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 15_000);
+
         const response = await fetch("/api/ai/assistant", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ messages: apiMessages, groupId }),
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         let data;
         try {
@@ -213,13 +219,16 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         };
 
         setMessages((prev) => [...prev, assistantMsg]);
-      } catch {
+      } catch (err) {
+        const isTimeout = err instanceof DOMException && err.name === "AbortError";
         setMessages((prev) => [
           ...prev,
           {
             id: uid(),
             role: "assistant",
-            content: "Desculpe, ocorreu um erro de conexão. Tente novamente.",
+            content: isTimeout
+              ? "O assistente demorou demais para responder. Por favor, tente novamente em alguns instantes. \u23F3"
+              : "Desculpe, ocorreu um erro de conexão. Tente novamente.",
             timestamp: new Date(),
           },
         ]);

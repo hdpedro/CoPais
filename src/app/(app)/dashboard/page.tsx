@@ -49,8 +49,10 @@ export default async function DashboardPage() {
 
   // === BATCH 2: members + children (parallel, need groupId) ===
   const [{ data: members }, { data: children }] = await Promise.all([
-    supabase.from("group_members").select("*, profiles(id, full_name, email)").eq("group_id", groupId).order("joined_at"),
-    supabase.from("children").select("*").eq("group_id", groupId),
+    supabase.from("group_members").select("*, profiles(id, full_name, email)").eq("group_id", groupId).order("joined_at")
+      .then(r => r, () => ({ data: [] as any[] })),
+    supabase.from("children").select("*").eq("group_id", groupId)
+      .then(r => r, () => ({ data: [] as any[] })),
   ]);
 
   const parentColors: ParentColorMap = {};
@@ -107,58 +109,69 @@ export default async function DashboardPage() {
     supabase.from("custody_events")
       .select("*, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
       .eq("group_id", groupId).gte("end_date", formatDateKey(threeMonthsAgo))
-      .lte("start_date", formatDateKey(threeMonthsAhead)).order("start_date"),
+      .lte("start_date", formatDateKey(threeMonthsAhead)).order("start_date")
+      .then(r => r, () => ({ data: [] as any[] })),
     // Monthly expenses
     supabase.from("expenses")
       .select("amount, paid_by, status, split_ratio")
-      .eq("group_id", groupId).gte("expense_date", monthStart).lt("expense_date", monthEnd),
+      .eq("group_id", groupId).gte("expense_date", monthStart).lt("expense_date", monthEnd)
+      .then(r => r, () => ({ data: [] as any[] })),
     // Pending swaps
     supabase.from("swap_requests")
       .select("*, requester:profiles!swap_requests_requester_id_fkey(full_name)")
       .eq("group_id", groupId).eq("status", "pending").eq("target_user_id", user.id)
-      .order("created_at", { ascending: false }).limit(3),
+      .order("created_at", { ascending: false }).limit(3)
+      .then(r => r, () => ({ data: [] as any[] })),
     // Active medications
     supabase.from("active_medications")
       .select("id, name, dosage, frequency, child_id, children(full_name)")
       .eq("group_id", groupId).eq("status", "active")
-      .order("created_at", { ascending: false }).limit(5),
+      .order("created_at", { ascending: false }).limit(5)
+      .then(r => r, () => ({ data: [] as any[] })),
     // Critical allergies
     supabase.from("child_allergies")
       .select("id, name, severity, allergy_type, child_id, children(full_name)")
-      .eq("group_id", groupId).in("severity", ["severe", "moderate"]).limit(5),
+      .eq("group_id", groupId).in("severity", ["severe", "moderate"]).limit(5)
+      .then(r => r, () => ({ data: [] as any[] })),
     // Upcoming appointments
     supabase.from("medical_appointments")
       .select("id, title, appointment_date, status, child_id, children(full_name), medical_professionals(name, specialty)")
       .eq("group_id", groupId).eq("status", "scheduled")
       .gte("appointment_date", now.toISOString()).lte("appointment_date", sevenDaysAhead.toISOString())
-      .order("appointment_date").limit(3),
+      .order("appointment_date").limit(3)
+      .then(r => r, () => ({ data: [] as any[] })),
     // Active illnesses
     supabase.from("illness_episodes")
       .select("id, title, symptoms, start_date, child_id, children(full_name)")
       .eq("group_id", groupId).eq("status", "active")
-      .order("start_date", { ascending: false }).limit(3),
+      .order("start_date", { ascending: false }).limit(3)
+      .then(r => r, () => ({ data: [] as any[] })),
     // Recent check-ins
     supabase.from("daily_checkins")
       .select("*, children(full_name), profiles!daily_checkins_logged_by_fkey(full_name)")
       .eq("group_id", groupId).gte("checkin_date", formatDateKey(yesterday))
-      .order("created_at", { ascending: false }).limit(4),
+      .order("created_at", { ascending: false }).limit(4)
+      .then(r => r, () => ({ data: [] as any[] })),
     // Pending expenses awaiting MY approval (created by others, status=pending)
     supabase.from("expenses")
       .select("id, description, amount, category, expense_date, paid_by, profiles!expenses_paid_by_fkey(full_name)")
       .eq("group_id", groupId).eq("status", "pending").neq("paid_by", user.id)
-      .order("created_at", { ascending: false }).limit(5),
+      .order("created_at", { ascending: false }).limit(5)
+      .then(r => r, () => ({ data: [] as any[] })),
     // Open decisions (for pending decisions widget)
     supabase.from("decisions")
       .select("id, title, category, deadline, status")
       .eq("group_id", groupId).eq("status", "aberta")
       .order("created_at", { ascending: false })
-      .limit(20),
+      .limit(20)
+      .then(r => r, () => ({ data: [] as any[] })),
     // Active activities (moved from sequential to parallel)
     supabase
       .from("child_activities")
       .select("id, name, category, time_start, time_end, location, child_id, recurrence_type, start_date, end_date, days_of_week, day_of_month, custom_interval, custom_unit, children(full_name), activity_checklist_items(id, name)")
       .eq("group_id", groupId)
-      .eq("is_active", true),
+      .eq("is_active", true)
+      .then(r => r, () => ({ data: [] as any[] })),
     // Social events for today/tomorrow/upcoming (moved from sequential to parallel)
     supabase
       .from("events")
@@ -166,7 +179,8 @@ export default async function DashboardPage() {
       .eq("group_id", groupId)
       .neq("status", "cancelled")
       .gte("event_date", todayKey)
-      .lte("event_date", sevenDaysKey),
+      .lte("event_date", sevenDaysKey)
+      .then(r => r, () => ({ data: [] as any[] })),
   ]);
 
   // Filter decisions where user hasn't voted yet
