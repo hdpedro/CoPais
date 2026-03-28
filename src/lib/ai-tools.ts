@@ -69,11 +69,22 @@ function parseAmount(raw: unknown): number {
     .replace(/r\$\s*/gi, "")
     .replace(/\s*(reais|conto|contos|pila|pilas)\s*/gi, "")
     .trim();
-  // Handle Brazilian format: "45,00" → "45.00"
-  const normalized = cleaned.includes(",") && !cleaned.includes(".")
-    ? cleaned.replace(",", ".")
-    : cleaned.replace(/\./g, "").replace(",", "."); // "1.500,00" → "1500.00"
-  return Number(normalized) || 0;
+
+  // Both dot AND comma → BR thousands format: "1.500,00" → "1500.00"
+  if (cleaned.includes(",") && cleaned.includes(".")) {
+    return Number(cleaned.replace(/\./g, "").replace(",", ".")) || 0;
+  }
+  // Only comma → decimal separator: "45,00" → "45.00"
+  if (cleaned.includes(",")) {
+    return Number(cleaned.replace(",", ".")) || 0;
+  }
+  // Only dot: check if thousands separator (dot + exactly 3 digits) or decimal
+  // "1.500" → thousands (1500), "53.9" / "53.90" → decimal (53.9)
+  if (/^\d{1,3}(\.\d{3})+$/.test(cleaned)) {
+    return Number(cleaned.replace(/\./g, "")) || 0;
+  }
+  // Otherwise dot is decimal: "53.9", "53.90", "120.50"
+  return Number(cleaned) || 0;
 }
 
 /* Parse date from various formats: "DD/MM/YYYY", "YYYY-MM-DD", "DD-MM-YYYY" */

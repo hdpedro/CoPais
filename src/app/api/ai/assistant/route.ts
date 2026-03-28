@@ -162,12 +162,14 @@ function mapLocalActionToTool(
 
   switch (intent.action) {
     case "createExpense": {
-      const amount = parseAmount(p.amount || p.description || "");
+      // p.amount is already the parsed numeric string from parseIntent (e.g. "53.9")
+      // Do NOT re-parse — just pass through to avoid double-conversion bugs
+      const amount = Number(p.amount) || 0;
       return {
         toolName: "create_expense",
         toolParams: {
           description: p.description || "Despesa",
-          amount: String(amount || p.amount || "0"),
+          amount: amount > 0 ? amount.toFixed(2) : "0",
           category: detectExpenseCategory(p.description || ""),
           child_name: p.childName || "",
         },
