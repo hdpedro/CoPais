@@ -242,7 +242,7 @@ O app suporta **5 idiomas** completos:
 - **Modelo**: Groq `llama-3.3-70b-versatile` (primario) → `llama-3.1-8b-instant` (fallback quando rate limited). 8B tem recuperacao `tool_use_failed` (retenta sem tools para resposta text-only)
 - **Fallback de qualidade**: quando modelo 8B retorna respostas pobres (so emojis), sistema usa resultados coletados das tools como resposta
 - **Resiliencia**: timeout de 8s por chamada Groq (`groqWithTimeout`), sanitizacao de respostas malformadas do 8B (`sanitizeResponse`), `maxDuration = 60` no Vercel, frontend trata erros 504/502 graciosamente
-- **Parsers robustos para PT-BR**: `parseAmount()` ("R$ 45,00", "120 conto"), `parseDate()` ("DD/MM/YYYY", "DD/MM"), `parseTime()` ("14h", "14h30", "14:00"), `parseDaysOfWeek()` ("terca", "quinta" → formato DB)
+- **Parsers robustos para PT-BR**: `parseAmount()` ("R$ 45,00", "120 conto" — distingue decimal de milhar), `parseDate()` ("DD/MM/YYYY", "DD/MM"), `parseTime()` ("14h", "14h30", "14:00"), `parseDaysOfWeek()` ("terca", "quinta" → formato DB)
 - **12 tools Groq-compatible** (`ai-tools.ts`):
   - **6 tools de acao**: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
   - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`

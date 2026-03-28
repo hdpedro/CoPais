@@ -643,10 +643,11 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - **Modelo**: Groq `llama-3.3-70b-versatile` (primario) → `llama-3.1-8b-instant` (fallback automatico quando rate limited). 8B tem recuperacao `tool_use_failed` (retenta sem tools para resposta text-only)
 - **Fallback de qualidade de resposta**: quando modelo 8B retorna respostas pobres (apenas emojis), sistema usa resultados coletados das tools como resposta de fallback
 - **Parsers robustos para PT-BR**:
-  - `parseAmount()`: aceita "R$ 45,00", "120 conto", "50 reais"
+  - `parseAmount()`: aceita "R$ 45,00", "120 conto", "50 reais". Distingue ponto decimal (1-2 digitos apos) de milhar (3 digitos apos). Fix: "53,90" nao vira mais 539
   - `parseDate()`: aceita "DD/MM/YYYY", "DD/MM"
   - `parseTime()`: aceita "14h", "14h30", "14:00" — usado tambem no campo de horario de atividades
   - `parseDaysOfWeek()`: mapeia "terca", "quinta", etc para formato DB
+- **Anti-pattern corrigido (double-parsing)**: `mapLocalActionToTool()` em `route.ts` agora usa `Number(p.amount)` para `createExpense` em vez de re-chamar `parseAmount()`, pois `ai-local-parser.ts` ja converte o valor corretamente
 - **12 tools Groq-compatible** (`src/lib/ai-tools.ts`):
   - **6 tools de acao**: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
   - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`

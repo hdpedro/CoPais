@@ -1215,7 +1215,7 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - **Model fallback**: 70B primario → 8B fallback (`llama-3.1-8b-instant`) quando rate limited. 8B tem recuperacao `tool_use_failed` (retenta sem tools para resposta text-only)
 - **Fallback de qualidade**: quando 8B retorna resposta pobre (so emojis), sistema usa resultados coletados das tools como resposta
 - **Parsers robustos para PT-BR**:
-  - `parseAmount()`: "R$ 45,00", "120 conto", "50 reais"
+  - `parseAmount()`: "R$ 45,00", "120 conto", "50 reais" — distingue ponto decimal (1-2 digitos apos) de milhar (3 digitos apos)
   - `parseDate()`: "DD/MM/YYYY", "DD/MM"
   - `parseTime()`: "14h", "14h30", "14:00" — usado tambem para horario de atividades
   - `parseDaysOfWeek()`: "terca", "quinta" → formato DB
@@ -1600,6 +1600,12 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - Datas em formato BR "DD/MM/YYYY" ou "DD/MM" — `parseDate()` converte para ISO
 - Horarios como "14h", "14h30" — `parseTime()` converte para "HH:MM"
 - Dias da semana em portugues ("terca", "quinta") — `parseDaysOfWeek()` mapeia para formato DB
+
+### Convencao: evitar double-parsing de valores
+- **Regra**: quando `ai-local-parser.ts` ja converteu um valor (ex: "53,90" → 53.9), **nao** re-chamar `parseAmount()` no pipeline seguinte (`ai-tools.ts` / `route.ts`). Usar `Number(valor)` diretamente
+- **Bug corrigido**: "comprei remedio 53,90" era salvo como R$ 539 — `parseAmount()` tratava o ponto decimal de "53.9" (ja parseado) como separador de milhar, removendo-o e gerando 539
+- **Fix em `parseAmount()`** (`ai-tools.ts`): ponto seguido de exatamente 3 digitos = milhar (ex: "1.500"); ponto seguido de 1-2 digitos = decimal (ex: "53.9")
+- **Fix em `mapLocalActionToTool()`** (`route.ts`): `createExpense` agora usa `Number(p.amount)` em vez de `parseAmount(p.amount)`, evitando re-parsing
 
 ---
 
