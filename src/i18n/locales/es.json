@@ -1362,6 +1362,8 @@
     "documentName": "Nombre del documento",
     "upload": "Subir",
     "uploading": "Subiendo...",
+    "uploadSuccess": "Documento subido con exito!",
+    "uploadError": "Error al subir el documento. Intentelo de nuevo.",
     "noDocuments": "Sin documentos para este hijo/a.",
     "docTypeRG": "DNI",
     "docTypePassport": "Pasaporte",

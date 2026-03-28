@@ -1362,6 +1362,8 @@
     "documentName": "Dokumentname",
     "upload": "Hochladen",
     "uploading": "Wird hochgeladen...",
+    "uploadSuccess": "Dokument erfolgreich hochgeladen!",
+    "uploadError": "Fehler beim Hochladen. Bitte versuchen Sie es erneut.",
     "noDocuments": "Keine Dokumente fuer dieses Kind.",
     "docTypeRG": "Personalausweis",
     "docTypePassport": "Reisepass",

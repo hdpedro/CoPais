@@ -583,8 +583,9 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - Card por crianca com **barra de completude** (0-100%)
 - Indicadores de documentos faltantes (badges)
 - Links para upload na aba Documentos do perfil da crianca
-- **Feedback de upload**: mensagem de sucesso apos envio e erro em caso de falha (via query params)
-- **Protecao contra duplo-clique**: botao desabilitado com texto "Enviando..." durante submissao (`useFormStatus`)
+- **Upload com barra de progresso**: porcentagem em tempo real via `XMLHttpRequest` + API route (`/api/documents/upload`)
+- **Feedback de upload**: mensagem de sucesso/erro apos envio, formulario desabilitado durante upload
+- **Protecao contra duplo-clique**: botao e campos desabilitados durante submissao, `e.preventDefault()` bloqueia resubmissao
 - Componentes: `DocumentList`, `DocumentViewer`, `DocumentsDashboard`, `DocumentsClient`
 
 ### 17. Acordos (`/acordos`)
@@ -789,7 +790,8 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 | trackHealthView | health.ts | Rastreia visualizacao |
 | createGrowthRecord | health.ts | Registra crescimento + push |
 | upsertChildEducation | children.ts | Info escolares |
-| uploadChildDocument | children.ts | Upload documento por crianca |
+| uploadChildDocument | children.ts | Upload documento por crianca (server action legacy) |
+| POST /api/documents/upload | route.ts | Upload documento por crianca via XHR com progresso |
 | createDocument | documents.ts | Upload documento |
 | createAgreement | agreements.ts | Registra acordo |
 | acceptAgreement | agreements.ts | Aceita acordo |

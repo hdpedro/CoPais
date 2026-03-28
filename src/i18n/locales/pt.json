@@ -1343,6 +1343,8 @@
     "documentName": "Nome do documento",
     "upload": "Enviar",
     "uploading": "Enviando...",
+    "uploadSuccess": "Documento enviado com sucesso!",
+    "uploadError": "Erro ao enviar documento. Tente novamente.",
     "noDocuments": "Nenhum documento para esta crianca.",
     "docTypeRG": "RG",
     "docTypePassport": "Passaporte",

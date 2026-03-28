@@ -1362,6 +1362,8 @@
     "documentName": "Document name",
     "upload": "Upload",
     "uploading": "Uploading...",
+    "uploadSuccess": "Document uploaded successfully!",
+    "uploadError": "Error uploading document. Please try again.",
     "noDocuments": "No documents for this child.",
     "docTypeRG": "ID Card",
     "docTypePassport": "Passport",

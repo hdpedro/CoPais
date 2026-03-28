@@ -1,10 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef, useTransition } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { updateChild } from "@/actions/group";
-import { upsertChildEducation, uploadChildDocument } from "@/actions/children";
+import { upsertChildEducation } from "@/actions/children";
 import DocumentViewer from "@/app/(app)/documentos/DocumentViewer";
 
 /* ───── Types ───── */
@@ -600,31 +600,81 @@ function TabDocumentos({
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
-  const [isPending, startTransition] = useTransition();
-  const [submitted, setSubmitted] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const [uploadMsg, setUploadMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (isPending || submitted) return;
+    if (uploading) return;
 
     const form = formRef.current;
     if (!form) return;
 
-    // Basic client-side validation
-    const fileInput = form.querySelector<HTMLInputElement>('input[type="file"]');
+    const fileInput = fileInputRef.current;
     const nameInput = form.querySelector<HTMLInputElement>('input[name="name"]');
     if (!fileInput?.files?.length || !nameInput?.value.trim()) return;
 
-    setSubmitted(true);
-    const formData = new FormData(form);
+    setUploading(true);
+    setProgress(0);
+    setUploadMsg(null);
 
-    startTransition(async () => {
-      await uploadChildDocument(formData);
+    const formData = new FormData(form);
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener("progress", (event) => {
+      if (event.lengthComputable) {
+        const pct = Math.round((event.loaded / event.total) * 100);
+        setProgress(pct);
+      }
     });
+
+    xhr.addEventListener("load", () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        setProgress(100);
+        setUploadMsg({ type: "success", text: t("childProfile.uploadSuccess") });
+        form.reset();
+        // Reload to show new document in list
+        setTimeout(() => {
+          window.location.href = `/criancas/${child.id}?tab=documentos&success=${encodeURIComponent(t("childProfile.uploadSuccess"))}`;
+        }, 800);
+      } else {
+        let errorText = t("childProfile.uploadError");
+        try {
+          const res = JSON.parse(xhr.responseText);
+          if (res.error) errorText = res.error;
+        } catch { /* use default */ }
+        setUploadMsg({ type: "error", text: errorText });
+        setUploading(false);
+        setProgress(0);
+      }
+    });
+
+    xhr.addEventListener("error", () => {
+      setUploadMsg({ type: "error", text: t("childProfile.uploadError") });
+      setUploading(false);
+      setProgress(0);
+    });
+
+    xhr.open("POST", "/api/documents/upload");
+    xhr.send(formData);
   }
 
   return (
     <div className="space-y-4">
+      {/* Upload feedback */}
+      {uploadMsg && (
+        <div className={`rounded-lg p-3 text-sm flex items-center justify-between ${
+          uploadMsg.type === "success"
+            ? "bg-green-50 border border-green-200 text-green-700"
+            : "bg-red-50 border border-red-200 text-red-700"
+        }`}>
+          <span>{uploadMsg.text}</span>
+          <button onClick={() => setUploadMsg(null)} className="ml-2 font-bold">&times;</button>
+        </div>
+      )}
+
       {/* Upload form */}
       {!isReadonly && (
         <form ref={formRef} onSubmit={handleSubmit} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
@@ -636,14 +686,16 @@ function TabDocumentos({
             type="text"
             name="name"
             required
+            disabled={uploading}
             placeholder={t("childProfile.documentName")}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
           />
 
           <select
             name="category"
             required
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            disabled={uploading}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50"
           >
             {docCategories.map((cat, i) => (
               <option key={i} value={cat.value}>
@@ -653,19 +705,34 @@ function TabDocumentos({
           </select>
 
           <input
+            ref={fileInputRef}
             type="file"
             name="file"
             required
+            disabled={uploading}
             accept="image/*,.pdf,.doc,.docx"
-            className="w-full text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+            className="w-full text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 disabled:opacity-50"
           />
+
+          {/* Progress bar */}
+          {uploading && (
+            <div className="space-y-1">
+              <div className="w-full h-2.5 bg-gray-200 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-primary rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${progress}%` }}
+                />
+              </div>
+              <p className="text-xs text-muted text-right">{progress}%</p>
+            </div>
+          )}
 
           <button
             type="submit"
-            disabled={isPending || submitted}
+            disabled={uploading}
             className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {isPending || submitted ? t("childProfile.uploading") : t("childProfile.upload")}
+            {uploading ? t("childProfile.uploading") : t("childProfile.upload")}
           </button>
         </form>
       )}

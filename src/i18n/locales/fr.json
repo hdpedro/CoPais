@@ -1362,6 +1362,8 @@
     "documentName": "Nom du document",
     "upload": "Telecharger",
     "uploading": "Envoi en cours...",
+    "uploadSuccess": "Document envoye avec succes !",
+    "uploadError": "Erreur lors de l'envoi du document. Veuillez reessayer.",
     "noDocuments": "Aucun document pour cet enfant.",
     "docTypeRG": "Carte d'identite",
     "docTypePassport": "Passeport",
