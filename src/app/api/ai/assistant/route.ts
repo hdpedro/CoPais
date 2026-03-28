@@ -167,12 +167,15 @@ function mapLocalActionToTool(
       // p.amount is already the parsed numeric string from parseIntent (e.g. "53.9")
       // Do NOT re-parse — just pass through to avoid double-conversion bugs
       const amount = Number(p.amount) || 0;
+      const description = p.description || "";
+      // If description is empty or amount is 0, fall back to Groq
+      if (!description.trim() || amount === 0) return null;
       return {
         toolName: "create_expense",
         toolParams: {
-          description: p.description || "Despesa",
+          description,
           amount: amount > 0 ? amount.toFixed(2) : "0",
-          category: detectExpenseCategory(p.description || ""),
+          category: detectExpenseCategory(description),
           child_name: p.childName || "",
         },
       };
@@ -220,10 +223,13 @@ function mapLocalActionToTool(
     }
 
     case "createEvent": {
+      const title = p.title || "";
+      // If title is empty, fall back to Groq
+      if (!title.trim()) return null;
       return {
         toolName: "create_event",
         toolParams: {
-          title: p.title || "Evento",
+          title,
           date: p.date || "",
           time: p.time || "",
         },
@@ -397,6 +403,15 @@ export async function POST(req: NextRequest) {
     if (!messages?.length || !groupId) {
       return NextResponse.json(
         { error: "messages e groupId obrigatorios" },
+        { status: 400 }
+      );
+    }
+
+    // Validate that the last user message is not empty
+    const lastUserMsgRaw = [...messages].reverse().find((m) => m.role === "user");
+    if (!lastUserMsgRaw?.content?.trim()) {
+      return NextResponse.json(
+        { error: "Mensagem vazia não permitida." },
         { status: 400 }
       );
     }

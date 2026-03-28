@@ -59,15 +59,17 @@ export async function createDecision(formData: FormData) {
     const creatorName = profile?.full_name?.split(" ")[0] || "Alguem";
 
     if (members) {
-      for (const member of members) {
-        await createNotificationWithPush(
-          member.user_id,
-          "decision_created",
-          "Nova Decisao",
-          `${creatorName} criou: ${title}`,
-          "/decisoes"
-        );
-      }
+      await Promise.all(
+        members.map((member) =>
+          createNotificationWithPush(
+            member.user_id,
+            "decision_created",
+            "Nova Decisao",
+            `${creatorName} criou: ${title}`,
+            "/decisoes"
+          ).catch(() => {/* individual notification failure is non-critical */})
+        )
+      );
     }
   } catch {
     // Push failure shouldn't block
