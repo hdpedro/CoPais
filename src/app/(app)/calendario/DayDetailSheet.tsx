@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSwapRequest } from "@/actions/calendar";
-import { deleteActivity, cancelActivityOccurrence, changeActivityResponsible, changeActivityResponsibleAll, toggleChecklistItem, editActivityAll, editActivityOccurrence } from "@/actions/activities";
+import { deleteActivity, deleteEvent, deleteAppointment, cancelActivityOccurrence, changeActivityResponsible, changeActivityResponsibleAll, toggleChecklistItem, editActivityAll, editActivityOccurrence } from "@/actions/activities";
 import { getBrazilToday, type CustodyDayInfo } from "@/lib/calendar-utils";
 import { ACTIVITY_CATEGORIES } from "@/lib/constants";
 import { useI18n } from "@/i18n/provider";
@@ -44,6 +44,7 @@ interface ActivityInfo {
   responsible_id?: string | null;
   responsible_name?: string | null;
   checklistItems?: ChecklistItemInfo[];
+  source?: "activity" | "event" | "appointment";
 }
 
 interface DayDetailSheetProps {
@@ -109,10 +110,16 @@ export default function DayDetailSheet({
   const isRecurring = (act: ActivityInfo) =>
     act.recurrence_type && act.recurrence_type !== "never";
 
-  async function handleDeleteAll(activityId: string) {
+  async function handleDeleteAll(activityId: string, source?: "activity" | "event" | "appointment") {
     setDeleting(true);
     try {
-      await deleteActivity(activityId);
+      if (source === "event") {
+        await deleteEvent(activityId);
+      } else if (source === "appointment") {
+        await deleteAppointment(activityId);
+      } else {
+        await deleteActivity(activityId);
+      }
       setDeleteConfirmId(null);
       router.refresh();
     } catch {
@@ -968,7 +975,7 @@ export default function DayDetailSheet({
                                         </button>
                                         <button
                                           type="button"
-                                          onClick={() => handleDeleteAll(act.id)}
+                                          onClick={() => handleDeleteAll(act.id, act.source)}
                                           disabled={deleting}
                                           className="w-full px-3 py-2 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 font-medium"
                                         >
@@ -998,7 +1005,7 @@ export default function DayDetailSheet({
                                         </button>
                                         <button
                                           type="button"
-                                          onClick={() => handleDeleteAll(act.id)}
+                                          onClick={() => handleDeleteAll(act.id, act.source)}
                                           disabled={deleting}
                                           className="flex-1 px-3 py-1.5 text-xs bg-red-500 text-white rounded-lg hover:bg-red-600 disabled:opacity-50"
                                         >

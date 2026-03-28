@@ -975,3 +975,87 @@ export async function changeActivityResponsibleAll(
 
   return { success: true };
 }
+
+/* ------------------------------------------------------------------ */
+/* Delete an event from the events table                               */
+/* ------------------------------------------------------------------ */
+
+export async function deleteEvent(eventId: string) {
+  if (!eventId?.trim()) {
+    return { error: "ID do evento obrigatorio" };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const activeGroup = await getActiveGroup(supabase, user.id);
+  if (!activeGroup) return { error: "Sem grupo" };
+
+  const { data: event } = await supabase
+    .from("events")
+    .select("id, group_id")
+    .eq("id", eventId)
+    .single();
+
+  if (!event || event.group_id !== activeGroup.groupId) {
+    return { error: "Evento nao encontrado" };
+  }
+
+  const { error } = await supabase
+    .from("events")
+    .delete()
+    .eq("id", eventId);
+
+  if (error) {
+    console.error("deleteEvent error:", error);
+    return { error: error.message };
+  }
+
+  const { revalidatePath: rp } = await import("next/cache");
+  rp("/calendario");
+
+  return { success: true };
+}
+
+/* ------------------------------------------------------------------ */
+/* Delete an appointment from the medical_appointments table           */
+/* ------------------------------------------------------------------ */
+
+export async function deleteAppointment(appointmentId: string) {
+  if (!appointmentId?.trim()) {
+    return { error: "ID da consulta obrigatorio" };
+  }
+
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const activeGroup = await getActiveGroup(supabase, user.id);
+  if (!activeGroup) return { error: "Sem grupo" };
+
+  const { data: apt } = await supabase
+    .from("medical_appointments")
+    .select("id, group_id")
+    .eq("id", appointmentId)
+    .single();
+
+  if (!apt || apt.group_id !== activeGroup.groupId) {
+    return { error: "Consulta nao encontrada" };
+  }
+
+  const { error } = await supabase
+    .from("medical_appointments")
+    .delete()
+    .eq("id", appointmentId);
+
+  if (error) {
+    console.error("deleteAppointment error:", error);
+    return { error: error.message };
+  }
+
+  const { revalidatePath: rp } = await import("next/cache");
+  rp("/calendario");
+
+  return { success: true };
+}

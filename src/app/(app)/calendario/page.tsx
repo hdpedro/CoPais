@@ -212,7 +212,7 @@ export default async function CalendarPage() {
   }
 
   // Build activity occurrences map for the visible range
-  const activityDateMap: Record<string, { id: string; name: string; category: string; time_start: string | null; time_end?: string | null; location: string | null; childName: string; checklistCount: number; description?: string | null; all_day?: boolean; assigned_to_name?: string | null; report?: { status: string; notes: string | null; child_mood: string | null; responsible_override?: string | null; responsible_override_id?: string | null } | null; recurrence_type?: string; teacher_name?: string | null; class_name?: string | null; room?: string | null; responsible_id?: string | null; responsible_name?: string | null; checklistItems?: { id: string; name: string; completed: boolean }[] }[]> = {};
+  const activityDateMap: Record<string, { id: string; name: string; category: string; time_start: string | null; time_end?: string | null; location: string | null; childName: string; checklistCount: number; description?: string | null; all_day?: boolean; assigned_to_name?: string | null; report?: { status: string; notes: string | null; child_mood: string | null; responsible_override?: string | null; responsible_override_id?: string | null } | null; recurrence_type?: string; teacher_name?: string | null; class_name?: string | null; room?: string | null; responsible_id?: string | null; responsible_name?: string | null; checklistItems?: { id: string; name: string; completed: boolean }[]; source?: "activity" | "event" | "appointment" }[]> = {};
   if (rawActivities) {
     for (const act of rawActivities) {
       const recurrence: ActivityRecurrence = {
@@ -261,6 +261,7 @@ export default async function CalendarPage() {
           responsible_id: ov?.responsible_id !== undefined ? (ov.responsible_id as string | null) : ((act as any).responsible_id || null),
           responsible_name: ov?.responsible_id ? (memberNames[ov.responsible_id as string] || null) : responsibleName,
           checklistItems,
+          source: "activity" as const,
         });
       }
     }
@@ -284,6 +285,7 @@ export default async function CalendarPage() {
         description: evt.description || null,
         all_day: evt.all_day || false,
         assigned_to_name: assignedName,
+        source: "event" as const,
       });
     }
   }
@@ -304,6 +306,7 @@ export default async function CalendarPage() {
         location: apt.location,
         childName,
         checklistCount: 0,
+        source: "appointment" as const,
       });
     }
   }

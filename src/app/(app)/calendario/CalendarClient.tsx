@@ -56,6 +56,7 @@ export interface ActivityInfo {
   responsible_id?: string | null;
   responsible_name?: string | null;
   checklistItems?: ChecklistItemInfo[];
+  source?: "activity" | "event" | "appointment";
 }
 
 interface CalendarClientProps {
