@@ -1,5 +1,6 @@
 /* ------------------------------------------------------------------ */
-/* /api/ai/assistant — Conversational AI with tool calling             */
+/* /api/ai/assistant — LOCAL-FIRST AI with Groq fallback              */
+/* Tries to resolve intent locally before calling Groq to save calls  */
 /* ------------------------------------------------------------------ */
 
 import { NextRequest, NextResponse } from "next/server";
@@ -7,15 +8,15 @@ import Groq from "groq-sdk";
 import { createClient } from "@/lib/supabase/server";
 import { AI_TOOLS, executeTool, ToolContext } from "@/lib/ai-tools";
 import { aiRateLimiter } from "@/lib/ai-rate-limit";
+import { parseIntent, parseAmount, parseRelativeDate, parseTime } from "@/lib/ai-local-parser";
 
 const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
 const MODEL_PRIMARY = "llama-3.3-70b-versatile";
 const MODEL_FALLBACK = "llama-3.1-8b-instant";
 const MAX_TOOL_ROUNDS = 3;
-const GROQ_TIMEOUT_MS = 8000; // 8s per Groq call to stay within Vercel limits
+const GROQ_TIMEOUT_MS = 8000;
 
-// Increase Vercel function timeout (hobby: max 60s, pro: 300s)
 export const maxDuration = 60;
 
 /* ------------------------------------------------------------------ */
@@ -28,13 +29,11 @@ async function buildContext(
   userId: string,
   groupId: string
 ): Promise<{ contextStr: string; toolCtx: ToolContext }> {
-  // Children
   const { data: children } = await supabase
     .from("children")
     .select("id, full_name, birth_date")
     .eq("group_id", groupId);
 
-  // Members
   const { data: membersRaw } = await supabase
     .from("group_members")
     .select("user_id, role, profiles(full_name)")
@@ -68,7 +67,6 @@ async function buildContext(
     day: "numeric",
   });
 
-  // Today's custody
   const todayISO = now.toISOString().split("T")[0];
   const { data: custody } = await supabase
     .from("custody_events")
@@ -114,11 +112,8 @@ async function buildContext(
 
 function sanitizeResponse(text: string): string {
   if (!text) return text;
-  // Remove <function=...>...</function> patterns the 8B model sometimes emits as text
   let cleaned = text.replace(/<function=[^>]*>[\s\S]*?<\/function>/gi, "").trim();
-  // Remove standalone <function>...</function> tags
   cleaned = cleaned.replace(/<\/?function[^>]*>/gi, "").trim();
-  // Remove ```json blocks that are clearly tool call attempts
   cleaned = cleaned.replace(/```json\s*\{[^}]*"name"\s*:\s*"[^"]*"[^`]*```/gi, "").trim();
   return cleaned;
 }
@@ -154,6 +149,148 @@ REGRAS OBRIGATORIAS:
 }
 
 /* ------------------------------------------------------------------ */
+/* LOCAL-FIRST: Map local parser actions → tool calls                  */
+/* ------------------------------------------------------------------ */
+
+/** Map parseIntent action names to AI tool names & build tool params */
+function mapLocalActionToTool(
+  intent: { action: string; params: Record<string, string>; confidence: number },
+  toolCtx: ToolContext
+): { toolName: string; toolParams: Record<string, unknown> } | null {
+  const p = intent.params;
+  const childNames = toolCtx.children.map((c) => c.name);
+
+  switch (intent.action) {
+    case "createExpense": {
+      const amount = parseAmount(p.amount || p.description || "");
+      return {
+        toolName: "create_expense",
+        toolParams: {
+          description: p.description || "Despesa",
+          amount: String(amount || p.amount || "0"),
+          category: detectExpenseCategory(p.description || ""),
+          child_name: p.childName || "",
+        },
+      };
+    }
+
+    case "createAppointment": {
+      return {
+        toolName: "create_appointment",
+        toolParams: {
+          child_name: p.childName || "",
+          specialty: p.specialty || "consulta",
+          date: p.date || "",
+          time: p.time || "",
+          appointment_type: p.appointmentType || "routine",
+          doctor_name: p.doctorName || "",
+        },
+      };
+    }
+
+    case "createHealthLog": {
+      // Map health log to check-in (health category)
+      return {
+        toolName: "create_checkin",
+        toolParams: {
+          child_name: p.childName || "",
+          category: "health",
+          title: p.logType === "temperature"
+            ? `Temperatura: ${p.value || "febre"}`
+            : `Saude: ${p.value || "sintoma"}`,
+          notes: p.notes || "",
+        },
+      };
+    }
+
+    case "createCheckin": {
+      return {
+        toolName: "create_checkin",
+        toolParams: {
+          child_name: p.childName || "",
+          category: p.category || "other",
+          title: p.text?.slice(0, 100) || "Check-in",
+          notes: p.text || "",
+        },
+      };
+    }
+
+    case "createEvent": {
+      return {
+        toolName: "create_event",
+        toolParams: {
+          title: p.title || "Evento",
+          date: p.date || "",
+          time: p.time || "",
+        },
+      };
+    }
+
+    case "createNote": {
+      return {
+        toolName: "create_note",
+        toolParams: {
+          title: p.title || "Nota",
+          content: p.content || p.title || "",
+          category: "reminder",
+        },
+      };
+    }
+
+    case "createActivity": {
+      return {
+        toolName: "create_activity",
+        toolParams: {
+          child_name: p.childName || "",
+          name: p.title || "Atividade",
+        },
+      };
+    }
+
+    case "createMedication": {
+      // Map to check-in with health category
+      return {
+        toolName: "create_checkin",
+        toolParams: {
+          child_name: p.childName || "",
+          category: "health",
+          title: `Medicamento: ${p.name || "remedio"}`,
+          notes: p.name || "",
+        },
+      };
+    }
+
+    case "createVaccine": {
+      return {
+        toolName: "create_appointment",
+        toolParams: {
+          child_name: p.childName || "",
+          specialty: "vacina",
+          date: p.date || "",
+          appointment_type: "vaccine",
+        },
+      };
+    }
+
+    default:
+      return null;
+  }
+}
+
+/** Detect expense category from description */
+function detectExpenseCategory(desc: string): string {
+  const n = desc.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (/remedio|farmacia|medic|consulta|hospital|saude|vacina/.test(n)) return "health";
+  if (/escola|colegio|material|livro|mochila|uniforme|mensalid/.test(n)) return "education";
+  if (/comida|almoco|janta|lanche|mercado|supermercado|restaurante|ifood/.test(n)) return "food";
+  if (/roupa|calcado|tenis|sapato|vestido/.test(n)) return "clothing";
+  if (/parque|cinema|brinquedo|jogo|passeio|viagem|lazer/.test(n)) return "leisure";
+  if (/uber|taxi|gasolina|onibus|transporte/.test(n)) return "transport";
+  if (/aluguel|condominio|agua|luz|energia/.test(n)) return "housing";
+  return "other";
+}
+
+/* ------------------------------------------------------------------ */
 /* Groq call with automatic model fallback                             */
 /* ------------------------------------------------------------------ */
 
@@ -169,7 +306,6 @@ async function callGroqWithFallback(
   messages: any[],
   toolChoice: "auto" | "none" = "auto"
 ) {
-  // Try primary model first
   try {
     return await groqWithTimeout({
       model: MODEL_PRIMARY,
@@ -192,7 +328,6 @@ async function callGroqWithFallback(
     if (!isRateLimit) throw err;
   }
 
-  // Fallback to smaller model (8B)
   console.log(`Groq 70B rate limited, falling back to ${MODEL_FALLBACK}`);
   try {
     return await groqWithTimeout({
@@ -209,9 +344,7 @@ async function callGroqWithFallback(
 
     if (!isToolUseFailed) throw err;
 
-    // 8B model generated malformed tool call — retry without tools for a text-only response
     console.log("8B tool_use_failed, retrying without tools for text response");
-    // Filter messages: keep only system + user + assistant text messages (remove tool messages)
     const textOnlyMessages = messages.filter(
       (m: any) => m.role === "system" || m.role === "user" || (m.role === "assistant" && !m.tool_calls)
     );
@@ -244,7 +377,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
     }
 
-    // Rate limiting
     const rateCheck = aiRateLimiter.check(user.id);
     if (!rateCheck.allowed) {
       return NextResponse.json(
@@ -265,23 +397,64 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build context
+    // Build context (needed for both local and Groq paths)
     const { contextStr, toolCtx } = await buildContext(
       supabase,
       user.id,
       groupId
     );
 
-    // Build full message array with system prompt
+    // Get the last user message for local parsing
+    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
+    const userText = lastUserMsg?.content || "";
+
+    /* ================================================================ */
+    /* STEP 1: Try LOCAL parsing first — no Groq call needed            */
+    /* ================================================================ */
+
+    const childNames = toolCtx.children.map((c) => c.name);
+    const memberNames = toolCtx.members.map((m) => m.name);
+
+    const localIntent = parseIntent(userText, childNames, memberNames, "pt");
+
+    if (localIntent && localIntent.confidence >= 0.7) {
+      console.log(`[LOCAL] Intent: ${localIntent.action}, confidence: ${localIntent.confidence}, params:`, localIntent.params);
+
+      const mapped = mapLocalActionToTool(localIntent, toolCtx);
+
+      if (mapped) {
+        console.log(`[LOCAL] Executing tool: ${mapped.toolName}`, mapped.toolParams);
+
+        const result = await executeTool(mapped.toolName, mapped.toolParams, toolCtx);
+
+        console.log(`[LOCAL] Tool result: success=${result.success}, message=${result.message}`);
+
+        if (result.success) {
+          return NextResponse.json({
+            role: "assistant",
+            content: `✅ ${result.message}`,
+          });
+        } else {
+          // Tool failed — maybe missing required params, fall through to Groq
+          console.log(`[LOCAL] Tool failed, falling back to Groq: ${result.message}`);
+        }
+      }
+    } else if (localIntent) {
+      console.log(`[LOCAL] Low confidence (${localIntent.confidence}), falling back to Groq`);
+    }
+
+    /* ================================================================ */
+    /* STEP 2: Groq fallback — for complex / ambiguous requests         */
+    /* ================================================================ */
+
+    console.log(`[GROQ] Calling Groq for: "${userText.slice(0, 80)}..."`);
+
     const systemMsg = {
       role: "system" as const,
       content: buildSystemPrompt(contextStr),
     };
 
-    // Keep only last 20 messages to avoid token limits
     const recentMessages = messages.slice(-20);
-
-    // Call Groq with tools (auto-fallback to 8B if 70B rate limited)
     let groqMessages: any[] = [systemMsg, ...recentMessages];
     const toolResultsSummary: string[] = [];
 
@@ -298,10 +471,8 @@ export async function POST(req: NextRequest) {
 
       const assistantMsg = choice.message;
 
-      // No tool calls — return the response directly
       if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
         const content = sanitizeResponse(assistantMsg.content || "");
-        // Quality check: if response is too short (just emoji or single word), improve it
         if (content.length < 5 && toolResultsSummary.length > 0) {
           return NextResponse.json({
             role: "assistant",
@@ -314,7 +485,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      // Execute tool calls
+      // Execute tool calls from Groq
       groqMessages.push(assistantMsg);
 
       for (const toolCall of assistantMsg.tool_calls) {
@@ -325,13 +496,16 @@ export async function POST(req: NextRequest) {
           args = {};
         }
 
+        console.log(`[GROQ] Executing tool: ${toolCall.function.name}`, args);
+
         const result = await executeTool(
           toolCall.function.name,
           args,
           toolCtx
         );
 
-        // Collect tool results for fallback summary
+        console.log(`[GROQ] Tool result: success=${result.success}, message=${result.message}`);
+
         if (result.message) {
           toolResultsSummary.push(
             result.success ? `✅ ${result.message}` : `⚠️ ${result.message}`
@@ -344,15 +518,12 @@ export async function POST(req: NextRequest) {
           content: JSON.stringify(result),
         });
       }
-
-      // Continue loop to let Groq generate final response with tool results
     }
 
-    // Exhausted tool rounds — do one final call with tool_choice "none" to force a text response
+    // Exhausted tool rounds
     try {
       const finalCompletion = await callGroqWithFallback(groqMessages, "none");
       const finalContent = sanitizeResponse(finalCompletion.choices[0]?.message?.content || "");
-      // Quality check: if final response is too short, use tool results summary
       if (finalContent && finalContent.length >= 5) {
         return NextResponse.json({
           role: "assistant",
@@ -363,7 +534,6 @@ export async function POST(req: NextRequest) {
       // Fall through to default
     }
 
-    // Use collected tool results as a human-readable response
     if (toolResultsSummary.length > 0) {
       return NextResponse.json({
         role: "assistant",
@@ -379,7 +549,6 @@ export async function POST(req: NextRequest) {
     console.error("AI Chat error:", error);
     const msg = error instanceof Error ? error.message : "Erro interno";
 
-    // User-friendly error messages
     const isRateLimit = msg.includes("rate_limit") || msg.includes("429") || msg.includes("Limit") || msg.includes("tokens") || msg.includes("abort") || msg.includes("Abort") || msg.includes("TPD");
     const isToolError = msg.includes("tool_use_failed") || msg.includes("tool call validation");
 

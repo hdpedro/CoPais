@@ -405,7 +405,7 @@ async function execCreateExpense(p: Record<string, unknown>, ctx: ToolContext): 
   const child = resolveChild(String(p.child_name || ""), ctx.children);
   const date = parseDate(p.date, todayISO());
 
-  const { error } = await ctx.supabase.from("expenses").insert({
+  const insertData = {
     group_id: ctx.groupId,
     description: desc.slice(0, 200),
     amount,
@@ -415,9 +415,18 @@ async function execCreateExpense(p: Record<string, unknown>, ctx: ToolContext): 
     expense_date: date,
     split_ratio: buildSplitRatio(ctx.members),
     status: "pending",
-  });
+  };
 
-  if (error) return { success: false, message: `Erro ao registrar: ${error.message}` };
+  console.log("[TOOL] create_expense INSERT:", JSON.stringify(insertData));
+
+  const { error } = await ctx.supabase.from("expenses").insert(insertData);
+
+  if (error) {
+    console.error("[TOOL] create_expense ERROR:", error.code, error.message, error.details);
+    return { success: false, message: `Erro ao registrar: ${error.message}` };
+  }
+
+  console.log("[TOOL] create_expense SUCCESS");
 
   const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
   return {
@@ -447,8 +456,16 @@ async function execCreateEvent(p: Record<string, unknown>, ctx: ToolContext): Pr
   const child = resolveChild(String(p.child_name || ""), ctx.children);
   if (child) insert.child_id = child.id;
 
+  console.log("[TOOL] create_event INSERT:", JSON.stringify(insert));
+
   const { error } = await ctx.supabase.from("events").insert(insert);
-  if (error) return { success: false, message: `Erro: ${error.message}` };
+
+  if (error) {
+    console.error("[TOOL] create_event ERROR:", error.code, error.message, error.details);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+
+  console.log("[TOOL] create_event SUCCESS");
 
   const timeStr = time ? ` as ${time}` : "";
   return {
@@ -470,7 +487,7 @@ async function execCreateAppointment(p: Record<string, unknown>, ctx: ToolContex
 
   const appointmentDate = `${date}T${time}:00-03:00`;
 
-  const { error } = await ctx.supabase.from("medical_appointments").insert({
+  const insertAppt = {
     group_id: ctx.groupId,
     child_id: child.id,
     title: title.slice(0, 200),
@@ -480,9 +497,18 @@ async function execCreateAppointment(p: Record<string, unknown>, ctx: ToolContex
     notes: p.notes ? String(p.notes).slice(0, 2000) : null,
     status: "scheduled",
     created_by: ctx.userId,
-  });
+  };
 
-  if (error) return { success: false, message: `Erro: ${error.message}` };
+  console.log("[TOOL] create_appointment INSERT:", JSON.stringify(insertAppt));
+
+  const { error } = await ctx.supabase.from("medical_appointments").insert(insertAppt);
+
+  if (error) {
+    console.error("[TOOL] create_appointment ERROR:", error.code, error.message, error.details);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+
+  console.log("[TOOL] create_appointment SUCCESS");
 
   return {
     success: true,
@@ -495,7 +521,7 @@ async function execCreateCheckin(p: Record<string, unknown>, ctx: ToolContext): 
   const title = String(p.title || "Check-in");
   const category = String(p.category || "other");
 
-  const { error } = await ctx.supabase.from("daily_checkins").insert({
+  const insertCheckin = {
     group_id: ctx.groupId,
     child_id: child?.id || (ctx.children[0]?.id ?? null),
     logged_by: ctx.userId,
@@ -503,9 +529,18 @@ async function execCreateCheckin(p: Record<string, unknown>, ctx: ToolContext): 
     title: title.slice(0, 200),
     description: p.notes ? String(p.notes).slice(0, 2000) : null,
     checkin_date: todayISO(),
-  });
+  };
 
-  if (error) return { success: false, message: `Erro: ${error.message}` };
+  console.log("[TOOL] create_checkin INSERT:", JSON.stringify(insertCheckin));
+
+  const { error } = await ctx.supabase.from("daily_checkins").insert(insertCheckin);
+
+  if (error) {
+    console.error("[TOOL] create_checkin ERROR:", error.code, error.message, error.details);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+
+  console.log("[TOOL] create_checkin SUCCESS");
 
   const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
   return {
@@ -518,15 +553,24 @@ async function execCreateNote(p: Record<string, unknown>, ctx: ToolContext): Pro
   const title = String(p.title || "Nota");
   const content = String(p.content || "");
 
-  const { error } = await ctx.supabase.from("private_notes").insert({
+  const insertNote = {
     user_id: ctx.userId,
     group_id: ctx.groupId,
     title: title.slice(0, 200),
     content: content.slice(0, 5000),
     category: p.category || "other",
-  });
+  };
 
-  if (error) return { success: false, message: `Erro: ${error.message}` };
+  console.log("[TOOL] create_note INSERT:", JSON.stringify(insertNote));
+
+  const { error } = await ctx.supabase.from("private_notes").insert(insertNote);
+
+  if (error) {
+    console.error("[TOOL] create_note ERROR:", error.code, error.message, error.details);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+
+  console.log("[TOOL] create_note SUCCESS");
   return { success: true, message: `Nota criada: "${title}"` };
 }
 
@@ -572,8 +616,16 @@ async function execCreateActivity(p: Record<string, unknown>, ctx: ToolContext):
   if (timeEnd) insert.time_end = timeEnd;
   if (p.location) insert.location = String(p.location).slice(0, 200);
 
+  console.log("[TOOL] create_activity INSERT:", JSON.stringify(insert));
+
   const { error } = await ctx.supabase.from("child_activities").insert(insert);
-  if (error) return { success: false, message: `Erro: ${error.message}` };
+
+  if (error) {
+    console.error("[TOOL] create_activity ERROR:", error.code, error.message, error.details);
+    return { success: false, message: `Erro: ${error.message}` };
+  }
+
+  console.log("[TOOL] create_activity SUCCESS");
 
   const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
   return { success: true, message: `Atividade registrada: ${name}${childLabel}` };
