@@ -2,7 +2,21 @@ import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Image optimization: prefer modern formats
+  images: {
+    formats: ["image/webp", "image/avif"],
+  },
+
+  // Enable gzip compression
+  compress: true,
+
+  // Stricter React mode for catching bugs early
+  reactStrictMode: true,
+
+  // Cache build artifacts for faster rebuilds on Vercel
+  experimental: {
+    serverMinification: true,
+  },
 };
 
 export default withSentryConfig(nextConfig, {

@@ -310,6 +310,108 @@ export default function DashboardClient(props: DashboardClientProps) {
     special: { label: t("dashboard.typeSpecial"), color: "#F59E0B" },
   }), [t]);
 
+  // Memoize decision category lookups (avoids recreating objects on every render)
+  const decisionCatIcons: Record<string, string> = useMemo(() => ({
+    escola: "\u{1F392}", saude: "\u{1F3E5}", atividade: "\u26BD",
+    viagem: "\u2708\uFE0F", financeiro: "\u{1F4B0}", moradia: "\u{1F3E0}", outro: "\u{1F4CB}",
+  }), []);
+  const decisionCatColors: Record<string, string> = useMemo(() => ({
+    escola: "#3B82F6", saude: "#EF4444", atividade: "#22C55E",
+    viagem: "#8B5CF6", financeiro: "#F59E0B", moradia: "#5B9E85", outro: "#6B7280",
+  }), []);
+
+  // Memoize report category icon lookup
+  const reportCatIcons: Record<string, string> = useMemo(() => ({
+    esporte: "\u26BD", saude: "\u{1F3E5}", educacao: "\u{1F4DA}", lazer: "\u{1F3AE}",
+    arte: "\u{1F3A8}", musica: "\u{1F3B5}", idioma: "\u{1F30D}", terapia: "\u{1F9E0}",
+    evento: "\u{1F389}", other: "\u{1F4CB}",
+  }), []);
+
+  // Memoize rendered lists that involve .find() or computed logic
+  const renderedTomorrowActivities = useMemo(() =>
+    tomorrowActivities.map((act) => ({
+      ...act,
+      catIcon: ACTIVITY_CATEGORIES.find((c) => c.value === act.category)?.icon || "\u{1F4CB}",
+    })),
+    [tomorrowActivities]
+  );
+
+  const renderedTodayActivities = useMemo(() =>
+    todayActivities.map((act) => ({
+      ...act,
+      catIcon: ACTIVITY_CATEGORIES.find((c) => c.value === act.category)?.icon || "\u{1F4CB}",
+    })),
+    [todayActivities]
+  );
+
+  const renderedPendingExpenses = useMemo(() =>
+    pendingExpenses.map((exp) => ({
+      ...exp,
+      catIcon: EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.icon || "\u{1F4E6}",
+    })),
+    [pendingExpenses]
+  );
+
+  const renderedPendingDecisions = useMemo(() =>
+    pendingDecisions.slice(0, 3).map((dec) => {
+      const icon = decisionCatIcons[dec.category] || "\u{1F4CB}";
+      const color = decisionCatColors[dec.category] || "#D4735A";
+      const hasDeadline = !!dec.deadline;
+      let deadlineLabel = "";
+      if (hasDeadline) {
+        const dl = new Date(dec.deadline + "T23:59:59");
+        const daysUntil = Math.ceil((dl.getTime() - Date.now()) / 86400000);
+        if (daysUntil < 0) deadlineLabel = t("decisions.deadlineExpired");
+        else if (daysUntil <= 3) deadlineLabel = t("decisions.deadlineNear");
+        else {
+          const dlDate = new Date(dec.deadline + "T12:00:00");
+          deadlineLabel = dlDate.toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+        }
+      }
+      return { ...dec, icon, color, deadlineLabel, bgStyle: { backgroundColor: color + "15" } };
+    }),
+    [pendingDecisions, decisionCatIcons, decisionCatColors, t]
+  );
+
+  const renderedUpcomingEvents = useMemo(() =>
+    upcomingEvents.slice(0, 3).map((event) => {
+      const tc = typeConfig[event.custodyType] || typeConfig.regular;
+      const responsibleLabel = event.isMe
+        ? t("dashboard.withYou")
+        : `${t("dashboard.with")} ${event.responsibleName}`;
+      const name = event.notes
+        ? event.notes
+        : event.childName
+          ? `${event.childName} ${responsibleLabel}`
+          : event.isMe
+            ? t("dashboard.withYouCapital")
+            : event.responsibleName;
+      return {
+        ...event,
+        tc,
+        displayName: name,
+        bgStyle: { backgroundColor: event.color + "12" },
+        dayStyle: { color: event.color + "99" },
+        numStyle: { color: event.color },
+        dotStyle: { backgroundColor: event.color },
+      };
+    }),
+    [upcomingEvents, typeConfig, t]
+  );
+
+  // Memoize streak bar items to avoid inline style object recreation
+  const streakBarItems = useMemo(() => {
+    if (streakTotal <= 1 || !firstCustody) return [];
+    return Array.from({ length: streakTotal }, (_, i) => ({
+      key: i,
+      style: {
+        backgroundColor: i < streakDays
+          ? (firstCustody.isWithMe ? "#D4735A" : otherColor)
+          : "rgba(255,255,255,0.15)",
+      },
+    }));
+  }, [streakTotal, streakDays, firstCustody, otherColor]);
+
   return (
     <div className="space-y-5 pb-4">
 
@@ -411,15 +513,11 @@ export default function DashboardClient(props: DashboardClientProps) {
                   </span>
                 </div>
                 <div className="flex gap-1">
-                  {Array.from({ length: streakTotal }, (_, i) => (
+                  {streakBarItems.map((item) => (
                     <div
-                      key={i}
+                      key={item.key}
                       className="h-2 rounded-full flex-1"
-                      style={{
-                        backgroundColor: i < streakDays
-                          ? (firstCustody.isWithMe ? "#D4735A" : otherColor)
-                          : "rgba(255,255,255,0.15)",
-                      }}
+                      style={item.style}
                     />
                   ))}
                 </div>
@@ -634,13 +732,12 @@ export default function DashboardClient(props: DashboardClientProps) {
           </div>
 
           {/* Tomorrow's activities (priority) */}
-          {tomorrowActivities.map((act) => {
-            const cat = ACTIVITY_CATEGORIES.find((c) => c.value === act.category);
+          {renderedTomorrowActivities.map((act) => {
             return (
               <Link key={act.id} href="/calendario" prefetch={false} className="block">
                 <div className="bg-[#D4735A]/[0.06] border border-[#D4735A]/15 rounded-2xl p-3.5 flex items-center gap-3">
                   <div className="w-10 h-10 bg-[#D4735A]/10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">
-                    {cat?.icon || "\u{1F4CB}"}
+                    {act.catIcon}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold text-[#2C2C2C]">
@@ -680,13 +777,12 @@ export default function DashboardClient(props: DashboardClientProps) {
           })}
 
           {/* Today's activities */}
-          {todayActivities.map((act) => {
-            const cat = ACTIVITY_CATEGORIES.find((c) => c.value === act.category);
+          {renderedTodayActivities.map((act) => {
             return (
               <Link key={act.id} href="/calendario" prefetch={false} className="block">
                 <div className="bg-primary/[0.06] border border-primary/15 rounded-2xl p-3.5 flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">
-                    {cat?.icon || "\u{1F4CB}"}
+                    {act.catIcon}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold text-[#2C2C2C]">
@@ -734,13 +830,12 @@ export default function DashboardClient(props: DashboardClientProps) {
               {t("dashboard.viewAllFeminine")}
             </Link>
           </div>
-          {pendingExpenses.map((exp) => {
-            const cat = EXPENSE_CATEGORIES.find(c => c.value === exp.category);
+          {renderedPendingExpenses.map((exp) => {
             return (
               <Link key={exp.id} href="/despesas" prefetch={false} className="block">
                 <div className="bg-[#D4735A]/[0.06] border border-[#D4735A]/15 rounded-2xl p-3.5 flex items-center gap-3">
                   <div className="w-9 h-9 bg-[#D4735A]/10 rounded-full flex items-center justify-center flex-shrink-0 text-lg">
-                    {cat?.icon || "\u{1F4E6}"}
+                    {exp.catIcon}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold text-[#2C2C2C] truncate">{exp.description}</p>
@@ -773,39 +868,17 @@ export default function DashboardClient(props: DashboardClientProps) {
               {t("common.viewAll")}
             </Link>
           </div>
-          {pendingDecisions.slice(0, 3).map((dec) => {
-            const catIcons: Record<string, string> = {
-              escola: "\u{1F392}", saude: "\u{1F3E5}", atividade: "\u26BD",
-              viagem: "\u2708\uFE0F", financeiro: "\u{1F4B0}", moradia: "\u{1F3E0}", outro: "\u{1F4CB}",
-            };
-            const catColors: Record<string, string> = {
-              escola: "#3B82F6", saude: "#EF4444", atividade: "#22C55E",
-              viagem: "#8B5CF6", financeiro: "#F59E0B", moradia: "#5B9E85", outro: "#6B7280",
-            };
-            const icon = catIcons[dec.category] || "\u{1F4CB}";
-            const color = catColors[dec.category] || "#D4735A";
-            const hasDeadline = !!dec.deadline;
-            let deadlineLabel = "";
-            if (hasDeadline) {
-              const dl = new Date(dec.deadline + "T23:59:59");
-              const daysUntil = Math.ceil((dl.getTime() - Date.now()) / 86400000);
-              if (daysUntil < 0) deadlineLabel = t("decisions.deadlineExpired");
-              else if (daysUntil <= 3) deadlineLabel = t("decisions.deadlineNear");
-              else {
-                const dlDate = new Date(dec.deadline + "T12:00:00");
-                deadlineLabel = dlDate.toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
-              }
-            }
+          {renderedPendingDecisions.map((dec) => {
             return (
               <Link key={dec.id} href={`/decisoes?tab=abertas&open=${dec.id}`} prefetch={false} className="block">
                 <div className="bg-amber-50/60 border border-amber-200/60 rounded-2xl p-3.5 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg" style={{ backgroundColor: color + "15" }}>
-                    {icon}
+                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg" style={dec.bgStyle}>
+                    {dec.icon}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-[13px] font-semibold text-[#2C2C2C] truncate">{dec.title}</p>
-                    {deadlineLabel && (
-                      <p className="text-[11px] text-[#7A8C8B]">{deadlineLabel}</p>
+                    {dec.deadlineLabel && (
+                      <p className="text-[11px] text-[#7A8C8B]">{dec.deadlineLabel}</p>
                     )}
                   </div>
                   <span className="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#D4735A] text-white flex-shrink-0">
@@ -833,12 +906,7 @@ export default function DashboardClient(props: DashboardClientProps) {
             </Link>
           </div>
           {pendingReports.slice(0, 3).map((pr) => {
-            const catIcons: Record<string, string> = {
-              esporte: "\u26BD", saude: "\u{1F3E5}", educacao: "\u{1F4DA}", lazer: "\u{1F3AE}",
-              arte: "\u{1F3A8}", musica: "\u{1F3B5}", idioma: "\u{1F30D}", terapia: "\u{1F9E0}",
-              evento: "\u{1F389}", other: "\u{1F4CB}",
-            };
-            const icon = catIcons[pr.category] || "\u{1F4CB}";
+            const icon = reportCatIcons[pr.category] || "\u{1F4CB}";
             return (
               <button
                 key={`${pr.activityId}-${pr.occurrenceDate}`}
@@ -961,43 +1029,27 @@ export default function DashboardClient(props: DashboardClientProps) {
           {(upcomingEvents.length > 0) || hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities ? (
             <div className="space-y-2.5">
               {/* Custody events */}
-              {upcomingEvents.slice(0, 3).map((event) => {
-                const tc = typeConfig[event.custodyType] || typeConfig.regular;
-                const responsibleLabel = event.isMe
-                  ? t("dashboard.withYou")
-                  : `${t("dashboard.with")} ${event.responsibleName}`;
-                const name = event.notes
-                  ? event.notes
-                  : event.childName
-                    ? `${event.childName} ${responsibleLabel}`
-                    : event.isMe
-                      ? t("dashboard.withYouCapital")
-                      : event.responsibleName;
-
-                return (
+              {renderedUpcomingEvents.map((event) => (
                   <Link key={event.id} href="/calendario" prefetch={false} className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0" style={{ backgroundColor: event.color + "12" }}>
-                      <span className="text-[9px] font-bold uppercase leading-none" style={{ color: event.color + "99" }}>
+                    <div className="w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0" style={event.bgStyle}>
+                      <span className="text-[9px] font-bold uppercase leading-none" style={event.dayStyle}>
                         {event.dateDayShort}
                       </span>
-                      <span className="text-[14px] font-bold leading-tight" style={{ color: event.color }}>{event.dateNum}</span>
+                      <span className="text-[14px] font-bold leading-tight" style={event.numStyle}>{event.dateNum}</span>
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#2C2C2C] text-[13px] truncate">{name}</p>
-                      <p className="text-[10px] font-medium" style={{ color: tc.color }}>{tc.label}</p>
+                      <p className="font-semibold text-[#2C2C2C] text-[13px] truncate">{event.displayName}</p>
+                      <p className="text-[10px] font-medium" style={{ color: event.tc.color }}>{event.tc.label}</p>
                     </div>
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: event.color }} />
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={event.dotStyle} />
                   </Link>
-                );
-              })}
+              ))}
 
               {/* Today's activities in agenda */}
-              {todayActivities.slice(0, 2).map((act) => {
-                const cat = ACTIVITY_CATEGORIES.find((c) => c.value === act.category);
-                return (
+              {renderedTodayActivities.slice(0, 2).map((act) => (
                   <Link key={`act-today-${act.id}`} href="/calendario" prefetch={false} className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 text-base">
-                      {cat?.icon || "\u{1F4CB}"}
+                      {act.catIcon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-[#2C2C2C] text-[13px] truncate">{act.name}</p>
@@ -1007,16 +1059,13 @@ export default function DashboardClient(props: DashboardClientProps) {
                       {t("dashboard.todayBadge")}
                     </span>
                   </Link>
-                );
-              })}
+              ))}
 
               {/* Tomorrow's activities in agenda */}
-              {tomorrowActivities.slice(0, 2).map((act) => {
-                const cat = ACTIVITY_CATEGORIES.find((c) => c.value === act.category);
-                return (
+              {renderedTomorrowActivities.slice(0, 2).map((act) => (
                   <Link key={`act-tmrw-${act.id}`} href="/calendario" prefetch={false} className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#D4735A]/10 text-base">
-                      {cat?.icon || "\u{1F4CB}"}
+                      {act.catIcon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-[#2C2C2C] text-[13px] truncate">{act.name}</p>
@@ -1026,16 +1075,15 @@ export default function DashboardClient(props: DashboardClientProps) {
                       {t("dashboard.tomorrowBadge")}
                     </span>
                   </Link>
-                );
-              })}
+              ))}
 
               {/* Upcoming activities (next 7 days) */}
               {!hasTodayActivities && !hasTomorrowActivities && upcomingActivitiesList.slice(0, 2).map(({ act, dayLabel }) => {
-                const cat = ACTIVITY_CATEGORIES.find((c) => c.value === act.category);
+                const catIcon = ACTIVITY_CATEGORIES.find((c) => c.value === act.category)?.icon || "\u{1F4CB}";
                 return (
                   <Link key={`act-up-${act.id}`} href="/calendario" prefetch={false} className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#D4735A]/10 text-base">
-                      {cat?.icon || "\u{1F4CB}"}
+                      {catIcon}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-[#2C2C2C] text-[13px] truncate">{act.name}</p>

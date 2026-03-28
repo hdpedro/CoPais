@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useCallback } from "react";
 import { useI18n } from "@/i18n/provider";
 import {
   getMonthGrid,
@@ -58,6 +58,21 @@ function getCategoryColor(category: string): string {
   return CATEGORY_COLORS[category] || CATEGORY_COLORS.other;
 }
 
+// Pre-computed pill styles per category to avoid creating new objects each render
+const CATEGORY_PILL_STYLES: Record<string, React.CSSProperties> = {};
+for (const [cat, color] of Object.entries(CATEGORY_COLORS)) {
+  CATEGORY_PILL_STYLES[cat] = {
+    backgroundColor: color + "25",
+    color: color,
+    borderLeft: `2px solid ${color}`,
+  };
+}
+function getCategoryPillStyle(category: string): React.CSSProperties {
+  return CATEGORY_PILL_STYLES[category] || CATEGORY_PILL_STYLES.other;
+}
+
+const EMPTY_STYLE: React.CSSProperties = {};
+
 export default function CalendarGrid({
   initialYear,
   initialMonth,
@@ -73,7 +88,8 @@ export default function CalendarGrid({
   const [month, setMonth] = useState(initialMonth);
 
   const grid = useMemo(() => getMonthGrid(year, month), [year, month]);
-  const todayKey = formatDateKey(new Date());
+  const flatGrid = useMemo(() => grid.flat(), [grid]);
+  const todayKey = useMemo(() => formatDateKey(new Date()), []);
   const holidayMap = useMemo(() => getHolidayMap(year), [year]);
 
   // Translated month and day names from i18n
@@ -98,11 +114,11 @@ export default function CalendarGrid({
     }
   }
 
-  function handleDayClick(dateKey: string) {
+  const handleDayClick = useCallback((dateKey: string) => {
     hapticLight();
     const info = custodyMap[dateKey] || null;
     onDayClick?.(dateKey, info);
-  }
+  }, [custodyMap, onDayClick]);
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-4">
@@ -147,7 +163,7 @@ export default function CalendarGrid({
 
       {/* Calendar Grid — Apple-style with event pills */}
       <div className="grid grid-cols-7 gap-0.5">
-        {grid.flat().map((dateKey, idx) => {
+        {flatGrid.map((dateKey, idx) => {
           if (!dateKey) {
             return <div key={`empty-${idx}`} className="min-h-[72px] sm:min-h-[80px]" />;
           }
@@ -174,7 +190,7 @@ export default function CalendarGrid({
                 ${today ? "ring-2 ring-primary ring-offset-1" : ""}
                 hover:bg-gray-50/80
               `}
-              style={info ? { backgroundColor: info.color + "12" } : {}}
+              style={info ? { backgroundColor: info.color + "12" } : EMPTY_STYLE}
             >
               {/* Day number + indicators */}
               <div className="flex items-center justify-between mb-0.5">
@@ -203,11 +219,7 @@ export default function CalendarGrid({
                   <div
                     key={act.id}
                     className="text-[9px] sm:text-[10px] leading-tight truncate px-1 py-[1px] rounded-sm font-medium"
-                    style={{
-                      backgroundColor: getCategoryColor(act.category) + "25",
-                      color: getCategoryColor(act.category),
-                      borderLeft: `2px solid ${getCategoryColor(act.category)}`,
-                    }}
+                    style={getCategoryPillStyle(act.category)}
                   >
                     {act.time_start ? act.time_start.slice(0, 5) + " " : ""}{act.name}
                   </div>
