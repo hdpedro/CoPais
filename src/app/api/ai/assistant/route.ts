@@ -141,11 +141,13 @@ REGRAS OBRIGATORIAS:
 4. Valores monetarios → R$ XX,XX (formato brasileiro)
 5. Datas → DD/MM/YYYY (formato brasileiro)
 6. Mantenha respostas concisas: max 2-3 frases para acoes, um pouco mais para consultas
-7. Apos criar algo, confirme o que foi criado com emoji de sucesso
-8. Para mensagens ao coparente, sugira tom neutro e respeitoso
-9. Se nao entender, peca para reformular — nao assuma
-10. Seja empatico com situacoes dificeis de coparentalidade
-11. Use emojis com moderacao para tornar a conversa mais amigavel`;
+7. ANTES de executar qualquer acao (criar despesa, evento, consulta, etc.), SEMPRE peca confirmacao ao usuario primeiro. Descreva o que sera feito e pergunte "Confirma?". So execute o tool DEPOIS que o usuario confirmar com "sim", "ok", "confirma" ou similar
+8. Apos criar algo, confirme o que foi criado com emoji de sucesso
+9. Para mensagens ao coparente, sugira tom neutro e respeitoso
+10. Se nao entender, peca para reformular — nao assuma
+11. Seja empatico com situacoes dificeis de coparentalidade
+12. Use emojis com moderacao para tornar a conversa mais amigavel
+13. Tools de CONSULTA (get_*) podem ser executados diretamente, sem confirmacao`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -411,24 +413,101 @@ export async function POST(req: NextRequest) {
     const userText = lastUserMsg?.content || "";
 
     /* ================================================================ */
-    /* STEP 1: Try LOCAL parsing first — no Groq call needed            */
+    /* STEP 0: Check if user is CONFIRMING a previous pending action    */
     /* ================================================================ */
+
+    const CONFIRM_PREFIX = "⏳";
+    const CONFIRM_WORDS = /^(sim|ok|confirma|pode|faz|manda|isso|exato|confirmo|yes|s|vai|bora)[\s!.]*$/i;
+    const CANCEL_WORDS = /^(nao|n[ãa]o|cancela|nope|no|deixa|esquece)[\s!.]*$/i;
 
     const childNames = toolCtx.children.map((c) => c.name);
     const memberNames = toolCtx.members.map((m) => m.name);
 
+    // Find the last assistant message to check if it was a confirmation prompt
+    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant");
+    const isPendingConfirmation = lastAssistantMsg?.content?.startsWith(CONFIRM_PREFIX);
+
+    if (isPendingConfirmation && CANCEL_WORDS.test(userText.trim())) {
+      console.log("[LOCAL] User cancelled pending action");
+      return NextResponse.json({
+        role: "assistant",
+        content: "❌ Ação cancelada. Como posso ajudar?",
+      });
+    }
+
+    if (isPendingConfirmation && CONFIRM_WORDS.test(userText.trim())) {
+      console.log("[LOCAL] User confirmed pending action — executing");
+
+      // Find the original user message (the one before the confirmation prompt)
+      const reversedMsgs = [...messages].reverse();
+      // Skip: last user msg ("sim"), last assistant msg ("⏳ ..."), find the user msg before that
+      let foundAssistant = false;
+      let originalText = "";
+      for (const m of reversedMsgs) {
+        if (m.role === "assistant" && m.content?.startsWith(CONFIRM_PREFIX)) {
+          foundAssistant = true;
+          continue;
+        }
+        if (foundAssistant && m.role === "user") {
+          originalText = m.content;
+          break;
+        }
+      }
+
+      if (originalText) {
+        const originalIntent = parseIntent(originalText, childNames, memberNames, "pt");
+
+        if (originalIntent && originalIntent.confidence >= 0.7) {
+          const mapped = mapLocalActionToTool(originalIntent, toolCtx);
+
+          if (mapped) {
+            console.log(`[LOCAL] Confirmed execution: ${mapped.toolName}`, mapped.toolParams);
+            const result = await executeTool(mapped.toolName, mapped.toolParams, toolCtx);
+            console.log(`[LOCAL] Tool result: success=${result.success}, message=${result.message}`);
+
+            if (result.success) {
+              return NextResponse.json({
+                role: "assistant",
+                content: `✅ ${result.message}`,
+              });
+            } else {
+              return NextResponse.json({
+                role: "assistant",
+                content: `⚠️ ${result.message}`,
+              });
+            }
+          }
+        }
+      }
+
+      // Could not find or re-parse original — fall through to Groq
+      console.log("[LOCAL] Could not re-parse original message after confirmation, falling to Groq");
+    }
+
+    /* ================================================================ */
+    /* STEP 1: Try LOCAL parsing — ask for confirmation, don't execute   */
+    /* ================================================================ */
+
     const localIntent = parseIntent(userText, childNames, memberNames, "pt");
 
     if (localIntent && localIntent.confidence >= 0.7) {
-      console.log(`[LOCAL] Intent: ${localIntent.action}, confidence: ${localIntent.confidence}, params:`, localIntent.params);
+      // Check if this is an ACTION (create/write) vs QUERY (read-only)
+      const isActionIntent = localIntent.action.startsWith("create");
 
+      if (isActionIntent) {
+        // Return confirmation prompt instead of executing
+        console.log(`[LOCAL] Pending confirmation: ${localIntent.action}, confidence: ${localIntent.confidence}`);
+        return NextResponse.json({
+          role: "assistant",
+          content: `${CONFIRM_PREFIX} ${localIntent.confirmation}`,
+        });
+      }
+
+      // For queries (non-create actions), execute immediately
       const mapped = mapLocalActionToTool(localIntent, toolCtx);
-
       if (mapped) {
-        console.log(`[LOCAL] Executing tool: ${mapped.toolName}`, mapped.toolParams);
-
+        console.log(`[LOCAL] Executing query tool: ${mapped.toolName}`, mapped.toolParams);
         const result = await executeTool(mapped.toolName, mapped.toolParams, toolCtx);
-
         console.log(`[LOCAL] Tool result: success=${result.success}, message=${result.message}`);
 
         if (result.success) {
@@ -437,7 +516,6 @@ export async function POST(req: NextRequest) {
             content: `✅ ${result.message}`,
           });
         } else {
-          // Tool failed — maybe missing required params, fall through to Groq
           console.log(`[LOCAL] Tool failed, falling back to Groq: ${result.message}`);
         }
       }
