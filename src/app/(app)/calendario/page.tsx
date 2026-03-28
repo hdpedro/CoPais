@@ -67,7 +67,7 @@ export default async function CalendarPage() {
       .eq("is_active", true),
     supabase
       .from("events")
-      .select("id, title, description, event_date, event_time, location, child_id, status, all_day, end_date, assigned_to, category, children(full_name)")
+      .select("id, title, description, event_date, event_time, location, child_id, status, all_day, end_date, assigned_to, children(full_name)")
       .eq("group_id", groupId)
       .neq("status", "cancelled")
       .gte("event_date", rangeStart)
@@ -276,7 +276,7 @@ export default async function CalendarPage() {
       activityDateMap[dateKey].push({
         id: evt.id,
         name: evt.title,
-        category: evt.category || "evento",
+        category: "evento",
         time_start: evt.event_time,
         location: evt.location,
         childName,
