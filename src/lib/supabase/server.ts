@@ -15,13 +15,14 @@ export async function createClient() {
         setAll(cookiesToSet) {
           try {
             const rememberMe = cookieStore.get("remember_me")?.value !== "false";
+            const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, {
                 ...options,
                 // If "Lembrar-me" is checked (default), persist for 30 days.
-                // Otherwise, omit maxAge so the cookie expires when the browser closes.
+                // Set both maxAge AND expires for Safari compatibility.
                 ...(rememberMe
-                  ? { maxAge: 60 * 60 * 24 * 30 }
+                  ? { maxAge: 60 * 60 * 24 * 30, expires: thirtyDaysFromNow }
                   : {}),
                 sameSite: options?.sameSite ?? "lax",
                 secure: true,
