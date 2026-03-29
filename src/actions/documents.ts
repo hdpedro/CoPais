@@ -23,6 +23,12 @@ export async function createDocument(formData: FormData) {
   const MAX_FILE_SIZE = 10 * 1024 * 1024;
   if (file.size > MAX_FILE_SIZE) redirect("/documentos?error=" + encodeURIComponent("Arquivo muito grande. Maximo 10MB."));
 
+  // Validate file MIME type
+  const ALLOWED_DOC_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+  if (!ALLOWED_DOC_TYPES.includes(file.type)) {
+    redirect("/documentos?error=" + encodeURIComponent("Tipo de arquivo não permitido."));
+  }
+
   // Verify user belongs to this group
   const { data: membership } = await supabase
     .from("group_members")

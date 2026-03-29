@@ -113,6 +113,12 @@ export async function uploadChildDocument(formData: FormData) {
     redirect("/criancas/" + childId + "?tab=documentos&error=" + encodeURIComponent("Arquivo muito grande. Maximo 10MB."));
   }
 
+  // Validate file MIME type
+  const ALLOWED_DOC_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif', 'application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+  if (!ALLOWED_DOC_TYPES.includes(file.type)) {
+    redirect("/criancas/" + childId + "?tab=documentos&error=" + encodeURIComponent("Tipo de arquivo não permitido."));
+  }
+
   // Verify membership
   const activeGroup = await getActiveGroup(supabase, user.id);
   if (!activeGroup || activeGroup.groupId !== groupId) {

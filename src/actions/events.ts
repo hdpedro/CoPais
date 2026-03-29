@@ -49,15 +49,29 @@ export async function createEvent(formData: FormData) {
     redirect("/eventos?error=" + encodeURIComponent("Imagem muito grande. Maximo 5MB."));
   }
 
-  if (image && image.size > 0) {
-    const fileName = `events/${groupId}/${Date.now()}-${image.name}`;
-    const { error: uploadError } = await supabase.storage
-      .from("documents")
-      .upload(fileName, image);
+  // Validate image MIME type
+  const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/heic', 'image/heif', 'image/gif'];
+  if (image && image.size > 0 && !ALLOWED_IMAGE_TYPES.includes(image.type)) {
+    redirect("/calendario?error=" + encodeURIComponent("Tipo de arquivo não permitido."));
+  }
 
-    if (!uploadError) {
-      const { data: urlData } = supabase.storage.from("documents").getPublicUrl(fileName);
-      imageUrl = urlData.publicUrl;
+  if (image && image.size > 0) {
+    try {
+      const fileName = `events/${groupId}/${Date.now()}-${image.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from("documents")
+        .upload(fileName, image);
+
+      if (!uploadError) {
+        const { data: urlData } = supabase.storage.from("documents").getPublicUrl(fileName);
+        imageUrl = urlData.publicUrl;
+      } else {
+        console.error("Event image upload failed:", uploadError.message);
+        imageUrl = null;
+      }
+    } catch (err) {
+      console.error("Event image upload error:", err);
+      imageUrl = null;
     }
   }
 
