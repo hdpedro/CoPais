@@ -100,6 +100,11 @@ export async function signIn(formData: FormData) {
 export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
+
+  // Clear remember_me cookie
+  const cookieStore = await cookies();
+  cookieStore.set("remember_me", "", { maxAge: 0, path: "/" });
+
   redirect("/login");
 }
 

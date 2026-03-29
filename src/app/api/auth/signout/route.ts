@@ -23,5 +23,9 @@ export async function GET(request: NextRequest) {
   );
 
   await supabase.auth.signOut();
+
+  // Clear remember_me cookie on signout
+  response.cookies.set("remember_me", "", { maxAge: 0, path: "/" });
+
   return response;
 }

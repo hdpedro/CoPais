@@ -21,7 +21,7 @@ export async function createClient() {
                 // If "Lembrar-me" is checked (default), persist for 30 days.
                 // Otherwise, omit maxAge so the cookie expires when the browser closes.
                 ...(rememberMe
-                  ? { maxAge: options?.maxAge ?? 60 * 60 * 24 * 30 }
+                  ? { maxAge: 60 * 60 * 24 * 30 }
                   : {}),
                 sameSite: options?.sameSite ?? "lax",
                 secure: true,

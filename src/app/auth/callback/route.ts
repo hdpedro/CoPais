@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 
 export async function GET(request: Request) {
@@ -17,6 +18,16 @@ export async function GET(request: Request) {
       `${origin}/login?error=${encodeURIComponent(message)}`
     );
   }
+
+  // OAuth logins always persist session (equivalent to "Lembrar-me" checked)
+  const cookieStore = await cookies();
+  cookieStore.set("remember_me", "true", {
+    maxAge: 60 * 60 * 24 * 30,
+    path: "/",
+    sameSite: "lax",
+    secure: true,
+    httpOnly: true,
+  });
 
   const supabase = await createClient();
 
