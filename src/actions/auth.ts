@@ -1,6 +1,7 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { captureServerEvent } from "@/lib/posthog-server";
 
@@ -55,6 +56,18 @@ export async function signUp(formData: FormData) {
 }
 
 export async function signIn(formData: FormData) {
+  const rememberMe = formData.get("rememberMe") === "on";
+
+  // Store preference so Supabase cookie handlers can read it
+  const cookieStore = await cookies();
+  cookieStore.set("remember_me", rememberMe ? "true" : "false", {
+    path: "/",
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 60, // Short-lived; only needed during sign-in
+  });
+
   const supabase = await createClient();
 
   const email = formData.get("email") as string;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { updateChild } from "@/actions/group";
@@ -563,11 +563,26 @@ function TabDocumentos({
   dateLocale: string;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
+  const [isPending, startTransition] = useTransition();
+  const [submitted, setSubmitted] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const isDisabled = isPending || submitted;
+
   return (
     <div className="space-y-4">
       {/* Upload form */}
       {!isReadonly && (
-        <form action={uploadChildDocument} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
+        <form ref={formRef} action={(formData) => {
+          if (isDisabled) return;
+          setSubmitted(true);
+          startTransition(async () => {
+            await uploadChildDocument(formData);
+            setSubmitted(false);
+            formRef.current?.reset();
+            if (fileInputRef.current) fileInputRef.current.value = "";
+          });
+        }} className="bg-white rounded-xl p-4 shadow-sm space-y-3">
           <h3 className="font-semibold text-dark text-sm">{t("childProfile.uploadDocument")}</h3>
           <input type="hidden" name="groupId" value={groupId} />
           <input type="hidden" name="childId" value={child.id} />
@@ -576,14 +591,16 @@ function TabDocumentos({
             type="text"
             name="name"
             required
+            disabled={isDisabled}
             placeholder={t("childProfile.documentName")}
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:bg-gray-50"
           />
 
           <select
             name="category"
             required
-            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50"
+            disabled={isDisabled}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 disabled:opacity-50 disabled:bg-gray-50"
           >
             {docCategories.map((cat, i) => (
               <option key={i} value={cat.value}>
@@ -593,18 +610,31 @@ function TabDocumentos({
           </select>
 
           <input
+            ref={fileInputRef}
             type="file"
             name="file"
             required
+            disabled={isDisabled}
             accept="image/*,.pdf,.doc,.docx"
-            className="w-full text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20"
+            className="w-full text-sm text-muted file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-primary/10 file:text-primary hover:file:bg-primary/20 disabled:opacity-50"
           />
 
           <button
             type="submit"
-            className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm"
+            disabled={isDisabled}
+            className="w-full py-2.5 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            {t("childProfile.upload")}
+            {isDisabled ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+                {t("submitButton.saving")}
+              </>
+            ) : (
+              t("childProfile.upload")
+            )}
           </button>
         </form>
       )}
