@@ -768,6 +768,7 @@ export async function minhaAction(formData: FormData) {
 5. updateSession() verifica/renova o token via cookies
 6. Se token invalido → redirect para /login
 7. Se token valido + rota de auth → redirect para /dashboard
+8. Remember-me: checkbox "Lembrar-me" (marcado por padrao) → cookie maxAge 30 dias; desmarcado → session cookie (expira ao fechar navegador). Fix de logout em Safari/iOS
 ```
 
 ### Migracao getSession() → getUser()
@@ -1249,7 +1250,7 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - Escala de guarda opcional, dashboard adapta sem escala
 
 ### Demais
-- Gestao de criancas, documentos, escola
+- Gestao de criancas, documentos (com prevencao de upload duplicado e validacao de MIME type server-side), escola
 - Sistema de convites com token
 - Onboarding para primeiro acesso
 - Perfil com edicao e seletor de idioma
@@ -1294,6 +1295,8 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 10. **Sempre** valide intervalos minimos entre doses de medicamento (30 min)
 11. **Sempre** sanitize inputs de texto com max length limits
 12. **Sempre** valide enums/status server-side antes de gravar no banco
+13. **Sempre** valide MIME type de arquivos server-side antes de upload ao Storage
+14. **Sempre** desabilite botoes de upload durante o envio e resete o input apos sucesso (prevencao de duplicatas)
 
 ---
 

@@ -203,6 +203,7 @@ O app suporta **5 idiomas** completos:
 - Upload e visualizacao de documentos (`DocumentList`, `DocumentViewer`)
 - Links diretos para upload na aba Documentos do perfil da crianca
 - Suporte a upload por crianca
+- **Prevencao de upload duplicado**: botao desabilitado durante upload + reset do input apos sucesso
 
 ### 12. Criancas (`/criancas`)
 - Lista de criancas com foto e idade
@@ -355,6 +356,8 @@ Todos os PostgREST FK joins foram removidos e substituidos por **joins manuais**
 - **Validacao de status de doenca** — `updateIllnessEpisode` rejeita valores invalidos
 - **Calculo de saldo financeiro** considera apenas despesas aprovadas (pending/disputed excluidas)
 - **Delecao dual-approval** em temas sensiveis
+- **Remember-me no login**: checkbox "Lembrar-me" controla persistencia da sessao (30 dias via cookie `maxAge` vs sessao do navegador). Fix de logout em Safari/iOS
+- **Validacao server-side de MIME type** em uploads (documents.ts, children.ts, events.ts) antes de enviar ao Supabase Storage
 
 ## Estrutura do Projeto
 

@@ -90,6 +90,7 @@ Todos os PostgREST FK joins (ex: `expenses(*, profiles(*))`) foram **removidos**
 4. Redireciona usuarios autenticados de `/login` para `/dashboard`
 5. Rotas publicas: `/login`, `/signup`, `/verify-email`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/convite`
 6. **Todas as Server Actions usam `getUser()`** (nao `getSession()`) para verificacao segura de autenticacao
+7. **Remember-me**: checkbox "Lembrar-me" no login — se marcado (padrao), sessao persiste 30 dias via cookie `maxAge`; se desmarcado, cookie expira ao fechar o navegador (fix Safari/iOS)
 
 ---
 
@@ -583,6 +584,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - Card por crianca com **barra de completude** (0-100%)
 - Indicadores de documentos faltantes (badges)
 - Links para upload na aba Documentos do perfil da crianca
+- **Prevencao de upload duplicado**: botao desabilitado durante upload + reset do input apos sucesso (documentos e documentos de crianca)
 - Componentes: `DocumentList`, `DocumentViewer`, `DocumentsDashboard`, `DocumentsClient`
 
 ### 17. Acordos (`/acordos`)
@@ -897,6 +899,7 @@ VAPID_PRIVATE_KEY=               # Chave privada VAPID
 - **Auto-aprovacao de despesas bloqueada**: nenhum usuario pode aprovar propria despesa
 - **Regressao de status impedida**: despesas aprovadas/rejeitadas nao voltam para pending
 - **Validacao server-side**: acertos financeiros, intervalo entre doses, status de doenca
+- **Validacao server-side de MIME type** em uploads (documents.ts, children.ts, events.ts)
 - **Sanitizacao de input**: campos de saude com max length limits
 
 ---
