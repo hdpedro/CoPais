@@ -6,7 +6,7 @@
 
 **URL de producao:** https://kindar.com.br
 **Dominio:** kindar.com.br
-**Ultima atualizacao:** 27/03/2026
+**Ultima atualizacao:** 29/03/2026
 
 ---
 
@@ -91,6 +91,7 @@ Todos os PostgREST FK joins (ex: `expenses(*, profiles(*))`) foram **removidos**
 5. Rotas publicas: `/login`, `/signup`, `/verify-email`, `/forgot-password`, `/reset-password`, `/auth/callback`, `/convite`
 6. **Todas as Server Actions usam `getUser()`** (nao `getSession()`) para verificacao segura de autenticacao
 7. **Remember-me**: checkbox "Lembrar-me" no login — se marcado (padrao), sessao persiste 30 dias via cookie `maxAge`; se desmarcado, cookie expira ao fechar o navegador (fix Safari/iOS)
+8. **Middleware usa `getUser()`** em vez de `getSession()` (`src/lib/supabase/middleware.ts`): `getSession()` apenas le o JWT localmente sem chamada de rede, entao nunca renova access tokens expirados. Em Safari, ao fechar e reabrir o navegador apos o access token expirar (~1h), o middleware via `getSession()` via sessao expirada e redirecionava para login. `getUser()` faz chamada de rede ao Supabase Auth, valida a sessao e dispara refresh do token quando o access token expirou mas o refresh token ainda e valido
 
 ---
 

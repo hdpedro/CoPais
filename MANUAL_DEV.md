@@ -786,6 +786,8 @@ const user = session?.user;
 const { data: { user } } = await supabase.auth.getUser();
 ```
 
+> **IMPORTANTE — Middleware tambem usa `getUser()`:** O arquivo `src/lib/supabase/middleware.ts` usa `getUser()` em vez de `getSession()`. Motivo: `getSession()` le o JWT localmente sem chamada de rede, entao nunca renova access tokens expirados. Em Safari, ao fechar e reabrir o app apos o access token expirar (~1h), o middleware via `getSession()` encontrava sessao expirada e redirecionava para login, mesmo com refresh token valido. `getUser()` faz chamada de rede ao Supabase Auth e dispara o refresh automatico do token.
+
 ### Middleware (`src/middleware.ts`)
 
 ```typescript
@@ -1567,6 +1569,7 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - `getUser()` valida o JWT no servidor Supabase (seguro)
 - `getSession()` apenas le o cookie sem validacao (vulneravel a tokens falsificados)
 - Recomendacao oficial do Supabase para Server Actions
+- **No middleware**: `getUser()` garante refresh de tokens expirados via chamada de rede. `getSession()` nao faz chamada de rede, entao sessoes expiradas em Safari (que descarta state ao fechar) nunca eram renovadas
 
 ### Por que remover FK Joins do PostgREST?
 - FK joins podem falhar silenciosamente com RLS

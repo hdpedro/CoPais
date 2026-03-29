@@ -4,7 +4,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 
 **Producao:** https://kindar.com.br
 **Dominio:** kindar.com.br
-**Ultima atualizacao:** 27/03/2026
+**Ultima atualizacao:** 29/03/2026
 
 ## Stack
 
@@ -344,6 +344,7 @@ Todos os PostgREST FK joins foram removidos e substituidos por **joins manuais**
 - **65+ correcoes de seguranca** aplicadas
 - 13 fixes de autorizacao em events/expenses/calendar, validacao de input, `Number.isFinite`, `revalidatePath`
 - **38 arquivos migrados** de `getSession()` para `getUser()` (metodo seguro recomendado pelo Supabase)
+- **Middleware usa `getUser()`** em `src/lib/supabase/middleware.ts` — fix de persistencia de sessao em Safari (access token expirado nao era renovado por `getSession()` que nao faz chamada de rede)
 - Todas as Server Actions verificam autorizacao do usuario
 - **RLS** habilitado em todas as tabelas
 - **LGPD**: campo `lgpd_consent_at` no perfil
@@ -357,6 +358,7 @@ Todos os PostgREST FK joins foram removidos e substituidos por **joins manuais**
 - **Calculo de saldo financeiro** considera apenas despesas aprovadas (pending/disputed excluidas)
 - **Delecao dual-approval** em temas sensiveis
 - **Remember-me no login**: checkbox "Lembrar-me" controla persistencia da sessao (30 dias via cookie `maxAge` vs sessao do navegador). Fix de logout em Safari/iOS
+- **Persistencia de sessao em Safari**: middleware usa `getUser()` para garantir refresh de tokens expirados ao reabrir o navegador
 - **Validacao server-side de MIME type** em uploads (documents.ts, children.ts, events.ts) antes de enviar ao Supabase Storage
 
 ## Estrutura do Projeto

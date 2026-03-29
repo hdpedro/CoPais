@@ -40,15 +40,14 @@ export async function updateSession(request: NextRequest) {
     }
   );
 
-  // Use getSession() instead of getUser() to avoid token refresh race
-  // conditions when Next.js makes concurrent requests (e.g. React Strict Mode,
-  // prefetches). getSession() reads the JWT locally without a network call.
-  // The middleware already refreshes tokens via the Supabase client constructor.
+  // IMPORTANT: Use getUser() — it makes a network call to Supabase Auth,
+  // validates the session, and triggers a token refresh when the access token
+  // is expired but the refresh token is still valid. This is essential for
+  // Safari/iOS where closing the browser lets the access token expire (~1h).
+  // Without this, users would be redirected to login every time they reopen.
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
-
-  const user = session?.user ?? null;
+    data: { user },
+  } = await supabase.auth.getUser();
 
   // Redirect unauthenticated users to login (except public routes)
   const publicRoutes = ["/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/auth/callback", "/convite", "/api/calendar", "/api/setup-db", "/api/auth"];
