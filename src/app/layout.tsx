@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
 import { ServiceWorkerRegister } from "./sw-register";
 import AuthSessionProvider from "@/components/AuthSessionProvider";
+import PWAInstallBanner from "@/components/PWAInstallBanner";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -94,6 +95,7 @@ export default function RootLayout({
         {children}
         <AuthSessionProvider />
         <ServiceWorkerRegister />
+        <PWAInstallBanner />
       </body>
     </html>
   );
