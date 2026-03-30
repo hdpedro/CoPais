@@ -83,6 +83,9 @@ export default function DocumentViewer({
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200"
       style={{ backgroundColor: "rgba(0,0,0,0.6)" }}
+      role="dialog"
+      aria-modal="true"
+      aria-label={doc.name}
       onClick={(e) => {
         if (e.target === e.currentTarget) onClose();
       }}
@@ -164,6 +167,7 @@ export default function DocumentViewer({
         {/* Content */}
         <div className="flex-1 overflow-auto p-4 flex items-center justify-center bg-gray-50">
           {isImage(mime) ? (
+            /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={doc.file_url}
               alt={doc.name}

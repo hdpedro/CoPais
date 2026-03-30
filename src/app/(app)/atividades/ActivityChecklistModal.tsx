@@ -133,7 +133,11 @@ export default function ActivityChecklistModal({
       {isOpen && (
         <div
           className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center"
+          role="dialog"
+          aria-modal="true"
+          aria-label={activity.name}
           onClick={() => setIsOpen(false)}
+          onKeyDown={(e) => { if (e.key === "Escape") setIsOpen(false); }}
         >
           <div
             className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto animate-slide-up"

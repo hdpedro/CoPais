@@ -67,7 +67,7 @@ export default function MemberActions({
 
       {/* Role change modal */}
       {showRoleModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label={t("memberActions.changePermission")} onKeyDown={(e) => { if (e.key === "Escape") setShowRoleModal(false); }}>
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
             <h3 className="text-lg font-bold text-dark mb-1">{t("memberActions.changePermission")}</h3>
             <p className="text-sm text-muted mb-4">{t("memberActions.chooseRole", { name: memberName })}</p>
@@ -123,7 +123,7 @@ export default function MemberActions({
 
       {/* Remove confirmation modal */}
       {showRemoveModal && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-label={t("memberActions.removeTitle", { name: memberName })} onKeyDown={(e) => { if (e.key === "Escape") setShowRemoveModal(false); }}>
           <div className="bg-white rounded-2xl w-full max-w-sm p-6 shadow-xl">
             <div className="w-12 h-12 bg-error/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <svg className="w-6 h-6 text-error" fill="none" viewBox="0 0 24 24" stroke="currentColor">

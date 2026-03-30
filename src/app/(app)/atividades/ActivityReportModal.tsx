@@ -96,7 +96,7 @@ export default function ActivityReportModal({
   }
 
   return (
-    <div className="fixed inset-0 bg-black/50 z-[60] flex items-end sm:items-center justify-center" onClick={handleClose}>
+    <div className="fixed inset-0 bg-black/50 z-[60] flex items-end sm:items-center justify-center" role="dialog" aria-modal="true" aria-label={t("activityReport.title")} onClick={handleClose} onKeyDown={(e) => { if (e.key === "Escape") handleClose(); }}>
       <div
         className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl max-h-[85vh] overflow-y-auto animate-slide-up"
         onClick={(e) => e.stopPropagation()}
