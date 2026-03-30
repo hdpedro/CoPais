@@ -35,7 +35,7 @@ export default function DocumentsDashboard({
   const { t } = useI18n();
 
   const categoryLabels: Record<string, { label: string; icon: string }> = {
-    personal: { label: "ID / RG", icon: "🪪" },
+    personal: { label: t("documentsPage.idRg"), icon: "🪪" },
     health: { label: t("childProfile.tabHealth"), icon: "🏥" },
     education: { label: t("childProfile.tabEducation"), icon: "🎓" },
     legal: { label: t("childProfile.docTypeBirthCert"), icon: "📜" },
@@ -57,9 +57,7 @@ export default function DocumentsDashboard({
         <div>
           <h1 className="text-2xl font-bold text-dark">{t("nav.documents")}</h1>
           <p className="text-sm text-muted mt-0.5">
-            {t("documentsPage.subtitle") !== "documentsPage.subtitle"
-              ? t("documentsPage.subtitle")
-              : "Documentos digitais das crianças"}
+            {t("documentsPage.subtitle")}
           </p>
         </div>
       </div>
@@ -89,7 +87,7 @@ export default function DocumentsDashboard({
                     <div>
                       <h3 className="font-semibold text-dark">{child.name}</h3>
                       <p className="text-xs text-muted">
-                        {child.docsCount} {child.docsCount === 1 ? "documento" : "documentos"}
+                        {child.docsCount} {child.docsCount === 1 ? t("documentsPage.documentSingular") : t("documentsPage.documentPlural")}
                       </p>
                     </div>
                   </div>
@@ -145,12 +143,12 @@ export default function DocumentsDashboard({
                           <button
                             type="button"
                             onClick={async () => {
-                              if (!confirm("Tem certeza que deseja excluir este documento?")) return;
+                              if (!confirm(t("documentsPage.confirmDeleteDoc"))) return;
                               const result = await deleteChildDocument(doc.id, child.id);
                               if (result?.error) alert(result.error);
                             }}
                             className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                            title="Excluir"
+                            title={t("common.delete")}
                           >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                               <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -200,7 +198,7 @@ export default function DocumentsDashboard({
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="p-4 border-b border-gray-100">
             <h3 className="font-semibold text-dark">{t("documentsPage.general")}</h3>
-            <p className="text-xs text-muted">{generalDocs.length} {generalDocs.length === 1 ? "documento" : "documentos"}</p>
+            <p className="text-xs text-muted">{generalDocs.length} {generalDocs.length === 1 ? t("documentsPage.documentSingular") : t("documentsPage.documentPlural")}</p>
           </div>
           <div className="p-4 space-y-2">
             {generalDocs.map((doc) => (

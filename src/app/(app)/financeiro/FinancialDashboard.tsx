@@ -61,28 +61,12 @@ function getExpenseSplitShare(expense: Expense, memberId: string, members: Membe
 export default function FinancialDashboard({ expenses, members, currentUserId, groupId, settlements }: Props) {
   const { t } = useI18n();
   const MONTH_NAMES = t("calendar.monthNames").split(",");
-  const now = new Date();
-  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+  const [now] = useState(() => new Date());
+  const [selectedYear, setSelectedYear] = useState(() => now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(() => now.getMonth());
   const [viewMode, setViewMode] = useState<"dashboard" | "history" | "settlements">("dashboard");
   const [showPaymentForm, setShowPaymentForm] = useState(false);
   const [isPending, startTransition] = useTransition();
-
-  // Get available months from expenses
-  const availableMonths = useMemo(() => {
-    const months = new Set<string>();
-    expenses.forEach((e) => {
-      const d = new Date(e.expense_date + "T12:00:00");
-      months.add(`${d.getFullYear()}-${d.getMonth()}`);
-    });
-    months.add(`${now.getFullYear()}-${now.getMonth()}`);
-    return Array.from(months)
-      .map((m) => {
-        const [y, mo] = m.split("-").map(Number);
-        return { year: y, month: mo };
-      })
-      .sort((a, b) => b.year - a.year || b.month - a.month);
-  }, [expenses]);
 
   // Filter expenses for selected month
   const monthExpenses = useMemo(() => {
@@ -120,15 +104,12 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
 
     // Calculate what each member should pay based on split ratios
     let m0ShouldPay = 0;
-    let m1ShouldPay = 0;
 
     countableExpenses.forEach((e) => {
       m0ShouldPay += getExpenseSplitShare(e, m0.user_id, members);
-      m1ShouldPay += getExpenseSplitShare(e, m1.user_id, members);
     });
 
     const m0Spent = memberSpending[m0.user_id] || 0;
-    const m1Spent = memberSpending[m1.user_id] || 0;
 
     // Balance: positive = m1 owes m0, negative = m0 owes m1
     // diff = what m0 spent - what m0 should have spent
@@ -237,10 +218,10 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
   }
 
   const statusLabels: Record<string, string> = {
-    pending: "Pendente",
-    approved: "Aprovada",
-    rejected: "Rejeitada",
-    disputed: "Disputada",
+    pending: t("financial.statusPending"),
+    approved: t("financial.statusApproved"),
+    rejected: t("financial.statusRejected"),
+    disputed: t("financial.statusDisputed"),
   };
 
   const statusColors: Record<string, string> = {
@@ -251,9 +232,9 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
   };
 
   const settlementStatusLabels: Record<string, string> = {
-    pending: "Aguardando",
-    confirmed: "Confirmado",
-    disputed: "Disputado",
+    pending: t("financial.settlementPending"),
+    confirmed: t("financial.settlementConfirmed"),
+    disputed: t("financial.settlementDisputed"),
   };
 
   const settlementStatusColors: Record<string, string> = {
@@ -292,7 +273,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
             viewMode === "dashboard" ? "bg-white text-dark shadow-sm" : "text-muted"
           }`}
         >
-          Resumo
+          {t("financial.summary")}
         </button>
         <button
           onClick={() => setViewMode("settlements")}
@@ -300,7 +281,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
             viewMode === "settlements" ? "bg-white text-dark shadow-sm" : "text-muted"
           }`}
         >
-          Acertar Contas
+          {t("financial.settleUp")}
         </button>
         <button
           onClick={() => setViewMode("history")}
@@ -308,7 +289,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
             viewMode === "history" ? "bg-white text-dark shadow-sm" : "text-muted"
           }`}
         >
-          Historico
+          {t("financial.history")}
         </button>
       </div>
 
@@ -335,11 +316,11 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
 
           {/* Total do mes */}
           <div className="bg-white rounded-xl p-5 shadow-sm text-center">
-            <p className="text-xs text-muted mb-1">Total do mes</p>
+            <p className="text-xs text-muted mb-1">{t("financial.monthTotal")}</p>
             <p className="text-3xl font-bold text-dark">
               R$ {totalMonth.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </p>
-            <p className="text-xs text-muted mt-1">{countableExpenses.length} despesas</p>
+            <p className="text-xs text-muted mt-1">{countableExpenses.length} {t("financial.expenseCount")}</p>
           </div>
 
           {/* Per-parent cards */}
@@ -353,7 +334,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                     <div className="w-3 h-3 rounded-full" style={{ backgroundColor: m.color }} />
                     <p className="text-xs text-muted truncate">
                       {getDisplayName(m.full_name, true)}
-                      {m.user_id === currentUserId ? " (voce)" : ""}
+                      {m.user_id === currentUserId ? ` ${t("financial.youSuffix")}` : ""}
                     </p>
                   </div>
                   <p className="text-xl font-bold text-dark">
@@ -365,7 +346,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                       style={{ width: `${percentage}%`, backgroundColor: m.color }}
                     />
                   </div>
-                  <p className="text-xs text-muted mt-1">{percentage.toFixed(0)}% do total</p>
+                  <p className="text-xs text-muted mt-1">{percentage.toFixed(0)}% {t("financial.ofTotal")}</p>
                 </div>
               );
             })}
@@ -380,13 +361,13 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                 </div>
                 <div className="flex-1">
                   <p className="text-sm font-medium text-dark">
-                    {getDisplayName(balance.owes.full_name, true)} deve{" "}
+                    {getDisplayName(balance.owes.full_name, true)} {t("financial.owesVerb")}{" "}
                     <span className="text-primary font-bold">
                       R$ {balance.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>{" "}
-                    para {getDisplayName(balance.receives.full_name, true)}
+                    {t("financial.toWord")} {getDisplayName(balance.receives.full_name, true)}
                   </p>
-                  <p className="text-xs text-muted">Neste mes (considerando divisao por despesa)</p>
+                  <p className="text-xs text-muted">{t("financial.thisMonthSplit")}</p>
                 </div>
               </div>
             </div>
@@ -395,7 +376,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
           {/* Category breakdown */}
           {categoryBreakdown.length > 0 && (
             <div className="bg-white rounded-xl p-4 shadow-sm">
-              <h3 className="text-sm font-semibold text-dark mb-3">Por categoria</h3>
+              <h3 className="text-sm font-semibold text-dark mb-3">{t("financial.byCategory")}</h3>
               <div className="space-y-3">
                 {categoryBreakdown.map((cat) => (
                   <div key={cat.category}>
@@ -426,7 +407,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
           {/* Month expense list */}
           {monthExpenses.length > 0 ? (
             <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <h3 className="text-sm font-semibold text-dark px-4 pt-4 pb-2">Despesas do mes</h3>
+              <h3 className="text-sm font-semibold text-dark px-4 pt-4 pb-2">{t("financial.monthExpenses")}</h3>
               <div className="divide-y divide-gray-50">
                 {monthExpenses.map((e) => {
                   const cat = EXPENSE_CATEGORIES.find((c) => c.value === e.category);
@@ -473,7 +454,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
             </div>
           ) : (
             <div className="bg-white rounded-xl p-8 shadow-sm text-center">
-              <p className="text-muted text-sm">Nenhuma despesa neste mes.</p>
+              <p className="text-muted text-sm">{t("financial.noExpensesThisMonth")}</p>
             </div>
           )}
 
@@ -482,7 +463,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
             href="/despesas/nova"
             className="block w-full py-4 bg-primary text-white font-semibold rounded-xl hover:bg-primary-dark transition-colors text-center text-lg"
           >
-            + Nova Despesa
+            {t("financial.newExpense")}
           </Link>
         </>
       ) : viewMode === "settlements" ? (
@@ -496,13 +477,13 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                   ⚖️
                 </div>
                 <div className="flex-1">
-                  <p className="text-sm text-muted">Saldo geral</p>
+                  <p className="text-sm text-muted">{t("financial.overallBalance")}</p>
                   <p className="text-lg font-bold text-dark">
-                    {getDisplayName(overallBalance.owes.full_name, true)} deve{" "}
+                    {getDisplayName(overallBalance.owes.full_name, true)} {t("financial.owesVerb")}{" "}
                     <span className="text-primary">
                       R$ {overallBalance.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                     </span>{" "}
-                    para {getDisplayName(overallBalance.receives.full_name, true)}
+                    {t("financial.toWord")} {getDisplayName(overallBalance.receives.full_name, true)}
                   </p>
                 </div>
               </div>
@@ -513,7 +494,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                   onClick={() => setShowPaymentForm(true)}
                   className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors text-sm"
                 >
-                  Registrar Pagamento
+                  {t("financial.registerPayment")}
                 </button>
               )}
             </div>
@@ -522,7 +503,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
           {overallBalance && overallBalance.amount <= 0.01 && (
             <div className="bg-green-50 rounded-xl p-5 shadow-sm text-center">
               <div className="text-3xl mb-2">✅</div>
-              <p className="text-sm font-medium text-green-700">Tudo acertado! Nenhum saldo pendente.</p>
+              <p className="text-sm font-medium text-green-700">{t("financial.allSettled")}</p>
             </div>
           )}
 
@@ -530,7 +511,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
           {showPaymentForm && otherMember && overallBalance && (
             <div className="bg-white rounded-xl p-5 shadow-sm">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="text-sm font-semibold text-dark">Registrar Pagamento</h3>
+                <h3 className="text-sm font-semibold text-dark">{t("financial.registerPayment")}</h3>
                 <button
                   onClick={() => setShowPaymentForm(false)}
                   className="text-muted hover:text-dark"
@@ -545,7 +526,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                 <input type="hidden" name="paidTo" value={overallBalance.receives.user_id} />
 
                 <div>
-                  <label className="block text-sm font-medium text-dark mb-1">Valor (R$)</label>
+                  <label className="block text-sm font-medium text-dark mb-1">{t("financial.amountLabel")}</label>
                   <input
                     type="number"
                     name="amount"
@@ -560,7 +541,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-dark mb-1">Metodo de pagamento</label>
+                  <label className="block text-sm font-medium text-dark mb-1">{t("financial.paymentMethod")}</label>
                   <select
                     name="paymentMethod"
                     required
@@ -576,18 +557,18 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-dark mb-1">Observacao (opcional)</label>
+                  <label className="block text-sm font-medium text-dark mb-1">{t("financial.noteOptional")}</label>
                   <input
                     type="text"
                     name="referenceNote"
-                    placeholder="Ex: PIX enviado"
+                    placeholder={t("financial.noteExample")}
                     disabled={isPending}
                     className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary disabled:opacity-50 disabled:bg-gray-50"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-dark mb-1">Data</label>
+                  <label className="block text-sm font-medium text-dark mb-1">{t("financial.dateLabel")}</label>
                   <input
                     type="date"
                     name="settlementDate"
@@ -609,10 +590,10 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                       </svg>
-                      Registrando...
+                      {t("financial.registering")}
                     </>
                   ) : (
-                    "Registrar Pagamento"
+                    t("financial.registerPayment")
                   )}
                 </button>
               </form>
@@ -621,13 +602,12 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
 
           {/* Settlement history */}
           <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-            <h3 className="text-sm font-semibold text-dark px-4 pt-4 pb-2">Historico de pagamentos</h3>
+            <h3 className="text-sm font-semibold text-dark px-4 pt-4 pb-2">{t("financial.paymentHistory")}</h3>
             {settlements.length > 0 ? (
               <div className="divide-y divide-gray-50">
                 {settlements.map((s) => {
                   const methodInfo = SETTLEMENT_METHODS.find((m) => m.value === s.payment_method);
                   const isRecipient = s.paid_to === currentUserId;
-                  const isPayer = s.paid_by === currentUserId;
 
                   return (
                     <div key={s.id} className="px-4 py-3">
@@ -635,7 +615,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                         <span className="text-lg">{methodInfo?.icon || "💸"}</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-dark">
-                            {getMemberName(s.paid_by)} pagou para {getMemberName(s.paid_to)}
+                            {t("financial.paidTo", { name: getMemberName(s.paid_by), to: getMemberName(s.paid_to) })}
                           </p>
                           <p className="text-xs text-muted">
                             {new Date(s.settlement_date + "T12:00:00").toLocaleDateString("pt-BR")}
@@ -667,7 +647,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                                 <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                               </svg>
                             ) : null}
-                            Confirmar Recebimento
+                            {t("financial.confirmReceipt")}
                           </button>
                         </form>
                       )}
@@ -677,7 +657,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
               </div>
             ) : (
               <div className="px-4 py-8 text-center">
-                <p className="text-muted text-sm">Nenhum pagamento registrado ainda.</p>
+                <p className="text-muted text-sm">{t("financial.noPayments")}</p>
               </div>
             )}
           </div>
@@ -744,13 +724,13 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                         const m0Spent = h.byMember[m0.user_id] || 0;
                         const diff = Math.round((m0Spent - m0ShouldPay) * 100) / 100;
                         if (Math.abs(diff) < 0.01) {
-                          return <p className="text-xs text-green-600">Equilibrado</p>;
+                          return <p className="text-xs text-green-600">{t("financial.balanced")}</p>;
                         }
                         const owes = diff > 0 ? members[1] : members[0];
                         const receives = diff > 0 ? members[0] : members[1];
                         return (
                           <p className="text-xs text-muted">
-                            {getDisplayName(owes.full_name, true)} deve R$ {Math.abs(diff).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} para {getDisplayName(receives.full_name, true)}
+                            {getDisplayName(owes.full_name, true)} {t("financial.owesVerb")} R$ {Math.abs(diff).toLocaleString("pt-BR", { minimumFractionDigits: 2 })} {t("financial.toWord")} {getDisplayName(receives.full_name, true)}
                           </p>
                         );
                       })()}
@@ -761,7 +741,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
             })
           ) : (
             <div className="bg-white rounded-xl p-8 shadow-sm text-center">
-              <p className="text-muted text-sm">Nenhuma despesa registrada ainda.</p>
+              <p className="text-muted text-sm">{t("financial.noExpensesRecorded")}</p>
             </div>
           )}
         </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { updateChild } from "@/actions/group";
@@ -145,9 +145,9 @@ export default function ChildDetailClient({
 
   const dateLocale = locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "de-DE";
 
-  const age = Math.floor(
-    (Date.now() - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
-  );
+  const age = useMemo(() => Math.floor(
+    (new Date().getTime() - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+  ), [child.birth_date]);
 
   const tabs = [
     { key: "geral", label: t("childProfile.tabGeneral"), icon: "\u{1F464}" },
@@ -210,8 +210,6 @@ export default function ChildDetailClient({
       {tab === "geral" && (
         <TabGeral
           child={child}
-          age={age}
-          dateLocale={dateLocale}
           isReadonly={isReadonly}
           t={t}
         />
@@ -225,7 +223,6 @@ export default function ChildDetailClient({
           allergies={allergies}
           medications={medications}
           vaccinations={vaccinations}
-          dateLocale={dateLocale}
           t={t}
         />
       )}
@@ -263,14 +260,10 @@ export default function ChildDetailClient({
 
 function TabGeral({
   child,
-  age,
-  dateLocale,
   isReadonly,
   t,
 }: {
   child: Child;
-  age: number;
-  dateLocale: string;
   isReadonly: boolean;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
@@ -380,7 +373,6 @@ function TabSaude({
   allergies,
   medications,
   vaccinations,
-  dateLocale,
   t,
 }: {
   child: Child;
@@ -389,7 +381,6 @@ function TabSaude({
   allergies: Allergy[];
   medications: Medication[];
   vaccinations: Vaccination[];
-  dateLocale: string;
   t: (key: string, vars?: Record<string, string | number>) => string;
 }) {
   return (
@@ -630,7 +621,7 @@ function TabDocumentos({
                   <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                   <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                 </svg>
-                Enviando...
+                {t("childProfile.sending")}
               </>
             ) : (
               t("childProfile.upload")
@@ -663,7 +654,7 @@ function TabDocumentos({
                       {doc.file_size ? ` - ${formatSize(doc.file_size)}` : ""}
                     </p>
                     <p className="text-xs text-muted">
-                      {(doc.profiles as any)?.full_name} - {new Date(doc.created_at).toLocaleDateString(dateLocale)}
+                      {(doc.profiles as { full_name?: string } | null)?.full_name} - {new Date(doc.created_at).toLocaleDateString(dateLocale)}
                     </p>
                   </div>
                   <svg className="w-5 h-5 text-primary flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -675,12 +666,12 @@ function TabDocumentos({
                   <button
                     type="button"
                     onClick={async () => {
-                      if (!confirm(t("childProfile.confirmDeleteDoc") !== "childProfile.confirmDeleteDoc" ? t("childProfile.confirmDeleteDoc") : "Tem certeza que deseja excluir este documento?")) return;
+                      if (!confirm(t("childProfile.confirmDeleteDoc"))) return;
                       const result = await deleteChildDocument(doc.id, child.id);
                       if (result?.error) alert(result.error);
                     }}
                     className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
-                    title="Excluir documento"
+                    title={t("childProfile.deleteDocTitle")}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
@@ -710,7 +701,7 @@ function TabDocumentos({
             category: selectedDoc.category,
             created_at: selectedDoc.created_at,
             child_name: child.full_name,
-            uploader_name: (selectedDoc.profiles as any)?.full_name || undefined,
+            uploader_name: (selectedDoc.profiles as { full_name?: string } | null)?.full_name || undefined,
           }}
           onClose={() => setSelectedDoc(null)}
         />

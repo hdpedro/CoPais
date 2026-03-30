@@ -3,10 +3,24 @@
 import { useState, useTransition } from "react";
 import { toggleChecklistItem } from "@/actions/activities";
 import ShareActivityButton from "@/components/ShareActivityButton";
+import { useI18n } from "@/i18n/provider";
+
+interface ChecklistItem {
+  id: string;
+  name: string;
+}
+
+interface ActivityData {
+  id: string;
+  name: string;
+  time_start?: string;
+  location?: string;
+  notes?: string;
+}
 
 interface ActivityChecklistModalProps {
-  activity: any;
-  items: any[];
+  activity: ActivityData;
+  items: ChecklistItem[];
   occurrenceDate: string;
   completedSet: Set<string>;
   cat: { value: string; label: string; icon: string } | undefined;
@@ -23,10 +37,11 @@ export default function ActivityChecklistModal({
   completedSet,
   cat,
   childName,
-  completedCount: initialCompleted,
-  allDone: initialAllDone,
+  completedCount: _initialCompleted, // eslint-disable-line @typescript-eslint/no-unused-vars
+  allDone: _initialAllDone, // eslint-disable-line @typescript-eslint/no-unused-vars
   label,
 }: ActivityChecklistModalProps) {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
   const [localCompleted, setLocalCompleted] = useState<Set<string>>(() => {
     const set = new Set<string>();
@@ -152,7 +167,7 @@ export default function ActivityChecklistModal({
                       childName,
                       timeStr: activity.time_start?.slice(0, 5) || "",
                       location: activity.location || "",
-                      checklistItems: items.map((i: any) => i.name),
+                      checklistItems: items.map((i) => i.name),
                       dateLabel: label,
                     }}
                   />
@@ -171,8 +186,8 @@ export default function ActivityChecklistModal({
               {allDone && (
                 <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-4 text-center">
                   <p className="text-2xl mb-1">🎉</p>
-                  <p className="text-sm font-semibold text-green-700">Tudo preparado!</p>
-                  <p className="text-xs text-green-600">Mochila pronta para {activity.name.toLowerCase()}</p>
+                  <p className="text-sm font-semibold text-green-700">{t("activities.allReady")}</p>
+                  <p className="text-xs text-green-600">{t("activities.bagReadyFor", { name: activity.name.toLowerCase() })}</p>
                 </div>
               )}
 
@@ -180,7 +195,7 @@ export default function ActivityChecklistModal({
               {items.length > 0 && !allDone && (
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-xs text-[#7A8C8B]">Preparando mochila...</span>
+                    <span className="text-xs text-[#7A8C8B]">{t("activities.preparingBag")}</span>
                     <span className="text-xs font-semibold text-[#D4735A]">{completedCount}/{items.length}</span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
@@ -195,7 +210,7 @@ export default function ActivityChecklistModal({
               {/* Checklist */}
               {items.length > 0 ? (
                 <div className="space-y-1">
-                  {items.map((item: any) => {
+                  {items.map((item) => {
                     const isCompleted = localCompleted.has(item.id);
                     return (
                       <button
@@ -237,10 +252,10 @@ export default function ActivityChecklistModal({
               ) : (
                 <div className="py-6 text-center">
                   <p className="text-[13px] text-[#7A8C8B]">
-                    Nenhum item no checklist.
+                    {t("activities.noChecklistItems")}
                   </p>
                   <p className="text-[11px] text-[#9CA3AF] mt-1">
-                    Edite a atividade para adicionar itens.
+                    {t("activities.editToAddItems")}
                   </p>
                 </div>
               )}

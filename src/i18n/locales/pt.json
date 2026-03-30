@@ -41,7 +41,7 @@
     "hasAccount": "Já tem uma conta?",
     "loginButton": "Entrar",
     "signupButton": "Cadastrar",
-    "tagline": "dois lares \u00b7 uma s\u00f3 rotina",
+    "tagline": "dois lares · uma só rotina",
     "orEmailLogin": "ou entre com e-mail",
     "orEmailSignup": "ou crie com e-mail",
     "loggingIn": "Entrando...",
@@ -1089,7 +1089,11 @@
     "catEducation": "Educação",
     "catLegal": "Legal",
     "catOther": "Outro",
-    "subtitle": "Documentos digitais das crianças"
+    "subtitle": "Documentos digitais das crianças",
+    "idRg": "ID / RG",
+    "documentSingular": "documento",
+    "documentPlural": "documentos",
+    "confirmDeleteDoc": "Tem certeza que deseja excluir este documento?"
   },
   "schoolPage": {
     "subtitle": "Acompanhamento da rotina escolar e desenvolvimento das crianças.",
@@ -1370,7 +1374,10 @@
     "noEducationData": "Nenhuma informacao escolar cadastrada.",
     "addSchoolPrompt": "Adicione as informacoes da escola aqui.",
     "editSchoolInfo": "Editar informacoes escolares",
-    "addSchoolInfo": "Adicionar informacoes escolares"
+    "addSchoolInfo": "Adicionar informacoes escolares",
+    "sending": "Enviando...",
+    "confirmDeleteDoc": "Tem certeza que deseja excluir este documento?",
+    "deleteDocTitle": "Excluir documento"
   },
   "activityReport": {
     "title": "Status da Atividade",
@@ -1552,5 +1559,54 @@
     "errorNetwork": "Erro de conexão. Verifique sua internet.",
     "errorSave": "Erro ao salvar o evento. Tente novamente.",
     "navLabel": "Via convite"
+  },
+  "financial": {
+    "summary": "Resumo",
+    "settleUp": "Acertar Contas",
+    "history": "Historico",
+    "monthTotal": "Total do mes",
+    "expenseCount": "despesas",
+    "youSuffix": "(voce)",
+    "ofTotal": "do total",
+    "byCategory": "Por categoria",
+    "monthExpenses": "Despesas do mes",
+    "thisMonthSplit": "Neste mes (considerando divisao por despesa)",
+    "noExpensesThisMonth": "Nenhuma despesa neste mes.",
+    "newExpense": "+ Nova Despesa",
+    "overallBalance": "Saldo geral",
+    "owesVerb": "deve",
+    "toWord": "para",
+    "registerPayment": "Registrar Pagamento",
+    "allSettled": "Tudo acertado! Nenhum saldo pendente.",
+    "amountLabel": "Valor (R$)",
+    "paymentMethod": "Metodo de pagamento",
+    "noteOptional": "Observacao (opcional)",
+    "noteExample": "Ex: PIX enviado",
+    "dateLabel": "Data",
+    "registering": "Registrando...",
+    "paymentHistory": "Historico de pagamentos",
+    "paidTo": "{name} pagou para {to}",
+    "noPayments": "Nenhum pagamento registrado ainda.",
+    "confirmReceipt": "Confirmar Recebimento",
+    "balanced": "Equilibrado",
+    "noExpensesRecorded": "Nenhuma despesa registrada ainda.",
+    "statusPending": "Pendente",
+    "statusApproved": "Aprovada",
+    "statusRejected": "Rejeitada",
+    "statusDisputed": "Disputada",
+    "settlementPending": "Aguardando",
+    "settlementConfirmed": "Confirmado",
+    "settlementDisputed": "Disputado"
+  },
+  "activities": {
+    "noChecklistItems": "Nenhum item no checklist.",
+    "editToAddItems": "Edite a atividade para adicionar itens.",
+    "allReady": "Tudo preparado!",
+    "bagReadyFor": "Mochila pronta para {name}",
+    "preparingBag": "Preparando mochila...",
+    "removeActivity": "Remover atividade?",
+    "removeConfirmText": "\"{name}\" sera removida junto com todo o checklist. Esta acao nao pode ser desfeita.",
+    "removing": "Removendo...",
+    "remove": "Remover"
   }
 }
