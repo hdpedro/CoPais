@@ -3,8 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
-import { ALLERGY_TYPES, ALLERGY_SEVERITIES } from "@/lib/health-constants";
-import { updateAllergy, deleteAllergy } from "@/actions/health";
+import { ALLERGY_TYPES, ALLERGY_SEVERITIES, BLOOD_TYPES } from "@/lib/health-constants";
+import { updateAllergy, deleteAllergy, upsertMedicalInfo } from "@/actions/health";
 
 interface Allergy {
   id: string;
@@ -37,8 +37,9 @@ interface Child {
 }
 
 interface Props {
-  children: Child[];
+  childrenList: Child[];
   selectedChildId: string;
+  groupId: string;
   allergies: Allergy[] | null;
   info: MedicalInfo | null;
   pediatrician: Pediatrician | null;
@@ -48,8 +49,9 @@ interface Props {
 }
 
 export default function AlergiasClient({
-  children: childrenList,
+  childrenList,
   selectedChildId,
+  groupId,
   allergies,
   info,
   pediatrician,
@@ -60,6 +62,7 @@ export default function AlergiasClient({
   const { t } = useI18n();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editingMedicalInfo, setEditingMedicalInfo] = useState(false);
 
   const severityConfig: Record<string, { bg: string; text: string; labelKey: string }> = {
     severe: { bg: "bg-red-100", text: "text-red-700", labelKey: "health.severityGrave" },
@@ -370,59 +373,131 @@ export default function AlergiasClient({
       <section id="medical-info-form" className="mb-6 scroll-mt-4 rounded-xl transition-all">
         <div className="flex items-center justify-between mb-3 px-1">
           <h2 className="text-sm font-semibold text-dark">{t("health.medicalInfo")}</h2>
-          {!isReadonly && (
+          {!isReadonly && !editingMedicalInfo && (
             <button
               type="button"
-              onClick={() => {
-                const section = document.getElementById("medical-info-form");
-                if (section) {
-                  section.scrollIntoView({ behavior: "smooth" });
-                  section.classList.add("ring-2", "ring-primary/40");
-                  setTimeout(() => section.classList.remove("ring-2", "ring-primary/40"), 2000);
-                }
-              }}
+              onClick={() => setEditingMedicalInfo(true)}
               className="text-xs font-semibold text-primary hover:text-primary/80"
             >
               {t("common.edit")}
             </button>
           )}
         </div>
-        <div className="bg-white rounded-xl p-4 shadow-sm">
-          <div className="grid grid-cols-2 gap-4">
+
+        {editingMedicalInfo && !isReadonly ? (
+          <form action={upsertMedicalInfo} className="bg-white rounded-xl p-4 shadow-sm space-y-4 border border-primary/20">
+            <input type="hidden" name="childId" value={selectedChildId} />
+            <input type="hidden" name="groupId" value={groupId} />
+
             <div>
-              <p className="text-[10px] text-muted uppercase tracking-wide font-semibold">
+              <label className="block text-xs font-semibold text-dark mb-1">
                 {t("health.bloodType")}
-              </p>
-              <p className="text-sm font-semibold text-dark mt-0.5">
-                {info?.blood_type || "—"}
-              </p>
+              </label>
+              <select
+                name="bloodType"
+                defaultValue={info?.blood_type || ""}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              >
+                <option value="">{t("health.select")}</option>
+                {BLOOD_TYPES.map((bt) => (
+                  <option key={bt} value={bt}>{bt}</option>
+                ))}
+              </select>
             </div>
+
             <div>
-              <p className="text-[10px] text-muted uppercase tracking-wide font-semibold">
+              <label className="block text-xs font-semibold text-dark mb-1">
                 {t("health.insurance")}
-              </p>
-              <p className="text-sm font-semibold text-dark mt-0.5">
-                {info?.insurance_name || "—"}
-              </p>
+              </label>
+              <input
+                type="text"
+                name="insuranceName"
+                defaultValue={info?.insurance_name || ""}
+                placeholder={t("health.insurance")}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              />
             </div>
+
             <div>
-              <p className="text-[10px] text-muted uppercase tracking-wide font-semibold">
+              <label className="block text-xs font-semibold text-dark mb-1">
                 {t("health.insuranceNumber")}
-              </p>
-              <p className="text-sm font-semibold text-dark mt-0.5">
-                {info?.insurance_number || "—"}
-              </p>
+              </label>
+              <input
+                type="text"
+                name="insuranceNumber"
+                defaultValue={info?.insurance_number || ""}
+                placeholder={t("health.insuranceNumber")}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              />
             </div>
+
             <div>
-              <p className="text-[10px] text-muted uppercase tracking-wide font-semibold">
+              <label className="block text-xs font-semibold text-dark mb-1">
                 {t("health.susNumber")}
-              </p>
-              <p className="text-sm font-semibold text-dark mt-0.5">
-                {info?.sus_number || "—"}
-              </p>
+              </label>
+              <input
+                type="text"
+                name="susNumber"
+                defaultValue={info?.sus_number || ""}
+                placeholder={t("health.susNumber")}
+                className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-sm text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+              />
+            </div>
+
+            <div className="flex gap-2 justify-end">
+              <button
+                type="button"
+                onClick={() => setEditingMedicalInfo(false)}
+                className="px-3 py-1.5 text-xs font-medium text-muted bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+              >
+                {t("common.cancel")}
+              </button>
+              <button
+                type="submit"
+                className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                {t("common.save")}
+              </button>
+            </div>
+          </form>
+        ) : (
+          <div className="bg-white rounded-xl p-4 shadow-sm">
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-[10px] text-muted uppercase tracking-wide font-semibold">
+                  {t("health.bloodType")}
+                </p>
+                <p className="text-sm font-semibold text-dark mt-0.5">
+                  {info?.blood_type || "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted uppercase tracking-wide font-semibold">
+                  {t("health.insurance")}
+                </p>
+                <p className="text-sm font-semibold text-dark mt-0.5">
+                  {info?.insurance_name || "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted uppercase tracking-wide font-semibold">
+                  {t("health.insuranceNumber")}
+                </p>
+                <p className="text-sm font-semibold text-dark mt-0.5">
+                  {info?.insurance_number || "—"}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] text-muted uppercase tracking-wide font-semibold">
+                  {t("health.susNumber")}
+                </p>
+                <p className="text-sm font-semibold text-dark mt-0.5">
+                  {info?.sus_number || "—"}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Pediatra Principal */}

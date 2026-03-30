@@ -27,8 +27,9 @@ export default async function AlergiasPage({
   if (!children || children.length === 0) {
     return (
       <AlergiasClient
-        children={[]}
+        childrenList={[]}
         selectedChildId=""
+        groupId={groupId}
         allergies={null}
         info={null}
         pediatrician={null}
@@ -69,12 +70,13 @@ export default async function AlergiasPage({
   ]);
 
   const info = medicalInfo || null;
-  const pediatrician = (info?.medical_professionals as any) || null;
+  const pediatrician = (info?.medical_professionals as unknown as { name: string; specialty: string | null; crm: string | null; phone: string | null; whatsapp: string | null; address: string | null } | null) || null;
 
   return (
     <AlergiasClient
-      children={children}
+      childrenList={children}
       selectedChildId={selectedChildId}
+      groupId={groupId}
       allergies={allergies}
       info={info ? { blood_type: info.blood_type, insurance_name: info.insurance_name, insurance_number: info.insurance_number, sus_number: info.sus_number } : null}
       pediatrician={pediatrician}
