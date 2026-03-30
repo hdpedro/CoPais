@@ -30,7 +30,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 | Tabelas no banco | 35+ |
 | Migrations | 29 |
 | Client Components | 36+ |
-| Componentes globais | 12 |
+| Componentes globais | 13 |
 | Chaves de traducao | ~1405 por idioma |
 | Secoes i18n | 38 |
 | Idiomas | 5 (PT, EN, ES, FR, DE) |
@@ -51,6 +51,7 @@ O app esta configurado para distribuicao na Apple App Store via Capacitor:
 - **Viewport:** `viewport-fit=cover`, sem zoom
 - **7 loading skeletons:** arquivos `loading.tsx` com animate-pulse
 - **Offline:** Service Worker v3 com navigation caching + pagina offline (`/offline.html`)
+- **PWA Install Banner:** `PWAInstallBanner.tsx` exibe banner no iOS Safari pedindo para "Adicionar a Tela de Inicio" (modo standalone, sem barra de URL). Aparece apenas no iOS quando nao esta em standalone e o usuario nao dispensou; dispensa salva em `localStorage` (`kindar-pwa-dismissed`)
 - **Deteccao de teclado:** bottom nav se esconde via `visualViewport` API
 - **Checklist de submissao:** `docs/ios-submission-checklist.md`
 
@@ -410,6 +411,7 @@ src/
     AIAssistant.tsx     # Interface do assistente IA
     KindarLogo.tsx      # Logo do app
     PushNotificationManager.tsx # Gerenciamento de push
+    PWAInstallBanner.tsx # Banner iOS para "Adicionar a Tela de Inicio" (PWA standalone)
   i18n/                 # Sistema de internacionalizacao
     locales/            # Arquivos de traducao
       pt.json           # Portugues (~1405 chaves, 38 secoes)

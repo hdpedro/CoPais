@@ -1545,5 +1545,31 @@
     "saveEvent": "Guardar Evento",
     "saveCustody": "Guardar Custodia",
     "dateError": "La fecha de inicio no puede ser posterior a la fecha de fin."
+  },
+  "inviteParser": {
+    "title": "Agregar desde invitación",
+    "uploadTitle": "Sube una foto de la invitación",
+    "uploadHint": "Toma una foto o selecciona de la galería (JPG, PNG o PDF)",
+    "processing": "Leyendo invitación...",
+    "processingHint": "Extrayendo información con IA",
+    "detectedEvent": "Evento detectado",
+    "fieldTitle": "Título",
+    "fieldDate": "Fecha",
+    "fieldStartTime": "Inicio",
+    "fieldEndTime": "Fin",
+    "fieldTime": "Horario",
+    "fieldLocation": "Lugar",
+    "fieldNotes": "Observaciones",
+    "selectChild": "Vincular a niño/a",
+    "noChild": "Ninguno (evento general)",
+    "missingRequired": "Título y fecha son obligatorios. Toca Editar para corregir.",
+    "confirm": "Agregar al calendario",
+    "saving": "Guardando...",
+    "retry": "Intentar de nuevo",
+    "errorTitle": "No se pudo leer la invitación",
+    "errorGeneric": "Error al procesar la invitación. Inténtalo de nuevo.",
+    "errorNetwork": "Error de conexión. Verifica tu internet.",
+    "errorSave": "Error al guardar el evento. Inténtalo de nuevo.",
+    "navLabel": "Desde invitación"
   }
 }

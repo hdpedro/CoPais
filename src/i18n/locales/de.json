@@ -1545,5 +1545,31 @@
     "saveEvent": "Ereignis speichern",
     "saveCustody": "Sorgerecht speichern",
     "dateError": "Das Startdatum darf nicht nach dem Enddatum liegen."
+  },
+  "inviteParser": {
+    "title": "Von Einladung hinzufugen",
+    "uploadTitle": "Laden Sie ein Foto der Einladung hoch",
+    "uploadHint": "Machen Sie ein Foto oder wahlen Sie aus der Galerie (JPG, PNG oder PDF)",
+    "processing": "Einladung wird gelesen...",
+    "processingHint": "Informationen werden per KI extrahiert",
+    "detectedEvent": "Erkanntes Ereignis",
+    "fieldTitle": "Titel",
+    "fieldDate": "Datum",
+    "fieldStartTime": "Beginn",
+    "fieldEndTime": "Ende",
+    "fieldTime": "Uhrzeit",
+    "fieldLocation": "Ort",
+    "fieldNotes": "Anmerkungen",
+    "selectChild": "Mit Kind verknupfen",
+    "noChild": "Keines (allgemeines Ereignis)",
+    "missingRequired": "Titel und Datum sind erforderlich. Tippen Sie auf Bearbeiten zum Korrigieren.",
+    "confirm": "Zum Kalender hinzufugen",
+    "saving": "Wird gespeichert...",
+    "retry": "Erneut versuchen",
+    "errorTitle": "Einladung konnte nicht gelesen werden",
+    "errorGeneric": "Fehler beim Verarbeiten der Einladung. Bitte erneut versuchen.",
+    "errorNetwork": "Verbindungsfehler. Uberprufen Sie Ihre Internetverbindung.",
+    "errorSave": "Fehler beim Speichern des Ereignisses. Bitte erneut versuchen.",
+    "navLabel": "Von Einladung"
   }
 }

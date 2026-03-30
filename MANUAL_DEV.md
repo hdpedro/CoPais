@@ -94,6 +94,7 @@ O app usa Capacitor para distribuicao na App Store. Configuracao em `capacitor.c
 - Loading states em skeleton (animate-pulse), nunca spinners — **7 arquivos loading.tsx**
 - **Service Worker v3** com navigation caching
 - **Pagina offline** dedicada (`/offline.html`)
+- **PWA Install Banner** (`src/components/PWAInstallBanner.tsx`): banner exibido no iOS Safari para orientar o usuario a "Adicionar a Tela de Inicio" e usar o app em modo standalone (sem barra de URL). So aparece em iOS, fora do modo standalone, e se o usuario nao dispensou antes (`localStorage` key `kindar-pwa-dismissed`). Registrado no root layout (`src/app/layout.tsx`). `manifest.json` atualizado com `id`, `prefer_related_applications: false` e `shortcuts`
 - **Viewport fit cover**, sem zoom em inputs (font-size 16px)
 
 **Para buildar (requer Mac + Xcode):**
@@ -570,7 +571,8 @@ Kindar/
         ├── Sidebar.tsx               # Sidebar desktop (com aria-labels, role="navigation")
         ├── ResponsiveShell.tsx       # Shell responsivo (sidebar desktop / bottom nav mobile)
         ├── GroupSelector.tsx          # Seletor de grupo ativo (multi-grupo)
-        └── LanguageSelector.tsx       # Seletor de idioma (5 opcoes)
+        ├── LanguageSelector.tsx       # Seletor de idioma (5 opcoes)
+        └── PWAInstallBanner.tsx      # Banner iOS "Adicionar a Tela de Inicio" (PWA standalone)
 ```
 
 ---

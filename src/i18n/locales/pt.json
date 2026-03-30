@@ -1526,5 +1526,31 @@
     "saveEvent": "Salvar Evento",
     "saveCustody": "Salvar Guarda",
     "dateError": "A data de inicio nao pode ser posterior a data de fim."
+  },
+  "inviteParser": {
+    "title": "Adicionar via convite",
+    "uploadTitle": "Envie uma foto do convite",
+    "uploadHint": "Tire uma foto ou selecione da galeria (JPG, PNG ou PDF)",
+    "processing": "Lendo convite...",
+    "processingHint": "Extraindo informações com IA",
+    "detectedEvent": "Evento detectado",
+    "fieldTitle": "Título",
+    "fieldDate": "Data",
+    "fieldStartTime": "Início",
+    "fieldEndTime": "Término",
+    "fieldTime": "Horário",
+    "fieldLocation": "Local",
+    "fieldNotes": "Observações",
+    "selectChild": "Vincular a criança",
+    "noChild": "Nenhuma (evento geral)",
+    "missingRequired": "Título e data são obrigatórios. Toque em Editar para corrigir.",
+    "confirm": "Adicionar ao calendário",
+    "saving": "Salvando...",
+    "retry": "Tentar novamente",
+    "errorTitle": "Não foi possível ler o convite",
+    "errorGeneric": "Erro ao processar o convite. Tente novamente.",
+    "errorNetwork": "Erro de conexão. Verifique sua internet.",
+    "errorSave": "Erro ao salvar o evento. Tente novamente.",
+    "navLabel": "Via convite"
   }
 }

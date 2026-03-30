@@ -1545,5 +1545,31 @@
     "saveEvent": "Save Event",
     "saveCustody": "Save Custody",
     "dateError": "The start date cannot be after the end date."
+  },
+  "inviteParser": {
+    "title": "Add from invite",
+    "uploadTitle": "Upload an invite photo",
+    "uploadHint": "Take a photo or select from gallery (JPG, PNG or PDF)",
+    "processing": "Reading invite...",
+    "processingHint": "Extracting information with AI",
+    "detectedEvent": "Detected event",
+    "fieldTitle": "Title",
+    "fieldDate": "Date",
+    "fieldStartTime": "Start",
+    "fieldEndTime": "End",
+    "fieldTime": "Time",
+    "fieldLocation": "Location",
+    "fieldNotes": "Notes",
+    "selectChild": "Link to child",
+    "noChild": "None (general event)",
+    "missingRequired": "Title and date are required. Tap Edit to correct.",
+    "confirm": "Add to calendar",
+    "saving": "Saving...",
+    "retry": "Try again",
+    "errorTitle": "Could not read the invite",
+    "errorGeneric": "Error processing the invite. Please try again.",
+    "errorNetwork": "Connection error. Check your internet.",
+    "errorSave": "Error saving the event. Please try again.",
+    "navLabel": "From invite"
   }
 }

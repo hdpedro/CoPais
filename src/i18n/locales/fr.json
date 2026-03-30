@@ -1545,5 +1545,31 @@
     "saveEvent": "Enregistrer l'evenement",
     "saveCustody": "Enregistrer la garde",
     "dateError": "La date de debut ne peut pas etre posterieure a la date de fin."
+  },
+  "inviteParser": {
+    "title": "Ajouter depuis une invitation",
+    "uploadTitle": "Envoyez une photo de l'invitation",
+    "uploadHint": "Prenez une photo ou selectionnez depuis la galerie (JPG, PNG ou PDF)",
+    "processing": "Lecture de l'invitation...",
+    "processingHint": "Extraction des informations par IA",
+    "detectedEvent": "Evenement detecte",
+    "fieldTitle": "Titre",
+    "fieldDate": "Date",
+    "fieldStartTime": "Debut",
+    "fieldEndTime": "Fin",
+    "fieldTime": "Horaire",
+    "fieldLocation": "Lieu",
+    "fieldNotes": "Observations",
+    "selectChild": "Lier a l'enfant",
+    "noChild": "Aucun (evenement general)",
+    "missingRequired": "Le titre et la date sont obligatoires. Appuyez sur Modifier pour corriger.",
+    "confirm": "Ajouter au calendrier",
+    "saving": "Enregistrement...",
+    "retry": "Reessayer",
+    "errorTitle": "Impossible de lire l'invitation",
+    "errorGeneric": "Erreur lors du traitement de l'invitation. Veuillez reessayer.",
+    "errorNetwork": "Erreur de connexion. Verifiez votre internet.",
+    "errorSave": "Erreur lors de l'enregistrement de l'evenement. Veuillez reessayer.",
+    "navLabel": "Depuis invitation"
   }
 }

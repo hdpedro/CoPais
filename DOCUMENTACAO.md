@@ -41,11 +41,12 @@ src/
 │   ├── (auth)/       # Rotas publicas (login, signup, etc.)
 │   ├── (app)/        # Rotas protegidas (dashboard, calendario, etc.)
 │   └── api/          # API Routes (12 endpoints)
-├── components/       # Componentes globais (12 arquivos)
+├── components/       # Componentes globais (13 arquivos)
 │   ├── BottomNav.tsx, Sidebar.tsx, ResponsiveShell.tsx
 │   ├── GroupSelector.tsx, LanguageSelector.tsx
 │   ├── NotificationBadge.tsx, AIAssistant.tsx, KindarLogo.tsx
-│   └── PushNotificationManager.tsx
+│   ├── PushNotificationManager.tsx
+│   └── PWAInstallBanner.tsx   # Banner iOS "Adicionar a Tela de Inicio" (PWA standalone)
 ├── i18n/             # Sistema de internacionalizacao
 │   └── locales/      # pt.json, en.json, es.json, fr.json, de.json (~1405 chaves, 38 secoes)
 ├── lib/
@@ -743,6 +744,8 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - `viewport-fit=cover`, sem zoom em inputs (font-size 16px)
 - **Service Worker v3** com navigation caching
 - **Pagina offline** dedicada (`/offline.html`)
+- **PWA Install Banner** (`PWAInstallBanner.tsx`): exibe banner no iOS Safari orientando o usuario a usar "Compartilhar > Adicionar a Tela de Inicio" para abrir o app em modo standalone (sem barra de URL). Condicoes: dispositivo iOS, nao esta em `standalone`, usuario nao dispensou. Dispensa persistida em `localStorage` (`kindar-pwa-dismissed`). Incluido no root layout (`src/app/layout.tsx`)
+- **manifest.json** atualizado com `id`, `prefer_related_applications: false` e `shortcuts`
 
 ---
 
