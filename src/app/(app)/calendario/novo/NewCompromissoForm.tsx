@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/static-components */
 "use client";
 
 import { useState, useTransition } from "react";
@@ -640,6 +641,19 @@ export default function NewCompromissoForm({ children, members, groupId }: Props
             );
           })}
         </div>
+
+        {/* "Via convite" shortcut */}
+        <Link
+          href="/calendario/convite"
+          className="flex items-center gap-2 mt-3 px-3 py-2.5 bg-[#FDF0EC] rounded-xl hover:bg-[#FADDCE] transition-colors"
+        >
+          <span className="text-lg">📸</span>
+          <span className="text-xs font-semibold text-[#C07055]">{t("inviteParser.navLabel")}</span>
+          <span className="text-[10px] text-[#9A8878] ml-1">— {t("inviteParser.uploadHint")}</span>
+          <svg className="w-4 h-4 text-[#C07055] ml-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
       </div>
 
       {/* ========== ACTIVITY FORM ========== */}
