@@ -2,72 +2,57 @@
 
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-
-const LS_KEY = "kindar-auth-backup";
+import { getPersistenceClient } from "@/lib/supabase/persistence";
 
 /**
- * Client-side auth session manager with localStorage backup.
+ * Syncs the SSR Supabase client (cookies) → persistence client (localStorage).
  *
  * Safari/iOS aggressively clears cookies (ITP), but NEVER clears localStorage.
- * This component:
- * 1. On mount and on every visibility change, backs up current tokens to localStorage
- * 2. On every auth state change (SIGNED_IN, TOKEN_REFRESHED), backs up tokens
- * 3. On SIGNED_OUT, clears the backup
+ * The persistence client uses the standard @supabase/supabase-js which stores
+ * tokens in localStorage automatically (same approach as the Hospeda app).
  *
- * Recovery is handled by /session-recovery page (middleware redirects there
- * when no auth cookies exist).
+ * On every auth event and visibility change, we copy the current session from
+ * cookies to localStorage. When cookies are lost, /session-recovery reads
+ * from the persistence client's localStorage to restore the session.
  */
 export default function AuthSessionProvider() {
   useEffect(() => {
-    const supabase = createClient();
+    const ssrClient = createClient();
+    const persistClient = getPersistenceClient();
 
-    // Back up current session tokens to localStorage
-    function backupSession() {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          try {
-            localStorage.setItem(
-              LS_KEY,
-              JSON.stringify({
-                access_token: session.access_token,
-                refresh_token: session.refresh_token,
-              })
-            );
-          } catch {}
-        }
-      });
+    // Sync current session from cookies to localStorage
+    async function syncToLocalStorage() {
+      const { data: { session } } = await ssrClient.auth.getSession();
+      if (session) {
+        await persistClient.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        });
+      }
     }
 
-    // Back up on mount (captures middleware-refreshed tokens)
-    backupSession();
+    // Sync on mount
+    syncToLocalStorage();
 
-    // Back up when user returns to the tab (captures any server-side token refresh)
+    // Sync when user returns to the tab (captures middleware-refreshed tokens)
     function onVisibilityChange() {
       if (document.visibilityState === "visible") {
-        backupSession();
+        syncToLocalStorage();
       }
     }
     document.addEventListener("visibilitychange", onVisibilityChange);
 
-    // Listen for auth state changes
+    // Listen for auth state changes on the SSR client
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
+    } = ssrClient.auth.onAuthStateChange(async (event, session) => {
       if (event === "SIGNED_OUT") {
-        try {
-          localStorage.removeItem(LS_KEY);
-        } catch {}
+        await persistClient.auth.signOut();
       } else if (session) {
-        // Back up tokens on every auth event (SIGNED_IN, TOKEN_REFRESHED, etc.)
-        try {
-          localStorage.setItem(
-            LS_KEY,
-            JSON.stringify({
-              access_token: session.access_token,
-              refresh_token: session.refresh_token,
-            })
-          );
-        } catch {}
+        await persistClient.auth.setSession({
+          access_token: session.access_token,
+          refresh_token: session.refresh_token,
+        });
       }
     });
 

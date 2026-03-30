@@ -32,46 +32,16 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
 
-  // Client-side session recovery: check cookies first, then localStorage backup.
-  // Safari clears cookies but keeps localStorage — this is the recovery path.
+  // Check if user already has a session (e.g. navigated here directly while logged in)
   useEffect(() => {
     const supabase = createClient();
     const dest = conviteToken ? `/convite/${conviteToken}` : "/dashboard";
 
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
         router.replace(dest);
         return;
       }
-
-      // Cookies are gone — try restoring from localStorage backup
-      try {
-        const backup = localStorage.getItem("kindar-auth-backup");
-        if (backup) {
-          const { access_token, refresh_token } = JSON.parse(backup);
-          if (access_token && refresh_token) {
-            const { data, error } = await supabase.auth.setSession({
-              access_token,
-              refresh_token,
-            });
-            if (!error && data.session?.user) {
-              // Session restored! Cookies are now set via setAll.
-              // Use window.location for full server-side reload so
-              // middleware sees the fresh cookies.
-              window.location.href = dest;
-              return;
-            }
-            // setSession failed — tokens expired or invalid
-            console.warn("[Kindar] Session recovery failed:", error?.message);
-          }
-          // Backup tokens were expired/invalid — clean up
-          localStorage.removeItem("kindar-auth-backup");
-        }
-      } catch {
-        // localStorage not available or corrupt — clean up
-        try { localStorage.removeItem("kindar-auth-backup"); } catch {}
-      }
-
       setChecking(false);
     });
   }, [router, conviteToken]);

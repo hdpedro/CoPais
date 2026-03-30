@@ -4,53 +4,43 @@ import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { createClient } from "@/lib/supabase/client";
-
-const LS_KEY = "kindar-auth-backup";
+import { getPersistenceClient } from "@/lib/supabase/persistence";
 
 function RecoveryHandler() {
   const searchParams = useSearchParams();
   const next = searchParams.get("next") || "/dashboard";
 
   useEffect(() => {
-    const supabase = createClient();
-
     (async () => {
-      // 1. Check if session already exists in cookies
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
+      // 1. Check if SSR client already has session in cookies
+      const ssrClient = createClient();
+      const { data: { session: cookieSession } } = await ssrClient.auth.getSession();
+      if (cookieSession?.user) {
         window.location.href = next;
         return;
       }
 
-      // 2. Try to restore from localStorage backup
-      try {
-        const backup = localStorage.getItem(LS_KEY);
-        if (backup) {
-          const { access_token, refresh_token } = JSON.parse(backup);
-          if (access_token && refresh_token) {
-            const { data, error } = await supabase.auth.setSession({
-              access_token,
-              refresh_token,
-            });
-            if (!error && data.session?.user) {
-              // Success! Update backup with fresh tokens
-              localStorage.setItem(
-                LS_KEY,
-                JSON.stringify({
-                  access_token: data.session.access_token,
-                  refresh_token: data.session.refresh_token,
-                })
-              );
-              // Full page navigation so middleware sees fresh cookies
-              window.location.href = next;
-              return;
-            }
-          }
-          // Tokens invalid — clean up
-          localStorage.removeItem(LS_KEY);
+      // 2. Try persistence client (reads from localStorage, same as Hospeda app)
+      const persistClient = getPersistenceClient();
+      const { data: { session: lsSession } } = await persistClient.auth.getSession();
+
+      if (lsSession?.access_token && lsSession?.refresh_token) {
+        // Found session in localStorage! Restore to cookies via SSR client.
+        const { data, error } = await ssrClient.auth.setSession({
+          access_token: lsSession.access_token,
+          refresh_token: lsSession.refresh_token,
+        });
+
+        if (!error && data.session?.user) {
+          // Also update persistence client with fresh tokens
+          await persistClient.auth.setSession({
+            access_token: data.session.access_token,
+            refresh_token: data.session.refresh_token,
+          });
+          // Full navigation so middleware sees fresh cookies
+          window.location.href = next;
+          return;
         }
-      } catch {
-        try { localStorage.removeItem(LS_KEY); } catch {}
       }
 
       // 3. No recovery possible — go to login
