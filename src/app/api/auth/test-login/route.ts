@@ -1,9 +1,16 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextRequest, NextResponse } from "next/server";
+import { authRateLimiter } from "@/lib/rate-limit";
 
 // Test-only login route - accepts email/password via query params
 // Only allows @kindar.test emails for safety
 export async function GET(request: NextRequest) {
+  const ip = request.headers.get("x-forwarded-for") || "unknown";
+  const rl = authRateLimiter.check(ip);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+  }
+
   const email = request.nextUrl.searchParams.get("email");
   const password = request.nextUrl.searchParams.get("password");
 

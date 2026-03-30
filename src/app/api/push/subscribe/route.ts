@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { savePushSubscription, removePushSubscription } from "@/lib/push";
+import { pushSubscribeRateLimiter } from "@/lib/rate-limit";
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient();
@@ -8,6 +9,11 @@ export async function POST(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
+  }
+
+  const rl = pushSubscribeRateLimiter.check(user.id);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const body = await request.json();

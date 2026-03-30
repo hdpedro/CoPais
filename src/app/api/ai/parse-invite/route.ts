@@ -7,6 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { getEventParser } from "@/lib/ai/parser";
+import { parseInviteRateLimiter } from "@/lib/rate-limit";
 
 export const maxDuration = 60; // Tesseract can be slow on large images
 
@@ -30,6 +31,11 @@ export async function POST(request: NextRequest) {
     } = await supabase.auth.getUser();
     if (!user) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
+    }
+
+    const rl = parseInviteRateLimiter.check(user.id);
+    if (!rl.allowed) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
     const activeGroup = await getActiveGroup(supabase, user.id);

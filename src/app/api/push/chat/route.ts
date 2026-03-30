@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { sendPushToUser } from "@/lib/push";
+import { pushChatRateLimiter } from "@/lib/rate-limit";
 
 /**
  * POST /api/push/chat
@@ -12,6 +13,11 @@ export async function POST(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
+  }
+
+  const rl = pushChatRateLimiter.check(user.id);
+  if (!rl.allowed) {
+    return NextResponse.json({ error: "Too many requests" }, { status: 429 });
   }
 
   const { groupId, messageText } = await request.json();
