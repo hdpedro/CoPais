@@ -338,17 +338,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const lastUserMsgRaw = [...messages].reverse().find((m) => m.role === "user");
-    if (!lastUserMsgRaw?.content?.trim()) {
+    const reversedMessages = [...messages].reverse();
+    const lastUserMsg = reversedMessages.find((m) => m.role === "user");
+    if (!lastUserMsg?.content?.trim()) {
       return NextResponse.json(
         { error: "Mensagem vazia não permitida." },
         { status: 400 }
       );
     }
+    const userText = lastUserMsg.content;
 
     const { contextStr, toolCtx } = await buildContext(supabase, user.id, groupId);
-    const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
-    const userText = lastUserMsg?.content || "";
 
     /* ================================================================ */
     /* STEP 0: Check confirmation of pending action                     */
@@ -361,7 +361,7 @@ export async function POST(req: NextRequest) {
     const childNames = toolCtx.children.map((c) => c.name);
     const memberNames = toolCtx.members.map((m) => m.name);
 
-    const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant");
+    const lastAssistantMsg = reversedMessages.find((m) => m.role === "assistant");
     const isPendingConfirmation = lastAssistantMsg?.content?.startsWith(CONFIRM_PREFIX);
 
     if (isPendingConfirmation && CANCEL_WORDS.test(userText.trim())) {
@@ -463,7 +463,7 @@ export async function POST(req: NextRequest) {
     /* STEP 2: AI Router fallback (Groq → Together → Gemini)            */
     /* ================================================================ */
 
-    console.log(`[AI-ROUTER] Processing: "${userText.slice(0, 80)}..."`);
+    console.log(`[AI-ROUTER] Processing request (${userText.length} chars)`);
 
     const systemMsg: AIChatMessage = {
       role: "system",

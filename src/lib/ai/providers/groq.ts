@@ -22,12 +22,13 @@ function getClient(): Groq {
 }
 
 function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout>;
   return Promise.race([
     promise,
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`Groq timeout (${ms}ms)`)), ms)
-    ),
-  ]);
+    new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new Error(`Groq timeout (${ms}ms)`)), ms);
+    }),
+  ]).finally(() => clearTimeout(timer));
 }
 
 export class GroqProvider implements AIProvider {

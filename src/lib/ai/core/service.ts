@@ -15,6 +15,7 @@ import { routeVisionRequest, routeTextRequest, routeToolsRequest } from "../rout
 import { logAIRequest } from "./logger";
 import { canUseAI, recordUsage } from "./usage";
 import { compressImageForVision } from "../image-utils";
+import { TIMEOUTS } from "./config";
 
 /* ------------------------------------------------------------------ */
 /* Main service interface                                               */
@@ -152,7 +153,8 @@ async function handleVision(
     base64,
     mimeType,
     req.systemPrompt,
-    req.userPrompt
+    req.userPrompt,
+    { timeoutMs: TIMEOUTS.invite_parser }
   );
 
   return {
@@ -167,7 +169,8 @@ async function handleText(
   req: AIChatRequest,
   start: number
 ): Promise<AIResponse> {
-  const result = await routeTextRequest(req.messages, req.options);
+  const opts = { ...req.options, timeoutMs: req.options?.timeoutMs || TIMEOUTS[req.type] };
+  const result = await routeTextRequest(req.messages, opts);
 
   return {
     success: true,
@@ -181,10 +184,11 @@ async function handleTools(
   req: AIToolRequest,
   start: number
 ): Promise<AIResponse> {
+  const toolOpts = { ...req.options, timeoutMs: req.options?.timeoutMs || TIMEOUTS.assistant_tool };
   const result = await routeToolsRequest(
     req.messages,
     req.tools,
-    req.options
+    toolOpts
   );
 
   return {

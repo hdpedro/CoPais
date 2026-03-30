@@ -14,9 +14,7 @@ import {
 const MODEL = "gemini-2.0-flash";
 const DEFAULT_TIMEOUT = 30000;
 
-function getApiUrl(): string {
-  return `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-}
+const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent`;
 
 async function callGemini(
   body: Record<string, unknown>,
@@ -26,9 +24,12 @@ async function callGemini(
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const res = await fetch(getApiUrl(), {
+    const res = await fetch(API_URL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": process.env.GEMINI_API_KEY!,
+      },
       body: JSON.stringify(body),
       signal: controller.signal,
     });
