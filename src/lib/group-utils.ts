@@ -46,7 +46,7 @@ export async function getActiveGroup(
     groupName: group?.name || "Grupo",
     isReadonly: activeMembership.role === "readonly",
     custodyEnabled: group?.custody_enabled ?? true,
-    memberships: memberships as ActiveGroupResult["memberships"],
+    memberships: memberships as unknown as ActiveGroupResult["memberships"],
     hasMultipleGroups,
   };
 }
