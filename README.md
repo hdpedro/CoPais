@@ -4,7 +4,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 
 **Producao:** https://kindar.com.br
 **Dominio:** kindar.com.br
-**Ultima atualizacao:** 29/03/2026
+**Ultima atualizacao:** 30/03/2026
 
 ## Stack
 
@@ -13,22 +13,22 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **Auth & Database:** Supabase (Auth, Postgres, Realtime, RLS)
 - **Estilo:** Tailwind CSS 4
 - **Linguagem:** TypeScript 5
-- **IA:** Groq (Llama 3.3 70B primary → 8B fallback) — assistente conversacional com function calling (12 tools), parsers robustos para PT-BR
+- **IA:** Groq (Llama 3.3 70B primary → 8B fallback) — assistente conversacional com function calling (12 tools), parsers robustos para PT-BR; Tesseract.js (OCR) para parser de convites de festa
 - **Deploy:** Vercel
 - **Analytics:** PostHog (30+ eventos rastreados)
 - **Error Tracking:** Sentry
 - **Mobile (iOS):** Capacitor 7 (hybrid app para App Store)
-- **i18n:** 5 idiomas (PT, EN, ES, FR, DE) — ~1405 chaves por locale, 38 secoes
+- **i18n:** 5 idiomas (PT, EN, ES, FR, DE) — ~1405 chaves por locale, 39 secoes
 - **Testes:** Playwright E2E (34 testes) + Vitest unitarios (50 testes para AI parser)
 
 ## Numeros do Projeto
 
 | Metrica | Quantidade |
 |---------|-----------|
-| Rotas (paginas + API) | 65 |
+| Rotas (paginas + API) | 66 |
 | Server Actions | 84 funcoes em 23 arquivos |
-| Tabelas no banco | 35+ |
-| Migrations | 29 |
+| Tabelas no banco | 36+ |
+| Migrations | 30 |
 | Client Components | 36+ |
 | Componentes globais | 13 |
 | Chaves de traducao | ~1405 por idioma |
@@ -72,13 +72,13 @@ O app suporta **5 idiomas** completos:
 - **Alemao (DE)**
 
 **Arquitetura i18n:**
-- ~1405 chaves de traducao por idioma, organizadas em 38 secoes
+- ~1405 chaves de traducao por idioma, organizadas em 39 secoes
 - Arquivos de traducao em `src/i18n/locales/{pt,en,es,fr,de}.json`
 - `I18nProvider` envolvendo o layout do app
 - Hook `useI18n()` usado em todos os Client Components
 - `LanguageSelector` na pagina de perfil para troca de idioma
 
-## Modulos e Funcionalidades (19 modulos)
+## Modulos e Funcionalidades (20 modulos)
 
 ### 1. Dashboard (`/dashboard`)
 - Saudacao personalizada com nome do usuario e data
@@ -126,13 +126,32 @@ O app suporta **5 idiomas** completos:
 - **Cron de lembretes nao respondidos** (`sendMissedReportReminders`)
 - **Compartilhar atividade via WhatsApp**: botao de share nos cards do dashboard, DayDetailSheet e ChecklistModal. Usa Web Share API (mobile) com fallback para `wa.me/?text=`. Texto formatado com emoji da categoria, nome da crianca, horario e local
 
-### 4. Eventos (`/eventos` -> integrado no Calendario)
+### 4. Invite Parser — Adicionar via Convite (`/calendario/convite`)
+- Usuario faz upload de foto ou PDF de convite de festa
+- **OCR via Tesseract.js** extrai o texto da imagem (100% client-side, sem custo)
+- **Groq LLM** interpreta o texto extraido e estrutura os dados do evento (titulo, data, horario, local, notas)
+- Preview editavel mostra os dados detectados antes de salvar
+- Usuario pode vincular a um filho e confirmar para salvar no calendario
+- **100% free tier**: Tesseract.js (gratuito) + Groq API (plano gratuito)
+- **Arquitetura modular** (`src/lib/ai/parser/`):
+  - `types.ts` — interfaces `ParsedEventData`, `ParseResult`, `ParserMetadata`
+  - `event-parser.interface.ts` — interface `EventParser`
+  - `ocr.ts` — extracao de texto via Tesseract.js
+  - `groq-event-parser.ts` — interpretacao via Groq LLM
+  - `pilot-parser.ts` — `PilotParser` (implementacao free tier)
+  - `index.ts` — factory com flag `AI_MODE` para troca futura de backend
+- **API Route**: `POST /api/ai/parse-invite` — recebe arquivo, executa OCR + LLM, retorna dados estruturados com logging
+- **Tabela de log**: `ai_event_logs` (migration `00030_ai_event_logs.sql`) — armazena `raw_text`, `parsed_json`, `success`, `parser_type`, `processing_time_ms`, `ocr_confidence` para analise de qualidade
+- **Navegacao**: acessivel a partir de `/calendario/novo` (seletor de categoria tem atalho "Via convite")
+- **i18n**: chaves `inviteParser.*` em todos os 5 idiomas
+
+### 5. Eventos (`/eventos` -> integrado no Calendario)
 - Eventos sociais (aniversarios, festas) integrados no calendario
 - Suporte a **eventos multi-dia** (`end_date`), **all-day**, **viagem**
 - Campo `assigned_to` para responsavel pelo evento
 - CRUD completo: createEvent, updateEvent, deleteEvent, cancelEvent
 
-### 5. Chat com IA Mediadora (`/chat`)
+### 6. Chat com IA Mediadora (`/chat`)
 - Chat em tempo real via Supabase Realtime (postgres_changes)
 - **Canais de chat**: canal Geral + canais por crianca (modulo `chat-channels`)
 - **Troca de canal instantanea**: client-side switching sem reload de pagina, com **cache LRU em memoria** (ate 5 canais)
@@ -149,7 +168,7 @@ O app suporta **5 idiomas** completos:
 - Mensagens **imutaveis** (conformidade legal — triggers impedem DELETE/UPDATE)
 - **API Route** `/api/chat/messages` para busca de mensagens por canal
 
-### 6. Saude Completa (`/saude` — 8 sub-modulos)
+### 7. Saude Completa (`/saude` — 8 sub-modulos)
 - **Dashboard central** com doencas ativas, medicamentos, alergias, consultas, vacinas, retornos pendentes
 - **Banner de vacinas atrasadas** no dashboard de saude
 - **Doencas** (`/saude/doencas`): episodios com sintomas, severidade (leve/moderado/grave), evolucao timestamped, status (ativo/resolvido/cronico), ida ao hospital, `ResolveButton`, `UpdateEpisodeForm`. Validacao de status — rejeita valores invalidos em `updateIllnessEpisode`
@@ -165,7 +184,7 @@ O app suporta **5 idiomas** completos:
 - **Sanitizacao de input** em todos os campos de texto de saude (max length limits)
 - **Link /saude/alergias/editar-info corrigido** (agora faz scroll ate o formulario)
 
-### 7. Despesas / Financeiro (`/despesas`, `/financeiro`)
+### 8. Despesas / Financeiro (`/despesas`, `/financeiro`)
 - Registro de despesas compartilhadas com categorias (8 categorias)
 - **Upload de comprovantes** (JPG/PNG/HEIC/WebP/PDF) com visualizador (`ReceiptViewer`). Deteccao de PDF corrigida para URLs com query params
 - **Seletor de crianca multi-select** com chips (pode selecionar 1, 2 ou todas as criancas)
@@ -179,25 +198,25 @@ O app suporta **5 idiomas** completos:
 - **Acertos financeiros (Settlements)**: registro de pagamentos (PIX, dinheiro, transferencia), confirmacao de recebimento
 - Redirect apos criacao de despesa corrigido (removido try/catch que capturava excecao de redirect)
 
-### 8. Decisoes (`/decisoes`)
+### 9. Decisoes (`/decisoes`)
 - Votacao estruturada: concordo / discordo / vou pensar
 - Argumentos pro/contra por decisao
 - **Auto-resolucao** quando todos votam
 - **Indicadores de urgencia**
 - Widget no Dashboard com decisoes pendentes
 
-### 9. Acordos (`/acordos`)
+### 10. Acordos (`/acordos`)
 - Registro de acordos de coparentalidade
 - **10 categorias**: principio, valor, regra, limite, rotina + 5 mais
 - Aceitar/rejeitar acordos (`acceptAgreement`)
 - Flag **nao-negociavel** para acordos criticos
 
-### 10. Notas Privadas (`/notas`)
+### 11. Notas Privadas (`/notas`)
 - Notas pessoais visiveis apenas pelo criador
 - CRUD completo (criar, editar, deletar)
 - Nao compartilhadas com o grupo
 
-### 11. Documentos (`/documentos`)
+### 12. Documentos (`/documentos`)
 - Dashboard de documentos com visao geral de **todas as criancas**
 - Card por crianca com **barra de completude** (0-100%)
 - Indicadores de documentos faltantes (badges)
@@ -206,7 +225,7 @@ O app suporta **5 idiomas** completos:
 - Suporte a upload por crianca
 - **Prevencao de upload duplicado**: botao desabilitado durante upload + reset do input apos sucesso
 
-### 12. Criancas (`/criancas`)
+### 13. Criancas (`/criancas`)
 - Lista de criancas com foto e idade
 - **Perfil individual com 4 abas** (`/criancas/[id]`):
   - **Geral**: nome, data de nascimento, CPF, RG, notas
@@ -216,22 +235,22 @@ O app suporta **5 idiomas** completos:
 - Novos campos: `cpf`, `rg`
 - Tabela `child_education` (informacoes escolares, relacao 1:1 com `children`)
 
-### 13. Check-in Diario (`/checkin`)
+### 14. Check-in Diario (`/checkin`)
 - Registro rapido: tempo de tela, alimentacao, sono, humor, saude, atividade, escola
 - **8 categorias** com icones e templates rapidos
 - Historico de check-ins por crianca
 - **Integracao com Chat**: cada check-in envia mensagem automatica ao grupo
 
-### 14. Escola (`/escola`)
+### 15. Escola (`/escola`)
 - Registro de notas escolares e ocorrencias
 - Integrado na aba Educacao do perfil da crianca
 
-### 15. Temas Sensiveis (`/temas-sensiveis`)
+### 16. Temas Sensiveis (`/temas-sensiveis`)
 - Espaco para discussao de temas delicados
 - **Delecao com dupla aprovacao**: `requestDeletion`, `approveDeletion`, `cancelDeletion` — um solicita, outro confirma
 - Campos `deletion_requested_by`, `deletion_requested_at` para tracking
 
-### 16. Familia / Gestao de Grupo (`/familia`)
+### 17. Familia / Gestao de Grupo (`/familia`)
 - Visualizacao dos membros do grupo familiar
 - **Sistema de roles**: admin, member, readonly
 - Acoes de membro: `changeMemberRole`, `removeMember`, `leaveGroup`
@@ -240,7 +259,7 @@ O app suporta **5 idiomas** completos:
 - Status visual: Aceito (verde), Pendente (amarelo), Expirado (vermelho)
 - Roles: Pai/Mae, Avo, Cuidador, Mediador, Advogado
 
-### 17. Assistente IA Kindar (`/api/ai/assistant`)
+### 18. Assistente IA Kindar (`/api/ai/assistant`)
 - **Assistente conversacional completo** com interface de chat, sugestoes rapidas e input por voz (Speech Recognition API)
 - **Modelo**: Groq `llama-3.3-70b-versatile` (primario) → `llama-3.1-8b-instant` (fallback quando rate limited). 8B tem recuperacao `tool_use_failed` (retenta sem tools para resposta text-only)
 - **Fallback de qualidade**: quando modelo 8B retorna respostas pobres (so emojis), sistema usa resultados coletados das tools como resposta
@@ -263,7 +282,7 @@ O app suporta **5 idiomas** completos:
 - **50 testes unitarios** (Vitest) com **98.5% de acuracia** em load test
 - **SSR-safe**: container do Portal usa `useState` + `useEffect` para compatibilidade com server-side rendering
 
-### 18. Notificacoes (`/notificacoes`)
+### 19. Notificacoes (`/notificacoes`)
 - **In-app**: lista de notificacoes com marcacao de lida (`markNotificationRead`, `markAllNotificationsRead`)
 - **Web Push**: push notifications via VAPID (web-push)
 - **Badge count**: `NotificationBadge.tsx` mostra contagem no nav
@@ -272,7 +291,7 @@ O app suporta **5 idiomas** completos:
 - 12 tipos de notificacao (expense_new, swap_request, chat_message, activity_reminder, etc.)
 - Todas as acoes importantes geram notificacao automatica via `postChatNotification()`
 
-### 19. Perfil (`/perfil`)
+### 20. Perfil (`/perfil`)
 - Edicao de nome e dados pessoais (`EditProfileForm`)
 - **Seletor de idioma** (`LanguageSelector`) — 5 idiomas
 - **Sincronizacao de calendario** (iCal) via `CalendarExportButton`
@@ -324,11 +343,12 @@ O app segue um padrao consistente de separacao:
 ### Queries sem FK Joins
 Todos os PostgREST FK joins foram removidos e substituidos por **joins manuais** via queries separadas, evitando problemas com RLS e melhorando previsibilidade.
 
-### API Routes (12 total)
+### API Routes (13 total)
 | Rota | Funcao |
 |------|--------|
 | `/api/ai/assistant` | Assistente IA conversacional (Groq function calling, 12 tools, multi-round) |
 | `/api/ai/context` | Contexto familiar para IA |
+| `/api/ai/parse-invite` | Parser de convite (OCR Tesseract.js + Groq LLM, retorna dados estruturados do evento) |
 | `/api/auth/signout` | Logout via API |
 | `/api/auth/test-login` | Login de teste (dev) |
 | `/api/calendar/[token]` | Feed iCalendar (RFC 5545) |
@@ -371,6 +391,7 @@ src/
     (app)/              # Rotas autenticadas (layout com navbar + I18nProvider)
       atividades/       # Atividades recorrentes das criancas
       calendario/       # Agenda unificada (guarda + atividades + eventos)
+        convite/        # Invite Parser (upload foto/PDF → OCR → LLM → preview editavel → salvar)
       chat/             # Chat em tempo real com IA Mediadora + canais
       checkin/          # Check-in diario
       convite/          # Envio e gestao de convites
@@ -420,6 +441,14 @@ src/
       fr.json           # Frances
       de.json           # Alemao
   lib/
+    ai/
+      parser/              # Invite Parser modular
+        types.ts           # ParsedEventData, ParseResult, ParserMetadata
+        event-parser.interface.ts # Interface EventParser
+        ocr.ts             # OCR via Tesseract.js
+        groq-event-parser.ts # Interpretacao Groq LLM
+        pilot-parser.ts    # PilotParser (free tier)
+        index.ts           # Factory com AI_MODE env flag
     ai-actions.ts          # Acoes do assistente IA
     ai-cache.ts            # Cache de respostas IA
     ai-context.ts          # Contexto familiar para IA (filhos, membros, custodia)
@@ -458,7 +487,8 @@ NEXT_PUBLIC_APP_URL=              # URL do app
 NEXT_PUBLIC_POSTHOG_KEY=          # Chave PostHog (analytics)
 NEXT_PUBLIC_POSTHOG_HOST=         # Host PostHog
 SENTRY_DSN=                       # DSN do Sentry (error tracking)
-GROQ_API_KEY=                     # Chave API do Groq (assistente IA)
+GROQ_API_KEY=                     # Chave API do Groq (assistente IA + invite parser)
+AI_MODE=                          # (opcional) "pilot" (padrao, free tier) para troca futura de backend do parser
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=     # Chave publica VAPID (push notifications)
 VAPID_PRIVATE_KEY=                # Chave privada VAPID
 ```

@@ -1,7 +1,7 @@
 # Kindar - Manual de Desenvolvimento
 
 > Manual completo para desenvolvedores que vao trabalhar no projeto Kindar.
-> Ultima atualizacao: 27/03/2026
+> Ultima atualizacao: 30/03/2026
 
 ---
 
@@ -55,7 +55,8 @@
 | Auth | Supabase Auth + SSR | ^0.9.0 | Session management com cookies no server |
 | i18n | Custom (I18nProvider + useI18n) | — | 5 idiomas, ~1405 chaves, 38 secoes |
 | Deploy | Vercel | Hobby | Zero-config para Next.js, auto-deploy |
-| IA | Groq (Llama 3.3 70B → 8B fallback) | Cloud API | Assistente conversacional com function calling (12 tools, multi-round), parsers robustos PT-BR |
+| IA | Groq (Llama 3.3 70B → 8B fallback) | Cloud API | Assistente conversacional com function calling (12 tools, multi-round), parsers robustos PT-BR; tambem usado no Invite Parser |
+| OCR | Tesseract.js | local (browser/Node) | Extracao de texto de imagens/PDFs para o Invite Parser (100% free tier) |
 | Analytics | PostHog | — | 30+ eventos rastreados |
 | Error Tracking | Sentry | — | Monitoramento de erros em producao |
 | Testes E2E | Playwright | — | 34 testes |
@@ -111,7 +112,8 @@ npx cap add ios && npx cap sync ios && npx cap open ios
     "@supabase/supabase-js": "^2.99.2",
     "next": "16.1.7",
     "react": "19.2.3",
-    "react-dom": "19.2.3"
+    "react-dom": "19.2.3",
+    "tesseract.js": "^5.x"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -174,6 +176,12 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 
 # URL do app
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Chave API do Groq (assistente IA + invite parser)
+GROQ_API_KEY=gsk_...
+
+# (opcional) Modo do parser de convites: "pilot" (padrao, free tier)
+AI_MODE=pilot
 ```
 
 ### Scripts Disponiveis
@@ -251,6 +259,7 @@ supabase/migrations/00022_child_profile_tabs.sql
 | `00027_activity_responsible_override.sql` | Campo responsible_override em activity_reports |
 | `00028_activity_extra_fields.sql` | Campos teacher_name, class_name, room, responsible_id em child_activities |
 | `00029_activity_occurrence_overrides.sql` | Campo overrides (JSONB) em activity_reports |
+| `00030_ai_event_logs.sql` | Tabela `ai_event_logs` para logging do Invite Parser (OCR + LLM) |
 
 ### 4.5 Verificar a Instalacao
 
@@ -399,7 +408,8 @@ Kindar/
 │       ├── 00026_sensitive_topic_deletion.sql
 │       ├── 00027_activity_responsible_override.sql
 │       ├── 00028_activity_extra_fields.sql
-│       └── 00029_activity_occurrence_overrides.sql
+│       ├── 00029_activity_occurrence_overrides.sql
+│       └── 00030_ai_event_logs.sql
 │
 └── src/
     ├── middleware.ts                 # Auth middleware (intercepta todas as requests)
@@ -450,9 +460,11 @@ Kindar/
     │   │   │   ├── novo/
     │   │   │   │   ├── page.tsx          # Pagina de novo compromisso
     │   │   │   │   └── NewCompromissoForm.tsx # Formulario unificado
-    │   │   │   └── escala/
-    │   │   │       ├── page.tsx          # Pagina da escala
-    │   │   │       └── ScheduleBuilder.tsx # Builder visual de escala quinzenal
+    │   │   │   ├── escala/
+    │   │   │       │   ├── page.tsx          # Pagina da escala
+    │   │   │       │   └── ScheduleBuilder.tsx # Builder visual de escala quinzenal
+    │   │   │       └── convite/
+    │   │   │           └── page.tsx          # Invite Parser (upload → OCR → LLM → preview → salvar)
     │   │   │
     │   │   ├── atividades/               # Atividades recorrentes
     │   │   │   ├── page.tsx              # Redirect → /calendario
@@ -548,6 +560,14 @@ Kindar/
     │   └── settlements.ts            # createSettlement, confirmSettlement
     │
     ├── lib/
+    │   ├── ai/
+    │   │   └── parser/               # Invite Parser modular
+    │   │       ├── types.ts          # ParsedEventData, ParseResult, ParserMetadata
+    │   │       ├── event-parser.interface.ts # Interface EventParser
+    │   │       ├── ocr.ts            # Extracao de texto via Tesseract.js
+    │   │       ├── groq-event-parser.ts # Interpretacao via Groq LLM
+    │   │       ├── pilot-parser.ts   # PilotParser (implementacao free tier)
+    │   │       └── index.ts          # Factory com AI_MODE env flag
     │   ├── constants.ts              # COLORS, EXPENSE_CATEGORIES, CHECKIN_CATEGORIES, ACTIVITY_CATEGORIES, DEFAULT_CHECKLIST_ITEMS, PARENT_COLORS
     │   ├── calendar-utils.ts         # getDaysInMonth, getMonthGrid, buildCustodyMap, computeSwapBalance, getBrazilToday, getBrazilNow
     │   ├── recurrence-utils.ts       # getOccurrences, occursOnDate, getNextOccurrence, RECURRENCE_OPTIONS
@@ -601,6 +621,7 @@ Kindar/
 | `/onboarding` | Primeiro acesso | — |
 | `/calendario` | Agenda unificada | CalendarClient, CalendarGrid, DayDetailSheet, SwapRequestList, SwapBalanceCard |
 | `/calendario/novo` | Novo compromisso (unificado) | NewCompromissoForm |
+| `/calendario/convite` | Invite Parser (adicionar via foto de convite) | — |
 | `/calendario/escala` | Builder de escala | ScheduleBuilder |
 | `/financeiro` | Dashboard financeiro | FinancialDashboard |
 | `/despesas` | Lista de despesas | DeleteExpenseButton, ReceiptViewer |
@@ -886,7 +907,8 @@ const supabase = createClient(); // sync!
 | 24 | `activity_reports` | `id` (UUID) | Relatorios de atividades (status, humor, overrides JSONB) |
 | 25 | `events` | `id` (UUID) | Eventos sociais (com assigned_to, end_date, all_day) |
 | 26 | `sensitive_notes` | `id` (UUID) | Temas sensiveis (com delecao dual-approval) |
-| 27+ | `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals` | `id` (UUID) | Tabelas de saude, financeiro, etc. |
+| 27 | `ai_event_logs` | `id` (UUID) | Logs do Invite Parser (OCR + LLM) para analise de qualidade |
+| 28+ | `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals` | `id` (UUID) | Tabelas de saude, financeiro, etc. |
 
 ### Triggers Importantes
 
@@ -995,9 +1017,9 @@ const { t } = useI18n();
 return <span>{t("minha_secao.minha_chave")}</span>;
 ```
 
-### Secoes de Traducao (38 total)
+### Secoes de Traducao (39 total)
 
-As 38 secoes cobrem: common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, children, documents, agreements, events, activities, sensitive, school, profile, family, invitations, onboarding, more, notifications, settlements, swap, schedule, export, appointments, medications, illnesses, allergies, vaccines, growth, professionals, decisions, newForm, notes, ai, activityReport.
+As 39 secoes cobrem: common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, children, documents, agreements, events, activities, sensitive, school, profile, family, invitations, onboarding, more, notifications, settlements, swap, schedule, export, appointments, medications, illnesses, allergies, vaccines, growth, professionals, decisions, newForm, notes, ai, activityReport, inviteParser.
 
 ### Padrao para Novos Componentes
 
@@ -1250,6 +1272,22 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - **SSR-safe**: container do Portal usa `useState` + `useEffect` para evitar erros de hydration
 - **50 testes unitarios** (Vitest) com 98.5% de acuracia
 - **Fix de categorias em portugues**: `create_note` usava enum em ingles (reminder, observation, etc.) que violava check constraint da tabela `private_notes`. Corrigido em `ai-tools.ts`, `ai-actions.ts` e `route.ts` para valores em PT (lembrete, observacao, preparacao, juridico, outro)
+
+### Invite Parser — Adicionar via Convite (`/calendario/convite`)
+- Upload de foto (JPEG/PNG/HEIC/WebP) ou PDF de convite de festa
+- **OCR via Tesseract.js** (`src/lib/ai/parser/ocr.ts`): extracao de texto 100% local, sem custo
+- **Groq LLM** (`src/lib/ai/parser/groq-event-parser.ts`): interpreta texto extraido e estrutura os dados (titulo, data, horario, local, notas)
+- **PilotParser** (`src/lib/ai/parser/pilot-parser.ts`): implementacao free tier que combina OCR + LLM
+- **Factory** (`src/lib/ai/parser/index.ts`): seleciona implementacao via env `AI_MODE` (facilita troca futura de backend)
+- **Interface** `EventParser` (`src/lib/ai/parser/event-parser.interface.ts`): contrato para implementacoes futuras
+- **Tipos** (`src/lib/ai/parser/types.ts`): `ParsedEventData`, `ParseResult`, `ParserMetadata`
+- **API Route** `POST /api/ai/parse-invite`: recebe arquivo multipart, executa OCR + LLM, retorna `ParsedEventData`, loga resultado em `ai_event_logs`
+- **Tabela de log** `ai_event_logs` (migration `00030_ai_event_logs.sql`): `raw_text`, `parsed_json`, `success`, `parser_type`, `processing_time_ms`, `ocr_confidence` para monitoramento de qualidade
+- Preview editavel dos dados detectados com campos de titulo, data, horario, local, notas e vinculo com filho
+- Usuario confirma para salvar no calendario
+- Acessivel via `/calendario/novo` (atalho "Via convite" no seletor de categoria)
+- **i18n**: chaves `inviteParser.*` em todos os 5 idiomas
+- **Free tier**: Tesseract.js gratuito + Groq API gratuita
 
 ### Atividades e Calendario
 - Activity report modal reseta campos ao abrir nova atividade

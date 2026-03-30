@@ -6,7 +6,7 @@
 
 **URL de producao:** https://kindar.com.br
 **Dominio:** kindar.com.br
-**Ultima atualizacao:** 29/03/2026
+**Ultima atualizacao:** 30/03/2026
 
 ---
 
@@ -20,8 +20,8 @@
 | Estilizacao | Tailwind CSS | ^4 |
 | Backend/BaaS | Supabase (PostgreSQL) | ^2.99.2 |
 | Auth | Supabase Auth + SSR | ^0.9.0 |
-| IA | Groq (Llama 3.3 70B → 8B fallback) | Cloud API |
-| i18n | Custom (I18nProvider + useI18n) | 5 idiomas, ~1405 chaves, 38 secoes |
+| IA | Groq (Llama 3.3 70B → 8B fallback) + Tesseract.js (OCR) | Cloud API / local |
+| i18n | Custom (I18nProvider + useI18n) | 5 idiomas, ~1405 chaves, 39 secoes |
 | Analytics | PostHog | 30+ eventos |
 | Error Tracking | Sentry | — |
 | Deploy | Vercel | Hobby |
@@ -48,9 +48,11 @@ src/
 │   ├── PushNotificationManager.tsx
 │   └── PWAInstallBanner.tsx   # Banner iOS "Adicionar a Tela de Inicio" (PWA standalone)
 ├── i18n/             # Sistema de internacionalizacao
-│   └── locales/      # pt.json, en.json, es.json, fr.json, de.json (~1405 chaves, 38 secoes)
+│   └── locales/      # pt.json, en.json, es.json, fr.json, de.json (~1405 chaves, 39 secoes)
 ├── lib/
 │   ├── supabase/     # Client, Server, Middleware
+│   ├── ai/
+│   │   └── parser/   # Invite Parser modular (types, interface, ocr, groq-event-parser, pilot-parser, index)
 │   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts, ai-tools.ts
 │   ├── constants.ts  # Constantes do app (cores, categorias, checklist items)
 │   ├── calendar-utils.ts  # Utilidades de data/calendario + computeSwapBalance()
@@ -132,7 +134,7 @@ function MeuComponente() {
 
 ### Secoes de Traducao (38 total)
 
-common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, children, documents, agreements, events, activities, sensitive, school, profile, family, invitations, onboarding, more, notifications, settlements, swap, schedule, export, appointments, medications, illnesses, allergies, vaccines, growth, professionals, decisions, newForm, notes, ai, activityReport.
+common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, children, documents, agreements, events, activities, sensitive, school, profile, family, invitations, onboarding, more, notifications, settlements, swap, schedule, export, appointments, medications, illnesses, allergies, vaccines, growth, professionals, decisions, newForm, notes, ai, activityReport, inviteParser.
 
 ---
 
@@ -350,7 +352,13 @@ Temas sensiveis com rastreamento de delecao.
 - Campos originais + `deletion_requested_by` (FK profiles), `deletion_requested_at` (TIMESTAMPTZ)
 - Migration: `00026_sensitive_topic_deletion.sql`
 
-#### 27-35. Tabelas adicionais
+#### 27. ai_event_logs
+Logs de execucao do Invite Parser para analise de qualidade.
+- `id`, `user_id` (FK profiles), `group_id` (FK coparenting_groups), `raw_text`, `parsed_json` (JSONB)
+- `success` (BOOLEAN), `parser_type` (TEXT), `processing_time_ms` (INTEGER), `ocr_confidence` (FLOAT), `created_at`
+- Migration: `00030_ai_event_logs.sql`
+
+#### 28-36. Tabelas adicionais
 Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals`, entre outras criadas nas migrations de saude e financeiro.
 
 ### Seguranca (Row Level Security)
@@ -411,6 +419,7 @@ Politicas garantem que:
 | `00027_activity_responsible_override.sql` | Campo responsible_override em activity_reports + policy UPDATE |
 | `00028_activity_extra_fields.sql` | Campos teacher_name, class_name, room, responsible_id em child_activities |
 | `00029_activity_occurrence_overrides.sql` | Campo overrides (JSONB) em activity_reports para edits de ocorrencia unica |
+| `00030_ai_event_logs.sql` | Tabela `ai_event_logs` para logging do Invite Parser (raw_text, parsed_json, success, parser_type, processing_time_ms, ocr_confidence) |
 
 ---
 
@@ -685,14 +694,26 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - **50 testes unitarios** (Vitest) com **98.5% de acuracia** em load test
 - API Routes: `/api/ai/assistant`, `/api/ai/context`
 
-### 27. Notificacoes (`/notificacoes`)
+### 27. Invite Parser — Adicionar via Convite (`/calendario/convite`)
+- Upload de foto ou PDF de convite de festa
+- **OCR via Tesseract.js** extrai texto da imagem (100% client-side, sem custo adicional)
+- **Groq LLM** interpreta o texto e estrutura os dados do evento (titulo, data, horario, local, notas)
+- Preview editavel dos dados detectados antes de salvar no calendario
+- Usuario pode vincular a filho e confirmar para salvar
+- **Free tier completo**: Tesseract.js (gratuito) + Groq API (plano gratuito)
+- **Parser modular** (`src/lib/ai/parser/`): `types.ts`, `event-parser.interface.ts`, `ocr.ts`, `groq-event-parser.ts`, `pilot-parser.ts`, `index.ts` (factory com `AI_MODE`)
+- **API Route**: `POST /api/ai/parse-invite` — recebe arquivo, OCR + LLM, retorna dados estruturados, loga em `ai_event_logs`
+- **Navegacao**: acessivel a partir de `/calendario/novo` via atalho "Via convite"
+- **i18n**: todas as strings em `inviteParser.*` nos 5 idiomas
+
+### 28. Notificacoes (`/notificacoes`)
 - Central de notificacoes in-app
 - Web push via VAPID
 - Badge count (`NotificationBadge.tsx`)
 - 12 tipos de notificacao
 - `markNotificationRead`, `markAllNotificationsRead`
 
-### 28. Mais (`/mais`)
+### 29. Mais (`/mais`)
 - Grid com todas as funcionalidades do app (Eventos e Atividades unificados como "Agenda")
 
 ---
@@ -842,12 +863,13 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 
 ---
 
-## API Routes (12 endpoints)
+## API Routes (13 endpoints)
 
 | Rota | Metodo | Funcao |
 |------|--------|--------|
 | `/api/ai/assistant` | POST | Assistente IA conversacional (Groq function calling, 12 tools, multi-round) |
 | `/api/ai/context` | GET | Contexto familiar para IA |
+| `/api/ai/parse-invite` | POST | Invite Parser: recebe imagem/PDF, OCR Tesseract.js + Groq LLM, retorna ParsedEventData |
 | `/api/auth/signout` | POST | Logout via API |
 | `/api/auth/test-login` | POST | Login de teste (dev only) |
 | `/api/calendar/[token]` | GET | Feed iCalendar (RFC 5545, text/calendar) |
