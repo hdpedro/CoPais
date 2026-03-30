@@ -1,6 +1,6 @@
 /* ------------------------------------------------------------------ */
 /* PilotParser — free tier: Groq Vision (single API call)              */
-/* No more Tesseract.js — image goes directly to vision model          */
+/* Image is compressed with sharp before sending to Groq               */
 /* ------------------------------------------------------------------ */
 
 import { EventParser } from "./event-parser.interface";
@@ -14,13 +14,15 @@ export class PilotParser implements EventParser {
     const start = Date.now();
 
     try {
-      // 1. Convert file to base64
+      // 1. Convert file to buffer
       const buffer = Buffer.from(await file.arrayBuffer());
-      const base64 = buffer.toString("base64");
-      const mimeType = file.type || "image/jpeg";
 
-      // 2. Send image directly to Groq vision model
-      const { data, rawText } = await parseEventFromImage(base64, mimeType);
+      console.log(
+        `[pilot-parser] Processing file: ${file.name}, size=${(file.size / 1024).toFixed(0)}KB, type=${file.type}`
+      );
+
+      // 2. Send to Groq vision (handles compression internally)
+      const { data, rawText } = await parseEventFromImage(buffer);
 
       // 3. Validate minimum fields
       const hasMinimum = data.title || data.date;
@@ -38,6 +40,7 @@ export class PilotParser implements EventParser {
         },
       };
     } catch (err) {
+      console.error("[pilot-parser] Error:", err);
       return {
         success: false,
         data: null,

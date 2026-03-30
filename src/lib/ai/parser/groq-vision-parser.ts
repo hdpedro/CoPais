@@ -4,11 +4,13 @@
 /* ------------------------------------------------------------------ */
 
 import Groq from "groq-sdk";
+import sharp from "sharp";
 import { ParsedEventData } from "./types";
 
 const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
-const VISION_MODEL_FALLBACK = "meta-llama/llama-4-maverick-17b-128e-instruct";
-const TIMEOUT_MS = 25000;
+const TIMEOUT_MS = 30000;
+const MAX_BASE64_BYTES = 3.5 * 1024 * 1024; // 3.5MB (Groq limit is 4MB)
+const MAX_DIMENSION = 1536; // px — enough detail for text recognition
 
 const SYSTEM_PROMPT = `Você é um assistente que analisa imagens de convites de festas e eventos infantis.
 
@@ -28,73 +30,98 @@ REGRAS:
 - Formato exato:
 {"title":"","date":"","start_time":"","end_time":"","location":"","notes":""}`;
 
+/**
+ * Compress image to fit within Groq's 4MB base64 limit.
+ * Returns base64 string and mime type.
+ */
+async function compressImage(
+  buffer: Buffer
+): Promise<{ base64: string; mimeType: string }> {
+  // Resize if needed and convert to JPEG for smaller size
+  const processed = sharp(buffer)
+    .resize(MAX_DIMENSION, MAX_DIMENSION, {
+      fit: "inside",
+      withoutEnlargement: true,
+    })
+    .jpeg({ quality: 80 });
+
+  let output = await processed.toBuffer();
+
+  // If still too large, reduce quality further
+  if (output.length > MAX_BASE64_BYTES * 0.75) {
+    output = await sharp(buffer)
+      .resize(1024, 1024, { fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 60 })
+      .toBuffer();
+  }
+
+  return {
+    base64: output.toString("base64"),
+    mimeType: "image/jpeg",
+  };
+}
+
 export async function parseEventFromImage(
-  base64Image: string,
-  mimeType: string
+  imageBuffer: Buffer
 ): Promise<{ data: ParsedEventData; rawText: string }> {
   const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
 
-  async function tryModel(model: string): Promise<{ data: ParsedEventData; rawText: string }> {
-    const completion = await Promise.race([
-      groq.chat.completions.create({
-        model,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          {
-            role: "user",
-            content: [
-              {
-                type: "image_url",
-                image_url: {
-                  url: `data:${mimeType};base64,${base64Image}`,
-                },
+  // Compress image to fit Groq limits
+  const { base64, mimeType } = await compressImage(imageBuffer);
+
+  console.log(
+    `[groq-vision] Sending image: ${(base64.length / 1024).toFixed(0)}KB base64, model=${VISION_MODEL}`
+  );
+
+  const completion = await Promise.race([
+    groq.chat.completions.create({
+      model: VISION_MODEL,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: [
+            {
+              type: "image_url",
+              image_url: {
+                url: `data:${mimeType};base64,${base64}`,
               },
-              {
-                type: "text",
-                text: "Analise este convite e extraia os dados do evento como JSON.",
-              },
-            ],
-          },
-        ],
-        temperature: 0.1,
-        max_tokens: 500,
-      }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error("Groq timeout")), TIMEOUT_MS)
-      ),
-    ]);
+            },
+            {
+              type: "text",
+              text: "Analise este convite e extraia os dados do evento como JSON.",
+            },
+          ],
+        },
+      ],
+      temperature: 0.1,
+      max_tokens: 500,
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Groq timeout")), TIMEOUT_MS)
+    ),
+  ]);
 
-    const raw = completion.choices[0]?.message?.content || "{}";
+  const raw = completion.choices[0]?.message?.content || "{}";
 
-    // Extract JSON from response (model might wrap in markdown code block)
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    const jsonStr = jsonMatch ? jsonMatch[0] : "{}";
-    const parsed = JSON.parse(jsonStr);
+  console.log(`[groq-vision] Response: ${raw.substring(0, 200)}`);
 
-    return {
-      data: {
-        title: parsed.title || null,
-        date: normalizeDate(parsed.date),
-        start_time: normalizeTime(parsed.start_time),
-        end_time: normalizeTime(parsed.end_time),
-        location: parsed.location || null,
-        notes: parsed.notes || null,
-      },
-      rawText: raw,
-    };
-  }
+  // Extract JSON from response (model might wrap in markdown code block)
+  const jsonMatch = raw.match(/\{[\s\S]*\}/);
+  const jsonStr = jsonMatch ? jsonMatch[0] : "{}";
+  const parsed = JSON.parse(jsonStr);
 
-  try {
-    return await tryModel(VISION_MODEL);
-  } catch (primaryErr) {
-    console.error(`[groq-vision] Primary model ${VISION_MODEL} failed:`, primaryErr);
-    try {
-      return await tryModel(VISION_MODEL_FALLBACK);
-    } catch (fallbackErr) {
-      console.error(`[groq-vision] Fallback model ${VISION_MODEL_FALLBACK} failed:`, fallbackErr);
-      throw fallbackErr;
-    }
-  }
+  return {
+    data: {
+      title: parsed.title || null,
+      date: normalizeDate(parsed.date),
+      start_time: normalizeTime(parsed.start_time),
+      end_time: normalizeTime(parsed.end_time),
+      location: parsed.location || null,
+      notes: parsed.notes || null,
+    },
+    rawText: raw,
+  };
 }
 
 /* ------------------------------------------------------------------ */
