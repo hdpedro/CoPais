@@ -55,7 +55,7 @@
 | Auth | Supabase Auth + SSR | ^0.9.0 | Session management com cookies no server |
 | i18n | Custom (I18nProvider + useI18n) | — | 5 idiomas, ~1405 chaves, 38 secoes |
 | Deploy | Vercel | Hobby | Zero-config para Next.js, auto-deploy |
-| IA | Groq (Llama 3.3 70B → 8B fallback) | Cloud API | Assistente conversacional com function calling (12 tools, multi-round), parsers robustos PT-BR; tambem usado no Invite Parser |
+| IA | Multi-provider Router: Groq → Together → Gemini | Cloud API | Assistente conversacional com function calling (12 tools, multi-round), parsers robustos PT-BR; Invite Parser. Vision: llama-4-scout / Llama-Vision-Free / gemini-2.0-flash. Text: llama-3.3-70b / Llama-3.3-70B-Turbo-Free / gemini-2.0-flash |
 | OCR | Tesseract.js | local (browser/Node) | Extracao de texto de imagens/PDFs para o Invite Parser (100% free tier) |
 | Analytics | PostHog | — | 30+ eventos rastreados |
 | Error Tracking | Sentry | — | Monitoramento de erros em producao |
@@ -177,8 +177,10 @@ SUPABASE_SERVICE_ROLE_KEY=eyJ...
 # URL do app
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 
-# Chave API do Groq (assistente IA + invite parser)
-GROQ_API_KEY=gsk_...
+# Chaves API dos provedores de IA (multi-provider router)
+GROQ_API_KEY=gsk_...              # Provider primario
+TOGETHER_API_KEY=...              # Fallback
+GEMINI_API_KEY=...                # Ultimo recurso
 
 # (opcional) Modo do parser de convites: "pilot" (padrao, free tier)
 AI_MODE=pilot
@@ -560,7 +562,17 @@ Kindar/
     │   └── settlements.ts            # createSettlement, confirmSettlement
     │
     ├── lib/
-    │   ├── ai/
+    │   ├── ai/                       # === MODULO AI CENTRALIZADO ===
+    │   │   ├── core/                 # types, config, logger, usage tracking, service (generateAIResponse)
+    │   │   ├── providers/            # Groq, Together, Gemini providers
+    │   │   ├── router.ts            # Multi-provider router (Groq → Together → Gemini fallback)
+    │   │   ├── image-utils.ts       # Compressao de imagem para vision APIs
+    │   │   ├── ai-actions.ts        # Execucao das 12 tools de IA
+    │   │   ├── ai-cache.ts          # Cache de respostas com TTL 5min
+    │   │   ├── ai-context.ts        # Contexto familiar (filhos, membros, custodia)
+    │   │   ├── ai-local-parser.ts   # Parsers PT-BR (parseAmount, parseDate, parseTime, parseDaysOfWeek)
+    │   │   ├── ai-rate-limit.ts     # Rate limiting por usuario
+    │   │   ├── ai-tools.ts          # Definicao das 12 tools OpenAI-compatible
     │   │   └── parser/               # Invite Parser modular
     │   │       ├── types.ts          # ParsedEventData, ParseResult, ParserMetadata
     │   │       ├── event-parser.interface.ts # Interface EventParser
@@ -584,7 +596,8 @@ Kindar/
     │   └── supabase/
     │       ├── client.ts             # createBrowserClient (para Client Components)
     │       ├── server.ts             # createServerClient (para Server Components/Actions)
-    │       └── middleware.ts          # updateSession (refresh de cookies)
+    │       ├── middleware.ts          # updateSession (refresh de cookies)
+    │       └── admin.ts              # Admin client centralizado com service role
     │
     └── components/                   # Componentes globais
         ├── BottomNav.tsx             # Navegacao inferior mobile (com aria-labels)
@@ -877,7 +890,7 @@ const supabase = createClient(); // sync!
 
 > **CUIDADO:** Ao criar eventos de guarda via `generateSchedule`, SEMPRE use `custody_type: "regular"`. O valor `"schedule"` NAO existe no enum e causara erro.
 
-### Tabelas (35+ total)
+### Tabelas (37+ total)
 
 | # | Tabela | Chave Primaria | Descricao |
 |---|--------|---------------|-----------|
@@ -908,7 +921,9 @@ const supabase = createClient(); // sync!
 | 25 | `events` | `id` (UUID) | Eventos sociais (com assigned_to, end_date, all_day) |
 | 26 | `sensitive_notes` | `id` (UUID) | Temas sensiveis (com delecao dual-approval) |
 | 27 | `ai_event_logs` | `id` (UUID) | Logs do Invite Parser (OCR + LLM) para analise de qualidade |
-| 28+ | `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals` | `id` (UUID) | Tabelas de saude, financeiro, etc. |
+| 28 | `ai_requests` | `id` (UUID) | Logging de requests AI (provider, model, tokens, latency, success/error) |
+| 29 | `usage_events` | `id` (UUID) | Tracking de uso para monetizacao (event_type, metadata JSONB) |
+| 30+ | `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals` | `id` (UUID) | Tabelas de saude, financeiro, etc. |
 
 ### Triggers Importantes
 
@@ -1244,34 +1259,40 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 
 ### Assistente IA Kindar
 - **Assistente conversacional completo** com interface de chat, sugestoes rapidas, typing indicator e input por voz (Speech Recognition API)
+- **Arquitetura AI centralizada** (`src/lib/ai/`): todo codigo de IA em modulo unico
+  - `src/lib/ai/core/` — types, config, logger, usage tracking, service entry point (`generateAIResponse()`)
+  - `src/lib/ai/providers/` — Groq, Together, Gemini providers
+  - `src/lib/ai/router.ts` — multi-provider router (Groq → Together → Gemini fallback)
+  - `src/lib/ai/image-utils.ts` — compressao de imagem para vision APIs
+  - Arquivos migrados de `src/lib/`: `ai-actions.ts`, `ai-cache.ts`, `ai-context.ts`, `ai-local-parser.ts`, `ai-rate-limit.ts`, `ai-tools.ts`
+- **Multi-provider AI Router**:
+  - **Vision**: Groq `llama-4-scout` → Together `Llama-Vision-Free` → Gemini `gemini-2.0-flash`
+  - **Text**: Groq `llama-3.3-70b` → Together `Llama-3.3-70B-Turbo-Free` → Gemini `gemini-2.0-flash`
+  - **Tools**: Groq → Together (ambos OpenAI-compatible function calling)
+- **AI Service**: `generateAIResponse()` ponto de entrada unico para todas as features de IA
+- **Usage tracking**: `canUseAI()`, `recordUsage()` — preparado para monetizacao (billing desabilitado por ora)
+- **Novas tabelas DB**: `ai_requests` (logging) e `usage_events` (monetizacao)
+- **Supabase Admin Client**: `src/lib/supabase/admin.ts` — client centralizado com service role
 - **Frontend**: `src/components/AIAssistant.tsx` — React Portal (`createPortal` em `document.body`) para escapar CSS `backdrop-blur` containing block no header mobile
-- **API Route**: `src/app/api/ai/assistant/route.ts` — Groq function calling com `llama-3.3-70b-versatile`
-- **Model fallback**: 70B primario → 8B fallback (`llama-3.1-8b-instant`) quando rate limited. 8B tem recuperacao `tool_use_failed` (retenta sem tools para resposta text-only)
-- **Fallback de qualidade**: quando 8B retorna resposta pobre (so emojis), sistema usa resultados coletados das tools como resposta
+- **API Route**: `src/app/api/ai/assistant/route.ts` — refatorada para usar AI router em vez de Groq SDK direto
 - **Parsers robustos para PT-BR**:
   - `parseAmount()`: "R$ 45,00", "120 conto", "50 reais" — distingue ponto decimal (1-2 digitos apos) de milhar (3 digitos apos)
   - `parseDate()`: "DD/MM/YYYY", "DD/MM"
   - `parseTime()`: "14h", "14h30", "14:00" — usado tambem para horario de atividades
   - `parseDaysOfWeek()`: "terca", "quinta" → formato DB
-- **12 tools Groq-compatible** (`src/lib/ai-tools.ts`):
+- **12 tools OpenAI-compatible** (`src/lib/ai/ai-tools.ts`):
   - 6 tools de acao: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
   - 5 tools de consulta: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
   - 1 tool de comunicacao: `draft_message`
-- **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao ao usuario antes de executar. Fluxo: pedido → "⏳ Confirma? [descricao]" → "sim/ok" executa, "nao/cancela" cancela. Tools de consulta (get_*) executam imediatamente. Implementado com `CONFIRM_PREFIX`, `CONFIRM_WORDS`, `CANCEL_WORDS` em `route.ts` + regra no system prompt Groq
+- **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao ao usuario. Tools de consulta (get_*) executam imediatamente
 - **Multi-round tool calling**: ate 3 rodadas com `tool_choice: "auto"`, resposta final forcada com `tool_choice: "none"`
-- **Timeout por chamada Groq**: `groqWithTimeout()` usa `AbortController` com timeout de 8s (`GROQ_TIMEOUT_MS = 8000`). Se a chamada exceder 8s, `AbortError` e capturado e tratado como rate-limit (dispara fallback 8B)
-- **`sanitizeResponse()`**: remove tags XML malformadas (`<function=...>`) das respostas do modelo 8B antes de retornar ao frontend
-- **`export const maxDuration = 60`**: nas rotas `/api/ai/assistant`, `/dashboard` e `/calendario` para evitar timeout padrao de 10s do Vercel
-- **Frontend resiliente a erros de rede**: `AIAssistant.tsx` usa try/catch no `response.json()` para tratar respostas nao-JSON (504/502 do gateway), exibindo mensagem amigavel
-- **Client-side fetch timeout**: `AIAssistant.tsx` usa `AbortController` com timeout de 15s no fetch. `AbortError` e detectado no catch e exibe mensagem amigavel em PT ao usuario
+- **Resiliencia**: `maxDuration = 60` no Vercel, frontend trata erros 504/502 graciosamente, client-side timeout de 15s
 - **Contexto familiar**: constroi contexto com filhos (tabela `children`, coluna `full_name`), membros e custodia. Info escolar via join com `child_education`
 - **Integracao no shell**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)
 - **Rate limiting** por usuario (`ai-rate-limit.ts`) com mensagens amigaveis de erro
 - **Cache** com TTL de 5 minutos (`ai-cache.ts`)
-- **Decisao tecnica**: todos os parametros de tools usam `type: "string"` (nao `"number"`) para evitar erros de validacao do Groq com outputs do LLM
 - **SSR-safe**: container do Portal usa `useState` + `useEffect` para evitar erros de hydration
 - **50 testes unitarios** (Vitest) com 98.5% de acuracia
-- **Fix de categorias em portugues**: `create_note` usava enum em ingles (reminder, observation, etc.) que violava check constraint da tabela `private_notes`. Corrigido em `ai-tools.ts`, `ai-actions.ts` e `route.ts` para valores em PT (lembrete, observacao, preparacao, juridico, outro)
 
 ### Invite Parser — Adicionar via Convite (`/calendario/convite`)
 - Upload de foto (JPEG/PNG/HEIC/WebP) ou PDF de convite de festa
@@ -1633,22 +1654,27 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - `createPortal(modal, document.body)` renderiza o modal fora da arvore DOM do header
 - Container do Portal usa `useState` + `useEffect` para compatibilidade SSR (evita `document is not defined`)
 
-### Por que Groq function calling com tool_choice "auto"/"none"?
+### Por que multi-provider AI router (Groq → Together → Gemini)?
+- Nenhum provider gratuito tem 100% de uptime — fallback automatico garante disponibilidade
+- Groq e o mais rapido (primario), Together e compativel com OpenAI SDK (fallback), Gemini e o mais estavel (ultimo recurso)
+- Router tenta cada provider em sequencia; se um falha (rate limit, timeout, erro), passa para o proximo
+- Vision, Text e Tools tem modelos especificos por provider para melhor qualidade
+- `generateAIResponse()` abstrai toda a complexidade — chamadores nao precisam saber qual provider foi usado
+
+### Por que function calling com tool_choice "auto"/"none"?
 - `tool_choice: "auto"` permite ao LLM decidir quais tools chamar em cada rodada
 - Multi-round (ate 3 rodadas) permite encadear consultas + acoes em uma unica conversa
 - Rodada final com `tool_choice: "none"` forca resposta em texto (evita loop infinito de tools)
-- Todos os parametros de tools usam `type: "string"` porque Groq rejeita `"number"` quando o LLM gera output em formato inesperado
+- Todos os parametros de tools usam `type: "string"` porque providers podem rejeitar `"number"` quando o LLM gera output em formato inesperado
 
-### Por que model fallback 70B → 8B?
-- Groq aplica rate limiting agressivo no modelo 70B em planos gratuitos/basicos
-- Quando rate limited, sistema faz fallback automatico para `llama-3.1-8b-instant` (mais rapido, menos rate limited)
-- 8B pode falhar em `tool_use` — recuperacao retenta a chamada sem tools para obter resposta text-only
-- Se 8B retornar resposta pobre (apenas emojis), sistema usa os resultados ja coletados das tools como fallback
-- `sanitizeResponse()` limpa tags XML malformadas (`<function=...>`) que o 8B pode gerar
+### Por que usage tracking (canUseAI/recordUsage)?
+- Preparacao para monetizacao futura — tracking de uso por usuario/grupo sem billing ativo
+- `ai_requests` loga cada chamada (provider, modelo, tokens, latencia, sucesso/erro)
+- `usage_events` registra eventos para calculo de limites e cobranca futura
+- `canUseAI()` verifica se usuario pode usar IA (atualmente sempre retorna true)
+- `recordUsage()` registra uso apos cada chamada bem-sucedida
 
-### Por que groqWithTimeout e maxDuration?
-- Cada chamada a API Groq usa `groqWithTimeout()` com `AbortController` de 8s — evita que uma unica chamada trave todo o request
-- `AbortError` e tratado como condicao de rate-limit, disparando fallback para o modelo 8B
+### Por que maxDuration e frontend timeouts?
 - `export const maxDuration = 60` em routes e paginas SSR pesadas (`/api/ai/assistant`, `/dashboard`, `/calendario`) aumenta o limite do Vercel de 10s para 60s
 - Frontend (`AIAssistant.tsx`) trata respostas 504/502 com try/catch no `response.json()` — mostra mensagem amigavel em vez de crash
 - Frontend (`AIAssistant.tsx`) usa `AbortController` com timeout de 15s no fetch — se o servidor nao responder, cancela o request e exibe mensagem de timeout em PT

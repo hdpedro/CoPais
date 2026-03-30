@@ -20,7 +20,7 @@
 | Estilizacao | Tailwind CSS | ^4 |
 | Backend/BaaS | Supabase (PostgreSQL) | ^2.99.2 |
 | Auth | Supabase Auth + SSR | ^0.9.0 |
-| IA | Groq (Llama 3.3 70B → 8B fallback) + Tesseract.js (OCR) | Cloud API / local |
+| IA | Multi-provider Router: Groq → Together → Gemini + Tesseract.js (OCR) | Cloud API / local |
 | i18n | Custom (I18nProvider + useI18n) | 5 idiomas, ~1405 chaves, 39 secoes |
 | Analytics | PostHog | 30+ eventos |
 | Error Tracking | Sentry | — |
@@ -50,10 +50,14 @@ src/
 ├── i18n/             # Sistema de internacionalizacao
 │   └── locales/      # pt.json, en.json, es.json, fr.json, de.json (~1405 chaves, 39 secoes)
 ├── lib/
-│   ├── supabase/     # Client, Server, Middleware
-│   ├── ai/
-│   │   └── parser/   # Invite Parser modular (types, interface, ocr, groq-event-parser, pilot-parser, index)
-│   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts, ai-tools.ts
+│   ├── supabase/     # Client, Server, Middleware, Admin (service role)
+│   ├── ai/                # Modulo AI centralizado
+│   │   ├── core/          # types, config, logger, usage tracking, service (generateAIResponse)
+│   │   ├── providers/     # Groq, Together, Gemini providers
+│   │   ├── router.ts      # Multi-provider router (Groq → Together → Gemini fallback)
+│   │   ├── image-utils.ts # Compressao de imagem para vision APIs
+│   │   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts, ai-tools.ts
+│   │   └── parser/        # Invite Parser modular (types, interface, ocr, groq-event-parser, pilot-parser, index)
 │   ├── constants.ts  # Constantes do app (cores, categorias, checklist items)
 │   ├── calendar-utils.ts  # Utilidades de data/calendario + computeSwapBalance()
 │   ├── recurrence-utils.ts # Motor de recorrencia (diario, semanal, etc.)
@@ -358,7 +362,15 @@ Logs de execucao do Invite Parser para analise de qualidade.
 - `success` (BOOLEAN), `parser_type` (TEXT), `processing_time_ms` (INTEGER), `ocr_confidence` (FLOAT), `created_at`
 - Migration: `00030_ai_event_logs.sql`
 
-#### 28-36. Tabelas adicionais
+#### 28. ai_requests
+Logging de requests ao sistema de IA para monitoramento e debug.
+- `id`, `user_id`, `provider` (TEXT), `model` (TEXT), `prompt_tokens`, `completion_tokens`, `total_tokens`, `latency_ms`, `success` (BOOLEAN), `error` (TEXT), `created_at`
+
+#### 29. usage_events
+Tracking de uso para monetizacao futura.
+- `id`, `user_id`, `group_id`, `event_type` (TEXT), `metadata` (JSONB), `created_at`
+
+#### 30-38. Tabelas adicionais
 Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals`, entre outras criadas nas migrations de saude e financeiro.
 
 ### Seguranca (Row Level Security)
@@ -664,32 +676,39 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 
 ### 26. Assistente IA Kindar
 - **Interface conversacional completa** (`AIAssistant.tsx`): message bubbles, typing indicator, sugestoes rapidas, input por voz (Speech Recognition API), multi-turn conversation
-- **Modelo**: Groq `llama-3.3-70b-versatile` (primario) → `llama-3.1-8b-instant` (fallback automatico quando rate limited). 8B tem recuperacao `tool_use_failed` (retenta sem tools para resposta text-only)
-- **Fallback de qualidade de resposta**: quando modelo 8B retorna respostas pobres (apenas emojis), sistema usa resultados coletados das tools como resposta de fallback
+- **Arquitetura AI centralizada** (`src/lib/ai/`): todo codigo de IA em modulo unico
+  - `src/lib/ai/core/` — types, config, logger, usage tracking, service entry point (`generateAIResponse()`)
+  - `src/lib/ai/providers/` — Groq, Together, Gemini providers
+  - `src/lib/ai/router.ts` — multi-provider router (Groq → Together → Gemini fallback)
+  - `src/lib/ai/image-utils.ts` — compressao de imagem para vision APIs
+  - Arquivos migrados de `src/lib/`: `ai-actions.ts`, `ai-cache.ts`, `ai-context.ts`, `ai-local-parser.ts`, `ai-rate-limit.ts`, `ai-tools.ts`
+- **Multi-provider AI Router**:
+  - **Vision**: Groq `llama-4-scout` → Together `Llama-Vision-Free` → Gemini `gemini-2.0-flash`
+  - **Text**: Groq `llama-3.3-70b` → Together `Llama-3.3-70B-Turbo-Free` → Gemini `gemini-2.0-flash`
+  - **Tools**: Groq → Together (ambos OpenAI-compatible function calling)
+- **AI Service**: `generateAIResponse()` ponto de entrada unico para todas as features de IA
+- **Usage tracking**: `canUseAI()`, `recordUsage()` — preparado para monetizacao (billing desabilitado por ora)
+- **Novas tabelas DB**: `ai_requests` (logging de requests AI) e `usage_events` (tracking de monetizacao)
+- **Supabase Admin Client**: `src/lib/supabase/admin.ts` — client centralizado com service role
 - **Parsers robustos para PT-BR**:
-  - `parseAmount()`: aceita "R$ 45,00", "120 conto", "50 reais". Distingue ponto decimal (1-2 digitos apos) de milhar (3 digitos apos). Fix: "53,90" nao vira mais 539
+  - `parseAmount()`: aceita "R$ 45,00", "120 conto", "50 reais". Distingue ponto decimal (1-2 digitos apos) de milhar (3 digitos apos)
   - `parseDate()`: aceita "DD/MM/YYYY", "DD/MM"
   - `parseTime()`: aceita "14h", "14h30", "14:00" — usado tambem no campo de horario de atividades
   - `parseDaysOfWeek()`: mapeia "terca", "quinta", etc para formato DB
-- **Anti-pattern corrigido (double-parsing)**: `mapLocalActionToTool()` em `route.ts` agora usa `Number(p.amount)` para `createExpense` em vez de re-chamar `parseAmount()`, pois `ai-local-parser.ts` ja converte o valor corretamente
-- **12 tools Groq-compatible** (`src/lib/ai-tools.ts`):
+- **12 tools OpenAI-compatible** (`src/lib/ai/ai-tools.ts`):
   - **6 tools de acao**: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
   - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
   - **1 tool de comunicacao**: `draft_message`
-- **API Route**: `src/app/api/ai/assistant/route.ts` — multi-round tool calling (ate 3 rodadas com `tool_choice: "auto"`, resposta final forcada com `tool_choice: "none"`)
-- **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao do usuario antes de executar. Fluxo: pedido → IA retorna "⏳ Confirma? [descricao]" → usuario diz "sim/ok" → executa. Cancelar com "nao/cancela". Tools de consulta (get_*) executam imediatamente. Constantes `CONFIRM_PREFIX`, `CONFIRM_WORDS` e `CANCEL_WORDS` em `route.ts`. System prompt do Groq tambem atualizado
-- **Fix de categorias em portugues**: `create_note` enviava categorias em ingles (reminder, observation, etc.) que violavam check constraint da tabela `private_notes`. Corrigido em `ai-tools.ts`, `ai-actions.ts` e `route.ts` para usar valores em PT (lembrete, observacao, preparacao, juridico, outro)
-- **`sanitizeResponse()`**: funcao que remove tags XML malformadas (`<function=...>`) que o modelo 8B pode gerar, limpando a resposta antes de enviar ao frontend
-- **`groqWithTimeout()`**: wrapper com `AbortController` e timeout de 8s (`GROQ_TIMEOUT_MS = 8000`) por chamada a API Groq, evitando que o request fique preso indefinidamente. `AbortError` e tratado como condicao de rate-limit (dispara fallback para 8B)
-- **`export const maxDuration = 60`**: configurado na API route do assistente e nas paginas SSR (`/dashboard`, `/calendario`) para evitar timeout de Vercel Functions (padrao 10s)
-- **Frontend resiliente**: `AIAssistant.tsx` trata respostas nao-JSON (504/502) graciosamente com try/catch no `response.json()`, exibindo mensagem amigavel de timeout
-- **Client-side timeout**: `AIAssistant.tsx` usa `AbortController` com timeout de 15s no fetch ao `/api/ai/assistant`. Se o servidor nao responder a tempo, exibe mensagem amigavel em PT e cancela o request
+- **API Route**: `src/app/api/ai/assistant/route.ts` — refatorada para usar AI router em vez de Groq SDK direto
+- **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao ao usuario. Tools de consulta (get_*) executam imediatamente
+- **Multi-round tool calling**: ate 3 rodadas com `tool_choice: "auto"`, resposta final forcada com `tool_choice: "none"`
+- **Resiliencia**: `maxDuration = 60` no Vercel, frontend trata erros 504/502 graciosamente
+- **Frontend resiliente**: `AIAssistant.tsx` trata respostas nao-JSON (504/502) com try/catch, client-side timeout de 15s
 - **Contexto familiar** (`ai-context.ts`): constroi contexto com filhos, membros do grupo e custodia
 - **React Portal**: renderiza em `document.body` via `createPortal` (escapa CSS `backdrop-blur` containing block no header mobile)
 - **Integracao**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)
 - **Rate limiting** (`ai-rate-limit.ts`) por usuario com mensagens amigaveis
 - **Cache de respostas** (`ai-cache.ts`) com TTL de 5 minutos
-- **Decisoes tecnicas**: parametros de tools usam `type: "string"` (Groq rejeita `"number"` com outputs do LLM); tabela `children` usa `full_name`; info escolar via join com `child_education`
 - **SSR-safe**: container do Portal usa `useState` + `useEffect`
 - **50 testes unitarios** (Vitest) com **98.5% de acuracia** em load test
 - API Routes: `/api/ai/assistant`, `/api/ai/context`
@@ -867,7 +886,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 
 | Rota | Metodo | Funcao |
 |------|--------|--------|
-| `/api/ai/assistant` | POST | Assistente IA conversacional (Groq function calling, 12 tools, multi-round) |
+| `/api/ai/assistant` | POST | Assistente IA conversacional (multi-provider router, 12 tools, multi-round) |
 | `/api/ai/context` | GET | Contexto familiar para IA |
 | `/api/ai/parse-invite` | POST | Invite Parser: recebe imagem/PDF, OCR Tesseract.js + Groq LLM, retorna ParsedEventData |
 | `/api/auth/signout` | POST | Logout via API |
@@ -893,7 +912,9 @@ NEXT_PUBLIC_APP_URL=             # URL do app (http://localhost:3000 em dev)
 NEXT_PUBLIC_POSTHOG_KEY=         # Chave PostHog (analytics)
 NEXT_PUBLIC_POSTHOG_HOST=        # Host PostHog
 SENTRY_DSN=                      # DSN do Sentry (error tracking)
-GROQ_API_KEY=                    # Chave API do Groq (assistente IA)
+GROQ_API_KEY=                    # Chave API do Groq (provider primario IA)
+TOGETHER_API_KEY=                # Chave API do Together (fallback IA)
+GEMINI_API_KEY=                  # Chave API do Gemini (ultimo recurso IA)
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=    # Chave publica VAPID (push)
 VAPID_PRIVATE_KEY=               # Chave privada VAPID
 ```
@@ -1019,8 +1040,14 @@ src/
 ├── i18n/                 # Sistema de internacionalizacao
 │   └── locales/          # pt.json, en.json, es.json, fr.json, de.json (~1405 chaves, 38 secoes)
 ├── lib/
-│   ├── supabase/         # client.ts, server.ts, middleware.ts
-│   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts, ai-tools.ts
+│   ├── supabase/         # client.ts, server.ts, middleware.ts, admin.ts (service role)
+│   ├── ai/               # Modulo AI centralizado
+│   │   ├── core/         # types, config, logger, usage tracking, service (generateAIResponse)
+│   │   ├── providers/    # Groq, Together, Gemini providers
+│   │   ├── router.ts     # Multi-provider router (Groq → Together → Gemini)
+│   │   ├── image-utils.ts # Compressao de imagem para vision APIs
+│   │   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts, ai-tools.ts
+│   │   └── parser/       # Invite Parser modular (types, interface, ocr, groq-event-parser, pilot-parser, index)
 │   ├── calendar-utils.ts # getDaysInMonth, getMonthGrid, buildCustodyMap, computeSwapBalance, getBrazilToday, getBrazilNow
 │   ├── recurrence-utils.ts # getOccurrences, occursOnDate, getNextOccurrence, RECURRENCE_OPTIONS
 │   ├── constants.ts      # COLORS, EXPENSE_CATEGORIES, CHECKIN_CATEGORIES, ACTIVITY_CATEGORIES, DEFAULT_CHECKLIST_ITEMS, PARENT_COLORS
@@ -1034,10 +1061,6 @@ src/
 │   ├── share-utils.ts    # formatActivityShareText, shareText (Web Share API + wa.me fallback)
 │   ├── capacitor.ts, haptics.ts # Bridge Capacitor + haptic feedback
 │   ├── posthog.ts, posthog-server.ts # Analytics
-│   ├── health-constants.ts, sbp-vaccine-calendar.ts, who-growth-data.ts
-│   └── supabase/
-│       ├── client.ts     # createBrowserClient
-│       ├── server.ts     # createServerClient
-│       └── middleware.ts  # updateSession
+│   └── health-constants.ts, sbp-vaccine-calendar.ts, who-growth-data.ts
 └── middleware.ts          # Auth middleware
 ```

@@ -13,7 +13,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **Auth & Database:** Supabase (Auth, Postgres, Realtime, RLS)
 - **Estilo:** Tailwind CSS 4
 - **Linguagem:** TypeScript 5
-- **IA:** Groq (Llama 3.3 70B primary → 8B fallback) — assistente conversacional com function calling (12 tools), parsers robustos para PT-BR; Tesseract.js (OCR) para parser de convites de festa
+- **IA:** Multi-provider Router (Groq → Together → Gemini fallback) — assistente conversacional com function calling (12 tools), parsers robustos para PT-BR; Tesseract.js (OCR) para parser de convites de festa. Vision: Groq llama-4-scout → Together Llama-Vision-Free → Gemini 2.0 Flash. Text: Groq llama-3.3-70b → Together Llama-3.3-70B-Turbo-Free → Gemini 2.0 Flash
 - **Deploy:** Vercel
 - **Analytics:** PostHog (30+ eventos rastreados)
 - **Error Tracking:** Sentry
@@ -27,7 +27,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 |---------|-----------|
 | Rotas (paginas + API) | 66 |
 | Server Actions | 84 funcoes em 23 arquivos |
-| Tabelas no banco | 36+ |
+| Tabelas no banco | 38+ |
 | Migrations | 30 |
 | Client Components | 36+ |
 | Componentes globais | 13 |
@@ -261,24 +261,27 @@ O app suporta **5 idiomas** completos:
 
 ### 18. Assistente IA Kindar (`/api/ai/assistant`)
 - **Assistente conversacional completo** com interface de chat, sugestoes rapidas e input por voz (Speech Recognition API)
-- **Modelo**: Groq `llama-3.3-70b-versatile` (primario) → `llama-3.1-8b-instant` (fallback quando rate limited). 8B tem recuperacao `tool_use_failed` (retenta sem tools para resposta text-only)
-- **Fallback de qualidade**: quando modelo 8B retorna respostas pobres (so emojis), sistema usa resultados coletados das tools como resposta
-- **Resiliencia**: timeout de 8s por chamada Groq (`groqWithTimeout`), sanitizacao de respostas malformadas do 8B (`sanitizeResponse`), `maxDuration = 60` no Vercel, frontend trata erros 504/502 graciosamente
+- **Arquitetura AI centralizada** (`src/lib/ai/`): todo codigo de IA em modulo unico com subpastas `core/`, `providers/`, `router.ts`, `image-utils.ts`
+- **Multi-provider AI Router** (`src/lib/ai/router.ts`): Groq (primario) → Together (fallback) → Gemini (ultimo recurso)
+  - **Vision**: Groq `llama-4-scout` → Together `Llama-Vision-Free` → Gemini `gemini-2.0-flash`
+  - **Text**: Groq `llama-3.3-70b` → Together `Llama-3.3-70B-Turbo-Free` → Gemini `gemini-2.0-flash`
+  - **Tools**: Groq → Together (ambos OpenAI-compatible function calling)
+- **AI Service**: `generateAIResponse()` ponto de entrada unico para todas as features de IA (`src/lib/ai/core/`)
+- **Usage tracking**: `canUseAI()`, `recordUsage()` — preparado para monetizacao (billing desabilitado por ora)
+- **Novas tabelas**: `ai_requests` (logging de requests) e `usage_events` (tracking de monetizacao)
+- **Supabase Admin Client**: `src/lib/supabase/admin.ts` — client centralizado com service role
 - **Parsers robustos para PT-BR**: `parseAmount()` ("R$ 45,00", "120 conto" — distingue decimal de milhar), `parseDate()` ("DD/MM/YYYY", "DD/MM"), `parseTime()` ("14h", "14h30", "14:00"), `parseDaysOfWeek()` ("terca", "quinta" → formato DB)
 - **12 tools Groq-compatible** (`ai-tools.ts`):
   - **6 tools de acao**: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`
   - **5 tools de consulta**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
   - **1 tool de comunicacao**: `draft_message`
-- **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao do usuario antes de executar ("Confirma? [descricao]"). Tools de consulta (get_*) executam imediatamente. Prefixo `CONFIRM_PREFIX` ("⏳"), `CONFIRM_WORDS` e `CANCEL_WORDS` regex em `route.ts`. System prompt do Groq tambem instrui o modelo a pedir confirmacao
-- **Fix de categorias em portugues**: `create_note` usava categorias em ingles (reminder, observation, etc.) que violavam o check constraint do banco `private_notes`. Corrigido em `ai-tools.ts`, `ai-actions.ts` e `route.ts` para usar categorias em PT (lembrete, observacao, preparacao, juridico, outro)
+- **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao do usuario antes de executar ("Confirma? [descricao]"). Tools de consulta (get_*) executam imediatamente
 - **Multi-round tool calling**: ate 3 rodadas com `tool_choice: "auto"` + resposta final forcada com `tool_choice: "none"`
 - **Contexto familiar** (`ai-context.ts`): injeta dados de filhos, membros e custodia para respostas personalizadas
 - **React Portal**: componente `AIAssistant.tsx` renderiza em `document.body` via `createPortal` (escapa CSS `backdrop-blur` containing block no header mobile)
 - **Integracao no shell**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)
 - **Rate limiting** (`ai-rate-limit.ts`) por usuario com mensagens amigaveis
 - **Cache de respostas** (`ai-cache.ts`) com TTL de 5 minutos
-- **Compatibilidade com Groq**: todos os parametros de tools usam `type: "string"` (evita erros de validacao com output do LLM)
-- **Tabela children**: usa coluna `full_name`; info escolar vem de `child_education` (join separado)
 - **50 testes unitarios** (Vitest) com **98.5% de acuracia** em load test
 - **SSR-safe**: container do Portal usa `useState` + `useEffect` para compatibilidade com server-side rendering
 
