@@ -85,7 +85,7 @@ export default function ResponsiveShell({
       )}
 
       {/* Main Content */}
-      <main className={isDesktop ? "pl-64" : "pt-[60px]"}>
+      <main className={isDesktop ? "pl-64" : "pt-[max(60px,calc(48px+env(safe-area-inset-top)))]"}>
         <div className={isDesktop ? "max-w-4xl mx-auto px-8 py-6 pb-8" : "page-transition max-w-4xl mx-auto px-5 py-4 pb-24"}>
           {children}
         </div>
