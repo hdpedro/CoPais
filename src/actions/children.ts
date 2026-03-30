@@ -165,3 +165,54 @@ export async function uploadChildDocument(formData: FormData) {
   revalidatePath("/criancas/" + childId);
   redirect("/criancas/" + childId + "?tab=documentos");
 }
+
+export async function deleteChildDocument(documentId: string, childId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  // Verify the document exists and user has access
+  const { data: doc } = await supabase
+    .from("documents")
+    .select("id, file_url, group_id")
+    .eq("id", documentId)
+    .single();
+
+  if (!doc) return { error: "Documento não encontrado." };
+
+  // Verify user belongs to the group
+  const activeGroup = await getActiveGroup(supabase, user.id);
+  if (!activeGroup || activeGroup.groupId !== doc.group_id) {
+    return { error: "Sem permissão." };
+  }
+
+  // Delete file from storage
+  try {
+    const url = new URL(doc.file_url);
+    const pathParts = url.pathname.split("/storage/v1/object/public/documents/");
+    if (pathParts[1]) {
+      const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+      const adminClient = createSupabaseClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      await adminClient.storage.from("documents").remove([decodeURIComponent(pathParts[1])]);
+    }
+  } catch {
+    // Storage deletion failed — continue with DB deletion anyway
+  }
+
+  // Delete from database
+  const { error } = await supabase
+    .from("documents")
+    .delete()
+    .eq("id", documentId);
+
+  if (error) return { error: error.message };
+
+  captureServerEvent(user.id, "child_document_deleted");
+
+  revalidatePath("/criancas/" + childId);
+  revalidatePath("/documentos");
+  return { success: true };
+}

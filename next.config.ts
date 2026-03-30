@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
   // Cache build artifacts for faster rebuilds on Vercel
   experimental: {
     serverMinification: true,
+    // Allow file uploads up to 10MB via server actions
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
   },
 };
 
