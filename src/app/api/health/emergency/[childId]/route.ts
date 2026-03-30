@@ -92,12 +92,12 @@ export async function GET(
 
   // Build contacts list
   const contacts = (groupMembers || [])
-    .map((m: { profiles: { full_name: string; phone: string | null; email: string | null } | null }) => m.profiles)
+    .map((m) => (m as unknown as { profiles: { full_name: string; phone: string | null; email: string | null } | null }).profiles)
     .filter(Boolean)
     .map((p) => ({
-      name: p.full_name || "Responsável",
-      phone: p.phone || null,
-      email: p.email || null,
+      name: p!.full_name || "Responsável",
+      phone: p!.phone || null,
+      email: p!.email || null,
     }));
 
   // Severity badge helper
