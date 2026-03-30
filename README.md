@@ -358,8 +358,8 @@ Todos os PostgREST FK joins foram removidos e substituidos por **joins manuais**
 - **Calculo de saldo financeiro** considera apenas despesas aprovadas (pending/disputed excluidas)
 - **Delecao dual-approval** em temas sensiveis
 - **Remember-me no login**: checkbox "Lembrar-me" controla persistencia da sessao (30 dias via cookie `maxAge` vs sessao do navegador). Fix de logout em Safari/iOS
-- **Persistencia de sessao em Safari**: middleware usa `getUser()` para refresh de tokens + cookie `kindar-has-session` (1 ano) permite client-side recovery via localStorage backup quando Safari ITP limpa cookies de auth
-- **Safari ITP Recovery**: `AuthSessionProvider` faz backup de tokens no localStorage; ao reabrir app sem cookies, restaura sessao automaticamente via `setSession()` + reload
+- **Persistencia de sessao em Safari**: middleware redireciona para `/session-recovery` (nao `/login`) quando cookies de auth sao perdidos. Pagina de recovery restaura sessao via localStorage backup automaticamente
+- **Safari ITP Recovery**: `AuthSessionProvider` faz backup de tokens no localStorage em cada auth event e visibilitychange; `/session-recovery` restaura sessao via `setSession()` e redireciona para pagina original
 - **Validacao server-side de MIME type** em uploads (documents.ts, children.ts, events.ts) antes de enviar ao Supabase Storage
 
 ## Estrutura do Projeto
