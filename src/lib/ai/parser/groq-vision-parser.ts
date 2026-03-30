@@ -7,7 +7,7 @@ import Groq from "groq-sdk";
 import { ParsedEventData } from "./types";
 
 const VISION_MODEL = "meta-llama/llama-4-scout-17b-16e-instruct";
-const VISION_MODEL_FALLBACK = "llama-3.2-11b-vision-preview";
+const VISION_MODEL_FALLBACK = "meta-llama/llama-4-maverick-17b-128e-instruct";
 const TIMEOUT_MS = 25000;
 
 const SYSTEM_PROMPT = `Você é um assistente que analisa imagens de convites de festas e eventos infantis.
@@ -86,8 +86,14 @@ export async function parseEventFromImage(
 
   try {
     return await tryModel(VISION_MODEL);
-  } catch {
-    return await tryModel(VISION_MODEL_FALLBACK);
+  } catch (primaryErr) {
+    console.error(`[groq-vision] Primary model ${VISION_MODEL} failed:`, primaryErr);
+    try {
+      return await tryModel(VISION_MODEL_FALLBACK);
+    } catch (fallbackErr) {
+      console.error(`[groq-vision] Fallback model ${VISION_MODEL_FALLBACK} failed:`, fallbackErr);
+      throw fallbackErr;
+    }
   }
 }
 
