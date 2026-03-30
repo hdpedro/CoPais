@@ -38,7 +38,7 @@ export async function getActiveGroup(
     }
   }
 
-  const group = activeMembership.coparenting_groups as { id: string; name: string; custody_enabled: boolean } | null;
+  const group = activeMembership.coparenting_groups as unknown as { id: string; name: string; custody_enabled: boolean } | null;
 
   return {
     groupId: activeMembership.group_id,
