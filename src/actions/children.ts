@@ -186,24 +186,26 @@ export async function deleteChildDocument(documentId: string, childId: string) {
     return { error: "Sem permissão." };
   }
 
+  // Use admin client to bypass RLS for both storage and DB deletion
+  const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
+  const adminClient = createSupabaseClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  );
+
   // Delete file from storage
   try {
     const url = new URL(doc.file_url);
     const pathParts = url.pathname.split("/storage/v1/object/public/documents/");
     if (pathParts[1]) {
-      const { createClient: createSupabaseClient } = await import("@supabase/supabase-js");
-      const adminClient = createSupabaseClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.SUPABASE_SERVICE_ROLE_KEY!
-      );
       await adminClient.storage.from("documents").remove([decodeURIComponent(pathParts[1])]);
     }
   } catch {
     // Storage deletion failed — continue with DB deletion anyway
   }
 
-  // Delete from database
-  const { error } = await supabase
+  // Delete from database (admin client to bypass RLS)
+  const { error } = await adminClient
     .from("documents")
     .delete()
     .eq("id", documentId);
