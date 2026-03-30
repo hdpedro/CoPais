@@ -1,21 +1,19 @@
 /* ------------------------------------------------------------------ */
-/* /api/ai/assistant — LOCAL-FIRST AI with Groq fallback              */
-/* Tries to resolve intent locally before calling Groq to save calls  */
+/* /api/ai/assistant — LOCAL-FIRST AI with Router fallback             */
+/* Uses AI Router (Groq→Together→Gemini) instead of direct Groq calls  */
 /* ------------------------------------------------------------------ */
 
 import { NextRequest, NextResponse } from "next/server";
-import Groq from "groq-sdk";
 import { createClient } from "@/lib/supabase/server";
-import { AI_TOOLS, executeTool, ToolContext } from "@/lib/ai-tools";
-import { aiRateLimiter } from "@/lib/ai-rate-limit";
-import { parseIntent, parseAmount, parseRelativeDate, parseTime } from "@/lib/ai-local-parser";
+import { AI_TOOLS, executeTool, ToolContext } from "@/lib/ai/tools";
+import { aiRateLimiter } from "@/lib/ai/rate-limit";
+import { parseIntent } from "@/lib/ai/local-parser";
+import { routeToolsRequest, routeTextRequest } from "@/lib/ai/router";
+import { logAIRequest } from "@/lib/ai/core/logger";
+import { canUseAI } from "@/lib/ai/core/usage";
+import { AIChatMessage, AIToolDefinition } from "@/lib/ai/core/types";
 
-const groq = new Groq({ apiKey: process.env.GROQ_API_KEY });
-
-const MODEL_PRIMARY = "llama-3.3-70b-versatile";
-const MODEL_FALLBACK = "llama-3.1-8b-instant";
 const MAX_TOOL_ROUNDS = 3;
-const GROQ_TIMEOUT_MS = 8000;
 
 export const maxDuration = 60;
 
@@ -23,9 +21,8 @@ export const maxDuration = 60;
 /* Build context                                                       */
 /* ------------------------------------------------------------------ */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function buildContext(
-  supabase: any,
+  supabase: any, // eslint-disable-line @typescript-eslint/no-explicit-any
   userId: string,
   groupId: string
 ): Promise<{ contextStr: string; toolCtx: ToolContext }> {
@@ -39,11 +36,13 @@ async function buildContext(
     .select("user_id, role, profiles(full_name)")
     .eq("group_id", groupId);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const members = (membersRaw || []).map((m: any) => ({
     id: m.user_id,
     name: m.profiles?.full_name || "Membro",
   }));
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const childrenList = (children || []).map((c: any) => {
     const age = c.birth_date
       ? Math.floor(
@@ -54,8 +53,10 @@ async function buildContext(
     return `${c.full_name}${age !== null ? ` (${age} anos)` : ""}`;
   });
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const currentUser = members.find((m: any) => m.id === userId);
   const membersList = members.map(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (m: any) => `${m.name}${m.id === userId ? " (voce)" : ""}`
   );
 
@@ -75,8 +76,11 @@ async function buildContext(
     .lte("start_date", todayISO)
     .gte("end_date", todayISO);
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const custodyLines = (custody || []).map((e: any) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const child = (children || []).find((c: any) => c.id === e.child_id);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const member = members.find((m: any) => m.id === e.responsible_user_id);
     return `${child?.full_name?.split(" ")[0] || "?"} esta com ${member?.name?.split(" ")[0] || "?"}`;
   });
@@ -95,6 +99,7 @@ async function buildContext(
     supabase: supabase,
     userId,
     groupId,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     children: (children || []).map((c: any) => ({
       id: c.id,
       name: c.full_name,
@@ -154,21 +159,16 @@ REGRAS OBRIGATORIAS:
 /* LOCAL-FIRST: Map local parser actions → tool calls                  */
 /* ------------------------------------------------------------------ */
 
-/** Map parseIntent action names to AI tool names & build tool params */
 function mapLocalActionToTool(
   intent: { action: string; params: Record<string, string>; confidence: number },
-  toolCtx: ToolContext
+  _toolCtx: ToolContext // eslint-disable-line @typescript-eslint/no-unused-vars
 ): { toolName: string; toolParams: Record<string, unknown> } | null {
   const p = intent.params;
-  const childNames = toolCtx.children.map((c) => c.name);
 
   switch (intent.action) {
     case "createExpense": {
-      // p.amount is already the parsed numeric string from parseIntent (e.g. "53.9")
-      // Do NOT re-parse — just pass through to avoid double-conversion bugs
       const amount = Number(p.amount) || 0;
       const description = p.description || "";
-      // If description is empty or amount is 0, fall back to Groq
       if (!description.trim() || amount === 0) return null;
       return {
         toolName: "create_expense",
@@ -181,7 +181,7 @@ function mapLocalActionToTool(
       };
     }
 
-    case "createAppointment": {
+    case "createAppointment":
       return {
         toolName: "create_appointment",
         toolParams: {
@@ -193,24 +193,22 @@ function mapLocalActionToTool(
           doctor_name: p.doctorName || "",
         },
       };
-    }
 
-    case "createHealthLog": {
-      // Map health log to check-in (health category)
+    case "createHealthLog":
       return {
         toolName: "create_checkin",
         toolParams: {
           child_name: p.childName || "",
           category: "health",
-          title: p.logType === "temperature"
-            ? `Temperatura: ${p.value || "febre"}`
-            : `Saude: ${p.value || "sintoma"}`,
+          title:
+            p.logType === "temperature"
+              ? `Temperatura: ${p.value || "febre"}`
+              : `Saude: ${p.value || "sintoma"}`,
           notes: p.notes || "",
         },
       };
-    }
 
-    case "createCheckin": {
+    case "createCheckin":
       return {
         toolName: "create_checkin",
         toolParams: {
@@ -220,23 +218,17 @@ function mapLocalActionToTool(
           notes: p.text || "",
         },
       };
-    }
 
     case "createEvent": {
       const title = p.title || "";
-      // If title is empty, fall back to Groq
       if (!title.trim()) return null;
       return {
         toolName: "create_event",
-        toolParams: {
-          title,
-          date: p.date || "",
-          time: p.time || "",
-        },
+        toolParams: { title, date: p.date || "", time: p.time || "" },
       };
     }
 
-    case "createNote": {
+    case "createNote":
       return {
         toolName: "create_note",
         toolParams: {
@@ -245,9 +237,8 @@ function mapLocalActionToTool(
           category: p.category || "lembrete",
         },
       };
-    }
 
-    case "createActivity": {
+    case "createActivity":
       return {
         toolName: "create_activity",
         toolParams: {
@@ -255,10 +246,8 @@ function mapLocalActionToTool(
           name: p.title || "Atividade",
         },
       };
-    }
 
-    case "createMedication": {
-      // Map to check-in with health category
+    case "createMedication":
       return {
         toolName: "create_checkin",
         toolParams: {
@@ -268,9 +257,8 @@ function mapLocalActionToTool(
           notes: p.name || "",
         },
       };
-    }
 
-    case "createVaccine": {
+    case "createVaccine":
       return {
         toolName: "create_appointment",
         toolParams: {
@@ -280,14 +268,12 @@ function mapLocalActionToTool(
           appointment_type: "vaccine",
         },
       };
-    }
 
     default:
       return null;
   }
 }
 
-/** Detect expense category from description */
 function detectExpenseCategory(desc: string): string {
   const n = desc.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   if (/remedio|farmacia|medic|consulta|hospital|saude|vacina/.test(n)) return "health";
@@ -301,73 +287,6 @@ function detectExpenseCategory(desc: string): string {
 }
 
 /* ------------------------------------------------------------------ */
-/* Groq call with automatic model fallback                             */
-/* ------------------------------------------------------------------ */
-
-function groqWithTimeout(params: any) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), GROQ_TIMEOUT_MS);
-  return groq.chat.completions
-    .create(params, { signal: controller.signal as any })
-    .finally(() => clearTimeout(timer));
-}
-
-async function callGroqWithFallback(
-  messages: any[],
-  toolChoice: "auto" | "none" = "auto"
-) {
-  try {
-    return await groqWithTimeout({
-      model: MODEL_PRIMARY,
-      messages,
-      tools: AI_TOOLS as any,
-      tool_choice: toolChoice,
-      temperature: 0.3,
-      max_tokens: 1000,
-    });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "";
-    const isRateLimit =
-      msg.includes("rate_limit") ||
-      msg.includes("429") ||
-      msg.includes("Limit") ||
-      msg.includes("tokens") ||
-      msg.includes("TPD") ||
-      msg.includes("abort");
-
-    if (!isRateLimit) throw err;
-  }
-
-  console.log(`Groq 70B rate limited, falling back to ${MODEL_FALLBACK}`);
-  try {
-    return await groqWithTimeout({
-      model: MODEL_FALLBACK,
-      messages,
-      tools: AI_TOOLS as any,
-      tool_choice: toolChoice,
-      temperature: 0.3,
-      max_tokens: 1000,
-    });
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "";
-    const isToolUseFailed = msg.includes("tool_use_failed") || msg.includes("tool call validation");
-
-    if (!isToolUseFailed) throw err;
-
-    console.log("8B tool_use_failed, retrying without tools for text response");
-    const textOnlyMessages = messages.filter(
-      (m: any) => m.role === "system" || m.role === "user" || (m.role === "assistant" && !m.tool_calls)
-    );
-    return await groqWithTimeout({
-      model: MODEL_FALLBACK,
-      messages: textOnlyMessages,
-      temperature: 0.4,
-      max_tokens: 1000,
-    });
-  }
-}
-
-/* ------------------------------------------------------------------ */
 /* POST Handler                                                        */
 /* ------------------------------------------------------------------ */
 
@@ -377,6 +296,8 @@ interface ChatMessage {
 }
 
 export async function POST(req: NextRequest) {
+  const start = Date.now();
+
   try {
     const supabase = await createClient();
     const {
@@ -387,10 +308,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
     }
 
+    // Rate limit check
     const rateCheck = aiRateLimiter.check(user.id);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: "Muitas mensagens. Aguarde um momento." },
+        { status: 429 }
+      );
+    }
+
+    // Usage limit check
+    const usageCheck = await canUseAI(user.id, "assistant_chat");
+    if (!usageCheck.allowed) {
+      return NextResponse.json(
+        { error: "Limite diario do assistente atingido." },
         { status: 429 }
       );
     }
@@ -407,7 +338,6 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Validate that the last user message is not empty
     const lastUserMsgRaw = [...messages].reverse().find((m) => m.role === "user");
     if (!lastUserMsgRaw?.content?.trim()) {
       return NextResponse.json(
@@ -416,46 +346,33 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Build context (needed for both local and Groq paths)
-    const { contextStr, toolCtx } = await buildContext(
-      supabase,
-      user.id,
-      groupId
-    );
-
-    // Get the last user message for local parsing
+    const { contextStr, toolCtx } = await buildContext(supabase, user.id, groupId);
     const lastUserMsg = [...messages].reverse().find((m) => m.role === "user");
     const userText = lastUserMsg?.content || "";
 
     /* ================================================================ */
-    /* STEP 0: Check if user is CONFIRMING a previous pending action    */
+    /* STEP 0: Check confirmation of pending action                     */
     /* ================================================================ */
 
-    const CONFIRM_PREFIX = "⏳";
+    const CONFIRM_PREFIX = "\u23F3"; // ⏳
     const CONFIRM_WORDS = /^(sim|ok|confirma|pode|faz|manda|isso|exato|confirmo|yes|s|vai|bora)[\s!.]*$/i;
     const CANCEL_WORDS = /^(nao|n[ãa]o|cancela|nope|no|deixa|esquece)[\s!.]*$/i;
 
     const childNames = toolCtx.children.map((c) => c.name);
     const memberNames = toolCtx.members.map((m) => m.name);
 
-    // Find the last assistant message to check if it was a confirmation prompt
     const lastAssistantMsg = [...messages].reverse().find((m) => m.role === "assistant");
     const isPendingConfirmation = lastAssistantMsg?.content?.startsWith(CONFIRM_PREFIX);
 
     if (isPendingConfirmation && CANCEL_WORDS.test(userText.trim())) {
-      console.log("[LOCAL] User cancelled pending action");
       return NextResponse.json({
         role: "assistant",
-        content: "❌ Ação cancelada. Como posso ajudar?",
+        content: "\u274C A\u00e7\u00e3o cancelada. Como posso ajudar?",
       });
     }
 
     if (isPendingConfirmation && CONFIRM_WORDS.test(userText.trim())) {
-      console.log("[LOCAL] User confirmed pending action — executing");
-
-      // Find the original user message (the one before the confirmation prompt)
       const reversedMsgs = [...messages].reverse();
-      // Skip: last user msg ("sim"), last assistant msg ("⏳ ..."), find the user msg before that
       let foundAssistant = false;
       let originalText = "";
       for (const m of reversedMsgs) {
@@ -471,119 +388,146 @@ export async function POST(req: NextRequest) {
 
       if (originalText) {
         const originalIntent = parseIntent(originalText, childNames, memberNames, "pt");
-
         if (originalIntent && originalIntent.confidence >= 0.7) {
           const mapped = mapLocalActionToTool(originalIntent, toolCtx);
-
           if (mapped) {
-            console.log(`[LOCAL] Confirmed execution: ${mapped.toolName}`, mapped.toolParams);
+            console.log(`[LOCAL] Confirmed: ${mapped.toolName}`);
             const result = await executeTool(mapped.toolName, mapped.toolParams, toolCtx);
-            console.log(`[LOCAL] Tool result: success=${result.success}, message=${result.message}`);
 
-            if (result.success) {
-              return NextResponse.json({
-                role: "assistant",
-                content: `✅ ${result.message}`,
-              });
-            } else {
-              return NextResponse.json({
-                role: "assistant",
-                content: `⚠️ ${result.message}`,
-              });
-            }
+            await logAIRequest({
+              userId: user.id,
+              groupId,
+              provider: "local",
+              feature: "assistant_tool",
+              success: result.success,
+              responseTimeMs: Date.now() - start,
+            });
+
+            return NextResponse.json({
+              role: "assistant",
+              content: result.success ? `\u2705 ${result.message}` : `\u26A0\uFE0F ${result.message}`,
+            });
           }
         }
       }
-
-      // Could not find or re-parse original — fall through to Groq
-      console.log("[LOCAL] Could not re-parse original message after confirmation, falling to Groq");
     }
 
     /* ================================================================ */
-    /* STEP 1: Try LOCAL parsing — ask for confirmation, don't execute   */
+    /* STEP 1: Try LOCAL parsing                                        */
     /* ================================================================ */
 
     const localIntent = parseIntent(userText, childNames, memberNames, "pt");
 
     if (localIntent && localIntent.confidence >= 0.7) {
-      // Check if this is an ACTION (create/write) vs QUERY (read-only)
       const isActionIntent = localIntent.action.startsWith("create");
 
       if (isActionIntent) {
-        // Return confirmation prompt instead of executing
-        console.log(`[LOCAL] Pending confirmation: ${localIntent.action}, confidence: ${localIntent.confidence}`);
+        await logAIRequest({
+          userId: user.id,
+          groupId,
+          provider: "local",
+          feature: "assistant_chat",
+          success: true,
+          responseTimeMs: Date.now() - start,
+        });
+
         return NextResponse.json({
           role: "assistant",
           content: `${CONFIRM_PREFIX} ${localIntent.confirmation}`,
         });
       }
 
-      // For queries (non-create actions), execute immediately
       const mapped = mapLocalActionToTool(localIntent, toolCtx);
       if (mapped) {
-        console.log(`[LOCAL] Executing query tool: ${mapped.toolName}`, mapped.toolParams);
         const result = await executeTool(mapped.toolName, mapped.toolParams, toolCtx);
-        console.log(`[LOCAL] Tool result: success=${result.success}, message=${result.message}`);
+
+        await logAIRequest({
+          userId: user.id,
+          groupId,
+          provider: "local",
+          feature: "assistant_tool",
+          success: result.success,
+          responseTimeMs: Date.now() - start,
+        });
 
         if (result.success) {
           return NextResponse.json({
             role: "assistant",
-            content: `✅ ${result.message}`,
+            content: `\u2705 ${result.message}`,
           });
-        } else {
-          console.log(`[LOCAL] Tool failed, falling back to Groq: ${result.message}`);
         }
       }
-    } else if (localIntent) {
-      console.log(`[LOCAL] Low confidence (${localIntent.confidence}), falling back to Groq`);
     }
 
     /* ================================================================ */
-    /* STEP 2: Groq fallback — for complex / ambiguous requests         */
+    /* STEP 2: AI Router fallback (Groq → Together → Gemini)            */
     /* ================================================================ */
 
-    console.log(`[GROQ] Calling Groq for: "${userText.slice(0, 80)}..."`);
+    console.log(`[AI-ROUTER] Processing: "${userText.slice(0, 80)}..."`);
 
-    const systemMsg = {
-      role: "system" as const,
+    const systemMsg: AIChatMessage = {
+      role: "system",
       content: buildSystemPrompt(contextStr),
     };
 
     const recentMessages = messages.slice(-20);
-    let groqMessages: any[] = [systemMsg, ...recentMessages];
+    const routerMessages: AIChatMessage[] = [
+      systemMsg,
+      ...recentMessages.map((m) => ({
+        role: m.role as "user" | "assistant" | "system",
+        content: m.content,
+      })),
+    ];
+
     const toolResultsSummary: string[] = [];
 
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const completion = await callGroqWithFallback(groqMessages, "auto");
+      const { response, provider } = await routeToolsRequest(
+        routerMessages,
+        AI_TOOLS as unknown as AIToolDefinition[],
+        { temperature: 0.3, maxTokens: 1000, timeoutMs: 10000 }
+      );
 
-      const choice = completion.choices[0];
-      if (!choice) {
-        return NextResponse.json({
-          role: "assistant",
-          content: "Desculpe, nao consegui processar. Tente novamente.",
-        });
-      }
-
-      const assistantMsg = choice.message;
-
-      if (!assistantMsg.tool_calls || assistantMsg.tool_calls.length === 0) {
-        const content = sanitizeResponse(assistantMsg.content || "");
+      if (!response.toolCalls || response.toolCalls.length === 0) {
+        const content = sanitizeResponse(response.content || "");
         if (content.length < 5 && toolResultsSummary.length > 0) {
+          await logAIRequest({
+            userId: user.id,
+            groupId,
+            provider,
+            feature: "assistant_chat",
+            success: true,
+            responseTimeMs: Date.now() - start,
+          });
           return NextResponse.json({
             role: "assistant",
             content: toolResultsSummary.join("\n"),
           });
         }
+
+        await logAIRequest({
+          userId: user.id,
+          groupId,
+          provider,
+          feature: "assistant_chat",
+          success: true,
+          responseTimeMs: Date.now() - start,
+        });
+
         return NextResponse.json({
           role: "assistant",
           content: content || "Nao entendi. Pode reformular?",
         });
       }
 
-      // Execute tool calls from Groq
-      groqMessages.push(assistantMsg);
+      // Execute tool calls
+      routerMessages.push({
+        role: "assistant",
+        content: response.content || "",
+        tool_calls: response.toolCalls,
+      });
 
-      for (const toolCall of assistantMsg.tool_calls) {
+      for (const toolCall of response.toolCalls) {
         let args: Record<string, unknown>;
         try {
           args = JSON.parse(toolCall.function.arguments);
@@ -591,23 +535,16 @@ export async function POST(req: NextRequest) {
           args = {};
         }
 
-        console.log(`[GROQ] Executing tool: ${toolCall.function.name}`, args);
-
-        const result = await executeTool(
-          toolCall.function.name,
-          args,
-          toolCtx
-        );
-
-        console.log(`[GROQ] Tool result: success=${result.success}, message=${result.message}`);
+        console.log(`[AI-ROUTER] Tool: ${toolCall.function.name}`, args);
+        const result = await executeTool(toolCall.function.name, args, toolCtx);
 
         if (result.message) {
           toolResultsSummary.push(
-            result.success ? `✅ ${result.message}` : `⚠️ ${result.message}`
+            result.success ? `\u2705 ${result.message}` : `\u26A0\uFE0F ${result.message}`
           );
         }
 
-        groqMessages.push({
+        routerMessages.push({
           role: "tool",
           tool_call_id: toolCall.id,
           content: JSON.stringify(result),
@@ -615,15 +552,24 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Exhausted tool rounds
+    // Exhausted tool rounds — get final text response
     try {
-      const finalCompletion = await callGroqWithFallback(groqMessages, "none");
-      const finalContent = sanitizeResponse(finalCompletion.choices[0]?.message?.content || "");
+      const { text: finalText, provider } = await routeTextRequest(
+        routerMessages,
+        { temperature: 0.4, maxTokens: 1000, timeoutMs: 10000 }
+      );
+
+      const finalContent = sanitizeResponse(finalText);
       if (finalContent && finalContent.length >= 5) {
-        return NextResponse.json({
-          role: "assistant",
-          content: finalContent,
+        await logAIRequest({
+          userId: user.id,
+          groupId,
+          provider,
+          feature: "assistant_chat",
+          success: true,
+          responseTimeMs: Date.now() - start,
         });
+        return NextResponse.json({ role: "assistant", content: finalContent });
       }
     } catch {
       // Fall through to default
@@ -638,31 +584,33 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json({
       role: "assistant",
-      content: "Pronto! Acao realizada com sucesso. ✅",
+      content: "Pronto! Acao realizada com sucesso. \u2705",
     });
   } catch (error: unknown) {
     console.error("AI Chat error:", error);
     const msg = error instanceof Error ? error.message : "Erro interno";
 
-    const isRateLimit = msg.includes("rate_limit") || msg.includes("429") || msg.includes("Limit") || msg.includes("tokens") || msg.includes("abort") || msg.includes("Abort") || msg.includes("TPD");
-    const isToolError = msg.includes("tool_use_failed") || msg.includes("tool call validation");
+    const isRateLimit = /rate_limit|429|Limit|tokens|abort|TPD/i.test(msg);
 
-    let friendlyMsg: string;
-    let statusCode: number;
+    await logAIRequest({
+      userId: "unknown",
+      provider: "none",
+      feature: "assistant_chat",
+      success: false,
+      responseTimeMs: Date.now() - start,
+      errorMessage: msg,
+    });
+
     if (isRateLimit) {
-      friendlyMsg = "O assistente atingiu o limite temporario de uso. Tente novamente em alguns minutos. ⏳";
-      statusCode = 429;
-    } else if (isToolError) {
-      friendlyMsg = "Nao consegui processar essa acao agora. Tente reformular o pedido de forma mais simples. 🔄";
-      statusCode = 200;
-    } else {
-      friendlyMsg = "Desculpe, ocorreu um erro. Tente novamente. 🙏";
-      statusCode = 500;
+      return NextResponse.json(
+        { role: "assistant", content: "O assistente atingiu o limite temporario. Tente em alguns minutos. \u23F3" },
+        { status: 429 }
+      );
     }
 
     return NextResponse.json(
-      { role: "assistant", content: friendlyMsg },
-      { status: statusCode }
+      { role: "assistant", content: "Desculpe, ocorreu um erro. Tente novamente. \uD83D\uDE4F" },
+      { status: 500 }
     );
   }
 }

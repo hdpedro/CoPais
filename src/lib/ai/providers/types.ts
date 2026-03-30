@@ -1,6 +1,13 @@
 /* ------------------------------------------------------------------ */
-/* AI Provider interface — all vision providers implement this          */
+/* AI Provider interface — all providers implement this                 */
 /* ------------------------------------------------------------------ */
+
+import {
+  AIChatMessage,
+  AIToolDefinition,
+  AIToolResponse,
+  AITextOptions,
+} from "../core/types";
 
 export interface AIProviderResult {
   text: string;
@@ -8,20 +15,34 @@ export interface AIProviderResult {
 }
 
 export interface AIProvider {
-  /** Provider display name (e.g., "Groq", "Together", "Gemini") */
+  /** Provider display name */
   readonly name: string;
 
   /** Check if provider has API key configured */
   isAvailable(): boolean;
 
-  /**
-   * Send an image + prompt to the vision model.
-   * Returns the raw text response from the model.
-   */
+  /** Vision: analyze an image with a prompt */
   generateFromImage(
     imageBase64: string,
     mimeType: string,
     systemPrompt: string,
-    userPrompt: string
+    userPrompt: string,
+    options?: AITextOptions
   ): Promise<string>;
+
+  /** Text: generate text from chat messages */
+  generateText(
+    messages: AIChatMessage[],
+    options?: AITextOptions
+  ): Promise<string>;
+
+  /** Whether this provider supports function calling */
+  supportsTools(): boolean;
+
+  /** Tools: generate text with function calling (OpenAI-compatible) */
+  generateWithTools(
+    messages: AIChatMessage[],
+    tools: AIToolDefinition[],
+    options?: AITextOptions
+  ): Promise<AIToolResponse>;
 }

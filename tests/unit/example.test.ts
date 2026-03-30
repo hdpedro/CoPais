@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { parseTime, parseAmount, parseRelativeDate } from "@/lib/ai-local-parser";
+import { parseTime, parseAmount, parseRelativeDate } from "@/lib/ai/local-parser";
 
 describe("Smoke tests", () => {
   it("should pass a basic assertion", () => {

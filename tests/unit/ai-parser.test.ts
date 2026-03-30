@@ -5,7 +5,7 @@ import {
   parseTime,
   parseAmount,
   ParsedIntent,
-} from "@/lib/ai-local-parser";
+} from "@/lib/ai/local-parser";
 
 /* ------------------------------------------------------------------ */
 /* Shared test fixtures                                                */

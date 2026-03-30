@@ -382,7 +382,7 @@ export function parseIntent(
   text: string,
   children: string[],
   members: string[],
-  _locale: string
+  _locale: string // eslint-disable-line @typescript-eslint/no-unused-vars
 ): ParsedIntent | null {
   if (!text || !text.trim()) return null;
 
