@@ -24,6 +24,7 @@ export async function createClient() {
                 ...(rememberMe
                   ? { maxAge: 60 * 60 * 24 * 30, expires: thirtyDaysFromNow }
                   : {}),
+                httpOnly: false, // Browser client must read these cookies
                 sameSite: options?.sameSite ?? "lax",
                 secure: true,
               })

@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { signIn } from "@/actions/auth";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import KindarLogo from "@/components/KindarLogo";
+import { createClient } from "@/lib/supabase/client";
 
 export default function LoginPage() {
   return (
@@ -17,6 +18,7 @@ export default function LoginPage() {
 
 function LoginForm() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const conviteToken = searchParams.get("convite");
   const urlError = searchParams.get("error");
 
@@ -28,6 +30,20 @@ function LoginForm() {
         : null
   );
   const [loading, setLoading] = useState(false);
+  const [checking, setChecking] = useState(true);
+
+  // Client-side session check: if the user has a valid session
+  // (e.g., Safari restored cookies), redirect instead of showing login
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        router.replace(conviteToken ? `/convite/${conviteToken}` : "/dashboard");
+      } else {
+        setChecking(false);
+      }
+    });
+  }, [router, conviteToken]);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -40,6 +56,14 @@ function LoginForm() {
     if (!result?.error && conviteToken) {
       window.location.href = `/convite/${conviteToken}`;
     }
+  }
+
+  if (checking) {
+    return (
+      <div className="bg-white rounded-2xl shadow-lg p-8 text-center min-h-[500px] flex items-center justify-center">
+        <p className="text-muted">Carregando...</p>
+      </div>
+    );
   }
 
   return (

@@ -65,7 +65,7 @@ export async function signIn(formData: FormData) {
     httpOnly: true,
     secure: true,
     sameSite: "lax",
-    maxAge: 60, // Short-lived; only needed during sign-in
+    maxAge: rememberMe ? 60 * 60 * 24 * 30 : 0, // 30 days if checked, session if not
   });
 
   const supabase = await createClient();
