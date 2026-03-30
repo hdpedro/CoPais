@@ -3,31 +3,72 @@
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 
+const LS_KEY = "kindar-auth-backup";
+
 /**
- * Client-side auth session manager.
- * Mirrors the pattern used in the Hospeda app:
- * - Creates a Supabase browser client on mount
- * - Listens to onAuthStateChange to handle token refreshes
- * - autoRefreshToken keeps the session alive while the tab is open
- * - When Safari reopens after being closed, the initial getSession()
- *   reads tokens from cookies and triggers a refresh if needed
+ * Client-side auth session manager with localStorage backup.
+ *
+ * Safari/iOS aggressively clears cookies (ITP), but NEVER clears localStorage.
+ * This component:
+ * 1. On every auth state change, backs up tokens to localStorage
+ * 2. On mount, if cookies are gone but localStorage has tokens,
+ *    restores the session (which writes back to cookies)
  */
 export default function AuthSessionProvider() {
   useEffect(() => {
     const supabase = createClient();
 
-    // Force an initial session check — this reads tokens from cookies
-    // and triggers a refresh if the access token is expired.
-    supabase.auth.getSession();
+    // Try to restore session: first from cookies, then from localStorage
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        // Session exists in cookies — back it up to localStorage
+        try {
+          localStorage.setItem(
+            LS_KEY,
+            JSON.stringify({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+            })
+          );
+        } catch {}
+      } else {
+        // No session in cookies — try restoring from localStorage backup
+        try {
+          const backup = localStorage.getItem(LS_KEY);
+          if (backup) {
+            const { access_token, refresh_token } = JSON.parse(backup);
+            if (access_token && refresh_token) {
+              // setSession validates tokens and triggers a refresh if needed.
+              // On success, the Supabase client writes new tokens to cookies
+              // via the setAll callback, restoring the server-side session.
+              supabase.auth.setSession({ access_token, refresh_token });
+            }
+          }
+        } catch {}
+      }
+    });
 
-    // Listen for auth state changes (TOKEN_REFRESHED, SIGNED_IN, etc.)
-    // This ensures cookies are updated when the client refreshes tokens.
+    // Listen for auth state changes
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, _session) => {
-      // The Supabase client automatically writes refreshed tokens
-      // to cookies via the setAll callback in createBrowserClient.
-      // No additional action needed here.
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_OUT") {
+        // Clear localStorage backup on logout
+        try {
+          localStorage.removeItem(LS_KEY);
+        } catch {}
+      } else if (session) {
+        // Back up tokens on every auth event (SIGNED_IN, TOKEN_REFRESHED, etc.)
+        try {
+          localStorage.setItem(
+            LS_KEY,
+            JSON.stringify({
+              access_token: session.access_token,
+              refresh_token: session.refresh_token,
+            })
+          );
+        } catch {}
+      }
     });
 
     return () => {
