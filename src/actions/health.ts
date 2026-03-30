@@ -919,6 +919,62 @@ export async function createVaccinationRecord(formData: FormData) {
 }
 
 // ---------------------------------------------------------------------------
+// 12b. createVaccinationRecordBatch (no redirect — for batch imports)
+// ---------------------------------------------------------------------------
+
+export async function createVaccinationRecordBatch(formData: FormData): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const groupId = formData.get("groupId") as string;
+  await verifyMembership(supabase, groupId, user.id);
+
+  const childId = formData.get("childId") as string;
+  const vaccineName = sanitizeText(formData.get("vaccineName") as string, 200);
+  const doseLabel = sanitizeText(formData.get("doseLabel") as string, 100);
+  const administeredDate = formData.get("administeredDate") as string;
+  const batchNumber = sanitizeText(formData.get("batchNumber") as string, 100);
+  const location = sanitizeText(formData.get("location") as string, 200);
+  const notes = sanitizeText(formData.get("notes") as string, 2000);
+
+  const { error } = await supabase.from("vaccination_records").insert({
+    group_id: groupId,
+    child_id: childId,
+    vaccine_name: vaccineName,
+    dose_label: doseLabel || null,
+    administered_date: administeredDate || null,
+    batch_number: batchNumber || null,
+    location: location || null,
+    notes: notes || null,
+    created_by: user.id,
+  });
+
+  if (error) return { success: false, error: error.message };
+
+  captureServerEvent(user.id, "vaccine_recorded");
+
+  // Push notification to other group members (only on first call ideally, but safe to fire)
+  try {
+    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
+    if (otherMembers.length > 0) {
+      await sendPushToUsers(otherMembers, {
+        title: "Vacina registrada",
+        body: `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`,
+        url: "/saude/vacinas",
+        tag: "health_vaccine",
+      });
+    }
+  } catch {
+    // Push failure should not break the action
+  }
+
+  revalidatePath("/saude/vacinas");
+  return { success: true };
+}
+
+// ---------------------------------------------------------------------------
 // 13. createGrowthRecord
 // ---------------------------------------------------------------------------
 
@@ -1002,4 +1058,37 @@ export async function createGrowthRecord(formData: FormData) {
 
   revalidatePath("/saude/crescimento");
   redirect("/saude/crescimento?success=Medida+registrada");
+}
+
+// ---------------------------------------------------------------------------
+// regenerateEmergencyToken
+// ---------------------------------------------------------------------------
+
+export async function regenerateEmergencyToken(formData: FormData) {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const childId = formData.get("childId") as string;
+  const groupId = formData.get("groupId") as string;
+
+  if (!childId || !groupId) {
+    redirect("/saude/emergencia?error=" + encodeURIComponent("Dados inválidos."));
+  }
+
+  await verifyMembership(supabase, groupId, user.id);
+  await verifyChildInGroup(supabase, childId, groupId);
+
+  const serviceClient = getServiceClient();
+
+  const { error } = await serviceClient
+    .from("children")
+    .update({ emergency_token: crypto.randomUUID() })
+    .eq("id", childId);
+
+  if (error) {
+    redirect("/saude/emergencia?error=" + encodeURIComponent(error.message));
+  }
+
+  revalidatePath("/saude/emergencia");
+  redirect(`/saude/emergencia?crianca=${childId}&success=` + encodeURIComponent("QR Code regenerado com sucesso."));
 }

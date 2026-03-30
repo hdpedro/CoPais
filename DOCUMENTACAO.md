@@ -40,7 +40,7 @@ src/
 ├── app/
 │   ├── (auth)/       # Rotas publicas (login, signup, etc.)
 │   ├── (app)/        # Rotas protegidas (dashboard, calendario, etc.)
-│   └── api/          # API Routes (12 endpoints)
+│   └── api/          # API Routes (13 endpoints)
 ├── components/       # Componentes globais (13 arquivos)
 │   ├── BottomNav.tsx, Sidebar.tsx, ResponsiveShell.tsx
 │   ├── GroupSelector.tsx, LanguageSelector.tsx
@@ -605,6 +605,7 @@ Hub central de saude com sub-modulos:
 - **Vacinas** (`/saude/vacinas`): comparacao com calendario SBP, doses, lotes, local aplicacao, confirmacao de dose (`ConfirmDoseButton`)
 - **Crescimento** (`/saude/crescimento`): peso, altura, perimetro cefalico, **grafico visual** (`GrowthChart`), comparacao WHO
 - **Profissionais** (`/saude/profissionais`): diretorio com especialidade, CRM, telefone, WhatsApp
+- **Ficha de Emergencia** (`/saude/emergencia`): gera QR Code com dados criticos de saude (tipo sanguineo, alergias, medicacoes, convenio/SUS, contatos, pediatra). Endpoint publico `/api/health/emergency/[childId]?token=...` renderiza HTML auto-contido. Token UUID por crianca (`emergency_token` na tabela `children`). Botoes de compartilhar, copiar link e regenerar QR. Checklist visual dos dados preenchidos
 - **Exportacao** (`/saude/export`): exportar registros de saude
 - **Rastreamento de visualizacoes**: `HealthViewTracker` registra quem viu, `ViewedByBadge` (i18n) mostra badges
 - **Botao generico de submit**: `SubmitButton` reutilizavel
@@ -728,6 +729,16 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - **Navegacao**: acessivel a partir de `/calendario/novo` via atalho "Via convite"
 - **i18n**: todas as strings em `inviteParser.*` nos 5 idiomas
 
+### 27b. Leitor de Carteirinha de Vacinacao (`/saude/vacinas/carteirinha`)
+- Upload de foto da carteirinha de vacinacao brasileira
+- **Vision AI** (multi-provider: Groq → Together → Gemini) analisa a imagem e extrai todas as vacinas visiveis
+- Extrai: nome da vacina, dose, data de aplicacao, lote, local
+- Preview editavel com lista de vacinas detectadas — usuario pode incluir/excluir, editar campos
+- Salva em lote via `createVaccinationRecordBatch` (sem redirect, para uso em batch)
+- Acessivel a partir de `/saude/vacinas` via botao "Ler carteirinha"
+- **API Route**: `POST /api/ai/parse-vaccines` — recebe imagem, comprime via sharp, Vision AI, retorna array de vacinas
+- **Componentes**: `VaccineParserClient.tsx` (client), `page.tsx` (server)
+
 ### 28. Notificacoes (`/notificacoes`)
 - Central de notificacoes in-app
 - Web push via VAPID
@@ -841,6 +852,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 | deleteAllergy | health.ts | Exclui alergia (service role) |
 | upsertMedicalInfo | health.ts | Info medica |
 | createVaccinationRecord | health.ts | Registra vacina + push |
+| createVaccinationRecordBatch | health.ts | Registra vacina em batch (sem redirect) + push |
 | trackHealthView | health.ts | Rastreia visualizacao |
 | createGrowthRecord | health.ts | Registra crescimento + push |
 | upsertChildEducation | children.ts | Info escolares |
@@ -892,6 +904,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 | `/api/ai/assistant` | POST | Assistente IA conversacional (multi-provider router, 12 tools, multi-round) |
 | `/api/ai/context` | GET | Contexto familiar para IA |
 | `/api/ai/parse-invite` | POST | Invite Parser: recebe imagem/PDF, OCR Tesseract.js + Groq LLM, retorna ParsedEventData |
+| `/api/ai/parse-vaccines` | POST | Vaccine Card Parser: recebe foto de carteirinha, Vision AI, retorna array de ParsedVaccine |
 | `/api/auth/signout` | POST | Logout via API |
 | `/api/auth/test-login` | POST | Login de teste (dev only) |
 | `/api/calendar/[token]` | GET | Feed iCalendar (RFC 5545, text/calendar) |
@@ -1017,6 +1030,7 @@ src/
 │   │   │   ├── consultas/ (ConsultasClient, CompleteAppointmentForm, WhatsAppScheduleButton)
 │   │   │   ├── crescimento/ (CrescimentoClient, GrowthChart, GrowthFormClient)
 │   │   │   ├── doencas/ (DoencasClient, ResolveButton, UpdateEpisodeForm, DoencaNovaClient, IllnessFormClient)
+│   │   │   ├── emergencia/ (EmergencyCardClient)
 │   │   │   ├── export/
 │   │   │   ├── medicamentos/ (MedicamentosClient, MedicationFormClient, [id]/)
 │   │   │   ├── profissionais/ (ProfissionaisClient, ProfessionalFormClient)

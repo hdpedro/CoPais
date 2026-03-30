@@ -13,7 +13,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **Auth & Database:** Supabase (Auth, Postgres, Realtime, RLS)
 - **Estilo:** Tailwind CSS 4
 - **Linguagem:** TypeScript 5
-- **IA:** Multi-provider Router (Groq → Together → Gemini fallback) — assistente conversacional com function calling (12 tools), parsers robustos para PT-BR; Tesseract.js (OCR) para parser de convites de festa. Vision: Groq llama-4-scout → Together Llama-Vision-Free → Gemini 2.0 Flash. Text: Groq llama-3.3-70b → Together Llama-3.3-70B-Turbo-Free → Gemini 2.0 Flash
+- **IA:** Multi-provider Router (Groq → Together → Gemini fallback) — assistente conversacional com function calling (12 tools), parsers robustos para PT-BR; Tesseract.js (OCR) para parser de convites de festa; Vision AI para leitura de carteirinha de vacinacao. Vision: Groq llama-4-scout → Together Llama-Vision-Free → Gemini 2.0 Flash. Text: Groq llama-3.3-70b → Together Llama-3.3-70B-Turbo-Free → Gemini 2.0 Flash
 - **Deploy:** Vercel
 - **Analytics:** PostHog (30+ eventos rastreados)
 - **Error Tracking:** Sentry
@@ -168,7 +168,7 @@ O app suporta **5 idiomas** completos:
 - Mensagens **imutaveis** (conformidade legal — triggers impedem DELETE/UPDATE)
 - **API Route** `/api/chat/messages` para busca de mensagens por canal
 
-### 7. Saude Completa (`/saude` — 8 sub-modulos)
+### 7. Saude Completa (`/saude` — 9 sub-modulos)
 - **Dashboard central** com doencas ativas, medicamentos, alergias, consultas, vacinas, retornos pendentes
 - **Banner de vacinas atrasadas** no dashboard de saude
 - **Doencas** (`/saude/doencas`): episodios com sintomas, severidade (leve/moderado/grave), evolucao timestamped, status (ativo/resolvido/cronico), ida ao hospital, `ResolveButton`, `UpdateEpisodeForm`. Validacao de status — rejeita valores invalidos em `updateIllnessEpisode`
@@ -178,6 +178,7 @@ O app suporta **5 idiomas** completos:
 - **Vacinas** (`/saude/vacinas`): comparacao com **calendario SBP** (Sociedade Brasileira de Pediatria), confirmacao de doses (`ConfirmDoseButton`)
 - **Crescimento** (`/saude/crescimento`): peso, altura, perimetro cefalico com **grafico visual** (`GrowthChart`), dados WHO
 - **Profissionais** (`/saude/profissionais`): diretorio com especialidade, CRM, telefone, WhatsApp
+- **Ficha de Emergencia** (`/saude/emergencia`): QR Code com dados criticos de saude para emergencias. Endpoint publico renderiza HTML auto-contido. Token UUID por crianca para seguranca
 - **Exportacao** (`/saude/export`): exportar registros de saude
 - **Rastreamento de visualizacoes** (`HealthViewTracker`, `ViewedByBadge` com i18n)
 - **Push notifications** para TODOS os eventos de saude (alergias, vacinas, consultas, crescimento)

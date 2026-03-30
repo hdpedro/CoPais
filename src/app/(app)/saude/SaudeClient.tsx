@@ -585,7 +585,7 @@ export default function SaudeClient(props: SaudeClientProps) {
         if (pageViews.length === 0) return null;
         return (
           <div className="mb-4 -mt-2">
-            <ViewedByBadge views={pageViews as any} currentUserId={userId} />
+            <ViewedByBadge views={pageViews as Array<{ viewed_by: string; viewed_at: string; profiles: { full_name: string } | null }>} currentUserId={userId} />
           </div>
         );
       })()}
@@ -892,6 +892,25 @@ export default function SaudeClient(props: SaudeClientProps) {
             </Link>
           ))}
         </div>
+      </section>
+
+      {/* Emergency Card */}
+      <section className="mb-5">
+        <Link
+          href={`/saude/emergencia?crianca=${selectedChildId}`}
+          className="flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-red-50 to-red-100 border border-red-200 hover:from-red-100 hover:to-red-200 transition-all group"
+        >
+          <div className="w-11 h-11 rounded-xl bg-red-600 flex items-center justify-center flex-shrink-0 group-hover:scale-110 transition-transform">
+            <span className="text-xl text-white">&#9877;&#65039;</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-red-900">{t("health.emergencyCard")}</p>
+            <p className="text-[11px] text-red-700/70">{t("health.emergencyCardDesc")}</p>
+          </div>
+          <svg className="w-5 h-5 text-red-400 group-hover:translate-x-0.5 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+          </svg>
+        </Link>
       </section>
     </div>
   );

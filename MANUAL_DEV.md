@@ -1311,6 +1311,16 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - **i18n**: chaves `inviteParser.*` em todos os 5 idiomas
 - **Free tier**: Tesseract.js gratuito + Groq API gratuita
 
+### Leitor de Carteirinha de Vacinacao
+- **Rota**: `/saude/vacinas/carteirinha`
+- **API Route** `POST /api/ai/parse-vaccines`: recebe foto da carteirinha, comprime via `sharp` (`compressImageForVision`), envia para Vision AI via `routeVisionRequest`, retorna array de `ParsedVaccine`
+- **Vision AI** extrai: nome da vacina, dose, data de aplicacao, lote, local de aplicacao
+- Suporta vacinas brasileiras comuns: BCG, Hepatite B, Pentavalente, VIP/VOP, Rotavirus, Pneumo 10, Meningo C, Febre Amarela, Triplice Viral, etc.
+- Preview editavel com checkbox por vacina, campos editaveis, botao remover
+- Salva em lote via `createVaccinationRecordBatch` (server action sem redirect)
+- Acessivel via botao "Ler carteirinha" na pagina `/saude/vacinas`
+- Loga resultados em `ai_event_logs` com `parser_type: "vaccine-card-vision"`
+
 ### Atividades e Calendario
 - Activity report modal reseta campos ao abrir nova atividade
 - Fix de cor de texto no textarea do ActivityReportModal (adicionada cor explicita e placeholder color para evitar texto invisivel)

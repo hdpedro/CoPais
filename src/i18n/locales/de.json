@@ -526,6 +526,8 @@
     "healthProfessionals": "Gesundheitsfachkräfte",
     "allergiesAndMedicalInfo": "Allergien & Med. Info",
     "importantMedicalInfo": "Wichtige medizinische Informationen",
+    "emergencyCard": "Notfallkarte",
+    "emergencyCardDesc": "QR-Code mit Gesundheitsdaten für Notfälle",
     "add": "+ Hinzufügen",
     "noAllergiesRegistered": "Keine Allergien registriert.",
     "registerAllergiesToKeepHistory": "Registrieren Sie Allergien, um die Historie aktuell zu halten.",

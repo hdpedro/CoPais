@@ -292,10 +292,16 @@ export default function VacinasClient({
       </div>
 
       {!isReadonly && (
-        <Link href="/saude/vacinas/nova" className="fixed bottom-24 left-1/2 -translate-x-1/2 z-10 inline-flex items-center gap-2 px-5 py-3 bg-accent text-white text-sm font-semibold rounded-full shadow-lg hover:shadow-xl transition-all">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-          {t("health.registerVaccine")}
-        </Link>
+        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+          <Link href={`/saude/vacinas/carteirinha?crianca=${selectedChildId}`} className="inline-flex items-center gap-2 px-4 py-3 bg-white text-[#C07055] text-sm font-semibold rounded-full shadow-lg hover:shadow-xl transition-all border border-[#C07055]">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><circle cx="12" cy="13" r="3" stroke="currentColor" strokeWidth={2} /></svg>
+            Ler carteirinha
+          </Link>
+          <Link href="/saude/vacinas/nova" className="inline-flex items-center gap-2 px-5 py-3 bg-accent text-white text-sm font-semibold rounded-full shadow-lg hover:shadow-xl transition-all">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+            {t("health.registerVaccine")}
+          </Link>
+        </div>
       )}
     </div>
   );
