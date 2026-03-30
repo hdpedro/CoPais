@@ -10,7 +10,7 @@ import { PilotParser } from "./pilot-parser";
 
 /**
  * Returns the appropriate parser based on AI_MODE env var.
- * Default: "pilot" (free tier — Tesseract + Groq)
+ * Default: "pilot" (free tier — Groq Vision, single API call)
  * Future:  "production" (Google Vision + Claude/GPT)
  */
 export function getEventParser(): EventParser {

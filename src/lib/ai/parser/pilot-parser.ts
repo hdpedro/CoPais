@@ -1,11 +1,11 @@
 /* ------------------------------------------------------------------ */
-/* PilotParser — free tier: Tesseract.js + Groq                        */
+/* PilotParser — free tier: Groq Vision (single API call)              */
+/* No more Tesseract.js — image goes directly to vision model          */
 /* ------------------------------------------------------------------ */
 
 import { EventParser } from "./event-parser.interface";
 import { ParseResult, ParserMetadata } from "./types";
-import { extractText } from "./ocr";
-import { parseEventFromText } from "./groq-event-parser";
+import { parseEventFromImage } from "./groq-vision-parser";
 
 export class PilotParser implements EventParser {
   async parse(
@@ -14,30 +14,15 @@ export class PilotParser implements EventParser {
     const start = Date.now();
 
     try {
-      // 1. Convert file to buffer for OCR
+      // 1. Convert file to base64
       const buffer = Buffer.from(await file.arrayBuffer());
+      const base64 = buffer.toString("base64");
+      const mimeType = file.type || "image/jpeg";
 
-      // 2. Extract text via Tesseract
-      const { text: rawText, confidence } = await extractText(buffer);
+      // 2. Send image directly to Groq vision model
+      const { data, rawText } = await parseEventFromImage(base64, mimeType);
 
-      if (!rawText || rawText.length < 10) {
-        return {
-          success: false,
-          data: null,
-          rawText: rawText || "",
-          error: "Não foi possível extrair texto do arquivo. Tente uma imagem mais nítida.",
-          metadata: {
-            ocrConfidence: confidence,
-            processingTimeMs: Date.now() - start,
-            parserType: "pilot",
-          },
-        };
-      }
-
-      // 3. Parse text with Groq LLM
-      const data = await parseEventFromText(rawText);
-
-      // 4. Validate minimum fields
+      // 3. Validate minimum fields
       const hasMinimum = data.title || data.date;
 
       return {
@@ -48,7 +33,6 @@ export class PilotParser implements EventParser {
           ? undefined
           : "Não foi possível identificar um evento no convite. Verifique se a imagem contém informações de data e título.",
         metadata: {
-          ocrConfidence: confidence,
           processingTimeMs: Date.now() - start,
           parserType: "pilot",
         },

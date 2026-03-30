@@ -35,7 +35,6 @@
     "posthog-node": "^5.28.5",
     "react": "19.2.3",
     "react-dom": "19.2.3",
-    "tesseract.js": "^7.0.0",
     "web-push": "^3.6.7"
   },
   "devDependencies": {
