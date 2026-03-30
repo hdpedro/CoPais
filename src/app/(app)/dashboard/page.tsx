@@ -4,8 +4,7 @@ import { getActiveGroup } from "@/lib/group-utils";
 import { autoAcceptPendingInvitations } from "@/actions/invitation";
 import { formatDateKey, computeSwapBalance, getBrazilNow, getBrazilToday, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
 import { getOccurrences, parseDaysOfWeek, type ActivityRecurrence } from "@/lib/recurrence-utils";
-import { PARENT_COLORS, EXPENSE_CATEGORIES, ACTIVITY_CATEGORIES, DAY_NAMES, MONTH_NAMES, getDisplayName } from "@/lib/constants";
-import { getHolidaysForYear } from "@/lib/brazilian-holidays";
+import { PARENT_COLORS, DAY_NAMES, MONTH_NAMES, getDisplayName } from "@/lib/constants";
 import dynamic from "next/dynamic";
 import type { DashboardClientProps } from "./DashboardClient";
 
@@ -24,6 +23,7 @@ const DashboardClient = dynamic(() => import("./DashboardClient"), {
 });
 
 export default async function DashboardPage() {
+  const nowMs = Date.now(); // eslint-disable-line react-hooks/purity
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -50,14 +50,14 @@ export default async function DashboardPage() {
   // === BATCH 2: members + children (parallel, need groupId) ===
   const [{ data: members }, { data: children }] = await Promise.all([
     supabase.from("group_members").select("user_id, role, profiles(id, full_name, email)").eq("group_id", groupId).order("joined_at")
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     supabase.from("children").select("*").eq("group_id", groupId)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
   ]);
 
   const parentColors: ParentColorMap = {};
   members?.forEach((m, i) => {
-    const p = m.profiles as any;
+    const p = m.profiles as unknown as { full_name: string | null } | null;
     parentColors[m.user_id] = {
       name: getDisplayName(p?.full_name, true),
       color: i === 0 ? PARENT_COLORS.primary : PARENT_COLORS.secondary,
@@ -110,68 +110,68 @@ export default async function DashboardPage() {
       .select("id, start_date, end_date, responsible_user_id, child_id, custody_type, notes, group_id, created_by, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
       .eq("group_id", groupId).gte("end_date", formatDateKey(threeMonthsAgo))
       .lte("start_date", formatDateKey(threeMonthsAhead)).order("start_date")
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Monthly expenses
     supabase.from("expenses")
       .select("amount, paid_by, status, split_ratio")
       .eq("group_id", groupId).gte("expense_date", monthStart).lt("expense_date", monthEnd)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Pending swaps
     supabase.from("swap_requests")
       .select("id, status, created_at, original_date, proposed_date, reason, type, requester_id, target_user_id, requester:profiles!swap_requests_requester_id_fkey(full_name)")
       .eq("group_id", groupId).eq("status", "pending").eq("target_user_id", user.id)
       .order("created_at", { ascending: false }).limit(3)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Active medications
     supabase.from("active_medications")
       .select("id, name, dosage, frequency, child_id, children(full_name)")
       .eq("group_id", groupId).eq("status", "active")
       .order("created_at", { ascending: false }).limit(5)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Critical allergies
     supabase.from("child_allergies")
       .select("id, name, severity, allergy_type, child_id, children(full_name)")
       .eq("group_id", groupId).in("severity", ["severe", "moderate"]).limit(5)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Upcoming appointments
     supabase.from("medical_appointments")
       .select("id, title, appointment_date, status, child_id, children(full_name), medical_professionals(name, specialty)")
       .eq("group_id", groupId).eq("status", "scheduled")
       .gte("appointment_date", now.toISOString()).lte("appointment_date", sevenDaysAhead.toISOString())
       .order("appointment_date").limit(3)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Active illnesses
     supabase.from("illness_episodes")
       .select("id, title, symptoms, start_date, child_id, children(full_name)")
       .eq("group_id", groupId).eq("status", "active")
       .order("start_date", { ascending: false }).limit(3)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Recent check-ins
     supabase.from("daily_checkins")
       .select("id, category, title, notes, checkin_date, created_at, child_id, logged_by, children(full_name), profiles!daily_checkins_logged_by_fkey(full_name)")
       .eq("group_id", groupId).gte("checkin_date", formatDateKey(yesterday))
       .order("created_at", { ascending: false }).limit(4)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Pending expenses awaiting MY approval (created by others, status=pending)
     supabase.from("expenses")
       .select("id, description, amount, category, expense_date, paid_by, profiles!expenses_paid_by_fkey(full_name)")
       .eq("group_id", groupId).eq("status", "pending").neq("paid_by", user.id)
       .order("created_at", { ascending: false }).limit(5)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Open decisions (for pending decisions widget)
     supabase.from("decisions")
       .select("id, title, category, deadline, status")
       .eq("group_id", groupId).eq("status", "aberta")
       .order("created_at", { ascending: false })
       .limit(20)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Active activities (moved from sequential to parallel)
     supabase
       .from("child_activities")
       .select("id, name, category, time_start, time_end, location, child_id, recurrence_type, start_date, end_date, days_of_week, day_of_month, custom_interval, custom_unit, children(full_name), activity_checklist_items(id, name)")
       .eq("group_id", groupId)
       .eq("is_active", true)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     // Social events for today/tomorrow/upcoming (moved from sequential to parallel)
     supabase
       .from("events")
@@ -180,7 +180,7 @@ export default async function DashboardPage() {
       .neq("status", "cancelled")
       .gte("event_date", todayKey)
       .lte("event_date", sevenDaysKey)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
   ]);
 
   // Filter decisions where user hasn't voted yet
@@ -215,19 +215,30 @@ export default async function DashboardPage() {
 
   // Process activities for today/tomorrow/upcoming (queries already fetched in BATCH 3)
 
-  const tomorrowActivities: any[] = [];
-  const todayActivities: any[] = [];
-  const upcomingActivities: { act: any; date: string; dayLabel: string }[] = [];
+  interface DashActivityItem {
+    id: string;
+    name: string;
+    category: string;
+    time_start: string | null;
+    time_end?: string | null;
+    location: string | null;
+    children: { full_name: string | null } | { full_name: string | null }[] | null;
+    activity_checklist_items: { id: string; name: string }[];
+  }
+
+  const tomorrowActivities: DashActivityItem[] = [];
+  const todayActivities: DashActivityItem[] = [];
+  const upcomingActivities: { act: DashActivityItem; date: string; dayLabel: string }[] = [];
 
   for (const act of allActivities || []) {
     const recurrence: ActivityRecurrence = {
-      recurrence_type: act.recurrence_type as any,
+      recurrence_type: act.recurrence_type as ActivityRecurrence["recurrence_type"],
       start_date: act.start_date,
       end_date: act.end_date,
       days_of_week: parseDaysOfWeek(act.days_of_week),
       day_of_month: act.day_of_month,
       custom_interval: act.custom_interval || 1,
-      custom_unit: (act.custom_unit as any) || "week",
+      custom_unit: (act.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
     };
     if (getOccurrences(recurrence, todayKey, todayKey).length > 0) {
       // Only show today's activities that haven't ended yet
@@ -297,13 +308,13 @@ export default async function DashboardPage() {
   const pendingReportPairs: { activityId: string; activityName: string; category: string; childName: string; occurrenceDate: string }[] = [];
   for (const act of allActivities || []) {
     const recurrence: ActivityRecurrence = {
-      recurrence_type: act.recurrence_type as any,
+      recurrence_type: act.recurrence_type as ActivityRecurrence["recurrence_type"],
       start_date: act.start_date,
       end_date: act.end_date,
       days_of_week: parseDaysOfWeek(act.days_of_week),
       day_of_month: act.day_of_month,
       custom_interval: act.custom_interval || 1,
-      custom_unit: (act.custom_unit as any) || "week",
+      custom_unit: (act.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
     };
     const pastOccs = getOccurrences(recurrence, sevenDaysAgoKey, yesterdayKey2);
     for (const occ of pastOccs) {
@@ -311,7 +322,7 @@ export default async function DashboardPage() {
         activityId: act.id,
         activityName: act.name,
         category: act.category,
-        childName: (act.children as any)?.full_name?.split(" ")[0] || "",
+        childName: (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "",
         occurrenceDate: occ,
       });
     }
@@ -330,7 +341,7 @@ export default async function DashboardPage() {
       .lte("occurrence_date", yesterdayKey2);
 
     const reportedSet = new Set(
-      (existingReportsData || []).map((r: any) => `${r.activity_id}:${r.occurrence_date}`)
+      (existingReportsData || []).map((r: { activity_id: string; occurrence_date: string }) => `${r.activity_id}:${r.occurrence_date}`)
     );
     pendingReportsFinal = pendingReportPairs.filter(
       (p) => !reportedSet.has(`${p.activityId}:${p.occurrenceDate}`)
@@ -343,7 +354,7 @@ export default async function DashboardPage() {
     for (const event of todayEvents) {
       const childId = event.child_id;
       if (!childId || todayCustodyByChild[childId]) continue;
-      const responsibleName = getDisplayName((event.profiles as any)?.full_name, true);
+      const responsibleName = getDisplayName((event.profiles as unknown as { full_name: string | null } | null)?.full_name, true);
       todayCustodyByChild[childId] = {
         responsibleId: event.responsible_user_id,
         responsibleName,
@@ -489,7 +500,7 @@ export default async function DashboardPage() {
   const parentColorEntries = Object.entries(parentColors).slice(0, 2).map(([uid, { name, color }]) => ({ uid, name, color }));
 
   // Swap balance
-  const custodyEvents = (swapEvents || []) as CustodyEvent[];
+  const custodyEvents = (swapEvents || []) as unknown as CustodyEvent[];
   const swapBalance = computeSwapBalance(custodyEvents, parentColors, formatDateKey(threeMonthsAgo), formatDateKey(threeMonthsAhead));
   const mySwapDays = swapBalance.balanceByUser[user.id] || 0;
   const myColor = parentColors[user.id]?.color || PARENT_COLORS.primary;
@@ -505,7 +516,7 @@ export default async function DashboardPage() {
 
   // Pending swaps
   const pendingSwapsProps: DashboardClientProps["pendingSwaps"] = (pendingSwaps || []).map((swap) => {
-    const requesterName = getDisplayName((swap.requester as any)?.full_name, true);
+    const requesterName = getDisplayName((swap.requester as unknown as { full_name: string | null } | null)?.full_name, true);
     const swapDate = new Date(swap.original_date + "T12:00:00");
     return {
       id: swap.id,
@@ -517,7 +528,7 @@ export default async function DashboardPage() {
 
   // Next swap label
   const nextSwapLabel = nextSwapEvent
-    ? `${formatSwapDate(nextSwapEvent.start_date)} \u00B7 ${getDisplayName((nextSwapEvent.profiles as any)?.full_name, true)}`
+    ? `${formatSwapDate(nextSwapEvent.start_date)} \u00B7 ${getDisplayName((nextSwapEvent.profiles as unknown as { full_name: string | null } | null)?.full_name, true)}`
     : null;
 
   // Hero firstCustody
@@ -531,9 +542,9 @@ export default async function DashboardPage() {
 
   // Illnesses
   const illnessProps: DashboardClientProps["activeIllnesses"] = (activeIllnesses || []).map((illness) => {
-    const childName = (illness.children as any)?.full_name?.split(" ")[0] || "Crianca";
+    const childName = (illness.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
     const startDate = new Date(illness.start_date + "T12:00:00");
-    const daysAgo = Math.round((Date.now() - startDate.getTime()) / 86400000);
+    const daysAgo = Math.round((nowMs - startDate.getTime()) / 86400000);
     const symptoms = (illness.symptoms as string[])?.slice(0, 3).join(", ") || "";
     return { id: illness.id, childName, title: illness.title, daysAgo, symptoms };
   });
@@ -542,7 +553,7 @@ export default async function DashboardPage() {
   const medicationProps: DashboardClientProps["activeMedications"] = (activeMedications || []).map((m) => ({
     id: m.id,
     name: m.name,
-    childName: (m as any).children?.full_name?.split(" ")[0] || "",
+    childName: (m.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "",
   }));
 
   // Allergies
@@ -554,9 +565,9 @@ export default async function DashboardPage() {
 
   // Appointments
   const appointmentProps: DashboardClientProps["upcomingAppointments"] = (upcomingAppointments || []).map((appt) => {
-    const childName = (appt.children as any)?.full_name?.split(" ")[0] || "";
-    const profName = (appt.medical_professionals as any)?.name || "";
-    const specialty = (appt.medical_professionals as any)?.specialty || "";
+    const childName = (appt.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "";
+    const profName = (appt.medical_professionals as unknown as { name: string | null; specialty: string | null } | null)?.name || "";
+    const specialty = (appt.medical_professionals as unknown as { name: string | null; specialty: string | null } | null)?.specialty || "";
     const apptDate = new Date(appt.appointment_date);
     const isToday = formatDateKey(apptDate) === today;
     const isTomorrow = formatDateKey(apptDate) === tomorrowKey;
@@ -574,14 +585,14 @@ export default async function DashboardPage() {
   });
 
   // Activities mapper
-  const mapActivity = (act: any) => ({
+  const mapActivity = (act: DashActivityItem) => ({
     id: act.id,
     name: act.name,
     category: act.category,
-    childName: (act.children as any)?.full_name?.split(" ")[0] || "",
+    childName: (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "",
     timeStr: act.time_start ? act.time_start.slice(0, 5) : "",
     location: act.location || "",
-    checklistItems: ((act.activity_checklist_items as any[]) || []).map((i: any) => i.name),
+    checklistItems: (act.activity_checklist_items || []).map((i) => i.name),
   });
 
   const todayActivitiesProps = todayActivities.map(mapActivity);
@@ -593,8 +604,8 @@ export default async function DashboardPage() {
   }));
 
   // Pending expenses
-  const pendingExpenseProps: DashboardClientProps["pendingExpenses"] = (pendingExpenses || []).map((exp: any) => {
-    const paidByName = getDisplayName((exp.profiles as any)?.full_name, true);
+  const pendingExpenseProps: DashboardClientProps["pendingExpenses"] = (pendingExpenses || []).map((exp) => {
+    const paidByName = getDisplayName((exp.profiles as unknown as { full_name: string | null } | null)?.full_name, true);
     const expDate = new Date(exp.expense_date + "T12:00:00");
     return {
       id: exp.id,
@@ -610,10 +621,10 @@ export default async function DashboardPage() {
   const upcomingEventsProps: DashboardClientProps["upcomingEvents"] = (upcomingEvents || []).map((event) => {
     const rid = event.responsible_user_id;
     const isMe = rid === user.id;
-    const rName = getDisplayName((event.profiles as any)?.full_name, true);
+    const rName = getDisplayName((event.profiles as unknown as { full_name: string | null } | null)?.full_name, true);
     const color = parentColors[rid]?.color || PARENT_COLORS.secondary;
     const eDate = new Date(event.start_date + "T12:00:00");
-    const childName = (event.children as any)?.full_name?.split(" ")[0] || "";
+    const childName = (event.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "";
     const hasNote = event.notes && !event.notes.includes("Gerado pela escala");
     return {
       id: event.id,
@@ -633,9 +644,9 @@ export default async function DashboardPage() {
   const birthMonthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
   const childCards: DashboardClientProps["childCards"] = (children || []).map((child) => {
     const custody = todayCustodyByChild[child.id];
-    const age = Math.floor((Date.now() - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+    const age = Math.floor((nowMs - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
     const birthDate = new Date(child.birth_date);
-    const childCheckin = recentCheckins?.find((ci) => (ci.children as any)?.full_name === child.full_name);
+    const childCheckin = recentCheckins?.find((ci) => (ci.children as unknown as { full_name: string | null } | null)?.full_name === child.full_name);
     const checkinIsToday = childCheckin ? childCheckin.checkin_date === today : false;
     return {
       id: child.id,

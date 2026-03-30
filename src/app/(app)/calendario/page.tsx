@@ -53,7 +53,7 @@ export default async function CalendarPage() {
       .select("user_id, role, joined_at, profiles(full_name)")
       .eq("group_id", groupId)
       .order("joined_at", { ascending: true })
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("custody_events")
       .select("id, start_date, end_date, responsible_user_id, child_id, custody_type, notes, group_id, created_by, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
@@ -61,13 +61,13 @@ export default async function CalendarPage() {
       .gte("end_date", rangeStart)
       .lte("start_date", rangeEnd)
       .order("start_date")
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("child_activities")
       .select("id, name, category, recurrence_type, start_date, end_date, days_of_week, day_of_month, custom_interval, custom_unit, time_start, time_end, location, notes, child_id, teacher_name, class_name, room, responsible_id, children(full_name), activity_checklist_items(id, name, sort_order)")
       .eq("group_id", groupId)
       .eq("is_active", true)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("events")
       .select("id, title, description, event_date, event_time, location, child_id, status, all_day, end_date, assigned_to, children(full_name)")
@@ -75,7 +75,7 @@ export default async function CalendarPage() {
       .neq("status", "cancelled")
       .gte("event_date", rangeStart)
       .lte("event_date", rangeEnd)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("medical_appointments")
       .select("id, title, appointment_type, appointment_date, location, child_id, status, children(full_name)")
@@ -83,7 +83,7 @@ export default async function CalendarPage() {
       .eq("status", "scheduled")
       .gte("appointment_date", rangeStart + "T00:00:00-03:00")
       .lte("appointment_date", rangeEnd + "T23:59:59-03:00")
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("swap_requests")
       .select("id, original_date, proposed_date, reason, status, created_at, requester_id, target_user_id, type, swap_type, requester:profiles!swap_requests_requester_id_fkey(full_name), target:profiles!swap_requests_target_user_id_fkey(full_name)")
@@ -91,18 +91,18 @@ export default async function CalendarPage() {
       .in("status", ["pending", "approved"])
       .order("created_at", { ascending: false })
       .limit(10)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("activity_reports")
       .select("activity_id, occurrence_date, status, notes, child_mood, responsible_override, responsible_override_id, overrides")
       .eq("group_id", groupId)
       .gte("occurrence_date", rangeStart)
       .lte("occurrence_date", rangeEnd)
-      .then(r => r, () => ({ data: [] as any[] })),
+      .then(r => r, () => ({ data: [] as never[] })),
   ]);
 
   // Fetch checklist completions for the visible range
-  const activityIds = (rawActivities || []).map((a: any) => a.id);
+  const activityIds = (rawActivities || []).map((a: { id: string }) => a.id);
   let checklistCompletions: { activity_id: string; item_id: string; occurrence_date: string }[] = [];
   if (activityIds.length > 0) {
     const { data: completions } = await supabase
@@ -144,7 +144,7 @@ export default async function CalendarPage() {
     }
   });
 
-  const custodyEvents = (events || []) as CustodyEvent[];
+  const custodyEvents = (events || []) as unknown as CustodyEvent[];
   const custodyMap = buildCustodyMap(custodyEvents, allMembersMap);
 
   // Convert map to serializable object for client
@@ -205,9 +205,9 @@ export default async function CalendarPage() {
         status: r.status,
         notes: r.notes,
         child_mood: r.child_mood,
-        responsible_override: (r as any).responsible_override || null,
-        responsible_override_id: (r as any).responsible_override_id || null,
-        overrides: (r as any).overrides || null,
+        responsible_override: r.responsible_override || null,
+        responsible_override_id: r.responsible_override_id || null,
+        overrides: r.overrides || null,
       };
     }
   }
@@ -223,19 +223,19 @@ export default async function CalendarPage() {
   if (rawActivities) {
     for (const act of rawActivities) {
       const recurrence: ActivityRecurrence = {
-        recurrence_type: act.recurrence_type as any,
+        recurrence_type: act.recurrence_type as ActivityRecurrence["recurrence_type"],
         start_date: act.start_date,
         end_date: act.end_date,
         days_of_week: parseDaysOfWeek(act.days_of_week),
         day_of_month: act.day_of_month,
         custom_interval: act.custom_interval || 1,
-        custom_unit: (act.custom_unit as any) || "week",
+        custom_unit: (act.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
       };
       const occurrences = getOccurrences(recurrence, rangeStart, rangeEnd);
-      const childName = (act.children as any)?.full_name?.split(" ")[0] || "Todos";
-      const rawChecklistItems = ((act.activity_checklist_items as any[]) || []).sort((a: any, b: any) => (a.sort_order || 0) - (b.sort_order || 0));
+      const childName = (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Todos";
+      const rawChecklistItems = ((act.activity_checklist_items as { id: string; name: string; sort_order: number }[]) || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       const checklistCount = rawChecklistItems.length;
-      const responsibleName = (act as any).responsible_id ? (memberNames[(act as any).responsible_id] || null) : null;
+      const responsibleName = act.responsible_id ? (memberNames[act.responsible_id as string] || null) : null;
       for (const dateKey of occurrences) {
         const report = reportLookup[`${act.id}:${dateKey}`] || null;
         // Skip cancelled occurrences (single-day deletions)
@@ -243,7 +243,7 @@ export default async function CalendarPage() {
         if (!activityDateMap[dateKey]) activityDateMap[dateKey] = [];
         // Build checklist items with completion status for this date
         const completedSet = completionsLookup[`${act.id}:${dateKey}`] || new Set<string>();
-        const checklistItems = rawChecklistItems.map((item: any) => ({
+        const checklistItems = rawChecklistItems.map((item) => ({
           id: item.id,
           name: item.name,
           completed: completedSet.has(item.id),
@@ -255,17 +255,17 @@ export default async function CalendarPage() {
           name: (ov?.name as string) || act.name,
           category: act.category,
           time_start: ov?.time_start !== undefined ? (ov.time_start as string | null) : act.time_start,
-          time_end: ov?.time_end !== undefined ? (ov.time_end as string | null) : ((act as any).time_end || null),
+          time_end: ov?.time_end !== undefined ? (ov.time_end as string | null) : (act.time_end || null),
           location: ov?.location !== undefined ? (ov.location as string | null) : act.location,
           childName,
           checklistCount,
-          description: ov?.notes !== undefined ? (ov.notes as string | null) : ((act as any).notes || null),
+          description: ov?.notes !== undefined ? (ov.notes as string | null) : (act.notes || null),
           report,
           recurrence_type: act.recurrence_type,
-          teacher_name: ov?.teacher_name !== undefined ? (ov.teacher_name as string | null) : ((act as any).teacher_name || null),
-          class_name: ov?.class_name !== undefined ? (ov.class_name as string | null) : ((act as any).class_name || null),
-          room: ov?.room !== undefined ? (ov.room as string | null) : ((act as any).room || null),
-          responsible_id: ov?.responsible_id !== undefined ? (ov.responsible_id as string | null) : ((act as any).responsible_id || null),
+          teacher_name: ov?.teacher_name !== undefined ? (ov.teacher_name as string | null) : (act.teacher_name || null),
+          class_name: ov?.class_name !== undefined ? (ov.class_name as string | null) : (act.class_name || null),
+          room: ov?.room !== undefined ? (ov.room as string | null) : (act.room || null),
+          responsible_id: ov?.responsible_id !== undefined ? (ov.responsible_id as string | null) : (act.responsible_id || null),
           responsible_name: ov?.responsible_id ? (memberNames[ov.responsible_id as string] || null) : responsibleName,
           checklistItems,
           source: "activity" as const,
@@ -279,7 +279,7 @@ export default async function CalendarPage() {
     for (const evt of socialEvents) {
       const dateKey = evt.event_date;
       if (!activityDateMap[dateKey]) activityDateMap[dateKey] = [];
-      const childName = (evt.children as any)?.full_name?.split(" ")[0] || "Todos";
+      const childName = (evt.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Todos";
       const assignedName = evt.assigned_to ? memberNames[evt.assigned_to] || null : null;
       activityDateMap[dateKey].push({
         id: evt.id,
@@ -303,7 +303,7 @@ export default async function CalendarPage() {
       const dateKey = apt.appointment_date?.split("T")[0];
       if (!dateKey) continue;
       if (!activityDateMap[dateKey]) activityDateMap[dateKey] = [];
-      const childName = (apt.children as any)?.full_name?.split(" ")[0] || "";
+      const childName = (apt.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "";
       const time = apt.appointment_date?.split("T")[1]?.slice(0, 5) || null;
       activityDateMap[dateKey].push({
         id: apt.id,

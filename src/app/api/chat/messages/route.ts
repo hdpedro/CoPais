@@ -53,18 +53,29 @@ export async function GET(req: NextRequest) {
   ]);
 
   // Build profile map and attach to messages
+  interface GroupMemberRow {
+    user_id: string;
+    profiles: { full_name: string | null } | { full_name: string | null }[] | null;
+  }
+  interface ChatMessageRow {
+    id: string;
+    sender_id: string;
+    text: string | null;
+    image_url: string | null;
+    channel_id: string | null;
+    read_by: string[] | null;
+    created_at: string;
+  }
+
   const profileMap = new Map<string, string>();
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  (members || []).forEach((m: any) => {
+  (members as GroupMemberRow[] || []).forEach((m) => {
     const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
     if (p?.full_name) profileMap.set(m.user_id, p.full_name);
   });
 
-  const messagesWithProfiles = (messages || [])
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .filter((msg: any) => !!(msg.text?.trim() || msg.image_url))
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    .map((msg: any) => ({
+  const messagesWithProfiles = ((messages as ChatMessageRow[]) || [])
+    .filter((msg) => !!(msg.text?.trim() || msg.image_url))
+    .map((msg) => ({
       ...msg,
       profiles: { full_name: profileMap.get(msg.sender_id) || "User" },
     }))

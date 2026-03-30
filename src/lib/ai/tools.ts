@@ -796,19 +796,16 @@ async function execGetChildren(ctx: ToolContext): Promise<ToolResult> {
   }
 
   // Fetch education info
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const childIds = data.map((c: any) => c.id);
+  const childIds = data.map((c: { id: string }) => c.id);
   const { data: education } = await ctx.supabase
     .from("child_education")
     .select("child_id, school_name, grade")
     .in("child_id", childIds);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const eduMap: Record<string, any> = {};
-  (education || []).forEach((e: any) => { eduMap[e.child_id] = e; }); // eslint-disable-line @typescript-eslint/no-explicit-any
+  const eduMap: Record<string, { child_id: string; school_name: string | null; grade: string | null }> = {};
+  (education || []).forEach((e: { child_id: string; school_name: string | null; grade: string | null }) => { eduMap[e.child_id] = e; });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const lines = data.map((c: any) => {
+  const lines = data.map((c: { id: string; full_name: string; birth_date: string | null }) => {
     const age = c.birth_date
       ? Math.floor((Date.now() - new Date(c.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
       : null;
