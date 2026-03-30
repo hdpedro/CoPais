@@ -24,8 +24,9 @@ export async function GET(request: NextRequest) {
 
   await supabase.auth.signOut();
 
-  // Clear remember_me cookie on signout
+  // Clear remember_me and session flag cookies on signout
   response.cookies.set("remember_me", "", { maxAge: 0, path: "/" });
+  response.cookies.set("kindar-has-session", "", { maxAge: 0, path: "/" });
 
   return response;
 }

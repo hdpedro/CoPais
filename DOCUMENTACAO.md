@@ -92,6 +92,14 @@ Todos os PostgREST FK joins (ex: `expenses(*, profiles(*))`) foram **removidos**
 6. **Todas as Server Actions usam `getUser()`** (nao `getSession()`) para verificacao segura de autenticacao
 7. **Remember-me**: checkbox "Lembrar-me" no login — se marcado (padrao), sessao persiste 30 dias via cookie `maxAge`; se desmarcado, cookie expira ao fechar o navegador (fix Safari/iOS)
 8. **Middleware usa `getUser()`** em vez de `getSession()` (`src/lib/supabase/middleware.ts`): `getSession()` apenas le o JWT localmente sem chamada de rede, entao nunca renova access tokens expirados. Em Safari, ao fechar e reabrir o navegador apos o access token expirar (~1h), o middleware via `getSession()` via sessao expirada e redirecionava para login. `getUser()` faz chamada de rede ao Supabase Auth, valida a sessao e dispara refresh do token quando o access token expirou mas o refresh token ainda e valido
+9. **Safari ITP Session Recovery** (cookie `kindar-has-session` + localStorage backup):
+   - Safari ITP pode limpar cookies de autenticacao ao fechar o navegador
+   - `AuthSessionProvider` (`src/components/AuthSessionProvider.tsx`) faz backup dos tokens no localStorage a cada mudanca de auth
+   - Cookie `kindar-has-session` (1 ano, httpOnly, server-set) indica que o usuario ja teve sessao valida
+   - Quando middleware nao encontra sessao nos cookies mas `kindar-has-session` existe, permite o request passar (em vez de redirecionar para `/login`)
+   - Client-side `AuthSessionProvider` restaura sessao via `setSession()` com tokens do localStorage e faz reload
+   - Flag `sessionStorage('kindar-recovering')` previne loops infinitos de reload
+   - No logout, tanto localStorage backup quanto cookie `kindar-has-session` sao limpos
 
 ---
 

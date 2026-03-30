@@ -83,6 +83,16 @@ export async function signIn(formData: FormData) {
     return { error: translateAuthError(error.message) };
   }
 
+  // Set long-lived flag so middleware knows user had a valid session.
+  // This survives Safari ITP cookie clearing and enables client-side recovery.
+  cookieStore.set("kindar-has-session", "1", {
+    path: "/",
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365, // 1 year
+  });
+
   captureServerEvent(email, "user_login", { has_invite: !!convite });
 
   // Don't call revalidatePath here — it triggers concurrent revalidation of
@@ -101,9 +111,10 @@ export async function signOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();
 
-  // Clear remember_me cookie
+  // Clear remember_me and session flag cookies
   const cookieStore = await cookies();
   cookieStore.set("remember_me", "", { maxAge: 0, path: "/" });
+  cookieStore.set("kindar-has-session", "", { maxAge: 0, path: "/" });
 
   redirect("/login");
 }

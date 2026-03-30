@@ -29,6 +29,15 @@ export async function GET(request: Request) {
     httpOnly: true,
   });
 
+  // Set long-lived flag for Safari ITP session recovery
+  cookieStore.set("kindar-has-session", "1", {
+    path: "/",
+    httpOnly: true,
+    secure: true,
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 365, // 1 year
+  });
+
   const supabase = await createClient();
 
   // Handle PKCE code exchange (used for email confirmation, OAuth, password reset)

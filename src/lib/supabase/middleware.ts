@@ -58,9 +58,35 @@ export async function updateSession(request: NextRequest) {
   const isRootRoute = request.nextUrl.pathname === "/";
 
   if (!user && !isPublicRoute && !isRootRoute) {
+    // Safari ITP may have cleared auth cookies but localStorage still has tokens.
+    // If kindar-has-session flag exists, the user had a valid session before.
+    // Let the page load so client-side AuthSessionProvider can restore from localStorage.
+    const hadSession = request.cookies.get("kindar-has-session")?.value === "1";
+    if (hadSession) {
+      // Allow the request through — client-side will attempt session recovery.
+      // Set a header so the client knows this is a recovery scenario.
+      supabaseResponse.headers.set("x-session-recovery", "1");
+      return supabaseResponse;
+    }
+
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);
+  }
+
+  // When user is authenticated, ensure the has-session flag is set.
+  // This long-lived cookie survives Safari ITP (server-set, HttpOnly, 1 year).
+  if (user) {
+    const hasFlag = request.cookies.get("kindar-has-session")?.value === "1";
+    if (!hasFlag) {
+      supabaseResponse.cookies.set("kindar-has-session", "1", {
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "lax",
+        maxAge: 60 * 60 * 24 * 365, // 1 year
+      });
+    }
   }
 
   // Redirect authenticated users away from auth pages

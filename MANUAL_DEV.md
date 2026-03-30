@@ -768,7 +768,12 @@ export async function minhaAction(formData: FormData) {
 5. updateSession() verifica/renova o token via cookies
 6. Se token invalido → redirect para /login
 7. Se token valido + rota de auth → redirect para /dashboard
-8. Remember-me: checkbox "Lembrar-me" (marcado por padrao) → cookie maxAge 30 dias; desmarcado → session cookie (expira ao fechar navegador). Fix de logout em Safari/iOS
+8. Remember-me: checkbox "Lembrar-me" (marcado por padrao) → cookie maxAge 30 dias; desmarcado → session cookie (expira ao fechar navegador)
+9. Safari ITP Recovery: cookie kindar-has-session (1 ano) sinaliza que usuario ja teve sessao
+   - Se middleware nao acha sessao mas kindar-has-session existe → permite request (nao redireciona)
+   - AuthSessionProvider restaura sessao via localStorage backup → reload
+   - sessionStorage flag 'kindar-recovering' previne loops de reload
+   - Logout limpa: localStorage backup + kindar-has-session + remember_me
 ```
 
 ### Migracao getSession() → getUser()

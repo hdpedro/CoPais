@@ -50,23 +50,26 @@ function LoginForm() {
         if (backup) {
           const { access_token, refresh_token } = JSON.parse(backup);
           if (access_token && refresh_token) {
-            const { data } = await supabase.auth.setSession({
+            const { data, error } = await supabase.auth.setSession({
               access_token,
               refresh_token,
             });
-            if (data.session?.user) {
+            if (!error && data.session?.user) {
               // Session restored! Cookies are now set via setAll.
               // Use window.location for full server-side reload so
               // middleware sees the fresh cookies.
               window.location.href = dest;
               return;
             }
+            // setSession failed — tokens expired or invalid
+            console.warn("[Kindar] Session recovery failed:", error?.message);
           }
           // Backup tokens were expired/invalid — clean up
           localStorage.removeItem("kindar-auth-backup");
         }
       } catch {
-        // localStorage not available or corrupt — ignore
+        // localStorage not available or corrupt — clean up
+        try { localStorage.removeItem("kindar-auth-backup"); } catch {}
       }
 
       setChecking(false);
