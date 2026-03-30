@@ -45,7 +45,7 @@ export default async function DashboardPage() {
     redirect("/onboarding");
   }
 
-  const { groupId, groupName, isReadonly } = activeGroup;
+  const { groupId, groupName, isReadonly, custodyEnabled } = activeGroup;
 
   // === BATCH 2: members + children (parallel, need groupId) ===
   const [{ data: members }, { data: children }] = await Promise.all([
@@ -106,22 +106,27 @@ export default async function DashboardPage() {
     { data: dashSocialEvents },
   ] = await Promise.all([
     // Single custody_events query covering 3-month range (replaces 5 separate queries)
-    supabase.from("custody_events")
-      .select("id, start_date, end_date, responsible_user_id, child_id, custody_type, notes, group_id, created_by, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
-      .eq("group_id", groupId).gte("end_date", formatDateKey(threeMonthsAgo))
-      .lte("start_date", formatDateKey(threeMonthsAhead)).order("start_date")
-      .then(r => r, () => ({ data: [] as never[] })),
+    // Skip entirely when custody is not enabled (saves a DB query)
+    custodyEnabled
+      ? supabase.from("custody_events")
+          .select("id, start_date, end_date, responsible_user_id, child_id, custody_type, notes, group_id, created_by, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
+          .eq("group_id", groupId).gte("end_date", formatDateKey(threeMonthsAgo))
+          .lte("start_date", formatDateKey(threeMonthsAhead)).order("start_date")
+          .then(r => r, () => ({ data: [] as never[] }))
+      : Promise.resolve({ data: [] as never[] }),
     // Monthly expenses
     supabase.from("expenses")
       .select("amount, paid_by, status, split_ratio")
       .eq("group_id", groupId).gte("expense_date", monthStart).lt("expense_date", monthEnd)
       .then(r => r, () => ({ data: [] as never[] })),
-    // Pending swaps
-    supabase.from("swap_requests")
-      .select("id, status, created_at, original_date, proposed_date, reason, type, requester_id, target_user_id, requester:profiles!swap_requests_requester_id_fkey(full_name)")
-      .eq("group_id", groupId).eq("status", "pending").eq("target_user_id", user.id)
-      .order("created_at", { ascending: false }).limit(3)
-      .then(r => r, () => ({ data: [] as never[] })),
+    // Pending swaps (skip when custody not enabled)
+    custodyEnabled
+      ? supabase.from("swap_requests")
+          .select("id, status, created_at, original_date, proposed_date, reason, type, requester_id, target_user_id, requester:profiles!swap_requests_requester_id_fkey(full_name)")
+          .eq("group_id", groupId).eq("status", "pending").eq("target_user_id", user.id)
+          .order("created_at", { ascending: false }).limit(3)
+          .then(r => r, () => ({ data: [] as never[] }))
+      : Promise.resolve({ data: [] as never[] }),
     // Active medications
     supabase.from("active_medications")
       .select("id, name, dosage, frequency, child_id, children(full_name)")
@@ -665,6 +670,8 @@ export default async function DashboardPage() {
   const hasCustody = safeAllCustody.some((e) => e.custody_type === "regular");
 
   const clientProps: DashboardClientProps = {
+    custodyEnabled,
+    groupId,
     hasCustody,
     greeting: greetingKey,
     firstName,

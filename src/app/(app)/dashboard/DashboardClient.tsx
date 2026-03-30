@@ -4,11 +4,12 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/i18n/provider";
-import { EXPENSE_CATEGORIES, ACTIVITY_CATEGORIES, PARENT_COLORS } from "@/lib/constants";
+import { EXPENSE_CATEGORIES, ACTIVITY_CATEGORIES } from "@/lib/constants";
 import type { ParentColorMap } from "@/lib/calendar-utils";
 
 const ActivityReportModal = dynamic(() => import("@/app/(app)/atividades/ActivityReportModal"), { ssr: false });
 import ShareActivityButton from "@/components/ShareActivityButton";
+import CustodyActivationCard from "@/components/CustodyActivationCard";
 
 /* ------------------------------------------------------------------ */
 /*  Serializable prop types (no functions, no Supabase, no Date)      */
@@ -141,6 +142,9 @@ interface ChildCard {
 }
 
 export interface DashboardClientProps {
+  // Feature flags
+  custodyEnabled: boolean;
+  groupId: string;
   // Custody schedule
   hasCustody: boolean;
   // Greeting
@@ -229,6 +233,8 @@ export default function DashboardClient(props: DashboardClientProps) {
   const { t } = useI18n();
 
   const {
+    custodyEnabled,
+    groupId,
     hasCustody,
     greeting,
     firstName,
@@ -273,8 +279,6 @@ export default function DashboardClient(props: DashboardClientProps) {
     childCards,
     mySwapDays,
     memberCount,
-    userId,
-    parentColors,
   } = props;
 
   // Activity report modal state
@@ -352,6 +356,7 @@ export default function DashboardClient(props: DashboardClientProps) {
     [pendingExpenses]
   );
 
+  const nowMs = Date.now(); // eslint-disable-line react-hooks/purity
   const renderedPendingDecisions = useMemo(() =>
     pendingDecisions.slice(0, 3).map((dec) => {
       const icon = decisionCatIcons[dec.category] || "\u{1F4CB}";
@@ -360,7 +365,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       let deadlineLabel = "";
       if (hasDeadline) {
         const dl = new Date(dec.deadline + "T23:59:59");
-        const daysUntil = Math.ceil((dl.getTime() - Date.now()) / 86400000);
+        const daysUntil = Math.ceil((dl.getTime() - nowMs) / 86400000);
         if (daysUntil < 0) deadlineLabel = t("decisions.deadlineExpired");
         else if (daysUntil <= 3) deadlineLabel = t("decisions.deadlineNear");
         else {
@@ -370,7 +375,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       }
       return { ...dec, icon, color, deadlineLabel, bgStyle: { backgroundColor: color + "15" } };
     }),
-    [pendingDecisions, decisionCatIcons, decisionCatColors, t]
+    [pendingDecisions, decisionCatIcons, decisionCatColors, t, nowMs]
   );
 
   const renderedUpcomingEvents = useMemo(() =>
@@ -426,8 +431,17 @@ export default function DashboardClient(props: DashboardClientProps) {
         </p>
       </div>
 
+      {/* === CUSTODY ACTIVATION CARD === */}
+      {!custodyEnabled && memberCount >= 2 && firstChildName && (
+        <CustodyActivationCard
+          groupId={groupId}
+          childName={firstChildName}
+          memberCount={memberCount}
+        />
+      )}
+
       {/* === PRIORITY ALERTS === */}
-      {hasCustody && pendingSwaps.length > 0 && (
+      {custodyEnabled && hasCustody && pendingSwaps.length > 0 && (
         <div className="space-y-2">
           {pendingSwaps.map((swap) => (
             <Link key={swap.id} href="/calendario" prefetch={false} className="block">
@@ -455,13 +469,13 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === HERO CARD === */}
-      {!hasCustody ? (
+      {!custodyEnabled || !hasCustody ? (
         <div className="rounded-2xl bg-[#2C2C2C] p-5 text-white">
           <h2 className="text-xl font-bold tracking-tight">
             {greetingText}, {firstName}
           </h2>
           <p className="text-white/50 text-[13px] mt-1">{groupName}</p>
-          {hasChildren && (
+          {custodyEnabled && hasChildren && (
             <Link href="/calendario/escala" prefetch={false} className="inline-flex items-center gap-2 mt-4 text-sm font-semibold text-[#2C2C2C] bg-white rounded-xl px-5 py-3 hover:bg-white/90 transition-colors active:scale-[0.98]">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
@@ -568,7 +582,7 @@ export default function DashboardClient(props: DashboardClientProps) {
                 <span className={`text-[15px] font-bold ${day.isToday ? "text-white" : "text-[#2C2C2C]"}`}>
                   {day.dayNum}
                 </span>
-                {hasCustody && wc && !day.isToday && (
+                {custodyEnabled && hasCustody && wc && !day.isToday && (
                   <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: wc.color }} />
                 )}
                 {day.isToday && <span className="w-1.5 h-1.5 rounded-full bg-white/70" />}
@@ -576,7 +590,7 @@ export default function DashboardClient(props: DashboardClientProps) {
             );
           })}
         </div>
-        {hasCustody && (
+        {custodyEnabled && hasCustody && (
           <div className="flex items-center gap-4 mt-3 pt-2.5 border-t border-gray-100/80">
             {parentColorEntries.map((entry) => (
               <div key={entry.uid} className="flex items-center gap-1.5">
@@ -1211,7 +1225,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === SWAP BALANCE === */}
-      {hasCustody && <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 flex items-center justify-between">
+      {custodyEnabled && hasCustody && <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 flex items-center justify-between">
         <span className="text-[13px] text-[#7A8C8B]">{t("dashboard.swapBalance")}</span>
         <div className="text-right">
           <p className="text-xl font-bold text-[#2C2C2C]">

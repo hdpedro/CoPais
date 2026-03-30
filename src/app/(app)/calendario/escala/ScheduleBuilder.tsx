@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { generateSchedule } from "@/actions/calendar";
+import { enableCustody } from "@/actions/group";
 import { DAY_NAMES, getDisplayName } from "@/lib/constants";
 import { getBrazilToday } from "@/lib/calendar-utils";
 
@@ -43,7 +44,6 @@ export default function ScheduleBuilder({
   const [months, setMonths] = useState(6);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [previewCount, setPreviewCount] = useState(0);
 
   // Toggle a day between members (cycles: null -> member0 -> member1 -> null)
   function toggleDay(dayIndex: number) {
@@ -168,6 +168,8 @@ export default function ScheduleBuilder({
     if (result?.error) {
       setError(result.error);
     } else {
+      // Ensure custody is enabled for this group after first schedule save
+      await enableCustody(groupId);
       // Force full page reload with cache-busting to bypass all caches
       window.location.href = "/calendario?t=" + Date.now();
     }

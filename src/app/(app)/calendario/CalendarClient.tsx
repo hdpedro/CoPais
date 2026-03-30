@@ -8,6 +8,7 @@ import DayDetailSheet from "./DayDetailSheet";
 import SwapRequestList from "./SwapRequestList";
 import CalendarExportButton from "./CalendarExportButton";
 import SwapBalanceCard from "./SwapBalanceCard";
+import EnableCustodyLink from "@/components/EnableCustodyLink";
 import type { CustodyDayInfo, ParentColorMap, WeekendInfo, SwapBalance } from "@/lib/calendar-utils";
 
 interface SwapRequest {
@@ -70,6 +71,7 @@ interface CalendarClientProps {
   weekends: WeekendInfo[];
   swapBalance: SwapBalance;
   custodyChangeBanner: { childNames: string; parentName: string } | null;
+  custodyEnabled: boolean;
   swapRequests: SwapRequest[];
   activities: Record<string, ActivityInfo[]>;
   memberNames: Record<string, string>;
@@ -81,11 +83,12 @@ export default function CalendarClient({
   custodyMap,
   parentColors,
   currentUserId,
-  currentUserRole,
+  // currentUserRole — available via props but not currently used
   groupId,
   weekends,
   swapBalance,
   custodyChangeBanner,
+  custodyEnabled,
   swapRequests,
   activities,
   memberNames,
@@ -121,17 +124,17 @@ export default function CalendarClient({
     }
   }, [activities]);
 
-  const hasCustodyData = Object.keys(custodyMap).length > 0;
+  const hasCustodyData = custodyEnabled && Object.keys(custodyMap).length > 0;
 
   return (
     <>
-      {!hasCustodyData && (
+      {custodyEnabled && !hasCustodyData && (
         <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-center">
           <p className="text-[12px] text-gray-500">{t("schedule.optional")}</p>
         </div>
       )}
 
-      {custodyChangeBanner && (
+      {custodyEnabled && custodyChangeBanner && (
         <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 p-3">
           <span className="text-xl leading-none mt-0.5" aria-hidden="true">&#x1F504;</span>
           <p className="text-sm text-amber-900 font-medium">
@@ -143,8 +146,8 @@ export default function CalendarClient({
       <CalendarGrid
         initialYear={initialYear}
         initialMonth={initialMonth}
-        custodyMap={custodyMap}
-        parentColors={parentColors}
+        custodyMap={custodyEnabled ? custodyMap : {}}
+        parentColors={custodyEnabled ? parentColors : {}}
         currentUserId={currentUserId}
         groupId={groupId}
         onDayClick={handleDayClick}
@@ -169,6 +172,8 @@ export default function CalendarClient({
       )}
 
       <CalendarExportButton groupId={groupId} />
+
+      {!custodyEnabled && <EnableCustodyLink />}
 
       {/* Day Detail Bottom Sheet with Quick Swap */}
       <DayDetailSheet

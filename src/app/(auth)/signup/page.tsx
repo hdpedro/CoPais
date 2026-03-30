@@ -50,7 +50,7 @@ function SignUpForm() {
       <div className="flex flex-col items-center mb-8">
         <KindarLogo size={64} background="sand" />
         <h1 className="mt-4 text-2xl font-light text-[#0E0C0A] tracking-tight">Kindar</h1>
-        <p className="mt-1 text-xs text-[#9A8878] tracking-widest uppercase">dois lares &middot; uma s&oacute; rotina</p>
+        <p className="mt-1 text-xs text-[#9A8878] tracking-widest uppercase">a rotina organizada &middot; para toda a fam&iacute;lia</p>
       </div>
 
       {conviteToken && (

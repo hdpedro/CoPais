@@ -222,7 +222,7 @@ Extensao da tabela `auth.users` do Supabase. Criado automaticamente via trigger 
 
 #### 2. coparenting_groups
 Grupo familiar que conecta os responsaveis.
-- `id`, `name`, `created_by` (FK profiles)
+- `id`, `name`, `created_by` (FK profiles), `custody_enabled` (BOOLEAN, default false para novos, true para existentes)
 
 #### 3. group_members
 Associacao usuario-grupo com papel.
@@ -534,6 +534,9 @@ Formulario inteligente que unifica a criacao de atividades, eventos e guardas co
 - **Integracao com Chat**: cada check-in envia mensagem automatica ao grupo
 
 ### 10. Dashboard Financeiro (`/financeiro`)
+- **Progressive Disclosure via `custodyEnabled`**: adapta labels e visibilidade conforme tipo de grupo
+  - `custodyEnabled=false`: exibe "Despesas da familia" em vez de linguagem de coparentalidade; oculta aba "Acertar Contas" e labels "quem deve a quem" quando ha apenas 1 membro
+  - `custodyEnabled=true`: comportamento padrao com todas as funcionalidades de divisao
 - **Aba Resumo:**
   - Navegacao por mes (setas prev/next)
   - Total do mes com contagem de despesas

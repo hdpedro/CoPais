@@ -1275,6 +1275,7 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - **Supabase Admin Client**: `src/lib/supabase/admin.ts` — client centralizado com service role
 - **Frontend**: `src/components/AIAssistant.tsx` — React Portal (`createPortal` em `document.body`) para escapar CSS `backdrop-blur` containing block no header mobile
 - **API Route**: `src/app/api/ai/assistant/route.ts` — refatorada para usar AI router em vez de Groq SDK direto
+- **System prompt adaptativo**: `buildSystemPrompt()` ajusta tom conforme `custody_enabled` do grupo — tom de coparentalidade quando ativado, tom de organizacao familiar quando desativado
 - **Parsers robustos para PT-BR**:
   - `parseAmount()`: "R$ 45,00", "120 conto", "50 reais" — distingue ponto decimal (1-2 digitos apos) de milhar (3 digitos apos)
   - `parseDate()`: "DD/MM/YYYY", "DD/MM"

@@ -44,6 +44,7 @@ interface Props {
   currentUserId: string;
   groupId: string;
   settlements: Settlement[];
+  custodyEnabled: boolean;
 }
 
 function getExpenseSplitShare(expense: Expense, memberId: string, members: Member[]): number {
@@ -58,7 +59,7 @@ function getExpenseSplitShare(expense: Expense, memberId: string, members: Membe
   return expense.amount;
 }
 
-export default function FinancialDashboard({ expenses, members, currentUserId, groupId, settlements }: Props) {
+export default function FinancialDashboard({ expenses, members, currentUserId, groupId, settlements, custodyEnabled }: Props) {
   const { t } = useI18n();
   const MONTH_NAMES = t("calendar.monthNames").split(",");
   const [now] = useState(() => new Date());
@@ -275,14 +276,16 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
         >
           {t("financial.summary")}
         </button>
-        <button
-          onClick={() => setViewMode("settlements")}
-          className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-            viewMode === "settlements" ? "bg-white text-dark shadow-sm" : "text-muted"
-          }`}
-        >
-          {t("financial.settleUp")}
-        </button>
+        {(custodyEnabled || members.length > 1) && (
+          <button
+            onClick={() => setViewMode("settlements")}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              viewMode === "settlements" ? "bg-white text-dark shadow-sm" : "text-muted"
+            }`}
+          >
+            {t("financial.settleUp")}
+          </button>
+        )}
         <button
           onClick={() => setViewMode("history")}
           className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
@@ -352,8 +355,8 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
             })}
           </div>
 
-          {/* Balance */}
-          {balance && balance.amount > 0.01 && (
+          {/* Balance — hide "who owes whom" for single-member families without custody */}
+          {balance && balance.amount > 0.01 && (custodyEnabled || members.length > 1) && (
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center text-lg">
@@ -367,7 +370,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                     </span>{" "}
                     {t("financial.toWord")} {getDisplayName(balance.receives.full_name, true)}
                   </p>
-                  <p className="text-xs text-muted">{t("financial.thisMonthSplit")}</p>
+                  <p className="text-xs text-muted">{custodyEnabled ? t("financial.thisMonthSplit") : t("financial.familyExpenses")}</p>
                 </div>
               </div>
             </div>
@@ -712,8 +715,8 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
                       );
                     })}
                   </div>
-                  {/* Balance for this month */}
-                  {members.length >= 2 && h.total > 0 && (
+                  {/* Balance for this month — hide for single-member families without custody */}
+                  {members.length >= 2 && h.total > 0 && (custodyEnabled || members.length > 1) && (
                     <div className="mt-2 pt-2 border-t border-gray-50">
                       {(() => {
                         const m0 = members[0];

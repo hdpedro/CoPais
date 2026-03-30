@@ -52,6 +52,27 @@ export async function createGroup(formData: FormData): Promise<{ error?: string;
   return { success: true };
 }
 
+export async function enableCustody(groupId: string): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Sessão expirada." };
+
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) return { error: "Sem permissão para este grupo." };
+
+  const { error } = await supabase
+    .from("coparenting_groups")
+    .update({ custody_enabled: true })
+    .eq("id", groupId);
+
+  if (error) return { error: error.message };
+
+  captureServerEvent(user.id, "custody_enabled");
+  revalidatePath("/dashboard");
+  revalidatePath("/calendario");
+  return { success: true };
+}
+
 export async function addChild(formData: FormData) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();

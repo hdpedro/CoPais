@@ -35,10 +35,11 @@ export async function GET(request: NextRequest) {
     const todayKey = formatDateKey(today);
     const tomorrowKey = formatDateKey(tomorrow);
 
-    // Get all groups
+    // Get all groups with custody enabled
     const { data: groups } = await supabase
       .from("groups")
-      .select("id");
+      .select("id")
+      .eq("custody_enabled", true);
 
     if (!groups || groups.length === 0) {
       return NextResponse.json({ ok: true, sent: 0, reason: "no groups" });

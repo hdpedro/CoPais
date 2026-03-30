@@ -25,11 +25,20 @@ async function buildContext(
   supabase: any, // eslint-disable-line @typescript-eslint/no-explicit-any
   userId: string,
   groupId: string
-): Promise<{ contextStr: string; toolCtx: ToolContext }> {
-  const { data: children } = await supabase
-    .from("children")
-    .select("id, full_name, birth_date")
-    .eq("group_id", groupId);
+): Promise<{ contextStr: string; toolCtx: ToolContext; custodyEnabled: boolean }> {
+  const [{ data: children }, { data: groupData }] = await Promise.all([
+    supabase
+      .from("children")
+      .select("id, full_name, birth_date")
+      .eq("group_id", groupId),
+    supabase
+      .from("coparenting_groups")
+      .select("custody_enabled")
+      .eq("id", groupId)
+      .single(),
+  ]);
+
+  const custodyEnabled: boolean = groupData?.custody_enabled ?? true;
 
   const { data: membersRaw } = await supabase
     .from("group_members")
@@ -108,7 +117,7 @@ async function buildContext(
     members,
   };
 
-  return { contextStr, toolCtx };
+  return { contextStr, toolCtx, custodyEnabled };
 }
 
 /* ------------------------------------------------------------------ */
@@ -127,17 +136,36 @@ function sanitizeResponse(text: string): string {
 /* System prompt                                                       */
 /* ------------------------------------------------------------------ */
 
-function buildSystemPrompt(context: string): string {
-  return `Voce e o Kindar, assistente inteligente de coparentalidade. Voce ajuda pais separados a gerenciar a vida dos filhos com eficiencia e harmonia.
+function buildSystemPrompt(context: string, custodyEnabled: boolean): string {
+  const intro = custodyEnabled
+    ? `Voce e o Kindar, assistente inteligente de coparentalidade. Voce ajuda pais separados a gerenciar a vida dos filhos com eficiencia e harmonia.`
+    : `Voce e o Kindar, assistente de organizacao familiar. Voce ajuda familias a gerenciar a rotina das criancas com eficiencia e harmonia.`;
+
+  const capabilities = custodyEnabled
+    ? `SUAS CAPACIDADES:
+- Criar despesas, eventos, consultas, check-ins, notas e atividades usando tools
+- Consultar agenda, gastos, saude e informacoes das criancas usando tools
+- Ajudar a redigir mensagens respeitosas para o coparente
+- Responder duvidas sobre coparentalidade`
+    : `SUAS CAPACIDADES:
+- Criar despesas, eventos, consultas, check-ins, notas e atividades usando tools
+- Consultar agenda, gastos, saude e informacoes das criancas usando tools
+- Ajudar a organizar a rotina familiar
+- Responder duvidas sobre cuidados com as criancas`;
+
+  const coparentingRules = custodyEnabled
+    ? `9. Para mensagens ao coparente, sugira tom neutro e respeitoso
+10. Se nao entender, peca para reformular — nao assuma
+11. Seja empatico com situacoes dificeis de coparentalidade`
+    : `9. Se nao entender, peca para reformular — nao assuma
+10. Seja acolhedor e apoie a organizacao familiar`;
+
+  return `${intro}
 
 CONTEXTO DA FAMILIA:
 ${context}
 
-SUAS CAPACIDADES:
-- Criar despesas, eventos, consultas, check-ins, notas e atividades usando tools
-- Consultar agenda, gastos, saude e informacoes das criancas usando tools
-- Ajudar a redigir mensagens respeitosas para o coparente
-- Responder duvidas sobre coparentalidade
+${capabilities}
 
 REGRAS OBRIGATORIAS:
 1. Responda SEMPRE em portugues brasileiro, de forma calorosa e direta
@@ -148,9 +176,7 @@ REGRAS OBRIGATORIAS:
 6. Mantenha respostas concisas: max 2-3 frases para acoes, um pouco mais para consultas
 7. ANTES de executar qualquer acao (criar despesa, evento, consulta, etc.), SEMPRE peca confirmacao ao usuario primeiro. Descreva o que sera feito e pergunte "Confirma?". So execute o tool DEPOIS que o usuario confirmar com "sim", "ok", "confirma" ou similar
 8. Apos criar algo, confirme o que foi criado com emoji de sucesso
-9. Para mensagens ao coparente, sugira tom neutro e respeitoso
-10. Se nao entender, peca para reformular — nao assuma
-11. Seja empatico com situacoes dificeis de coparentalidade
+${coparentingRules}
 12. Use emojis com moderacao para tornar a conversa mais amigavel
 13. Tools de CONSULTA (get_*) podem ser executados diretamente, sem confirmacao`;
 }
@@ -348,7 +374,7 @@ export async function POST(req: NextRequest) {
     }
     const userText = lastUserMsg.content;
 
-    const { contextStr, toolCtx } = await buildContext(supabase, user.id, groupId);
+    const { contextStr, toolCtx, custodyEnabled } = await buildContext(supabase, user.id, groupId);
 
     /* ================================================================ */
     /* STEP 0: Check confirmation of pending action                     */
@@ -467,7 +493,7 @@ export async function POST(req: NextRequest) {
 
     const systemMsg: AIChatMessage = {
       role: "system",
-      content: buildSystemPrompt(contextStr),
+      content: buildSystemPrompt(contextStr, custodyEnabled),
     };
 
     const recentMessages = messages.slice(-20);

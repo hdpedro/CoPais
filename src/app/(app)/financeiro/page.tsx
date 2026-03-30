@@ -17,7 +17,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
 
   const activeGroup = await getActiveGroup(supabase, user.id);
   if (!activeGroup) redirect("/onboarding");
-  const { groupId } = activeGroup;
+  const { groupId, custodyEnabled } = activeGroup;
 
   // Parallel fetch: members + expenses + settlements
   const [{ data: members }, { data: expenses }, { data: settlements }] = await Promise.all([
@@ -97,6 +97,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
         currentUserId={user.id}
         groupId={groupId}
         settlements={serializedSettlements}
+        custodyEnabled={custodyEnabled}
       />
     </div>
   );

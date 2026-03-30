@@ -50,12 +50,12 @@ export default async function Home() {
               Gratuito para comecar
             </div>
             <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-dark leading-tight tracking-tight">
-              Coparentalidade inteligente para{" "}
-              <span className="text-primary">familias modernas</span>
+              Organize a rotina de{" "}
+              <span className="text-primary">quem voce cuida</span>
             </h1>
             <p className="mt-6 text-lg sm:text-xl text-muted max-w-2xl mx-auto leading-relaxed">
-              Organize a rotina dos seus filhos entre dois lares com clareza,
-              respeito e tranquilidade. Tudo em um so lugar.
+              Calendario, saude, escola, atividades — tudo em um so lugar
+              para sua familia.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
@@ -81,12 +81,12 @@ export default async function Home() {
         <section className="py-20 sm:py-28 px-4 sm:px-6 bg-white">
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl sm:text-4xl font-bold text-dark leading-tight">
-              Organizar a rotina de dois lares{" "}
+              Organizar a rotina das criancas{" "}
               <span className="text-primary">nao precisa ser dificil</span>
             </h2>
             <p className="mt-6 text-lg text-muted max-w-2xl mx-auto leading-relaxed">
-              Mensagens perdidas, gastos sem controle, consultas esquecidas...
-              A falta de organizacao entre os pais gera estresse para todos,
+              Consultas esquecidas, atividades desorganizadas, gastos sem controle...
+              A falta de organizacao gera estresse para todos,
               especialmente para as criancas. O Kindar resolve isso.
             </p>
             <div className="mt-12 grid sm:grid-cols-3 gap-8 text-left">
@@ -94,21 +94,21 @@ export default async function Home() {
                 <div className="text-3xl mb-3">😩</div>
                 <h3 className="font-semibold text-dark mb-2">Sem o Kindar</h3>
                 <p className="text-sm text-muted leading-relaxed">
-                  Informacoes espalhadas, conflitos por falta de comunicacao, gastos sem transparencia.
+                  Informacoes espalhadas, compromissos esquecidos, gastos sem transparencia.
                 </p>
               </div>
               <div className="p-6 rounded-2xl bg-warning/5 border border-warning/10">
                 <div className="text-3xl mb-3">🤔</div>
                 <h3 className="font-semibold text-dark mb-2">O desafio</h3>
                 <p className="text-sm text-muted leading-relaxed">
-                  Coordenar horarios, escola, saude e financas entre duas casas exige muita organizacao.
+                  Coordenar horarios, escola, saude e atividades exige muita organizacao.
                 </p>
               </div>
               <div className="p-6 rounded-2xl bg-success/5 border border-success/10">
                 <div className="text-3xl mb-3">✅</div>
                 <h3 className="font-semibold text-dark mb-2">Com o Kindar</h3>
                 <p className="text-sm text-muted leading-relaxed">
-                  Tudo centralizado, transparente e acessivel para ambos os pais, a qualquer momento.
+                  Tudo centralizado, transparente e acessivel para toda a familia, a qualquer momento.
                 </p>
               </div>
             </div>
@@ -124,28 +124,28 @@ export default async function Home() {
                 <span className="text-primary">em um so app</span>
               </h2>
               <p className="mt-4 text-lg text-muted max-w-xl mx-auto">
-                Ferramentas pensadas para simplificar a coparentalidade no dia a dia.
+                Ferramentas pensadas para simplificar a rotina familiar no dia a dia.
               </p>
             </div>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {[
                 {
                   emoji: "📅",
-                  title: "Calendario compartilhado",
+                  title: "Calendario familiar",
                   description:
-                    "Visualize a guarda, eventos escolares, consultas e compromissos dos filhos em um calendario unico.",
+                    "Visualize eventos, consultas, atividades e compromissos da escola em um calendario unico.",
                 },
                 {
                   emoji: "💬",
-                  title: "Chat mediado",
+                  title: "Chat da familia",
                   description:
-                    "Comunicacao focada nos filhos, com historico completo. Sem discussoes desnecessarias.",
+                    "Comunicacao focada nas criancas, com historico completo. Tudo organizado.",
                 },
                 {
                   emoji: "💰",
                   title: "Controle financeiro",
                   description:
-                    "Registre e divida gastos com educacao, saude e lazer. Transparencia total para ambos.",
+                    "Registre gastos com educacao, saude e lazer. Organize as financas da familia.",
                 },
                 {
                   emoji: "🏥",
@@ -155,15 +155,15 @@ export default async function Home() {
                 },
                 {
                   emoji: "📋",
-                  title: "Acordos documentados",
+                  title: "Atividades e rotina",
                   description:
-                    "Formalize combinados sobre rotina, regras e responsabilidades. Tudo registrado.",
+                    "Organize atividades, checklists e compromissos recorrentes. Nada e esquecido.",
                 },
                 {
                   emoji: "🔒",
                   title: "Privacidade e seguranca",
                   description:
-                    "Seus dados sao protegidos com criptografia. Somente os membros do grupo familiar tem acesso.",
+                    "Seus dados sao protegidos com criptografia. Somente membros da familia tem acesso.",
                 },
               ].map((feature) => (
                 <div
@@ -177,6 +177,57 @@ export default async function Home() {
                   <p className="text-muted text-sm leading-relaxed">
                     {feature.description}
                   </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Custody section — dedicated for shared custody families */}
+        <section className="py-20 sm:py-28 px-4 sm:px-6 bg-white">
+          <div className="max-w-4xl mx-auto">
+            <div className="text-center mb-12">
+              <div className="inline-block mb-4 px-3 py-1 bg-primary-light text-primary text-xs font-semibold rounded-full uppercase tracking-wide">
+                Para familias com guarda compartilhada
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-bold text-dark leading-tight">
+                Se voces moram em casas diferentes,{" "}
+                <span className="text-primary">o Kindar organiza tudo</span>
+              </h2>
+              <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
+                Escala de guarda, troca de dias, notificacoes de transicao e muito mais.
+              </p>
+            </div>
+            <div className="grid sm:grid-cols-2 gap-6">
+              {[
+                {
+                  emoji: "🔄",
+                  title: "Escala de guarda",
+                  description: "Configure o padrao de guarda quinzenal. Visualize quem fica com as criancas em cada dia.",
+                },
+                {
+                  emoji: "📲",
+                  title: "Notificacoes de transicao",
+                  description: "Receba lembretes automaticos nos dias de troca. Nunca mais esqueca uma transicao.",
+                },
+                {
+                  emoji: "🔀",
+                  title: "Troca de dias",
+                  description: "Solicite e aceite trocas de dias com facilidade. Historico completo de alteracoes.",
+                },
+                {
+                  emoji: "📊",
+                  title: "Divisao de despesas",
+                  description: "Divida gastos entre os responsaveis com transparencia. Saiba quem deve o que.",
+                },
+              ].map((feature) => (
+                <div
+                  key={feature.title}
+                  className="p-6 rounded-2xl bg-primary/5 border border-primary/10"
+                >
+                  <div className="text-3xl mb-3">{feature.emoji}</div>
+                  <h3 className="font-semibold text-dark mb-2">{feature.title}</h3>
+                  <p className="text-sm text-muted leading-relaxed">{feature.description}</p>
                 </div>
               ))}
             </div>
@@ -203,13 +254,13 @@ export default async function Home() {
                 },
                 {
                   step: "2",
-                  title: "Convide o copais",
-                  description: "Envie um convite por link. O outro responsavel aceita em segundos.",
+                  title: "Convide a familia",
+                  description: "Envie um link para quem cuida junto. Aceita em segundos.",
                 },
                 {
                   step: "3",
-                  title: "Organize a rotina",
-                  description: "Adicione os filhos, configure o calendario e comece a usar.",
+                  title: "Organize tudo",
+                  description: "Adicione as criancas, calendario, saude e atividades.",
                 },
               ].map((item) => (
                 <div key={item.step} className="text-center">
@@ -231,10 +282,10 @@ export default async function Home() {
           <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-3xl sm:text-4xl font-bold text-dark leading-tight">
               Familias que se organizam melhor,{" "}
-              <span className="text-primary">convivem melhor</span>
+              <span className="text-primary">vivem melhor</span>
             </h2>
             <p className="mt-4 text-lg text-muted max-w-xl mx-auto">
-              Junte-se a familias que ja transformaram sua rotina de coparentalidade.
+              Junte-se a familias que ja transformaram sua rotina.
             </p>
             <div className="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-8">
               {[
@@ -278,12 +329,12 @@ export default async function Home() {
                 </div>
                 <ul className="mt-6 space-y-3">
                   {[
-                    "Calendario compartilhado",
-                    "Chat entre copais",
+                    "Calendario familiar",
+                    "Chat da familia",
                     "Controle de gastos",
                     "Registro de saude",
-                    "Acordos e combinados",
-                    "Ate 4 filhos por grupo",
+                    "Atividades e checklists",
+                    "Ate 4 criancas por grupo",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-2 text-sm text-dark/80">
                       <svg className="w-5 h-5 text-primary shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -311,9 +362,9 @@ export default async function Home() {
                     "Tudo do plano gratuito",
                     "Relatorios detalhados",
                     "Exportacao de dados",
-                    "Notificacoes avancadas",
+                    "IA assistente familiar",
                     "Suporte prioritario",
-                    "Integracao com calendarios",
+                    "Criancas ilimitadas",
                   ].map((item) => (
                     <li key={item} className="flex items-start gap-2 text-sm text-dark/40">
                       <svg className="w-5 h-5 text-dark/20 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -335,10 +386,10 @@ export default async function Home() {
         <section className="py-20 sm:py-28 px-4 sm:px-6 bg-primary">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
-              Comece hoje. Seus filhos merecem.
+              Comece hoje. Suas criancas merecem.
             </h2>
             <p className="mt-4 text-lg text-white/70 max-w-xl mx-auto">
-              Uma rotina mais organizada entre os dois lares faz toda a diferenca
+              Uma rotina organizada faz toda a diferenca
               no bem-estar das criancas.
             </p>
             <Link
@@ -361,8 +412,8 @@ export default async function Home() {
             <div>
               <div className="text-xl font-bold text-white mb-3">Kindar</div>
               <p className="text-sm leading-relaxed">
-                Coparentalidade inteligente para familias modernas. Organize a
-                rotina dos seus filhos com clareza e tranquilidade.
+                Organize a rotina de quem voce cuida. Calendario, saude,
+                atividades e mais — tudo em um so lugar para sua familia.
               </p>
             </div>
             <div>

@@ -20,34 +20,35 @@ const cormorant = Cormorant_Garamond({
 
 export const metadata: Metadata = {
   title: {
-    default: "Kindar - Dois Lares, Uma Só Rotina",
+    default: "Kindar - Organize a rotina de quem você cuida",
     template: "%s | Kindar",
   },
   description:
-    "Organize a rotina dos seus filhos entre dois lares com clareza, respeito e tranquilidade. Calendario compartilhado, chat mediado, controle financeiro e muito mais.",
+    "Calendário familiar, saúde, atividades, documentos e mais. Organize a rotina das crianças com clareza e tranquilidade. Funciona para qualquer família.",
   keywords: [
+    "organização familiar",
+    "rotina criança",
+    "calendário familiar",
+    "app família",
     "coparentalidade",
     "guarda compartilhada",
-    "organizacao familiar",
-    "calendario familiar",
     "copais",
-    "dois lares",
-    "filhos",
+    "atividades infantis",
   ],
   authors: [{ name: "Kindar" }],
   openGraph: {
     type: "website",
     locale: "pt_BR",
     siteName: "Kindar",
-    title: "Kindar - Dois Lares, Uma Só Rotina",
+    title: "Kindar - Organize a rotina de quem você cuida",
     description:
-      "Organize a rotina dos seus filhos entre dois lares com clareza, respeito e tranquilidade. Gratuito para comecar.",
+      "Calendário familiar, saúde, atividades, documentos e mais. Organize a rotina das crianças com clareza e tranquilidade. Gratuito para começar.",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Kindar - Dois Lares, Uma Só Rotina",
+    title: "Kindar - Organize a rotina de quem você cuida",
     description:
-      "Organize a rotina dos seus filhos entre dois lares com clareza, respeito e tranquilidade.",
+      "Calendário familiar, saúde, atividades, documentos e mais. Organize a rotina das crianças com clareza e tranquilidade.",
   },
   manifest: "/manifest.json",
   appleWebApp: {

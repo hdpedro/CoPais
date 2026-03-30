@@ -278,6 +278,7 @@ O app suporta **5 idiomas** completos:
 - **Confirmacao antes de acoes**: tools de criacao (create_*) pedem confirmacao do usuario antes de executar ("Confirma? [descricao]"). Tools de consulta (get_*) executam imediatamente
 - **Multi-round tool calling**: ate 3 rodadas com `tool_choice: "auto"` + resposta final forcada com `tool_choice: "none"`
 - **Contexto familiar** (`ai-context.ts`): injeta dados de filhos, membros e custodia para respostas personalizadas
+- **System prompt adaptativo**: tom de coparentalidade quando `custody_enabled=true`, tom de organizacao familiar quando `custody_enabled=false` — suporta posicionamento duplo do app
 - **React Portal**: componente `AIAssistant.tsx` renderiza em `document.body` via `createPortal` (escapa CSS `backdrop-blur` containing block no header mobile)
 - **Integracao no shell**: botao IA no header mobile + botao flutuante no desktop (`ResponsiveShell.tsx`)
 - **Rate limiting** (`ai-rate-limit.ts`) por usuario com mensagens amigaveis
@@ -335,6 +336,19 @@ O app suporta **5 idiomas** completos:
 - **Promise.all()** em queries paralelas (Dashboard, Calendario)
 
 ## Arquitetura
+
+### Progressive Disclosure — Posicionamento Neutro
+
+O Kindar usa **Progressive Disclosure** para atender qualquer tipo de familia sem forcar categorizacao:
+
+- **Slogan**: "Organize a rotina de quem voce cuida" (neutro, universal)
+- **Flag `custody_enabled`** (boolean na tabela `coparenting_groups`): controla visibilidade de features de guarda compartilhada
+- **Novos grupos**: `custody_enabled = false` (experiencia universal)
+- **Grupos existentes**: `custody_enabled = true` (retrocompativel)
+- **Ativacao natural**: via CustodyActivationCard (dashboard, quando 2+ membros) ou ScheduleBuilder (calendario)
+- **Modulos afetados**: Dashboard, Calendario, Financeiro, IA, Cron, Landing Page, Auth, Onboarding, i18n
+
+O sistema **nao pergunta** sobre situacao familiar. Features de coparentalidade aparecem quando fazem sentido (2o adulto entra, ou usuario busca).
 
 ### Padrao Server/Client Split
 O app segue um padrao consistente de separacao:

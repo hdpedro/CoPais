@@ -28,7 +28,7 @@ export default async function CalendarPage() {
 
   const activeGroup = await getActiveGroup(supabase, user.id);
   if (!activeGroup) redirect("/onboarding");
-  const { groupId } = activeGroup;
+  const { groupId, custodyEnabled } = activeGroup;
 
   // Compute date ranges for queries
   const todayParts = getBrazilToday().split("-").map(Number);
@@ -54,14 +54,16 @@ export default async function CalendarPage() {
       .eq("group_id", groupId)
       .order("joined_at", { ascending: true })
       .then(r => r, () => ({ data: [] as never[] })),
-    supabase
-      .from("custody_events")
-      .select("id, start_date, end_date, responsible_user_id, child_id, custody_type, notes, group_id, created_by, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
-      .eq("group_id", groupId)
-      .gte("end_date", rangeStart)
-      .lte("start_date", rangeEnd)
-      .order("start_date")
-      .then(r => r, () => ({ data: [] as never[] })),
+    custodyEnabled
+      ? supabase
+          .from("custody_events")
+          .select("id, start_date, end_date, responsible_user_id, child_id, custody_type, notes, group_id, created_by, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
+          .eq("group_id", groupId)
+          .gte("end_date", rangeStart)
+          .lte("start_date", rangeEnd)
+          .order("start_date")
+          .then(r => r, () => ({ data: [] as never[] }))
+      : Promise.resolve({ data: [] as never[] }),
     supabase
       .from("child_activities")
       .select("id, name, category, recurrence_type, start_date, end_date, days_of_week, day_of_month, custom_interval, custom_unit, time_start, time_end, location, notes, child_id, teacher_name, class_name, room, responsible_id, children(full_name), activity_checklist_items(id, name, sort_order)")
@@ -332,6 +334,7 @@ export default async function CalendarPage() {
         currentUserId={user.id}
         currentUserRole={currentUserRole}
         groupId={groupId}
+        custodyEnabled={custodyEnabled}
         weekends={weekends}
         swapBalance={swapBalance}
         custodyChangeBanner={custodyChangeBanner}
