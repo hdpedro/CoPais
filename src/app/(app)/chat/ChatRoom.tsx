@@ -15,7 +15,7 @@ const MessageBubble = memo(function MessageBubble({
   msg,
   isOwn,
   memberName,
-  userId,
+  userId: _userId, // eslint-disable-line @typescript-eslint/no-unused-vars
   onImageClick,
   formatTime,
   t,
@@ -180,7 +180,7 @@ export default function ChatRoom({
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageError, setImageError] = useState<string | null>(null);
   const [viewerImage, setViewerImage] = useState<string | null>(null);
-  const [pendingNonce, setPendingNonce] = useState<string | null>(null);
+  const [, setPendingNonce] = useState<string | null>(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [selectedMonth, setSelectedMonth] = useState("");
   const exportRef = useRef<HTMLDivElement>(null);
@@ -362,8 +362,6 @@ export default function ChatRoom({
   // --- Realtime subscription: re-subscribe when active channel changes ---
   useEffect(() => {
     const geralChannelId = channels.find((c) => c.slug === "geral")?.id || null;
-    const isGeralActive = activeChannelSlug === "geral";
-
     const channel = supabase
       .channel(`chat:${groupId}:${activeChannelSlug}`)
       .on(
@@ -690,7 +688,7 @@ export default function ChatRoom({
   }, []);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-8rem)]">
+    <div className="flex flex-col h-[calc(100dvh-8rem-env(safe-area-inset-top,0px))]">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
         <h1 className="text-xl font-bold text-dark">{t("chat.groupChat")}</h1>
