@@ -298,7 +298,7 @@ export default function IllnessWizard({
             </button>
             <button
               type="button"
-              onClick={() => { setAddMed(false); setMedName(""); }}
+              onClick={() => { setAddMed(false); setMedName(""); setMedDosage(""); setMedFrequency(""); setMedFrequencyHours(""); setMedEndDate(""); }}
               className={`flex flex-col items-center gap-1 p-4 rounded-xl border-2 transition-all ${
                 !addMed ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"
               }`}
@@ -400,7 +400,7 @@ export default function IllnessWizard({
             </button>
             <button
               type="button"
-              onClick={() => { setAddApt(false); setAptTitle(""); }}
+              onClick={() => { setAddApt(false); setAptTitle(""); setAptDate(""); setAptTime(""); setAptLocation(""); }}
               className={`flex flex-col items-center gap-1 p-4 rounded-xl border-2 transition-all ${
                 !addApt ? "border-primary bg-primary/5" : "border-gray-200 hover:border-gray-300"
               }`}

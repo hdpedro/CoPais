@@ -1416,7 +1416,9 @@ export async function createIllnessWithMedicationAndAppointment(
 // Quick Action: resolveIllnessQuick
 // ---------------------------------------------------------------------------
 
-export async function resolveIllnessQuick(formData: FormData) {
+export async function resolveIllnessQuick(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
 
@@ -1433,7 +1435,7 @@ export async function resolveIllnessQuick(formData: FormData) {
     })
     .eq("id", episodeId);
 
-  if (error) redirect("/saude?error=" + encodeURIComponent(error.message));
+  if (error) return { success: false, error: error.message };
 
   // Optionally finish related medications
   if (finishMeds) {
@@ -1476,7 +1478,7 @@ export async function resolveIllnessQuick(formData: FormData) {
   revalidatePath("/saude/doencas");
   revalidatePath("/saude/medicamentos");
   revalidatePath("/chat");
-  redirect("/saude?success=" + encodeURIComponent("Doenca marcada como resolvida"));
+  return { success: true };
 }
 
 // ---------------------------------------------------------------------------

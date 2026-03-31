@@ -17,7 +17,6 @@ export interface TimelineEvent {
 
 interface HealthTimelineProps {
   events: TimelineEvent[];
-  childId: string;
 }
 
 export default function HealthTimeline({ events }: HealthTimelineProps) {

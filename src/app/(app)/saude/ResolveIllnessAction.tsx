@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { resolveIllnessQuick } from "@/actions/health";
 import { useI18n } from "@/i18n/provider";
 
@@ -11,17 +12,25 @@ interface ResolveIllnessActionProps {
 
 export default function ResolveIllnessAction({ episodeId, hasActiveMeds }: ResolveIllnessActionProps) {
   const { t } = useI18n();
+  const router = useRouter();
   const [showConfirm, setShowConfirm] = useState(false);
   const [finishMeds, setFinishMeds] = useState(true);
   const [isPending, startTransition] = useTransition();
+  const [error, setError] = useState<string | null>(null);
 
   function handleResolve() {
     const formData = new FormData();
     formData.set("episodeId", episodeId);
     formData.set("finishMeds", finishMeds ? "true" : "false");
 
-    startTransition(() => {
-      resolveIllnessQuick(formData);
+    startTransition(async () => {
+      const result = await resolveIllnessQuick(formData);
+      if (result.success) {
+        setShowConfirm(false);
+        router.refresh();
+      } else {
+        setError(result.error || "Erro ao resolver doença");
+      }
     });
   }
 
@@ -41,6 +50,9 @@ export default function ResolveIllnessAction({ episodeId, hasActiveMeds }: Resol
             />
             {t("health.resolve.finishMedsQuestion")}
           </label>
+        )}
+        {error && (
+          <p className="text-xs text-error">{error}</p>
         )}
         <div className="flex gap-2">
           <button

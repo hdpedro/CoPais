@@ -853,7 +853,7 @@ export default function SaudeClient(props: SaudeClientProps) {
       )}
 
       {/* Recent Activity Timeline */}
-      <HealthTimeline events={timeline} childId={selectedChildId} />
+      <HealthTimeline events={timeline} />
 
       {/* ─── Compact Navigation Menu (Phase 4) ─── */}
       <section className="mb-5">
