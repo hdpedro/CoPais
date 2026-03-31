@@ -23,7 +23,7 @@ interface CalendarGroup {
 }
 
 interface Props {
-  children: Child[];
+  childrenList: Child[];
   selectedChildId: string;
   selectedChild: Child;
   ageDisplay: string;
@@ -42,7 +42,7 @@ interface Props {
 }
 
 export default function VacinasClient({
-  children: childrenList,
+  childrenList,
   selectedChildId,
   selectedChild,
   ageDisplay,

@@ -18,7 +18,7 @@ export default async function ProfessionalsPage({
 
   const { data: professionals } = await supabase
     .from("medical_professionals")
-    .select("*")
+    .select("id, name, specialty, crm, phone, whatsapp, address, notes")
     .eq("group_id", groupId)
     .order("name", { ascending: true });
 

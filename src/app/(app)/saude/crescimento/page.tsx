@@ -48,7 +48,8 @@ export default async function CrescimentoPage({
     .from("growth_records")
     .select("id, measured_date, weight_kg, height_cm, head_cm, notes")
     .eq("child_id", selectedChildId)
-    .order("measured_date", { ascending: false });
+    .order("measured_date", { ascending: false })
+    .limit(100);
 
   return (
     <CrescimentoClient

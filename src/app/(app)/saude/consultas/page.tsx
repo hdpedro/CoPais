@@ -21,10 +21,11 @@ export default async function AppointmentsPage({
   const { data: appointments } = await supabase
     .from("medical_appointments")
     .select(
-      "*, medical_professionals(name, specialty, whatsapp), children(full_name)"
+      "id, title, appointment_date, location, status, notes, summary, return_date, appointment_type, child_id, professional_id, created_by, medical_professionals(name, specialty, whatsapp), children(full_name)"
     )
     .eq("group_id", groupId)
-    .order("appointment_date", { ascending: true });
+    .order("appointment_date", { ascending: true })
+    .limit(200);
 
   const params = await searchParams;
   const todayStr = getBrazilToday();

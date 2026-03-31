@@ -21,9 +21,10 @@ export default async function DoencasPage({
 
   const { data: episodes } = await supabase
     .from("illness_episodes")
-    .select("*, children(full_name), profiles:created_by(full_name)")
+    .select("id, title, status, severity, symptoms, start_date, end_date, diagnosis, notes, hospital_visit, hospital_name, child_id, created_by, children(full_name), profiles:created_by(full_name)")
     .eq("group_id", groupId)
-    .order("start_date", { ascending: false });
+    .order("start_date", { ascending: false })
+    .limit(100);
 
   const activeEpisodes = (episodes || []).filter((e) => e.status === "active");
   const recoveredEpisodes = (episodes || []).filter((e) => e.status === "resolved");

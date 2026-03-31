@@ -22,7 +22,7 @@ export default async function MedicamentosPage({
 
   const { data: medications } = await supabase
     .from("active_medications")
-    .select("*, children(full_name)")
+    .select("id, name, dosage, frequency, frequency_hours, reason, prescribed_by, start_date, end_date, status, notes, child_id, children(full_name)")
     .eq("group_id", groupId)
     .order("created_at", { ascending: false });
 
@@ -30,11 +30,12 @@ export default async function MedicamentosPage({
   const historyMeds = medications?.filter((m) => m.status === "completed" || m.status === "cancelled") ?? [];
 
   const activeMedIds = activeMeds.map((m) => m.id);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   let doses: any[] = [];
   if (activeMedIds.length > 0) {
     const { data: dosesData } = await supabase
       .from("medication_doses")
-      .select("*, profiles!medication_doses_administered_by_fkey(full_name)")
+      .select("id, medication_id, administered_at, notes, profiles!medication_doses_administered_by_fkey(full_name)")
       .in("medication_id", activeMedIds)
       .order("administered_at", { ascending: false })
       .limit(50);

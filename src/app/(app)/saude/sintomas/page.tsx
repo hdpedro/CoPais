@@ -32,23 +32,24 @@ export default async function SintomasPage({
       ? params.crianca
       : children[0].id;
 
-  // Fetch last 7 days of symptoms
+  // Fetch symptoms + active episodes in parallel
   const sevenDaysAgo = new Date();
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-  const { data: entries } = await supabase
-    .from("symptom_entries")
-    .select("*, profiles(full_name)")
-    .eq("child_id", selectedChildId)
-    .gte("recorded_at", sevenDaysAgo.toISOString())
-    .order("recorded_at", { ascending: false });
-
-  // Fetch active illness episodes for linking
-  const { data: activeEpisodes } = await supabase
-    .from("illness_episodes")
-    .select("id, title")
-    .eq("child_id", selectedChildId)
-    .eq("status", "active");
+  const [{ data: entries }, { data: activeEpisodes }] = await Promise.all([
+    supabase
+      .from("symptom_entries")
+      .select("id, symptom_type, temperature, intensity, notes, recorded_at, illness_episode_id, created_by, profiles(full_name)")
+      .eq("child_id", selectedChildId)
+      .gte("recorded_at", sevenDaysAgo.toISOString())
+      .order("recorded_at", { ascending: false })
+      .limit(100),
+    supabase
+      .from("illness_episodes")
+      .select("id, title")
+      .eq("child_id", selectedChildId)
+      .eq("status", "active"),
+  ]);
 
   return (
     <SintomasClient

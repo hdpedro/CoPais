@@ -21,7 +21,7 @@ export default async function MedicationDetailPage({
 
   const { data: medication } = await supabase
     .from("active_medications")
-    .select("*, children(full_name)")
+    .select("id, name, dosage, frequency, frequency_hours, reason, prescribed_by, start_date, end_date, status, notes, child_id, created_by, children(full_name)")
     .eq("id", id)
     .eq("group_id", groupId)
     .single();
@@ -30,9 +30,10 @@ export default async function MedicationDetailPage({
 
   const { data: doses } = await supabase
     .from("medication_doses")
-    .select("*, profiles!medication_doses_administered_by_fkey(full_name)")
+    .select("id, medication_id, administered_at, administered_by, notes, profiles!medication_doses_administered_by_fkey(full_name)")
     .eq("medication_id", id)
-    .order("administered_at", { ascending: false });
+    .order("administered_at", { ascending: false })
+    .limit(500);
 
   const allDoses = doses ?? [];
 
@@ -73,7 +74,7 @@ export default async function MedicationDetailPage({
   // Who administered
   const dosesByPerson: Record<string, number> = {};
   for (const dose of allDoses) {
-    const name = (dose.profiles as any)?.full_name ?? "Desconhecido";
+    const name = (dose.profiles as unknown as { full_name: string } | null)?.full_name ?? "Desconhecido";
     dosesByPerson[name] = (dosesByPerson[name] ?? 0) + 1;
   }
   const personEntries = Object.entries(dosesByPerson).sort((a, b) => b[1] - a[1]) as [string, number][];

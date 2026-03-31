@@ -29,7 +29,7 @@ export default async function VacinasPage({
   if (!children || children.length === 0) {
     return (
       <VacinasClient
-        children={[]}
+        childrenList={[]}
         selectedChildId=""
         selectedChild={{ id: "", full_name: "", birth_date: "" }}
         ageDisplay=""
@@ -78,7 +78,8 @@ export default async function VacinasPage({
     .from("vaccination_records")
     .select("id, vaccine_name, dose_label, administered_date")
     .eq("child_id", selectedChildId)
-    .order("administered_date", { ascending: false });
+    .order("administered_date", { ascending: false })
+    .limit(300);
 
   const vaccineRecords = records || [];
 
@@ -120,7 +121,7 @@ export default async function VacinasPage({
 
   return (
     <VacinasClient
-      children={children}
+      childrenList={children}
       selectedChildId={selectedChildId}
       selectedChild={selectedChild}
       ageDisplay={ageDisplay}

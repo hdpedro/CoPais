@@ -393,16 +393,23 @@ export async function createMedication(formData: FormData) {
   const endDate = formData.get("endDate") as string;
   const notes = sanitizeText(formData.get("notes") as string, 2000);
 
+  // Validate required NOT NULL fields
+  if (!childId) redirect("/saude/medicamentos?error=" + encodeURIComponent("Selecione uma criança"));
+  if (!name) redirect("/saude/medicamentos?error=" + encodeURIComponent("Nome do medicamento é obrigatório"));
+  if (!dosage) redirect("/saude/medicamentos?error=" + encodeURIComponent("Dosagem é obrigatória"));
+  if (!frequency) redirect("/saude/medicamentos?error=" + encodeURIComponent("Frequência é obrigatória"));
+  if (!startDate) redirect("/saude/medicamentos?error=" + encodeURIComponent("Data de início é obrigatória"));
+
   const { error } = await supabase.from("active_medications").insert({
     group_id: groupId,
     child_id: childId,
     name,
-    dosage: dosage || null,
-    frequency: frequency || null,
+    dosage,
+    frequency,
     frequency_hours: frequencyHours ? parseInt(frequencyHours, 10) : null,
     reason: reason || null,
     prescribed_by: prescribedBy || null,
-    start_date: startDate || null,
+    start_date: startDate,
     end_date: endDate || null,
     notes: notes || null,
     created_by: user.id,
