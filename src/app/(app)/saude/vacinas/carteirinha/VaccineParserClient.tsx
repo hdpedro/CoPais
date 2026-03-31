@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
-import { createVaccinationRecordBatch } from "@/actions/health";
+import { createVaccinationRecordsBulk } from "@/actions/health";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 
@@ -135,34 +135,27 @@ export default function VaccineParserClient({ groupId, childId }: Props) {
 
     setSaving(true);
     try {
-      const errors: string[] = [];
-      for (const vaccine of toSave) {
-        const formData = new FormData();
-        formData.set("groupId", groupId);
-        formData.set("childId", childId);
-        formData.set("vaccineName", vaccine.vaccine_name);
-        formData.set("doseLabel", vaccine.dose_label || "");
-        formData.set("administeredDate", vaccine.administered_date || "");
-        formData.set("batchNumber", vaccine.batch_number || "");
-        formData.set("location", vaccine.location || "");
-        formData.set("notes", "Importado via leitura de carteirinha (IA)");
+      const result = await createVaccinationRecordsBulk(
+        groupId,
+        childId,
+        toSave.map((v) => ({
+          vaccine_name: v.vaccine_name,
+          dose_label: v.dose_label,
+          administered_date: v.administered_date,
+          batch_number: v.batch_number,
+          location: v.location,
+        })),
+      );
 
-        const result = await createVaccinationRecordBatch(formData);
-        if (!result.success) {
-          errors.push(`${vaccine.vaccine_name}: ${result.error}`);
-        }
-      }
-
-      if (errors.length > 0 && errors.length === toSave.length) {
-        setError(`Erro ao salvar: ${errors[0]}`);
+      if (!result.success) {
+        setError(`Erro ao salvar: ${result.error}`);
         setSaving(false);
         return;
       }
 
-      const saved = toSave.length - errors.length;
       router.push(
         `/saude/vacinas?crianca=${childId}&success=${encodeURIComponent(
-          `${saved} vacina(s) registrada(s) com sucesso`
+          `${result.savedCount} vacina(s) registrada(s) com sucesso`
         )}`
       );
     } catch {

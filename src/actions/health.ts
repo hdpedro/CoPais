@@ -975,6 +975,67 @@ export async function createVaccinationRecordBatch(formData: FormData): Promise<
 }
 
 // ---------------------------------------------------------------------------
+// 12c. createVaccinationRecordsBulk (single round-trip for multiple vaccines)
+// ---------------------------------------------------------------------------
+
+interface BulkVaccineInput {
+  vaccine_name: string;
+  dose_label: string | null;
+  administered_date: string | null;
+  batch_number: string | null;
+  location: string | null;
+}
+
+export async function createVaccinationRecordsBulk(
+  groupId: string,
+  childId: string,
+  vaccines: BulkVaccineInput[],
+): Promise<{ success: boolean; savedCount: number; error?: string }> {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+  await verifyMembership(supabase, groupId, user.id);
+
+  if (vaccines.length === 0) return { success: false, savedCount: 0, error: "Nenhuma vacina selecionada" };
+
+  const rows = vaccines.map((v) => ({
+    group_id: groupId,
+    child_id: childId,
+    vaccine_name: sanitizeText(v.vaccine_name, 200),
+    dose_label: sanitizeText(v.dose_label, 100) || null,
+    administered_date: v.administered_date || null,
+    batch_number: sanitizeText(v.batch_number, 100) || null,
+    location: sanitizeText(v.location, 200) || null,
+    notes: "Importado via leitura de carteirinha (IA)",
+    created_by: user.id,
+  }));
+
+  const { error } = await supabase.from("vaccination_records").insert(rows);
+
+  if (error) return { success: false, savedCount: 0, error: error.message };
+
+  captureServerEvent(user.id, "vaccine_recorded");
+
+  try {
+    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
+    if (otherMembers.length > 0) {
+      await sendPushToUsers(otherMembers, {
+        title: "Vacinas registradas",
+        body: `💉 ${rows.length} vacina(s) importada(s) — ${childName}`,
+        url: "/saude/vacinas",
+        tag: "health_vaccine",
+      });
+    }
+  } catch {
+    // Push failure should not break the action
+  }
+
+  revalidatePath("/saude/vacinas");
+  return { success: true, savedCount: rows.length };
+}
+
+// ---------------------------------------------------------------------------
 // 13. createGrowthRecord
 // ---------------------------------------------------------------------------
 
