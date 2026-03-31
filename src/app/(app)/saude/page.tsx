@@ -140,7 +140,7 @@ export default async function SaudePage({
 
     supabase
       .from("medication_doses")
-      .select("id, medication_id, administered_at, administered_by, profiles:administered_by(full_name), active_medications!inner(child_id)")
+      .select("id, medication_id, administered_at, administered_by, profiles:administered_by(full_name), active_medications!inner(child_id, name)")
       .eq("active_medications.child_id", selectedChildId)
       .order("administered_at", { ascending: false })
       .limit(50),
@@ -428,7 +428,8 @@ export default async function SaudePage({
 
   // Dose events
   (recentDoses || []).slice(0, 5).forEach(dose => {
-    const medName = (medications || []).find(m => m.id === dose.medication_id)?.name || "Medicamento";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const medName = (dose.active_medications as any)?.name || (medications || []).find(m => m.id === dose.medication_id)?.name || "Medicamento";
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const authorName = getDisplayName((dose.profiles as any)?.full_name, true) || null;
     timelineEvents.push({
