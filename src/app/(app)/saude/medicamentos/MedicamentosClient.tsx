@@ -4,16 +4,38 @@ import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import ConfirmDoseButton from "../ConfirmDoseButton";
 
+interface Medication {
+  id: string;
+  name: string;
+  dosage: string | null;
+  frequency: string | null;
+  frequency_hours: number | null;
+  reason: string | null;
+  prescribed_by: string | null;
+  start_date: string | null;
+  end_date: string | null;
+  status: string;
+  notes: string | null;
+  children: { full_name: string }[] | { full_name: string } | null;
+}
+
+interface Dose {
+  id: string;
+  medication_id: string;
+  administered_at: string;
+  notes: string | null;
+  profiles: { full_name: string }[] | { full_name: string } | null;
+}
+
 interface Props {
-  activeMeds: any[];
-  historyMeds: any[];
-  doses: any[];
+  activeMeds: Medication[];
+  historyMeds: Medication[];
+  doses: Dose[];
   isReadonly: boolean;
   success?: string;
   error?: string;
-  logDoseAction: (formData: FormData) => Promise<void>;
   updateStatusAction: (formData: FormData) => Promise<void>;
-  calcProgress: (startDate: string | null, endDate: string | null, status?: string) => { elapsed: number; totalDays: number; percent: number } | null;
+  progressMap: Record<string, { elapsed: number; totalDays: number; percent: number } | null>;
 }
 
 export default function MedicamentosClient({
@@ -23,11 +45,22 @@ export default function MedicamentosClient({
   isReadonly,
   success,
   error: errorMsg,
-  logDoseAction,
   updateStatusAction,
-  calcProgress,
+  progressMap,
 }: Props) {
   const { t } = useI18n();
+
+  function childName(children: Medication["children"]): string {
+    if (!children) return "";
+    if (Array.isArray(children)) return children[0]?.full_name ?? "";
+    return children.full_name ?? "";
+  }
+
+  function dosePerson(profiles: Dose["profiles"]): string {
+    if (!profiles) return "—";
+    if (Array.isArray(profiles)) return profiles[0]?.full_name ?? "—";
+    return profiles.full_name ?? "—";
+  }
 
   function formatDateBR(dateStr: string | null) {
     if (!dateStr) return "—";
@@ -73,7 +106,7 @@ export default function MedicamentosClient({
           </div>
         ) : (
           activeMeds.map((med) => {
-            const progress = calcProgress(med.start_date, med.end_date, med.status);
+            const progress = progressMap[med.id] ?? null;
             const medDoses = doses.filter((d) => d.medication_id === med.id).slice(0, 3);
 
             return (
@@ -81,7 +114,7 @@ export default function MedicamentosClient({
                 <div className="flex items-center justify-between mb-3">
                   <Link href={`/saude/medicamentos/${med.id}`} className="min-w-0 flex-1 hover:opacity-70 transition-opacity">
                     <span className="font-bold text-sm text-[#2D2D2D]">{med.name}</span>
-                    <span className="text-xs text-[#8E8E93] ml-2">— {(med.children as any)?.full_name}</span>
+                    <span className="text-xs text-[#8E8E93] ml-2">— {childName(med.children)}</span>
                   </Link>
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-[#DC4446] bg-red-50 px-2 py-0.5 rounded-full">
                     <span className="text-[8px]" aria-hidden="true">●</span> {t("health.active")}
@@ -117,10 +150,10 @@ export default function MedicamentosClient({
                       </Link>
                     </div>
                     <div className="space-y-1">
-                      {medDoses.map((dose: any) => (
+                      {medDoses.map((dose) => (
                         <div key={dose.id} className="flex items-center justify-between text-xs text-[#2D2D2D]">
                           <span>{formatDateTimeBR(dose.administered_at)}</span>
-                          <span className="text-[#8E8E93]">por {(dose.profiles as any)?.full_name ?? "—"}</span>
+                          <span className="text-[#8E8E93]">por {dosePerson(dose.profiles)}</span>
                         </div>
                       ))}
                     </div>
@@ -172,7 +205,7 @@ export default function MedicamentosClient({
               <div className="flex items-center justify-between">
                 <div>
                   <span className="font-medium text-sm text-[#2D2D2D]">{med.name}</span>
-                  <span className="text-xs text-[#8E8E93] ml-2">— {(med.children as any)?.full_name}</span>
+                  <span className="text-xs text-[#8E8E93] ml-2">— {childName(med.children)}</span>
                 </div>
                 {med.status === "completed" ? (
                   <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 bg-green-50 px-2 py-0.5 rounded-full">

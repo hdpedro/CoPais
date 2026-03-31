@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { logMedicationDose, updateMedicationStatus } from "@/actions/health";
+import { updateMedicationStatus } from "@/actions/health";
 import { getActiveGroup } from "@/lib/group-utils";
 import { getBrazilToday } from "@/lib/calendar-utils";
 import MedicamentosClient from "./MedicamentosClient";
@@ -42,22 +42,26 @@ export default async function MedicamentosPage({
     doses = dosesData ?? [];
   }
 
-  function calcProgress(startDate: string | null, endDate: string | null, status?: string) {
-    if (!startDate || !endDate) return null;
-    if (status === "completed" || status === "cancelled") {
-      const start = new Date(startDate + "T00:00:00");
-      const end = new Date(endDate + "T00:00:00");
-      const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-      return { elapsed: totalDays, totalDays, percent: 100 };
+  // Pre-compute progress for each medication (cannot pass functions to client components)
+  const progressMap: Record<string, { elapsed: number; totalDays: number; percent: number } | null> = {};
+  const tp = getBrazilToday().split("-").map(Number);
+  const nowDate = new Date(tp[0], tp[1] - 1, tp[2], 12, 0, 0);
+
+  for (const med of [...activeMeds, ...historyMeds]) {
+    if (!med.start_date || !med.end_date) {
+      progressMap[med.id] = null;
+      continue;
     }
-    const start = new Date(startDate + "T00:00:00");
-    const end = new Date(endDate + "T00:00:00");
-    const tp = getBrazilToday().split("-").map(Number);
-    const now = new Date(tp[0], tp[1] - 1, tp[2], 12, 0, 0);
+    const start = new Date(med.start_date + "T00:00:00");
+    const end = new Date(med.end_date + "T00:00:00");
     const totalDays = Math.max(1, Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)));
-    const elapsed = Math.max(0, Math.min(totalDays, Math.ceil((now.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))));
-    const percent = Math.min(100, (elapsed / totalDays) * 100);
-    return { elapsed, totalDays, percent };
+    if (med.status === "completed" || med.status === "cancelled") {
+      progressMap[med.id] = { elapsed: totalDays, totalDays, percent: 100 };
+    } else {
+      const elapsed = Math.max(0, Math.min(totalDays, Math.ceil((nowDate.getTime() - start.getTime()) / (1000 * 60 * 60 * 24))));
+      const percent = Math.min(100, (elapsed / totalDays) * 100);
+      progressMap[med.id] = { elapsed, totalDays, percent };
+    }
   }
 
   return (
@@ -68,9 +72,8 @@ export default async function MedicamentosPage({
       isReadonly={isReadonly}
       success={success}
       error={errorMsg}
-      logDoseAction={logMedicationDose}
       updateStatusAction={updateMedicationStatus}
-      calcProgress={calcProgress}
+      progressMap={progressMap}
     />
   );
 }
