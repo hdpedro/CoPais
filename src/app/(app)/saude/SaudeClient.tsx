@@ -894,6 +894,33 @@ export default function SaudeClient(props: SaudeClientProps) {
         </div>
       </section>
 
+      {/* Symptom Diary + Pre-appointment Summary */}
+      <section className="mb-5">
+        <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1">{t("health.tools")}</h2>
+        <div className="grid grid-cols-2 gap-3">
+          <Link
+            href={`/saude/sintomas?crianca=${selectedChildId}`}
+            className="bg-white rounded-xl p-4 shadow-sm border border-[#E8E0D4] hover:border-primary/40 hover:shadow-md transition-all group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
+              <span className="text-lg">📝</span>
+            </div>
+            <p className="text-sm font-semibold text-dark">{t("health.symptomDiary")}</p>
+            <p className="text-[10px] text-muted mt-0.5">{t("health.symptomDiaryDesc")}</p>
+          </Link>
+          <Link
+            href={`/saude/consultas/resumo?crianca=${selectedChildId}`}
+            className="bg-white rounded-xl p-4 shadow-sm border border-[#E8E0D4] hover:border-primary/40 hover:shadow-md transition-all group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
+              <span className="text-lg">📋</span>
+            </div>
+            <p className="text-sm font-semibold text-dark">{t("health.preSummary")}</p>
+            <p className="text-[10px] text-muted mt-0.5">{t("health.preSummaryDesc")}</p>
+          </Link>
+        </div>
+      </section>
+
       {/* Emergency Card */}
       <section className="mb-5">
         <Link

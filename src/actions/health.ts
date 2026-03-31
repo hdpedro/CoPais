@@ -1153,3 +1153,84 @@ export async function regenerateEmergencyToken(formData: FormData) {
   revalidatePath("/saude/emergencia");
   redirect(`/saude/emergencia?crianca=${childId}&success=` + encodeURIComponent("QR Code regenerado com sucesso."));
 }
+
+// ---------------------------------------------------------------------------
+// Symptom Diary
+// ---------------------------------------------------------------------------
+
+export async function createSymptomEntry(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const groupId = formData.get("groupId") as string;
+  await verifyMembership(supabase, groupId, user.id);
+
+  const childId = formData.get("childId") as string;
+  const symptomType = formData.get("symptomType") as string;
+  const intensity = (formData.get("intensity") as string) || null;
+  const temperatureStr = formData.get("temperature") as string;
+  const temperature = temperatureStr ? parseFloat(temperatureStr) : null;
+  const notes = sanitizeText(formData.get("notes") as string, 500);
+  const illnessEpisodeId =
+    (formData.get("illnessEpisodeId") as string) || null;
+
+  const { error } = await supabase.from("symptom_entries").insert({
+    group_id: groupId,
+    child_id: childId,
+    symptom_type: symptomType,
+    intensity,
+    temperature:
+      temperature && temperature >= 35 && temperature <= 43
+        ? temperature
+        : null,
+    notes: notes || null,
+    illness_episode_id: illnessEpisodeId || null,
+    created_by: user.id,
+  });
+
+  if (error) return { success: false, error: error.message };
+
+  captureServerEvent(user.id, "symptom_logged");
+
+  try {
+    const { data: child } = await supabase
+      .from("children")
+      .select("full_name")
+      .eq("id", childId)
+      .single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    const symptomLabels: Record<string, string> = {
+      febre: "\uD83C\uDF21\uFE0F Febre",
+      vomito: "\uD83E\uDD2E Vomito",
+      diarreia: "\uD83D\uDCA9 Diarreia",
+      tosse: "\uD83D\uDE37 Tosse",
+      dor: "\uD83D\uDE23 Dor",
+      mancha: "\uD83D\uDD34 Mancha",
+      falta_apetite: "\uD83C\uDF7D\uFE0F Sem apetite",
+      outro: "\uD83D\uDCDD Outro",
+    };
+    const label = symptomLabels[symptomType] || symptomType;
+    const tempSuffix = temperature ? ` ${temperature}\u00B0C` : "";
+    const otherMembers = await getOtherGroupMembers(
+      supabase,
+      groupId,
+      user.id,
+    );
+    if (otherMembers.length > 0) {
+      await sendPushToUsers(otherMembers, {
+        title: `Sintoma registrado \u2014 ${childName}`,
+        body: `${label}${tempSuffix}${intensity ? ` (${intensity})` : ""}`,
+        url: "/saude/sintomas",
+        tag: "health_symptom",
+      });
+    }
+  } catch {
+    // Push failure should not break the action
+  }
+
+  revalidatePath("/saude/sintomas");
+  revalidatePath("/saude");
+  return { success: true };
+}

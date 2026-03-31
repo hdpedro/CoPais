@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
+import { calculatePercentile } from "@/lib/who-growth-data";
 import GrowthChart from "./GrowthChart";
 
 interface GrowthRecord {
@@ -17,10 +18,11 @@ interface Child {
   id: string;
   full_name: string;
   birth_date: string;
+  sex: "M" | "F" | null;
 }
 
 interface Props {
-  children: Child[];
+  childrenList: Child[];
   selectedChildId: string;
   selectedChild: Child;
   growthRecords: GrowthRecord[];
@@ -30,7 +32,7 @@ interface Props {
 }
 
 export default function CrescimentoClient({
-  children: childrenList,
+  childrenList,
   selectedChildId,
   selectedChild,
   growthRecords,
@@ -41,6 +43,23 @@ export default function CrescimentoClient({
   const { t } = useI18n();
 
   const latest = growthRecords[0] || null;
+
+  function monthsBetween(birth: string, date: string): number {
+    const b = new Date(birth + "T12:00:00");
+    const d = new Date(date + "T12:00:00");
+    return Math.max(0, (d.getFullYear() - b.getFullYear()) * 12 + (d.getMonth() - b.getMonth()) + (d.getDate() - b.getDate()) / 30);
+  }
+
+  function getLatestPercentile(metric: "weight" | "height"): number | null {
+    if (!latest || !selectedChild.sex) return null;
+    const value = metric === "weight" ? latest.weight_kg : latest.height_cm;
+    if (!value) return null;
+    const ageMonths = monthsBetween(selectedChild.birth_date, latest.measured_date);
+    return calculatePercentile(ageMonths, value, selectedChild.sex, metric);
+  }
+
+  const weightPercentile = getLatestPercentile("weight");
+  const heightPercentile = getLatestPercentile("height");
 
   function formatDate(dateStr: string) {
     return new Date(dateStr + "T12:00:00").toLocaleDateString("pt-BR", {
@@ -137,14 +156,28 @@ export default function CrescimentoClient({
             <p className="text-xl font-bold text-dark">
               {latest.weight_kg ? `${latest.weight_kg}` : "—"}
             </p>
-            <p className="text-[10px] text-muted">kg</p>
+            {weightPercentile !== null ? (
+              <p className={`text-[10px] font-semibold ${
+                weightPercentile >= 15 && weightPercentile <= 85 ? "text-emerald-600" :
+                weightPercentile >= 3 && weightPercentile <= 97 ? "text-amber-600" : "text-red-600"
+              }`}>P{weightPercentile}</p>
+            ) : (
+              <p className="text-[10px] text-muted">kg</p>
+            )}
           </div>
           <div className="bg-white rounded-xl p-3 shadow-sm text-center">
             <p className="text-xs text-muted mb-1">{t("health.height")}</p>
             <p className="text-xl font-bold text-dark">
               {latest.height_cm ? `${latest.height_cm}` : "—"}
             </p>
-            <p className="text-[10px] text-muted">cm</p>
+            {heightPercentile !== null ? (
+              <p className={`text-[10px] font-semibold ${
+                heightPercentile >= 15 && heightPercentile <= 85 ? "text-emerald-600" :
+                heightPercentile >= 3 && heightPercentile <= 97 ? "text-amber-600" : "text-red-600"
+              }`}>P{heightPercentile}</p>
+            ) : (
+              <p className="text-[10px] text-muted">cm</p>
+            )}
           </div>
           <div className="bg-white rounded-xl p-3 shadow-sm text-center">
             <p className="text-xs text-muted mb-1">{t("health.head")}</p>
@@ -180,6 +213,7 @@ export default function CrescimentoClient({
         }))}
         birthDate={selectedChild.birth_date}
         childName={selectedChild.full_name}
+        childSex={selectedChild.sex}
       />
 
       {/* History */}

@@ -21,7 +21,7 @@
 | Backend/BaaS | Supabase (PostgreSQL) | ^2.99.2 |
 | Auth | Supabase Auth + SSR | ^0.9.0 |
 | IA | Multi-provider Router: Groq → Together → Gemini + Tesseract.js (OCR) | Cloud API / local |
-| i18n | Custom (I18nProvider + useI18n) | 5 idiomas, ~1405 chaves, 39 secoes |
+| i18n | Custom (I18nProvider + useI18n) | 5 idiomas, ~1488 chaves, 40 secoes |
 | Analytics | PostHog | 30+ eventos |
 | Error Tracking | Sentry | — |
 | Deploy | Vercel | Hobby |
@@ -48,7 +48,7 @@ src/
 │   ├── PushNotificationManager.tsx
 │   └── PWAInstallBanner.tsx   # Banner iOS "Adicionar a Tela de Inicio" (PWA standalone)
 ├── i18n/             # Sistema de internacionalizacao
-│   └── locales/      # pt.json, en.json, es.json, fr.json, de.json (~1405 chaves, 39 secoes)
+│   └── locales/      # pt.json, en.json, es.json, fr.json, de.json (~1488 chaves, 40 secoes)
 ├── lib/
 │   ├── supabase/     # Client, Server, Middleware, Admin (service role)
 │   ├── ai/                # Modulo AI centralizado
@@ -114,8 +114,8 @@ Todos os PostgREST FK joins (ex: `expenses(*, profiles(*))`) foram **removidos**
 
 ### Visao Geral
 - **5 idiomas**: Portugues (BR), Ingles, Espanhol, Frances, Alemao
-- **~1405 chaves** de traducao por locale
-- **38 secoes** tematicas
+- **~1488 chaves** de traducao por locale
+- **40 secoes** tematicas
 
 ### Arquitetura
 - Arquivos JSON em `src/i18n/locales/{pt,en,es,fr,de}.json`
@@ -138,7 +138,7 @@ function MeuComponente() {
 
 ### Secoes de Traducao (38 total)
 
-common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, children, documents, agreements, events, activities, sensitive, school, profile, family, invitations, onboarding, more, notifications, settlements, swap, schedule, export, appointments, medications, illnesses, allergies, vaccines, growth, professionals, decisions, newForm, notes, ai, activityReport, inviteParser.
+common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, children, documents, agreements, events, activities, sensitive, school, profile, family, invitations, onboarding, more, notifications, settlements, swap, schedule, export, appointments, medications, illnesses, allergies, vaccines, growth, professionals, decisions, newForm, notes, ai, activityReport, inviteParser, symptomDiary.
 
 ---
 
@@ -606,6 +606,7 @@ Hub central de saude com sub-modulos:
 - **Crescimento** (`/saude/crescimento`): peso, altura, perimetro cefalico, **grafico visual** (`GrowthChart`), comparacao WHO
 - **Profissionais** (`/saude/profissionais`): diretorio com especialidade, CRM, telefone, WhatsApp
 - **Ficha de Emergencia** (`/saude/emergencia`): gera QR Code com dados criticos de saude (tipo sanguineo, alergias, medicacoes, convenio/SUS, contatos, pediatra). Endpoint publico `/api/health/emergency/[childId]?token=...` renderiza HTML auto-contido. Token UUID por crianca (`emergency_token` na tabela `children`). Botoes de compartilhar, copiar link e regenerar QR. Checklist visual dos dados preenchidos
+- **Resumo pre-consulta** (`/saude/consultas/resumo`): gera resumo completo de saude desde a ultima consulta concluida (ou nascimento). Agrega doencas, sintomas, medicamentos (com aderencia), vacinas, crescimento, alergias, info medica e consultas do periodo. Botoes para copiar texto formatado e imprimir (CSS print-ready). Selecao de crianca via query param `?crianca=`. i18n: secao `preSummary` (~53 chaves)
 - **Exportacao** (`/saude/export`): exportar registros de saude
 - **Rastreamento de visualizacoes**: `HealthViewTracker` registra quem viu, `ViewedByBadge` (i18n) mostra badges
 - **Botao generico de submit**: `SubmitButton` reutilizavel
@@ -855,6 +856,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 | createVaccinationRecordBatch | health.ts | Registra vacina em batch (sem redirect) + push |
 | trackHealthView | health.ts | Rastreia visualizacao |
 | createGrowthRecord | health.ts | Registra crescimento + push |
+| createSymptomEntry | health.ts | Registra sintoma no diario (febre, vomito, diarreia, etc.) + push |
 | upsertChildEducation | children.ts | Info escolares |
 | uploadChildDocument | children.ts | Upload documento por crianca |
 | createDocument | documents.ts | Upload documento |
@@ -1055,7 +1057,7 @@ src/
 │   ├── NotificationBadge.tsx, AIAssistant.tsx, KindarLogo.tsx
 │   └── PushNotificationManager.tsx
 ├── i18n/                 # Sistema de internacionalizacao
-│   └── locales/          # pt.json, en.json, es.json, fr.json, de.json (~1405 chaves, 38 secoes)
+│   └── locales/          # pt.json, en.json, es.json, fr.json, de.json (~1488 chaves, 40 secoes)
 ├── lib/
 │   ├── supabase/         # client.ts, server.ts, middleware.ts, admin.ts (service role)
 │   ├── ai/               # Modulo AI centralizado

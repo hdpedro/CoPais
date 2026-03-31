@@ -19,16 +19,16 @@ export default async function CrescimentoPage({
 
   const { data: children } = await supabase
     .from("children")
-    .select("id, full_name, birth_date")
+    .select("id, full_name, birth_date, sex")
     .eq("group_id", groupId)
     .order("birth_date");
 
   if (!children || children.length === 0) {
     return (
       <CrescimentoClient
-        children={[]}
+        childrenList={[]}
         selectedChildId=""
-        selectedChild={{ id: "", full_name: "", birth_date: "" }}
+        selectedChild={{ id: "", full_name: "", birth_date: "", sex: null }}
         growthRecords={[]}
         isReadonly={isReadonly}
         success={params.success}
@@ -52,7 +52,7 @@ export default async function CrescimentoPage({
 
   return (
     <CrescimentoClient
-      children={children}
+      childrenList={children}
       selectedChildId={selectedChildId}
       selectedChild={selectedChild}
       growthRecords={(records || []).map(r => ({

@@ -291,3 +291,43 @@ export function getWeightForAge(sex: "M" | "F"): GrowthDataPoint[] {
 export function getHeightForAge(sex: "M" | "F"): GrowthDataPoint[] {
   return sex === "M" ? boysHeightForAge : girlsHeightForAge;
 }
+
+/**
+ * Calculate approximate percentile for a child's measurement.
+ * Interpolates between P3/P15/P50/P85/P97 using linear approximation.
+ */
+export function calculatePercentile(
+  ageMonths: number,
+  value: number,
+  sex: "M" | "F",
+  metric: "weight" | "height"
+): number | null {
+  const data = metric === "weight" ? getWeightForAge(sex) : getHeightForAge(sex);
+
+  // Find the closest month (floor)
+  const monthFloor = Math.floor(ageMonths);
+  const point = data.find((d) => d.month === monthFloor);
+  if (!point) return null;
+
+  // Percentile breakpoints
+  const breakpoints = [
+    { p: 3, val: point.p3 },
+    { p: 15, val: point.p15 },
+    { p: 50, val: point.p50 },
+    { p: 85, val: point.p85 },
+    { p: 97, val: point.p97 },
+  ];
+
+  if (value <= breakpoints[0].val) return 1;
+  if (value >= breakpoints[4].val) return 99;
+
+  for (let i = 0; i < breakpoints.length - 1; i++) {
+    const lo = breakpoints[i];
+    const hi = breakpoints[i + 1];
+    if (value >= lo.val && value <= hi.val) {
+      const ratio = (value - lo.val) / (hi.val - lo.val);
+      return Math.round(lo.p + ratio * (hi.p - lo.p));
+    }
+  }
+  return 50;
+}

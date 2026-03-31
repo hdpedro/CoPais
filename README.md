@@ -18,7 +18,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **Analytics:** PostHog (30+ eventos rastreados)
 - **Error Tracking:** Sentry
 - **Mobile (iOS):** Capacitor 7 (hybrid app para App Store)
-- **i18n:** 5 idiomas (PT, EN, ES, FR, DE) — ~1405 chaves por locale, 39 secoes
+- **i18n:** 5 idiomas (PT, EN, ES, FR, DE) — ~1488 chaves por locale, 40 secoes
 - **Testes:** Playwright E2E (34 testes) + Vitest unitarios (50 testes para AI parser)
 
 ## Numeros do Projeto
@@ -31,8 +31,8 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 | Migrations | 30 |
 | Client Components | 36+ |
 | Componentes globais | 13 |
-| Chaves de traducao | ~1405 por idioma |
-| Secoes i18n | 38 |
+| Chaves de traducao | ~1458 por idioma |
+| Secoes i18n | 39 |
 | Idiomas | 5 (PT, EN, ES, FR, DE) |
 
 ## iOS App (Capacitor)
@@ -72,7 +72,7 @@ O app suporta **5 idiomas** completos:
 - **Alemao (DE)**
 
 **Arquitetura i18n:**
-- ~1405 chaves de traducao por idioma, organizadas em 39 secoes
+- ~1488 chaves de traducao por idioma, organizadas em 40 secoes
 - Arquivos de traducao em `src/i18n/locales/{pt,en,es,fr,de}.json`
 - `I18nProvider` envolvendo o layout do app
 - Hook `useI18n()` usado em todos os Client Components
@@ -171,6 +171,7 @@ O app suporta **5 idiomas** completos:
 ### 7. Saude Completa (`/saude` — 9 sub-modulos)
 - **Dashboard central** com doencas ativas, medicamentos, alergias, consultas, vacinas, retornos pendentes
 - **Banner de vacinas atrasadas** no dashboard de saude
+- **Diario de Sintomas** (`/saude/sintomas`): registro rapido de sintomas (febre, vomito, diarreia, tosse, dor, mancha, falta de apetite, outro) com intensidade (leve/moderado/forte), temperatura para febre, notas, vinculo com episodio de doenca ativo. Timeline cronologica agrupada por dia (ultimos 7 dias). Botao "Compartilhar com pediatra" copia resumo formatado. Push notifications para grupo. Bottom sheet modal com design mobile-first
 - **Doencas** (`/saude/doencas`): episodios com sintomas, severidade (leve/moderado/grave), evolucao timestamped, status (ativo/resolvido/cronico), ida ao hospital, `ResolveButton`, `UpdateEpisodeForm`. Validacao de status — rejeita valores invalidos em `updateIllnessEpisode`
 - **Medicamentos** (`/saude/medicamentos`): dosagem, frequencia, registro de doses, status (ativo/pausado/completo/cancelado), pagina de detalhe por medicamento (`/saude/medicamentos/[id]`). **Validacao server-side de intervalo entre doses** (rejeita se < 30 min). `ConfirmDoseButton` na lista de medicamentos
 - **Consultas** (`/saude/consultas`): agendamento, profissional, tipo (rotina/emergencia/retorno/exame), diagnostico, data de retorno, auto-sync com calendario, `CompleteAppointmentForm` (i18n completo), botao WhatsApp para agendamento
@@ -453,7 +454,7 @@ src/
     PWAInstallBanner.tsx # Banner iOS para "Adicionar a Tela de Inicio" (PWA standalone)
   i18n/                 # Sistema de internacionalizacao
     locales/            # Arquivos de traducao
-      pt.json           # Portugues (~1405 chaves, 38 secoes)
+      pt.json           # Portugues (~1488 chaves, 40 secoes)
       en.json           # Ingles
       es.json           # Espanhol
       fr.json           # Frances

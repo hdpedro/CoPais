@@ -53,7 +53,7 @@
 | Estilizacao | Tailwind CSS | ^4 | Utility-first, produtividade, zero CSS custom |
 | Backend/BaaS | Supabase (PostgreSQL) | ^2.99.2 | Auth + DB + RLS em um unico servico |
 | Auth | Supabase Auth + SSR | ^0.9.0 | Session management com cookies no server |
-| i18n | Custom (I18nProvider + useI18n) | — | 5 idiomas, ~1405 chaves, 38 secoes |
+| i18n | Custom (I18nProvider + useI18n) | — | 5 idiomas, ~1488 chaves, 40 secoes |
 | Deploy | Vercel | Hobby | Zero-config para Next.js, auto-deploy |
 | IA | Multi-provider Router: Groq → Together → Gemini | Cloud API | Assistente conversacional com function calling (12 tools, multi-round), parsers robustos PT-BR; Invite Parser. Vision: llama-4-scout / Llama-Vision-Free / gemini-2.0-flash. Text: llama-3.3-70b / Llama-3.3-70B-Turbo-Free / gemini-2.0-flash |
 | OCR | Tesseract.js | local (browser/Node) | Extracao de texto de imagens/PDFs para o Invite Parser (100% free tier) |
@@ -419,7 +419,7 @@ Kindar/
     ├── i18n/                        # === INTERNACIONALIZACAO ===
     │   ├── index.ts                 # I18nProvider, useI18n hook
     │   └── locales/
-    │       ├── pt.json              # Portugues (~1405 chaves, 38 secoes)
+    │       ├── pt.json              # Portugues (~1488 chaves, 40 secoes)
     │       ├── en.json              # Ingles
     │       ├── es.json              # Espanhol
     │       ├── fr.json              # Frances
@@ -1032,9 +1032,9 @@ const { t } = useI18n();
 return <span>{t("minha_secao.minha_chave")}</span>;
 ```
 
-### Secoes de Traducao (39 total)
+### Secoes de Traducao (40 total)
 
-As 39 secoes cobrem: common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, children, documents, agreements, events, activities, sensitive, school, profile, family, invitations, onboarding, more, notifications, settlements, swap, schedule, export, appointments, medications, illnesses, allergies, vaccines, growth, professionals, decisions, newForm, notes, ai, activityReport, inviteParser.
+As 40 secoes cobrem: common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, children, documents, agreements, events, activities, sensitive, school, profile, family, invitations, onboarding, more, notifications, settlements, swap, schedule, export, appointments, medications, illnesses, allergies, vaccines, growth, professionals, decisions, newForm, notes, ai, activityReport, inviteParser, preSummary.
 
 ### Padrao para Novos Componentes
 

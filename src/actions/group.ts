@@ -90,6 +90,7 @@ export async function addChild(formData: FormData) {
   const birthDate = formData.get("birthDate") as string;
   const allergies = formData.get("allergies") as string;
   const notes = formData.get("notes") as string;
+  const sex = formData.get("sex") as string | null;
 
   const { error } = await supabase.from("children").insert({
     group_id: groupId,
@@ -97,6 +98,7 @@ export async function addChild(formData: FormData) {
     birth_date: birthDate,
     allergies: allergies ? allergies.split(",").map(a => a.trim()) : null,
     notes: notes || null,
+    sex: sex === "M" || sex === "F" ? sex : null,
   });
 
   if (error) redirect("/criancas/nova?error=" + encodeURIComponent(error.message));

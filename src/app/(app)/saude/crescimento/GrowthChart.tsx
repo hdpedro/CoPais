@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   getWeightForAge,
   getHeightForAge,
+  calculatePercentile,
   type GrowthDataPoint,
 } from "@/lib/who-growth-data";
 
@@ -20,6 +21,7 @@ type Props = {
   records: GrowthRecord[];
   birthDate: string; // YYYY-MM-DD
   childName: string;
+  childSex?: "M" | "F" | null;
 };
 
 type Metric = "weight" | "height";
@@ -85,9 +87,9 @@ function buildAreaPath(
   return top.join(" ") + " " + bot.join(" ") + " Z";
 }
 
-export default function GrowthChart({ records, birthDate, childName }: Props) {
+export default function GrowthChart({ records, birthDate, childName, childSex }: Props) {
   const [metric, setMetric] = useState<Metric>("weight");
-  const [sex, setSex] = useState<Sex>("M");
+  const [sex, setSex] = useState<Sex>(childSex || "M");
 
   const whoData =
     metric === "weight" ? getWeightForAge(sex) : getHeightForAge(sex);
@@ -136,7 +138,6 @@ export default function GrowthChart({ records, birthDate, childName }: Props) {
   for (let m = 0; m <= maxMonth; m += xStep) xTicks.push(m);
 
   // Band area paths
-  const areaRed1 = buildAreaPath(whoData, "p3", "p3", xScale, yScale, maxMonth); // below p3 border
   const areaYellow1 = buildAreaPath(whoData, "p15", "p3", xScale, yScale, maxMonth);
   const areaGreen = buildAreaPath(whoData, "p85", "p15", xScale, yScale, maxMonth);
   const areaYellow2 = buildAreaPath(whoData, "p97", "p85", xScale, yScale, maxMonth);
@@ -162,13 +163,31 @@ export default function GrowthChart({ records, birthDate, childName }: Props) {
       : "";
 
   const firstName = childName.split(" ")[0];
-  const unitLabel = metric === "weight" ? "kg" : "cm";
+
+  // Calculate current percentile for latest point
+  const latestPoint = childPoints[childPoints.length - 1];
+  const currentPercentile = latestPoint
+    ? calculatePercentile(latestPoint.month, latestPoint.value, sex, metric)
+    : null;
 
   return (
     <div className="bg-white rounded-xl shadow-sm p-4 mb-6">
-      <h2 className="text-sm font-semibold text-dark mb-3">
-        Curva de Crescimento OMS
-      </h2>
+      <div className="flex items-center justify-between mb-3">
+        <h2 className="text-sm font-semibold text-dark">
+          Curva de Crescimento OMS
+        </h2>
+        {currentPercentile !== null && (
+          <span className={`text-xs font-bold px-2.5 py-1 rounded-full ${
+            currentPercentile >= 15 && currentPercentile <= 85
+              ? "bg-emerald-100 text-emerald-700"
+              : currentPercentile >= 3 && currentPercentile <= 97
+                ? "bg-amber-100 text-amber-700"
+                : "bg-red-100 text-red-700"
+          }`}>
+            P{currentPercentile}
+          </span>
+        )}
+      </div>
 
       {/* Controls */}
       <div className="flex flex-wrap gap-2 mb-3">
