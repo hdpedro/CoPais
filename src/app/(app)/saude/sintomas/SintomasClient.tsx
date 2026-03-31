@@ -419,7 +419,6 @@ export default function SintomasClient({
                   dayEntries[0].recorded_at,
                   t("symptomDiary.today"),
                   t("symptomDiary.yesterday"),
-                  t,
                 );
                 return (
                   <div key={dayKey}>
