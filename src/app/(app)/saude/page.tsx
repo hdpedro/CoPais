@@ -6,6 +6,7 @@ import { getBrazilToday } from "@/lib/calendar-utils";
 import { getDisplayName } from "@/lib/constants";
 import dynamic from "next/dynamic";
 import { type SaudeClientProps } from "./SaudeClient";
+import { type TimelineEvent } from "./HealthTimeline";
 
 const SaudeClient = dynamic(() => import("./SaudeClient"), {
   loading: () => <div className="animate-pulse bg-gray-100 rounded-xl h-96" />,
@@ -62,6 +63,7 @@ export default async function SaudePage({
       overdueVaccineCount: 0,
       lastUpdateRelative: null,
       healthViews: [],
+      timeline: [],
     };
     return <SaudeClient {...emptyProps} />;
   }
@@ -73,8 +75,10 @@ export default async function SaudePage({
 
   const selectedChild = children.find((c) => c.id === selectedChildId)!;
   const todayDate = getBrazilToday();
-  const today = todayDate + "T23:59:59-03:00";
   const todayStart = todayDate + "T00:00:00-03:00";
+  // Server component — runs once per request, Date.now() is safe here
+  // eslint-disable-next-line react-hooks/purity
+  const now = Date.now();
 
   // Fetch all data in parallel
   const [
@@ -91,6 +95,10 @@ export default async function SaudePage({
     { count: professionalsCount },
     { data: vaccineRecordsForComparison },
     { data: healthViews },
+    { data: recentSymptoms },
+    { data: recentCompletedApts },
+    { data: recentGrowth },
+    { data: recentIllnesses },
   ] = await Promise.all([
     supabase
       .from("illness_episodes")
@@ -151,6 +159,35 @@ export default async function SaudePage({
       .eq("child_id", selectedChildId)
       .order("viewed_at", { ascending: false })
       .limit(20),
+    // Timeline: recent symptom entries
+    supabase
+      .from("symptom_entries")
+      .select("id, symptom_type, intensity, temperature, created_at, profiles:created_by(full_name)")
+      .eq("child_id", selectedChildId)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    // Timeline: recent completed appointments
+    supabase
+      .from("medical_appointments")
+      .select("id, title, appointment_date, appointment_type")
+      .eq("child_id", selectedChildId)
+      .eq("status", "completed")
+      .order("appointment_date", { ascending: false })
+      .limit(5),
+    // Timeline: recent growth records
+    supabase
+      .from("growth_records")
+      .select("id, weight_kg, height_cm, measurement_date")
+      .eq("child_id", selectedChildId)
+      .order("measurement_date", { ascending: false })
+      .limit(3),
+    // Timeline: recent illness episodes (all statuses, for timeline)
+    supabase
+      .from("illness_episodes")
+      .select("id, title, start_date, status, created_at")
+      .eq("child_id", selectedChildId)
+      .order("created_at", { ascending: false })
+      .limit(5),
   ]);
 
   // SBP Vaccine Comparison for overdue badge
@@ -168,36 +205,52 @@ export default async function SaudePage({
 
   // ─── Helper functions ───
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   function getNextDose(med: any) {
-    if (!med.frequency_hours || med.frequency_hours === 0) return null;
     const medDoses = recentDoses?.filter((d) => d.medication_id === med.id) || [];
+
+    // SOS / "se necessário" medications (no fixed frequency)
+    if (!med.frequency_hours || med.frequency_hours === 0) {
+      if (medDoses.length === 0) return { time: null, overdue: false, lastBy: null, lastDoseMinutesAgo: null, onDemand: true };
+      const lastDose = medDoses[0];
+      const lastTime = new Date(lastDose.administered_at);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const lastByName = getDisplayName((lastDose.profiles as any)?.full_name, true) || null;
+      const lastDoseMinutesAgo = (now - lastTime.getTime()) / (1000 * 60);
+      return { time: null, overdue: false, lastBy: lastByName, lastDoseMinutesAgo, onDemand: true };
+    }
+
     if (medDoses.length === 0) {
       const start = new Date(med.start_date + "T08:00:00");
-      if (start.getTime() > Date.now()) return { time: start, overdue: false, lastBy: null, lastDoseMinutesAgo: null };
-      return { time: new Date(), overdue: true, lastBy: null, lastDoseMinutesAgo: null };
+      if (start.getTime() > now) return { time: start, overdue: false, lastBy: null, lastDoseMinutesAgo: null, onDemand: false };
+      return { time: new Date(now), overdue: true, lastBy: null, lastDoseMinutesAgo: null, onDemand: false };
     }
     const lastDose = medDoses[0];
     const lastTime = new Date(lastDose.administered_at);
     const nextTime = new Date(lastTime.getTime() + med.frequency_hours * 60 * 60 * 1000);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const lastByName = getDisplayName((lastDose.profiles as any)?.full_name, true) || null;
-    const lastDoseMinutesAgo = (Date.now() - lastTime.getTime()) / (1000 * 60);
+    const lastDoseMinutesAgo = (now - lastTime.getTime()) / (1000 * 60);
     return {
       time: nextTime,
-      overdue: nextTime.getTime() < Date.now(),
+      overdue: nextTime.getTime() < now,
       lastBy: lastByName,
       lastDoseMinutesAgo,
+      onDemand: false,
     };
   }
 
   function getMedProgress(startDate: string, endDate: string | null) {
-    if (!endDate) return null;
     const start = new Date(startDate).getTime();
+    if (!endDate) {
+      const elapsedDays = Math.max(1, Math.ceil((now - start) / (1000 * 60 * 60 * 24)));
+      return { totalDays: null, elapsedDays, percent: null, continuous: true };
+    }
     const end = new Date(endDate).getTime();
-    const now = Date.now();
     const totalDays = Math.max(1, Math.ceil((end - start) / (1000 * 60 * 60 * 24)));
     const elapsedDays = Math.max(0, Math.ceil((now - start) / (1000 * 60 * 60 * 24)));
     const percent = Math.min(100, Math.round((elapsedDays / totalDays) * 100));
-    return { totalDays, elapsedDays: Math.min(elapsedDays, totalDays), percent };
+    return { totalDays, elapsedDays: Math.min(elapsedDays, totalDays), percent, continuous: false };
   }
 
   function getEvolutionTrend(notes: string | null): { label: string; icon: string; color: string; textColor: string } {
@@ -223,7 +276,7 @@ export default async function SaudePage({
   }
 
   function formatRelativeTime(date: Date): string {
-    const diffMs = Date.now() - date.getTime();
+    const diffMs = now - date.getTime();
     const diffMin = Math.floor(diffMs / (1000 * 60));
     if (diffMin < 1) return "__now__";
     if (diffMin < 60) return `__min__${diffMin}`;
@@ -240,6 +293,7 @@ export default async function SaudePage({
     activeIllnesses?.[0]?.created_at,
     medications?.[0]?.created_at,
     recentDoses?.[0]?.administered_at,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     ...(allergies?.map(a => (a as any).created_at) || []),
   ].filter(Boolean);
   const lastUpdateTime = lastUpdateSources.length > 0
@@ -259,8 +313,9 @@ export default async function SaudePage({
     start_date: ill.start_date,
     created_at: ill.created_at,
     notes: ill.notes,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     authorName: getDisplayName((ill.profiles as any)?.full_name, true) || null,
-    daysActive: Math.max(1, Math.ceil((Date.now() - new Date(ill.start_date + "T12:00:00").getTime()) / (1000 * 60 * 60 * 24))),
+    daysActive: Math.max(1, Math.ceil((now - new Date(ill.start_date + "T12:00:00").getTime()) / (1000 * 60 * 60 * 24))),
     trend: getEvolutionTrend(ill.notes),
   }));
 
@@ -277,12 +332,14 @@ export default async function SaudePage({
       end_date: med.end_date,
       reason: med.reason,
       created_at: med.created_at,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       authorName: getDisplayName((med.profiles as any)?.full_name, true) || null,
       doseInfo: nd ? {
-        formattedTime: formatTime(nd.time),
+        formattedTime: nd.time ? formatTime(nd.time) : null,
         overdue: nd.overdue,
         lastBy: nd.lastBy,
         lastDoseMinutesAgo: nd.lastDoseMinutesAgo,
+        onDemand: nd.onDemand ?? false,
       } : null,
       progress: getMedProgress(med.start_date, med.end_date),
     };
@@ -306,7 +363,9 @@ export default async function SaudePage({
     appointment_type: appointment.appointment_type,
     appointment_date: appointment.appointment_date,
     location: appointment.location,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     professionalName: (appointment.medical_professionals as any)?.name || null,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     professionalSpecialty: (appointment.medical_professionals as any)?.specialty || null,
     formattedDate: new Date(appointment.appointment_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "short" }),
     formattedTime: new Date(appointment.appointment_date).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }),
@@ -315,13 +374,14 @@ export default async function SaudePage({
   // Process pending returns
   const processedReturns = (pendingReturns || []).map(apt => {
     const returnD = new Date(apt.return_date + "T12:00:00");
-    const daysUntil = Math.ceil((returnD.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+    const daysUntil = Math.ceil((returnD.getTime() - now) / (1000 * 60 * 60 * 24));
     return {
       id: apt.id,
       title: apt.title,
       return_date: apt.return_date,
       return_notes: apt.return_notes,
       appointment_type: apt.appointment_type,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       professionalSpecialty: (apt.medical_professionals as any)?.specialty || null,
       formattedDate: returnD.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }),
       daysUntil,
@@ -335,6 +395,7 @@ export default async function SaudePage({
     viewed_at: v.viewed_at,
     record_type: v.record_type,
     record_id: v.record_id,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     profiles: v.profiles ? { full_name: (v.profiles as any).full_name } : null,
   }));
 
@@ -346,6 +407,97 @@ export default async function SaudePage({
     severity: a.severity,
     reaction: a.reaction,
   }));
+
+  // ─── Build timeline events ───
+  const timelineEvents: TimelineEvent[] = [];
+
+  // Illness events
+  (recentIllnesses || []).forEach(ill => {
+    timelineEvents.push({
+      id: ill.id,
+      type: "illness",
+      title: ill.title,
+      subtitle: ill.status === "resolved" ? "Recuperada" : ill.status === "active" ? "Ativa" : ill.status,
+      timestamp: ill.created_at,
+      relativeTime: formatRelativeTime(new Date(ill.created_at)),
+      href: `/saude/doencas?crianca=${selectedChildId}`,
+      icon: "🤒",
+      color: "bg-red-50",
+    });
+  });
+
+  // Dose events
+  (recentDoses || []).slice(0, 5).forEach(dose => {
+    const medName = (medications || []).find(m => m.id === dose.medication_id)?.name || "Medicamento";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const authorName = getDisplayName((dose.profiles as any)?.full_name, true) || null;
+    timelineEvents.push({
+      id: dose.id,
+      type: "dose",
+      title: `Dose: ${medName}`,
+      subtitle: authorName ? `Por ${authorName}` : null,
+      timestamp: dose.administered_at,
+      relativeTime: formatRelativeTime(new Date(dose.administered_at)),
+      href: `/saude/medicamentos/${dose.medication_id}`,
+      icon: "💊",
+      color: "bg-blue-50",
+    });
+  });
+
+  // Symptom events
+  (recentSymptoms || []).forEach(sym => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const authorName = getDisplayName((sym.profiles as any)?.full_name, true) || null;
+    const tempSuffix = sym.temperature ? ` ${sym.temperature}°C` : "";
+    timelineEvents.push({
+      id: sym.id,
+      type: "symptom",
+      title: `${sym.symptom_type}${tempSuffix}`,
+      subtitle: authorName ? `Por ${authorName}` : (sym.intensity || null),
+      timestamp: sym.created_at,
+      relativeTime: formatRelativeTime(new Date(sym.created_at)),
+      href: `/saude/sintomas?crianca=${selectedChildId}`,
+      icon: "📝",
+      color: "bg-orange-50",
+    });
+  });
+
+  // Completed appointment events
+  (recentCompletedApts || []).forEach(apt => {
+    timelineEvents.push({
+      id: apt.id,
+      type: "appointment",
+      title: apt.title,
+      subtitle: apt.appointment_type || null,
+      timestamp: apt.appointment_date,
+      relativeTime: formatRelativeTime(new Date(apt.appointment_date)),
+      href: `/saude/consultas?crianca=${selectedChildId}`,
+      icon: "📅",
+      color: "bg-teal-50",
+    });
+  });
+
+  // Growth events
+  (recentGrowth || []).forEach(gr => {
+    const parts: string[] = [];
+    if (gr.weight_kg) parts.push(`${gr.weight_kg}kg`);
+    if (gr.height_cm) parts.push(`${gr.height_cm}cm`);
+    timelineEvents.push({
+      id: gr.id,
+      type: "growth",
+      title: `Medida: ${parts.join(" · ") || "registrada"}`,
+      subtitle: null,
+      timestamp: gr.measurement_date + "T12:00:00",
+      relativeTime: formatRelativeTime(new Date(gr.measurement_date + "T12:00:00")),
+      href: `/saude/crescimento?crianca=${selectedChildId}`,
+      icon: "📏",
+      color: "bg-emerald-50",
+    });
+  });
+
+  // Sort by timestamp desc and take top 10
+  timelineEvents.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+  const timeline = timelineEvents.slice(0, 10);
 
   const clientProps: SaudeClientProps = {
     children: children.map(c => ({ id: c.id, full_name: c.full_name, birth_date: c.birth_date })),
@@ -377,6 +529,7 @@ export default async function SaudePage({
     overdueVaccineCount,
     lastUpdateRelative,
     healthViews: processedHealthViews,
+    timeline,
   };
 
   return <SaudeClient {...clientProps} />;

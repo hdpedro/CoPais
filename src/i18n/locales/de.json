@@ -625,6 +625,13 @@
     "completeTreatment": "Behandlung abschließen",
     "completed": "Abgeschlossen",
     "cancelled": "Abgebrochen",
+    "continuousUse": "Dauermedikation",
+    "continuousDay": "Tag {count} der Einnahme",
+    "onDemandUse": "Bedarfsmedikation",
+    "lastDoseBy": "Letzte Dosis von {name}",
+    "viewMedication": "Medikament ansehen",
+    "noDoseYet": "Noch keine Dosis erfasst — bestätigen Sie die erste Dosis unten",
+    "since": "Seit",
     "addMedication": "Medikament hinzufügen",
     "newMedication": "Neues Medikament",
     "medicationName": "Medikamentenname",
@@ -869,6 +876,14 @@
       "yesRecovered": "Ja, genesen",
       "markRecovered": "Als genesen markieren"
     },
+    "resolve": {
+      "confirmMessage": "Bestätigen Sie, dass das Kind von dieser Krankheit genesen ist?",
+      "finishMedsQuestion": "Zugehörige Medikamente auch beenden?",
+      "saving": "Speichern...",
+      "yesResolved": "Ja, genesen",
+      "cancel": "Abbrechen",
+      "markResolved": "Als genesen markieren"
+    },
     "viewedBy": {
       "someone": "Jemand",
       "now": "jetzt",
@@ -954,6 +969,46 @@
       "crmCol": "CRM",
       "phoneCol": "Telefon",
       "disclaimer": "Dieses Dokument wurde automatisch erstellt und ersetzt keine professionelle medizinische Beratung."
+    },
+    "recentActivity": "Letzte Aktivität",
+    "evolution": {
+      "improved": "Verbessert",
+      "worsened": "Verschlechtert",
+      "notePlaceholder": "Was hat sich geändert? (optional)",
+      "confirm": "Bestätigen",
+      "cancel": "Abbrechen",
+      "saving": "Speichern...",
+      "savedImproving": "Verlauf erfasst — Verbesserung",
+      "savedWorsening": "Verlauf erfasst — Verschlechterung"
+    },
+    "resolve": {
+      "markResolved": "Als geheilt markieren",
+      "confirmMessage": "Sind Sie sicher, dass die Krankheit geheilt ist?",
+      "finishMedsQuestion": "Zugehörige Medikamente auch beenden?",
+      "yesResolved": "Ja, geheilt",
+      "cancel": "Abbrechen",
+      "saving": "Speichern..."
+    },
+    "wizard": {
+      "title": "Kind ist krank",
+      "subtitle": "Alles auf einmal erfassen — Krankheit, Medikament und Termin",
+      "step1": "Krankheit",
+      "step2": "Medikament",
+      "step3": "Termin",
+      "whatHappened": "Was ist passiert?",
+      "needsMedication": "Braucht Medikament?",
+      "yesMedication": "Ja",
+      "noMedication": "Nicht nötig",
+      "needsAppointment": "Braucht Termin?",
+      "yesAppointment": "Ja, planen",
+      "noAppointment": "Nicht nötig",
+      "appointmentTitlePlaceholder": "Z.B.: Kinderarzt, Notaufnahme",
+      "leaveEmptyContinuous": "Leer lassen für Dauergebrauch",
+      "summary": "Zusammenfassung",
+      "next": "Weiter",
+      "back": "Zurück",
+      "saving": "Wird gespeichert...",
+      "register": "Alles registrieren"
     }
   },
   "profile": {

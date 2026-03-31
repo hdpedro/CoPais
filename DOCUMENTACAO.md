@@ -6,7 +6,7 @@
 
 **URL de producao:** https://kindar.com.br
 **Dominio:** kindar.com.br
-**Ultima atualizacao:** 30/03/2026
+**Ultima atualizacao:** 31/03/2026
 
 ---
 
@@ -183,6 +183,13 @@ common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, ch
 **Chat:**
 - Cache LRU em memoria (ate 5 canais) para troca instantanea de canais
 - Client-side channel switching sem reload de pagina
+
+**Modulo Saude:**
+- `select("*")` substituido por colunas especificas em todas as paginas de saude (medicamentos, consultas, doencas, profissionais, crescimento, vacinas)
+- `.limit()` adicionado em todas as queries sem cap de seguranca (50-500 conforme contexto)
+- Queries independentes paralelizadas com `Promise.all()` (ex: symptom_entries + illness_episodes em sintomas)
+- Dados pre-computados no server (progressMap em medicamentos) em vez de funcoes passadas ao client — Next.js 16 proibe funcoes como props de Client Components
+- Interfaces TypeScript tipadas (Medication, Dose) substituem `any` em MedicamentosClient
 
 **Geral:**
 - Dynamic imports para 6 componentes pesados (AIAssistant, GrowthChart, etc.)
@@ -599,7 +606,7 @@ Hub central de saude com sub-modulos:
 - **Push notifications** para TODOS os eventos de saude (alergias, vacinas, consultas, crescimento)
 - **Sanitizacao de input** em todos os campos de texto (max length limits)
 - **Doencas** (`/saude/doencas`): episodios com sintomas, severidade (leve/moderado/grave), evolucao com notas timestamped, status (ativo/resolvido/cronico), ida ao hospital, botao resolver (`ResolveButton`), formulario de atualizacao (`UpdateEpisodeForm`). `updateIllnessEpisode` rejeita status invalidos
-- **Medicamentos** (`/saude/medicamentos`): nome, dosagem, frequencia, horarios, status (ativo/pausado/completo/cancelado), registro de doses, historico, **pagina de detalhe** (`/saude/medicamentos/[id]`). **Validacao server-side de intervalo entre doses** (< 30 min rejeitado). `ConfirmDoseButton` na lista de medicamentos
+- **Medicamentos** (`/saude/medicamentos`): nome, dosagem, frequencia, horarios, status (ativo/pausado/completo/cancelado), registro de doses, historico, **pagina de detalhe** (`/saude/medicamentos/[id]`). **Validacao server-side de intervalo entre doses** (< 30 min rejeitado). **Validacao server-side de campos obrigatorios** (nome, dosagem, frequencia, data inicio) antes do insert — previne violacoes NOT NULL no Postgres. `ConfirmDoseButton` na lista de medicamentos E na pagina de detalhe. Progress de tratamento pre-computado no server (`progressMap`) — funcoes nao podem ser passadas a Client Components no Next.js 16. **Uso continuo**: medicamentos sem data final exibem "Uso continuo — Dia N" em vez de barra de progresso. **Medicamentos sob demanda** (SOS/se necessario): quando `frequency_hours` e 0, exibe ultima dose por quem e quando (em vez de esconder timing). **Links diretos**: nome do medicamento no dashboard e hero e clicavel, levando ao detalhe `/saude/medicamentos/[id]`. Botao "Ver medicamento" no hero de doenca ativa. **Proxima dose estimada** na pagina de detalhe baseada no intervalo medio real
 - **Consultas** (`/saude/consultas`): agendamento com profissional, tipo (rotina/emergencia/retorno/exame), local, data retorno, diagnostico, prescricoes, status (agendada/concluida/cancelada/faltou), formulario de conclusao (`CompleteAppointmentForm` com i18n), botao WhatsApp para agendar
 - **Alergias** (`/saude/alergias`): tipo, severidade, reacao, info medica (tipo sanguineo, convenio, SUS). **Edicao e exclusao inline** com formulario (`AllergyFormClient`). Service role usado para query (workaround de RLS). Fix de coluna `notes` inexistente na query. Link `/saude/alergias/editar-info` corrigido (scroll ate formulario)
 - **Vacinas** (`/saude/vacinas`): comparacao com calendario SBP, doses, lotes, local aplicacao, confirmacao de dose (`ConfirmDoseButton`)
@@ -857,6 +864,9 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 | trackHealthView | health.ts | Rastreia visualizacao |
 | createGrowthRecord | health.ts | Registra crescimento + push |
 | createSymptomEntry | health.ts | Registra sintoma no diario (febre, vomito, diarreia, etc.) + push |
+| createIllnessWithMedicationAndAppointment | health.ts | Wizard: cria doenca + medicamento + consulta em uma unica action + push + chat |
+| resolveIllnessQuick | health.ts | Resolve doenca rapido + opcao de finalizar medicamentos + chat |
+| addEvolutionQuick | health.ts | Evolucao rapida (melhorou/piorou) sem redirect + chat |
 | upsertChildEducation | children.ts | Info escolares |
 | uploadChildDocument | children.ts | Upload documento por crianca |
 | createDocument | documents.ts | Upload documento |

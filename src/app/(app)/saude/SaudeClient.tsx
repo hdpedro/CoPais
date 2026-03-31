@@ -5,6 +5,9 @@ import { useI18n } from "@/i18n/provider";
 import ConfirmDoseButton from "./ConfirmDoseButton";
 import HealthViewTracker from "./HealthViewTracker";
 import ViewedByBadge from "./ViewedByBadge";
+import HealthTimeline, { type TimelineEvent } from "./HealthTimeline";
+import EvolutionQuickAction from "./EvolutionQuickAction";
+import ResolveIllnessAction from "./ResolveIllnessAction";
 
 // ─── Types ───
 
@@ -74,16 +77,18 @@ interface PendingReturnData {
 }
 
 interface MedDoseInfo {
-  formattedTime: string;
+  formattedTime: string | null;
   overdue: boolean;
   lastBy: string | null;
   lastDoseMinutesAgo: number | null;
+  onDemand: boolean;
 }
 
 interface MedProgressInfo {
-  totalDays: number;
+  totalDays: number | null;
   elapsedDays: number;
-  percent: number;
+  percent: number | null;
+  continuous: boolean;
 }
 
 interface TrendInfo {
@@ -155,6 +160,9 @@ export interface SaudeClientProps {
 
   // Health views
   healthViews: HealthViewData[];
+
+  // Timeline
+  timeline: TimelineEvent[];
 }
 
 // ─── Severity config (static, no translations needed for colors) ───
@@ -196,14 +204,10 @@ export default function SaudeClient(props: SaudeClientProps) {
     hasAllergies,
     appointment,
     pendingReturns,
-    illnessCount,
-    vaccineCount,
-    growthCount,
-    appointmentCount,
-    professionalsCount,
     overdueVaccineCount,
     lastUpdateRelative,
     healthViews,
+    timeline,
   } = props;
 
   const sevLabelMap: Record<string, string> = {
@@ -288,7 +292,11 @@ export default function SaudeClient(props: SaudeClientProps) {
             <p className="text-xs font-medium text-dark">{med.name} · {med.dosage}</p>
             {nd && (
               <p className={`text-[10px] ${nd.overdue ? "text-amber-600 font-semibold" : "text-muted"}`}>
-                {nd.overdue ? `⚠️ ${t("health.lateDoseWarning")}` : t("health.nextAt", { time: nd.formattedTime })}
+                {nd.onDemand
+                  ? (nd.lastBy ? t("health.lastDoseBy", { name: nd.lastBy }) : t("health.onDemandUse"))
+                  : nd.overdue
+                    ? `⚠️ ${t("health.lateDoseWarning")}`
+                    : nd.formattedTime ? t("health.nextAt", { time: nd.formattedTime }) : ""}
               </p>
             )}
           </div>
@@ -311,16 +319,25 @@ export default function SaudeClient(props: SaudeClientProps) {
         <div className="flex items-start gap-2.5">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
-              <p className="text-sm font-semibold text-dark">{med.name}</p>
+              <Link href={`/saude/medicamentos/${med.id}`} className="text-sm font-semibold text-dark hover:underline">{med.name}</Link>
               {nd?.overdue && (
                 <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full animate-pulse">{t("health.lateLabel")}</span>
               )}
             </div>
-            <p className="text-[11px] text-muted">{med.dosage} · {med.frequency}</p>
+            <p className="text-[11px] text-muted">
+              {med.dosage} · {med.frequency}
+              {med.progress?.continuous && <span className="ml-1 text-blue-500">· {t("health.continuousUse")}</span>}
+            </p>
             {nd && (
-              <p className={`text-xs mt-1 font-medium ${nd.overdue ? "text-amber-700" : "text-blue-600"}`}>
-                {nd.overdue ? `⏰ ${t("health.shouldHaveBeenAt", { time: nd.formattedTime })}` : `⏰ ${t("health.nextDose", { time: nd.formattedTime })}`}
-                {nd.lastBy && <span className="text-muted font-normal"> · {t("health.lastBy", { name: nd.lastBy })}</span>}
+              <p className={`text-xs mt-1 font-medium ${nd.overdue ? "text-amber-700" : nd.onDemand ? "text-muted" : "text-blue-600"}`}>
+                {nd.onDemand
+                  ? (nd.lastBy
+                    ? `💊 ${t("health.lastDoseBy", { name: nd.lastBy })}`
+                    : `💊 ${t("health.onDemandUse")}`)
+                  : nd.overdue
+                    ? `⏰ ${t("health.shouldHaveBeenAt", { time: nd.formattedTime ?? "" })}`
+                    : nd.formattedTime ? `⏰ ${t("health.nextDose", { time: nd.formattedTime })}` : ""}
+                {nd.lastBy && !nd.onDemand && <span className="text-muted font-normal"> · {t("health.lastBy", { name: nd.lastBy })}</span>}
               </p>
             )}
           </div>
@@ -376,7 +393,7 @@ export default function SaudeClient(props: SaudeClientProps) {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <span className="text-sm">💊</span>
-                      <p className="text-sm font-semibold text-dark">{primaryMed.name}</p>
+                      <Link href={`/saude/medicamentos/${primaryMed.id}`} className="text-sm font-semibold text-dark hover:underline">{primaryMed.name}</Link>
                       {primaryMed.doseInfo?.overdue && (
                         <span className="text-[10px] font-bold text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded-full animate-pulse">
                           {t("health.lateLabel")}
@@ -385,13 +402,18 @@ export default function SaudeClient(props: SaudeClientProps) {
                     </div>
                     <p className="text-[11px] text-muted ml-6">
                       {primaryMed.dosage} · {primaryMed.frequency}
+                      {primaryMed.progress?.continuous && <span className="ml-1 text-blue-500">· {t("health.continuousUse")}</span>}
                     </p>
                     {primaryMed.doseInfo && (
-                      <p className={`text-xs mt-1 font-medium ml-6 ${primaryMed.doseInfo.overdue ? "text-amber-700" : "text-blue-600"}`}>
-                        {primaryMed.doseInfo.overdue
-                          ? `⏰ ${t("health.shouldHaveBeenAt", { time: primaryMed.doseInfo.formattedTime })}`
-                          : `⏰ ${t("health.nextDose", { time: primaryMed.doseInfo.formattedTime })}`}
-                        {primaryMed.doseInfo.lastBy && (
+                      <p className={`text-xs mt-1 font-medium ml-6 ${primaryMed.doseInfo.overdue ? "text-amber-700" : primaryMed.doseInfo.onDemand ? "text-muted" : "text-blue-600"}`}>
+                        {primaryMed.doseInfo.onDemand
+                          ? (primaryMed.doseInfo.lastBy
+                            ? `💊 ${t("health.lastDoseBy", { name: primaryMed.doseInfo.lastBy })}`
+                            : `💊 ${t("health.onDemandUse")}`)
+                          : primaryMed.doseInfo.overdue
+                            ? `⏰ ${t("health.shouldHaveBeenAt", { time: primaryMed.doseInfo.formattedTime ?? "" })}`
+                            : primaryMed.doseInfo.formattedTime ? `⏰ ${t("health.nextDose", { time: primaryMed.doseInfo.formattedTime })}` : ""}
+                        {primaryMed.doseInfo.lastBy && !primaryMed.doseInfo.onDemand && (
                           <span className="text-muted font-normal"> · {t("health.lastBy", { name: primaryMed.doseInfo.lastBy })}</span>
                         )}
                       </p>
@@ -422,6 +444,14 @@ export default function SaudeClient(props: SaudeClientProps) {
               >
                 {t("health.updateState")}
               </Link>
+              {primaryMed && (
+                <Link
+                  href={`/saude/medicamentos/${primaryMed.id}`}
+                  className="flex-1 text-center text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 py-2 rounded-lg transition-colors"
+                >
+                  {t("health.viewMedication")}
+                </Link>
+              )}
               <Link
                 href={`/saude/doencas?crianca=${selectedChildId}`}
                 className="flex-1 text-center text-xs font-semibold text-muted bg-gray-50 hover:bg-gray-100 py-2 rounded-lg transition-colors"
@@ -460,7 +490,9 @@ export default function SaudeClient(props: SaudeClientProps) {
               </h2>
               <p className="text-white/80 text-xs">
                 {primaryMed.name} · {primaryMed.dosage}
-                {primaryMed.progress ? ` · ${t("health.dayCount", { count: primaryMed.progress.elapsedDays })}/${primaryMed.progress.totalDays}` : ""}
+                {primaryMed.progress?.continuous
+                  ? ` · ${t("health.continuousDay", { count: primaryMed.progress.elapsedDays })}`
+                  : primaryMed.progress?.totalDays ? ` · ${t("health.dayCount", { count: primaryMed.progress.elapsedDays })}/${primaryMed.progress.totalDays}` : ""}
               </p>
             </div>
           </div>
@@ -616,6 +648,117 @@ export default function SaudeClient(props: SaudeClientProps) {
         </Link>
       )}
 
+      {/* Allergies alert */}
+      {hasAllergies && (
+        <div className="flex flex-wrap gap-1.5 mb-4">
+          {allergies.map((a) => {
+            const cfg = allergySevConfig[a.severity] || allergySevConfig.mild;
+            return (
+              <Link
+                key={a.id}
+                href={`/saude/alergias?crianca=${selectedChildId}`}
+                className={`${cfg.bg} ${cfg.text} px-2.5 py-1 rounded-full text-[11px] font-medium hover:opacity-80 transition-opacity`}
+              >
+                ⚠️ {a.name}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+
+      {/* ─── CONTEXT-AWARE SECTIONS ─── */}
+
+      {/* STATE B: SICK — Evolution actions + dedicated meds + symptom diary */}
+      {hasActiveIllness && primaryIllness && (
+        <>
+          {/* Inline evolution quick actions */}
+          {!isReadonly && (
+            <section className="mb-4 space-y-2">
+              <EvolutionQuickAction
+                episodeId={primaryIllness.id}
+                episodeTitle={primaryIllness.title}
+              />
+              <ResolveIllnessAction
+                episodeId={primaryIllness.id}
+                hasActiveMeds={hasActiveMeds}
+              />
+            </section>
+          )}
+
+          {/* Dedicated medications section when sick */}
+          {medications.length > 0 && (
+            <section className="mb-5">
+              <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+                {t("health.medications")}
+                {urgentMedsCount > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full normal-case tracking-normal">
+                    {t("health.overdueDoses", { count: urgentMedsCount })}
+                  </span>
+                )}
+              </h2>
+              <div className="space-y-2">
+                {medications.map((med) => renderMedRow(med, false))}
+              </div>
+              {!isReadonly && (
+                <Link
+                  href="/saude/medicamentos/novo"
+                  className="block mt-2 text-center text-xs font-semibold text-primary bg-primary/5 hover:bg-primary/10 py-2 rounded-lg transition-colors"
+                >
+                  + {t("health.addMedication")}
+                </Link>
+              )}
+            </section>
+          )}
+
+          {/* Symptom diary quick access when sick */}
+          <section className="mb-5">
+            <div className="grid grid-cols-2 gap-3">
+              <Link
+                href={`/saude/sintomas?crianca=${selectedChildId}`}
+                className="bg-white rounded-xl p-4 shadow-sm border border-orange-200 hover:border-orange-300 hover:shadow-md transition-all group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
+                  <span className="text-lg">📝</span>
+                </div>
+                <p className="text-sm font-semibold text-dark">{t("health.symptomDiary")}</p>
+                <p className="text-[10px] text-muted mt-0.5">{t("health.symptomDiaryDesc")}</p>
+              </Link>
+              <Link
+                href="/saude/consultas/nova"
+                className="bg-white rounded-xl p-4 shadow-sm border border-primary/20 hover:border-primary/40 hover:shadow-md transition-all group"
+              >
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
+                  <span className="text-lg">📅</span>
+                </div>
+                <p className="text-sm font-semibold text-dark">{t("health.scheduleAppointment")}</p>
+                <p className="text-[10px] text-muted mt-0.5">{t("health.newAppointmentOrExam")}</p>
+              </Link>
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* STATE C: IN TREATMENT (no illness, but has meds) — Focus on medication tracking */}
+      {!hasActiveIllness && hasActiveMeds && (
+        <section className="mb-5">
+          {medications.length > 1 && (
+            <>
+              <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+                {t("health.medications")}
+                {urgentMedsCount > 0 && (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full normal-case tracking-normal">
+                    {t("health.overdueDoses", { count: urgentMedsCount })}
+                  </span>
+                )}
+              </h2>
+              <div className="space-y-2">
+                {medications.filter(m => m.id !== primaryMed?.id).map((med) => renderMedRow(med, false))}
+              </div>
+            </>
+          )}
+        </section>
+      )}
+
       {/* Appointment when hero shows illness/medication */}
       {(hasActiveIllness || hasActiveMeds) && appointment && (
         <Link
@@ -637,24 +780,6 @@ export default function SaudeClient(props: SaudeClientProps) {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
         </Link>
-      )}
-
-      {/* Allergies alert */}
-      {hasAllergies && (
-        <div className="flex flex-wrap gap-1.5 mb-4">
-          {allergies.map((a) => {
-            const cfg = allergySevConfig[a.severity] || allergySevConfig.mild;
-            return (
-              <Link
-                key={a.id}
-                href={`/saude/alergias?crianca=${selectedChildId}`}
-                className={`${cfg.bg} ${cfg.text} px-2.5 py-1 rounded-full text-[11px] font-medium hover:opacity-80 transition-opacity`}
-              >
-                ⚠️ {a.name}
-              </Link>
-            );
-          })}
-        </div>
       )}
 
       {/* Expected Returns */}
@@ -691,16 +816,11 @@ export default function SaudeClient(props: SaudeClientProps) {
         </section>
       )}
 
-      {/* Quick Actions */}
-      {!isReadonly && (
+      {/* Quick Actions — shown for healthy state or always as secondary for sick/treatment */}
+      {!isReadonly && !hasActiveIllness && (
         <section className="mb-5">
-          <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1">
             {t("health.quickActions")}
-            {urgentMedsCount > 0 && (
-              <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full normal-case tracking-normal">
-                {t("health.overdueDoses", { count: urgentMedsCount })}
-              </span>
-            )}
           </h2>
           <div className="grid grid-cols-2 gap-3">
             <Link
@@ -732,194 +852,64 @@ export default function SaudeClient(props: SaudeClientProps) {
         </section>
       )}
 
-      {/* Illnesses Section */}
-      <section className="mb-5">
-        <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-          {t("health.illnesses")}
-          {hasActiveIllness && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-red-600 bg-red-50 px-2 py-0.5 rounded-full normal-case tracking-normal">
-              <span className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
-              {t("health.activeCount", { count: activeIllnesses.length })}
-            </span>
-          )}
-        </h2>
-        <Link
-          href={`/saude/doencas?crianca=${selectedChildId}`}
-          className="flex items-center gap-3 px-4 py-3.5 bg-white rounded-xl shadow-sm hover:bg-gray-50 transition-colors"
-        >
-          <div className="w-9 h-9 rounded-lg bg-amber-50 flex items-center justify-center">
-            <svg className="w-5 h-5 text-amber-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-            </svg>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-dark">{t("health.illnessHistory")}</p>
-            <p className="text-[11px] text-muted">{t("health.episodesRegistered", { count: illnessCount })}</p>
-          </div>
-          <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </Link>
-      </section>
+      {/* Recent Activity Timeline */}
+      <HealthTimeline events={timeline} childId={selectedChildId} />
 
-      {/* Follow-up Section */}
+      {/* ─── Compact Navigation Menu (Phase 4) ─── */}
       <section className="mb-5">
-        <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1 flex items-center gap-2">
-          {t("health.followUp")}
-          {hasActiveMeds && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-blue-600 bg-blue-50 px-2 py-0.5 rounded-full normal-case tracking-normal">
-              <span className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse" />
-              {t("health.activeMeds", { count: medications.length })}
-            </span>
-          )}
-        </h2>
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
+        <div className="grid grid-cols-5 gap-2">
           {[
-            {
-              icon: "📅",
-              label: t("health.appointments"),
-              href: `/saude/consultas?crianca=${selectedChildId}`,
-              info: t("health.scheduled", { count: appointmentCount }),
-              iconBg: "bg-primary/10",
-            },
-            {
-              icon: "💊",
-              label: t("health.medications"),
-              href: `/saude/medicamentos?crianca=${selectedChildId}`,
-              info: t("health.activeLabel", { count: medications.length }),
-              iconBg: "bg-blue-50",
-              badge: hasActiveMeds ? `${medications.length}` : null,
-            },
-            {
-              icon: "⚠️",
-              label: t("health.allergies"),
-              href: `/saude/alergias?crianca=${selectedChildId}`,
-              info: t("health.registered", { count: allergies.length }),
-              iconBg: "bg-red-50",
-              badge: hasAllergies ? `${allergies.length}` : null,
-            },
-          ].map((item, i) => (
+            { icon: "💉", label: t("health.vaccines"), href: `/saude/vacinas?crianca=${selectedChildId}`, badge: overdueVaccineCount > 0 ? overdueVaccineCount : null },
+            { icon: "📏", label: t("health.growth"), href: `/saude/crescimento?crianca=${selectedChildId}`, badge: null },
+            { icon: "🩺", label: t("health.professionals"), href: "/saude/profissionais", badge: null },
+            { icon: "📋", label: t("health.history"), href: `/saude/doencas?crianca=${selectedChildId}`, badge: hasActiveIllness ? activeIllnesses.length : null },
+            { icon: "📄", label: "PDF", href: `/saude/export?childId=${selectedChildId}`, badge: null },
+          ].map((item) => (
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors ${i > 0 ? "border-t border-gray-100" : ""}`}
+              className="flex flex-col items-center gap-1 py-3 rounded-xl bg-white shadow-sm border border-gray-100 hover:border-primary/30 hover:shadow-md transition-all relative"
             >
-              <div className={`w-9 h-9 rounded-lg ${item.iconBg} flex items-center justify-center`}>
-                <span className="text-base">{item.icon}</span>
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-dark">{item.label}</p>
-                <p className="text-[11px] text-muted">{item.info}</p>
-              </div>
               {item.badge && (
-                <span className="text-[11px] font-bold text-white bg-accent rounded-full w-5 h-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 min-w-[16px] h-[16px] px-1 bg-red-500 text-white text-[8px] font-bold rounded-full flex items-center justify-center">
                   {item.badge}
                 </span>
               )}
-              <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <span className="text-lg">{item.icon}</span>
+              <span className="text-[10px] font-medium text-muted">{item.label}</span>
             </Link>
           ))}
         </div>
       </section>
 
-      {/* Records Section */}
-      <section className="mb-5">
-        <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1">{t("health.records")}</h2>
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          {[
-            {
-              icon: "💉",
-              label: t("health.vaccines"),
-              href: `/saude/vacinas?crianca=${selectedChildId}`,
-              info: t("health.registered", { count: vaccineCount }),
-              iconBg: "bg-cyan-50",
-              badge: vaccineCount === 0
-                ? t("health.start")
-                : overdueVaccineCount > 0
-                  ? t("health.overdueVaccines", { count: overdueVaccineCount })
-                  : null,
-            },
-            {
-              icon: "📏",
-              label: t("health.growth"),
-              href: `/saude/crescimento?crianca=${selectedChildId}`,
-              info: t("health.measurements", { count: growthCount }),
-              iconBg: "bg-emerald-50",
-              badge: null,
-            },
-            {
-              icon: "🩺",
-              label: t("health.healthProfessionals"),
-              href: "/saude/profissionais",
-              info: t("health.registeredProfessionals", { count: professionalsCount }),
-              iconBg: "bg-violet-50",
-              badge: null,
-            },
-          ].map((item, i) => (
+      {/* Tools — Symptom Diary + Pre-appointment Summary (when not already shown in sick state) */}
+      {!hasActiveIllness && (
+        <section className="mb-5">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1">{t("health.tools")}</h2>
+          <div className="grid grid-cols-2 gap-3">
             <Link
-              key={item.href}
-              href={item.href}
-              className={`flex items-center gap-3 px-4 py-3.5 hover:bg-gray-50 transition-colors ${i > 0 ? "border-t border-gray-100" : ""}`}
+              href={`/saude/sintomas?crianca=${selectedChildId}`}
+              className="bg-white rounded-xl p-4 shadow-sm border border-[#E8E0D4] hover:border-primary/40 hover:shadow-md transition-all group"
             >
-              <div className={`relative w-9 h-9 rounded-lg ${item.iconBg} flex items-center justify-center`}>
-                <span className="text-base">{item.icon}</span>
-                {item.badge && item.badge !== t("health.start") && (
-                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
-                    {overdueVaccineCount}
-                  </span>
-                )}
+              <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
+                <span className="text-lg">📝</span>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-dark flex items-center gap-1.5">
-                  {item.label}
-                  {item.badge && (
-                    <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${
-                      item.badge === t("health.start")
-                        ? "text-amber-600 bg-amber-50"
-                        : "text-red-600 bg-red-50"
-                    }`}>
-                      {item.badge}
-                    </span>
-                  )}
-                </p>
-                <p className="text-[11px] text-muted">{item.info}</p>
-              </div>
-              <svg className="w-4 h-4 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              <p className="text-sm font-semibold text-dark">{t("health.symptomDiary")}</p>
+              <p className="text-[10px] text-muted mt-0.5">{t("health.symptomDiaryDesc")}</p>
             </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* Symptom Diary + Pre-appointment Summary */}
-      <section className="mb-5">
-        <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1">{t("health.tools")}</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <Link
-            href={`/saude/sintomas?crianca=${selectedChildId}`}
-            className="bg-white rounded-xl p-4 shadow-sm border border-[#E8E0D4] hover:border-primary/40 hover:shadow-md transition-all group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-orange-50 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
-              <span className="text-lg">📝</span>
-            </div>
-            <p className="text-sm font-semibold text-dark">{t("health.symptomDiary")}</p>
-            <p className="text-[10px] text-muted mt-0.5">{t("health.symptomDiaryDesc")}</p>
-          </Link>
-          <Link
-            href={`/saude/consultas/resumo?crianca=${selectedChildId}`}
-            className="bg-white rounded-xl p-4 shadow-sm border border-[#E8E0D4] hover:border-primary/40 hover:shadow-md transition-all group"
-          >
-            <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
-              <span className="text-lg">📋</span>
-            </div>
-            <p className="text-sm font-semibold text-dark">{t("health.preSummary")}</p>
-            <p className="text-[10px] text-muted mt-0.5">{t("health.preSummaryDesc")}</p>
-          </Link>
-        </div>
-      </section>
+            <Link
+              href={`/saude/consultas/resumo?crianca=${selectedChildId}`}
+              className="bg-white rounded-xl p-4 shadow-sm border border-[#E8E0D4] hover:border-primary/40 hover:shadow-md transition-all group"
+            >
+              <div className="w-10 h-10 rounded-xl bg-teal-50 flex items-center justify-center mb-2.5 group-hover:scale-110 transition-transform">
+                <span className="text-lg">📋</span>
+              </div>
+              <p className="text-sm font-semibold text-dark">{t("health.preSummary")}</p>
+              <p className="text-[10px] text-muted mt-0.5">{t("health.preSummaryDesc")}</p>
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* Emergency Card */}
       <section className="mb-5">

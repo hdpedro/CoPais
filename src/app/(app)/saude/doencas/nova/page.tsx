@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
-import { createIllnessEpisode } from "@/actions/health";
+import { createIllnessWithMedicationAndAppointment } from "@/actions/health";
 import { getBrazilToday } from "@/lib/calendar-utils";
 import { getActiveGroup } from "@/lib/group-utils";
 import DoencaNovaClient from "./DoencaNovaClient";
@@ -31,10 +31,10 @@ export default async function NovaDoencaPage({
   return (
     <DoencaNovaClient
       groupId={groupId}
-      children={children || []}
+      childrenList={children || []}
       today={today}
       error={params.error}
-      createAction={createIllnessEpisode}
+      createAction={createIllnessWithMedicationAndAppointment}
     />
   );
 }

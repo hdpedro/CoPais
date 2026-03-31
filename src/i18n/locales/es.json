@@ -625,6 +625,13 @@
     "completeTreatment": "Completar Tratamiento",
     "completed": "Completado",
     "cancelled": "Cancelado",
+    "continuousUse": "Uso continuo",
+    "continuousDay": "Día {count} de uso",
+    "onDemandUse": "Uso a demanda",
+    "lastDoseBy": "Última dosis por {name}",
+    "viewMedication": "Ver medicamento",
+    "noDoseYet": "Ninguna dosis registrada — confirma la primera dosis abajo",
+    "since": "Desde",
     "addMedication": "Agregar Medicamento",
     "newMedication": "Nuevo Medicamento",
     "medicationName": "Nombre del medicamento",
@@ -869,6 +876,14 @@
       "yesRecovered": "Sí, recuperada",
       "markRecovered": "Marcar como recuperada"
     },
+    "resolve": {
+      "confirmMessage": "¿Confirma que el niño se recuperó de esta enfermedad?",
+      "finishMedsQuestion": "¿También finalizar medicamentos relacionados?",
+      "saving": "Guardando...",
+      "yesResolved": "Sí, se recuperó",
+      "cancel": "Cancelar",
+      "markResolved": "Marcar como recuperada"
+    },
     "viewedBy": {
       "someone": "Alguien",
       "now": "ahora",
@@ -954,6 +969,46 @@
       "crmCol": "CRM",
       "phoneCol": "Teléfono",
       "disclaimer": "Este documento fue generado automáticamente y no sustituye la orientación médica profesional."
+    },
+    "recentActivity": "Actividad reciente",
+    "evolution": {
+      "improved": "Mejoró",
+      "worsened": "Empeoró",
+      "notePlaceholder": "¿Qué cambió? (opcional)",
+      "confirm": "Confirmar",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "savedImproving": "Evolución registrada — mejorando",
+      "savedWorsening": "Evolución registrada — empeorando"
+    },
+    "resolve": {
+      "markResolved": "Marcar como resuelta",
+      "confirmMessage": "¿Está seguro que la enfermedad fue resuelta?",
+      "finishMedsQuestion": "¿Finalizar medicamentos relacionados también?",
+      "yesResolved": "Sí, resuelta",
+      "cancel": "Cancelar",
+      "saving": "Guardando..."
+    },
+    "wizard": {
+      "title": "El niño está enfermo",
+      "subtitle": "Registre todo de una vez — enfermedad, medicamento y consulta",
+      "step1": "Enfermedad",
+      "step2": "Medicamento",
+      "step3": "Consulta",
+      "whatHappened": "¿Qué pasó?",
+      "needsMedication": "¿Necesita medicamento?",
+      "yesMedication": "Sí",
+      "noMedication": "No necesita",
+      "needsAppointment": "¿Necesita consulta?",
+      "yesAppointment": "Sí, agendar",
+      "noAppointment": "No necesita",
+      "appointmentTitlePlaceholder": "Ej: Pediatra, Urgencias",
+      "leaveEmptyContinuous": "Deje vacío para uso continuo",
+      "summary": "Resumen",
+      "next": "Siguiente",
+      "back": "Atrás",
+      "saving": "Registrando...",
+      "register": "Registrar todo"
     }
   },
   "profile": {

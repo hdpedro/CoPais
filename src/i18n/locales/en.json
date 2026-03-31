@@ -625,6 +625,13 @@
     "completeTreatment": "Complete Treatment",
     "completed": "Completed",
     "cancelled": "Cancelled",
+    "continuousUse": "Continuous use",
+    "continuousDay": "Day {count} of use",
+    "onDemandUse": "On-demand use",
+    "lastDoseBy": "Last dose by {name}",
+    "viewMedication": "View medication",
+    "noDoseYet": "No dose recorded — confirm the first dose below",
+    "since": "Since",
     "addMedication": "Add Medication",
     "newMedication": "New Medication",
     "medicationName": "Medication name",
@@ -869,6 +876,14 @@
       "yesRecovered": "Yes, recovered",
       "markRecovered": "Mark as recovered"
     },
+    "resolve": {
+      "confirmMessage": "Confirm the child has recovered from this illness?",
+      "finishMedsQuestion": "Also finish related medications?",
+      "saving": "Saving...",
+      "yesResolved": "Yes, recovered",
+      "cancel": "Cancel",
+      "markResolved": "Mark as resolved"
+    },
     "viewedBy": {
       "someone": "Someone",
       "now": "now",
@@ -954,6 +969,46 @@
       "crmCol": "CRM",
       "phoneCol": "Phone",
       "disclaimer": "This document was automatically generated and does not replace professional medical advice."
+    },
+    "recentActivity": "Recent activity",
+    "evolution": {
+      "improved": "Improved",
+      "worsened": "Worsened",
+      "notePlaceholder": "What changed? (optional)",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "savedImproving": "Evolution recorded — improving",
+      "savedWorsening": "Evolution recorded — worsening"
+    },
+    "resolve": {
+      "markResolved": "Mark as resolved",
+      "confirmMessage": "Are you sure the illness is resolved?",
+      "finishMedsQuestion": "Also finish related medications?",
+      "yesResolved": "Yes, resolved",
+      "cancel": "Cancel",
+      "saving": "Saving..."
+    },
+    "wizard": {
+      "title": "Child is sick",
+      "subtitle": "Record everything at once — illness, medication and appointment",
+      "step1": "Illness",
+      "step2": "Medication",
+      "step3": "Appointment",
+      "whatHappened": "What happened?",
+      "needsMedication": "Needs medication?",
+      "yesMedication": "Yes",
+      "noMedication": "Not needed",
+      "needsAppointment": "Needs appointment?",
+      "yesAppointment": "Yes, schedule",
+      "noAppointment": "Not needed",
+      "appointmentTitlePlaceholder": "E.g.: Pediatrician, ER",
+      "leaveEmptyContinuous": "Leave empty for continuous use",
+      "summary": "Summary",
+      "next": "Next",
+      "back": "Back",
+      "saving": "Registering...",
+      "register": "Register all"
     }
   },
   "profile": {

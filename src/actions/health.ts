@@ -1241,3 +1241,306 @@ export async function createSymptomEntry(
   revalidatePath("/saude");
   return { success: true };
 }
+
+// ---------------------------------------------------------------------------
+// Combined Wizard: createIllnessWithMedicationAndAppointment
+// ---------------------------------------------------------------------------
+
+export async function createIllnessWithMedicationAndAppointment(
+  formData: FormData,
+) {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const groupId = formData.get("groupId") as string;
+  await verifyMembership(supabase, groupId, user.id);
+
+  const childId = formData.get("childId") as string;
+
+  // --- Step 1: Illness ---
+  const title = sanitizeText(formData.get("title") as string, 200);
+  const symptomsRaw = formData.get("symptoms") as string;
+  const symptoms = symptomsRaw
+    ? symptomsRaw.split(",").map((s) => s.trim().slice(0, 100)).filter(Boolean)
+    : [];
+  const startDate = formData.get("startDate") as string;
+  const severity = formData.get("severity") as string;
+  const hospitalVisit = formData.get("hospitalVisit") === "true";
+  const hospitalName = formData.get("hospitalName") as string;
+
+  const illnessData: Record<string, unknown> = {
+    group_id: groupId,
+    child_id: childId,
+    title,
+    symptoms,
+    start_date: startDate || null,
+    created_by: user.id,
+  };
+  if (severity) illnessData.severity = severity;
+  if (hospitalVisit) illnessData.hospital_visit = true;
+  if (hospitalName) illnessData.hospital_name = hospitalName;
+
+  const { error: illErr } = await supabase
+    .from("illness_episodes")
+    .insert(illnessData)
+    .select("id")
+    .single();
+
+  if (illErr) redirect("/saude?error=" + encodeURIComponent(illErr.message));
+
+  captureServerEvent(user.id, "illness_reported", { title });
+
+  // --- Step 2: Medication (optional) ---
+  const medName = sanitizeText(formData.get("medName") as string, 200);
+  if (medName) {
+    const medDosage = sanitizeText(formData.get("medDosage") as string, 200);
+    const medFrequency = sanitizeText(formData.get("medFrequency") as string, 200);
+    const medFrequencyHours = formData.get("medFrequencyHours") as string;
+    const medStartDate = formData.get("medStartDate") as string;
+    const medEndDate = formData.get("medEndDate") as string;
+
+    const { data: med, error: medErr } = await supabase
+      .from("active_medications")
+      .insert({
+        group_id: groupId,
+        child_id: childId,
+        name: medName,
+        dosage: medDosage || "Conforme prescrito",
+        frequency: medFrequency || "Conforme prescrito",
+        frequency_hours: medFrequencyHours ? parseInt(medFrequencyHours, 10) : null,
+        reason: title,
+        start_date: medStartDate || startDate || new Date().toISOString().slice(0, 10),
+        end_date: medEndDate || null,
+        created_by: user.id,
+      })
+      .select("id")
+      .single();
+
+    if (!medErr && med) {
+      captureServerEvent(user.id, "medication_created", { name: medName });
+    }
+  }
+
+  // --- Step 3: Appointment (optional) ---
+  const aptTitle = sanitizeText(formData.get("aptTitle") as string, 200);
+  if (aptTitle) {
+    const aptDate = formData.get("aptDate") as string;
+    const aptTime = formData.get("aptTime") as string;
+    const aptLocation = sanitizeText(formData.get("aptLocation") as string, 200);
+    const aptType = formData.get("aptType") as string;
+
+    if (aptDate && aptTime) {
+      const aptDatetime = `${aptDate}T${aptTime}:00-03:00`;
+      const aptData: Record<string, unknown> = {
+        group_id: groupId,
+        child_id: childId,
+        title: aptTitle,
+        appointment_date: aptDatetime,
+        location: aptLocation || null,
+        created_by: user.id,
+      };
+      if (aptType) aptData.appointment_type = aptType;
+
+      const { data: apt, error: aptErr } = await supabase
+        .from("medical_appointments")
+        .insert(aptData)
+        .select("id")
+        .single();
+
+      if (!aptErr && apt) {
+        captureServerEvent(user.id, "appointment_created", { appointmentType: aptType });
+
+        // Create calendar event
+        try {
+          const serviceClient = getServiceClient();
+          const { data: calEvent } = await serviceClient
+            .from("custody_events")
+            .insert({
+              group_id: groupId,
+              child_id: childId,
+              responsible_user_id: user.id,
+              start_date: aptDate,
+              end_date: aptDate,
+              custody_type: "special",
+              notes: `Consulta: ${aptTitle}`,
+              created_by: user.id,
+            })
+            .select("id")
+            .single();
+          if (calEvent) {
+            await serviceClient
+              .from("medical_appointments")
+              .update({ calendar_event_id: calEvent.id })
+              .eq("id", apt.id);
+          }
+        } catch {
+          // Calendar sync failure should not break the action
+        }
+      }
+    }
+  }
+
+  // --- Notifications ---
+  try {
+    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    const sevEmoji = severity === "grave" ? "\uD83D\uDD34" : severity === "moderado" ? "\uD83D\uDFE1" : "\uD83D\uDFE2";
+    let chatMsg = `\uD83E\uDD12 Registrou doenca: ${title} ${sevEmoji} (${childName})`;
+    if (medName) chatMsg += ` + \uD83D\uDC8A ${medName}`;
+    if (aptTitle) chatMsg += ` + \uD83D\uDCC5 Consulta agendada`;
+
+    await postChatNotification(supabase, groupId, user.id, chatMsg);
+
+    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
+    if (otherMembers.length > 0) {
+      await sendPushToUsers(otherMembers, {
+        title: `${childName} esta doente`,
+        body: `${title} (${severity || "leve"})${medName ? ` + ${medName}` : ""}`,
+        url: "/saude",
+        tag: "health_illness_wizard",
+      });
+    }
+  } catch {
+    // Notification failure should not break the action
+  }
+
+  revalidatePath("/saude");
+  revalidatePath("/saude/doencas");
+  revalidatePath("/saude/medicamentos");
+  revalidatePath("/saude/consultas");
+  revalidatePath("/chat");
+  redirect("/saude?success=" + encodeURIComponent("Registro completo — doenca" + (medName ? " + medicamento" : "") + (aptTitle ? " + consulta" : "")));
+}
+
+// ---------------------------------------------------------------------------
+// Quick Action: resolveIllnessQuick
+// ---------------------------------------------------------------------------
+
+export async function resolveIllnessQuick(formData: FormData) {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const episodeId = formData.get("episodeId") as string;
+  const finishMeds = formData.get("finishMeds") === "true";
+
+  const groupId = await getGroupIdFromRecord(supabase, "illness_episodes", episodeId, user.id);
+
+  const { error } = await supabase
+    .from("illness_episodes")
+    .update({
+      status: "resolved",
+      end_date: new Date().toISOString().slice(0, 10),
+    })
+    .eq("id", episodeId);
+
+  if (error) redirect("/saude?error=" + encodeURIComponent(error.message));
+
+  // Optionally finish related medications
+  if (finishMeds) {
+    const { data: episode } = await supabase
+      .from("illness_episodes")
+      .select("child_id, title")
+      .eq("id", episodeId)
+      .single();
+
+    if (episode) {
+      await supabase
+        .from("active_medications")
+        .update({ status: "completed", end_date: new Date().toISOString().slice(0, 10) })
+        .eq("child_id", episode.child_id)
+        .eq("reason", episode.title)
+        .eq("status", "active");
+    }
+  }
+
+  // Notify co-parent
+  try {
+    const { data: episode } = await supabase
+      .from("illness_episodes")
+      .select("title, child_id")
+      .eq("id", episodeId)
+      .single();
+    if (episode) {
+      const { data: child } = await supabase.from("children").select("full_name").eq("id", episode.child_id).single();
+      const childName = child?.full_name?.split(" ")[0] || "crianca";
+      await postChatNotification(
+        supabase, groupId as string, user.id,
+        `\u2705 ${episode.title} resolvida (${childName})${finishMeds ? " — medicamentos finalizados" : ""}`
+      );
+    }
+  } catch {
+    // Notification failure should not break the action
+  }
+
+  revalidatePath("/saude");
+  revalidatePath("/saude/doencas");
+  revalidatePath("/saude/medicamentos");
+  revalidatePath("/chat");
+  redirect("/saude?success=" + encodeURIComponent("Doenca marcada como resolvida"));
+}
+
+// ---------------------------------------------------------------------------
+// Quick Action: addEvolutionQuick (no redirect, returns result)
+// ---------------------------------------------------------------------------
+
+export async function addEvolutionQuick(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const episodeId = formData.get("episodeId") as string;
+  const type = formData.get("type") as string; // "improving" | "worsening"
+  const note = sanitizeText(formData.get("note") as string, 500);
+
+  await getGroupIdFromRecord(supabase, "illness_episodes", episodeId, user.id);
+
+  const { data: episode } = await supabase
+    .from("illness_episodes")
+    .select("notes, title, group_id, child_id")
+    .eq("id", episodeId)
+    .single();
+
+  if (!episode) return { success: false, error: "Episodio nao encontrado" };
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", user.id)
+    .single();
+
+  const authorName = profile?.full_name?.split(" ")[0] || "Responsavel";
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" });
+  const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" });
+
+  const typeLabel = type === "improving" ? "melhorou" : "piorou";
+  const evolutionText = note ? `${typeLabel}: ${note}` : typeLabel;
+  const newEntry = `[${dateStr} ${timeStr} - ${authorName}] ${evolutionText}`;
+  const updatedNotes = episode.notes ? `${newEntry}\n${episode.notes}` : newEntry;
+
+  const { error } = await supabase
+    .from("illness_episodes")
+    .update({ notes: updatedNotes })
+    .eq("id", episodeId);
+
+  if (error) return { success: false, error: error.message };
+
+  // Notify
+  try {
+    const { data: child } = await supabase.from("children").select("full_name").eq("id", episode.child_id).single();
+    const childName = child?.full_name?.split(" ")[0] || "crianca";
+    const emoji = type === "improving" ? "\uD83D\uDCC8" : "\uD83D\uDCC9";
+    await postChatNotification(
+      supabase, episode.group_id, user.id,
+      `${emoji} ${episode.title} (${childName}): ${evolutionText}`
+    );
+  } catch {
+    // Notification failure should not break the action
+  }
+
+  revalidatePath("/saude");
+  revalidatePath("/saude/doencas");
+  revalidatePath("/chat");
+  return { success: true };
+}

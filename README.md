@@ -4,7 +4,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 
 **Producao:** https://kindar.com.br
 **Dominio:** kindar.com.br
-**Ultima atualizacao:** 30/03/2026
+**Ultima atualizacao:** 31/03/2026
 
 ## Stack
 
@@ -169,11 +169,15 @@ O app suporta **5 idiomas** completos:
 - **API Route** `/api/chat/messages` para busca de mensagens por canal
 
 ### 7. Saude Completa (`/saude` — 9 sub-modulos)
-- **Dashboard central** com doencas ativas, medicamentos, alergias, consultas, vacinas, retornos pendentes
+- **Dashboard context-aware com 3 estados**: (A) Saudavel — card verde, acoes rapidas; (B) Doente — hero vermelho com evolucao inline (melhorou/piorou), botao resolver doenca, medicamentos dedicados, diario de sintomas; (C) Em Tratamento — hero azul com foco em medicamentos
+- **Timeline de atividade recente**: ultimos 10 eventos de saude (doses, sintomas, consultas, doencas, crescimento) em ordem cronologica com links diretos
+- **Menu compacto de navegacao**: 5 icones (Vacinas, Crescimento, Profissionais, Historico, PDF) com badges de alerta
+- **Wizard "Crianca esta doente"** (`/saude/doencas/nova`): fluxo guiado de 3 passos — (1) doenca com sintomas e severidade, (2) medicamento opcional com frequencia, (3) consulta opcional. Cria tudo em uma unica action com notificacao consolidada
+- **Acoes rapidas inline**: `EvolutionQuickAction` (melhorou/piorou com nota), `ResolveIllnessAction` (resolver doenca com opcao de finalizar medicamentos). Ambas com feedback visual e notificacao ao co-parent
 - **Banner de vacinas atrasadas** no dashboard de saude
 - **Diario de Sintomas** (`/saude/sintomas`): registro rapido de sintomas (febre, vomito, diarreia, tosse, dor, mancha, falta de apetite, outro) com intensidade (leve/moderado/forte), temperatura para febre, notas, vinculo com episodio de doenca ativo. Timeline cronologica agrupada por dia (ultimos 7 dias). Botao "Compartilhar com pediatra" copia resumo formatado. Push notifications para grupo. Bottom sheet modal com design mobile-first
 - **Doencas** (`/saude/doencas`): episodios com sintomas, severidade (leve/moderado/grave), evolucao timestamped, status (ativo/resolvido/cronico), ida ao hospital, `ResolveButton`, `UpdateEpisodeForm`. Validacao de status — rejeita valores invalidos em `updateIllnessEpisode`
-- **Medicamentos** (`/saude/medicamentos`): dosagem, frequencia, registro de doses, status (ativo/pausado/completo/cancelado), pagina de detalhe por medicamento (`/saude/medicamentos/[id]`). **Validacao server-side de intervalo entre doses** (rejeita se < 30 min). `ConfirmDoseButton` na lista de medicamentos
+- **Medicamentos** (`/saude/medicamentos`): dosagem, frequencia, registro de doses, status (ativo/pausado/completo/cancelado), pagina de detalhe por medicamento (`/saude/medicamentos/[id]`). **Validacao server-side de intervalo entre doses** (rejeita se < 30 min). `ConfirmDoseButton` na lista E no detalhe do medicamento. **Validacao server-side de campos obrigatorios** (nome, dosagem, frequencia, data inicio) antes do insert. Progress de tratamento pre-computado no server (progressMap). **Uso continuo** para medicamentos sem data final ("Uso continuo — Dia N"). **Medicamentos sob demanda** (SOS) mostram ultima dose. Links diretos do dashboard para detalhe do medicamento. Proxima dose estimada na pagina de detalhe
 - **Consultas** (`/saude/consultas`): agendamento, profissional, tipo (rotina/emergencia/retorno/exame), diagnostico, data de retorno, auto-sync com calendario, `CompleteAppointmentForm` (i18n completo), botao WhatsApp para agendamento
 - **Alergias** (`/saude/alergias`): tipo, severidade, reacao, info medica (tipo sanguineo, convenio, SUS). **Edicao e exclusao inline** com formulario. Service role usado para query (workaround de RLS). Fix de coluna `notes` inexistente
 - **Vacinas** (`/saude/vacinas`): comparacao com **calendario SBP** (Sociedade Brasileira de Pediatria), confirmacao de doses (`ConfirmDoseButton`)
@@ -335,7 +339,8 @@ O app suporta **5 idiomas** completos:
 - **Sentry**: error tracking em producao
 - **Calendar API otimizada**: 3.1s em vez de timeout
 - **Landing page otimizada**: cookie check antes de `getUser()`
-- **Promise.all()** em queries paralelas (Dashboard, Calendario)
+- **Promise.all()** em queries paralelas (Dashboard, Calendario, Sintomas)
+- **Modulo Saude otimizado**: `select("*")` substituido por colunas especificas em todas as paginas de saude; `.limit()` em todas as queries sem cap; queries independentes paralelizadas com `Promise.all()`; dados pre-computados no server (progressMap) em vez de funcoes passadas ao client
 
 ## Arquitetura
 
@@ -394,6 +399,7 @@ Todos os PostgREST FK joins foram removidos e substituidos por **joins manuais**
 - **Validacao server-side de acertos financeiros** (valor nao pode exceder saldo real)
 - **Validacao server-side de intervalo entre doses** de medicamento (< 30 min rejeitado)
 - **Sanitizacao de input** em campos de texto de saude (max length limits)
+- **Validacao server-side de campos obrigatorios** em `createMedication` (nome, dosagem, frequencia, data inicio)
 - **Validacao de status de doenca** — `updateIllnessEpisode` rejeita valores invalidos
 - **Calculo de saldo financeiro** considera apenas despesas aprovadas (pending/disputed excluidas)
 - **Delecao dual-approval** em temas sensiveis

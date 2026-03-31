@@ -1,7 +1,7 @@
 # Kindar - Manual de Desenvolvimento
 
 > Manual completo para desenvolvedores que vao trabalhar no projeto Kindar.
-> Ultima atualizacao: 30/03/2026
+> Ultima atualizacao: 31/03/2026
 
 ---
 
@@ -511,19 +511,24 @@ Kindar/
     │   │   │   ├── page.tsx
     │   │   │   └── EditProfileForm.tsx   # Formulario + LanguageSelector
     │   │   │
-    │   │   ├── saude/                    # Hub de saude (7 sub-modulos)
-    │   │   │   ├── page.tsx              # Dashboard central de saude
+    │   │   ├── saude/                    # Hub de saude (9 sub-modulos)
+    │   │   │   ├── page.tsx              # Dashboard central (server) — 17 queries paralelas + timeline
+    │   │   │   ├── SaudeClient.tsx       # Dashboard client — 3 estados (saudavel/doente/tratamento)
     │   │   │   ├── ConfirmDoseButton.tsx
+    │   │   │   ├── HealthTimeline.tsx    # Timeline de atividade recente (ultimos 10 eventos)
+    │   │   │   ├── EvolutionQuickAction.tsx # Melhorou/Piorou inline (sem redirect)
+    │   │   │   ├── ResolveIllnessAction.tsx # Resolver doenca inline + finalizar meds
     │   │   │   ├── HealthViewTracker.tsx # Registra quem visualizou
     │   │   │   ├── SubmitButton.tsx      # Botao generico de submit
     │   │   │   ├── ViewedByBadge.tsx     # Badge de visualizacao
     │   │   │   ├── alergias/
     │   │   │   ├── consultas/            # + CompleteAppointmentForm
     │   │   │   ├── crescimento/          # + GrowthChart
-    │   │   │   ├── doencas/              # + ResolveButton, UpdateEpisodeForm, IllnessFormClient
+    │   │   │   ├── doencas/              # + IllnessWizard (3 passos), ResolveButton, UpdateEpisodeForm
     │   │   │   ├── export/               # Exportacao de registros
-    │   │   │   ├── medicamentos/         # + pagina de detalhe [id]
+    │   │   │   ├── medicamentos/         # + detalhe [id] com ConfirmDoseButton, uso continuo, proxima dose estimada
     │   │   │   ├── profissionais/
+    │   │   │   ├── sintomas/             # Diario de sintomas
     │   │   │   └── vacinas/
     │   │   │
     │   │   ├── checkin/page.tsx + CheckinForm.tsx
@@ -644,7 +649,7 @@ Kindar/
 | `/criancas` | Lista de criancas | — |
 | `/criancas/nova` | Adicionar crianca | — |
 | `/criancas/[id]` | Perfil com 4 abas (Geral/Saude/Docs/Educacao) | — |
-| `/saude` | Hub de saude (7 sub-modulos) | SaudeClient, HealthViewTracker, ViewedByBadge |
+| `/saude` | Hub de saude (9 sub-modulos) — dashboard context-aware 3 estados | SaudeClient, HealthTimeline, EvolutionQuickAction, ResolveIllnessAction, HealthViewTracker, ViewedByBadge |
 | `/documentos` | Dashboard de documentos | DocumentList, DocumentViewer |
 | `/notas` | Notas privadas | — |
 | `/decisoes` | Decisoes em grupo | — |
@@ -1605,6 +1610,18 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 
 **Solucao:** Substituir `supabase.auth.getSession()` por `supabase.auth.getUser()`.
 
+### Erro "Functions cannot be passed directly to Client Components"
+
+**Causa:** Next.js 16 proibe passar funcoes regulares como props para componentes `"use client"`. Apenas Server Actions (funcoes marcadas com `"use server"`) podem ser passadas.
+
+**Solucao:** Pre-computar os dados no server component e passar como objetos serializaveis (Record, array, etc.). Exemplo: em vez de passar `calcProgress(start, end)` como funcao, computar `progressMap[medId] = { elapsed, totalDays, percent }` no server e passar o objeto.
+
+### Erro NOT NULL constraint ao criar medicamento
+
+**Causa:** Campos obrigatorios do banco (dosage, frequency, start_date) recebem `null` quando o formulario envia string vazia. O pattern `dosage || null` converte `""` para `null`, violando a constraint NOT NULL do Postgres.
+
+**Solucao:** Validar campos obrigatorios no server action ANTES do insert. Redirecionar com mensagem de erro amigavel se algum campo estiver vazio.
+
 ---
 
 ## 23. Decisoes Arquiteturais
@@ -1642,6 +1659,8 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - `useI18n()` requer contexto React (Client Component)
 - Busca de dados deve ser server-side (seguranca + performance)
 - Padrao consistente facilita manutenibilidade
+- **Next.js 16**: funcoes regulares NAO podem ser passadas como props para Client Components. Apenas Server Actions (marcados com `"use server"`) podem. Dados computados devem ser pre-calculados no server e passados como objetos serializaveis (ex: `progressMap` em medicamentos)
+- **Supabase Turbopack**: joins retornam tipo array em vez de objeto unico. Usar pattern `as unknown as { field: type } | null` para type safety
 
 ### Por que getUser() e nao getSession()?
 - `getUser()` valida o JWT no servidor Supabase (seguro)
