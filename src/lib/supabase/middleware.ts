@@ -21,17 +21,16 @@ export async function updateSession(request: NextRequest) {
           supabaseResponse = NextResponse.next({
             request,
           });
-          const rememberMe = request.cookies.get("remember_me")?.value !== "false";
           const thirtyDaysFromNow = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
           cookiesToSet.forEach(({ name, value, options }) =>
             supabaseResponse.cookies.set(name, value, {
               ...options,
-              // If "Lembrar-me" is checked (default), persist for 30 days.
-              // Set both maxAge AND expires for Safari compatibility.
-              ...(rememberMe
-                ? { maxAge: 60 * 60 * 24 * 30, expires: thirtyDaysFromNow }
-                : {}),
-              httpOnly: false, // Browser client must read these cookies
+              // ALWAYS persist for 30 days. Safari ITP aggressively clears
+              // session cookies (no maxAge) when closing PWA/browser.
+              // Server-set cookies with explicit maxAge survive ITP better.
+              maxAge: 60 * 60 * 24 * 30,
+              expires: thirtyDaysFromNow,
+              httpOnly: false,
               sameSite: options?.sameSite ?? "lax",
               secure: true,
             })

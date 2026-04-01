@@ -372,7 +372,8 @@ export default function ChatRoom({
           table: "chat_messages",
           filter: `group_id=eq.${groupId}`,
         },
-        (payload) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
           const msg = payload.new as Message;
 
           // Only show messages for the active channel
@@ -435,7 +436,8 @@ export default function ChatRoom({
           table: "chat_messages",
           filter: `group_id=eq.${groupId}`,
         },
-        (payload) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (payload: any) => {
           if (!mountedRef.current) return;
           const updated = payload.new as Message;
           setMessages((prev) =>

@@ -19,7 +19,7 @@ export default function ResetPasswordPage() {
     // Listen for auth state changes (handles hash fragment tokens)
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((event) => {
+    } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === "PASSWORD_RECOVERY") {
         // User arrived via recovery link — session is set, show the form
         setChecking(false);

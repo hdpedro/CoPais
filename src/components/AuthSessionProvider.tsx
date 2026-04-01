@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { getPersistenceClient } from "@/lib/supabase/persistence";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 /**
  * Syncs the SSR Supabase client (cookies) → persistence client (localStorage).
@@ -45,7 +46,7 @@ export default function AuthSessionProvider() {
     // Listen for auth state changes on the SSR client
     const {
       data: { subscription },
-    } = ssrClient.auth.onAuthStateChange(async (event, session) => {
+    } = ssrClient.auth.onAuthStateChange(async (event: AuthChangeEvent, session: Session | null) => {
       if (event === "SIGNED_OUT") {
         await persistClient.auth.signOut();
       } else if (session) {

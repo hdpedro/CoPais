@@ -20,15 +20,29 @@ function RecoveryHandler() {
         return;
       }
 
-      // 2. Try persistence client (reads from localStorage, same as Hospeda app)
+      // 2. Try persistence client (reads from localStorage)
       const persistClient = getPersistenceClient();
       const { data: { session: lsSession } } = await persistClient.auth.getSession();
 
-      if (lsSession?.access_token && lsSession?.refresh_token) {
+      // 2b. Fallback: try lightweight backup from browser client's onAuthStateChange
+      let backupSession = lsSession;
+      if (!backupSession?.access_token) {
+        try {
+          const raw = localStorage.getItem("kindar-auth-backup");
+          if (raw) {
+            const backup = JSON.parse(raw);
+            if (backup.access_token && backup.refresh_token) {
+              backupSession = backup;
+            }
+          }
+        } catch { /* ignore */ }
+      }
+
+      if (backupSession?.access_token && backupSession?.refresh_token) {
         // Found session in localStorage! Restore to cookies via SSR client.
         const { data, error } = await ssrClient.auth.setSession({
-          access_token: lsSession.access_token,
-          refresh_token: lsSession.refresh_token,
+          access_token: backupSession.access_token,
+          refresh_token: backupSession.refresh_token,
         });
 
         if (!error && data.session?.user) {

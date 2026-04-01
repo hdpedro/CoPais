@@ -7,6 +7,7 @@ import { signIn } from "@/actions/auth";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import KindarLogo from "@/components/KindarLogo";
 import { createClient } from "@/lib/supabase/client";
+import type { Session } from "@supabase/supabase-js";
 
 export default function LoginPage() {
   return (
@@ -37,7 +38,7 @@ function LoginForm() {
     const supabase = createClient();
     const dest = conviteToken ? `/convite/${conviteToken}` : "/dashboard";
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data: { session } }: { data: { session: Session | null } }) => {
       if (session?.user) {
         router.replace(dest);
         return;
