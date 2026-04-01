@@ -33,8 +33,8 @@ export default async function CalendarPage() {
   // Compute date ranges for queries
   const todayParts = getBrazilToday().split("-").map(Number);
   const now = new Date(todayParts[0], todayParts[1] - 1, todayParts[2], 12, 0, 0);
-  const threeMonthsAgo = new Date(todayParts[0], todayParts[1] - 1 - 3, 1);
-  const threeMonthsAhead = new Date(todayParts[0], todayParts[1] - 1 + 4, 0);
+  const threeMonthsAgo = new Date(todayParts[0], todayParts[1] - 1 - 1, 1);
+  const threeMonthsAhead = new Date(todayParts[0], todayParts[1] - 1 + 2, 0);
   const rangeStart = formatDateKey(threeMonthsAgo);
   const rangeEnd = formatDateKey(threeMonthsAhead);
 
@@ -47,6 +47,7 @@ export default async function CalendarPage() {
     { data: appointments },
     { data: swapRequests },
     { data: activityReports },
+    { data: rawChecklistCompletions },
   ] = await Promise.all([
     supabase
       .from("group_members")
@@ -69,6 +70,7 @@ export default async function CalendarPage() {
       .select("id, name, category, recurrence_type, start_date, end_date, days_of_week, day_of_month, custom_interval, custom_unit, time_start, time_end, location, notes, child_id, teacher_name, class_name, room, responsible_id, children(full_name), activity_checklist_items(id, name, sort_order)")
       .eq("group_id", groupId)
       .eq("is_active", true)
+      .limit(100)
       .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("events")
@@ -77,6 +79,7 @@ export default async function CalendarPage() {
       .neq("status", "cancelled")
       .gte("event_date", rangeStart)
       .lte("event_date", rangeEnd)
+      .limit(200)
       .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("medical_appointments")
@@ -100,21 +103,19 @@ export default async function CalendarPage() {
       .eq("group_id", groupId)
       .gte("occurrence_date", rangeStart)
       .lte("occurrence_date", rangeEnd)
+      .limit(500)
+      .then(r => r, () => ({ data: [] as never[] })),
+    supabase
+      .from("checklist_completions")
+      .select("activity_id, item_id, occurrence_date, child_activities!inner(group_id)")
+      .eq("child_activities.group_id", groupId)
+      .gte("occurrence_date", rangeStart)
+      .lte("occurrence_date", rangeEnd)
+      .limit(1000)
       .then(r => r, () => ({ data: [] as never[] })),
   ]);
 
-  // Fetch checklist completions for the visible range
-  const activityIds = (rawActivities || []).map((a: { id: string }) => a.id);
-  let checklistCompletions: { activity_id: string; item_id: string; occurrence_date: string }[] = [];
-  if (activityIds.length > 0) {
-    const { data: completions } = await supabase
-      .from("checklist_completions")
-      .select("activity_id, item_id, occurrence_date")
-      .in("activity_id", activityIds)
-      .gte("occurrence_date", rangeStart)
-      .lte("occurrence_date", rangeEnd);
-    checklistCompletions = completions || [];
-  }
+  const checklistCompletions = (rawChecklistCompletions || []) as { activity_id: string; item_id: string; occurrence_date: string }[];
 
   // Build completions lookup: "activityId:date" -> Set of completed item IDs
   const completionsLookup: Record<string, Set<string>> = {};
