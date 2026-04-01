@@ -159,7 +159,10 @@ export default async function MedicationDetailPage({
       totalDoses={totalDoses}
       avgIntervalFormatted={avgIntervalFormatted}
       personEntries={personEntries}
-      dosesByDay={dosesByDay}
+      dosesByDay={Object.fromEntries(Object.entries(dosesByDay).map(([k, v]) => [k, v.map(d => ({
+        id: d.id, administered_at: d.administered_at, administered_by: d.administered_by, notes: d.notes,
+        profiles: (d.profiles as unknown as { full_name: string | null } | null),
+      }))]))}
       dayKeys={dayKeys}
       timeSincePrevMap={timeSincePrevMap}
       isReadonly={isReadonly}
