@@ -134,8 +134,14 @@ export default async function MedicationDetailPage({
 
   return (
     <MedicationDetailClient
-      medication={medication}
-      allDoses={allDoses}
+      medication={{
+        ...medication,
+        children: Array.isArray(medication.children) ? medication.children[0] || null : medication.children,
+      }}
+      allDoses={allDoses.map(d => ({
+        ...d,
+        profiles: Array.isArray(d.profiles) ? d.profiles[0] || null : d.profiles,
+      }))}
       progress={progress}
       totalDoses={totalDoses}
       avgIntervalFormatted={avgIntervalFormatted}
