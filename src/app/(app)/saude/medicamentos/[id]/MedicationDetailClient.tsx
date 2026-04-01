@@ -8,10 +8,13 @@ interface MedicationInfo {
   id: string;
   name: string;
   dosage: string | null;
+  frequency: string | null;
   frequency_hours: number | null;
   start_date: string;
   end_date: string | null;
   notes: string | null;
+  reason: string | null;
+  prescribed_by: string | null;
   status: string;
   children: { full_name: string } | null;
 }
