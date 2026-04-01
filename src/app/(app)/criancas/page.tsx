@@ -14,7 +14,7 @@ export default async function ChildrenPage() {
 
   const { data: children } = await supabase
     .from("children")
-    .select("id, full_name, birth_date, sex, photo_url, blood_type, notes, allergies")
+    .select("id, full_name, birth_date, sex, photo_url, notes, allergies")
     .eq("group_id", groupId)
     .order("full_name");
 
