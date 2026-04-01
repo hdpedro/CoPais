@@ -223,6 +223,9 @@ export interface DashboardClientProps {
   // Type config for custody labels
   userId: string;
   parentColors: ParentColorMap;
+
+  // Context-aware section ordering (computed server-side)
+  visibleSections: string[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -279,6 +282,7 @@ export default function DashboardClient(props: DashboardClientProps) {
     childCards,
     mySwapDays,
     memberCount,
+    visibleSections,
   } = props;
 
   // Activity report modal state
@@ -417,10 +421,22 @@ export default function DashboardClient(props: DashboardClientProps) {
     }));
   }, [streakTotal, streakDays, firstCustody, otherColor]);
 
+  // Context-aware: show max N sections, hide rest behind "Ver mais"
+  const MAX_VISIBLE = 7;
+  const [showAll, setShowAll] = useState(false);
+  const visibleSet = useMemo(() => {
+    const shown = showAll ? visibleSections : visibleSections.slice(0, MAX_VISIBLE);
+    return new Set(shown);
+  }, [visibleSections, showAll]);
+  const hasHiddenSections = visibleSections.length > MAX_VISIBLE;
+
+  // Helper: only render section if it's in the visible set
+  const show = (id: string) => visibleSet.has(id);
+
   return (
     <div className="space-y-5 pb-4">
 
-      {/* === GREETING === */}
+      {/* === GREETING (always visible) === */}
       <div>
         <h1 className="text-[26px] font-bold text-[#2C2C2C] tracking-tight leading-tight">
           {greetingText}, {firstName}
@@ -432,7 +448,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       </div>
 
       {/* === CUSTODY ACTIVATION CARD === */}
-      {!custodyEnabled && memberCount >= 2 && firstChildName && (
+      {show("custodyActivation") && !custodyEnabled && memberCount >= 2 && firstChildName && (
         <CustodyActivationCard
           groupId={groupId}
           childName={firstChildName}
@@ -441,7 +457,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === PRIORITY ALERTS === */}
-      {custodyEnabled && hasCustody && pendingSwaps.length > 0 && (
+      {show("swapAlerts") && custodyEnabled && hasCustody && pendingSwaps.length > 0 && (
         <div className="space-y-2">
           {pendingSwaps.map((swap) => (
             <Link key={swap.id} href="/calendario" prefetch={false} className="block">
@@ -469,7 +485,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === HERO CARD === */}
-      {!custodyEnabled || !hasCustody ? (
+      {!show("hero") ? null : !custodyEnabled || !hasCustody ? (
         <div className="rounded-2xl bg-[#2C2C2C] p-5 text-white">
           <h2 className="text-xl font-bold tracking-tight">
             {greetingText}, {firstName}
@@ -563,7 +579,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === WEEK STRIP === */}
-      <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
+      {show("weekStrip") && <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
         <div className="flex justify-between">
           {weekDays.map((day) => {
             const wc = weekCustodyLookup[day.dateKey];
@@ -600,10 +616,10 @@ export default function DashboardClient(props: DashboardClientProps) {
             ))}
           </div>
         )}
-      </div>
+      </div>}
 
       {/* === HEALTH ALERTS === */}
-      {hasHealthAlerts && (
+      {show("healthAlerts") && hasHealthAlerts && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold text-[#EF4444] uppercase tracking-wider flex items-center gap-1.5">
@@ -730,7 +746,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === ACTIVITIES (tomorrow + today) === */}
-      {(hasTomorrowActivities || hasTodayActivities) && (
+      {show("activities") && (hasTomorrowActivities || hasTodayActivities) && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider flex items-center gap-1.5">
@@ -831,7 +847,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === PENDING EXPENSES AWAITING APPROVAL === */}
-      {pendingExpenses.length > 0 && (
+      {show("pendingExpenses") && pendingExpenses.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider flex items-center gap-1.5">
@@ -869,7 +885,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === PENDING DECISIONS === */}
-      {pendingDecisions.length > 0 && (
+      {show("pendingDecisions") && pendingDecisions.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider flex items-center gap-1.5">
@@ -906,7 +922,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === PENDING ACTIVITY REPORTS === */}
-      {pendingReports.length > 0 && (
+      {show("pendingReports") && pendingReports.length > 0 && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider flex items-center gap-1.5">
@@ -955,7 +971,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === WEEKLY ANALYSIS === */}
-      <Link href="/financeiro" prefetch={false} className="block">
+      {show("financial") && <Link href="/financeiro" prefetch={false} className="block">
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 border-l-4 border-l-[#D4735A] flex items-center gap-3 hover:shadow-md transition-shadow">
           <div className="w-9 h-9 rounded-full bg-[#D4735A]/10 flex items-center justify-center flex-shrink-0">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4735A" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
@@ -984,10 +1000,10 @@ export default function DashboardClient(props: DashboardClientProps) {
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </div>
-      </Link>
+      </Link>}
 
       {/* === SALDO + AGENDA (2 columns) === */}
-      <div className="grid grid-cols-2 gap-3">
+      {show("agenda") && <div className="grid grid-cols-2 gap-3">
         <Link href="/financeiro" prefetch={false} className="block">
           <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 h-full">
             <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">
@@ -1112,10 +1128,10 @@ export default function DashboardClient(props: DashboardClientProps) {
             <p className="text-[12px] text-[#9CA3AF]">{t("dashboard.noEvents")}</p>
           )}
         </div>
-      </div>
+      </div>}
 
       {/* === QUICK ACTIONS === */}
-      {!isReadonly && (
+      {show("quickActions") && !isReadonly && (
       <div>
         <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider mb-3">
           {t("dashboard.quickActions")}
@@ -1164,7 +1180,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === CHILDREN === */}
-      {childCards.length > 0 && (
+      {show("childCards") && childCards.length > 0 && (
         <div className="space-y-3">
           {childCards.map((child) => (
             <Link key={child.id} href={`/criancas/${child.id}`} prefetch={false} className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
@@ -1225,7 +1241,7 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === SWAP BALANCE === */}
-      {custodyEnabled && hasCustody && <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 flex items-center justify-between">
+      {show("swapBalance") && custodyEnabled && hasCustody && <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 flex items-center justify-between">
         <span className="text-[13px] text-[#7A8C8B]">{t("dashboard.swapBalance")}</span>
         <div className="text-right">
           <p className="text-xl font-bold text-[#2C2C2C]">
@@ -1242,8 +1258,18 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       </div>}
 
+      {/* === SHOW MORE === */}
+      {hasHiddenSections && !showAll && (
+        <button
+          onClick={() => setShowAll(true)}
+          className="w-full py-3 text-[13px] font-semibold text-[#D4735A] bg-white rounded-2xl shadow-sm border border-gray-100/80 hover:bg-gray-50 transition-colors"
+        >
+          {t("common.viewAll")} ({visibleSections.length - MAX_VISIBLE} {t("dashboard.moreSections")})
+        </button>
+      )}
+
       {/* === INVITE CO-PARENT === */}
-      {memberCount < 2 && (
+      {show("invite") && memberCount < 2 && (
         <div className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100/80 text-center">
           <div className="w-14 h-14 bg-[#2C2C2C]/[0.06] rounded-2xl flex items-center justify-center mx-auto mb-3">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#2C2C2C" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">

@@ -135,6 +135,7 @@
     "prepare": "Prepare:",
     "viewMore": "view more",
     "viewAllFeminine": "view all",
+    "moreSections": "more",
     "weeklyAnalysis": "Weekly analysis",
     "expensesDifference": "{name} has {amount} {direction} in expenses this month.",
     "expensesBalanced": "Expenses balanced between you this month.",

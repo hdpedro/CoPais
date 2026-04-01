@@ -135,6 +135,7 @@
     "prepare": "Preparar:",
     "viewMore": "ver más",
     "viewAllFeminine": "ver todas",
+    "moreSections": "mas",
     "weeklyAnalysis": "Análisis de la semana",
     "expensesDifference": "{name} tiene {amount} {direction} en gastos este mes.",
     "expensesBalanced": "Gastos equilibrados entre ustedes este mes.",

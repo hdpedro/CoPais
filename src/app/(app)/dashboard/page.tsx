@@ -665,6 +665,42 @@ export default async function DashboardPage() {
   // Determine if the group has a custody schedule configured
   const hasCustody = safeAllCustody.some((e) => e.custody_type === "regular");
 
+  // === CONTEXT-AWARE SECTION ORDERING ===
+  // Prioritize sections based on what matters RIGHT NOW for this user.
+  // Each section has a priority (lower = more important). Show top N, collapse rest.
+  type SectionId = "swapAlerts" | "hero" | "weekStrip" | "healthAlerts" | "activities" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "agenda" | "quickActions" | "childCards" | "swapBalance" | "invite" | "custodyActivation";
+
+  const sectionPriorities: { id: SectionId; priority: number; hasData: boolean }[] = [
+    // P1: Urgent — needs immediate action
+    { id: "swapAlerts", priority: 1, hasData: custodyEnabled && hasCustody && pendingSwapsProps.length > 0 },
+    { id: "healthAlerts", priority: hasHealthAlerts && illnessProps.some(i => i.daysAgo <= 2) ? 2 : 5, hasData: !!hasHealthAlerts },
+    { id: "pendingExpenses", priority: 3, hasData: pendingExpenseProps.length > 0 },
+    { id: "pendingDecisions", priority: pendingDecisionsList.some(d => d.deadline && new Date(d.deadline + "T23:59:59").getTime() - now.getTime() < 3 * 86400000) ? 3 : 7, hasData: pendingDecisionsList.length > 0 },
+
+    // P2: Context — what's happening today/tomorrow
+    { id: "hero", priority: 4, hasData: true }, // always show
+    { id: "weekStrip", priority: 4, hasData: true }, // always show
+    { id: "activities", priority: 4, hasData: hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities },
+
+    // P3: Informational — useful but not urgent
+    { id: "pendingReports", priority: 8, hasData: pendingReportsFinal.length > 0 },
+    { id: "financial", priority: 9, hasData: true },
+    { id: "agenda", priority: 9, hasData: upcomingEventsProps.length > 0 || hasTodayActivities || hasTomorrowActivities },
+    { id: "quickActions", priority: 10, hasData: !isReadonly },
+
+    // P4: Low priority — accessible but not prominent
+    { id: "childCards", priority: 11, hasData: (children?.length || 0) > 0 },
+    { id: "swapBalance", priority: 12, hasData: custodyEnabled && hasCustody },
+    { id: "invite", priority: 13, hasData: (members?.length || 0) < 2 },
+    { id: "custodyActivation", priority: 14, hasData: !custodyEnabled && (members?.length || 0) >= 2 },
+  ];
+
+  // Filter to sections with data, sort by priority
+  const visibleSections = sectionPriorities
+    .filter(s => s.hasData)
+    .sort((a, b) => a.priority - b.priority)
+    .map(s => s.id);
+
   const clientProps: DashboardClientProps = {
     custodyEnabled,
     groupId,
@@ -718,6 +754,7 @@ export default async function DashboardPage() {
       category: d.category,
       deadline: d.deadline,
     })),
+    visibleSections,
     pendingReports: pendingReportsFinal.slice(0, 5).map((pr) => {
       const occDate = new Date(pr.occurrenceDate + "T12:00:00");
       const daysAgo = Math.round((now.getTime() - occDate.getTime()) / 86400000);
