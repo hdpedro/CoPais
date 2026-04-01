@@ -93,6 +93,23 @@ export async function createActivity(formData: FormData) {
     }
   }
 
+  // Pre-compute occurrence dates for fast calendar/dashboard queries
+  if (activity) {
+    const { generateOccurrences } = await import("@/lib/occurrence-generator");
+    await generateOccurrences(supabase, {
+      id: activity.id,
+      group_id: membership.groupId,
+      child_id: childId || null,
+      recurrence_type: recurrenceType,
+      start_date: startDate,
+      end_date: endDate || null,
+      days_of_week: daysOfWeekRaw || null,
+      day_of_month: dayOfMonth ? parseInt(dayOfMonth) : null,
+      custom_interval: customInterval ? parseInt(customInterval) : 1,
+      custom_unit: customUnit || "week",
+    });
+  }
+
   captureServerEvent(user.id, "activity_created", { name, category });
 
   // Notify other group members

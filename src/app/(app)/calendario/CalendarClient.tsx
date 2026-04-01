@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, memo } from "react";
 import { useI18n } from "@/i18n/provider";
 import CalendarGrid from "./CalendarGrid";
 import WeekendPlanner from "./WeekendPlanner";
@@ -77,7 +77,7 @@ interface CalendarClientProps {
   memberNames: Record<string, string>;
 }
 
-export default function CalendarClient({
+export default memo(function CalendarClient({
   initialYear,
   initialMonth,
   custodyMap,
@@ -190,4 +190,4 @@ export default function CalendarClient({
       />
     </>
   );
-}
+});

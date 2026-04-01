@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { createSwapRequest } from "@/actions/calendar";
 import { deleteActivity, deleteEvent, deleteAppointment, cancelActivityOccurrence, changeActivityResponsible, changeActivityResponsibleAll, toggleChecklistItem, editActivityAll, editActivityOccurrence } from "@/actions/activities";
@@ -60,7 +60,7 @@ interface DayDetailSheetProps {
   memberNames?: Record<string, string>;
 }
 
-export default function DayDetailSheet({
+export default memo(function DayDetailSheet({
   isOpen,
   onClose,
   dateKey,
@@ -110,7 +110,7 @@ export default function DayDetailSheet({
   const isRecurring = (act: ActivityInfo) =>
     act.recurrence_type && act.recurrence_type !== "never";
 
-  async function handleDeleteAll(activityId: string, source?: "activity" | "event" | "appointment") {
+  const handleDeleteAll = useCallback(async (activityId: string, source?: "activity" | "event" | "appointment") => {
     setDeleting(true);
     try {
       if (source === "event") {
@@ -127,9 +127,9 @@ export default function DayDetailSheet({
     } finally {
       setDeleting(false);
     }
-  }
+  }, [router]);
 
-  async function handleDeleteThisDay(activityId: string) {
+  const handleDeleteThisDay = useCallback(async (activityId: string) => {
     setDeleting(true);
     try {
       await cancelActivityOccurrence(activityId, dateKey);
@@ -140,9 +140,9 @@ export default function DayDetailSheet({
     } finally {
       setDeleting(false);
     }
-  }
+  }, [dateKey, router]);
 
-  async function handleChangeResponsible(activityId: string, newResponsibleId: string) {
+  const handleChangeResponsible = useCallback(async (activityId: string, newResponsibleId: string) => {
     setResponsibleSaving(true);
     try {
       const result = await changeActivityResponsible(activityId, dateKey, newResponsibleId);
@@ -159,9 +159,9 @@ export default function DayDetailSheet({
     } finally {
       setResponsibleSaving(false);
     }
-  }
+  }, [dateKey, router]);
 
-  async function handleChangeResponsibleAll(activityId: string, newResponsibleId: string) {
+  const handleChangeResponsibleAll = useCallback(async (activityId: string, newResponsibleId: string) => {
     setResponsibleSaving(true);
     try {
       const result = await changeActivityResponsibleAll(activityId, newResponsibleId);
@@ -178,7 +178,7 @@ export default function DayDetailSheet({
     } finally {
       setResponsibleSaving(false);
     }
-  }
+  }, [router]);
 
   async function handleToggleChecklist(activityId: string, itemId: string, completed: boolean) {
     // Optimistic update
@@ -1224,4 +1224,4 @@ export default function DayDetailSheet({
       </div>
     </div>
   );
-}
+});

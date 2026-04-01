@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { autoAcceptPendingInvitations } from "@/actions/invitation";
 import { formatDateKey, computeSwapBalance, getBrazilNow, getBrazilToday, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
-import { getOccurrences, parseDaysOfWeek, type ActivityRecurrence } from "@/lib/recurrence-utils";
+// getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
 import { PARENT_COLORS, DAY_NAMES, MONTH_NAMES, getDisplayName } from "@/lib/constants";
 import dynamic from "next/dynamic";
 import type { DashboardClientProps } from "./DashboardClient";
@@ -102,8 +102,9 @@ export default async function DashboardPage() {
     { data: recentCheckins },
     { data: pendingExpenses },
     { data: openDecisions },
-    { data: allActivities },
+    { data: activityOccurrences },
     { data: dashSocialEvents },
+    { data: pastOccurrences },
   ] = await Promise.all([
     // Single custody_events query covering 3-month range (replaces 5 separate queries)
     // Skip entirely when custody is not enabled (saves a DB query)
@@ -170,12 +171,14 @@ export default async function DashboardPage() {
       .order("created_at", { ascending: false })
       .limit(20)
       .then(r => r, () => ({ data: [] as never[] })),
-    // Active activities (moved from sequential to parallel)
+    // Activity occurrences for today through 7 days ahead (pre-computed, no runtime recurrence)
     supabase
-      .from("child_activities")
-      .select("id, name, category, time_start, time_end, location, child_id, recurrence_type, start_date, end_date, days_of_week, day_of_month, custom_interval, custom_unit, children(full_name), activity_checklist_items(id, name)")
+      .from("calendar_occurrences")
+      .select("occurrence_date, activity_id, child_activities!inner(id, name, category, time_start, time_end, location, child_id, children(full_name), activity_checklist_items(id, name))")
       .eq("group_id", groupId)
-      .eq("is_active", true)
+      .gte("occurrence_date", todayKey)
+      .lte("occurrence_date", sevenDaysKey)
+      .limit(100)
       .then(r => r, () => ({ data: [] as never[] })),
     // Social events for today/tomorrow/upcoming (moved from sequential to parallel)
     supabase
@@ -185,6 +188,15 @@ export default async function DashboardPage() {
       .neq("status", "cancelled")
       .gte("event_date", todayKey)
       .lte("event_date", sevenDaysKey)
+      .then(r => r, () => ({ data: [] as never[] })),
+    // Past activity occurrences for pending reports (last 7 days, excluding today)
+    supabase
+      .from("calendar_occurrences")
+      .select("occurrence_date, activity_id, child_activities!inner(id, name, category, child_id, children(full_name))")
+      .eq("group_id", groupId)
+      .gte("occurrence_date", formatDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)))
+      .lt("occurrence_date", todayKey)
+      .limit(200)
       .then(r => r, () => ({ data: [] as never[] })),
   ]);
 
@@ -218,7 +230,7 @@ export default async function DashboardPage() {
       )
     : null;
 
-  // Process activities for today/tomorrow/upcoming (queries already fetched in BATCH 3)
+  // Process activities from pre-computed calendar_occurrences (no runtime recurrence expansion)
 
   interface DashActivityItem {
     id: string;
@@ -234,39 +246,38 @@ export default async function DashboardPage() {
   const tomorrowActivities: DashActivityItem[] = [];
   const todayActivities: DashActivityItem[] = [];
   const upcomingActivities: { act: DashActivityItem; date: string; dayLabel: string }[] = [];
+  const dayAfterTomorrowKey = formatDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2));
 
-  for (const act of allActivities || []) {
-    const recurrence: ActivityRecurrence = {
-      recurrence_type: act.recurrence_type as ActivityRecurrence["recurrence_type"],
-      start_date: act.start_date,
-      end_date: act.end_date,
-      days_of_week: parseDaysOfWeek(act.days_of_week),
-      day_of_month: act.day_of_month,
-      custom_interval: act.custom_interval || 1,
-      custom_unit: (act.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
+  for (const occ of activityOccurrences || []) {
+    const act = Array.isArray(occ.child_activities) ? occ.child_activities[0] : occ.child_activities;
+    if (!act) continue;
+    const dateKey = occ.occurrence_date;
+    const dashAct: DashActivityItem = {
+      id: act.id,
+      name: act.name,
+      category: act.category,
+      time_start: act.time_start,
+      time_end: act.time_end,
+      location: act.location,
+      children: act.children,
+      activity_checklist_items: act.activity_checklist_items || [],
     };
-    if (getOccurrences(recurrence, todayKey, todayKey).length > 0) {
-      // Only show today's activities that haven't ended yet
+
+    if (dateKey === todayKey) {
       const actTime = act.time_end || act.time_start;
       if (actTime) {
         const [h, m] = actTime.split(":").map(Number);
         const actEndMinutes = h * 60 + (m || 0);
         const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        if (actEndMinutes >= nowMinutes) todayActivities.push(act);
+        if (actEndMinutes >= nowMinutes) todayActivities.push(dashAct);
       } else {
-        todayActivities.push(act); // No time = show all day
+        todayActivities.push(dashAct);
       }
-    }
-    if (getOccurrences(recurrence, tomorrowKey, tomorrowKey).length > 0) tomorrowActivities.push(act);
-
-    // Find next occurrence in next 7 days (excluding today/tomorrow)
-    const dayAfterTomorrow = new Date(now);
-    dayAfterTomorrow.setDate(dayAfterTomorrow.getDate() + 2);
-    const futureOccs = getOccurrences(recurrence, formatDateKey(dayAfterTomorrow), sevenDaysKey);
-    if (futureOccs.length > 0) {
-      const nextDate = futureOccs[0];
-      const d = new Date(nextDate + "T12:00:00");
-      upcomingActivities.push({ act, date: nextDate, dayLabel: `${DAY_NAMES[d.getDay()]} ${d.getDate()}` });
+    } else if (dateKey === tomorrowKey) {
+      tomorrowActivities.push(dashAct);
+    } else if (dateKey >= dayAfterTomorrowKey) {
+      const d = new Date(dateKey + "T12:00:00");
+      upcomingActivities.push({ act: dashAct, date: dateKey, dayLabel: `${DAY_NAMES[d.getDay()]} ${d.getDate()}` });
     }
   }
 
@@ -302,38 +313,23 @@ export default async function DashboardPage() {
   const hasTodayActivities = todayActivities.length > 0;
   const hasUpcomingActivities = upcomingActivities.length > 0;
 
-  // Compute pending activity reports (activities from last 7 days without reports)
-  const sevenDaysAgoDate = new Date(now);
-  sevenDaysAgoDate.setDate(sevenDaysAgoDate.getDate() - 7);
-  const sevenDaysAgoKey = formatDateKey(sevenDaysAgoDate);
-  const yesterdayDate2 = new Date(now);
-  yesterdayDate2.setDate(yesterdayDate2.getDate() - 1);
-  const yesterdayKey2 = formatDateKey(yesterdayDate2);
-
+  // Compute pending activity reports from pre-computed past occurrences (no runtime recurrence)
   const pendingReportPairs: { activityId: string; activityName: string; category: string; childName: string; occurrenceDate: string }[] = [];
-  for (const act of allActivities || []) {
-    const recurrence: ActivityRecurrence = {
-      recurrence_type: act.recurrence_type as ActivityRecurrence["recurrence_type"],
-      start_date: act.start_date,
-      end_date: act.end_date,
-      days_of_week: parseDaysOfWeek(act.days_of_week),
-      day_of_month: act.day_of_month,
-      custom_interval: act.custom_interval || 1,
-      custom_unit: (act.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
-    };
-    const pastOccs = getOccurrences(recurrence, sevenDaysAgoKey, yesterdayKey2);
-    for (const occ of pastOccs) {
-      pendingReportPairs.push({
-        activityId: act.id,
-        activityName: act.name,
-        category: act.category,
-        childName: (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "",
-        occurrenceDate: occ,
-      });
-    }
+  for (const occ of pastOccurrences || []) {
+    const act = Array.isArray(occ.child_activities) ? occ.child_activities[0] : occ.child_activities;
+    if (!act) continue;
+    pendingReportPairs.push({
+      activityId: act.id,
+      activityName: act.name,
+      category: act.category,
+      childName: (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "",
+      occurrenceDate: occ.occurrence_date,
+    });
   }
 
   // Fetch existing reports to filter out already-reported ones
+  const sevenDaysAgoKey = formatDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7));
+  const yesterdayKey2 = formatDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1));
   let pendingReportsFinal: typeof pendingReportPairs = [];
   if (pendingReportPairs.length > 0) {
     const reportActIds = [...new Set(pendingReportPairs.map((p) => p.activityId))];

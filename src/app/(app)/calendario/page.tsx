@@ -11,7 +11,7 @@ import {
   type ParentColorMap,
   type CustodyEvent,
 } from "@/lib/calendar-utils";
-import { getOccurrences, parseDaysOfWeek, type ActivityRecurrence } from "@/lib/recurrence-utils";
+// getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
 import dynamic from "next/dynamic";
 import CalendarHeader from "./CalendarHeader";
 
@@ -66,11 +66,12 @@ export default async function CalendarPage() {
           .then(r => r, () => ({ data: [] as never[] }))
       : Promise.resolve({ data: [] as never[] }),
     supabase
-      .from("child_activities")
-      .select("id, name, category, recurrence_type, start_date, end_date, days_of_week, day_of_month, custom_interval, custom_unit, time_start, time_end, location, notes, child_id, teacher_name, class_name, room, responsible_id, children(full_name), activity_checklist_items(id, name, sort_order)")
+      .from("calendar_occurrences")
+      .select("occurrence_date, activity_id, child_activities!inner(id, name, category, recurrence_type, time_start, time_end, location, notes, child_id, teacher_name, class_name, room, responsible_id, children(full_name), activity_checklist_items(id, name, sort_order))")
       .eq("group_id", groupId)
-      .eq("is_active", true)
-      .limit(100)
+      .gte("occurrence_date", rangeStart)
+      .lte("occurrence_date", rangeEnd)
+      .limit(500)
       .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("events")
@@ -221,59 +222,53 @@ export default async function CalendarPage() {
     memberNames[uid] = info.name;
   }
 
-  // Build activity occurrences map for the visible range
-  const activityDateMap: Record<string, { id: string; name: string; category: string; time_start: string | null; time_end?: string | null; location: string | null; childName: string; checklistCount: number; description?: string | null; all_day?: boolean; assigned_to_name?: string | null; report?: { status: string; notes: string | null; child_mood: string | null; responsible_override?: string | null; responsible_override_id?: string | null } | null; recurrence_type?: string; teacher_name?: string | null; class_name?: string | null; room?: string | null; responsible_id?: string | null; responsible_name?: string | null; checklistItems?: { id: string; name: string; completed: boolean }[]; source?: "activity" | "event" | "appointment" }[]> = {};
+  // Build activity occurrences map from pre-computed calendar_occurrences table
+  // No more runtime recurrence expansion — dates come straight from the DB
+  type ActivityEntry = { id: string; name: string; category: string; time_start: string | null; time_end?: string | null; location: string | null; childName: string; checklistCount: number; description?: string | null; all_day?: boolean; assigned_to_name?: string | null; report?: { status: string; notes: string | null; child_mood: string | null; responsible_override?: string | null; responsible_override_id?: string | null } | null; recurrence_type?: string; teacher_name?: string | null; class_name?: string | null; room?: string | null; responsible_id?: string | null; responsible_name?: string | null; checklistItems?: { id: string; name: string; completed: boolean }[]; source?: "activity" | "event" | "appointment" };
+  const activityDateMap: Record<string, ActivityEntry[]> = {};
   if (rawActivities) {
-    for (const act of rawActivities) {
-      const recurrence: ActivityRecurrence = {
-        recurrence_type: act.recurrence_type as ActivityRecurrence["recurrence_type"],
-        start_date: act.start_date,
-        end_date: act.end_date,
-        days_of_week: parseDaysOfWeek(act.days_of_week),
-        day_of_month: act.day_of_month,
-        custom_interval: act.custom_interval || 1,
-        custom_unit: (act.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
-      };
-      const occurrences = getOccurrences(recurrence, rangeStart, rangeEnd);
+    for (const occ of rawActivities) {
+      const dateKey = occ.occurrence_date;
+      const act = Array.isArray(occ.child_activities) ? occ.child_activities[0] : occ.child_activities;
+      if (!act) continue;
+
+      const report = reportLookup[`${act.id}:${dateKey}`] || null;
+      if (report?.status === "cancelled") continue;
+      if (!activityDateMap[dateKey]) activityDateMap[dateKey] = [];
+
       const childName = (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Todos";
       const rawChecklistItems = ((act.activity_checklist_items as { id: string; name: string; sort_order: number }[]) || []).sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0));
       const checklistCount = rawChecklistItems.length;
       const responsibleName = act.responsible_id ? (memberNames[act.responsible_id as string] || null) : null;
-      for (const dateKey of occurrences) {
-        const report = reportLookup[`${act.id}:${dateKey}`] || null;
-        // Skip cancelled occurrences (single-day deletions)
-        if (report?.status === "cancelled") continue;
-        if (!activityDateMap[dateKey]) activityDateMap[dateKey] = [];
-        // Build checklist items with completion status for this date
-        const completedSet = completionsLookup[`${act.id}:${dateKey}`] || new Set<string>();
-        const checklistItems = rawChecklistItems.map((item) => ({
-          id: item.id,
-          name: item.name,
-          completed: completedSet.has(item.id),
-        }));
-        // Apply per-occurrence overrides if present
-        const ov = report?.overrides as Record<string, unknown> | null | undefined;
-        activityDateMap[dateKey].push({
-          id: act.id,
-          name: (ov?.name as string) || act.name,
-          category: act.category,
-          time_start: ov?.time_start !== undefined ? (ov.time_start as string | null) : act.time_start,
-          time_end: ov?.time_end !== undefined ? (ov.time_end as string | null) : (act.time_end || null),
-          location: ov?.location !== undefined ? (ov.location as string | null) : act.location,
-          childName,
-          checklistCount,
-          description: ov?.notes !== undefined ? (ov.notes as string | null) : (act.notes || null),
-          report,
-          recurrence_type: act.recurrence_type,
-          teacher_name: ov?.teacher_name !== undefined ? (ov.teacher_name as string | null) : (act.teacher_name || null),
-          class_name: ov?.class_name !== undefined ? (ov.class_name as string | null) : (act.class_name || null),
-          room: ov?.room !== undefined ? (ov.room as string | null) : (act.room || null),
-          responsible_id: ov?.responsible_id !== undefined ? (ov.responsible_id as string | null) : (act.responsible_id || null),
-          responsible_name: ov?.responsible_id ? (memberNames[ov.responsible_id as string] || null) : responsibleName,
-          checklistItems,
-          source: "activity" as const,
-        });
-      }
+
+      const completedSet = completionsLookup[`${act.id}:${dateKey}`] || new Set<string>();
+      const checklistItems = rawChecklistItems.map((item) => ({
+        id: item.id,
+        name: item.name,
+        completed: completedSet.has(item.id),
+      }));
+
+      const ov = report?.overrides as Record<string, unknown> | null | undefined;
+      activityDateMap[dateKey].push({
+        id: act.id,
+        name: (ov?.name as string) || act.name,
+        category: act.category,
+        time_start: ov?.time_start !== undefined ? (ov.time_start as string | null) : act.time_start,
+        time_end: ov?.time_end !== undefined ? (ov.time_end as string | null) : (act.time_end || null),
+        location: ov?.location !== undefined ? (ov.location as string | null) : act.location,
+        childName,
+        checklistCount,
+        description: ov?.notes !== undefined ? (ov.notes as string | null) : (act.notes || null),
+        report,
+        recurrence_type: act.recurrence_type,
+        teacher_name: ov?.teacher_name !== undefined ? (ov.teacher_name as string | null) : (act.teacher_name || null),
+        class_name: ov?.class_name !== undefined ? (ov.class_name as string | null) : (act.class_name || null),
+        room: ov?.room !== undefined ? (ov.room as string | null) : (act.room || null),
+        responsible_id: ov?.responsible_id !== undefined ? (ov.responsible_id as string | null) : (act.responsible_id || null),
+        responsible_name: ov?.responsible_id ? (memberNames[ov.responsible_id as string] || null) : responsibleName,
+        checklistItems,
+        source: "activity" as const,
+      });
     }
   }
 
