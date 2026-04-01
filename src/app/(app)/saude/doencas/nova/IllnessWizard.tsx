@@ -371,7 +371,8 @@ export default function IllnessWizard({
             <button
               type="button"
               onClick={() => setStep(3)}
-              className="flex-1 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-colors"
+              disabled={addMed && !medName.trim()}
+              className="flex-1 py-3 rounded-xl font-bold text-white bg-primary hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {t("health.wizard.next")}
             </button>

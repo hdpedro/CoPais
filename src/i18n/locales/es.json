@@ -506,6 +506,8 @@
     "quickActions": "Acciones rápidas",
     "overdueDoses": "{count} dosis atrasada(s)",
     "registerProblem": "Registrar problema",
+    "registerProblemDesc": "Nuevo episodio de enfermedad",
+    "logSymptom": "Registrar síntoma",
     "illnessOrEmergency": "Enfermedad o emergencia",
     "scheduleAppointment": "Agendar consulta",
     "newAppointmentOrExam": "Nueva consulta o examen",
