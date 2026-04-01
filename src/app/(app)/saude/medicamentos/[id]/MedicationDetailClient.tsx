@@ -2,21 +2,50 @@
 
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
+import ConfirmDoseButton from "../../ConfirmDoseButton";
+
+interface MedicationInfo {
+  id: string;
+  name: string;
+  dosage: string | null;
+  frequency_hours: number | null;
+  start_date: string;
+  end_date: string | null;
+  notes: string | null;
+  status: string;
+  children: { full_name: string } | null;
+}
+
+interface DoseInfo {
+  id: string;
+  administered_at: string;
+  administered_by: string;
+  notes: string | null;
+  profiles: { full_name: string | null } | null;
+}
 
 interface Props {
-  medication: any;
-  allDoses: any[];
+  medication: MedicationInfo;
+  allDoses: DoseInfo[];
   progress: { elapsed: number; totalDays: number } | null;
   totalDoses: number;
   avgIntervalFormatted: string;
   personEntries: [string, number][];
-  dosesByDay: Record<string, any[]>;
+  dosesByDay: Record<string, DoseInfo[]>;
   dayKeys: string[];
   timeSincePrevMap: Record<string, string>;
+  isReadonly: boolean;
+  isContinuous: boolean;
+  daysSinceStart: number;
+  lastDoseMinutesAgo: number | null;
+  freqHours: number;
+  isOverdue: boolean;
+  estimatedNextDose: string | null;
 }
 
 export default function MedicationDetailClient({
   medication,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   allDoses,
   progress,
   totalDoses,
@@ -25,6 +54,13 @@ export default function MedicationDetailClient({
   dosesByDay,
   dayKeys,
   timeSincePrevMap,
+  isReadonly,
+  isContinuous,
+  daysSinceStart,
+  lastDoseMinutesAgo,
+  freqHours,
+  isOverdue,
+  estimatedNextDose,
 }: Props) {
   const { t } = useI18n();
 
@@ -45,7 +81,7 @@ export default function MedicationDetailClient({
         <Link href="/saude/medicamentos" className="w-9 h-9 flex items-center justify-center rounded-full bg-white shadow-sm text-[#8E8E93] hover:bg-gray-50 transition-colors">←</Link>
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-[#2D2D2D] truncate">{medication.name}</h1>
-          <p className="text-xs text-[#8E8E93]">{(medication.children as any)?.full_name}</p>
+          <p className="text-xs text-[#8E8E93]">{medication.children?.full_name}</p>
         </div>
         <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${medication.status === "active" ? "text-[#DC4446] bg-red-50" : medication.status === "completed" ? "text-green-600 bg-green-50" : "text-[#8E8E93] bg-gray-100"}`}>
           <span className="text-[8px]">●</span>
@@ -71,7 +107,11 @@ export default function MedicationDetailClient({
         )}
         <div className="flex items-center gap-2 text-sm text-[#2D2D2D]">
           <span>📅</span><span className="text-[#8E8E93] min-w-[80px]">{t("health.periodLabel")}</span>
-          <span className="font-medium">{formatDateBR(medication.start_date)} → {formatDateBR(medication.end_date)}</span>
+          <span className="font-medium">
+            {isContinuous
+              ? `${t("health.since")} ${formatDateBR(medication.start_date)} · ${t("health.continuousDay", { count: daysSinceStart })}`
+              : `${formatDateBR(medication.start_date)} → ${formatDateBR(medication.end_date)}`}
+          </span>
         </div>
         {medication.prescribed_by && (
           <div className="flex items-center gap-2 text-sm text-[#2D2D2D]">
@@ -80,7 +120,35 @@ export default function MedicationDetailClient({
         )}
       </div>
 
-      {progress && (
+      {/* Dose Action Card */}
+      {medication.status === "active" && (
+        <div className={`bg-white rounded-xl p-4 shadow-sm border ${isOverdue ? "border-amber-300 bg-amber-50/30" : "border-gray-100"}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              {estimatedNextDose && (
+                <p className={`text-sm font-medium ${isOverdue ? "text-amber-700" : "text-[#5B9B8A]"}`}>
+                  {isOverdue ? `⏰ ${t("health.shouldHaveBeenAt", { time: estimatedNextDose })}` : `⏰ ${t("health.nextDose", { time: estimatedNextDose })}`}
+                </p>
+              )}
+              {!estimatedNextDose && totalDoses === 0 && (
+                <p className="text-sm text-[#8E8E93]">{t("health.noDoseYet")}</p>
+              )}
+            </div>
+          </div>
+          {!isReadonly && (
+            <ConfirmDoseButton
+              medicationId={medication.id}
+              redirectTo={`/saude/medicamentos/${medication.id}`}
+              isOverdue={isOverdue}
+              lastDoseMinutesAgo={lastDoseMinutesAgo}
+              frequencyHours={freqHours}
+              medName={medication.name}
+            />
+          )}
+        </div>
+      )}
+
+      {progress ? (
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between text-xs text-[#8E8E93] mb-2">
             <span className="font-medium">{t("health.treatmentProgress")}</span>
@@ -92,6 +160,16 @@ export default function MedicationDetailClient({
           <div className="flex justify-between mt-1 text-[10px] text-[#8E8E93]">
             <span>{formatDateBR(medication.start_date)}</span>
             <span>{formatDateBR(medication.end_date)}</span>
+          </div>
+        </div>
+      ) : isContinuous && (
+        <div className="bg-blue-50 rounded-xl p-4 border border-blue-100">
+          <div className="flex items-center gap-2">
+            <span className="text-blue-500 text-sm">♾️</span>
+            <div>
+              <p className="text-sm font-medium text-blue-700">{t("health.continuousUse")}</p>
+              <p className="text-[11px] text-blue-500">{t("health.continuousDay", { count: daysSinceStart })}</p>
+            </div>
           </div>
         </div>
       )}
@@ -147,8 +225,8 @@ export default function MedicationDetailClient({
                   <span className="text-[10px] text-[#8E8E93] ml-2">{dayDoses.length} {dayDoses.length !== 1 ? t("health.doses") : t("health.dose")}</span>
                 </div>
                 <div className="divide-y divide-gray-50">
-                  {dayDoses.map((dose: any) => {
-                    const adminName = (dose.profiles as any)?.full_name ?? "—";
+                  {dayDoses.map((dose) => {
+                    const adminName = dose.profiles?.full_name ?? "—";
                     const sincePrev = timeSincePrevMap[dose.id] ?? "—";
                     return (
                       <div key={dose.id} className="px-4 py-3 flex items-center gap-3">

@@ -17,7 +17,7 @@ export default async function MedicationDetailPage({
 
   const activeGroup = await getActiveGroup(supabase, user.id);
   if (!activeGroup) redirect("/onboarding");
-  const { groupId } = activeGroup;
+  const { groupId, isReadonly } = activeGroup;
 
   const { data: medication } = await supabase
     .from("active_medications")
@@ -107,6 +107,31 @@ export default async function MedicationDetailPage({
 
   const progress = calcProgress(medication.start_date, medication.end_date);
 
+  // Continuous use info (server component — Date.now() is safe here)
+  const isContinuous = !medication.end_date;
+  const nowMs = new Date().getTime();
+  const daysSinceStart = Math.max(1, Math.ceil((nowMs - new Date(medication.start_date + "T00:00:00").getTime()) / (1000 * 60 * 60 * 24)));
+
+  // Last dose info for ConfirmDoseButton
+  const lastDose = allDoses[0] ?? null;
+  const lastDoseMinutesAgo = lastDose
+    ? Math.floor((nowMs - new Date(lastDose.administered_at).getTime()) / (1000 * 60))
+    : null;
+  const freqHours = medication.frequency_hours || 8;
+  const isOverdue = lastDoseMinutesAgo !== null && lastDoseMinutesAgo > freqHours * 60;
+
+  // Estimated next dose based on avg interval or frequency
+  let estimatedNextDose: string | null = null;
+  if (lastDose) {
+    const intervalMs = avgIntervalHours !== null
+      ? avgIntervalHours * 60 * 60 * 1000
+      : (medication.frequency_hours || 0) * 60 * 60 * 1000;
+    if (intervalMs > 0) {
+      const nextTime = new Date(new Date(lastDose.administered_at).getTime() + intervalMs);
+      estimatedNextDose = nextTime.toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" });
+    }
+  }
+
   return (
     <MedicationDetailClient
       medication={medication}
@@ -118,6 +143,13 @@ export default async function MedicationDetailPage({
       dosesByDay={dosesByDay}
       dayKeys={dayKeys}
       timeSincePrevMap={timeSincePrevMap}
+      isReadonly={isReadonly}
+      isContinuous={isContinuous}
+      daysSinceStart={daysSinceStart}
+      lastDoseMinutesAgo={lastDoseMinutesAgo}
+      freqHours={freqHours}
+      isOverdue={isOverdue}
+      estimatedNextDose={estimatedNextDose}
     />
   );
 }

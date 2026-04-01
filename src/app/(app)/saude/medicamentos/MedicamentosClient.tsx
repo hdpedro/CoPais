@@ -125,7 +125,12 @@ export default function MedicamentosClient({
                   {med.dosage && <p><span className="mr-1" aria-hidden="true">💊</span> {t("health.dosage")}: {med.dosage}</p>}
                   {med.frequency && <p><span className="mr-1" aria-hidden="true">⏰</span> {t("health.frequency")}: {med.frequency}</p>}
                   {med.reason && <p><span className="mr-1" aria-hidden="true">📋</span> {t("health.reason")}: {med.reason}</p>}
-                  <p><span className="mr-1" aria-hidden="true">📅</span> {t("health.period")}: {formatDateBR(med.start_date)} → {formatDateBR(med.end_date)}</p>
+                  <p>
+                    <span className="mr-1" aria-hidden="true">📅</span>
+                    {med.end_date
+                      ? `${t("health.period")}: ${formatDateBR(med.start_date)} → ${formatDateBR(med.end_date)}`
+                      : `${t("health.since")} ${formatDateBR(med.start_date)} · ${t("health.continuousUse")}`}
+                  </p>
                   {med.prescribed_by && <p><span className="mr-1" aria-hidden="true">👩‍⚕️</span> {t("health.prescribedBy")}: {med.prescribed_by}</p>}
                 </div>
 
@@ -141,14 +146,16 @@ export default function MedicamentosClient({
                   </div>
                 )}
 
-                {medDoses.length > 0 && (
-                  <div className="mt-3 pt-3 border-t border-gray-100">
-                    <div className="flex items-center justify-between mb-1.5">
-                      <p className="text-xs font-medium text-[#8E8E93]">{t("health.recentDoses")}</p>
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-xs font-medium text-[#8E8E93]">{t("health.recentDoses")}</p>
+                    {medDoses.length > 0 && (
                       <Link href={`/saude/medicamentos/${med.id}`} className="text-[10px] font-medium text-[#5B9B8A] hover:underline">
                         {t("health.viewFullHistory")}
                       </Link>
-                    </div>
+                    )}
+                  </div>
+                  {medDoses.length > 0 ? (
                     <div className="space-y-1">
                       {medDoses.map((dose) => (
                         <div key={dose.id} className="flex items-center justify-between text-xs text-[#2D2D2D]">
@@ -157,8 +164,10 @@ export default function MedicamentosClient({
                         </div>
                       ))}
                     </div>
-                  </div>
-                )}
+                  ) : (
+                    <p className="text-xs text-[#8E8E93] italic">{t("health.noDoseYet")}</p>
+                  )}
+                </div>
 
                 {!isReadonly && (() => {
                   const lastDose = medDoses[0];
@@ -219,7 +228,7 @@ export default function MedicamentosClient({
               </div>
               <div className="mt-2 text-xs text-[#8E8E93] space-y-0.5">
                 {med.dosage && <p><span aria-hidden="true">💊</span> {med.dosage}</p>}
-                <p>📅 {formatDateBR(med.start_date)} → {formatDateBR(med.end_date)}</p>
+                <p>📅 {med.end_date ? `${formatDateBR(med.start_date)} → ${formatDateBR(med.end_date)}` : `${t("health.since")} ${formatDateBR(med.start_date)}`}</p>
               </div>
             </Link>
           ))}
