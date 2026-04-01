@@ -135,12 +135,25 @@ export default async function MedicationDetailPage({
   return (
     <MedicationDetailClient
       medication={{
-        ...medication,
-        children: Array.isArray(medication.children) ? medication.children[0] || null : medication.children,
+        id: medication.id,
+        name: medication.name,
+        dosage: medication.dosage,
+        frequency: medication.frequency,
+        frequency_hours: medication.frequency_hours,
+        start_date: medication.start_date,
+        end_date: medication.end_date,
+        notes: medication.notes,
+        reason: medication.reason,
+        prescribed_by: medication.prescribed_by,
+        status: medication.status,
+        children: (medication.children as unknown as { full_name: string } | null),
       }}
       allDoses={allDoses.map(d => ({
-        ...d,
-        profiles: Array.isArray(d.profiles) ? d.profiles[0] || null : d.profiles,
+        id: d.id,
+        administered_at: d.administered_at,
+        administered_by: d.administered_by,
+        notes: d.notes,
+        profiles: (d.profiles as unknown as { full_name: string | null } | null),
       }))}
       progress={progress}
       totalDoses={totalDoses}
