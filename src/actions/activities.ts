@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { createNotificationWithPush } from "@/lib/push";
-import { getOccurrences, parseDaysOfWeek, type ActivityRecurrence } from "@/lib/recurrence-utils";
+// recurrence-utils no longer used — occurrences are pre-computed in calendar_occurrences table
 import { formatDateKey, getBrazilToday } from "@/lib/calendar-utils";
 import { captureServerEvent } from "@/lib/posthog-server";
 
@@ -232,37 +232,20 @@ export async function sendActivityReminders() {
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowKey = formatDateKey(tomorrow);
 
-  // Find all active activities
-  const { data: activities } = await supabase
-    .from("child_activities")
-    .select(`
-      id, name, category, time_start, group_id, child_id,
-      recurrence_type, start_date, end_date, days_of_week, day_of_month,
-      custom_interval, custom_unit,
-      children(full_name),
-      activity_checklist_items(id, name, sort_order)
-    `)
-    .eq("is_active", true);
+  // Find tomorrow's activities via pre-computed calendar_occurrences (no runtime recurrence)
+  const { data: occurrences } = await supabase
+    .from("calendar_occurrences")
+    .select("activity_id, child_activities!inner(id, name, category, time_start, group_id, child_id, children(full_name), activity_checklist_items(id, name, sort_order))")
+    .eq("occurrence_date", tomorrowKey);
 
-  if (!activities || activities.length === 0) return { sent: 0 };
+  if (!occurrences || occurrences.length === 0) return { sent: 0 };
 
   let sentCount = 0;
 
-  // Filter activities that occur tomorrow first (avoid N+1 member queries)
-  const tomorrowActivities = activities.filter((activity) => {
-    const recurrence: ActivityRecurrence = {
-      recurrence_type: activity.recurrence_type as ActivityRecurrence["recurrence_type"],
-      start_date: activity.start_date,
-      end_date: activity.end_date,
-      days_of_week: parseDaysOfWeek(activity.days_of_week),
-      day_of_month: activity.day_of_month,
-      custom_interval: activity.custom_interval || 1,
-      custom_unit: (activity.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
-    };
-    return getOccurrences(recurrence, tomorrowKey, tomorrowKey).length > 0;
-  });
-
-  if (tomorrowActivities.length === 0) return { sent: 0 };
+  const tomorrowActivities = occurrences.map((occ) => {
+    const act = Array.isArray(occ.child_activities) ? occ.child_activities[0] : occ.child_activities;
+    return act;
+  }).filter(Boolean);
 
   // Fetch members for all relevant groups in one batch (fixes N+1)
   const groupIds = [...new Set(tomorrowActivities.map((a) => a.group_id))];
@@ -431,20 +414,6 @@ export async function submitActivityReport(formData: FormData) {
 export async function getPendingReports(groupId: string, userId: string) {
   const supabase = await createClient();
 
-  // Get all active activities for the group
-  const { data: activities } = await supabase
-    .from("child_activities")
-    .select(`
-      id, name, category, time_start, time_end, group_id, child_id,
-      recurrence_type, start_date, end_date, days_of_week, day_of_month,
-      custom_interval, custom_unit,
-      children(full_name)
-    `)
-    .eq("group_id", groupId)
-    .eq("is_active", true);
-
-  if (!activities || activities.length === 0) return [];
-
   const today = getBrazilToday();
   const todayKey = today;
   const todayDate = new Date(today + "T12:00:00");
@@ -452,16 +421,21 @@ export async function getPendingReports(groupId: string, userId: string) {
   sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
   const sevenDaysAgoKey = formatDateKey(sevenDaysAgo);
 
+  // Get occurrences from last 7 days via pre-computed table (no runtime recurrence)
+  const { data: occurrences } = await supabase
+    .from("calendar_occurrences")
+    .select("occurrence_date, activity_id, child_activities!inner(id, name, category, time_start, time_end, child_id, children(full_name))")
+    .eq("group_id", groupId)
+    .gte("occurrence_date", sevenDaysAgoKey)
+    .lte("occurrence_date", todayKey)
+    .limit(200);
+
+  if (!occurrences || occurrences.length === 0) return [];
+
   // Get current hour in Brazil timezone to check if today's activities already ended
   const nowBrazil = new Date(new Date().toLocaleString("en-US", { timeZone: "America/Sao_Paulo" }));
-  const currentHour = nowBrazil.getHours();
-  const currentMinute = nowBrazil.getMinutes();
-  const currentTimeMinutes = currentHour * 60 + currentMinute;
+  const currentTimeMinutes = nowBrazil.getHours() * 60 + nowBrazil.getMinutes();
 
-  // Include today in the range — we'll filter out activities that haven't ended yet
-  const rangeEndKey = todayKey;
-
-  // Collect all (activityId, occurrenceDate) pairs from last 7 days (including today)
   const pendingPairs: {
     activityId: string;
     activityName: string;
@@ -471,42 +445,31 @@ export async function getPendingReports(groupId: string, userId: string) {
     occurrenceDate: string;
   }[] = [];
 
-  for (const act of activities) {
-    const recurrence: ActivityRecurrence = {
-      recurrence_type: act.recurrence_type as ActivityRecurrence["recurrence_type"],
-      start_date: act.start_date,
-      end_date: act.end_date,
-      days_of_week: parseDaysOfWeek(act.days_of_week),
-      day_of_month: act.day_of_month,
-      custom_interval: act.custom_interval || 1,
-      custom_unit: (act.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
-    };
+  for (const occ of occurrences) {
+    const act = Array.isArray(occ.child_activities) ? occ.child_activities[0] : occ.child_activities;
+    if (!act) continue;
+    const dateKey = occ.occurrence_date;
 
-    const occurrences = getOccurrences(recurrence, sevenDaysAgoKey, rangeEndKey);
-    for (const occ of occurrences) {
-      // For today's activities: only include if the activity has already ended
-      if (occ === todayKey) {
-        const timeEnd = (act as unknown as { time_end: string | null }).time_end || act.time_start;
-        if (timeEnd) {
-          const [h, m] = timeEnd.split(":").map(Number);
-          const actEndMinutes = h * 60 + (m || 0);
-          // Add 30min buffer after end time before requiring report
-          if (currentTimeMinutes < actEndMinutes + 30) continue;
-        } else {
-          // No end time — skip today, wait until tomorrow
-          continue;
-        }
+    // For today's activities: only include if the activity has already ended
+    if (dateKey === todayKey) {
+      const timeEnd = act.time_end || act.time_start;
+      if (timeEnd) {
+        const [h, m] = timeEnd.split(":").map(Number);
+        const actEndMinutes = h * 60 + (m || 0);
+        if (currentTimeMinutes < actEndMinutes + 30) continue;
+      } else {
+        continue;
       }
-
-      pendingPairs.push({
-        activityId: act.id,
-        activityName: act.name,
-        category: act.category,
-        childName: (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "",
-        timeStart: act.time_start,
-        occurrenceDate: occ,
-      });
     }
+
+    pendingPairs.push({
+      activityId: act.id,
+      activityName: act.name,
+      category: act.category,
+      childName: (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "",
+      timeStart: act.time_start,
+      occurrenceDate: dateKey,
+    });
   }
 
   if (pendingPairs.length === 0) return [];
@@ -518,7 +481,7 @@ export async function getPendingReports(groupId: string, userId: string) {
     .select("activity_id, occurrence_date")
     .in("activity_id", activityIds)
     .gte("occurrence_date", sevenDaysAgoKey)
-    .lte("occurrence_date", rangeEndKey);
+    .lte("occurrence_date", todayKey);
 
   const reportedSet = new Set(
     (existingReports || []).map((r) => `${r.activity_id}:${r.occurrence_date}`)
@@ -559,37 +522,24 @@ export async function sendMissedReportReminders() {
   yesterday.setDate(yesterday.getDate() - 1);
   const yesterdayKey = formatDateKey(yesterday);
 
-  // Find all active activities
-  const { data: activities } = await supabase
-    .from("child_activities")
-    .select(`
-      id, name, category, time_start, group_id, child_id,
-      recurrence_type, start_date, end_date, days_of_week, day_of_month,
-      custom_interval, custom_unit,
-      children(full_name)
-    `)
-    .eq("is_active", true);
+  // Find yesterday's activities via pre-computed calendar_occurrences (no runtime recurrence)
+  const { data: occurrences } = await supabase
+    .from("calendar_occurrences")
+    .select("occurrence_date, group_id, activity_id, child_activities!inner(id, name, category, time_start, group_id, child_id, children(full_name))")
+    .eq("occurrence_date", yesterdayKey);
 
-  if (!activities || activities.length === 0) return { sent: 0 };
+  if (!occurrences || occurrences.length === 0) return { sent: 0 };
 
   let sentCount = 0;
 
-  // Group activities by group_id for efficient report checking
-  const byGroup: Record<string, typeof activities> = {};
-  for (const act of activities) {
-    const recurrence: ActivityRecurrence = {
-      recurrence_type: act.recurrence_type as ActivityRecurrence["recurrence_type"],
-      start_date: act.start_date,
-      end_date: act.end_date,
-      days_of_week: parseDaysOfWeek(act.days_of_week),
-      day_of_month: act.day_of_month,
-      custom_interval: act.custom_interval || 1,
-      custom_unit: (act.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
-    };
-    if (getOccurrences(recurrence, yesterdayKey, yesterdayKey).length > 0) {
-      if (!byGroup[act.group_id]) byGroup[act.group_id] = [];
-      byGroup[act.group_id].push(act);
-    }
+  // Group by group_id for efficient report checking
+  type ActivityFromOcc = { id: string; name: string; category: string; time_start: string | null; group_id: string; child_id: string | null; children: unknown };
+  const byGroup: Record<string, ActivityFromOcc[]> = {};
+  for (const occ of occurrences) {
+    const act = Array.isArray(occ.child_activities) ? occ.child_activities[0] : occ.child_activities;
+    if (!act) continue;
+    if (!byGroup[occ.group_id]) byGroup[occ.group_id] = [];
+    byGroup[occ.group_id].push(act as unknown as ActivityFromOcc);
   }
 
   for (const [groupId, groupActivities] of Object.entries(byGroup)) {
