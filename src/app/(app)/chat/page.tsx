@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
-import { markChannelRead } from "@/actions/chat-channels";
+
 import dynamic from "next/dynamic";
 
 const ChatRoom = dynamic(() => import("./ChatRoom"), {
@@ -28,7 +28,7 @@ interface ChatChannel {
 async function getChannels(supabase: any, groupId: string): Promise<ChatChannel[]> {
   // Fetch channels + children in PARALLEL (not sequentially)
   const [{ data: existing }, { data: children }] = await Promise.all([
-    supabase.from("chat_channels").select("*").eq("group_id", groupId).order("sort_order"),
+    supabase.from("chat_channels").select("id, slug, name, channel_type, child_id, icon, sort_order").eq("group_id", groupId).order("sort_order"),
     supabase.from("children").select("id, full_name").eq("group_id", groupId),
   ]);
 
@@ -53,7 +53,7 @@ async function getChannels(supabase: any, groupId: string): Promise<ChatChannel[
       // Return existing + new without re-fetching
       const allChannels = [...(existing as ChatChannel[]), ...newChannels.map((ch: Record<string, unknown>, idx: number) => ({ ...ch, id: `temp-${idx}` } as unknown as ChatChannel))];
       // Re-fetch once to get proper IDs
-      const { data: updated } = await supabase.from("chat_channels").select("*").eq("group_id", groupId).order("sort_order");
+      const { data: updated } = await supabase.from("chat_channels").select("id, slug, name, channel_type, child_id, icon, sort_order").eq("group_id", groupId).order("sort_order");
       return ((updated || allChannels) as ChatChannel[]).filter((ch: ChatChannel) => !HIDDEN_TOPIC_SLUGS.includes(ch.slug));
     }
 
@@ -75,7 +75,7 @@ async function getChannels(supabase: any, groupId: string): Promise<ChatChannel[
   ];
   await supabase.from("chat_channels").insert(channelsToCreate);
 
-  const { data: allChannels } = await supabase.from("chat_channels").select("*").eq("group_id", groupId).order("sort_order");
+  const { data: allChannels } = await supabase.from("chat_channels").select("id, slug, name, channel_type, child_id, icon, sort_order").eq("group_id", groupId).order("sort_order");
   return ((allChannels || []) as ChatChannel[]).filter((ch: ChatChannel) => !HIDDEN_TOPIC_SLUGS.includes(ch.slug));
 }
 

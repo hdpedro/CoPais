@@ -9,16 +9,16 @@ import { useI18n } from "@/i18n/provider";
 
 interface CheckinFormProps {
   groupId: string;
-  children: { id: string; full_name: string }[];
+  childrenList: { id: string; full_name: string }[];
 }
 
-export default function CheckinForm({ groupId, children }: CheckinFormProps) {
+export default function CheckinForm({ groupId, childrenList }: CheckinFormProps) {
   const router = useRouter();
   const { t } = useI18n();
   const [selectedCategory, setSelectedCategory] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [childId, setChildId] = useState(children[0]?.id || "");
+  const [childId, setChildId] = useState(childrenList[0]?.id || "");
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
@@ -96,7 +96,7 @@ export default function CheckinForm({ groupId, children }: CheckinFormProps) {
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-xl p-4 shadow-sm space-y-4">
       {/* Child selector (if multiple) */}
-      {children.length > 1 && (
+      {childrenList.length > 1 && (
         <div>
           <label className="block text-sm font-medium text-dark mb-1">{t("checkinForm.child")}</label>
           <select
@@ -104,7 +104,7 @@ export default function CheckinForm({ groupId, children }: CheckinFormProps) {
             onChange={(e) => setChildId(e.target.value)}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
           >
-            {children.map((c) => (
+            {childrenList.map((c) => (
               <option key={c.id} value={c.id}>{c.full_name}</option>
             ))}
           </select>

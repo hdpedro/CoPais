@@ -14,13 +14,13 @@ export default async function ChildrenPage() {
 
   const { data: children } = await supabase
     .from("children")
-    .select("*")
+    .select("id, full_name, birth_date, gender, photo_url, blood_type, notes")
     .eq("group_id", groupId)
     .order("full_name");
 
   return (
     <ChildrenClient
-      children={children || []}
+      childrenList={children || []}
       isReadonly={isReadonly}
     />
   );

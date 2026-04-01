@@ -31,7 +31,7 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
       .select("id, category, description, amount, paid_by, status, expense_date, split_ratio, child_id, children(full_name), profiles!expenses_paid_by_fkey(full_name)")
       .eq("group_id", groupId)
       .order("expense_date", { ascending: false })
-      .limit(10000),
+      .limit(500),
     supabase
       .from("settlements")
       .select("id, paid_by, paid_to, amount, payment_method, reference_note, status, confirmed_at, settlement_date, created_at")

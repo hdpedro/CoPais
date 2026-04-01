@@ -19,7 +19,7 @@ interface CheckinEntry {
 interface CheckinClientProps {
   groupId: string;
   isReadonly: boolean;
-  children: { id: string; full_name: string }[];
+  childrenList: { id: string; full_name: string }[];
   todayCheckins: CheckinEntry[];
   recentCheckins: CheckinEntry[];
   today: string;
@@ -28,7 +28,7 @@ interface CheckinClientProps {
 export default function CheckinClient({
   groupId,
   isReadonly,
-  children,
+  childrenList,
   todayCheckins,
   recentCheckins,
   today,
@@ -65,7 +65,7 @@ export default function CheckinClient({
       {!isReadonly && (
         <CheckinForm
           groupId={groupId}
-          children={children}
+          childrenList={childrenList}
         />
       )}
 
@@ -93,8 +93,8 @@ export default function CheckinClient({
                         {getCategoryLabel(c.category)}
                       </span>
                       <span className="text-xs text-dark/60">
-                        {t("checkin.by")} {getDisplayName((c.profiles as any)?.full_name)}
-                        {(c.children as any)?.full_name ? ` \u2022 ${(c.children as any).full_name}` : ""}
+                        {t("checkin.by")} {getDisplayName((c.profiles as unknown as { full_name: string | null } | null)?.full_name)}
+                        {(c.children as unknown as { full_name: string } | null)?.full_name ? ` \u2022 ${(c.children as unknown as { full_name: string }).full_name}` : ""}
                       </span>
                     </div>
                   </div>
@@ -125,7 +125,7 @@ export default function CheckinClient({
                       <p className="text-xs text-dark/70 mt-1">{c.description}</p>
                     )}
                     <span className="text-xs text-dark/60">
-                      {t("checkin.by")} {getDisplayName((c.profiles as any)?.full_name)}
+                      {t("checkin.by")} {getDisplayName((c.profiles as unknown as { full_name: string | null } | null)?.full_name)}
                     </span>
                   </div>
                 </div>

@@ -16,9 +16,10 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
 
   const { data: expenses } = await supabase
     .from("expenses")
-    .select("*, rejection_reason, profiles!expenses_paid_by_fkey(full_name), children(full_name)")
+    .select("id, description, amount, expense_date, category, paid_by, child_id, status, split_type, split_value, receipt_url, rejection_reason, profiles!expenses_paid_by_fkey(full_name), children(full_name)")
     .eq("group_id", groupId)
-    .order("expense_date", { ascending: false });
+    .order("expense_date", { ascending: false })
+    .limit(200);
 
   // Calculate totals (exclude rejected from total)
   const approvedAndPending = expenses?.filter(e => e.status !== "rejected") || [];
@@ -35,9 +36,9 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
     expense_date: e.expense_date,
     paid_by: e.paid_by,
     receipt_url: e.receipt_url || null,
-    rejection_reason: (e as any).rejection_reason || null,
-    paid_by_name: getDisplayName((e.profiles as any)?.full_name),
-    child_name: (e.children as any)?.full_name || null,
+    rejection_reason: (e as unknown as { rejection_reason: string | null }).rejection_reason || null,
+    paid_by_name: getDisplayName((e.profiles as unknown as { full_name: string | null } | null)?.full_name),
+    child_name: (e.children as unknown as { full_name: string } | null)?.full_name || null,
   }));
 
   return (

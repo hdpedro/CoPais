@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useI18n } from "@/i18n/provider";
 import Link from "next/link";
 
@@ -12,12 +13,13 @@ interface Child {
 }
 
 interface ChildrenClientProps {
-  children: Child[];
+  childrenList: Child[];
   isReadonly: boolean;
 }
 
-export default function ChildrenClient({ children, isReadonly }: ChildrenClientProps) {
+export default function ChildrenClient({ childrenList, isReadonly }: ChildrenClientProps) {
   const { t } = useI18n();
+  const [now] = useState(() => Date.now());
 
   return (
     <div className="space-y-6 pb-20">
@@ -33,11 +35,11 @@ export default function ChildrenClient({ children, isReadonly }: ChildrenClientP
         )}
       </div>
 
-      {children && children.length > 0 ? (
+      {childrenList && childrenList.length > 0 ? (
         <div className="space-y-3">
-          {children.map((child) => {
+          {childrenList.map((child) => {
             const age = Math.floor(
-              (Date.now() - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+              (now - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
             );
             return (
               <Link key={child.id} href={`/criancas/${child.id}`} className="block bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">

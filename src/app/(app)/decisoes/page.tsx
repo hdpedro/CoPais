@@ -48,9 +48,10 @@ export default async function DecisoesPage({
   // Fetch decisions WITHOUT FK join (more resilient)
   let decisionsQuery = supabase
     .from("decisions")
-    .select("*")
+    .select("id, title, description, status, deadline, created_at, created_by, category")
     .eq("group_id", groupId)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(100);
 
   if (tab === "abertas") {
     decisionsQuery = decisionsQuery.eq("status", "aberta");
