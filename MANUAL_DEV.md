@@ -1390,11 +1390,12 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 ### Otimizacoes Aplicadas (20+ total)
 
 **Calendario:**
-- `Promise.all()` para 5 queries paralelas (custody_events, children, activities, events, swap_requests)
+- `Promise.all()` para 8 queries paralelas (members, custody_events, activities, events, appointments, swaps, reports, checklist_completions)
+- Range reduzido de 6 meses para 3 meses (1 atras + 1 a frente) para evitar timeout em Vercel
+- `.limit()` em todas as queries: activities(100), events(200), activity_reports(500), checklist_completions(1000)
 - `useMemo` no grid mensal (evita recalculo a cada render)
 - `useCallback` nos handlers de click e navegacao
 - Fix de timezone: `getBrazilNow()` para horario correto no fuso BRT
-- Calendar API otimizada (3.1s em vez de timeout)
 
 **Dashboard:**
 - 5 queries de `custody_events` consolidadas em 1 unica query
@@ -1405,6 +1406,12 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - Cache LRU em memoria (ate 5 canais) para troca instantanea
 - `React.memo` em MessageBubble
 
+**Check-in / Despesas / Criancas / Chat / Decisoes / Financeiro:**
+- `select("*")` substituido por colunas especificas em TODAS as paginas
+- `.limit()` de seguranca em todas as queries sem cap (50-500 conforme contexto)
+- Queries sequenciais convertidas em `Promise.all()` (ex: check-in 3 queries paralelas)
+- Type casts `as any` substituidos por `as unknown as Type` (strict TypeScript)
+
 **Geral:**
 - Dynamic imports para 6 componentes pesados (AIAssistant, GrowthChart, etc.)
 - i18n lazy loading (apenas locale padrao carregado, demais sob demanda)
@@ -1412,7 +1419,7 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - PostHog: 30+ eventos rastreados
 - Sentry: error tracking em producao
 - Performance indexes no banco (migration 00025)
-- Limite de query de despesas: 10000 para calculo preciso de saldo
+- Regra: nunca usar `select("*")`, sempre colunas especificas + `.limit()` + `Promise.all()`
 
 ### Regras de Performance para Desenvolvedores
 
@@ -1423,6 +1430,9 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 5. **Use** dynamic imports para componentes pesados que nao sao vistos na primeira tela
 6. **Evite** FK joins no PostgREST — faca queries separadas
 7. **Consolide** queries repetidas em uma unica query
+8. **Nunca** use `select("*")` — sempre liste colunas especificas
+9. **Sempre** adicione `.limit()` em queries sem cap de seguranca (50-500 conforme contexto)
+10. **Renomeie** prop `children` para `childrenList` em componentes custom (regra `react/no-children-prop`)
 
 ---
 

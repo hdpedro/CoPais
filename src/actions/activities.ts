@@ -211,7 +211,6 @@ export async function sendActivityReminders() {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const today = getBrazilToday();
   const tomorrow = new Date();
   tomorrow.setDate(tomorrow.getDate() + 1);
   const tomorrowKey = formatDateKey(tomorrow);
@@ -235,13 +234,13 @@ export async function sendActivityReminders() {
   // Filter activities that occur tomorrow first (avoid N+1 member queries)
   const tomorrowActivities = activities.filter((activity) => {
     const recurrence: ActivityRecurrence = {
-      recurrence_type: activity.recurrence_type as any,
+      recurrence_type: activity.recurrence_type as ActivityRecurrence["recurrence_type"],
       start_date: activity.start_date,
       end_date: activity.end_date,
       days_of_week: parseDaysOfWeek(activity.days_of_week),
       day_of_month: activity.day_of_month,
       custom_interval: activity.custom_interval || 1,
-      custom_unit: (activity.custom_unit as any) || "week",
+      custom_unit: (activity.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
     };
     return getOccurrences(recurrence, tomorrowKey, tomorrowKey).length > 0;
   });
@@ -262,11 +261,11 @@ export async function sendActivityReminders() {
   }
 
   for (const activity of tomorrowActivities) {
-    const childName = (activity.children as any)?.full_name?.split(" ")[0] || "Crianca";
-    const items = (activity.activity_checklist_items as any[]) || [];
+    const childName = (activity.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
+    const items = (activity.activity_checklist_items as unknown as { name: string; sort_order: number }[]) || [];
     const itemList = items
-      .sort((a: any, b: any) => a.sort_order - b.sort_order)
-      .map((i: any) => i.name)
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((i) => i.name)
       .join(", ");
 
     const timeStr = activity.time_start
@@ -359,7 +358,7 @@ export async function submitActivityReport(formData: FormData) {
 
   // Send notification to other parent about the activity report
   try {
-    const childName = (activity.children as any)?.full_name?.split(" ")[0] || "Crianca";
+    const childName = (activity.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
     const statusLabels: Record<string, string> = {
       completed: "foi realizada ✅",
       missed: "nao aconteceu ❌",
@@ -411,6 +410,7 @@ export async function submitActivityReport(formData: FormData) {
   return { success: true };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function getPendingReports(groupId: string, userId: string) {
   const supabase = await createClient();
 
@@ -456,20 +456,20 @@ export async function getPendingReports(groupId: string, userId: string) {
 
   for (const act of activities) {
     const recurrence: ActivityRecurrence = {
-      recurrence_type: act.recurrence_type as any,
+      recurrence_type: act.recurrence_type as ActivityRecurrence["recurrence_type"],
       start_date: act.start_date,
       end_date: act.end_date,
       days_of_week: parseDaysOfWeek(act.days_of_week),
       day_of_month: act.day_of_month,
       custom_interval: act.custom_interval || 1,
-      custom_unit: (act.custom_unit as any) || "week",
+      custom_unit: (act.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
     };
 
     const occurrences = getOccurrences(recurrence, sevenDaysAgoKey, rangeEndKey);
     for (const occ of occurrences) {
       // For today's activities: only include if the activity has already ended
       if (occ === todayKey) {
-        const timeEnd = (act as any).time_end || act.time_start;
+        const timeEnd = (act as unknown as { time_end: string | null }).time_end || act.time_start;
         if (timeEnd) {
           const [h, m] = timeEnd.split(":").map(Number);
           const actEndMinutes = h * 60 + (m || 0);
@@ -485,7 +485,7 @@ export async function getPendingReports(groupId: string, userId: string) {
         activityId: act.id,
         activityName: act.name,
         category: act.category,
-        childName: (act.children as any)?.full_name?.split(" ")[0] || "",
+        childName: (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "",
         timeStart: act.time_start,
         occurrenceDate: occ,
       });
@@ -561,13 +561,13 @@ export async function sendMissedReportReminders() {
   const byGroup: Record<string, typeof activities> = {};
   for (const act of activities) {
     const recurrence: ActivityRecurrence = {
-      recurrence_type: act.recurrence_type as any,
+      recurrence_type: act.recurrence_type as ActivityRecurrence["recurrence_type"],
       start_date: act.start_date,
       end_date: act.end_date,
       days_of_week: parseDaysOfWeek(act.days_of_week),
       day_of_month: act.day_of_month,
       custom_interval: act.custom_interval || 1,
-      custom_unit: (act.custom_unit as any) || "week",
+      custom_unit: (act.custom_unit as ActivityRecurrence["custom_unit"]) || "week",
     };
     if (getOccurrences(recurrence, yesterdayKey, yesterdayKey).length > 0) {
       if (!byGroup[act.group_id]) byGroup[act.group_id] = [];
@@ -597,7 +597,7 @@ export async function sendMissedReportReminders() {
 
     try {
       const notificationPromises = unreported.flatMap((act) => {
-        const childName = (act.children as any)?.full_name?.split(" ")[0] || "Crianca";
+        const childName = (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
         return members.map((member) =>
           createNotificationWithPush(
             member.user_id,
@@ -689,38 +689,22 @@ export async function changeActivityResponsible(
     return { error: "Atividade nao encontrada" };
   }
 
-  // Upsert activity_report with responsible_override
-  // First check if there's an existing report
-  const { data: existingReport } = await supabase
+  // Upsert activity_report with responsible_override (atomic, no race condition)
+  const { error: upsertError } = await supabase
     .from("activity_reports")
-    .select("id")
-    .eq("activity_id", activityId)
-    .eq("occurrence_date", occurrenceDate)
-    .maybeSingle();
-
-  if (existingReport) {
-    // Update existing report
-    const { error } = await supabase
-      .from("activity_reports")
-      .update({ responsible_override: newResponsibleId })
-      .eq("id", existingReport.id);
-
-    if (error) return { error: error.message };
-  } else {
-    // Create new report with just the responsible override
-    const { error } = await supabase
-      .from("activity_reports")
-      .insert({
+    .upsert(
+      {
         group_id: activeGroup.groupId,
         activity_id: activityId,
         occurrence_date: occurrenceDate,
         reported_by: user.id,
         status: "completed",
         responsible_override: newResponsibleId,
-      });
+      },
+      { onConflict: "activity_id,occurrence_date" }
+    );
 
-    if (error) return { error: error.message };
-  }
+  if (upsertError) return { error: upsertError.message };
 
   // Get the name of the new responsible
   const { data: newResponsibleProfile } = await supabase
@@ -730,7 +714,7 @@ export async function changeActivityResponsible(
     .single();
 
   const newResponsibleName = newResponsibleProfile?.full_name?.split(" ")[0] || "Alguem";
-  const childName = (activity.children as any)?.full_name?.split(" ")[0] || "Crianca";
+  const childName = (activity.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
 
   // Send push notification to the new responsible
   if (newResponsibleId !== user.id) {
@@ -959,7 +943,7 @@ export async function changeActivityResponsibleAll(
     .single();
 
   const newResponsibleName = newResponsibleProfile?.full_name?.split(" ")[0] || "Alguem";
-  const childName = (activity.children as any)?.full_name?.split(" ")[0] || "Crianca";
+  const childName = (activity.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
 
   // Send push notification to the new responsible
   if (newResponsibleId !== user.id) {

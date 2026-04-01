@@ -1693,6 +1693,10 @@
     "settlementDisputed": "Angefochten"
   },
   "activities": {
+    "name": "Name",
+    "startTime": "Beginn",
+    "endTime": "Ende",
+    "location": "Ort",
     "noChecklistItems": "Keine Elemente in der Checkliste.",
     "editToAddItems": "Bearbeiten Sie die Aktivitat, um Elemente hinzuzufugen.",
     "allReady": "Alles bereit!",

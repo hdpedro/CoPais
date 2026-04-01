@@ -1693,6 +1693,10 @@
     "settlementDisputed": "Disputado"
   },
   "activities": {
+    "name": "Nombre",
+    "startTime": "Inicio",
+    "endTime": "Fin",
+    "location": "Lugar",
     "noChecklistItems": "Ningun item en el checklist.",
     "editToAddItems": "Edita la actividad para agregar items.",
     "allReady": "Todo listo!",

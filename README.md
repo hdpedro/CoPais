@@ -110,7 +110,7 @@ O app suporta **5 idiomas** completos:
 - **Feriados nacionais brasileiros** automaticos (fixos + moveis: Carnaval, Pascoa, Corpus Christi) com destaque visual vermelho
 - Solicitacao de troca entre pais (requer aprovacao)
 - Solicitacao de visita por avos/cuidadores (requer aprovacao do responsavel do dia)
-- **Performance**: 5 queries paralelas via `Promise.all()`, `useMemo` no grid, `useCallback` nos handlers, fix de timezone com `getBrazilNow()`
+- **Performance**: 8 queries paralelas via `Promise.all()`, range reduzido (3 meses), `.limit()` em todas as queries, `useMemo` no grid, `useCallback` nos handlers, fix de timezone com `getBrazilNow()`
 
 ### 3. Atividades Recorrentes (integrado na Agenda)
 - **Atividades recorrentes** das criancas (futsal, natacao, dentista, etc.) com 7 opcoes de recorrencia
@@ -337,10 +337,10 @@ O app suporta **5 idiomas** completos:
 - **i18n lazy loading**: apenas locale padrao carregado, demais sob demanda
 - **PostHog**: 30+ eventos rastreados em todas as actions
 - **Sentry**: error tracking em producao
-- **Calendar API otimizada**: 3.1s em vez de timeout
+- **Calendario otimizado**: range reduzido de 6 para 3 meses, 8 queries paralelas, `.limit()` em todas as queries
 - **Landing page otimizada**: cookie check antes de `getUser()`
-- **Promise.all()** em queries paralelas (Dashboard, Calendario, Sintomas)
-- **Modulo Saude otimizado**: `select("*")` substituido por colunas especificas em todas as paginas de saude; `.limit()` em todas as queries sem cap; queries independentes paralelizadas com `Promise.all()`; dados pre-computados no server (progressMap) em vez de funcoes passadas ao client
+- **Promise.all()** em queries paralelas (Dashboard, Calendario, Check-in, Sintomas)
+- **App-wide**: `select("*")` eliminado em TODAS as paginas — colunas especificas + `.limit()` de seguranca em despesas, criancas, chat, decisoes, financeiro, check-in, saude
 
 ## Arquitetura
 

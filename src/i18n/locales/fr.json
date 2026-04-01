@@ -1693,6 +1693,10 @@
     "settlementDisputed": "Conteste"
   },
   "activities": {
+    "name": "Nom",
+    "startTime": "Debut",
+    "endTime": "Fin",
+    "location": "Lieu",
     "noChecklistItems": "Aucun element dans la checklist.",
     "editToAddItems": "Modifiez l'activite pour ajouter des elements.",
     "allReady": "Tout est pret !",

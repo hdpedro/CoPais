@@ -169,8 +169,10 @@ common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, ch
 ### Otimizacoes Aplicadas
 
 **Calendario:**
-- `Promise.all()` para executar 7 queries em paralelo (members, custody_events, activities, events, appointments, swaps, reports)
+- `Promise.all()` para executar 8 queries em paralelo (members, custody_events, activities, events, appointments, swaps, reports, checklist_completions)
 - Resiliencia: cada query tem `.then(r => r, () => ({ data: [] }))` — falha individual nao derruba a pagina
+- Range reduzido de 6 meses para 3 meses (1 atras + 1 a frente) para evitar timeout
+- `.limit()` em todas as queries: activities(100), events(200), activity_reports(500), checklist_completions(1000)
 - `useMemo` no grid mensal para evitar recalculos desnecessarios
 - `useCallback` nos handlers de click/navegacao
 - Fix de timezone: `getBrazilNow()` para horario correto no fuso BR
@@ -191,6 +193,26 @@ common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, ch
 - Dados pre-computados no server (progressMap em medicamentos) em vez de funcoes passadas ao client — Next.js 16 proibe funcoes como props de Client Components
 - Interfaces TypeScript tipadas (Medication, Dose) substituem `any` em MedicamentosClient
 
+**Check-in:**
+- 3 queries sequenciais convertidas em `Promise.all()` paralelo
+- Prop `children` renomeada para `childrenList` (regra React `react/no-children-prop`)
+
+**Despesas:**
+- `select("*")` substituido por colunas especificas + `.limit(200)`
+- Type casts `as any` substituidos por `as unknown as Type` (strict TypeScript)
+
+**Criancas:**
+- `select("*")` substituido por colunas especificas (id, full_name, birth_date, gender, photo_url, blood_type, notes, allergies)
+
+**Financeiro:**
+- `.limit(10000)` reduzido para `.limit(500)` nas queries de despesas
+
+**Chat:**
+- `select("*")` substituido por colunas especificas em 3 queries de chat_channels
+
+**Decisoes:**
+- `select("*")` substituido por colunas especificas + `.limit(100)`
+
 **Geral:**
 - Dynamic imports para 6 componentes pesados (AIAssistant, GrowthChart, etc.)
 - `React.memo` em ChatRoom MessageBubble
@@ -199,8 +221,9 @@ common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, ch
 - Performance indexes no banco (migration 00025)
 - PostHog: 30+ eventos rastreados em todas as actions
 - Sentry: error tracking em producao
-- Calendar API otimizada (3.1s em vez de timeout)
+- Calendar API otimizada (range reduzido + queries paralelas, sem timeout)
 - Landing page otimizada (cookie check antes de `getUser()`)
+- Regra geral: todas as queries usam colunas especificas (nunca `select("*")`), `.limit()` de seguranca, e `Promise.all()` para queries independentes
 
 ---
 
