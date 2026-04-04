@@ -1,6 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export type PlanTier = "free" | "premium";
+export type PlanTier = "free" | "premium" | "elite";
 
 export interface UserSubscription {
   planId: string;
@@ -35,7 +35,7 @@ export async function getUserSubscription(
 
   return {
     planId: data.plan_id,
-    tier: data.plan_id.startsWith("premium") ? "premium" : "free",
+    tier: data.plan_id.startsWith("elite") ? "elite" : data.plan_id.startsWith("premium") ? "premium" : "free",
     status: data.status,
     currentPeriodEnd: data.current_period_end,
     cancelAtPeriodEnd: data.cancel_at_period_end,

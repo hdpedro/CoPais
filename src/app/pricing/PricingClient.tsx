@@ -21,25 +21,31 @@ interface PricingClientProps {
   isLoggedIn: boolean;
 }
 
-const FEATURE_LABELS: Record<string, string> = {
-  calendar_basic: "Calendario compartilhado",
-  calendar_full: "Calendario completo",
-  expenses_basic: "Despesas basicas",
-  expenses_full: "Despesas ilimitadas",
-  chat: "Chat da familia",
-  custody_basic: "Guarda compartilhada",
-  custody_full: "Guarda completa + trocas",
-  ai_assistant: "Assistente IA",
-  documents_unlimited: "Documentos ilimitados",
-  health_full: "Saude completa",
-  reports: "Relatorios",
-  export_pdf: "Exportacao PDF",
-};
+// Group plans by tier (free / premium / elite), each with monthly + annual variants
+type Tier = { name: string; tagline: string; monthly: Plan | null; annual: Plan | null };
+
+function groupByTier(plans: Plan[]): Tier[] {
+  const free = plans.find((p) => p.id === "free");
+  const premiumM = plans.find((p) => p.id === "premium_monthly");
+  const premiumA = plans.find((p) => p.id === "premium_annual");
+  const eliteM = plans.find((p) => p.id === "elite_monthly");
+  const eliteA = plans.find((p) => p.id === "elite_annual");
+
+  return [
+    { name: "Free", tagline: "Degustacao Solo", monthly: free || null, annual: null },
+    { name: "Premium", tagline: "Rede de Apoio e Colaboracao", monthly: premiumM || null, annual: premiumA || null },
+    { name: "Elite", tagline: "Suporte VIP e Backup Juridico", monthly: eliteM || null, annual: eliteA || null },
+  ];
+}
 
 export default function PricingClient({ plans, currentPlanId, isLoggedIn }: PricingClientProps) {
   const [loading, setLoading] = useState<string | null>(null);
+  const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("annual");
   const router = useRouter();
   const platform = getPaymentPlatform();
+  const tiers = groupByTier(plans);
+
+  const isPaidUser = currentPlanId.startsWith("premium") || currentPlanId.startsWith("elite");
 
   async function handleSubscribe(plan: Plan) {
     if (!isLoggedIn) {
@@ -99,8 +105,6 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
     }
   }
 
-  const isPremiumUser = currentPlanId.startsWith("premium");
-
   return (
     <div className="min-h-screen bg-[#EEECEA]">
       {/* Header */}
@@ -120,67 +124,140 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
       </div>
 
       {/* Hero */}
-      <div className="max-w-5xl mx-auto px-4 pt-12 pb-8 text-center">
+      <div className="max-w-5xl mx-auto px-4 pt-12 pb-4 text-center">
         <h1 className="text-3xl sm:text-4xl font-bold text-[#0E0C0A] tracking-tight">
-          Escolha seu plano
+          Escolha o plano ideal para sua familia
         </h1>
-        <p className="mt-3 text-[#9A8878] text-lg">
-          Comece gratis. Faca upgrade quando quiser.
+        <p className="mt-3 text-[#9A8878] text-lg max-w-xl mx-auto">
+          Comece com 14 dias gratis no Premium. Cancele quando quiser.
         </p>
       </div>
 
-      {/* Plans */}
+      {/* Billing toggle */}
+      <div className="flex items-center justify-center gap-3 py-6">
+        <button
+          onClick={() => setBillingCycle("monthly")}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors ${
+            billingCycle === "monthly"
+              ? "bg-[#0E0C0A] text-white"
+              : "bg-white text-[#9A8878] border border-[#E8E0D4] hover:border-[#C07055]"
+          }`}
+        >
+          Mensal
+        </button>
+        <button
+          onClick={() => setBillingCycle("annual")}
+          className={`px-4 py-2 text-sm font-medium rounded-lg transition-colors relative ${
+            billingCycle === "annual"
+              ? "bg-[#0E0C0A] text-white"
+              : "bg-white text-[#9A8878] border border-[#E8E0D4] hover:border-[#C07055]"
+          }`}
+        >
+          Anual
+          <span className="absolute -top-2.5 -right-3 px-1.5 py-0.5 bg-[#2E7268] text-white text-[10px] font-bold rounded-full">
+            -17%
+          </span>
+        </button>
+      </div>
+
+      {/* Plans Grid */}
       <div className="max-w-5xl mx-auto px-4 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {plans.map((plan) => {
-            const isCurrent = plan.id === currentPlanId;
-            const isFree = plan.id === "free";
-            const isPopular = plan.id === "premium_monthly";
+          {tiers.map((tier) => {
+            const activePlan = tier.name === "Free"
+              ? tier.monthly
+              : billingCycle === "annual" && tier.annual
+                ? tier.annual
+                : tier.monthly;
+
+            if (!activePlan) return null;
+
+            const isFree = tier.name === "Free";
+            const isPremium = tier.name === "Premium";
+            const isElite = tier.name === "Elite";
+            const isCurrent = activePlan.id === currentPlanId;
+
             const priceDisplay = isFree
               ? "R$ 0"
-              : `R$ ${(plan.priceBrl / 100).toFixed(2).replace(".", ",")}`;
-            const intervalLabel = plan.interval === "year" ? "/ano" : plan.interval === "month" ? "/mes" : "";
+              : `R$ ${(activePlan.priceBrl / 100).toFixed(2).replace(".", ",")}`;
+
+            const intervalLabel = isFree ? "" : billingCycle === "annual" ? "/ano" : "/mes";
+
+            // Calculate monthly equivalent for annual
+            const monthlyEquiv = billingCycle === "annual" && !isFree
+              ? `R$ ${(activePlan.priceBrl / 100 / 12).toFixed(2).replace(".", ",")}/mes`
+              : null;
+
+            // Savings text
+            const savingsText = billingCycle === "annual" && isPremium
+              ? "Economize R$ 61,80"
+              : billingCycle === "annual" && isElite
+                ? "Economize R$ 101,80"
+                : null;
+
+            // Feature list for display (curated, not raw)
+            const displayFeatures = isFree
+              ? ["1 usuario", "1 crianca", "Calendario basico", "Despesas basicas", "Guarda basica"]
+              : isPremium
+                ? ["Usuarios ilimitados", "Criancas ilimitadas", "Calendario completo", "Despesas ilimitadas", "Chat da familia", "Guarda completa + trocas", "Assistente IA Kindar", "Saude completa", "Suporte prioritario"]
+                : ["Tudo do Premium, mais:", "Suporte VIP dedicado", "Backup juridico", "Relatorios detalhados", "Exportacao PDF", "Backup de dados"];
 
             return (
               <div
-                key={plan.id}
+                key={activePlan.id}
                 className={`relative bg-white rounded-2xl p-6 shadow-sm border-2 transition-all ${
-                  isPopular
-                    ? "border-[#C07055] shadow-lg shadow-[#C07055]/10 scale-[1.02]"
-                    : "border-transparent hover:border-[#E8E0D4]"
+                  isPremium
+                    ? "border-[#C07055] shadow-lg shadow-[#C07055]/10 md:scale-[1.03]"
+                    : isElite
+                      ? "border-[#2E7268]/30"
+                      : "border-transparent hover:border-[#E8E0D4]"
                 }`}
               >
                 {/* Popular badge */}
-                {isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#C07055] text-white text-xs font-bold rounded-full uppercase tracking-wider">
+                {isPremium && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#C07055] text-white text-xs font-bold rounded-full uppercase tracking-wider whitespace-nowrap">
                     Mais popular
                   </div>
                 )}
 
-                <div className="mb-6">
-                  <h3 className="text-lg font-bold text-[#0E0C0A]">{plan.name}</h3>
-                  <p className="text-sm text-[#9A8878] mt-1">{plan.description}</p>
+                {/* Elite badge */}
+                {isElite && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#2E7268] text-white text-xs font-bold rounded-full uppercase tracking-wider whitespace-nowrap">
+                    Mais completo
+                  </div>
+                )}
+
+                <div className="mb-5">
+                  <h3 className="text-lg font-bold text-[#0E0C0A]">{tier.name}</h3>
+                  <p className="text-sm text-[#9A8878] mt-1">{tier.tagline}</p>
                 </div>
 
                 {/* Price */}
                 <div className="mb-6">
                   <span className="text-3xl font-extrabold text-[#0E0C0A]">{priceDisplay}</span>
-                  <span className="text-[#9A8878] ml-1">{intervalLabel}</span>
-                  {plan.id === "premium_annual" && (
-                    <div className="mt-1 text-xs text-[#2E7268] font-semibold">
-                      Economize 17% vs mensal
-                    </div>
+                  <span className="text-[#9A8878] ml-1 text-sm">{intervalLabel}</span>
+                  {monthlyEquiv && (
+                    <p className="text-xs text-[#9A8878] mt-1">
+                      equivale a {monthlyEquiv}
+                    </p>
+                  )}
+                  {savingsText && (
+                    <p className="mt-1 text-xs text-[#2E7268] font-semibold">
+                      {savingsText}
+                    </p>
                   )}
                 </div>
 
                 {/* Features */}
                 <ul className="space-y-2.5 mb-8">
-                  {plan.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm text-[#2C2C2C]">
-                      <svg className="w-4 h-4 text-[#2E7268] mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      {FEATURE_LABELS[f] || f}
+                  {displayFeatures.map((f) => (
+                    <li key={f} className={`flex items-start gap-2 text-sm ${f.endsWith(":") ? "font-semibold text-[#2E7268] mt-1" : "text-[#2C2C2C]"}`}>
+                      {!f.endsWith(":") && (
+                        <svg className="w-4 h-4 text-[#2E7268] mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                        </svg>
+                      )}
+                      {f}
                     </li>
                   ))}
                 </ul>
@@ -188,10 +265,10 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
                 {/* CTA */}
                 {isCurrent ? (
                   <div className="text-center">
-                    <span className="inline-block px-4 py-2.5 bg-[#2E7268]/10 text-[#2E7268] font-semibold text-sm rounded-lg">
+                    <span className="inline-block w-full px-4 py-2.5 bg-[#2E7268]/10 text-[#2E7268] font-semibold text-sm rounded-lg">
                       Plano atual
                     </span>
-                    {isPremiumUser && (
+                    {isPaidUser && (
                       <button
                         onClick={handleManage}
                         disabled={loading === "manage"}
@@ -201,33 +278,37 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
                       </button>
                     )}
                   </div>
-                ) : isFree && isPremiumUser ? (
-                  <button
-                    onClick={handleManage}
-                    disabled={loading === "manage"}
-                    className="w-full py-2.5 text-sm font-medium text-[#9A8878] border border-[#E8E0D4] rounded-lg hover:bg-[#F5EFE6] transition-colors disabled:opacity-50"
-                  >
-                    {loading === "manage" ? "Abrindo..." : "Fazer downgrade"}
-                  </button>
+                ) : isFree ? (
+                  <div className="text-center">
+                    {isPaidUser ? (
+                      <button
+                        onClick={handleManage}
+                        disabled={loading === "manage"}
+                        className="w-full py-2.5 text-sm font-medium text-[#9A8878] border border-[#E8E0D4] rounded-lg hover:bg-[#F5EFE6] transition-colors disabled:opacity-50"
+                      >
+                        {loading === "manage" ? "Abrindo..." : "Fazer downgrade"}
+                      </button>
+                    ) : (
+                      <span className="inline-block w-full px-4 py-2.5 bg-[#F5EFE6] text-[#9A8878] font-medium text-sm rounded-lg">
+                        Plano atual
+                      </span>
+                    )}
+                  </div>
                 ) : (
                   <button
-                    onClick={() => handleSubscribe(plan)}
-                    disabled={loading === plan.id || isFree}
-                    className={`w-full py-2.5 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                      isPopular
-                        ? "bg-[#C07055] text-white hover:bg-[#A85D47]"
-                        : isFree
-                          ? "bg-[#F5EFE6] text-[#9A8878] cursor-default"
-                          : "bg-[#0E0C0A] text-white hover:bg-[#2C2C2C]"
+                    onClick={() => handleSubscribe(activePlan)}
+                    disabled={loading === activePlan.id}
+                    className={`w-full py-3 text-sm font-semibold rounded-lg transition-colors disabled:opacity-50 ${
+                      isPremium
+                        ? "bg-[#C07055] text-white hover:bg-[#A85D47] shadow-md shadow-[#C07055]/20"
+                        : "bg-[#0E0C0A] text-white hover:bg-[#2C2C2C]"
                     }`}
                   >
-                    {loading === plan.id
+                    {loading === activePlan.id
                       ? "Redirecionando..."
-                      : isFree
-                        ? "Plano gratuito"
-                        : isLoggedIn
-                          ? "Assinar agora"
-                          : "Criar conta gratis"}
+                      : isLoggedIn
+                        ? "Comecar trial de 14 dias"
+                        : "Criar conta e testar gratis"}
                   </button>
                 )}
               </div>
@@ -235,10 +316,27 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
           })}
         </div>
 
-        {/* Footer note */}
-        <p className="text-center text-xs text-[#9A8878] mt-8">
-          Cancele quando quiser. Sem fidelidade. Pagamento seguro via Stripe.
-        </p>
+        {/* Trust signals */}
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10 text-xs text-[#9A8878]">
+          <span className="flex items-center gap-1.5">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+            </svg>
+            Pagamento seguro via Stripe
+          </span>
+          <span className="flex items-center gap-1.5">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Cancele quando quiser, sem fidelidade
+          </span>
+          <span className="flex items-center gap-1.5">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            14 dias gratis para testar
+          </span>
+        </div>
       </div>
     </div>
   );

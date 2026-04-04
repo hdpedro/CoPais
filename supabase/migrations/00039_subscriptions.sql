@@ -15,14 +15,22 @@ CREATE TABLE IF NOT EXISTS public.plans (
   created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Seed initial plans
+-- Seed plans: Free + Premium (R$29.90) + Elite (R$49.90) — Decoy Effect pricing
 INSERT INTO public.plans (id, name, description, price_brl, interval, stripe_price_id, features, sort_order) VALUES
-  ('free', 'Gratuito', 'Funcionalidades essenciais para organizar a rotina', 0, 'month', NULL,
-   '["calendar_basic","expenses_basic","chat","custody_basic"]'::jsonb, 0),
-  ('premium_monthly', 'Premium', 'Tudo incluído — sem limites', 1990, 'month', NULL,
-   '["calendar_full","expenses_full","chat","custody_full","ai_assistant","documents_unlimited","health_full","reports","export_pdf"]'::jsonb, 1),
-  ('premium_annual', 'Premium Anual', 'Tudo incluído com desconto de 17%', 19900, 'year', NULL,
-   '["calendar_full","expenses_full","chat","custody_full","ai_assistant","documents_unlimited","health_full","reports","export_pdf"]'::jsonb, 2)
+  ('free', 'Free', 'Degustacao Solo — crie o habito', 0, 'month', NULL,
+   '["calendar_basic","expenses_basic","custody_basic","1_child","1_user"]'::jsonb, 0),
+
+  ('premium_monthly', 'Premium', 'Rede de Apoio e Colaboracao', 2990, 'month', NULL,
+   '["calendar_full","expenses_full","chat","custody_full","ai_assistant","documents_unlimited","health_full","reports","unlimited_children","unlimited_users","support_priority"]'::jsonb, 1),
+
+  ('premium_annual', 'Premium Anual', 'Rede de Apoio e Colaboracao — economize R$ 61,00', 29700, 'year', NULL,
+   '["calendar_full","expenses_full","chat","custody_full","ai_assistant","documents_unlimited","health_full","reports","unlimited_children","unlimited_users","support_priority"]'::jsonb, 2),
+
+  ('elite_monthly', 'Elite', 'Suporte VIP e Backup Juridico', 4990, 'month', NULL,
+   '["calendar_full","expenses_full","chat","custody_full","ai_assistant","documents_unlimited","health_full","reports","unlimited_children","unlimited_users","support_vip","legal_backup","detailed_reports","export_pdf","data_backup"]'::jsonb, 3),
+
+  ('elite_annual', 'Elite Anual', 'Suporte VIP e Backup Juridico — economize R$ 101,00', 49700, 'year', NULL,
+   '["calendar_full","expenses_full","chat","custody_full","ai_assistant","documents_unlimited","health_full","reports","unlimited_children","unlimited_users","support_vip","legal_backup","detailed_reports","export_pdf","data_backup"]'::jsonb, 4)
 ON CONFLICT (id) DO NOTHING;
 
 -- ============================================================
@@ -45,7 +53,6 @@ CREATE TABLE IF NOT EXISTS public.subscriptions (
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
--- Unique: one active subscription per user
 CREATE UNIQUE INDEX IF NOT EXISTS idx_subscriptions_active_user
   ON public.subscriptions(user_id)
   WHERE status IN ('active', 'trialing', 'past_due');
