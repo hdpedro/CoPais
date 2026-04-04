@@ -16,7 +16,7 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
 
   const { data: expenses } = await supabase
     .from("expenses")
-    .select("id, description, amount, expense_date, category, paid_by, child_id, status, split_type, split_value, receipt_url, rejection_reason, profiles!expenses_paid_by_fkey(full_name), children(full_name)")
+    .select("id, description, amount, expense_date, category, paid_by, child_id, status, split_ratio, receipt_url, rejection_reason, profiles!expenses_paid_by_fkey(full_name), children(full_name)")
     .eq("group_id", groupId)
     .order("expense_date", { ascending: false })
     .limit(200);

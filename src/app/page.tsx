@@ -22,7 +22,9 @@ export default async function Home() {
       {/* Navbar */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-light/80 backdrop-blur-lg border-b border-dark/5">
         <nav className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="text-2xl font-bold text-dark tracking-tight">
+          <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-dark tracking-tight">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/kindar-logo.png" alt="" width={28} height={28} className="object-contain" aria-hidden="true" />
             Kindar
           </Link>
           <div className="flex items-center gap-3">
