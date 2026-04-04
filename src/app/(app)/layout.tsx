@@ -7,6 +7,8 @@ import ResponsiveShell from "@/components/ResponsiveShell";
 import PushNotificationManager from "@/components/PushNotificationManager";
 import PostHogProvider from "@/components/PostHogProvider";
 import { I18nProvider } from "@/i18n/provider";
+import { SubscriptionProvider } from "@/components/SubscriptionProvider";
+import { getUserSubscription } from "@/lib/subscription";
 
 export default async function AppLayout({
   children,
@@ -21,14 +23,11 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  // Profile query runs in parallel with page rendering via Suspense
-  const profilePromise = supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", user.id)
-    .single();
-
-  const { data: profile } = await profilePromise;
+  // Profile + subscription queries run in parallel
+  const [{ data: profile }, subscription] = await Promise.all([
+    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+    getUserSubscription(supabase, user.id),
+  ]);
 
   const initial = profile?.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U";
   const fullName = profile?.full_name || user.email || "User";
@@ -47,6 +46,7 @@ export default async function AppLayout({
     <Suspense fallback={null}>
       <I18nProvider>
         <PostHogProvider userId={user.id} userEmail={user.email}>
+          <SubscriptionProvider subscription={subscription}>
           <div className="min-h-screen bg-[#EEECEA]">
             <ResponsiveShell initial={initial} fullName={fullName} groups={groups} activeGroupId={activeGroupId} userId={user.id}>
               {children}
@@ -59,6 +59,7 @@ export default async function AppLayout({
               <button type="submit" />
             </form>
           </div>
+          </SubscriptionProvider>
         </PostHogProvider>
       </I18nProvider>
     </Suspense>
