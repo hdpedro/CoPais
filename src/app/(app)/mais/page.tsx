@@ -36,13 +36,12 @@ const features: Feature[] = [
     ),
   },
   {
-    href: "/financeiro",
-    labelKey: "nav.sectionFinancial",
+    href: "/semana",
+    labelKey: "nav.weeklyAnalysis",
     color: "#5B9E85",
     icon: (
       <>
-        <line x1="12" y1="1" x2="12" y2="23" />
-        <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+        <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
       </>
     ),
   },
