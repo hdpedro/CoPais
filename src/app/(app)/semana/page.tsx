@@ -8,8 +8,8 @@ import dynamic from "next/dynamic";
 const WeeklySummaryClient = dynamic(() => import("./WeeklySummaryClient"), {
   loading: () => (
     <div className="space-y-4 animate-pulse">
-      <div className="h-24 bg-gray-200 rounded-2xl" />
-      <div className="h-20 bg-gray-100 rounded-2xl" />
+      <div className="h-28 bg-gray-200 rounded-2xl" />
+      <div className="h-24 bg-gray-100 rounded-2xl" />
       <div className="h-40 bg-gray-200 rounded-2xl" />
     </div>
   ),
@@ -24,12 +24,10 @@ export default async function SemanaPage() {
   if (!activeGroup) redirect("/onboarding");
   const { groupId, custodyEnabled } = activeGroup;
 
-  // Date calculations (Brazil timezone)
   const todayStr = getBrazilToday();
   const todayParts = todayStr.split("-").map(Number);
   const now = new Date(todayParts[0], todayParts[1] - 1, todayParts[2], 12, 0, 0);
 
-  // Week range: Monday to Sunday
   const weekStart = new Date(now);
   const dow = weekStart.getDay();
   weekStart.setDate(weekStart.getDate() - (dow === 0 ? 6 : dow - 1));
@@ -38,7 +36,6 @@ export default async function SemanaPage() {
   const weekStartKey = formatDateKey(weekStart);
   const weekEndKey = formatDateKey(weekEnd);
 
-  // Members query (needed for parent colors)
   const { data: members } = await supabase
     .from("group_members")
     .select("user_id, role, profiles(id, full_name)")
@@ -54,7 +51,7 @@ export default async function SemanaPage() {
     };
   });
 
-  // ALL data in a single parallel batch
+  // Single parallel batch — all data
   const [
     { data: children },
     { data: custodyEvents },
@@ -67,78 +64,52 @@ export default async function SemanaPage() {
     { data: unreadMessages },
     { data: pendingDecisions },
   ] = await Promise.all([
-    supabase.from("children")
-      .select("id, full_name")
-      .eq("group_id", groupId)
+    supabase.from("children").select("id, full_name").eq("group_id", groupId)
       .then(r => r, () => ({ data: [] as never[] })),
-
     custodyEnabled
       ? supabase.from("custody_events")
           .select("id, start_date, end_date, responsible_user_id, child_id, custody_type")
-          .eq("group_id", groupId)
-          .gte("end_date", weekStartKey)
-          .lte("start_date", weekEndKey)
+          .eq("group_id", groupId).gte("end_date", weekStartKey).lte("start_date", weekEndKey)
           .then(r => r, () => ({ data: [] as never[] }))
       : Promise.resolve({ data: [] as never[] }),
-
     custodyEnabled
       ? supabase.from("swap_requests")
           .select("id, status, original_date, proposed_date, type, requester_id, target_user_id")
-          .eq("group_id", groupId).eq("status", "pending")
-          .limit(5)
+          .eq("group_id", groupId).eq("status", "pending").limit(5)
           .then(r => r, () => ({ data: [] as never[] }))
       : Promise.resolve({ data: [] as never[] }),
-
     supabase.from("calendar_occurrences")
       .select("id, occurrence_date, activity_id, child_activities(id, name, category, child_id, start_time, location)")
-      .eq("group_id", groupId)
-      .gte("occurrence_date", weekStartKey)
-      .lte("occurrence_date", weekEndKey)
-      .limit(100)
+      .eq("group_id", groupId).gte("occurrence_date", weekStartKey).lte("occurrence_date", weekEndKey).limit(100)
       .then(r => r, () => ({ data: [] as never[] })),
-
     supabase.from("daily_checkins")
       .select("id, checkin_date, child_id, category")
-      .eq("group_id", groupId)
-      .gte("checkin_date", weekStartKey)
-      .lte("checkin_date", weekEndKey)
-      .limit(50)
+      .eq("group_id", groupId).gte("checkin_date", weekStartKey).lte("checkin_date", weekEndKey).limit(50)
       .then(r => r, () => ({ data: [] as never[] })),
-
     supabase.from("illness_episodes")
-      .select("id, title, child_id, status")
-      .eq("group_id", groupId).eq("status", "active")
-      .limit(10)
+      .select("id, title, child_id, status, children(full_name)")
+      .eq("group_id", groupId).eq("status", "active").limit(10)
       .then(r => r, () => ({ data: [] as never[] })),
-
     supabase.from("active_medications")
-      .select("id, name, child_id, status")
-      .eq("group_id", groupId).eq("status", "active")
-      .limit(20)
+      .select("id, name, child_id, status, children(full_name)")
+      .eq("group_id", groupId).eq("status", "active").limit(20)
       .then(r => r, () => ({ data: [] as never[] })),
-
     supabase.from("medical_appointments")
       .select("id, title, appointment_date, child_id, status")
       .eq("group_id", groupId).eq("status", "scheduled")
-      .gte("appointment_date", weekStart.toISOString())
-      .lte("appointment_date", weekEnd.toISOString())
-      .limit(10)
+      .gte("appointment_date", weekStart.toISOString()).lte("appointment_date", weekEnd.toISOString()).limit(10)
       .then(r => r, () => ({ data: [] as never[] })),
-
     supabase.from("chat_messages")
       .select("id", { count: "exact", head: true })
-      .eq("group_id", groupId)
-      .gte("created_at", weekStart.toISOString())
+      .eq("group_id", groupId).gte("created_at", weekStart.toISOString())
       .then(r => r, () => ({ data: null, count: 0 })),
-
     supabase.from("decisions")
       .select("id, title, category")
-      .eq("group_id", groupId).eq("status", "aberta")
-      .limit(5)
+      .eq("group_id", groupId).eq("status", "aberta").limit(5)
       .then(r => r, () => ({ data: [] as never[] })),
   ]);
 
-  // Build week days
+  // Week days
   const weekDays = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(weekStart);
@@ -154,7 +125,7 @@ export default async function SemanaPage() {
     });
   }
 
-  // Map custody to days
+  // Custody by day
   const custodyByDay: Record<string, { responsibleId: string; color: string }> = {};
   if (custodyEvents) {
     for (const ev of custodyEvents) {
@@ -170,7 +141,7 @@ export default async function SemanaPage() {
     }
   }
 
-  // Events per day
+  // Events + checkins per day
   const eventsByDay: Record<string, number> = {};
   const checkinsByDay: Record<string, boolean> = {};
   if (activityOccurrences) {
@@ -179,33 +150,35 @@ export default async function SemanaPage() {
     }
   }
   if (checkins) {
-    for (const c of checkins) {
-      checkinsByDay[c.checkin_date] = true;
-    }
+    for (const c of checkins) { checkinsByDay[c.checkin_date] = true; }
   }
 
-  // Health by day (illness active = flag)
   const healthAlertDays = new Set<string>();
   if (activeIllnesses && activeIllnesses.length > 0) {
-    // Mark all week days as health alert if there's an active illness
-    weekDays.forEach(d => healthAlertDays.add(d.dateKey));
+    weekDays.forEach(d => { if (!d.isPast) healthAlertDays.add(d.dateKey); });
   }
 
-  // Pending actions
-  const pendingActions: Array<{ type: string; label: string; href: string; icon: string }> = [];
-  if (activeMeds && activeMeds.length > 0) {
-    pendingActions.push({ type: "health", label: "Confirmar medicamentos", href: "/saude/medicamentos", icon: "💊" });
+  // Pending actions with urgency
+  const pendingActions: Array<{ type: string; label: string; href: string; icon: string; urgency: "high" | "medium" | "low" }> = [];
+  if (activeIllnesses && activeIllnesses.length > 0) {
+    const childName = getDisplayName((activeIllnesses[0].children as unknown as { full_name: string } | null)?.full_name, true);
+    pendingActions.push({ type: "health", label: `Acompanhar saude de ${childName}`, href: "/saude/doencas", icon: "🩺", urgency: "high" });
   }
-  // Check if today has no checkin
+  if (activeMeds && activeMeds.length > 0) {
+    pendingActions.push({ type: "health", label: "Confirmar medicamentos do dia", href: "/saude/medicamentos", icon: "💊", urgency: "high" });
+  }
   const todayCheckin = checkins?.find(c => c.checkin_date === todayStr);
   if (!todayCheckin) {
-    pendingActions.push({ type: "routine", label: "Registrar check-in de hoje", href: "/checkin", icon: "✅" });
+    pendingActions.push({ type: "routine", label: "Registrar check-in de hoje", href: "/checkin", icon: "✅", urgency: "medium" });
   }
   if (pendingDecisions && pendingDecisions.length > 0) {
-    pendingActions.push({ type: "routine", label: `${pendingDecisions.length} decisao(oes) pendente(s)`, href: "/decisoes", icon: "🗳️" });
+    pendingActions.push({ type: "routine", label: `${pendingDecisions.length} decisao(oes) pendente(s)`, href: "/decisoes", icon: "🗳️", urgency: "medium" });
+  }
+  if (swapRequests && swapRequests.length > 0) {
+    pendingActions.push({ type: "custody", label: `${swapRequests.length} troca(s) de guarda pendente(s)`, href: "/calendario", icon: "🔄", urgency: "medium" });
   }
 
-  // Child summaries
+  // Child summaries with richer data
   const childSummaries = (children || []).map(child => {
     const childIllnesses = activeIllnesses?.filter(i => i.child_id === child.id) || [];
     const childMeds = activeMeds?.filter(m => m.child_id === child.id) || [];
@@ -218,6 +191,18 @@ export default async function SemanaPage() {
 
     const healthStatus = childIllnesses.length > 0 ? "sick" : childMeds.length > 0 ? "treatment" : "healthy";
 
+    // Find next activity name
+    const futureActivities = childActivities.filter(o => o.occurrence_date >= todayStr);
+    const nextActivity = futureActivities.length > 0
+      ? (futureActivities[0].child_activities as unknown as { name: string } | null)?.name || null
+      : null;
+
+    // Illness name if sick
+    const illnessName = childIllnesses.length > 0 ? childIllnesses[0].title : null;
+
+    // Has any data this week?
+    const hasActivity = childActivities.length > 0 || childCheckins.length > 0 || childAppts.length > 0;
+
     return {
       id: child.id,
       name: getDisplayName((child as unknown as { full_name: string }).full_name, true),
@@ -226,54 +211,89 @@ export default async function SemanaPage() {
       activitiesCount: childActivities.length,
       checkinsCount: childCheckins.length,
       medsCount: childMeds.length,
+      nextActivity,
+      illnessName,
+      hasActivity,
     };
   });
 
   // KPIs
   const totalEvents = activityOccurrences?.length || 0;
+  const totalCheckins = checkins?.length || 0;
   const medsCount = activeMeds?.length || 0;
-  const pendingCount = pendingActions.length + (swapRequests?.length || 0);
+  const pendingCount = pendingActions.length;
   const messagesCount = (unreadMessages as unknown as { count: number | null })?.count || 0;
+  const appointmentsCount = appointments?.length || 0;
 
-  // Swap info
-  const nextSwaps = (swapRequests || []).slice(0, 3).map(s => ({
-    id: s.id,
-    date: s.original_date,
-    type: s.type,
-    isIncoming: s.target_user_id === user.id,
-  }));
+  // Count active days (days with at least one event or checkin)
+  const activeDaysSet = new Set<string>();
+  Object.keys(eventsByDay).forEach(k => activeDaysSet.add(k));
+  Object.keys(checkinsByDay).forEach(k => activeDaysSet.add(k));
+  const activeDays = activeDaysSet.size;
 
-  // Intelligent insight
-  let insight = "";
-  if (activeIllnesses && activeIllnesses.length > 0) {
-    insight = "Atencao a saude esta semana — acompanhe a evolucao.";
+  // ─── INTELLIGENT HEADER ───
+  const hasSickChild = childSummaries.some(c => c.healthStatus === "sick");
+  const sickChildName = childSummaries.find(c => c.healthStatus === "sick")?.name || "";
+
+  let headerText = "";
+  if (hasSickChild && pendingCount > 1) {
+    headerText = `${pendingCount} pendencias e atencao a saude de ${sickChildName}`;
+  } else if (hasSickChild) {
+    headerText = `Atencao a saude de ${sickChildName} esta semana`;
+  } else if (pendingCount >= 3) {
+    headerText = `${pendingCount} pendencias abertas que precisam de acao`;
   } else if (totalEvents > 10) {
-    insight = "Semana intensa! Mantenha a organizacao para dar conta de tudo.";
-  } else if (pendingCount === 0 && totalEvents <= 5) {
-    insight = "Semana tranquila. Bom momento para qualidade de tempo.";
-  } else if (pendingCount > 3) {
-    insight = "Algumas pendencias abertas — resolva hoje para ficar em dia.";
+    headerText = "Rotina intensa com multiplas atividades";
+  } else if (totalEvents >= 5) {
+    headerText = "Semana ativa e bem organizada";
+  } else if (pendingCount === 0 && totalEvents <= 3) {
+    headerText = "Semana leve e organizada";
+  } else if (pendingCount > 0) {
+    headerText = `Semana equilibrada com ${pendingCount} item(ns) pendente(s)`;
   } else {
-    insight = "Boa consistencia na rotina. Continuem assim!";
+    headerText = "Rotina estavel — tudo sob controle";
   }
 
-  // Header mood
+  // ─── INTELLIGENT INSIGHT ───
+  let insight = "";
+  if (hasSickChild) {
+    insight = `${sickChildName} apresentou sinais recentes — acompanhe de perto a evolucao.`;
+  } else if (totalEvents > 10 && activeDays >= 5) {
+    insight = `Semana cheia com ${totalEvents} atividades em ${activeDays} dias. Priorizem descanso.`;
+  } else if (totalCheckins >= 5) {
+    insight = `Otima consistencia com ${totalCheckins} check-ins registrados. Continuem assim!`;
+  } else if (pendingCount === 0 && totalEvents > 0) {
+    insight = "Rotina estavel e sem pendencias — bom momento para qualidade de tempo.";
+  } else if (totalEvents === 0 && totalCheckins === 0) {
+    insight = "Semana com poucos registros. Mantenham o habito de registrar a rotina.";
+  } else if (pendingCount >= 3) {
+    insight = `${pendingCount} itens aguardando acao — resolva hoje para manter o dia em ordem.`;
+  } else if (medsCount > 0) {
+    insight = `${medsCount} medicamento(s) ativo(s) esta semana. Nao esquecam as doses.`;
+  } else {
+    insight = "Boa consistencia na rotina familiar. Continuem organizados!";
+  }
+
   let weekMood: "calm" | "busy" | "alert" = "calm";
-  if (activeIllnesses && activeIllnesses.length > 0) weekMood = "alert";
+  if (hasSickChild) weekMood = "alert";
   else if (totalEvents > 8 || pendingCount > 3) weekMood = "busy";
 
   return (
     <WeeklySummaryClient
       weekMood={weekMood}
+      headerText={headerText}
       weekDays={weekDays}
       custodyByDay={custodyByDay}
       eventsByDay={eventsByDay}
       checkinsByDay={checkinsByDay}
       healthAlertDays={Array.from(healthAlertDays)}
-      kpis={{ totalEvents, medsCount, pendingCount, messagesCount }}
+      kpis={{ totalEvents, totalCheckins, medsCount, pendingCount, messagesCount, appointmentsCount, activeDays }}
       pendingActions={pendingActions.slice(0, 3)}
       childSummaries={childSummaries}
-      nextSwaps={nextSwaps}
+      nextSwaps={(swapRequests || []).slice(0, 3).map(s => ({
+        id: s.id, date: s.original_date, type: s.type,
+        isIncoming: s.target_user_id === user.id,
+      }))}
       custodyEnabled={custodyEnabled}
       insight={insight}
       parentColors={parentColors}
