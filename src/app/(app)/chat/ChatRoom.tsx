@@ -76,6 +76,43 @@ const MessageBubble = memo(function MessageBubble({
   );
 });
 
+/* Date separator between messages of different days (WhatsApp-style) */
+const DateSeparator = memo(function DateSeparator({ label }: { label: string }) {
+  return (
+    <div className="flex items-center justify-center my-4">
+      <span className="px-3 py-1 text-[12px] font-medium text-[#7A8C8B] bg-[#EEECEA] rounded-full shadow-sm">
+        {label}
+      </span>
+    </div>
+  );
+});
+
+/** Get a human-friendly date label for a message timestamp */
+function getDateLabel(dateStr: string): string {
+  const msgDate = new Date(dateStr);
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const msgDay = new Date(msgDate.getFullYear(), msgDate.getMonth(), msgDate.getDate());
+  const diffMs = today.getTime() - msgDay.getTime();
+  const diffDays = Math.round(diffMs / 86400000);
+
+  if (diffDays === 0) return "Hoje";
+  if (diffDays === 1) return "Ontem";
+  if (diffDays < 7) {
+    const dayNames = ["Domingo", "Segunda-feira", "Terca-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sabado"];
+    return dayNames[msgDate.getDay()];
+  }
+  return msgDate.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });
+}
+
+/** Get date key (YYYY-MM-DD local) for grouping */
+function getDateKey(dateStr: string): string {
+  const d = new Date(dateStr);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+type ChatListItem = { type: "separator"; key: string; label: string } | { type: "message"; msg: Message };
+
 function generateMonthOptions(monthNames: string[]): { value: string; label: string }[] {
   const options: { value: string; label: string }[] = [];
   const now = new Date();
@@ -689,6 +726,22 @@ export default function ChatRoom({
     setViewerImage(url);
   }, []);
 
+  // Pre-compute message list with date separators (memoized, no work on re-render)
+  const chatListItems: ChatListItem[] = useMemo(() => {
+    if (!messages.length) return [];
+    const items: ChatListItem[] = [];
+    let lastDateKey = "";
+    for (const msg of messages) {
+      const dateKey = getDateKey(msg.created_at);
+      if (dateKey !== lastDateKey) {
+        items.push({ type: "separator", key: `sep-${dateKey}`, label: getDateLabel(msg.created_at) });
+        lastDateKey = dateKey;
+      }
+      items.push({ type: "message", msg });
+    }
+    return items;
+  }, [messages]);
+
   return (
     <div className="flex flex-col h-[calc(100dvh-8rem-env(safe-area-inset-top,0px))]">
       {/* Header */}
@@ -781,7 +834,11 @@ export default function ChatRoom({
             <p className="text-sm mt-1">{t("chat.startConversation")}</p>
           </div>
         ) : (
-          messages.map((msg) => {
+          chatListItems.map((item) => {
+            if (item.type === "separator") {
+              return <DateSeparator key={item.key} label={item.label} />;
+            }
+            const msg = item.msg;
             const isOwn = msg.sender_id === userId;
             const name = getDisplayName(msg.profiles?.full_name) !== "Usuario"
               ? getDisplayName(msg.profiles?.full_name)
