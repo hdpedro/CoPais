@@ -38,23 +38,29 @@ export async function POST(req: NextRequest) {
         const subscriptionId = session.subscription as string;
         const subResponse = await stripe.subscriptions.retrieve(subscriptionId);
         const sub = subResponse as unknown as Stripe.Subscription;
+        const periodStart = (sub as unknown as { current_period_start: number }).current_period_start;
+        const periodEnd = (sub as unknown as { current_period_end: number }).current_period_end;
 
-        await supabase.from("subscriptions").upsert(
-          {
-            user_id: userId,
-            plan_id: planId,
-            status: sub.status === "active" ? "active" : "trialing",
-            payment_provider: "stripe",
-            stripe_customer_id: session.customer as string,
-            stripe_subscription_id: subscriptionId,
-            current_period_start: new Date((sub as unknown as { current_period_start: number }).current_period_start * 1000).toISOString(),
-            current_period_end: new Date((sub as unknown as { current_period_end: number }).current_period_end * 1000).toISOString(),
-            cancel_at_period_end: sub.cancel_at_period_end,
-            trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
-            updated_at: new Date().toISOString(),
-          },
-          { onConflict: "user_id", ignoreDuplicates: false }
-        );
+        // Expire any existing active/trialing subscriptions for this user first
+        await supabase
+          .from("subscriptions")
+          .update({ status: "expired", updated_at: new Date().toISOString() })
+          .eq("user_id", userId)
+          .in("status", ["active", "trialing", "past_due"]);
+
+        // Insert the new subscription
+        await supabase.from("subscriptions").insert({
+          user_id: userId,
+          plan_id: planId,
+          status: sub.status === "active" ? "active" : "trialing",
+          payment_provider: "stripe",
+          stripe_customer_id: session.customer as string,
+          stripe_subscription_id: subscriptionId,
+          current_period_start: new Date(periodStart * 1000).toISOString(),
+          current_period_end: new Date(periodEnd * 1000).toISOString(),
+          cancel_at_period_end: sub.cancel_at_period_end,
+          trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
+        });
 
         console.log(`[stripe/webhook] Subscription created for user ${userId}, plan ${planId}`);
         break;

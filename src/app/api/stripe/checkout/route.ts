@@ -60,7 +60,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ url: portalSession.url });
     }
 
-    // Create checkout session
+    // Check if user ever had a subscription (no trial for returning users)
+    const { count: pastSubCount } = await supabase
+      .from("subscriptions")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", user.id);
+
+    const isFirstSubscription = (pastSubCount ?? 0) === 0;
+
+    // Create checkout session with 14-day trial for first-time subscribers
     const session = await stripe.checkout.sessions.create({
       customer: customerId!,
       mode: "subscription",
@@ -72,6 +80,7 @@ export async function POST(req: NextRequest) {
         plan_id: planId,
       },
       subscription_data: {
+        trial_period_days: isFirstSubscription ? 14 : undefined,
         metadata: {
           supabase_user_id: user.id,
           plan_id: planId,

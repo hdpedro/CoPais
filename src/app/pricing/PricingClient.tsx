@@ -175,7 +175,9 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
             const isFree = tier.name === "Free";
             const isPremium = tier.name === "Premium";
             const isElite = tier.name === "Elite";
-            const isCurrent = activePlan.id === currentPlanId;
+            // Match current plan by tier (not exact ID) so toggling billing cycle still shows "Plano atual"
+            const currentTier = currentPlanId.startsWith("elite") ? "Elite" : currentPlanId.startsWith("premium") ? "Premium" : "Free";
+            const isCurrent = tier.name === currentTier;
 
             const priceDisplay = isFree
               ? "R$ 0"
@@ -274,7 +276,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
                         disabled={loading === "manage"}
                         className="block w-full mt-3 text-sm text-[#C07055] hover:underline disabled:opacity-50"
                       >
-                        {loading === "manage" ? "Abrindo..." : "Gerenciar assinatura"}
+                        {loading === "manage" ? "Abrindo..." : activePlan.id !== currentPlanId ? "Trocar para " + (billingCycle === "annual" ? "anual" : "mensal") : "Gerenciar assinatura"}
                       </button>
                     )}
                   </div>
