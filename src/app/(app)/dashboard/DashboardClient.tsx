@@ -1084,7 +1084,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           <QuickAction label={t("nav.documents")} href="/documentos" color="#F59E0B"
             icon={<><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></>}
           />
-          <QuickAction label={t("nav.financialSummary")} href="/financeiro" color="#5B9E85"
+          <QuickAction label={t("nav.sectionFinancial")} href="/financeiro" color="#5B9E85"
             icon={<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
           />
           <QuickAction label={t("nav.agreements")} href="/acordos" color="#F59E0B"
