@@ -28,11 +28,14 @@ export default async function SemanaPage() {
   const todayParts = todayStr.split("-").map(Number);
   const now = new Date(todayParts[0], todayParts[1] - 1, todayParts[2], 12, 0, 0);
 
-  const weekStart = new Date(now);
-  const dow = weekStart.getDay();
-  weekStart.setDate(weekStart.getDate() - (dow === 0 ? 6 : dow - 1));
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 6);
+  // Previous full week (Monday to Sunday)
+  const weekEnd = new Date(now);
+  const dow = weekEnd.getDay();
+  // Go back to last Sunday
+  weekEnd.setDate(weekEnd.getDate() - (dow === 0 ? 0 : dow));
+  // weekStart = that Monday (6 days before Sunday)
+  const weekStart = new Date(weekEnd);
+  weekStart.setDate(weekStart.getDate() - 6);
   const weekStartKey = formatDateKey(weekStart);
   const weekEndKey = formatDateKey(weekEnd);
 
