@@ -4,12 +4,10 @@ import Link from "next/link";
 import { cookies } from "next/headers";
 
 export default async function Home() {
-  // Quick cookie check first — avoids slow getUser() call for non-logged-in users
   const cookieStore = await cookies();
   const hasAuthCookie = cookieStore.getAll().some(c => c.name.includes("auth-token") || c.name.includes("sb-"));
 
   if (hasAuthCookie) {
-    // Only call getUser if there's an auth cookie present
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -18,51 +16,45 @@ export default async function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-light text-dark">
-      {/* Navbar */}
-      <header className="fixed top-0 left-0 right-0 z-50 bg-light/80 backdrop-blur-lg border-b border-dark/5">
-        <nav className="max-w-6xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <Link href="/" className="flex items-center gap-2 text-2xl font-bold text-dark tracking-tight">
+    <div className="min-h-screen bg-[#FAFAF8] text-[#0E0C0A]">
+      {/* ═══ NAVBAR ═══ */}
+      <header className="fixed top-0 left-0 right-0 z-50 bg-[#FAFAF8]/80 backdrop-blur-xl border-b border-black/[0.04]">
+        <nav className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
+          <Link href="/" className="flex items-center gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/kindar-logo.png" alt="" width={28} height={28} className="object-contain" aria-hidden="true" />
-            Kindar
+            <span className="text-xl font-bold tracking-tight">Kindar</span>
           </Link>
-          <div className="flex items-center gap-3">
-            <Link
-              href="/login"
-              className="text-sm font-medium text-dark/70 hover:text-dark transition-colors px-3 py-2"
-            >
+          <div className="flex items-center gap-2">
+            <Link href="/login" className="text-sm font-medium text-[#0E0C0A]/60 hover:text-[#0E0C0A] transition-colors px-3 py-2">
               Entrar
             </Link>
-            <Link
-              href="/signup"
-              className="text-sm font-medium bg-primary text-white px-4 py-2 rounded-lg hover:bg-primary-dark transition-colors"
-            >
-              Criar conta
+            <Link href="/signup" className="text-sm font-semibold bg-[#C07055] text-white px-5 py-2.5 rounded-xl hover:bg-[#A85D47] transition-all">
+              Comecar gratis
             </Link>
           </div>
         </nav>
       </header>
 
       <main>
-        {/* Hero */}
-        <section className="pt-32 pb-20 sm:pt-40 sm:pb-28 px-4 sm:px-6">
+        {/* ═══ HERO ═══ */}
+        <section className="pt-32 pb-20 sm:pt-44 sm:pb-32 px-5 sm:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-block mb-6 px-4 py-1.5 bg-primary-light text-primary text-sm font-medium rounded-full">
-              Gratuito para comecar
+            <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 bg-[#2E7268]/8 text-[#2E7268] text-sm font-semibold rounded-full border border-[#2E7268]/10">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#2E7268] animate-pulse" />
+              Beta aberto — teste gratis
             </div>
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-dark leading-tight tracking-tight">
-              Organize a rotina de{" "}
-              <span className="text-primary">quem voce cuida</span>
+            <h1 className="text-[2.5rem] sm:text-[3.5rem] lg:text-[4rem] font-extrabold leading-[1.1] tracking-tight">
+              A rotina da crianca,{" "}
+              <span className="text-[#C07055]">organizada em um so lugar</span>
             </h1>
-            <p className="mt-6 text-lg sm:text-xl text-muted max-w-2xl mx-auto leading-relaxed">
-              Calendario, saude, escola, atividades — tudo em um so lugar
-              para sua familia.
+            <p className="mt-6 text-lg sm:text-xl text-[#6B6560] max-w-2xl mx-auto leading-relaxed">
+              Calendario, saude, escola, atividades, guarda compartilhada e comunicacao entre responsaveis — tudo centralizado para quem cuida.
             </p>
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/signup"
-                className="w-full sm:w-auto inline-flex items-center justify-center bg-primary text-white text-lg font-semibold px-8 py-4 rounded-xl hover:bg-primary-dark transition-all shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 hover:-translate-y-0.5"
+                className="w-full sm:w-auto inline-flex items-center justify-center bg-[#C07055] text-white text-lg font-semibold px-8 py-4 rounded-xl hover:bg-[#A85D47] transition-all shadow-lg shadow-[#C07055]/20 hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]"
               >
                 Criar conta gratis
                 <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -71,332 +63,280 @@ export default async function Home() {
               </Link>
               <Link
                 href="/login"
-                className="w-full sm:w-auto inline-flex items-center justify-center text-dark/70 text-lg font-medium px-8 py-4 rounded-xl border border-dark/10 hover:border-dark/20 hover:bg-dark/5 transition-all"
+                className="w-full sm:w-auto inline-flex items-center justify-center text-[#6B6560] text-base font-medium px-8 py-4 rounded-xl border border-black/8 hover:border-black/15 hover:bg-black/[0.02] transition-all"
               >
                 Ja tem conta? Entrar
               </Link>
             </div>
+
+            {/* Trust chips */}
+            <div className="mt-12 flex flex-wrap items-center justify-center gap-3 text-[13px] text-[#9A8878]">
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full border border-black/[0.04]">
+                <svg className="w-3.5 h-3.5 text-[#2E7268]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                Sem cartao de credito
+              </span>
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full border border-black/[0.04]">
+                <svg className="w-3.5 h-3.5 text-[#2E7268]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                Pronto em 2 minutos
+              </span>
+              <span className="flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-full border border-black/[0.04]">
+                <svg className="w-3.5 h-3.5 text-[#2E7268]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                Funciona no celular
+              </span>
+            </div>
           </div>
         </section>
 
-        {/* Problem */}
-        <section className="py-20 sm:py-28 px-4 sm:px-6 bg-white">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold text-dark leading-tight">
-              Organizar a rotina das criancas{" "}
-              <span className="text-primary">nao precisa ser dificil</span>
-            </h2>
-            <p className="mt-6 text-lg text-muted max-w-2xl mx-auto leading-relaxed">
-              Consultas esquecidas, atividades desorganizadas, gastos sem controle...
-              A falta de organizacao gera estresse para todos,
-              especialmente para as criancas. O Kindar resolve isso.
-            </p>
-            <div className="mt-12 grid sm:grid-cols-3 gap-8 text-left">
-              <div className="p-6 rounded-2xl bg-error/5 border border-error/10">
-                <div className="text-3xl mb-3">😩</div>
-                <h3 className="font-semibold text-dark mb-2">Sem o Kindar</h3>
-                <p className="text-sm text-muted leading-relaxed">
-                  Informacoes espalhadas, compromissos esquecidos, gastos sem transparencia.
-                </p>
+        {/* ═══ PROBLEMA ═══ */}
+        <section className="py-20 sm:py-28 px-5 sm:px-8 bg-white">
+          <div className="max-w-5xl mx-auto">
+            <div className="text-center mb-14">
+              <h2 className="text-3xl sm:text-4xl font-bold leading-tight">
+                Quem cuida de crianca sabe:{" "}
+                <span className="text-[#C07055]">o dia a dia e intenso</span>
+              </h2>
+              <p className="mt-4 text-lg text-[#9A8878] max-w-2xl mx-auto">
+                Consultas esquecidas, medicamentos atrasados, informacoes perdidas entre responsaveis, gastos sem controle. O Kindar resolve tudo isso.
+              </p>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-5 max-w-3xl mx-auto">
+              <div className="p-6 rounded-2xl bg-red-50/60 border border-red-100/80">
+                <p className="text-sm font-bold text-red-800/70 uppercase tracking-wider mb-4">Sem o Kindar</p>
+                <ul className="space-y-3">
+                  {["Informacoes espalhadas em WhatsApp, papel e memoria", "Compromissos esquecidos ou duplicados", "Gastos sem transparencia entre responsaveis", "Historico de saude inacessivel na hora que mais precisa", "Comunicacao confusa e cheia de ruido"].map(item => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-red-900/60">
+                      <svg className="w-4 h-4 text-red-400 mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
               </div>
-              <div className="p-6 rounded-2xl bg-warning/5 border border-warning/10">
-                <div className="text-3xl mb-3">🤔</div>
-                <h3 className="font-semibold text-dark mb-2">O desafio</h3>
-                <p className="text-sm text-muted leading-relaxed">
-                  Coordenar horarios, escola, saude e atividades exige muita organizacao.
-                </p>
-              </div>
-              <div className="p-6 rounded-2xl bg-success/5 border border-success/10">
-                <div className="text-3xl mb-3">✅</div>
-                <h3 className="font-semibold text-dark mb-2">Com o Kindar</h3>
-                <p className="text-sm text-muted leading-relaxed">
-                  Tudo centralizado, transparente e acessivel para toda a familia, a qualquer momento.
-                </p>
+              <div className="p-6 rounded-2xl bg-[#2E7268]/[0.05] border border-[#2E7268]/10">
+                <p className="text-sm font-bold text-[#2E7268] uppercase tracking-wider mb-4">Com o Kindar</p>
+                <ul className="space-y-3">
+                  {["Tudo centralizado em um unico app", "Alertas e lembretes automaticos", "Financeiro transparente e compartilhado", "Historico completo de saude, sempre acessivel", "Comunicacao focada no bem-estar da crianca"].map(item => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-[#2E7268]">
+                      <svg className="w-4 h-4 text-[#2E7268] mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                      {item}
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>
         </section>
 
-        {/* Features Grid */}
-        <section className="py-20 sm:py-28 px-4 sm:px-6">
+        {/* ═══ FUNCIONALIDADES POR CATEGORIA ═══ */}
+        <section className="py-20 sm:py-28 px-5 sm:px-8">
           <div className="max-w-6xl mx-auto">
             <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-dark leading-tight">
-                Tudo que voce precisa,{" "}
-                <span className="text-primary">em um so app</span>
+              <h2 className="text-3xl sm:text-4xl font-bold leading-tight">
+                Uma plataforma completa,{" "}
+                <span className="text-[#C07055]">de verdade</span>
               </h2>
-              <p className="mt-4 text-lg text-muted max-w-xl mx-auto">
-                Ferramentas pensadas para simplificar a rotina familiar no dia a dia.
+              <p className="mt-4 text-lg text-[#9A8878] max-w-xl mx-auto">
+                Tudo que a rotina de uma crianca exige, organizado por quem entende.
               </p>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[
-                {
-                  emoji: "📅",
-                  title: "Calendario familiar",
-                  description:
-                    "Visualize eventos, consultas, atividades e compromissos da escola em um calendario unico.",
-                },
-                {
-                  emoji: "💬",
-                  title: "Chat da familia",
-                  description:
-                    "Comunicacao focada nas criancas, com historico completo. Tudo organizado.",
-                },
-                {
-                  emoji: "💰",
-                  title: "Controle financeiro",
-                  description:
-                    "Registre gastos com educacao, saude e lazer. Organize as financas da familia.",
-                },
-                {
-                  emoji: "🏥",
-                  title: "Saude das criancas",
-                  description:
-                    "Vacinas, alergias, medicacoes e consultas medicas sempre acessiveis e atualizados.",
-                },
-                {
-                  emoji: "📋",
-                  title: "Atividades e rotina",
-                  description:
-                    "Organize atividades, checklists e compromissos recorrentes. Nada e esquecido.",
-                },
-                {
-                  emoji: "🔒",
-                  title: "Privacidade e seguranca",
-                  description:
-                    "Seus dados sao protegidos com criptografia. Somente membros da familia tem acesso.",
-                },
-              ].map((feature) => (
-                <div
-                  key={feature.title}
-                  className="group p-6 sm:p-8 rounded-2xl bg-white border border-dark/5 hover:border-primary/20 hover:shadow-lg hover:shadow-primary/5 transition-all duration-300"
-                >
-                  <div className="text-4xl mb-4">{feature.emoji}</div>
-                  <h3 className="text-lg font-bold text-dark mb-2 group-hover:text-primary transition-colors">
-                    {feature.title}
-                  </h3>
-                  <p className="text-muted text-sm leading-relaxed">
-                    {feature.description}
-                  </p>
-                </div>
-              ))}
+
+            {/* Category: Rotina */}
+            <div className="mb-12">
+              <p className="text-[11px] font-bold text-[#C07055] uppercase tracking-widest mb-4 px-1">Rotina e Agenda</p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { icon: "📅", title: "Calendario familiar", desc: "Todos os eventos, consultas e atividades em um calendario unico e compartilhado." },
+                  { icon: "📋", title: "Atividades da crianca", desc: "Futebol, natacao, terapia, escola — tudo organizado com horarios e lembretes." },
+                  { icon: "✅", title: "Check-in diario", desc: "Registre como foi o dia: alimentacao, humor, sono. Historico completo." },
+                  { icon: "🔔", title: "Alertas e lembretes", desc: "Notificacoes automaticas para compromissos, medicamentos e trocas de guarda." },
+                ].map(f => (
+                  <div key={f.title} className="p-5 rounded-2xl bg-white border border-black/[0.04] hover:border-[#C07055]/15 hover:shadow-md transition-all duration-200">
+                    <span className="text-2xl">{f.icon}</span>
+                    <h3 className="text-[14px] font-bold text-[#0E0C0A] mt-3 mb-1">{f.title}</h3>
+                    <p className="text-[13px] text-[#9A8878] leading-relaxed">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Category: Saude */}
+            <div className="mb-12">
+              <p className="text-[11px] font-bold text-[#C07055] uppercase tracking-widest mb-4 px-1">Saude e Cuidados</p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                {[
+                  { icon: "🏥", title: "Saude completa", desc: "Doencas, alergias, peso, altura — tudo registrado e acessivel por todos os responsaveis." },
+                  { icon: "💊", title: "Medicamentos", desc: "Controle de doses, horarios e historico. Nunca mais esquecer um medicamento." },
+                  { icon: "🩺", title: "Consultas medicas", desc: "Agenda de pediatra, dentista, especialistas. Com profissionais e enderecos." },
+                  { icon: "💉", title: "Vacinas", desc: "Carteirinha digital com calendario completo e alertas de doses pendentes." },
+                ].map(f => (
+                  <div key={f.title} className="p-5 rounded-2xl bg-white border border-black/[0.04] hover:border-[#C07055]/15 hover:shadow-md transition-all duration-200">
+                    <span className="text-2xl">{f.icon}</span>
+                    <h3 className="text-[14px] font-bold text-[#0E0C0A] mt-3 mb-1">{f.title}</h3>
+                    <p className="text-[13px] text-[#9A8878] leading-relaxed">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Category: Comunicacao */}
+            <div className="mb-12">
+              <p className="text-[11px] font-bold text-[#C07055] uppercase tracking-widest mb-4 px-1">Comunicacao</p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[
+                  { icon: "💬", title: "Chat da familia", desc: "Comunicacao focada na crianca. Sem ruido, com historico. Tudo registrado." },
+                  { icon: "🤝", title: "Acordos e decisoes", desc: "Registre acordos entre responsaveis. Votacao, historico e transparencia total." },
+                  { icon: "🔒", title: "Temas sensiveis", desc: "Espaco seguro para assuntos delicados, com registro e privacidade." },
+                ].map(f => (
+                  <div key={f.title} className="p-5 rounded-2xl bg-white border border-black/[0.04] hover:border-[#C07055]/15 hover:shadow-md transition-all duration-200">
+                    <span className="text-2xl">{f.icon}</span>
+                    <h3 className="text-[14px] font-bold text-[#0E0C0A] mt-3 mb-1">{f.title}</h3>
+                    <p className="text-[13px] text-[#9A8878] leading-relaxed">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Category: Financeiro e Documentos */}
+            <div>
+              <p className="text-[11px] font-bold text-[#C07055] uppercase tracking-widest mb-4 px-1">Financeiro e Documentos</p>
+              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {[
+                  { icon: "💰", title: "Despesas compartilhadas", desc: "Registre gastos, divida valores e acompanhe quem pagou o que. Transparencia total." },
+                  { icon: "📄", title: "Documentos", desc: "Guarde documentos importantes: certidao, laudos, receitas, boletins." },
+                  { icon: "🏫", title: "Escola", desc: "Informacoes escolares, professores, horarios, reunioes — tudo em um so lugar." },
+                ].map(f => (
+                  <div key={f.title} className="p-5 rounded-2xl bg-white border border-black/[0.04] hover:border-[#C07055]/15 hover:shadow-md transition-all duration-200">
+                    <span className="text-2xl">{f.icon}</span>
+                    <h3 className="text-[14px] font-bold text-[#0E0C0A] mt-3 mb-1">{f.title}</h3>
+                    <p className="text-[13px] text-[#9A8878] leading-relaxed">{f.desc}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </section>
 
-        {/* Custody section — dedicated for shared custody families */}
-        <section className="py-20 sm:py-28 px-4 sm:px-6 bg-white">
+        {/* ═══ GUARDA COMPARTILHADA ═══ */}
+        <section className="py-20 sm:py-28 px-5 sm:px-8 bg-white">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
-              <div className="inline-block mb-4 px-3 py-1 bg-primary-light text-primary text-xs font-semibold rounded-full uppercase tracking-wide">
+              <div className="inline-flex items-center gap-2 mb-5 px-4 py-2 bg-[#C07055]/8 text-[#C07055] text-xs font-bold rounded-full uppercase tracking-wider">
                 Para familias com guarda compartilhada
               </div>
-              <h2 className="text-3xl sm:text-4xl font-bold text-dark leading-tight">
-                Se voces moram em casas diferentes,{" "}
-                <span className="text-primary">o Kindar organiza tudo</span>
+              <h2 className="text-3xl sm:text-4xl font-bold leading-tight">
+                Dois lares, uma so rotina.{" "}
+                <span className="text-[#C07055]">Organizada.</span>
               </h2>
-              <p className="mt-4 text-lg text-muted max-w-2xl mx-auto">
-                Escala de guarda, troca de dias, notificacoes de transicao e muito mais.
+              <p className="mt-4 text-lg text-[#9A8878] max-w-2xl mx-auto">
+                Quando a crianca vive entre duas casas, a organizacao precisa ser impecavel. O Kindar faz isso por voces.
               </p>
             </div>
-            <div className="grid sm:grid-cols-2 gap-6">
+            <div className="grid sm:grid-cols-2 gap-4">
               {[
-                {
-                  emoji: "🔄",
-                  title: "Escala de guarda",
-                  description: "Configure o padrao de guarda quinzenal. Visualize quem fica com as criancas em cada dia.",
-                },
-                {
-                  emoji: "📲",
-                  title: "Notificacoes de transicao",
-                  description: "Receba lembretes automaticos nos dias de troca. Nunca mais esqueca uma transicao.",
-                },
-                {
-                  emoji: "🔀",
-                  title: "Troca de dias",
-                  description: "Solicite e aceite trocas de dias com facilidade. Historico completo de alteracoes.",
-                },
-                {
-                  emoji: "📊",
-                  title: "Divisao de despesas",
-                  description: "Divida gastos entre os responsaveis com transparencia. Saiba quem deve o que.",
-                },
-              ].map((feature) => (
-                <div
-                  key={feature.title}
-                  className="p-6 rounded-2xl bg-primary/5 border border-primary/10"
-                >
-                  <div className="text-3xl mb-3">{feature.emoji}</div>
-                  <h3 className="font-semibold text-dark mb-2">{feature.title}</h3>
-                  <p className="text-sm text-muted leading-relaxed">{feature.description}</p>
+                { icon: "🔄", title: "Escala de guarda", desc: "Configure escalas quinzenais ou personalizadas. Visualize quem esta com a crianca em cada dia." },
+                { icon: "📲", title: "Trocas e transicoes", desc: "Solicite trocas de dias, receba notificacoes de transicao. Historico completo de alteracoes." },
+                { icon: "👀", title: "Transparencia total", desc: "Ambos os responsaveis veem a mesma informacao: saude, escola, atividades, gastos." },
+                { icon: "📊", title: "Resumo semanal", desc: "Analise inteligente da semana: atividades, check-ins, pendencias e insights automaticos." },
+              ].map(f => (
+                <div key={f.title} className="p-5 rounded-2xl bg-[#C07055]/[0.04] border border-[#C07055]/10 hover:bg-[#C07055]/[0.07] transition-colors">
+                  <span className="text-2xl">{f.icon}</span>
+                  <h3 className="text-[14px] font-bold text-[#0E0C0A] mt-3 mb-1">{f.title}</h3>
+                  <p className="text-[13px] text-[#9A8878] leading-relaxed">{f.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* How it works */}
-        <section className="py-20 sm:py-28 px-4 sm:px-6 bg-dark text-white">
+        {/* ═══ BENEFICIOS ═══ */}
+        <section className="py-20 sm:py-28 px-5 sm:px-8">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-3xl sm:text-4xl font-bold leading-tight mb-12">
+              O resultado:{" "}
+              <span className="text-[#2E7268]">menos estresse, mais organizacao</span>
+            </h2>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-6">
+              {[
+                { icon: "🧘", label: "Menos estresse" },
+                { icon: "📐", label: "Mais organizacao" },
+                { icon: "🔍", label: "Mais transparencia" },
+                { icon: "😊", label: "Melhor rotina" },
+              ].map(b => (
+                <div key={b.label} className="p-5 rounded-2xl bg-white border border-black/[0.04]">
+                  <span className="text-3xl">{b.icon}</span>
+                  <p className="text-[13px] font-semibold text-[#0E0C0A] mt-3">{b.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ═══ PARA QUEM ═══ */}
+        <section className="py-20 sm:py-28 px-5 sm:px-8 bg-white">
+          <div className="max-w-4xl mx-auto text-center">
+            <h2 className="text-3xl sm:text-4xl font-bold leading-tight mb-4">
+              Para quem e o Kindar?
+            </h2>
+            <p className="text-lg text-[#9A8878] max-w-xl mx-auto mb-12">
+              Qualquer familia que precisa organizar a rotina das criancas com mais clareza.
+            </p>
+            <div className="grid sm:grid-cols-3 gap-4">
+              {[
+                { icon: "👨‍👩‍👧", title: "Pais separados", desc: "Guarda compartilhada organizada, com transparencia e menos conflito." },
+                { icon: "👪", title: "Familias que co-cuidam", desc: "Avos, tios, babas — todos na mesma pagina sobre a rotina da crianca." },
+                { icon: "👩‍⚕️", title: "Responsaveis organizados", desc: "Para quem quer um registro completo e acessivel da vida da crianca." },
+              ].map(p => (
+                <div key={p.title} className="p-6 rounded-2xl bg-[#FAFAF8] border border-black/[0.04]">
+                  <span className="text-3xl">{p.icon}</span>
+                  <h3 className="text-[15px] font-bold text-[#0E0C0A] mt-3 mb-1.5">{p.title}</h3>
+                  <p className="text-[13px] text-[#9A8878] leading-relaxed">{p.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* ═══ COMO FUNCIONA ═══ */}
+        <section className="py-20 sm:py-28 px-5 sm:px-8 bg-[#0E0C0A] text-white">
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-16">
               <h2 className="text-3xl sm:text-4xl font-bold leading-tight">
-                Comece em <span className="text-primary">3 passos simples</span>
+                Comece em <span className="text-[#C07055]">3 passos</span>
               </h2>
-              <p className="mt-4 text-lg text-white/60">
-                Em menos de 5 minutos voce ja esta organizado.
+              <p className="mt-4 text-lg text-white/50">
+                Em menos de 2 minutos voce ja esta organizado.
               </p>
             </div>
-            <div className="grid sm:grid-cols-3 gap-8 sm:gap-12">
+            <div className="grid sm:grid-cols-3 gap-8">
               {[
-                {
-                  step: "1",
-                  title: "Crie sua conta",
-                  description: "Cadastro rapido e gratuito. Sem cartao de credito.",
-                },
-                {
-                  step: "2",
-                  title: "Convide a familia",
-                  description: "Envie um link para quem cuida junto. Aceita em segundos.",
-                },
-                {
-                  step: "3",
-                  title: "Organize tudo",
-                  description: "Adicione as criancas, calendario, saude e atividades.",
-                },
-              ].map((item) => (
-                <div key={item.step} className="text-center">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-primary text-white text-xl font-bold mb-5">
-                    {item.step}
+                { step: "1", title: "Crie sua conta", desc: "Cadastro rapido com Google ou e-mail. Sem cartao de credito." },
+                { step: "2", title: "Adicione a familia", desc: "Convide o outro responsavel e cadastre as criancas." },
+                { step: "3", title: "Organize tudo", desc: "Calendario, saude, atividades, despesas — tudo em um so lugar." },
+              ].map(s => (
+                <div key={s.step} className="text-center">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-[#C07055] text-white text-lg font-bold mb-4">
+                    {s.step}
                   </div>
-                  <h3 className="text-lg font-bold mb-2">{item.title}</h3>
-                  <p className="text-white/60 text-sm leading-relaxed">
-                    {item.description}
-                  </p>
+                  <h3 className="text-base font-bold mb-2">{s.title}</h3>
+                  <p className="text-white/50 text-sm leading-relaxed">{s.desc}</p>
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-        {/* Social proof */}
-        <section className="py-20 sm:py-28 px-4 sm:px-6 bg-white">
-          <div className="max-w-4xl mx-auto text-center">
-            <h2 className="text-3xl sm:text-4xl font-bold text-dark leading-tight">
-              Familias que se organizam melhor,{" "}
-              <span className="text-primary">vivem melhor</span>
-            </h2>
-            <p className="mt-4 text-lg text-muted max-w-xl mx-auto">
-              Junte-se a familias que ja transformaram sua rotina.
-            </p>
-            <div className="mt-14 grid grid-cols-2 sm:grid-cols-4 gap-8">
-              {[
-                { value: "500+", label: "Familias ativas" },
-                { value: "10k+", label: "Eventos organizados" },
-                { value: "98%", label: "Satisfacao" },
-                { value: "4.9", label: "Nota no app" },
-              ].map((stat) => (
-                <div key={stat.label}>
-                  <div className="text-3xl sm:text-4xl font-extrabold text-primary">
-                    {stat.value}
-                  </div>
-                  <div className="mt-1 text-sm text-muted">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* Pricing */}
-        <section className="py-20 sm:py-28 px-4 sm:px-6">
-          <div className="max-w-4xl mx-auto">
-            <div className="text-center mb-14">
-              <h2 className="text-3xl sm:text-4xl font-bold text-dark leading-tight">
-                Gratis para <span className="text-primary">comecar</span>
-              </h2>
-              <p className="mt-4 text-lg text-muted max-w-xl mx-auto">
-                Tudo que voce precisa, sem custo. Funcionalidades premium em breve.
-              </p>
-            </div>
-            <div className="grid sm:grid-cols-2 gap-6 max-w-3xl mx-auto">
-              {/* Free */}
-              <div className="relative p-8 rounded-2xl bg-white border-2 border-primary shadow-lg shadow-primary/10">
-                <div className="absolute -top-3 left-8 px-3 py-0.5 bg-primary text-white text-xs font-bold rounded-full">
-                  ATUAL
-                </div>
-                <h3 className="text-xl font-bold text-dark">Gratuito</h3>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-dark">R$ 0</span>
-                  <span className="text-muted">/mes</span>
-                </div>
-                <ul className="mt-6 space-y-3">
-                  {[
-                    "Calendario familiar",
-                    "Chat da familia",
-                    "Controle de gastos",
-                    "Registro de saude",
-                    "Atividades e checklists",
-                    "Ate 4 criancas por grupo",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-dark/80">
-                      <svg className="w-5 h-5 text-primary shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <Link
-                  href="/signup"
-                  className="mt-8 block w-full text-center bg-primary text-white font-semibold py-3 rounded-xl hover:bg-primary-dark transition-colors"
-                >
-                  Comecar gratis
-                </Link>
-              </div>
-              {/* Premium teaser */}
-              <div className="p-8 rounded-2xl bg-dark/[0.02] border border-dark/10">
-                <h3 className="text-xl font-bold text-dark">Premium</h3>
-                <div className="mt-2 flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-dark/30">Em breve</span>
-                </div>
-                <ul className="mt-6 space-y-3">
-                  {[
-                    "Tudo do plano gratuito",
-                    "Relatorios detalhados",
-                    "Exportacao de dados",
-                    "IA assistente familiar",
-                    "Suporte prioritario",
-                    "Criancas ilimitadas",
-                  ].map((item) => (
-                    <li key={item} className="flex items-start gap-2 text-sm text-dark/40">
-                      <svg className="w-5 h-5 text-dark/20 shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      {item}
-                    </li>
-                  ))}
-                </ul>
-                <div className="mt-8 block w-full text-center bg-dark/5 text-dark/30 font-semibold py-3 rounded-xl cursor-not-allowed">
-                  Em breve
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Final CTA */}
-        <section className="py-20 sm:py-28 px-4 sm:px-6 bg-primary">
+        {/* ═══ CTA FINAL ═══ */}
+        <section className="py-20 sm:py-28 px-5 sm:px-8 bg-gradient-to-br from-[#C07055] to-[#A85D47]">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl sm:text-4xl font-bold text-white leading-tight">
-              Comece hoje. Suas criancas merecem.
+              A rotina da sua familia merece mais organizacao.
             </h2>
             <p className="mt-4 text-lg text-white/70 max-w-xl mx-auto">
-              Uma rotina organizada faz toda a diferenca
-              no bem-estar das criancas.
+              Comece gratis. Sem compromisso. Sem cartao de credito. Experimente e veja a diferenca.
             </p>
             <Link
               href="/signup"
-              className="mt-10 inline-flex items-center justify-center bg-white text-primary text-lg font-bold px-10 py-4 rounded-xl hover:bg-white/90 transition-all shadow-lg hover:-translate-y-0.5"
+              className="mt-10 inline-flex items-center justify-center bg-white text-[#C07055] text-lg font-bold px-10 py-4 rounded-xl hover:bg-white/95 transition-all shadow-lg hover:-translate-y-0.5 active:scale-[0.98]"
             >
               Criar minha conta gratis
               <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -407,45 +347,37 @@ export default async function Home() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="py-12 px-4 sm:px-6 bg-dark text-white/60">
+      {/* ═══ FOOTER ═══ */}
+      <footer className="py-12 px-5 sm:px-8 bg-[#0E0C0A] text-white/50">
         <div className="max-w-6xl mx-auto">
-          <div className="grid sm:grid-cols-3 gap-8 sm:gap-12">
+          <div className="grid sm:grid-cols-3 gap-8">
             <div>
-              <div className="text-xl font-bold text-white mb-3">Kindar</div>
+              <div className="flex items-center gap-2 mb-3">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/kindar-logo.png" alt="" width={20} height={20} className="object-contain opacity-70" />
+                <span className="text-lg font-bold text-white">Kindar</span>
+              </div>
               <p className="text-sm leading-relaxed">
-                Organize a rotina de quem voce cuida. Calendario, saude,
-                atividades e mais — tudo em um so lugar para sua familia.
+                A rotina da crianca, organizada em um so lugar. Para familias que cuidam com clareza e transparencia.
               </p>
             </div>
             <div>
-              <div className="font-semibold text-white mb-3">Produto</div>
+              <p className="font-semibold text-white mb-3 text-sm">Produto</p>
               <ul className="space-y-2 text-sm">
-                <li>
-                  <Link href="/signup" className="hover:text-white transition-colors">
-                    Criar conta
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/login" className="hover:text-white transition-colors">
-                    Entrar
-                  </Link>
-                </li>
+                <li><Link href="/signup" className="hover:text-white transition-colors">Criar conta</Link></li>
+                <li><Link href="/login" className="hover:text-white transition-colors">Entrar</Link></li>
+                <li><Link href="/pricing" className="hover:text-white transition-colors">Planos</Link></li>
               </ul>
             </div>
             <div>
-              <div className="font-semibold text-white mb-3">Legal</div>
+              <p className="font-semibold text-white mb-3 text-sm">Legal</p>
               <ul className="space-y-2 text-sm">
-                <li>
-                  <span className="cursor-default">Termos de uso</span>
-                </li>
-                <li>
-                  <span className="cursor-default">Politica de privacidade</span>
-                </li>
+                <li><Link href="/termos" className="hover:text-white transition-colors">Termos de uso</Link></li>
+                <li><Link href="/privacidade" className="hover:text-white transition-colors">Politica de privacidade</Link></li>
               </ul>
             </div>
           </div>
-          <div className="mt-12 pt-8 border-t border-white/10 text-sm text-center">
+          <div className="mt-10 pt-6 border-t border-white/10 text-xs text-center">
             &copy; 2024-2026 Kindar. Todos os direitos reservados.
           </div>
         </div>
