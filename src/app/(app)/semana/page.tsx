@@ -61,7 +61,7 @@ export default async function SemanaPage() {
     { data: activeIllnesses },
     { data: activeMeds },
     { data: appointments },
-    { data: unreadMessages },
+    messagesResult,
     { data: pendingDecisions },
   ] = await Promise.all([
     supabase.from("children").select("id, full_name").eq("group_id", groupId)
@@ -79,7 +79,7 @@ export default async function SemanaPage() {
           .then(r => r, () => ({ data: [] as never[] }))
       : Promise.resolve({ data: [] as never[] }),
     supabase.from("calendar_occurrences")
-      .select("id, occurrence_date, activity_id, child_activities(id, name, category, child_id, start_time, location)")
+      .select("id, occurrence_date, activity_id, child_activities(id, name, category, child_id, time_start, location)")
       .eq("group_id", groupId).gte("occurrence_date", weekStartKey).lte("occurrence_date", weekEndKey).limit(100)
       .then(r => r, () => ({ data: [] as never[] })),
     supabase.from("daily_checkins")
@@ -97,11 +97,11 @@ export default async function SemanaPage() {
     supabase.from("medical_appointments")
       .select("id, title, appointment_date, child_id, status")
       .eq("group_id", groupId).eq("status", "scheduled")
-      .gte("appointment_date", weekStart.toISOString()).lte("appointment_date", weekEnd.toISOString()).limit(10)
+      .gte("appointment_date", weekStartKey).lte("appointment_date", weekEndKey + "T23:59:59").limit(10)
       .then(r => r, () => ({ data: [] as never[] })),
     supabase.from("chat_messages")
       .select("id", { count: "exact", head: true })
-      .eq("group_id", groupId).gte("created_at", weekStart.toISOString())
+      .eq("group_id", groupId).gte("created_at", weekStartKey)
       .then(r => r, () => ({ data: null, count: 0 })),
     supabase.from("decisions")
       .select("id, title, category")
@@ -222,7 +222,7 @@ export default async function SemanaPage() {
   const totalCheckins = checkins?.length || 0;
   const medsCount = activeMeds?.length || 0;
   const pendingCount = pendingActions.length;
-  const messagesCount = (unreadMessages as unknown as { count: number | null })?.count || 0;
+  const messagesCount = messagesResult?.count ?? 0;
   const appointmentsCount = appointments?.length || 0;
 
   // Count active days (days with at least one event or checkin)
