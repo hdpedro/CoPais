@@ -272,11 +272,6 @@ export default function DashboardClient(props: DashboardClientProps) {
     pendingExpenses,
     pendingDecisions,
     pendingReports,
-    balance,
-    totalMonth,
-    myTotal,
-    otherTotal,
-    otherName,
     upcomingEvents,
     isReadonly,
     childCards,
@@ -970,74 +965,8 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       )}
 
-      {/* === WEEKLY ANALYSIS === */}
-      {show("financial") && <Link href="/semana" prefetch={false} className="block">
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 border-l-4 border-l-[#2E7268] flex items-center gap-3 hover:shadow-md transition-shadow">
-          <div className="w-9 h-9 rounded-full bg-[#2E7268]/10 flex items-center justify-center flex-shrink-0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2E7268" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
-            </svg>
-          </div>
-          <div className="flex-1">
-            <p className="text-[10px] font-bold text-[#2E7268] uppercase tracking-wider mb-0.5">
-              {t("dashboard.weeklyAnalysis")}
-            </p>
-            <p className="text-[13px] text-[#2C2C2C]">
-              {t("dashboard.viewWeekSummary")}
-            </p>
-          </div>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </div>
-      </Link>}
-
-      {/* === SALDO + AGENDA (2 columns) === */}
-      {show("agenda") && <div className="grid grid-cols-2 gap-3">
-        <Link href="/financeiro" prefetch={false} className="block">
-          <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 h-full">
-            <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider mb-2">
-              {t("dashboard.balance")}
-            </p>
-            <p className="text-[22px] font-bold text-[#2C2C2C] tracking-tight">
-              R$ {totalMonth > 0 ? Math.abs(balance).toFixed(0) : "0"}
-            </p>
-            {totalMonth > 0 ? (
-              <>
-                {balance > 10 ? (
-                  <span className="inline-flex items-center gap-1 mt-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    {t("dashboard.youReceive")}
-                  </span>
-                ) : balance < -10 ? (
-                  <span className="inline-flex items-center gap-1 mt-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-50 text-amber-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-                    {t("dashboard.youOwe")}
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center gap-1 mt-2 text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    {t("dashboard.balanced")}
-                  </span>
-                )}
-                <div className="mt-3 space-y-1 text-[11px] text-[#7A8C8B]">
-                  <div className="flex justify-between">
-                    <span>{t("dashboard.you")}</span>
-                    <span className="font-semibold" style={{ color: myColor }}>R$ {myTotal.toFixed(0)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>{otherName}</span>
-                    <span className="font-semibold text-[#2C2C2C]">R$ {otherTotal.toFixed(0)}</span>
-                  </div>
-                </div>
-              </>
-            ) : (
-              <p className="text-[12px] text-[#9CA3AF] mt-2">{t("dashboard.noExpenses")}</p>
-            )}
-          </div>
-        </Link>
-
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
+      {/* === AGENDA (full width) === */}
+      {show("agenda") && <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
           <div className="flex items-center justify-between mb-2">
             <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider">
               {t("dashboard.agenda")}
@@ -1117,7 +1046,6 @@ export default function DashboardClient(props: DashboardClientProps) {
           ) : (
             <p className="text-[12px] text-[#9CA3AF]">{t("dashboard.noEvents")}</p>
           )}
-        </div>
       </div>}
 
       {/* === QUICK ACTIONS === */}
@@ -1150,14 +1078,14 @@ export default function DashboardClient(props: DashboardClientProps) {
           <QuickAction label={t("dashboard.agenda")} href="/calendario" color="#5B9E85"
             icon={<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
           />
-          <QuickAction label={t("nav.chat")} href="/chat" color="#8B5CF6"
-            icon={<path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>}
-          />
           <QuickAction label="Check-in" href="/checkin" color="#3B82F6"
             icon={<><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>}
           />
-          <QuickAction label={t("nav.family")} href="/familia" color="#5B9E85"
-            icon={<><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></>}
+          <QuickAction label={t("nav.documents")} href="/documentos" color="#F59E0B"
+            icon={<><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></>}
+          />
+          <QuickAction label={t("nav.financialSummary")} href="/financeiro" color="#5B9E85"
+            icon={<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
           />
           <QuickAction label={t("nav.agreements")} href="/acordos" color="#F59E0B"
             icon={<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>}
