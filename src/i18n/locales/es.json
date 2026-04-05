@@ -138,6 +138,7 @@
     "viewAllFeminine": "ver todas",
     "moreSections": "mas",
     "weeklyAnalysis": "Análisis de la semana",
+    "viewWeekSummary": "Ve el resumen completo de tu semana",
     "expensesDifference": "{name} tiene {amount} {direction} en gastos este mes.",
     "expensesBalanced": "Gastos equilibrados entre ustedes este mes.",
     "less": "menos",

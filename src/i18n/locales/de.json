@@ -138,6 +138,7 @@
     "viewAllFeminine": "alle anzeigen",
     "moreSections": "weitere",
     "weeklyAnalysis": "Wochenanalyse",
+    "viewWeekSummary": "Die vollstandige Wochenzusammenfassung ansehen",
     "expensesDifference": "{name} hat {amount} {direction} an Ausgaben diesen Monat.",
     "expensesBalanced": "Ausgaben sind diesen Monat ausgeglichen.",
     "less": "weniger",

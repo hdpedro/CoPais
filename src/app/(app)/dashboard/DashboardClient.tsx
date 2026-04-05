@@ -971,30 +971,20 @@ export default function DashboardClient(props: DashboardClientProps) {
       )}
 
       {/* === WEEKLY ANALYSIS === */}
-      {show("financial") && <Link href="/financeiro" prefetch={false} className="block">
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 border-l-4 border-l-[#D4735A] flex items-center gap-3 hover:shadow-md transition-shadow">
-          <div className="w-9 h-9 rounded-full bg-[#D4735A]/10 flex items-center justify-center flex-shrink-0">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#D4735A" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" />
+      {show("financial") && <Link href="/semana" prefetch={false} className="block">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 border-l-4 border-l-[#2E7268] flex items-center gap-3 hover:shadow-md transition-shadow">
+          <div className="w-9 h-9 rounded-full bg-[#2E7268]/10 flex items-center justify-center flex-shrink-0">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2E7268" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
             </svg>
           </div>
           <div className="flex-1">
-            <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider mb-0.5">
+            <p className="text-[10px] font-bold text-[#2E7268] uppercase tracking-wider mb-0.5">
               {t("dashboard.weeklyAnalysis")}
             </p>
-            {Math.abs(balance) > 10 ? (
-              <p className="text-[13px] text-[#2C2C2C]">
-                {t("dashboard.expensesDifference", {
-                  name: otherName,
-                  amount: `R$ ${Math.abs(balance).toFixed(0)}`,
-                  direction: balance > 0 ? t("dashboard.less") : t("dashboard.more"),
-                })}
-              </p>
-            ) : (
-              <p className="text-[13px] text-[#2C2C2C]">
-                {t("dashboard.expensesBalanced")}
-              </p>
-            )}
+            <p className="text-[13px] text-[#2C2C2C]">
+              {t("dashboard.viewWeekSummary")}
+            </p>
           </div>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
             <polyline points="9 18 15 12 9 6" />
