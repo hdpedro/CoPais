@@ -756,7 +756,7 @@ export default function DashboardClient(props: DashboardClientProps) {
               </svg>
               {t("dashboard.activities")}
             </p>
-            <Link href="/calendario" prefetch={false} className="text-[10px] font-semibold text-[#D4735A]">
+            <Link href="/atividades" prefetch={false} className="text-[10px] font-semibold text-[#D4735A]">
               {t("dashboard.viewAllFeminine")}
             </Link>
           </div>
@@ -764,7 +764,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           {/* Tomorrow's activities (priority) */}
           {renderedTomorrowActivities.map((act) => {
             return (
-              <Link key={act.id} href="/calendario" prefetch={false} className="block">
+              <Link key={act.id} href="/atividades" prefetch={false} className="block">
                 <div className="bg-[#D4735A]/[0.06] border border-[#D4735A]/15 rounded-2xl p-3.5 flex items-center gap-3">
                   <div className="w-10 h-10 bg-[#D4735A]/10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">
                     {act.catIcon}
@@ -809,7 +809,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           {/* Today's activities */}
           {renderedTodayActivities.map((act) => {
             return (
-              <Link key={act.id} href="/calendario" prefetch={false} className="block">
+              <Link key={act.id} href="/atividades" prefetch={false} className="block">
                 <div className="bg-primary/[0.06] border border-primary/15 rounded-2xl p-3.5 flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">
                     {act.catIcon}
@@ -931,7 +931,7 @@ export default function DashboardClient(props: DashboardClientProps) {
               </svg>
               {t("activityReport.pendingReports")}
             </p>
-            <Link href="/calendario" prefetch={false} className="text-[10px] font-semibold text-[#D4735A]">
+            <Link href="/atividades" prefetch={false} className="text-[10px] font-semibold text-[#D4735A]">
               {t("common.viewAll")}
             </Link>
           </div>
@@ -1077,7 +1077,7 @@ export default function DashboardClient(props: DashboardClientProps) {
 
               {/* Today's activities in agenda */}
               {renderedTodayActivities.slice(0, 2).map((act) => (
-                  <Link key={`act-today-${act.id}`} href="/calendario" prefetch={false} className="flex items-center gap-2.5">
+                  <Link key={`act-today-${act.id}`} href="/atividades" prefetch={false} className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 text-base">
                       {act.catIcon}
                     </div>
@@ -1093,7 +1093,7 @@ export default function DashboardClient(props: DashboardClientProps) {
 
               {/* Tomorrow's activities in agenda */}
               {renderedTomorrowActivities.slice(0, 2).map((act) => (
-                  <Link key={`act-tmrw-${act.id}`} href="/calendario" prefetch={false} className="flex items-center gap-2.5">
+                  <Link key={`act-tmrw-${act.id}`} href="/atividades" prefetch={false} className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#D4735A]/10 text-base">
                       {act.catIcon}
                     </div>
@@ -1111,7 +1111,7 @@ export default function DashboardClient(props: DashboardClientProps) {
               {!hasTodayActivities && !hasTomorrowActivities && upcomingActivitiesList.slice(0, 2).map(({ act, dayLabel }) => {
                 const catIcon = ACTIVITY_CATEGORIES.find((c) => c.value === act.category)?.icon || "\u{1F4CB}";
                 return (
-                  <Link key={`act-up-${act.id}`} href="/calendario" prefetch={false} className="flex items-center gap-2.5">
+                  <Link key={`act-up-${act.id}`} href="/atividades" prefetch={false} className="flex items-center gap-2.5">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#D4735A]/10 text-base">
                       {catIcon}
                     </div>
