@@ -317,12 +317,14 @@ export default memo(function DayDetailSheet({
   const canRequestSwap = isOtherParentDay && isFutureDate && !pendingSwapForDay;
 
   // Determine the responsible person for an activity on this day
+  // Priority: 1. day-level override → 2. permanent responsible_id → 3. custody (who has the child)
   function getResponsibleName(act: ActivityInfo): string | null {
-    // If there's a responsible_override in the report, use that
     if (act.report?.responsible_override) {
       return memberNames[act.report.responsible_override] || null;
     }
-    // Otherwise, use custody-based responsible
+    if (act.responsible_name) {
+      return act.responsible_name;
+    }
     if (dayInfo) {
       return dayInfo.userName;
     }
@@ -332,6 +334,9 @@ export default memo(function DayDetailSheet({
   function getResponsibleId(act: ActivityInfo): string | null {
     if (act.report?.responsible_override) {
       return act.report.responsible_override;
+    }
+    if (act.responsible_id) {
+      return act.responsible_id;
     }
     if (dayInfo) {
       return dayInfo.userId;
@@ -604,11 +609,14 @@ export default memo(function DayDetailSheet({
                                   </button>
                                 </div>
                               )}
-                              {/* Change responsible picker with "this day" / "all future" options */}
+                              {/* Change responsible picker */}
                               {changingResponsible === act.id && responsibleMode === "pick" && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 animate-[fadeIn_150ms_ease-out]">
-                                  <p className="text-[10px] font-bold text-blue-700 uppercase mb-1.5">
-                                    {t("calendar.changeResponsible")}
+                                <div className="bg-[#C07055]/[0.04] border border-[#C07055]/15 rounded-xl p-3 animate-[fadeIn_150ms_ease-out]">
+                                  <p className="text-[10px] font-bold text-[#C07055] uppercase tracking-wider mb-0.5">
+                                    {act.name} — {t("calendar.changeResponsible")}
+                                  </p>
+                                  <p className="text-[10px] text-[#9A8878] mb-2.5">
+                                    Atual: <strong>{responsibleName || t("calendar.noResponsible")}</strong>
                                   </p>
                                   <div className="space-y-1.5">
                                     {otherMembers.map((member) => (
@@ -625,13 +633,13 @@ export default memo(function DayDetailSheet({
                                           }
                                         }}
                                         disabled={responsibleSaving}
-                                        className="w-full text-left px-3 py-2 text-xs bg-white border border-blue-200 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 flex items-center gap-2"
+                                        className="w-full text-left px-3 py-2.5 text-xs bg-white border border-[#C07055]/10 rounded-lg hover:bg-[#C07055]/[0.04] transition-colors disabled:opacity-50 flex items-center gap-2.5 active:scale-[0.98]"
                                       >
-                                        <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-700 font-bold text-[10px]">
+                                        <span className="w-7 h-7 bg-[#C07055]/10 rounded-full flex items-center justify-center text-[#C07055] font-bold text-[10px]">
                                           {member.name.charAt(0).toUpperCase()}
                                         </span>
                                         <span className="text-[#2C2C2C] font-medium">{member.name}</span>
-                                        {responsibleSaving && <span className="ml-auto text-[10px] text-blue-500">...</span>}
+                                        {responsibleSaving && <span className="ml-auto text-[10px] text-[#C07055]">...</span>}
                                       </button>
                                     ))}
                                   </div>
@@ -639,16 +647,19 @@ export default memo(function DayDetailSheet({
                               )}
                               {/* Confirm scope: this day or all future */}
                               {changingResponsible === act.id && responsibleMode === "confirm" && selectedNewResponsible && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 animate-[fadeIn_150ms_ease-out]">
-                                  <p className="text-[10px] font-bold text-blue-700 uppercase mb-1">
-                                    {t("calendar.changeResponsible")} &rarr; {selectedNewResponsible.name}
+                                <div className="bg-[#C07055]/[0.04] border border-[#C07055]/15 rounded-xl p-3 animate-[fadeIn_150ms_ease-out]">
+                                  <p className="text-[10px] font-bold text-[#C07055] uppercase tracking-wider mb-0.5">
+                                    {act.name}
                                   </p>
-                                  <div className="space-y-1.5 mt-2">
+                                  <p className="text-[11px] text-[#2C2C2C] mb-3">
+                                    {responsibleName || "Ninguem"} <span className="text-[#9A8878]">&rarr;</span> <strong>{selectedNewResponsible.name}</strong>
+                                  </p>
+                                  <div className="space-y-1.5">
                                     <button
                                       type="button"
                                       onClick={(e) => { e.stopPropagation(); handleChangeResponsible(act.id, selectedNewResponsible.id); }}
                                       disabled={responsibleSaving}
-                                      className="w-full px-3 py-2 text-xs bg-white border border-blue-200 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors disabled:opacity-50 font-medium"
+                                      className="w-full px-3 py-2.5 text-xs bg-white border border-[#C07055]/15 text-[#2C2C2C] rounded-lg hover:bg-[#C07055]/[0.04] transition-colors disabled:opacity-50 font-medium"
                                     >
                                       {responsibleSaving ? "..." : t("calendar.onlyThisDay")}
                                     </button>
@@ -656,14 +667,17 @@ export default memo(function DayDetailSheet({
                                       type="button"
                                       onClick={(e) => { e.stopPropagation(); handleChangeResponsibleAll(act.id, selectedNewResponsible.id); }}
                                       disabled={responsibleSaving}
-                                      className="w-full px-3 py-2 text-xs bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition-colors disabled:opacity-50 font-medium"
+                                      className="w-full px-3 py-2.5 text-xs bg-[#C07055] text-white rounded-lg hover:bg-[#A85D47] transition-colors disabled:opacity-50 font-semibold"
                                     >
                                       {responsibleSaving ? "..." : t("calendar.allFutureEvents")}
                                     </button>
+                                    <p className="text-[9px] text-[#9A8878] text-center mt-1">
+                                      &quot;{t("calendar.allFutureEvents")}&quot; altera permanentemente
+                                    </p>
                                     <button
                                       type="button"
                                       onClick={() => { setResponsibleMode("pick"); setSelectedNewResponsible(null); }}
-                                      className="w-full px-3 py-1.5 text-xs border border-gray-200 rounded-lg hover:bg-gray-50 text-[#7A8C8B]"
+                                      className="w-full px-3 py-1.5 text-xs text-[#9A8878] hover:text-[#2C2C2C] transition-colors"
                                     >
                                       {t("common.cancel")}
                                     </button>
