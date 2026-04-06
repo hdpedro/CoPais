@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { sendWelcomeEmail } from "@/lib/emails/welcome";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -50,6 +52,23 @@ export async function GET(request: Request) {
       if (type === "recovery" || next === "/reset-password") {
         return NextResponse.redirect(`${origin}/reset-password`);
       }
+
+      // Check if this is a new user (first OAuth login) and send welcome email
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const createdAt = new Date(user.created_at);
+          const isNewUser = (Date.now() - createdAt.getTime()) < 60000; // Created less than 60s ago
+          if (isNewUser) {
+            const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "";
+            captureServerEvent(user.id, "user_signup", { provider: "oauth" });
+            void sendWelcomeEmail(user.email!, fullName);
+          }
+        }
+      } catch {
+        // Never block auth callback for email failure
+      }
+
       return NextResponse.redirect(`${origin}${next}`);
     }
 
