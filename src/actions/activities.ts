@@ -901,8 +901,12 @@ export async function changeActivityResponsibleAll(
   const activeGroup = await getActiveGroup(supabase, user.id);
   if (!activeGroup) return { error: "Sem grupo" };
 
+  // Use admin client for ALL DB operations
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const adminDb = createAdminClient();
+
   // Verify activity belongs to user's group
-  const { data: activity } = await supabase
+  const { data: activity } = await adminDb
     .from("child_activities")
     .select("id, name, group_id, child_id, responsible_id, children(full_name)")
     .eq("id", activityId)
@@ -912,10 +916,7 @@ export async function changeActivityResponsibleAll(
     return { error: "Atividade nao encontrada" };
   }
 
-  // Update the activity's responsible_id permanently (admin client to bypass RLS)
-  const { createAdminClient } = await import("@/lib/supabase/admin");
-  const adminDb = createAdminClient();
-
+  // Update the activity's responsible_id permanently
   const { error } = await adminDb
     .from("child_activities")
     .update({ responsible_id: newResponsibleId })
