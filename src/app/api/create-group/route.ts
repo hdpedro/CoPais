@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 
 export async function POST(request: Request) {
@@ -56,6 +57,11 @@ export async function POST(request: Request) {
 
   // Update onboarding progress
   await supabase.from("profiles").update({ onboarding_step: step }).eq("id", user.id);
+
+  // Invalidate caches
+  revalidateTag(`profile-${user.id}`, "max");
+  revalidateTag(`members-${groupId}`, "max");
+  revalidateTag(`children-${groupId}`, "max");
 
   return NextResponse.json({ success: true, groupId });
 }

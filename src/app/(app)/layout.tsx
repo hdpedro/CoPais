@@ -9,6 +9,7 @@ import PostHogProvider from "@/components/PostHogProvider";
 import { I18nProvider } from "@/i18n/provider";
 import { SubscriptionProvider } from "@/components/SubscriptionProvider";
 import { getUserSubscription } from "@/lib/subscription";
+import { getCachedProfileByUser } from "@/lib/cached-queries";
 
 export default async function AppLayout({
   children,
@@ -26,9 +27,9 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  // Profile + subscription queries run in parallel
-  const [{ data: profile }, subscription] = await Promise.all([
-    supabase.from("profiles").select("full_name").eq("id", user.id).single(),
+  // Profile (CACHED) + subscription in parallel
+  const [profile, subscription] = await Promise.all([
+    getCachedProfileByUser(user.id),
     getUserSubscription(supabase, user.id),
   ]);
 

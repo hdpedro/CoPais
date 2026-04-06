@@ -35,7 +35,7 @@ const { mockRedirect, mockChain, mockSupabase, mockVerify, mockAdminChain, mockA
 });
 
 vi.mock("next/navigation", () => ({ redirect: (...args: any[]) => { mockRedirect(...args); throw new Error("NEXT_REDIRECT"); } }));
-vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn(), revalidateTag: vi.fn() }));
 vi.mock("next/headers", () => ({ cookies: vi.fn().mockResolvedValue({ get: vi.fn(), set: vi.fn(), getAll: vi.fn().mockReturnValue([]) }) }));
 vi.mock("@/lib/supabase/server", () => ({ createClient: vi.fn().mockResolvedValue(mockSupabase) }));
 vi.mock("@/lib/auth-utils", () => ({ verifyGroupMembership: (...args: any[]) => mockVerify(...args) }));

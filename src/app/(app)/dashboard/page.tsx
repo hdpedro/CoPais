@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/supabase/auth-helper";
+import { getCachedProfileByUser, getCachedMembers, getCachedChildren } from "@/lib/cached-queries";
 import { getActiveGroup } from "@/lib/group-utils";
 import { autoAcceptPendingInvitations } from "@/actions/invitation";
 import { formatDateKey, computeSwapBalance, getBrazilNow, getBrazilToday, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
@@ -27,9 +28,9 @@ export default async function DashboardPage() {
   const { supabase, user } = await getSessionUser();
   if (!user) redirect("/login");
 
-  // === BATCH 1: profile + activeGroup (parallel, only need user.id) ===
-  const [{ data: profile }, activeGroup] = await Promise.all([
-    supabase.from("profiles").select("*").eq("id", user.id).single(),
+  // === BATCH 1: profile (cached) + activeGroup (parallel) ===
+  const [profile, activeGroup] = await Promise.all([
+    getCachedProfileByUser(user.id),
     getActiveGroup(supabase, user.id),
   ]);
 
@@ -46,12 +47,10 @@ export default async function DashboardPage() {
 
   const { groupId, groupName, isReadonly, custodyEnabled } = activeGroup;
 
-  // === BATCH 2: members + children (parallel, need groupId) ===
-  const [{ data: members }, { data: children }] = await Promise.all([
-    supabase.from("group_members").select("user_id, role, profiles(id, full_name, email)").eq("group_id", groupId).order("joined_at")
-      .then(r => r, () => ({ data: [] as never[] })),
-    supabase.from("children").select("*").eq("group_id", groupId)
-      .then(r => r, () => ({ data: [] as never[] })),
+  // === BATCH 2: members + children (CACHED — 5 min) ===
+  const [members, children] = await Promise.all([
+    getCachedMembers(groupId),
+    getCachedChildren(groupId),
   ]);
 
   const parentColors: ParentColorMap = {};

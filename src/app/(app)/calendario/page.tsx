@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/supabase/auth-helper";
+import { getCachedMembers } from "@/lib/cached-queries";
 import { getActiveGroup } from "@/lib/group-utils";
 import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
 import {
@@ -40,7 +41,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   // Run all Supabase queries in parallel
   const [
-    { data: members },
+    members,
     { data: events },
     { data: rawActivities },
     { data: socialEvents },
@@ -49,12 +50,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     { data: activityReports },
     { data: rawChecklistCompletions },
   ] = await Promise.all([
-    supabase
-      .from("group_members")
-      .select("user_id, role, joined_at, profiles(full_name)")
-      .eq("group_id", groupId)
-      .order("joined_at", { ascending: true })
-      .then(r => r, () => ({ data: [] as never[] })),
+    getCachedMembers(groupId),
     custodyEnabled
       ? supabase
           .from("custody_events")

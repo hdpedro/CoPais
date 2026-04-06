@@ -1,7 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 
 export async function updateProfile(formData: FormData) {
   const supabase = await createClient();
@@ -22,13 +22,9 @@ export async function updateProfile(formData: FormData) {
     return { error: "Erro ao atualizar perfil" };
   }
 
+  revalidateTag(`profile-${user.id}`, "max");
   revalidatePath("/perfil");
   revalidatePath("/dashboard");
-  revalidatePath("/familia");
-  revalidatePath("/chat");
-  revalidatePath("/calendario");
-  revalidatePath("/checkin");
-  revalidatePath("/financeiro");
 
   return { success: true };
 }
