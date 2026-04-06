@@ -906,21 +906,29 @@ export async function changeActivityResponsibleAll(
   const adminDb = createAdminClient();
 
   // Verify activity belongs to user's group
-  const { data: activity } = await adminDb
+  console.log("[changeResponsibleAll] activityId:", activityId, "newResponsibleId:", newResponsibleId);
+
+  const { data: activity, error: selectError } = await adminDb
     .from("child_activities")
     .select("id, name, group_id, child_id, responsible_id, children(full_name)")
     .eq("id", activityId)
     .single();
 
+  console.log("[changeResponsibleAll] activity found:", activity?.id, activity?.name, "group:", activity?.group_id, "selectError:", selectError?.message);
+
   if (!activity || activity.group_id !== activeGroup.groupId) {
+    console.log("[changeResponsibleAll] BLOCKED - activity not found or wrong group. activeGroup:", activeGroup.groupId);
     return { error: "Atividade nao encontrada" };
   }
 
   // Update the activity's responsible_id permanently
-  const { error } = await adminDb
+  const { error, data: updated } = await adminDb
     .from("child_activities")
     .update({ responsible_id: newResponsibleId })
-    .eq("id", activityId);
+    .eq("id", activityId)
+    .select("id, responsible_id");
+
+  console.log("[changeResponsibleAll] update result:", { error: error?.message, updated });
 
   if (error) return { error: error.message };
 
