@@ -664,17 +664,19 @@ export async function changeActivityResponsible(
     .eq("occurrence_date", occurrenceDate)
     .single();
 
+  // Use admin client to bypass RLS for the update
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const adminDb = createAdminClient();
+
   let saveError;
   if (existingReport) {
-    // Update existing report
-    const { error } = await supabase
+    const { error } = await adminDb
       .from("activity_reports")
       .update({ responsible_override: newResponsibleId })
       .eq("id", existingReport.id);
     saveError = error;
   } else {
-    // Insert new report
-    const { error } = await supabase
+    const { error } = await adminDb
       .from("activity_reports")
       .insert({
         group_id: activeGroup.groupId,
