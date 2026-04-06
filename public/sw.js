@@ -1,4 +1,4 @@
-const CACHE_NAME = "kindar-v3";
+const CACHE_NAME = "kindar-v4";
 const OFFLINE_URL = "/offline.html";
 
 // Pre-cache essential assets on install
