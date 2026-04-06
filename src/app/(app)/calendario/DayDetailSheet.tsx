@@ -764,7 +764,7 @@ export default memo(function DayDetailSheet({
                                 <div className="bg-green-50 rounded-lg p-2.5 mt-1">
                                   <p className="text-[10px] font-bold text-green-700 uppercase mb-1">{t("activityReport.title")}</p>
                                   <p className="text-[11px] text-green-800">
-                                    {act.report?.status === "completed" ? "&#x2705; " + t("activityReport.activityCompleted") : act.report?.status === "missed" ? "&#x274C; " + t("activityReport.activityMissed") : "&#x1F6AB; " + t("activityReport.activityCancelled")}
+                                    {act.report?.status === "completed" ? "\u2705 " + t("activityReport.activityCompleted") : act.report?.status === "missed" ? "\u274C " + t("activityReport.activityMissed") : "\u{1F6AB} " + t("activityReport.activityCancelled")}
                                   </p>
                                   {act.report?.notes && (
                                     <p className="text-[11px] text-green-700 mt-1 italic">{act.report.notes}</p>
