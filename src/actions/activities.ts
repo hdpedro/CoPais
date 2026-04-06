@@ -656,17 +656,17 @@ export async function changeActivityResponsible(
     return { error: "Atividade nao encontrada" };
   }
 
-  // Check if report already exists for this activity+date
-  const { data: existingReport } = await supabase
+  // Use admin client for all DB operations (bypass RLS completely)
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const adminDb = createAdminClient();
+
+  // Check if report already exists
+  const { data: existingReport } = await adminDb
     .from("activity_reports")
     .select("id")
     .eq("activity_id", activityId)
     .eq("occurrence_date", occurrenceDate)
-    .single();
-
-  // Use admin client to bypass RLS for the update
-  const { createAdminClient } = await import("@/lib/supabase/admin");
-  const adminDb = createAdminClient();
+    .maybeSingle();
 
   let saveError;
   if (existingReport) {

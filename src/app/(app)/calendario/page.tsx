@@ -101,7 +101,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("activity_reports")
-      .select("activity_id, occurrence_date, status, notes, child_mood, responsible_override, responsible_override_id, overrides")
+      .select("activity_id, occurrence_date, status, notes, child_mood, responsible_override, overrides")
       .eq("group_id", groupId)
       .gte("occurrence_date", rangeStart)
       .lte("occurrence_date", rangeEnd)
@@ -203,7 +203,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const weekends = getNextWeekends(8, custodyMap, user.id);
 
   // Build report lookup: "activityId:date" -> report info
-  const reportLookup: Record<string, { status: string; notes: string | null; child_mood: string | null; responsible_override?: string | null; responsible_override_id?: string | null; overrides?: Record<string, unknown> | null }> = {};
+  const reportLookup: Record<string, { status: string; notes: string | null; child_mood: string | null; responsible_override?: string | null; overrides?: Record<string, unknown> | null }> = {};
   if (activityReports) {
     for (const r of activityReports) {
       reportLookup[`${r.activity_id}:${r.occurrence_date}`] = {
@@ -211,7 +211,6 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         notes: r.notes,
         child_mood: r.child_mood,
         responsible_override: r.responsible_override || null,
-        responsible_override_id: r.responsible_override_id || null,
         overrides: r.overrides || null,
       };
     }
