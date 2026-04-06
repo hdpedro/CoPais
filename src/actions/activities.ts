@@ -656,22 +656,38 @@ export async function changeActivityResponsible(
     return { error: "Atividade nao encontrada" };
   }
 
-  // Upsert activity_report with responsible_override (atomic, no race condition)
-  const { error: upsertError } = await supabase
+  // Check if report already exists for this activity+date
+  const { data: existingReport } = await supabase
     .from("activity_reports")
-    .upsert(
-      {
+    .select("id")
+    .eq("activity_id", activityId)
+    .eq("occurrence_date", occurrenceDate)
+    .single();
+
+  let saveError;
+  if (existingReport) {
+    // Update existing report
+    const { error } = await supabase
+      .from("activity_reports")
+      .update({ responsible_override: newResponsibleId })
+      .eq("id", existingReport.id);
+    saveError = error;
+  } else {
+    // Insert new report
+    const { error } = await supabase
+      .from("activity_reports")
+      .insert({
         group_id: activeGroup.groupId,
         activity_id: activityId,
         occurrence_date: occurrenceDate,
         reported_by: user.id,
         status: "completed",
         responsible_override: newResponsibleId,
-      },
-      { onConflict: "activity_id,occurrence_date" }
-    );
+      });
+    saveError = error;
+  }
 
-  if (upsertError) return { error: upsertError.message };
+  if (saveError) return { error: saveError.message };
 
   // Get the name of the new responsible
   const { data: newResponsibleProfile } = await supabase
