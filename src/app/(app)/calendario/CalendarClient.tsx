@@ -63,6 +63,8 @@ export interface ActivityInfo {
 interface CalendarClientProps {
   initialYear: number;
   initialMonth: number;
+  deepLinkDay: string | null;
+  deepLinkEventId: string | null;
   custodyMap: Record<string, CustodyDayInfo>;
   parentColors: ParentColorMap;
   currentUserId: string;
@@ -80,6 +82,8 @@ interface CalendarClientProps {
 export default memo(function CalendarClient({
   initialYear,
   initialMonth,
+  deepLinkDay,
+  deepLinkEventId,
   custodyMap,
   parentColors,
   currentUserId,
@@ -94,11 +98,17 @@ export default memo(function CalendarClient({
   memberNames,
 }: CalendarClientProps) {
   const { t } = useI18n();
+  // Deep link: auto-open DayDetailSheet when ?day= param is present
   const [dayDetail, setDayDetail] = useState<{
     isOpen: boolean;
     dateKey: string;
     dayInfo: CustodyDayInfo | null;
-  }>({ isOpen: false, dateKey: "", dayInfo: null });
+  }>(() => {
+    if (deepLinkDay) {
+      return { isOpen: true, dateKey: deepLinkDay, dayInfo: custodyMap[deepLinkDay] || null };
+    }
+    return { isOpen: false, dateKey: "", dayInfo: null };
+  });
 
   // Parents who have custody days assigned
   const isParentWithCustody = Object.values(custodyMap).some(
@@ -187,6 +197,7 @@ export default memo(function CalendarClient({
         pendingSwapForDay={pendingSwapDates.has(dayDetail.dateKey)}
         activities={activities[dayDetail.dateKey] || []}
         memberNames={memberNames}
+        autoExpandEventId={deepLinkEventId || undefined}
       />
     </>
   );

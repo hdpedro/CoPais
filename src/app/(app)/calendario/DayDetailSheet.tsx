@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, memo } from "react";
+import { useState, useEffect, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { createSwapRequest } from "@/actions/calendar";
 import { deleteActivity, deleteEvent, deleteAppointment, cancelActivityOccurrence, changeActivityResponsible, changeActivityResponsibleAll, toggleChecklistItem, editActivityAll, editActivityOccurrence } from "@/actions/activities";
@@ -58,6 +58,7 @@ interface DayDetailSheetProps {
   pendingSwapForDay?: boolean;
   activities?: ActivityInfo[];
   memberNames?: Record<string, string>;
+  autoExpandEventId?: string;
 }
 
 export default memo(function DayDetailSheet({
@@ -71,6 +72,7 @@ export default memo(function DayDetailSheet({
   pendingSwapForDay = false,
   activities = [],
   memberNames = {},
+  autoExpandEventId,
 }: DayDetailSheetProps) {
   const router = useRouter();
   const { t } = useI18n();
@@ -107,6 +109,20 @@ export default memo(function DayDetailSheet({
     notes: string;
     responsibleId: string;
   }>({ name: "", timeStart: "", timeEnd: "", location: "", teacherName: "", className: "", room: "", notes: "", responsibleId: "" });
+  const [highlightId, setHighlightId] = useState<string | null>(null);
+
+  // Auto-expand activity from deep link
+  useEffect(() => {
+    if (autoExpandEventId && isOpen && activities.length > 0) {
+      const found = activities.find(a => a.id === autoExpandEventId);
+      if (found) {
+        setExpandedId(autoExpandEventId);
+        setHighlightId(autoExpandEventId);
+        // Remove highlight after 2s
+        setTimeout(() => setHighlightId(null), 2000);
+      }
+    }
+  }, [autoExpandEventId, isOpen, activities]);
 
   const isRecurring = (act: ActivityInfo) =>
     act.recurrence_type && act.recurrence_type !== "never";
@@ -471,7 +487,7 @@ export default memo(function DayDetailSheet({
                     <div key={act.id}>
                       {/* Collapsed card — click to expand */}
                       <div
-                        className={`bg-[#D4735A]/[0.06] border border-[#D4735A]/15 rounded-xl overflow-hidden transition-all ${isExpanded ? "ring-2 ring-[#D4735A]/30" : ""}`}
+                        className={`bg-[#D4735A]/[0.06] border border-[#D4735A]/15 rounded-xl overflow-hidden transition-all ${isExpanded ? "ring-2 ring-[#D4735A]/30" : ""} ${highlightId === act.id ? "ring-2 ring-[#C07055] shadow-lg shadow-[#C07055]/20 animate-pulse" : ""}`}
                       >
                         {/* Header row — always visible */}
                         <div

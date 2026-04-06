@@ -755,6 +755,8 @@ export default async function DashboardPage() {
       category: d.category,
       deadline: d.deadline,
     })),
+    todayDate: todayKey,
+    tomorrowDate: tomorrowKey,
     visibleSections,
     pendingReports: pendingReportsFinal.slice(0, 5).map((pr) => {
       const occDate = new Date(pr.occurrenceDate + "T12:00:00");

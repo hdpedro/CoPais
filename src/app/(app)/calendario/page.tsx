@@ -21,7 +21,8 @@ const CalendarClient = dynamic(() => import("./CalendarClient"), {
   loading: () => <div className="animate-pulse bg-gray-100 rounded-xl h-96" />,
 });
 
-export default async function CalendarPage() {
+export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ day?: string; eventId?: string }> }) {
+  const params = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -323,8 +324,10 @@ export default async function CalendarPage() {
 
       {/* Client wrapper for interactive parts */}
       <CalendarClient
-        initialYear={now.getFullYear()}
-        initialMonth={now.getMonth()}
+        initialYear={params.day ? parseInt(params.day.split("-")[0]) : now.getFullYear()}
+        initialMonth={params.day ? parseInt(params.day.split("-")[1]) - 1 : now.getMonth()}
+        deepLinkDay={params.day || null}
+        deepLinkEventId={params.eventId || null}
         custodyMap={custodyMapObj}
         parentColors={parentColors}
         currentUserId={user.id}
