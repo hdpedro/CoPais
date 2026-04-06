@@ -912,8 +912,11 @@ export async function changeActivityResponsibleAll(
     return { error: "Atividade nao encontrada" };
   }
 
-  // Update the activity's responsible_id permanently
-  const { error } = await supabase
+  // Update the activity's responsible_id permanently (admin client to bypass RLS)
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const adminDb = createAdminClient();
+
+  const { error } = await adminDb
     .from("child_activities")
     .update({ responsible_id: newResponsibleId })
     .eq("id", activityId);
