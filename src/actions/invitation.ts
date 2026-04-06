@@ -51,6 +51,14 @@ export async function createInvitation(formData: FormData) {
     role,
   });
 
+  // Update onboarding progress to step 4 (complete)
+  await supabase.from("profiles")
+    .update({ onboarding_step: 4 })
+    .eq("id", user.id)
+    .lt("onboarding_step", 4);
+
+  captureServerEvent(user.id, "onboarding_completed");
+
   redirect(returnTo + "?success=true&token=" + invitation.token);
 }
 

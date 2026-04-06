@@ -41,6 +41,7 @@ export async function POST(request: Request) {
   }
 
   // Add child if provided
+  let step = 1; // group created
   if (childName && childBirthDate) {
     const { error: childError } = await supabase.from("children").insert({
       group_id: groupId,
@@ -50,7 +51,11 @@ export async function POST(request: Request) {
     if (childError) {
       return NextResponse.json({ error: childError.message }, { status: 400 });
     }
+    step = 2; // child created
   }
+
+  // Update onboarding progress
+  await supabase.from("profiles").update({ onboarding_step: step }).eq("id", user.id);
 
   return NextResponse.json({ success: true, groupId });
 }

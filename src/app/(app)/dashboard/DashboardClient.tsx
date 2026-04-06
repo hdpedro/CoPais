@@ -10,6 +10,7 @@ import type { ParentColorMap } from "@/lib/calendar-utils";
 const ActivityReportModal = dynamic(() => import("@/app/(app)/atividades/ActivityReportModal"), { ssr: false });
 import ShareActivityButton from "@/components/ShareActivityButton";
 import CustodyActivationCard from "@/components/CustodyActivationCard";
+import OnboardingChecklist from "@/components/OnboardingChecklist";
 
 /* ------------------------------------------------------------------ */
 /*  Serializable prop types (no functions, no Supabase, no Date)      */
@@ -220,6 +221,9 @@ export interface DashboardClientProps {
   // Invite
   memberCount: number;
 
+  // Onboarding
+  onboardingStep: number;
+
   // Type config for custody labels
   userId: string;
   parentColors: ParentColorMap;
@@ -277,6 +281,7 @@ export default function DashboardClient(props: DashboardClientProps) {
     childCards,
     mySwapDays,
     memberCount,
+    onboardingStep,
     visibleSections,
   } = props;
 
@@ -441,6 +446,16 @@ export default function DashboardClient(props: DashboardClientProps) {
           {custodySummary && <span> &middot; {custodySummary}</span>}
         </p>
       </div>
+
+      {/* === ONBOARDING CHECKLIST === */}
+      {onboardingStep < 4 && (
+        <OnboardingChecklist
+          step={onboardingStep}
+          hasGroup={onboardingStep >= 1}
+          hasChild={onboardingStep >= 2}
+          hasInvite={onboardingStep >= 3}
+        />
+      )}
 
       {/* === CUSTODY ACTIVATION CARD === */}
       {show("custodyActivation") && !custodyEnabled && memberCount >= 2 && firstChildName && (

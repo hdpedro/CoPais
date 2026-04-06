@@ -746,6 +746,7 @@ export default async function DashboardPage() {
     childCards,
     mySwapDays,
     memberCount: members?.length || 0,
+    onboardingStep: (profile as unknown as { onboarding_step: number | null })?.onboarding_step ?? 4,
     userId: user.id,
     parentColors,
     pendingDecisions: pendingDecisionsList.map(d => ({

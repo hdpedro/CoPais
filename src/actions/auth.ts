@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { sendWelcomeEmail } from "@/lib/emails/welcome";
 
 // Translate common Supabase auth errors to Portuguese
 function translateAuthError(message: string): string {
@@ -51,6 +52,9 @@ export async function signUp(formData: FormData) {
   }
 
   captureServerEvent(email, "user_signup", { has_invite: !!convite });
+
+  // Fire-and-forget welcome email
+  void sendWelcomeEmail(email, fullName);
 
   redirect("/verify-email");
 }
