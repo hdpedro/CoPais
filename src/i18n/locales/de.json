@@ -276,6 +276,8 @@
     "recurringActivity": "Dies ist eine wiederkehrende Aktivität",
     "responsibleForActivity": "Verantwortlich für die Aktivität",
     "changeResponsible": "Verantwortlichen ändern",
+    "assignResponsible": "Verantwortlichen zuweisen",
+    "noResponsible": "Kein Verantwortlicher zugewiesen",
     "responsibleChanged": "Verantwortlicher geändert",
     "teacher": "Lehrer(in)",
     "className": "Klasse",

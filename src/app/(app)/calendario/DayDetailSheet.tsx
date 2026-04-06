@@ -554,6 +554,25 @@ export default memo(function DayDetailSheet({
                                   )}
                                 </div>
                               )}
+                              {/* No responsible assigned — show "assign" button */}
+                              {!responsibleName && !act.assigned_to_name && Object.keys(memberNames).length > 0 && (
+                                <div className="flex items-center gap-2 text-[12px]">
+                                  <span>&#x1F464;</span>
+                                  <span className="text-[#9A8878]">{t("calendar.noResponsible")}</span>
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setChangingResponsible(changingResponsible === act.id ? null : act.id);
+                                      setResponsibleMode("pick");
+                                      setSelectedNewResponsible(null);
+                                    }}
+                                    className="ml-auto text-[10px] font-semibold text-[#D4735A] hover:text-[#D4623E] transition-colors"
+                                  >
+                                    {t("calendar.assignResponsible")}
+                                  </button>
+                                </div>
+                              )}
                               {/* Change responsible picker with "this day" / "all future" options */}
                               {changingResponsible === act.id && responsibleMode === "pick" && (
                                 <div className="bg-blue-50 border border-blue-200 rounded-lg p-2.5 animate-[fadeIn_150ms_ease-out]">
