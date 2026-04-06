@@ -156,15 +156,15 @@ export default memo(function DayDetailSheet({
         setSelectedNewResponsible(null);
         const newName = Object.entries(memberNames).find(([id]) => id === newResponsibleId)?.[1] || "";
         setResponsibleSuccess(newName);
-        setTimeout(() => setResponsibleSuccess(null), 4000);
-        router.refresh();
+        // Force full page reload to refetch server data (router.refresh doesn't always work)
+        setTimeout(() => globalThis.location.reload(), 1500);
       }
     } catch {
       // ignore
     } finally {
       setResponsibleSaving(false);
     }
-  }, [dateKey, router, memberNames]);
+  }, [dateKey, memberNames]);
 
   const handleChangeResponsibleAll = useCallback(async (activityId: string, newResponsibleId: string) => {
     setResponsibleSaving(true);
@@ -179,15 +179,14 @@ export default memo(function DayDetailSheet({
         setSelectedNewResponsible(null);
         const newName = Object.entries(memberNames).find(([id]) => id === newResponsibleId)?.[1] || "";
         setResponsibleSuccess(newName);
-        setTimeout(() => setResponsibleSuccess(null), 4000);
-        router.refresh();
+        setTimeout(() => globalThis.location.reload(), 1500);
       }
     } catch {
       // ignore
     } finally {
       setResponsibleSaving(false);
     }
-  }, [router, memberNames]);
+  }, [memberNames]);
 
   async function handleToggleChecklist(activityId: string, itemId: string, completed: boolean) {
     // Optimistic update
