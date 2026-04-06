@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/auth-helper";
 import { getActiveGroup } from "@/lib/group-utils";
 import { getBrazilToday, formatDateKey, type ParentColorMap } from "@/lib/calendar-utils";
 import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
@@ -16,8 +16,7 @@ const WeeklySummaryClient = dynamic(() => import("./WeeklySummaryClient"), {
 });
 
 export default async function SemanaPage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSessionUser();
   if (!user) redirect("/login");
 
   const activeGroup = await getActiveGroup(supabase, user.id);

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/auth-helper";
 import { getActiveGroup } from "@/lib/group-utils";
 import { autoAcceptPendingInvitations } from "@/actions/invitation";
 import { formatDateKey, computeSwapBalance, getBrazilNow, getBrazilToday, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
@@ -24,8 +24,7 @@ const DashboardClient = dynamic(() => import("./DashboardClient"), {
 
 export default async function DashboardPage() {
   const nowMs = Date.now(); // eslint-disable-line react-hooks/purity
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSessionUser();
   if (!user) redirect("/login");
 
   // === BATCH 1: profile + activeGroup (parallel, only need user.id) ===

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
+import { getSessionUser } from "@/lib/supabase/auth-helper";
 import { getActiveGroup } from "@/lib/group-utils";
 import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
 import {
@@ -23,8 +23,7 @@ const CalendarClient = dynamic(() => import("./CalendarClient"), {
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ day?: string; eventId?: string }> }) {
   const params = await searchParams;
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const { supabase, user } = await getSessionUser();
   if (!user) redirect("/login");
 
   const activeGroup = await getActiveGroup(supabase, user.id);

@@ -17,7 +17,10 @@ export default async function AppLayout({
 }) {
   const supabase = await createClient();
 
-  const { data: { user } } = await supabase.auth.getUser();
+  // Use getSession() instead of getUser() — reads from cookie (no network call)
+  // The middleware already validated the user with getUser() on every request
+  const { data: { session } } = await supabase.auth.getSession();
+  const user = session?.user;
 
   if (!user) {
     redirect("/login");
