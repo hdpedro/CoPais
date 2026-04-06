@@ -924,6 +924,14 @@ export async function changeActivityResponsibleAll(
 
   if (error) return { error: error.message };
 
+  // Clear all existing responsible_overrides for this activity
+  // (so the new permanent responsible takes effect everywhere)
+  await adminDb
+    .from("activity_reports")
+    .update({ responsible_override: null })
+    .eq("activity_id", activityId)
+    .not("responsible_override", "is", null);
+
   // Get the name of the new responsible
   const { data: newResponsibleProfile } = await supabase
     .from("profiles")
