@@ -87,6 +87,7 @@ export default memo(function DayDetailSheet({
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [changingResponsible, setChangingResponsible] = useState<string | null>(null);
   const [responsibleSaving, setResponsibleSaving] = useState(false);
+  const [responsibleSuccess, setResponsibleSuccess] = useState<string | null>(null);
   const [checklistExpanded, setChecklistExpanded] = useState<string | null>(null);
   const [optimisticChecklist, setOptimisticChecklist] = useState<Record<string, Record<string, boolean>>>({});
   const [responsibleMode, setResponsibleMode] = useState<"pick" | "confirm">("pick");
@@ -144,6 +145,7 @@ export default memo(function DayDetailSheet({
 
   const handleChangeResponsible = useCallback(async (activityId: string, newResponsibleId: string) => {
     setResponsibleSaving(true);
+    setResponsibleSuccess(null);
     try {
       const result = await changeActivityResponsible(activityId, dateKey, newResponsibleId);
       if (result?.error) {
@@ -152,6 +154,9 @@ export default memo(function DayDetailSheet({
         setChangingResponsible(null);
         setResponsibleMode("pick");
         setSelectedNewResponsible(null);
+        const newName = Object.entries(memberNames).find(([id]) => id === newResponsibleId)?.[1] || "";
+        setResponsibleSuccess(newName);
+        setTimeout(() => setResponsibleSuccess(null), 4000);
         router.refresh();
       }
     } catch {
@@ -159,10 +164,11 @@ export default memo(function DayDetailSheet({
     } finally {
       setResponsibleSaving(false);
     }
-  }, [dateKey, router]);
+  }, [dateKey, router, memberNames]);
 
   const handleChangeResponsibleAll = useCallback(async (activityId: string, newResponsibleId: string) => {
     setResponsibleSaving(true);
+    setResponsibleSuccess(null);
     try {
       const result = await changeActivityResponsibleAll(activityId, newResponsibleId);
       if (result?.error) {
@@ -171,6 +177,9 @@ export default memo(function DayDetailSheet({
         setChangingResponsible(null);
         setResponsibleMode("pick");
         setSelectedNewResponsible(null);
+        const newName = Object.entries(memberNames).find(([id]) => id === newResponsibleId)?.[1] || "";
+        setResponsibleSuccess(newName);
+        setTimeout(() => setResponsibleSuccess(null), 4000);
         router.refresh();
       }
     } catch {
@@ -178,7 +187,7 @@ export default memo(function DayDetailSheet({
     } finally {
       setResponsibleSaving(false);
     }
-  }, [router]);
+  }, [router, memberNames]);
 
   async function handleToggleChecklist(activityId: string, itemId: string, completed: boolean) {
     // Optimistic update
@@ -442,6 +451,13 @@ export default memo(function DayDetailSheet({
                 </svg>
                 {t("calendar.activities")}
               </p>
+              {/* Success message after changing responsible */}
+              {responsibleSuccess && (
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-[#2E7268]/10 border border-[#2E7268]/15 rounded-xl text-[12px] text-[#2E7268] font-medium animate-[fadeIn_200ms_ease-out]">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2E7268" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
+                  Responsavel alterado para <strong>{responsibleSuccess}</strong>
+                </div>
+              )}
               <div className="space-y-2">
                 {activities.map((act) => {
                   const cat = ACTIVITY_CATEGORIES.find((c) => c.value === act.category);
