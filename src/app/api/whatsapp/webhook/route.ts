@@ -68,9 +68,16 @@ export async function POST(req: NextRequest) {
 
     const payload: WAWebhookPayload = JSON.parse(rawBody);
 
+    console.log("[WA-WEBHOOK] Payload entries:", payload.entry?.length || 0);
+
     // Process each entry
     for (const entry of payload.entry || []) {
       for (const change of entry.changes || []) {
+        console.log("[WA-WEBHOOK] Change field:", change.field,
+          "hasMessages:", !!(change.value?.messages?.length),
+          "hasStatuses:", !!(change.value?.statuses?.length),
+          "msgCount:", change.value?.messages?.length || 0);
+
         if (change.field !== "messages") continue;
 
         const value = change.value;
@@ -80,23 +87,25 @@ export async function POST(req: NextRequest) {
           const contactName = value.contacts?.[0]?.profile?.name;
 
           for (const msg of value.messages) {
+            console.log("[WA-WEBHOOK] Message:", msg.type, "from:", msg.from, "text:", msg.text?.body?.slice(0, 30));
             const extracted = extractMessage(msg, contactName);
             if (extracted) {
               try {
                 await processWhatsAppMessage(extracted);
+                console.log("[WA-WEBHOOK] Processing completed successfully");
               } catch (err) {
                 console.error("[WA-WEBHOOK] Processing error:", err instanceof Error ? err.message : err);
                 console.error("[WA-WEBHOOK] Stack:", err instanceof Error ? err.stack : "no stack");
               }
+            } else {
+              console.log("[WA-WEBHOOK] Message extraction returned null for type:", msg.type);
             }
           }
         }
 
         // Status updates (delivery/read receipts) — log only
         if (value.statuses && value.statuses.length > 0) {
-          for (const status of value.statuses) {
-            console.log(`[WA-WEBHOOK] Status: ${status.id} → ${status.status}`);
-          }
+          console.log("[WA-WEBHOOK] Status updates:", value.statuses.length);
         }
       }
     }
