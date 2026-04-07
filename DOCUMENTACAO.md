@@ -40,7 +40,7 @@ src/
 ├── app/
 │   ├── (auth)/       # Rotas publicas (login, signup, etc.)
 │   ├── (app)/        # Rotas protegidas (dashboard, calendario, etc.)
-│   └── api/          # API Routes (13 endpoints)
+│   └── api/          # API Routes (14 endpoints, inclui /api/whatsapp/webhook)
 ├── components/       # Componentes globais (13 arquivos)
 │   ├── BottomNav.tsx, Sidebar.tsx, ResponsiveShell.tsx
 │   ├── GroupSelector.tsx, LanguageSelector.tsx
@@ -56,8 +56,18 @@ src/
 │   │   ├── providers/     # Groq, Together, Gemini providers
 │   │   ├── router.ts      # Multi-provider router (Groq → Together → Gemini fallback)
 │   │   ├── image-utils.ts # Compressao de imagem para vision APIs
+│   │   ├── assistant-shared.ts # Logica compartilhada entre AI assistant in-app e WhatsApp
 │   │   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts, ai-tools.ts
 │   │   └── parser/        # Invite Parser modular (types, interface, ocr, groq-event-parser, pilot-parser, index)
+│   ├── whatsapp/          # Modulo WhatsApp IA (Kindar Assistente)
+│   │   ├── types.ts       # Tipos do payload Meta Cloud API
+│   │   ├── client.ts      # Cliente Meta API (enviar texto, botoes, templates, download midia)
+│   │   ├── signature.ts   # Verificacao HMAC-SHA256 do webhook
+│   │   ├── identity.ts    # Resolucao phone → profile + selecao de grupo
+│   │   ├── session.ts     # Gerenciamento de estado da conversa (confirmacoes pendentes)
+│   │   ├── processor.ts   # Pipeline central (identity → session → parser → tools → response)
+│   │   ├── formatter.ts   # Formatacao de resposta (markdown → WhatsApp, limite 4096 chars)
+│   │   └── media.ts       # Download de midia + OCR de recibos via vision AI
 │   ├── constants.ts  # Constantes do app (cores, categorias, checklist items)
 │   ├── calendar-utils.ts  # Utilidades de data/calendario + computeSwapBalance()
 │   ├── recurrence-utils.ts # Motor de recorrencia (diario, semanal, etc.)
@@ -403,6 +413,31 @@ Tracking de uso para monetizacao futura.
 #### 30-38. Tabelas adicionais
 Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals`, entre outras criadas nas migrations de saude e financeiro.
 
+#### 39-42. WhatsApp Integration (Migration 00043)
+
+**39. whatsapp_phone_links** — Vinculacao de numero WhatsApp ao perfil do usuario.
+- `id`, `user_id` (FK profiles), `phone_number` (TEXT, UNIQUE, E.164), `phone_hash` (TEXT, SHA-256)
+- `verified_at`, `verification_code`, `verification_expires_at`
+- `active_group_id` (FK coparenting_groups), `is_active` (BOOLEAN), `lgpd_consent_at`
+- RLS: usuarios podem CRUD apenas seus proprios registros
+
+**40. whatsapp_sessions** — Estado da conversa WhatsApp (confirmacoes pendentes, grupo ativo).
+- `id`, `phone_number` (UNIQUE), `user_id` (FK profiles), `group_id` (FK coparenting_groups)
+- `state` (JSONB — pending_action, pending_params, pending_at, etc.)
+- `last_message_at`, `message_count`
+- RLS: apenas service role (webhook usa admin client)
+
+**41. whatsapp_message_logs** — Log de todas as mensagens WhatsApp (entrada e saida).
+- `id`, `phone_number`, `user_id` (FK profiles), `direction` (inbound/outbound)
+- `message_type` (text/image/interactive/template/audio), `content`, `media_url`
+- `wa_message_id`, `status`, `metadata` (JSONB)
+- RLS: usuarios podem ler seus proprios logs
+
+**42. whatsapp_notification_preferences** — Preferencias de notificacao WhatsApp por usuario.
+- `id`, `user_id` (FK profiles, UNIQUE), `daily_summary`, `event_reminders`
+- `expense_notifications`, `custody_alerts`, `quiet_hours_start`, `quiet_hours_end`
+- RLS: usuarios podem CRUD seus proprios registros
+
 ### Seguranca (Row Level Security)
 
 Todas as tabelas possuem RLS habilitado. Funcoes auxiliares:
@@ -462,6 +497,18 @@ Politicas garantem que:
 | `00028_activity_extra_fields.sql` | Campos teacher_name, class_name, room, responsible_id em child_activities |
 | `00029_activity_occurrence_overrides.sql` | Campo overrides (JSONB) em activity_reports para edits de ocorrencia unica |
 | `00030_ai_event_logs.sql` | Tabela `ai_event_logs` para logging do Invite Parser (raw_text, parsed_json, success, parser_type, processing_time_ms, ocr_confidence) |
+| `00031_ai_requests.sql` | Tabela `ai_requests` para logging de requests IA |
+| `00032_usage_events.sql` | Tabela `usage_events` para tracking de uso |
+| `00033_group_custody_flag.sql` | Flag `custody_enabled` em coparenting_groups |
+| `00035_emergency_token.sql` | Tokens de acesso de emergencia |
+| `00036_children_sex.sql` | Campo sexo em children |
+| `00037_symptom_diary.sql` | Diario de sintomas |
+| `00038_calendar_occurrences.sql` | Ocorrencias de calendario |
+| `00039_subscriptions.sql` | Tabela de subscricoes |
+| `00040_onboarding_step.sql` | Campo onboarding_step em profiles |
+| `00041_retention_events.sql` | Eventos de retencao |
+| `00042_user_health_score.sql` | View user_health_score |
+| `00043_whatsapp_tables.sql` | **WhatsApp Integration**: 4 tabelas (phone_links, sessions, message_logs, notification_preferences) + RLS + triggers |
 
 ---
 
@@ -748,7 +795,26 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 - **50 testes unitarios** (Vitest) com **98.5% de acuracia** em load test
 - API Routes: `/api/ai/assistant`, `/api/ai/context`
 
-### 27. Invite Parser — Adicionar via Convite (`/calendario/convite`)
+### 27. Kindar Assistente WhatsApp IA (`/api/whatsapp/webhook`)
+Canal WhatsApp que reutiliza 100% da infraestrutura do Assistente IA in-app.
+- **Pipeline**: `WhatsApp -> Webhook -> Parser IA -> Classificador -> Confirmacao -> Banco`
+- **Meta Cloud API direto** (sem Twilio): custo menor, botoes interativos nativos
+- **Webhook**: `POST /api/whatsapp/webhook` (receber mensagens) + `GET` (verificacao Meta)
+- **Seguranca**: HMAC-SHA256 em todo request, rate limit 30 msg/min por telefone
+- **Identity**: vinculacao phone -> perfil Kindar via OTP, multi-grupo com selecao interativa
+- **Sessao**: estado da conversa em JSONB (confirmacoes pendentes, grupo ativo, timeout 10 min)
+- **Parser local**: reutiliza `parseIntent()` (~80% dos comandos sem API)
+- **AI Router fallback**: reutiliza `routeToolsRequest()` (Groq -> Together -> Gemini)
+- **Confirmacao via botoes**: `[Confirmar] [Cancelar]` interativos do WhatsApp (nao texto)
+- **OCR de recibos**: foto -> `compressImageForVision()` -> `routeVisionRequest()` -> despesa
+- **Formatacao**: markdown -> WhatsApp (*bold*, _italic_), limite 4096 chars, split de mensagens longas
+- **Modulo**: `src/lib/whatsapp/` (8 arquivos: types, client, signature, identity, session, processor, formatter, media)
+- **Logica compartilhada**: `src/lib/ai/assistant-shared.ts` (buildAssistantContext, buildSystemPrompt, mapLocalActionToTool, CONFIRM_WORDS/CANCEL_WORDS)
+- **DB**: 4 tabelas (whatsapp_phone_links, whatsapp_sessions, whatsapp_message_logs, whatsapp_notification_preferences)
+- **Admin client**: todas operacoes DB via `createAdminClient()` (sem cookie de auth)
+- **LGPD**: consent timestamp na vinculacao, retencao de logs 90 dias
+
+### 28. Invite Parser — Adicionar via Convite (`/calendario/convite`)
 - Upload de foto ou PDF de convite de festa
 - **OCR via Tesseract.js** extrai texto da imagem (100% client-side, sem custo adicional)
 - **Groq LLM** interpreta o texto e estrutura os dados do evento (titulo, data, horario, local, notas)
@@ -932,7 +998,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 
 ---
 
-## API Routes (13 endpoints)
+## API Routes (14 endpoints)
 
 | Rota | Metodo | Funcao |
 |------|--------|--------|
@@ -950,6 +1016,7 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 | `/api/cron/custody-change` | GET | Cron: notificacao de mudanca de custodia |
 | `/api/push/chat` | POST | Push notification para nova mensagem |
 | `/api/push/subscribe` | POST | Registro de push subscription (VAPID) |
+| `/api/whatsapp/webhook` | GET/POST | WhatsApp webhook: GET verificacao Meta, POST receber mensagens. Pipeline: identity → session → parser → tools → confirmacao via botoes |
 
 ---
 
@@ -968,6 +1035,11 @@ TOGETHER_API_KEY=                # Chave API do Together (fallback IA)
 GEMINI_API_KEY=                  # Chave API do Gemini (ultimo recurso IA)
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=    # Chave publica VAPID (push)
 VAPID_PRIVATE_KEY=               # Chave privada VAPID
+WHATSAPP_ACCESS_TOKEN=           # Token permanente do System User Meta (WhatsApp)
+WHATSAPP_PHONE_NUMBER_ID=        # ID do numero de telefone WhatsApp
+WHATSAPP_BUSINESS_ACCOUNT_ID=    # ID da conta WhatsApp Business
+WHATSAPP_APP_SECRET=             # App Secret para validacao HMAC do webhook
+WHATSAPP_VERIFY_TOKEN=           # Token customizado para verificacao do webhook Meta
 ```
 
 ---

@@ -13,7 +13,8 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **Auth & Database:** Supabase (Auth, Postgres, Realtime, RLS)
 - **Estilo:** Tailwind CSS 4
 - **Linguagem:** TypeScript 5
-- **IA:** Multi-provider Router (Groq → Together → Gemini fallback) — assistente conversacional com function calling (12 tools), parsers robustos para PT-BR; Tesseract.js (OCR) para parser de convites de festa; Vision AI para leitura de carteirinha de vacinacao. Vision: Groq llama-4-scout → Together Llama-Vision-Free → Gemini 2.0 Flash. Text: Groq llama-3.3-70b → Together Llama-3.3-70B-Turbo-Free → Gemini 2.0 Flash
+- **IA:** Multi-provider Router (Groq → Together → Gemini fallback) — assistente conversacional com function calling (12 tools), parsers robustos para PT-BR; Tesseract.js (OCR) para parser de convites de festa; Vision AI para leitura de carteirinha de vacinacao e OCR de recibos (WhatsApp). Vision: Groq llama-4-scout → Together Llama-Vision-Free → Gemini 2.0 Flash. Text: Groq llama-3.3-70b → Together Llama-3.3-70B-Turbo-Free → Gemini 2.0 Flash
+- **WhatsApp IA:** Kindar Assistente via Meta Cloud API — webhook, parser local, confirmacao via botoes interativos, OCR de recibos, multi-grupo
 - **Deploy:** Vercel
 - **Analytics:** PostHog (30+ eventos rastreados)
 - **Error Tracking:** Sentry
@@ -27,8 +28,8 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 |---------|-----------|
 | Rotas (paginas + API) | 66 |
 | Server Actions | 84 funcoes em 23 arquivos |
-| Tabelas no banco | 38+ |
-| Migrations | 30 |
+| Tabelas no banco | 42+ |
+| Migrations | 43 |
 | Client Components | 36+ |
 | Componentes globais | 13 |
 | Chaves de traducao | ~1458 por idioma |

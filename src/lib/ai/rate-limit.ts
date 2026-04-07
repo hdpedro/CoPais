@@ -11,7 +11,7 @@ interface RateLimitBucket {
 const DEFAULT_WINDOW_MS = 60 * 1000; // 1 minute
 const DEFAULT_MAX_REQUESTS = 20; // 20 req/min per user (under Groq's 30 rpm)
 
-class AIRateLimiter {
+export class AIRateLimiter {
   private buckets = new Map<string, RateLimitBucket>();
   private windowMs: number;
   private maxRequests: number;
