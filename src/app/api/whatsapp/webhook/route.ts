@@ -82,10 +82,12 @@ export async function POST(req: NextRequest) {
           for (const msg of value.messages) {
             const extracted = extractMessage(msg, contactName);
             if (extracted) {
-              // Process asynchronously but within the function duration
-              processWhatsAppMessage(extracted).catch((err) => {
-                console.error("[WA-WEBHOOK] Processing error:", err);
-              });
+              try {
+                await processWhatsAppMessage(extracted);
+              } catch (err) {
+                console.error("[WA-WEBHOOK] Processing error:", err instanceof Error ? err.message : err);
+                console.error("[WA-WEBHOOK] Stack:", err instanceof Error ? err.stack : "no stack");
+              }
             }
           }
         }
