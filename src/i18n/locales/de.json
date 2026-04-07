@@ -1830,5 +1830,23 @@
     "upgradePrompt": "Upgraden Sie, um auf diese Funktion zuzugreifen.",
     "viewPlans": "Plane anzeigen",
     "downgrade": "Downgrade"
+  },
+  "whatsapp": {
+    "title": "WhatsApp-Assistent",
+    "description": "Verknupfe dein WhatsApp, um Kindar per Nachricht zu nutzen",
+    "phoneLabel": "WhatsApp-Nummer",
+    "phoneHint": "Format: +Landesvorwahl + Nummer (z.B. +5511999998888)",
+    "sendCode": "Verifizierungscode senden",
+    "codeSent": "Code gesendet! Prufe dein WhatsApp.",
+    "codeSentTo": "Code gesendet an",
+    "otpLabel": "Verifizierungscode",
+    "verify": "Verifizieren",
+    "changeNumber": "Nummer andern",
+    "linked": "WhatsApp erfolgreich verknupft!",
+    "connectedTo": "WhatsApp verbunden",
+    "connectedHint": "Sende Nachrichten an Kindar uber WhatsApp, um Ausgaben, Termine, Arztbesuche und mehr zu erfassen.",
+    "unlink": "WhatsApp trennen",
+    "unlinkConfirm": "Bist du sicher, dass du dein WhatsApp trennen mochtest?",
+    "unlinked": "WhatsApp getrennt."
   }
 }

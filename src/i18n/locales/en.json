@@ -1830,5 +1830,23 @@
     "upgradePrompt": "Upgrade to access this feature.",
     "viewPlans": "View plans",
     "downgrade": "Downgrade"
+  },
+  "whatsapp": {
+    "title": "WhatsApp Assistant",
+    "description": "Link your WhatsApp to use Kindar via messages",
+    "phoneLabel": "WhatsApp number",
+    "phoneHint": "Format: +country code + number (e.g. +5511999998888)",
+    "sendCode": "Send verification code",
+    "codeSent": "Code sent! Check your WhatsApp.",
+    "codeSentTo": "Code sent to",
+    "otpLabel": "Verification code",
+    "verify": "Verify",
+    "changeNumber": "Change number",
+    "linked": "WhatsApp linked successfully!",
+    "connectedTo": "WhatsApp connected",
+    "connectedHint": "Send messages to Kindar on WhatsApp to log expenses, events, appointments and more.",
+    "unlink": "Unlink WhatsApp",
+    "unlinkConfirm": "Are you sure you want to unlink your WhatsApp?",
+    "unlinked": "WhatsApp unlinked."
   }
 }

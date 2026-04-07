@@ -1830,5 +1830,23 @@
     "upgradePrompt": "Passez a la version superieure pour acceder a cette fonctionnalite.",
     "viewPlans": "Voir les plans",
     "downgrade": "Reclasser"
+  },
+  "whatsapp": {
+    "title": "Assistant WhatsApp",
+    "description": "Liez votre WhatsApp pour utiliser Kindar par messages",
+    "phoneLabel": "Numero WhatsApp",
+    "phoneHint": "Format: +indicatif pays + numero (ex: +5511999998888)",
+    "sendCode": "Envoyer le code de verification",
+    "codeSent": "Code envoye ! Verifiez votre WhatsApp.",
+    "codeSentTo": "Code envoye a",
+    "otpLabel": "Code de verification",
+    "verify": "Verifier",
+    "changeNumber": "Changer de numero",
+    "linked": "WhatsApp lie avec succes !",
+    "connectedTo": "WhatsApp connecte",
+    "connectedHint": "Envoyez des messages a Kindar sur WhatsApp pour enregistrer depenses, evenements, rendez-vous et plus.",
+    "unlink": "Delier WhatsApp",
+    "unlinkConfirm": "Etes-vous sur de vouloir delier votre WhatsApp ?",
+    "unlinked": "WhatsApp delie."
   }
 }
