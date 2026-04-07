@@ -52,13 +52,7 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get("x-hub-signature-256");
 
     const sigValid = verifyWebhookSignature(rawBody, signature);
-    console.log("[WA-WEBHOOK] POST received:", {
-      sigValid,
-      hasSignature: !!signature,
-      signaturePrefix: signature?.slice(0, 15),
-      hasAppSecret: !!process.env.WHATSAPP_APP_SECRET,
-      bodyLen: rawBody.length,
-    });
+    console.log("[WA-WEBHOOK] POST body:", rawBody.slice(0, 500));
 
     if (!sigValid) {
       console.error("[WA-WEBHOOK] Invalid signature — skipping verification temporarily for debug");
