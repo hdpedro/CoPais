@@ -34,6 +34,11 @@ async function sendMessage(payload: WASendPayload): Promise<WASendResponse> {
   const { accessToken, phoneNumberId } = getConfig();
   const url = `${GRAPH_API_BASE}/${phoneNumberId}/messages`;
 
+  // Meta API requires phone without '+' prefix
+  if (payload.to.startsWith("+")) {
+    payload.to = payload.to.slice(1);
+  }
+
   const res = await fetch(url, {
     method: "POST",
     headers: {

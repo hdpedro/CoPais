@@ -103,6 +103,13 @@ export async function processWhatsAppMessage(
   const supabase = createAdminClient();
   const phone = message.from;
 
+  console.log("[WA-PROCESSOR] Processing message:", {
+    from: phone,
+    type: message.type,
+    text: message.text?.slice(0, 50),
+    buttonReplyId: message.buttonReplyId,
+  });
+
   // Log inbound message
   await logMessage(
     supabase,
@@ -145,7 +152,15 @@ export async function processWhatsAppMessage(
 
   const identity = await resolveIdentity(supabase, phone);
 
+  console.log("[WA-PROCESSOR] Identity result:", {
+    needsLinking: identity.needsLinking,
+    needsVerification: identity.needsVerification,
+    needsGroupSelection: identity.needsGroupSelection,
+    hasResolved: !!identity.resolved,
+  });
+
   if (identity.needsLinking) {
+    console.log("[WA-PROCESSOR] Sending linking message to:", phone);
     await sendTextMessage(
       phone,
       "Ola! \uD83D\uDC4B Sou o Kindar, assistente de coparentalidade.\n\n" +
