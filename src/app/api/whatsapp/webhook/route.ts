@@ -23,12 +23,20 @@ export async function GET(req: NextRequest) {
 
   const verifyToken = process.env.WHATSAPP_VERIFY_TOKEN;
 
+  console.log("[WA-WEBHOOK] GET verification attempt:", {
+    mode,
+    tokenReceived: token?.slice(0, 10) + "...",
+    tokenExpected: verifyToken?.slice(0, 10) + "...",
+    hasChallenge: !!challenge,
+    match: token === verifyToken,
+  });
+
   if (mode === "subscribe" && token === verifyToken) {
     console.log("[WA-WEBHOOK] Verification successful");
     return new NextResponse(challenge, { status: 200 });
   }
 
-  console.error("[WA-WEBHOOK] Verification failed:", { mode, tokenMatch: token === verifyToken });
+  console.error("[WA-WEBHOOK] Verification failed:", { mode, tokenMatch: token === verifyToken, hasEnvVar: !!verifyToken });
   return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 }
 
