@@ -21,7 +21,7 @@ export default async function EscolaPage() {
       .eq("group_id", groupId),
     supabase
       .from("school_logs")
-      .select("*, children(full_name), profiles!school_logs_logged_by_fkey(full_name)")
+      .select("*, completed, children(full_name), profiles!school_logs_logged_by_fkey(full_name)")
       .eq("group_id", groupId)
       .order("log_date", { ascending: false })
       .limit(30),
@@ -35,6 +35,8 @@ export default async function EscolaPage() {
     description: log.description,
     log_type: log.log_type,
     log_date: log.log_date,
+    completed: log.completed ?? false,
+    logged_by: log.logged_by,
     children: (Array.isArray(log.children) ? log.children[0] : log.children) as { full_name?: string } | null,
     profiles: (Array.isArray(log.profiles) ? log.profiles[0] : log.profiles) as { full_name?: string } | null,
   }));
@@ -43,7 +45,7 @@ export default async function EscolaPage() {
     <EscolaClient
       groupId={groupId}
       isReadonly={isReadonly}
-      children={children || []}
+      childrenList={children || []}
       logs={serializedLogs}
       today={today}
     />
