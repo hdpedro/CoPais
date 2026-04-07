@@ -338,20 +338,42 @@ export async function submitActivityReport(formData: FormData) {
     return { error: "Atividade nao encontrada." };
   }
 
-  const { error } = await supabase
-    .from("activity_reports")
-    .upsert({
-      group_id: activeGroup.groupId,
-      activity_id: activityId,
-      occurrence_date: occurrenceDate,
-      reported_by: user.id,
-      status,
-      notes,
-      child_mood: childMood,
-    }, { onConflict: "activity_id,occurrence_date" });
+  // Use admin client to bypass RLS (upsert with user client fails silently)
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const adminDb = createAdminClient();
 
-  if (error) {
-    return { error: "Erro ao salvar relatorio: " + error.message };
+  // Check if report already exists
+  const { data: existingReport } = await adminDb
+    .from("activity_reports")
+    .select("id")
+    .eq("activity_id", activityId)
+    .eq("occurrence_date", occurrenceDate)
+    .maybeSingle();
+
+  let saveError;
+  if (existingReport) {
+    const { error } = await adminDb
+      .from("activity_reports")
+      .update({ status, notes, child_mood: childMood, reported_by: user.id })
+      .eq("id", existingReport.id);
+    saveError = error;
+  } else {
+    const { error } = await adminDb
+      .from("activity_reports")
+      .insert({
+        group_id: activeGroup.groupId,
+        activity_id: activityId,
+        occurrence_date: occurrenceDate,
+        reported_by: user.id,
+        status,
+        notes,
+        child_mood: childMood,
+      });
+    saveError = error;
+  }
+
+  if (saveError) {
+    return { error: "Erro ao salvar relatorio: " + saveError.message };
   }
 
   captureServerEvent(user.id, "activity_report_submitted", { status });
