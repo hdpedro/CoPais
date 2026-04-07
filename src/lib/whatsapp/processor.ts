@@ -161,12 +161,16 @@ export async function processWhatsAppMessage(
 
   if (identity.needsLinking) {
     console.log("[WA-PROCESSOR] Sending linking message to:", phone);
-    await sendTextMessage(
-      phone,
-      "Ola! \uD83D\uDC4B Sou o Kindar, assistente de coparentalidade.\n\n" +
-      "Para comecar, voce precisa vincular seu WhatsApp na sua conta Kindar.\n\n" +
-      "Acesse *kindar.com.br/perfil* e vincule seu numero na secao WhatsApp."
-    );
+    try {
+      const waId = await sendTextMessage(
+        phone,
+        "Ola! Sou o Kindar, assistente de coparentalidade.\n\nPara comecar, vincule seu WhatsApp na sua conta Kindar.\n\nAcesse kindar.com.br/perfil e vincule seu numero na secao WhatsApp."
+      );
+      console.log("[WA-PROCESSOR] Linking message sent, waId:", waId);
+    } catch (sendErr) {
+      console.error("[WA-PROCESSOR] SEND FAILED:", sendErr instanceof Error ? sendErr.message : sendErr);
+      console.error("[WA-PROCESSOR] SEND STACK:", sendErr instanceof Error ? sendErr.stack : "no stack");
+    }
     return;
   }
 
