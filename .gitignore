@@ -51,3 +51,5 @@ next-env.d.ts
 /android
 /out
 COnvite_Joaquim.jpeg
+
+.env*.local

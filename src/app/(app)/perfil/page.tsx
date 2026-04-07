@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getDisplayName } from "@/lib/constants";
 import ProfileContent from "./ProfileContent";
+import { getWhatsAppLinkStatus } from "@/actions/whatsapp";
 
 export default async function ProfilePage() {
   const supabase = await createClient();
@@ -27,8 +28,10 @@ export default async function ProfilePage() {
   const mappedMemberships = (memberships || []).map((m) => ({
     group_id: m.group_id,
     role: m.role,
-    groupName: (m.coparenting_groups as any)?.name || "—",
+    groupName: (m.coparenting_groups as unknown as { name: string } | null)?.name || "—",
   }));
+
+  const waStatus = await getWhatsAppLinkStatus();
 
   return (
     <ProfileContent
@@ -39,6 +42,8 @@ export default async function ProfilePage() {
       createdAt={createdAt}
       currentName={profile?.full_name || ""}
       memberships={mappedMemberships}
+      whatsappStatus={waStatus?.status || "unlinked"}
+      whatsappPhone={waStatus?.status !== "unlinked" ? waStatus?.phone : undefined}
     />
   );
 }

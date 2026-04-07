@@ -1811,5 +1811,23 @@
     "upgradePrompt": "Faca upgrade para acessar este recurso.",
     "viewPlans": "Ver planos",
     "downgrade": "Fazer downgrade"
+  },
+  "whatsapp": {
+    "title": "WhatsApp Assistente",
+    "description": "Vincule seu WhatsApp para usar o Kindar por mensagem",
+    "phoneLabel": "Numero do WhatsApp",
+    "phoneHint": "Formato: +55 DDD + numero (ex: +5511999998888)",
+    "sendCode": "Enviar codigo de verificacao",
+    "codeSent": "Codigo enviado! Verifique seu WhatsApp.",
+    "codeSentTo": "Codigo enviado para",
+    "otpLabel": "Codigo de verificacao",
+    "verify": "Verificar",
+    "changeNumber": "Alterar numero",
+    "linked": "WhatsApp vinculado com sucesso!",
+    "connectedTo": "WhatsApp conectado",
+    "connectedHint": "Envie mensagens para o Kindar pelo WhatsApp para registrar despesas, eventos, consultas e mais.",
+    "unlink": "Desvincular WhatsApp",
+    "unlinkConfirm": "Tem certeza que deseja desvincular seu WhatsApp?",
+    "unlinked": "WhatsApp desvinculado."
   }
 }

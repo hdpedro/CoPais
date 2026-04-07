@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import EditProfileForm from "./EditProfileForm";
+import WhatsAppLinkSection from "./WhatsAppLinkSection";
 import LanguageSelector from "@/components/LanguageSelector";
 import { signOut } from "@/actions/auth";
 
@@ -20,6 +21,8 @@ export default function ProfileContent({
   createdAt,
   currentName,
   memberships,
+  whatsappStatus,
+  whatsappPhone,
 }: {
   displayName: string;
   email: string;
@@ -28,6 +31,8 @@ export default function ProfileContent({
   createdAt: string;
   currentName: string;
   memberships: Membership[];
+  whatsappStatus: "unlinked" | "pending" | "linked";
+  whatsappPhone?: string;
 }) {
   const { t } = useI18n();
 
@@ -100,6 +105,9 @@ export default function ProfileContent({
           </div>
         </div>
       )}
+
+      {/* WhatsApp */}
+      <WhatsAppLinkSection initialStatus={whatsappStatus} initialPhone={whatsappPhone} />
 
       {/* Language Selector */}
       <LanguageSelector />

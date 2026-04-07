@@ -222,11 +222,11 @@ export async function processWhatsAppMessage(
   /* Step 5: Handle pending confirmation                               */
   /* ================================================================ */
 
-  if (hasPendingConfirmation(session) && message.text) {
-    const userText = message.text.trim();
+  if (hasPendingConfirmation(session) && (message.text || message.buttonReplyId)) {
+    const userText = (message.text || "").trim();
 
     // Button reply: confirm/cancel
-    if (message.buttonReplyId === "confirm" || CONFIRM_WORDS.test(userText)) {
+    if (message.buttonReplyId === "confirm" || (userText && CONFIRM_WORDS.test(userText))) {
       const { pending_action, pending_params } = session.state;
       if (pending_action && pending_params) {
         const { toolCtx } = await buildAssistantContext(supabase, userId, groupId);
@@ -261,7 +261,7 @@ export async function processWhatsAppMessage(
       return;
     }
 
-    if (message.buttonReplyId === "cancel" || CANCEL_WORDS.test(userText)) {
+    if (message.buttonReplyId === "cancel" || (userText && CANCEL_WORDS.test(userText))) {
       await clearPendingAction(supabase, session.id);
       await sendTextMessage(phone, "\u274C Acao cancelada. Como posso ajudar?");
       return;

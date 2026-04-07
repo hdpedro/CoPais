@@ -120,7 +120,7 @@ export async function setActiveGroup(
 
   const { error } = await supabase
     .from("whatsapp_phone_links")
-    .update({ active_group_id: groupId })
+    .update({ active_group_id: groupId || null })
     .eq("phone_hash", hash)
     .eq("is_active", true);
 
