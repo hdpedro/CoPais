@@ -39,6 +39,8 @@ async function sendMessage(payload: WASendPayload): Promise<WASendResponse> {
     payload.to = payload.to.slice(1);
   }
 
+  console.log("[WA-CLIENT] Sending to:", payload.to, "type:", payload.type);
+
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -48,13 +50,15 @@ async function sendMessage(payload: WASendPayload): Promise<WASendResponse> {
     body: JSON.stringify(payload),
   });
 
+  const responseBody = await res.text();
+  console.log("[WA-CLIENT] Response:", res.status, responseBody.slice(0, 200));
+
   if (!res.ok) {
-    const error = await res.json().catch(() => ({ error: { message: res.statusText } }));
-    console.error("[WA-CLIENT] Send error:", JSON.stringify(error));
-    throw new Error(`WhatsApp API error ${res.status}: ${error?.error?.message || res.statusText}`);
+    console.error("[WA-CLIENT] Send error:", res.status, responseBody);
+    throw new Error(`WhatsApp API error ${res.status}: ${responseBody.slice(0, 200)}`);
   }
 
-  return res.json();
+  return JSON.parse(responseBody);
 }
 
 /* ------------------------------------------------------------------ */
