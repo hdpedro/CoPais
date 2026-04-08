@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
     const signature = req.headers.get("x-hub-signature-256");
 
     const sigValid = verifyWebhookSignature(rawBody, signature);
-    console.log("[WA-WEBHOOK] POST body:", rawBody.slice(0, 500));
+    console.log("[WA-WEBHOOK] POST len:", rawBody.length, "field:", rawBody.includes('"messages"') ? "has-messages" : "status-only");
 
     if (!sigValid) {
       console.error("[WA-WEBHOOK] Invalid signature — skipping verification temporarily for debug");
@@ -62,44 +62,24 @@ export async function POST(req: NextRequest) {
 
     const payload: WAWebhookPayload = JSON.parse(rawBody);
 
-    console.log("[WA-WEBHOOK] Payload entries:", payload.entry?.length || 0);
-
-    // Process each entry
+    // Process inline — find messages and handle them
     for (const entry of payload.entry || []) {
       for (const change of entry.changes || []) {
-        console.log("[WA-WEBHOOK] Change field:", change.field,
-          "hasMessages:", !!(change.value?.messages?.length),
-          "hasStatuses:", !!(change.value?.statuses?.length),
-          "msgCount:", change.value?.messages?.length || 0);
-
         if (change.field !== "messages") continue;
-
         const value = change.value;
 
-        // Process messages
         if (value.messages && value.messages.length > 0) {
           const contactName = value.contacts?.[0]?.profile?.name;
-
           for (const msg of value.messages) {
-            console.log("[WA-WEBHOOK] Message:", msg.type, "from:", msg.from, "text:", msg.text?.body?.slice(0, 30));
             const extracted = extractMessage(msg, contactName);
             if (extracted) {
               try {
                 await processWhatsAppMessage(extracted);
-                console.log("[WA-WEBHOOK] Processing completed successfully");
               } catch (err) {
-                console.error("[WA-WEBHOOK] Processing error:", err instanceof Error ? err.message : err);
-                console.error("[WA-WEBHOOK] Stack:", err instanceof Error ? err.stack : "no stack");
+                console.error("[WA-WEBHOOK] Process error:", err);
               }
-            } else {
-              console.log("[WA-WEBHOOK] Message extraction returned null for type:", msg.type);
             }
           }
-        }
-
-        // Status updates (delivery/read receipts) — log only
-        if (value.statuses && value.statuses.length > 0) {
-          console.log("[WA-WEBHOOK] Status updates:", value.statuses.length);
         }
       }
     }

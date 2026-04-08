@@ -19,6 +19,13 @@ function getConfig() {
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
+  console.log("[WA-CLIENT] Config check:", {
+    hasToken: !!accessToken,
+    tokenLen: accessToken?.length || 0,
+    hasPhoneId: !!phoneNumberId,
+    phoneId: phoneNumberId,
+  });
+
   if (!accessToken || !phoneNumberId) {
     throw new Error("WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID are required");
   }
