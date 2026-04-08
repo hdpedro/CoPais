@@ -1,12 +1,13 @@
 /* ------------------------------------------------------------------ */
 /* AI Router — tries providers in order until one succeeds              */
 /*                                                                      */
-/*   Request → [Groq] → falhou? → [Together] → falhou? → [Gemini]     */
+/*   Request → [OpenAI] → [Groq] → [Together] → [Gemini]             */
 /*                                                                      */
 /* Supports: vision, text, and function calling (tools)                 */
 /* ------------------------------------------------------------------ */
 
 import { AIProvider } from "./providers/types";
+import { OpenAIProvider } from "./providers/openai";
 import { GroqProvider } from "./providers/groq";
 import { TogetherProvider } from "./providers/together";
 import { GeminiProvider } from "./providers/gemini";
@@ -19,6 +20,7 @@ import {
 
 /** Provider chain in priority order */
 const PROVIDERS: AIProvider[] = [
+  new OpenAIProvider(),
   new GroqProvider(),
   new TogetherProvider(),
   new GeminiProvider(),
