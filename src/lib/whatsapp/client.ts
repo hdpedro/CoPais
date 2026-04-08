@@ -19,13 +19,6 @@ function getConfig() {
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN;
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID;
 
-  console.log("[WA-CLIENT] Config check:", {
-    hasToken: !!accessToken,
-    tokenLen: accessToken?.length || 0,
-    hasPhoneId: !!phoneNumberId,
-    phoneId: phoneNumberId,
-  });
-
   if (!accessToken || !phoneNumberId) {
     throw new Error("WHATSAPP_ACCESS_TOKEN and WHATSAPP_PHONE_NUMBER_ID are required");
   }
@@ -46,8 +39,6 @@ async function sendMessage(payload: WASendPayload): Promise<WASendResponse> {
     payload.to = payload.to.slice(1);
   }
 
-  console.log("[WA-CLIENT] Sending to:", payload.to, "type:", payload.type);
-
   const res = await fetch(url, {
     method: "POST",
     headers: {
@@ -57,15 +48,13 @@ async function sendMessage(payload: WASendPayload): Promise<WASendResponse> {
     body: JSON.stringify(payload),
   });
 
-  const responseBody = await res.text();
-  console.log("[WA-CLIENT] Response:", res.status, responseBody.slice(0, 200));
-
   if (!res.ok) {
-    console.error("[WA-CLIENT] Send error:", res.status, responseBody);
-    throw new Error(`WhatsApp API error ${res.status}: ${responseBody.slice(0, 200)}`);
+    const error = await res.json().catch(() => ({ error: { message: res.statusText } }));
+    console.error("[WA-CLIENT] Send error:", JSON.stringify(error));
+    throw new Error(`WhatsApp API error ${res.status}: ${error?.error?.message || res.statusText}`);
   }
 
-  return JSON.parse(responseBody);
+  return res.json();
 }
 
 /* ------------------------------------------------------------------ */
