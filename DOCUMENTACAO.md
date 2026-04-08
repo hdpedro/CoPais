@@ -808,7 +808,8 @@ Canal WhatsApp que reutiliza 100% da infraestrutura do Assistente IA in-app.
 - **Confirmacao via botoes**: `[Confirmar] [Cancelar]` interativos do WhatsApp (nao texto)
 - **OCR de recibos**: foto -> `compressImageForVision()` -> `routeVisionRequest()` -> despesa
 - **Formatacao**: markdown -> WhatsApp (*bold*, _italic_), limite 4096 chars, split de mensagens longas
-- **Modulo**: `src/lib/whatsapp/` (8 arquivos: types, client, signature, identity, session, processor, formatter, media)
+- **Transcricao de audio**: audio WhatsApp -> Groq Whisper (gratis) -> texto -> processamento normal
+- **Modulo**: `src/lib/whatsapp/` (9 arquivos: types, client, signature, identity, session, processor, formatter, media, audio)
 - **Logica compartilhada**: `src/lib/ai/assistant-shared.ts` (buildAssistantContext, buildSystemPrompt, mapLocalActionToTool, CONFIRM_WORDS/CANCEL_WORDS)
 - **DB**: 4 tabelas (whatsapp_phone_links, whatsapp_sessions, whatsapp_message_logs, whatsapp_notification_preferences)
 - **Admin client**: todas operacoes DB via `createAdminClient()` (sem cookie de auth)

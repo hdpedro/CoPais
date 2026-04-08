@@ -37,6 +37,7 @@ import {
 } from "./client";
 import { formatForWhatsApp, splitMessage } from "./formatter";
 import { processReceiptImage } from "./media";
+import { transcribeAudio } from "./audio";
 import { WAExtractedMessage } from "./types";
 
 const MAX_TOOL_ROUNDS = 3;
@@ -127,9 +128,18 @@ export async function processWhatsAppMessage(
   /* Step 1: Handle unsupported message types                          */
   /* ================================================================ */
 
-  if (message.type === "audio") {
-    await sendTextMessage(phone, "Desculpe, ainda nao consigo ouvir audios. Por favor, digite sua mensagem. \uD83D\uDE4F");
-    return;
+  if (message.type === "audio" && message.mediaId) {
+    await sendTextMessage(phone, "\uD83C\uDFA7 Ouvindo seu audio...");
+    const transcription = await transcribeAudio(message.mediaId, message.mediaMimeType);
+    if (transcription) {
+      // Replace message text with transcription and continue processing
+      message.text = transcription;
+      message.type = "text";
+      // Fall through to text processing below
+    } else {
+      await sendTextMessage(phone, "Nao consegui entender o audio. Pode digitar a mensagem? \uD83D\uDE4F");
+      return;
+    }
   }
 
   if (message.type === "video" || message.type === "sticker" || message.type === "contacts") {
