@@ -8,6 +8,7 @@ import { verifyGroupMembership } from "@/lib/auth-utils";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { createNotificationWithPush } from "@/lib/push";
 import { postChatNotification } from "@/lib/chat-notify";
+import { notifyGroupViaWhatsApp } from "@/lib/whatsapp/notify";
 
 export async function createExpense(formData: FormData) {
   const supabase = await createClient();
@@ -152,6 +153,13 @@ export async function createExpense(formData: FormData) {
       await postChatNotification(
         supabase, groupId, user.id,
         `💰 Nova despesa: ${description} — R$ ${amount.toFixed(2)}`
+      );
+
+      // WhatsApp notification
+      await notifyGroupViaWhatsApp(
+        groupId,
+        user.id,
+        `\uD83D\uDCB0 *Nova despesa registrada*\n\n${senderName} registrou: ${description}\nValor: R$ ${amount.toFixed(2).replace(".", ",")}\n\nAcesse kindar.com.br/despesas para ver detalhes.`
       );
     } catch {
       // Notification failures are non-critical

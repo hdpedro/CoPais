@@ -1,6 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans, Cormorant_Garamond } from "next/font/google";
 import "./globals.css";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ServiceWorkerRegister } from "./sw-register";
 import AuthSessionProvider from "@/components/AuthSessionProvider";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
@@ -93,6 +95,8 @@ export default function RootLayout({
       </head>
       <body className={`${jakarta.variable} ${cormorant.variable} antialiased`}>
         {children}
+        <Analytics />
+        <SpeedInsights />
         <AuthSessionProvider />
         <ServiceWorkerRegister />
         <PWAInstallBanner />
