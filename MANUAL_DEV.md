@@ -262,6 +262,7 @@ supabase/migrations/00022_child_profile_tabs.sql
 | `00028_activity_extra_fields.sql` | Campos teacher_name, class_name, room, responsible_id em child_activities |
 | `00029_activity_occurrence_overrides.sql` | Campo overrides (JSONB) em activity_reports |
 | `00030_ai_event_logs.sql` | Tabela `ai_event_logs` para logging do Invite Parser (OCR + LLM) |
+| `00045_event_requests_and_history.sql` | **Event Approval System**: tabelas `event_requests` + `event_history` + notification_type enum + RLS |
 
 ### 4.5 Verificar a Instalacao
 
@@ -552,7 +553,7 @@ Kindar/
     │   ├── children.ts               # upsertChildEducation
     │   ├── decisions.ts              # createDecision, voteDecision
     │   ├── expenses.ts               # createExpense, updateExpenseStatus
-    │   ├── events.ts                 # createEvent, updateEvent, deleteEvent, cancelEvent
+    │   ├── events.ts                 # createEvent, updateEvent, deleteEvent, cancelEvent, respondToEventRequest, getPendingEventRequests
     │   ├── group.ts                  # createGroup, joinGroup
     │   ├── group-switch.ts           # switchActiveGroup
     │   ├── health.ts                 # createHealthLog, createAppointment, createMedication, etc.
@@ -765,10 +766,13 @@ export async function minhaAction(formData: FormData) {
 | `upsertChildEducation` | children.ts | Cria/atualiza informacoes escolares da crianca |
 | `uploadDocument` | documents.ts | Upload de documento |
 | `createAgreement` | agreements.ts | Registra acordo |
-| `createEvent` | events.ts | Cria evento social |
-| `updateEvent` | events.ts | Atualiza evento social |
-| `deleteEvent` | events.ts | Remove evento social |
-| `cancelEvent` | events.ts | Cancela evento social (soft delete) |
+| `createEvent` | events.ts | Cria evento social + notifica grupo + salva history |
+| `updateEvent` | events.ts | Atualiza evento (criador: direto + notifica; outro: cria request) |
+| `deleteEvent` | events.ts | Remove evento (criador: direto + notifica; outro: cria request) |
+| `cancelEvent` | events.ts | Cancela evento (criador: direto + notifica; outro: cria request) |
+| `respondToEventRequest` | events.ts | Aprova/rejeita request com validacao de snapshot |
+| `getPendingEventRequests` | events.ts | Lista requests pendentes do grupo |
+| `eventHasPendingRequest` | events.ts | Verifica se evento tem request pendente |
 | `createActivity` | activities.ts | Cria atividade com checklist + push notification |
 | `deleteActivity` | activities.ts | Remove atividade e checklist items |
 | `toggleChecklistItem` | activities.ts | Marca/desmarca item do checklist por ocorrencia |

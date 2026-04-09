@@ -6,6 +6,102 @@ import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
 import { postChatNotification } from "@/lib/chat-notify";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { createNotificationWithPush } from "@/lib/push";
+
+// ============================================================
+// HELPERS
+// ============================================================
+
+async function getOtherGroupMembers(
+  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
+  groupId: string,
+  excludeUserId: string
+): Promise<string[]> {
+  const { data } = await supabase
+    .from("group_members")
+    .select("user_id")
+    .eq("group_id", groupId)
+    .neq("user_id", excludeUserId);
+  return data?.map((m: { user_id: string }) => m.user_id) || [];
+}
+
+async function saveEventHistory(
+  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
+  params: {
+    eventId: string;
+    groupId: string;
+    actionType: string;
+    performedBy: string;
+    before?: Record<string, unknown> | null;
+    after?: Record<string, unknown> | null;
+    metadata?: Record<string, unknown> | null;
+  }
+) {
+  try {
+    await supabase.from("event_history").insert({
+      event_id: params.eventId,
+      group_id: params.groupId,
+      action_type: params.actionType,
+      performed_by: params.performedBy,
+      before_snapshot: params.before || null,
+      after_snapshot: params.after || null,
+      metadata: params.metadata || null,
+    });
+  } catch {
+    // History failure should not block main action
+  }
+}
+
+async function cancelPendingRequests(
+  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
+  eventId: string,
+  reason: string
+) {
+  try {
+    await supabase
+      .from("event_requests")
+      .update({
+        status: "cancelled_by_system",
+        cancelled_reason: reason,
+        responded_at: new Date().toISOString(),
+      })
+      .eq("event_id", eventId)
+      .eq("status", "pending");
+  } catch {
+    // Failure should not block main action
+  }
+}
+
+async function getUserName(
+  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
+  userId: string
+): Promise<string> {
+  const { data } = await supabase
+    .from("profiles")
+    .select("full_name")
+    .eq("id", userId)
+    .single();
+  return data?.full_name?.split(" ")[0] || "Alguem";
+}
+
+async function notifyGroupMembers(
+  supabase: ReturnType<typeof createClient> extends Promise<infer T> ? T : never,
+  groupId: string,
+  excludeUserId: string,
+  type: string,
+  title: string,
+  message: string,
+  link: string
+) {
+  const members = await getOtherGroupMembers(supabase, groupId, excludeUserId);
+  await Promise.allSettled(
+    members.map((uid) => createNotificationWithPush(uid, type, title, message, link))
+  );
+}
+
+// ============================================================
+// CREATE EVENT
+// ============================================================
 
 export async function createEvent(formData: FormData) {
   const supabase = await createClient();
@@ -102,11 +198,24 @@ export async function createEvent(formData: FormData) {
     });
   }
 
-  const { error } = await supabase.from("events").insert(eventRows);
+  const { data: insertedEvents, error } = await supabase.from("events").insert(eventRows).select("id");
 
   if (error) redirect("/calendario?error=" + encodeURIComponent(error.message));
 
   captureServerEvent(user.id, "event_created", { category: "calendar", title });
+
+  // Save history for created events
+  if (insertedEvents) {
+    for (const ev of insertedEvents) {
+      await saveEventHistory(supabase, {
+        eventId: ev.id,
+        groupId,
+        actionType: "created",
+        performedBy: user.id,
+        after: eventRows[0],
+      });
+    }
+  }
 
   // Post to chat
   try {
@@ -123,29 +232,34 @@ export async function createEvent(formData: FormData) {
   // Send push notification if assigned to another user
   if (assignedTo && assignedTo !== "other" && assignedTo !== user.id) {
     try {
-      const { data: creatorProfile } = await supabase
-        .from("profiles")
-        .select("full_name")
-        .eq("id", user.id)
-        .single();
-
-      const creatorName = creatorProfile?.full_name?.split(" ")[0] || "Alguém";
+      const creatorName = await getUserName(supabase, user.id);
       const dateFormatted2 = new Date(eventDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
 
-      // Use the existing push API endpoint instead of web-push directly
-      await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || ""}/api/push/chat`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: assignedTo,
-          title: "Kindar — Novo compromisso para você",
-          body: `${creatorName} atribuiu "${title}" para você em ${dateFormatted2}`,
-          url: "/calendario",
-        }),
-      });
+      await createNotificationWithPush(
+        assignedTo,
+        "event_changed",
+        "Novo compromisso para voce",
+        `${creatorName} atribuiu "${title}" para voce em ${dateFormatted2}`,
+        "/calendario"
+      );
     } catch {
       // push notification failure is non-critical
     }
+  }
+
+  // Notify other group members about the new event
+  try {
+    const creatorName = await getUserName(supabase, user.id);
+    const dateFormatted3 = new Date(eventDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+    await notifyGroupMembers(
+      supabase, groupId, user.id,
+      "event_changed",
+      "Novo evento criado",
+      `${creatorName} criou "${title}" em ${dateFormatted3}`,
+      "/calendario"
+    );
+  } catch {
+    // non-critical
   }
 
   revalidatePath("/calendario");
@@ -153,6 +267,10 @@ export async function createEvent(formData: FormData) {
   revalidatePath("/chat");
   redirect("/calendario");
 }
+
+// ============================================================
+// UPDATE EVENT
+// ============================================================
 
 export async function updateEvent(formData: FormData) {
   const supabase = await createClient();
@@ -167,15 +285,58 @@ export async function updateEvent(formData: FormData) {
     redirect("/calendario?error=" + encodeURIComponent("Sem permissao."));
   }
 
-  // Verify user created the event or is admin
-  const { data: existingEvent } = await supabase.from("events").select("created_by").eq("id", eventId).eq("group_id", groupId).single();
+  // Fetch existing event
+  const { data: existingEvent } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", eventId)
+    .eq("group_id", groupId)
+    .single();
+
   if (!existingEvent) {
     redirect("/calendario?error=" + encodeURIComponent("Evento nao encontrado."));
   }
+
+  // Permission check: if not creator and not admin, create a request instead
   if (existingEvent.created_by !== user.id) {
-    const { data: memberRole } = await supabase.from("group_members").select("role").eq("group_id", groupId).eq("user_id", user.id).single();
+    const { data: memberRole } = await supabase
+      .from("group_members")
+      .select("role")
+      .eq("group_id", groupId)
+      .eq("user_id", user.id)
+      .single();
+
     if (memberRole?.role !== "admin") {
-      redirect("/calendario?error=" + encodeURIComponent("Apenas o criador ou admin pode editar este evento."));
+      // Create request instead of blocking
+      const childId = formData.get("childId") as string;
+      const title = (formData.get("title") as string)?.trim();
+      const description = (formData.get("description") as string)?.trim();
+      const eventDate = formData.get("eventDate") as string;
+      const eventTime = formData.get("eventTime") as string;
+      const location = (formData.get("location") as string)?.trim();
+
+      const result = await requestEventChange({
+        supabase,
+        user,
+        groupId,
+        eventId,
+        existingEvent,
+        actionType: "edit",
+        proposedChanges: {
+          child_id: childId || null,
+          title,
+          description: description || null,
+          event_date: eventDate,
+          event_time: eventTime || null,
+          location: location || null,
+        },
+        reason: formData.get("reason") as string,
+      });
+
+      if (result.error) {
+        redirect("/calendario?error=" + encodeURIComponent(result.error));
+      }
+      redirect("/calendario?requestSent=true");
     }
   }
 
@@ -190,23 +351,76 @@ export async function updateEvent(formData: FormData) {
     redirect("/calendario?error=" + encodeURIComponent("Titulo obrigatorio."));
   }
 
-  const { error } = await supabase.from("events").update({
+  const updateData = {
     child_id: childId || null,
     title,
     description: description || null,
     event_date: eventDate,
     event_time: eventTime || null,
     location: location || null,
-  }).eq("id", eventId).eq("group_id", groupId);
+  };
+
+  const { error } = await supabase.from("events").update(updateData)
+    .eq("id", eventId).eq("group_id", groupId);
 
   if (error) redirect("/calendario?error=" + encodeURIComponent(error.message));
 
   captureServerEvent(user.id, "event_updated", { eventId });
 
+  // Save history
+  await saveEventHistory(supabase, {
+    eventId,
+    groupId,
+    actionType: "updated",
+    performedBy: user.id,
+    before: existingEvent,
+    after: updateData,
+    metadata: { impact_type: existingEvent.event_date !== eventDate ? "schedule" : "none" },
+  });
+
+  // Auto-cancel pending requests
+  await cancelPendingRequests(supabase, eventId, "event_changed");
+
+  // Notify other group members
+  try {
+    const userName = await getUserName(supabase, user.id);
+    const changes: string[] = [];
+    if (existingEvent.title !== title) changes.push(`titulo: "${existingEvent.title}" → "${title}"`);
+    if (existingEvent.event_date !== eventDate) {
+      const oldDate = new Date(existingEvent.event_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+      const newDate = new Date(eventDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+      changes.push(`data: ${oldDate} → ${newDate}`);
+    }
+    if (existingEvent.event_time !== (eventTime || null)) {
+      changes.push(`horario: ${existingEvent.event_time || "sem horario"} → ${eventTime || "sem horario"}`);
+    }
+
+    const changeText = changes.length > 0 ? ` (${changes.join(", ")})` : "";
+
+    await notifyGroupMembers(
+      supabase, groupId, user.id,
+      "event_changed",
+      "Evento alterado",
+      `${userName} alterou "${existingEvent.title}"${changeText}`,
+      "/calendario"
+    );
+
+    await postChatNotification(
+      supabase, groupId, user.id,
+      `✏️ Evento alterado: ${existingEvent.title}${changeText}`
+    );
+  } catch {
+    // non-critical
+  }
+
   revalidatePath("/calendario");
   revalidatePath("/eventos");
   redirect("/calendario");
 }
+
+// ============================================================
+// DELETE EVENT
+// ============================================================
 
 export async function deleteEvent(formData: FormData) {
   const supabase = await createClient();
@@ -221,17 +435,57 @@ export async function deleteEvent(formData: FormData) {
     redirect("/calendario?error=" + encodeURIComponent("Sem permissao."));
   }
 
-  // Verify user created the event or is admin
-  const { data: existingEvent } = await supabase.from("events").select("created_by").eq("id", eventId).eq("group_id", groupId).single();
+  // Fetch existing event
+  const { data: existingEvent } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", eventId)
+    .eq("group_id", groupId)
+    .single();
+
   if (!existingEvent) {
     redirect("/calendario?error=" + encodeURIComponent("Evento nao encontrado."));
   }
+
+  // Permission check: if not creator and not admin, create a request
   if (existingEvent.created_by !== user.id) {
-    const { data: memberRole } = await supabase.from("group_members").select("role").eq("group_id", groupId).eq("user_id", user.id).single();
+    const { data: memberRole } = await supabase
+      .from("group_members")
+      .select("role")
+      .eq("group_id", groupId)
+      .eq("user_id", user.id)
+      .single();
+
     if (memberRole?.role !== "admin") {
-      redirect("/calendario?error=" + encodeURIComponent("Apenas o criador ou admin pode excluir este evento."));
+      const result = await requestEventChange({
+        supabase,
+        user,
+        groupId,
+        eventId,
+        existingEvent,
+        actionType: "delete",
+        proposedChanges: null,
+        reason: formData.get("reason") as string,
+      });
+
+      if (result.error) {
+        redirect("/calendario?error=" + encodeURIComponent(result.error));
+      }
+      redirect("/calendario?requestSent=true");
     }
   }
+
+  // Save history before deleting
+  await saveEventHistory(supabase, {
+    eventId,
+    groupId,
+    actionType: "deleted",
+    performedBy: user.id,
+    before: existingEvent,
+  });
+
+  // Cancel pending requests before delete
+  await cancelPendingRequests(supabase, eventId, "event_deleted");
 
   const { error } = await supabase.from("events").delete()
     .eq("id", eventId).eq("group_id", groupId);
@@ -240,10 +494,35 @@ export async function deleteEvent(formData: FormData) {
 
   captureServerEvent(user.id, "event_deleted", { eventId });
 
+  // Notify other group members
+  try {
+    const userName = await getUserName(supabase, user.id);
+    const dateFormatted = new Date(existingEvent.event_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+
+    await notifyGroupMembers(
+      supabase, groupId, user.id,
+      "event_changed",
+      "Evento excluido",
+      `${userName} excluiu "${existingEvent.title}" de ${dateFormatted}`,
+      "/calendario"
+    );
+
+    await postChatNotification(
+      supabase, groupId, user.id,
+      `🗑️ Evento excluido: ${existingEvent.title} — ${dateFormatted}`
+    );
+  } catch {
+    // non-critical
+  }
+
   revalidatePath("/calendario");
   revalidatePath("/eventos");
   redirect("/calendario");
 }
+
+// ============================================================
+// CANCEL EVENT
+// ============================================================
 
 export async function cancelEvent(formData: FormData) {
   const supabase = await createClient();
@@ -258,15 +537,43 @@ export async function cancelEvent(formData: FormData) {
     redirect("/calendario?error=" + encodeURIComponent("Sem permissao."));
   }
 
-  // Verify user created the event or is admin
-  const { data: existingEvent } = await supabase.from("events").select("created_by").eq("id", eventId).eq("group_id", groupId).single();
+  // Fetch existing event
+  const { data: existingEvent } = await supabase
+    .from("events")
+    .select("*")
+    .eq("id", eventId)
+    .eq("group_id", groupId)
+    .single();
+
   if (!existingEvent) {
     redirect("/calendario?error=" + encodeURIComponent("Evento nao encontrado."));
   }
+
+  // Permission check: if not creator and not admin, create a request
   if (existingEvent.created_by !== user.id) {
-    const { data: memberRole } = await supabase.from("group_members").select("role").eq("group_id", groupId).eq("user_id", user.id).single();
+    const { data: memberRole } = await supabase
+      .from("group_members")
+      .select("role")
+      .eq("group_id", groupId)
+      .eq("user_id", user.id)
+      .single();
+
     if (memberRole?.role !== "admin") {
-      redirect("/calendario?error=" + encodeURIComponent("Apenas o criador ou admin pode cancelar este evento."));
+      const result = await requestEventChange({
+        supabase,
+        user,
+        groupId,
+        eventId,
+        existingEvent,
+        actionType: "cancel",
+        proposedChanges: { status: "cancelled" },
+        reason: formData.get("reason") as string,
+      });
+
+      if (result.error) {
+        redirect("/calendario?error=" + encodeURIComponent(result.error));
+      }
+      redirect("/calendario?requestSent=true");
     }
   }
 
@@ -274,7 +581,376 @@ export async function cancelEvent(formData: FormData) {
     .eq("id", eventId).eq("group_id", groupId);
 
   if (error) redirect("/calendario?error=" + encodeURIComponent(error.message));
+
+  // Save history
+  await saveEventHistory(supabase, {
+    eventId,
+    groupId,
+    actionType: "cancelled",
+    performedBy: user.id,
+    before: existingEvent,
+    after: { ...existingEvent, status: "cancelled" },
+  });
+
+  // Cancel pending requests
+  await cancelPendingRequests(supabase, eventId, "event_cancelled");
+
+  // Notify other group members
+  try {
+    const userName = await getUserName(supabase, user.id);
+    const dateFormatted = new Date(existingEvent.event_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
+
+    await notifyGroupMembers(
+      supabase, groupId, user.id,
+      "event_changed",
+      "Evento cancelado",
+      `${userName} cancelou "${existingEvent.title}" de ${dateFormatted}`,
+      "/calendario"
+    );
+
+    await postChatNotification(
+      supabase, groupId, user.id,
+      `❌ Evento cancelado: ${existingEvent.title} — ${dateFormatted}`
+    );
+  } catch {
+    // non-critical
+  }
+
   revalidatePath("/calendario");
   revalidatePath("/eventos");
   redirect("/calendario");
+}
+
+// ============================================================
+// REQUEST EVENT CHANGE (internal helper, called by update/cancel/delete)
+// ============================================================
+
+async function requestEventChange(params: {
+  supabase: Awaited<ReturnType<typeof createClient>>;
+  user: { id: string };
+  groupId: string;
+  eventId: string;
+  existingEvent: Record<string, unknown>;
+  actionType: "edit" | "cancel" | "reschedule" | "delete";
+  proposedChanges: Record<string, unknown> | null;
+  reason: string | null;
+}) {
+  const { supabase, user, groupId, eventId, existingEvent, actionType, proposedChanges, reason } = params;
+
+  // Get affected users (all group members except requester)
+  const affectedUserIds = await getOtherGroupMembers(supabase, groupId, user.id);
+
+  if (affectedUserIds.length === 0) {
+    return { error: "Nenhum outro membro no grupo para aprovar." };
+  }
+
+  // Check if there's already a pending request for this event
+  const { data: existingRequest } = await supabase
+    .from("event_requests")
+    .select("id")
+    .eq("event_id", eventId)
+    .eq("status", "pending")
+    .single();
+
+  if (existingRequest) {
+    return { error: "Ja existe uma solicitacao pendente para este evento. Aguarde a resposta." };
+  }
+
+  // Create the request
+  const { error: insertError } = await supabase.from("event_requests").insert({
+    group_id: groupId,
+    event_id: eventId,
+    requester_id: user.id,
+    affected_user_ids: affectedUserIds,
+    action_type: actionType,
+    proposed_changes: proposedChanges,
+    original_snapshot: existingEvent,
+    reason: reason || null,
+    status: "pending",
+    approval_mode: "any",
+  });
+
+  if (insertError) {
+    // Handle unique constraint violation gracefully
+    if (insertError.code === "23505") {
+      return { error: "Ja existe uma solicitacao pendente para este evento." };
+    }
+    return { error: insertError.message };
+  }
+
+  // Save history
+  await saveEventHistory(supabase, {
+    eventId,
+    groupId,
+    actionType: "request_created",
+    performedBy: user.id,
+    before: existingEvent,
+    after: proposedChanges,
+    metadata: { action_type: actionType, reason },
+  });
+
+  // Notify affected users
+  try {
+    const requesterName = await getUserName(supabase, user.id);
+    const eventTitle = existingEvent.title as string;
+
+    const actionLabel: Record<string, string> = {
+      edit: "alterar",
+      cancel: "cancelar",
+      reschedule: "reagendar",
+      delete: "excluir",
+    };
+
+    let detailText = "";
+    if (actionType === "edit" && proposedChanges) {
+      const changes: string[] = [];
+      if (proposedChanges.event_date && proposedChanges.event_date !== existingEvent.event_date) {
+        const oldDate = new Date((existingEvent.event_date as string) + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short", weekday: "short" });
+        const newDate = new Date((proposedChanges.event_date as string) + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short", weekday: "short" });
+        changes.push(`${oldDate} → ${newDate}`);
+      }
+      if (proposedChanges.event_time && proposedChanges.event_time !== existingEvent.event_time) {
+        changes.push(`${existingEvent.event_time || "sem horario"} → ${proposedChanges.event_time}`);
+      }
+      if (changes.length > 0) detailText = ` (${changes.join(", ")})`;
+    }
+
+    await Promise.allSettled(
+      affectedUserIds.map((uid) =>
+        createNotificationWithPush(
+          uid,
+          "event_request",
+          "Solicitacao de alteracao",
+          `${requesterName} quer ${actionLabel[actionType]} "${eventTitle}"${detailText}`,
+          "/calendario"
+        )
+      )
+    );
+
+    await postChatNotification(
+      supabase, groupId, user.id,
+      `🔔 Solicitou ${actionLabel[actionType]} "${eventTitle}"${detailText}`
+    );
+  } catch {
+    // non-critical
+  }
+
+  revalidatePath("/calendario");
+  revalidatePath("/eventos");
+  return { success: true, requestCreated: true };
+}
+
+// ============================================================
+// RESPOND TO EVENT REQUEST
+// ============================================================
+
+export async function respondToEventRequest(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { error: "Nao autenticado" };
+
+  const requestId = formData.get("requestId") as string;
+  const response = formData.get("response") as "approved" | "rejected";
+
+  // Fetch the request
+  const { data: req } = await supabase
+    .from("event_requests")
+    .select("*")
+    .eq("id", requestId)
+    .single();
+
+  if (!req) return { error: "Solicitacao nao encontrada." };
+  if (req.status !== "pending") return { error: "Esta solicitacao ja foi respondida." };
+
+  // Verify user is affected
+  const affectedIds: string[] = req.affected_user_ids || [];
+  if (!affectedIds.includes(user.id)) {
+    return { error: "Voce nao tem permissao para responder esta solicitacao." };
+  }
+
+  if (response === "approved") {
+    // CRITICAL: Validate snapshot before applying
+    const { data: currentEvent } = await supabase
+      .from("events")
+      .select("*")
+      .eq("id", req.event_id)
+      .single();
+
+    if (!currentEvent) {
+      // Event was deleted since request was created
+      await supabase.from("event_requests").update({
+        status: "cancelled_by_system",
+        cancelled_reason: "event_deleted",
+        responded_at: new Date().toISOString(),
+      }).eq("id", requestId);
+      return { error: "O evento foi excluido desde a solicitacao." };
+    }
+
+    // Compare critical fields with original snapshot
+    const snapshot = req.original_snapshot as Record<string, unknown>;
+    const criticalFields = ["title", "event_date", "event_time", "status"];
+    const hasConflict = criticalFields.some(
+      (field) => String(currentEvent[field] ?? "") !== String(snapshot[field] ?? "")
+    );
+
+    if (hasConflict) {
+      await supabase.from("event_requests").update({
+        status: "cancelled_by_system",
+        cancelled_reason: "event_changed_after_request",
+        responded_at: new Date().toISOString(),
+      }).eq("id", requestId);
+
+      await saveEventHistory(supabase, {
+        eventId: req.event_id,
+        groupId: req.group_id,
+        actionType: "request_cancelled",
+        performedBy: user.id,
+        metadata: { request_id: requestId, reason: "event_changed_after_request" },
+      });
+
+      return { error: "O evento foi alterado desde a solicitacao. A solicitacao foi cancelada automaticamente." };
+    }
+
+    // Apply changes based on action type
+    if (req.action_type === "edit" || req.action_type === "reschedule") {
+      const { error: updateError } = await supabase
+        .from("events")
+        .update(req.proposed_changes as Record<string, unknown>)
+        .eq("id", req.event_id);
+
+      if (updateError) return { error: updateError.message };
+    } else if (req.action_type === "cancel") {
+      const { error: updateError } = await supabase
+        .from("events")
+        .update({ status: "cancelled" })
+        .eq("id", req.event_id);
+
+      if (updateError) return { error: updateError.message };
+    } else if (req.action_type === "delete") {
+      const { error: deleteError } = await supabase
+        .from("events")
+        .delete()
+        .eq("id", req.event_id);
+
+      if (deleteError) return { error: deleteError.message };
+    }
+
+    // Update request status
+    await supabase.from("event_requests").update({
+      status: "approved",
+      responded_by: user.id,
+      responded_at: new Date().toISOString(),
+    }).eq("id", requestId);
+
+    // Save history
+    await saveEventHistory(supabase, {
+      eventId: req.event_id,
+      groupId: req.group_id,
+      actionType: "request_approved",
+      performedBy: user.id,
+      before: req.original_snapshot as Record<string, unknown>,
+      after: req.proposed_changes as Record<string, unknown>,
+      metadata: { request_id: requestId },
+    });
+
+    // Notify requester
+    try {
+      const responderName = await getUserName(supabase, user.id);
+      const eventTitle = (req.original_snapshot as Record<string, unknown>)?.title as string;
+
+      await createNotificationWithPush(
+        req.requester_id,
+        "event_response",
+        "Solicitacao aprovada!",
+        `${responderName} aprovou sua alteracao em "${eventTitle}"`,
+        "/calendario"
+      );
+
+      await postChatNotification(
+        supabase, req.group_id, user.id,
+        `✅ Solicitacao aprovada: "${eventTitle}"`
+      );
+    } catch {
+      // non-critical
+    }
+  } else {
+    // Rejected
+    await supabase.from("event_requests").update({
+      status: "rejected",
+      responded_by: user.id,
+      responded_at: new Date().toISOString(),
+    }).eq("id", requestId);
+
+    await saveEventHistory(supabase, {
+      eventId: req.event_id,
+      groupId: req.group_id,
+      actionType: "request_rejected",
+      performedBy: user.id,
+      metadata: { request_id: requestId },
+    });
+
+    // Notify requester
+    try {
+      const responderName = await getUserName(supabase, user.id);
+      const eventTitle = (req.original_snapshot as Record<string, unknown>)?.title as string;
+
+      await createNotificationWithPush(
+        req.requester_id,
+        "event_response",
+        "Solicitacao recusada",
+        `${responderName} recusou sua alteracao em "${eventTitle}"`,
+        "/calendario"
+      );
+
+      await postChatNotification(
+        supabase, req.group_id, user.id,
+        `❌ Solicitacao recusada: "${eventTitle}"`
+      );
+    } catch {
+      // non-critical
+    }
+  }
+
+  revalidatePath("/calendario");
+  revalidatePath("/eventos");
+  return { success: true };
+}
+
+// ============================================================
+// GET PENDING EVENT REQUESTS (for UI)
+// ============================================================
+
+export async function getPendingEventRequests(groupId: string) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return [];
+
+  const { data } = await supabase
+    .from("event_requests")
+    .select(`
+      *,
+      requester:profiles!event_requests_requester_id_fkey(full_name, avatar_url)
+    `)
+    .eq("group_id", groupId)
+    .eq("status", "pending")
+    .order("created_at", { ascending: false });
+
+  return data || [];
+}
+
+// ============================================================
+// CHECK IF EVENT HAS PENDING REQUEST (for UI blocking)
+// ============================================================
+
+export async function eventHasPendingRequest(eventId: string) {
+  const supabase = await createClient();
+
+  const { data } = await supabase
+    .from("event_requests")
+    .select("id, action_type, requester_id")
+    .eq("event_id", eventId)
+    .eq("status", "pending")
+    .single();
+
+  return data || null;
 }

@@ -111,6 +111,7 @@ O app suporta **5 idiomas** completos:
 - **Feriados nacionais brasileiros** automaticos (fixos + moveis: Carnaval, Pascoa, Corpus Christi) com destaque visual vermelho
 - Solicitacao de troca entre pais (requer aprovacao)
 - Solicitacao de visita por avos/cuidadores (requer aprovacao do responsavel do dia)
+- **Sistema de aprovacao de eventos**: criador edita direto + notifica; outro usuario cria request de aprovacao. Troca de guarda sempre requer aprovacao. Badge visual "pendente" bloqueia acoes duplicadas. Diff visual (antes/depois) na lista de requests. Audit trail completo via `event_history`. Validacao de snapshot previne conflitos de edicao simultanea
 - **Performance**: 8 queries paralelas via `Promise.all()`, range reduzido (3 meses), `.limit()` em todas as queries, `useMemo` no grid, `useCallback` nos handlers, fix de timezone com `getBrazilNow()`
 
 ### 3. Atividades Recorrentes (integrado na Agenda)

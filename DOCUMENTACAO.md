@@ -410,7 +410,30 @@ Logging de requests ao sistema de IA para monitoramento e debug.
 Tracking de uso para monetizacao futura.
 - `id`, `user_id`, `group_id`, `event_type` (TEXT), `metadata` (JSONB), `created_at`
 
-#### 30-38. Tabelas adicionais
+#### 30. event_requests
+Sistema de aprovacao para alteracoes em eventos por usuarios nao-criadores.
+- `id`, `group_id` (FK), `event_id` (FK events), `requester_id` (FK profiles)
+- `affected_user_ids` (UUID[]) — todos os impactados pela mudanca
+- `action_type` (TEXT: edit, cancel, reschedule, delete)
+- `proposed_changes` (JSONB) — mudancas propostas
+- `original_snapshot` (JSONB) — estado original do evento no momento do request
+- `status` (TEXT: pending, approved, rejected, cancelled_by_system)
+- `approval_mode` (TEXT: any, all) — MVP usa 'any'
+- `cancelled_reason` (TEXT) — motivo do cancelamento automatico
+- `responded_by` (FK profiles), `responded_at` (TIMESTAMPTZ)
+- Constraint: max 1 request pendente por evento (partial unique index)
+- Migration: `00045_event_requests_and_history.sql`
+
+#### 31. event_history
+Audit trail completo de todas as alteracoes em eventos.
+- `id`, `event_id` (FK events), `group_id`
+- `action_type` (TEXT: created, updated, cancelled, deleted, request_created, request_approved, request_rejected, request_cancelled)
+- `performed_by` (FK profiles)
+- `before_snapshot` (JSONB), `after_snapshot` (JSONB)
+- `metadata` (JSONB) — info extra como request_id, reason, impact_type
+- Migration: `00045_event_requests_and_history.sql`
+
+#### 32-38. Tabelas adicionais
 Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals`, entre outras criadas nas migrations de saude e financeiro.
 
 #### 39-42. WhatsApp Integration (Migration 00043)
@@ -509,6 +532,8 @@ Politicas garantem que:
 | `00041_retention_events.sql` | Eventos de retencao |
 | `00042_user_health_score.sql` | View user_health_score |
 | `00043_whatsapp_tables.sql` | **WhatsApp Integration**: 4 tabelas (phone_links, sessions, message_logs, notification_preferences) + RLS + triggers |
+| `00044_app_errors.sql` | Tabela de erros da aplicacao |
+| `00045_event_requests_and_history.sql` | **Event Approval System**: tabelas event_requests + event_history + notification_type enum + RLS |
 
 ---
 
@@ -962,10 +987,13 @@ Canal WhatsApp que reutiliza 100% da infraestrutura do Assistente IA in-app.
 | createDocument | documents.ts | Upload documento |
 | createAgreement | agreements.ts | Registra acordo |
 | acceptAgreement | agreements.ts | Aceita acordo |
-| createEvent | events.ts | Cria evento |
-| updateEvent | events.ts | Atualiza evento |
-| deleteEvent | events.ts | Remove evento |
-| cancelEvent | events.ts | Cancela evento |
+| createEvent | events.ts | Cria evento + notifica grupo + history |
+| updateEvent | events.ts | Atualiza evento (criador: direto + notifica; outro: cria request) |
+| deleteEvent | events.ts | Remove evento (criador: direto + notifica; outro: cria request) |
+| cancelEvent | events.ts | Cancela evento (criador: direto + notifica; outro: cria request) |
+| respondToEventRequest | events.ts | Aprova/rejeita request com validacao de snapshot |
+| getPendingEventRequests | events.ts | Lista requests pendentes do grupo |
+| eventHasPendingRequest | events.ts | Verifica se evento tem request pendente |
 | createActivity | activities.ts | Cria atividade + checklist + push |
 | deleteActivity | activities.ts | Remove atividade |
 | toggleChecklistItem | activities.ts | Marca/desmarca checklist |
@@ -1126,7 +1154,7 @@ src/
 │   ├── children.ts       # upsertChildEducation, uploadChildDocument
 │   ├── decisions.ts      # createDecision, castVote, addArgument
 │   ├── documents.ts      # createDocument
-│   ├── events.ts         # createEvent, updateEvent, deleteEvent, cancelEvent
+│   ├── events.ts         # createEvent, updateEvent, deleteEvent, cancelEvent, respondToEventRequest, getPendingEventRequests, eventHasPendingRequest
 │   ├── expenses.ts       # createExpense, updateExpenseStatus, deleteExpense
 │   ├── group.ts          # createGroup, addChild, updateChild
 │   ├── group-switch.ts   # switchGroup

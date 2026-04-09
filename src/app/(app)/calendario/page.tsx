@@ -47,6 +47,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     { data: socialEvents },
     { data: appointments },
     { data: swapRequests },
+    { data: eventRequests },
     { data: activityReports },
     { data: rawChecklistCompletions },
   ] = await Promise.all([
@@ -71,7 +72,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("events")
-      .select("id, title, description, event_date, event_time, location, child_id, status, all_day, end_date, assigned_to, children(full_name)")
+      .select("id, title, description, event_date, event_time, location, child_id, status, all_day, end_date, assigned_to, created_by, children(full_name)")
       .eq("group_id", groupId)
       .neq("status", "cancelled")
       .gte("event_date", rangeStart)
@@ -93,6 +94,14 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       .in("status", ["pending", "approved"])
       .order("created_at", { ascending: false })
       .limit(10)
+      .then(r => r, () => ({ data: [] as never[] })),
+    supabase
+      .from("event_requests")
+      .select("id, event_id, action_type, proposed_changes, original_snapshot, reason, status, created_at, requester_id, affected_user_ids, requester:profiles!event_requests_requester_id_fkey(full_name, avatar_url)")
+      .eq("group_id", groupId)
+      .eq("status", "pending")
+      .order("created_at", { ascending: false })
+      .limit(20)
       .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("activity_reports")
@@ -331,6 +340,22 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         weekends={weekends}
         swapBalance={swapBalance}
         custodyChangeBanner={custodyChangeBanner}
+        eventRequests={(eventRequests || []).map((r: Record<string, unknown>) => {
+          const requesterRaw = Array.isArray(r.requester) ? r.requester[0] : r.requester;
+          return {
+            id: r.id as string,
+            event_id: r.event_id as string,
+            action_type: r.action_type as string,
+            proposed_changes: r.proposed_changes as Record<string, unknown> | null,
+            original_snapshot: r.original_snapshot as Record<string, unknown>,
+            reason: r.reason as string | null,
+            status: r.status as string,
+            created_at: r.created_at as string,
+            requester_id: r.requester_id as string,
+            affected_user_ids: r.affected_user_ids as string[],
+            requester: requesterRaw ? { full_name: (requesterRaw as Record<string, unknown>).full_name as string || "Usuario", avatar_url: (requesterRaw as Record<string, unknown>).avatar_url as string | null } : null,
+          };
+        })}
         swapRequests={(swapRequests || []).map((r) => {
           const requesterRaw = Array.isArray(r.requester) ? r.requester[0] : r.requester;
           const targetRaw = Array.isArray(r.target) ? r.target[0] : r.target;

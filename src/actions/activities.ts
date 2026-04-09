@@ -1006,30 +1006,12 @@ export async function deleteEvent(eventId: string) {
   const activeGroup = await getActiveGroup(supabase, user.id);
   if (!activeGroup) return { error: "Sem grupo" };
 
-  const { data: event } = await supabase
-    .from("events")
-    .select("id, group_id")
-    .eq("id", eventId)
-    .single();
-
-  if (!event || event.group_id !== activeGroup.groupId) {
-    return { error: "Evento nao encontrado" };
-  }
-
-  const { error } = await supabase
-    .from("events")
-    .delete()
-    .eq("id", eventId);
-
-  if (error) {
-    console.error("deleteEvent error:", error);
-    return { error: error.message };
-  }
-
-  const { revalidatePath: rp } = await import("next/cache");
-  rp("/calendario");
-
-  return { success: true };
+  // Delegate to the events.ts deleteEvent which has approval flow
+  const { deleteEvent: deleteEventWithApproval } = await import("@/actions/events");
+  const formData = new FormData();
+  formData.set("eventId", eventId);
+  formData.set("groupId", activeGroup.groupId);
+  return deleteEventWithApproval(formData);
 }
 
 /* ------------------------------------------------------------------ */

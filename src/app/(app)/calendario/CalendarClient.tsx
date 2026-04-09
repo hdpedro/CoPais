@@ -6,6 +6,7 @@ import CalendarGrid from "./CalendarGrid";
 import WeekendPlanner from "./WeekendPlanner";
 import DayDetailSheet from "./DayDetailSheet";
 import SwapRequestList from "./SwapRequestList";
+import EventRequestList from "./EventRequestList";
 import CalendarExportButton from "./CalendarExportButton";
 import SwapBalanceCard from "./SwapBalanceCard";
 import EnableCustodyLink from "@/components/EnableCustodyLink";
@@ -75,8 +76,23 @@ interface CalendarClientProps {
   custodyChangeBanner: { childNames: string; parentName: string } | null;
   custodyEnabled: boolean;
   swapRequests: SwapRequest[];
+  eventRequests: EventRequestData[];
   activities: Record<string, ActivityInfo[]>;
   memberNames: Record<string, string>;
+}
+
+interface EventRequestData {
+  id: string;
+  event_id: string;
+  action_type: string;
+  proposed_changes: Record<string, unknown> | null;
+  original_snapshot: Record<string, unknown>;
+  reason: string | null;
+  status: string;
+  created_at: string;
+  requester_id: string;
+  affected_user_ids: string[];
+  requester: { full_name: string; avatar_url: string | null } | null;
 }
 
 export default memo(function CalendarClient({
@@ -94,6 +110,7 @@ export default memo(function CalendarClient({
   custodyChangeBanner,
   custodyEnabled,
   swapRequests,
+  eventRequests,
   activities,
   memberNames,
 }: CalendarClientProps) {
@@ -180,6 +197,8 @@ export default memo(function CalendarClient({
       {hasCustodyData && (
         <SwapRequestList requests={swapRequests} currentUserId={currentUserId} />
       )}
+
+      <EventRequestList requests={eventRequests} currentUserId={currentUserId} />
 
       <CalendarExportButton groupId={groupId} />
 
