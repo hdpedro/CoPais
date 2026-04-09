@@ -1018,6 +1018,26 @@ Canal WhatsApp que reutiliza 100% da infraestrutura do Assistente IA in-app.
 | `/api/push/chat` | POST | Push notification para nova mensagem |
 | `/api/push/subscribe` | POST | Registro de push subscription (VAPID) |
 | `/api/whatsapp/webhook` | GET/POST | WhatsApp webhook: GET verificacao Meta, POST receber mensagens. Pipeline: identity → session → parser → tools → confirmacao via botoes |
+| `/api/log-error` | POST | Error tracking: captura erro, classifica por pasta, salva no Supabase, notifica Discord |
+| `/api/discord/interactions` | POST | Discord Interactions Endpoint: recebe cliques de botoes (Fix with Claude / Acknowledge / Ignore) |
+| `/api/discord/feedback` | POST | Webhook receptor: recebe eventos GitHub (workflow_run) e Vercel (deploy), posta resultado no Discord |
+
+---
+
+### Tabela: app_errors
+Rastreamento de erros com classificacao por pasta e pipeline de auto-correcao.
+- `id` (UUID), `message`, `stack_trace`, `file_path`, `folder_category` (app/components/lib/hooks/actions/services/supabase/unknown)
+- `user_id` (FK auth.users), `severity` (warning/error/critical), `status` (new/acknowledged/fixing/fixed/ignored)
+- `fix_pr_url`, `sentry_event_id`, `metadata` (JSONB), `created_at`, `updated_at`
+
+### Modulo: Error Tracking & Auto-Fix Pipeline
+- **`src/lib/error-tracking/classify.ts`** — classificacao de erros por pasta (funcao pura `classifyFolder`)
+- **`src/lib/error-reporter.ts`** — utility client-side, non-blocking, com deduplicacao (60s TTL)
+- **`src/lib/discord/`** — Discord client (fetch nativo, sem discord.js), channel mapping, message builder
+- **`src/lib/fix-pipeline/`** — Orquestrador: Claude gera fix → GitHub cria PR → Discord recebe feedback
+  - `claude-fixer.ts` — chama Anthropic API (claude-sonnet) com contexto do erro + arquivo
+  - `github-pr.ts` — cria branch + commit + PR via GitHub Contents API
+  - `pipeline.ts` — orquestra fluxo completo com status updates no Discord
 
 ---
 
@@ -1041,6 +1061,15 @@ WHATSAPP_PHONE_NUMBER_ID=        # ID do numero de telefone WhatsApp
 WHATSAPP_BUSINESS_ACCOUNT_ID=    # ID da conta WhatsApp Business
 WHATSAPP_APP_SECRET=             # App Secret para validacao HMAC do webhook
 WHATSAPP_VERIFY_TOKEN=           # Token customizado para verificacao do webhook Meta
+DISCORD_BOT_TOKEN=               # Token do bot Discord
+DISCORD_APPLICATION_ID=          # ID da aplicacao Discord
+DISCORD_PUBLIC_KEY=              # Chave publica para verificacao de assinatura
+DISCORD_CHANNEL_ERRORS=          # ID do canal Discord para erros (MVP: canal unico)
+ANTHROPIC_API_KEY=               # Chave API Anthropic (Claude, para auto-fix)
+GITHUB_TOKEN=                    # Fine-grained PAT com repo contents + pull requests
+GITHUB_REPO_OWNER=              # Owner do repo GitHub
+GITHUB_REPO_NAME=               # Nome do repo GitHub
+GITHUB_WEBHOOK_SECRET=           # Secret para verificacao de webhooks GitHub
 ```
 
 ---

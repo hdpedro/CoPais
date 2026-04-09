@@ -2,6 +2,8 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import * as Sentry from "@sentry/nextjs";
+import { reportError } from "@/lib/error-reporter";
 
 export default function AuthError({
   error,
@@ -12,6 +14,8 @@ export default function AuthError({
 }) {
   useEffect(() => {
     console.error("Auth error:", error);
+    Sentry.captureException(error);
+    reportError(error);
   }, [error]);
 
   return (

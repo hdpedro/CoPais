@@ -368,7 +368,7 @@ O app segue um padrao consistente de separacao:
 ### Queries sem FK Joins
 Todos os PostgREST FK joins foram removidos e substituidos por **joins manuais** via queries separadas, evitando problemas com RLS e melhorando previsibilidade.
 
-### API Routes (13 total)
+### API Routes (16 total)
 | Rota | Funcao |
 |------|--------|
 | `/api/ai/assistant` | Assistente IA conversacional (Groq function calling, 12 tools, multi-round) |
@@ -382,8 +382,21 @@ Todos os PostgREST FK joins foram removidos e substituidos por **joins manuais**
 | `/api/create-group` | Criacao de grupo familiar |
 | `/api/cron/activity-reminders` | Cron: lembretes push 24h antes |
 | `/api/cron/custody-change` | Cron: notificacao de mudanca de custodia |
+| `/api/discord/interactions` | Discord bot: recebe cliques de botoes (Fix/Acknowledge/Ignore) |
+| `/api/discord/feedback` | Webhook: recebe status de CI/deploy e posta no Discord |
+| `/api/log-error` | Error tracking: captura, classifica por pasta e notifica Discord |
 | `/api/push/chat` | Push notification para chat |
 | `/api/push/subscribe` | Registro de push subscription |
+
+### Error Tracking & Auto-Fix Pipeline
+Sistema de rastreamento de erros com classificacao por pasta e auto-correcao via IA:
+1. **Captura**: Error boundaries reportam erros via `/api/log-error`
+2. **Classificacao**: Erros classificados por pasta (app, components, lib, hooks, actions, services, supabase)
+3. **Notificacao**: Discord recebe embed com detalhes + botoes interativos (Fix/Acknowledge/Ignore)
+4. **Auto-Fix**: Claude analisa o erro e gera correcao automatica
+5. **PR Automatico**: Fix e commitado em branch + PR aberto no GitHub
+6. **CI**: Tests scopados por pasta rodam no PR
+7. **Feedback**: Resultado do CI/deploy e postado de volta no Discord
 
 ## Seguranca
 

@@ -25,6 +25,41 @@ jobs:
       - run: npm run test:coverage
         continue-on-error: true
 
+  auto-fix-tests:
+    name: Auto-Fix Verification
+    runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'auto-fix')
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - name: Run scoped tests for changed folders
+        run: |
+          CHANGED=$(git diff --name-only origin/main...HEAD | grep '^src/' || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No src/ files changed, running all tests"
+            npm run test -- --run
+          else
+            FOLDERS=$(echo "$CHANGED" | cut -d/ -f2 | sort -u)
+            echo "Changed folders: $FOLDERS"
+            for folder in $FOLDERS; do
+              echo "Running tests for $folder..."
+              npm run test -- --run "tests/**/${folder}*" || true
+            done
+          fi
+
+      - run: npm run lint
+
   e2e-tests:
     name: E2E Tests
     runs-on: ubuntu-latest

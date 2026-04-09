@@ -598,7 +598,19 @@ Kindar/
     │   ├── health-constants.ts       # Constantes de saude
     │   ├── sbp-vaccine-calendar.ts   # Calendario vacinal SBP
     │   ├── who-growth-data.ts        # Dados crescimento WHO
-    │   └── supabase/
+    │   ├── error-tracking/             # === ERROR TRACKING ===
+    │   │   └── classify.ts           # classifyFolder() — classifica path em categoria (app/components/lib/hooks/actions/services/supabase)
+    │   ├── error-reporter.ts          # reportError() — client-side, non-blocking, dedup 60s
+    │   ├── discord/                   # === DISCORD INTEGRATION ===
+    │   │   ├── discord-client.ts     # fetch-based Discord API (sem discord.js), sendChannelMessage, notifyDiscord
+    │   │   ├── channels.ts           # Mapeamento FolderCategory → Discord channel ID
+    │   │   └── message-builder.ts    # Embeds + botoes (Fix/Acknowledge/Ignore) para erros
+    │   ├── fix-pipeline/              # === AUTO-FIX PIPELINE ===
+    │   │   ├── types.ts              # ErrorDetails, FixResult, PRResult
+    │   │   ├── claude-fixer.ts       # Claude API (Anthropic) gera fix para o arquivo
+    │   │   ├── github-pr.ts          # Cria branch + commit + PR via GitHub Contents API
+    │   │   └── pipeline.ts           # Orquestrador: status → Claude → PR → Discord feedback
+    │   ├── supabase/
     │       ├── client.ts             # createBrowserClient (para Client Components)
     │       ├── server.ts             # createServerClient (para Server Components/Actions)
     │       ├── middleware.ts          # updateSession (refresh de cookies)
