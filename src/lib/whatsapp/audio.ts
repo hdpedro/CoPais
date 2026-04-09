@@ -28,11 +28,8 @@ export async function transcribeAudio(
     const ext = getExtension(mediaMimeType || "audio/ogg");
 
     // Create a File object for the Groq API
-    const file = new File(
-      [audioBuffer],
-      `audio.${ext}`,
-      { type: mediaMimeType || "audio/ogg" }
-    );
+    const blob = new Blob([new Uint8Array(audioBuffer)], { type: mediaMimeType || "audio/ogg" });
+    const file = new File([blob], `audio.${ext}`, { type: mediaMimeType || "audio/ogg" });
 
     // Transcribe with Groq Whisper
     const groq = new Groq({ apiKey });
@@ -43,9 +40,9 @@ export async function transcribeAudio(
       response_format: "text",
     });
 
-    const text = typeof transcription === "string"
-      ? transcription.trim()
-      : (transcription as { text?: string }).text?.trim() || "";
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const raw = transcription as any;
+    const text = (typeof raw === "string" ? raw : raw?.text || "").trim();
 
     if (!text) {
       console.log("[WA-AUDIO] Empty transcription");

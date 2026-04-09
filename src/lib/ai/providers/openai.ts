@@ -139,16 +139,18 @@ export class OpenAIProvider implements AIProvider {
       );
 
       const choice = completion.choices[0];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const toolCalls = (choice?.message?.tool_calls || []).map((tc: any) => ({
+        id: tc.id,
+        type: "function" as const,
+        function: {
+          name: tc.function?.name || tc.name || "",
+          arguments: tc.function?.arguments || tc.arguments || "{}",
+        },
+      }));
       return {
         content: choice?.message?.content || null,
-        toolCalls: (choice?.message?.tool_calls || []).map((tc) => ({
-          id: tc.id,
-          type: "function" as const,
-          function: {
-            name: tc.function.name,
-            arguments: tc.function.arguments,
-          },
-        })),
+        toolCalls,
         finishReason: choice?.finish_reason || "stop",
       };
     }
