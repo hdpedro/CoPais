@@ -4,7 +4,11 @@
 /* ------------------------------------------------------------------ */
 
 import { createAdminClient } from "@/lib/supabase/admin";
-import { editInteractionFollowup } from "@/lib/discord/discord-client";
+import {
+  editInteractionFollowup,
+  sendChannelMessage,
+} from "@/lib/discord/discord-client";
+import { buildStatusMessage } from "@/lib/discord/message-builder";
 import { generateFix } from "./claude-fixer";
 import { createFixPR } from "./github-pr";
 import { ErrorDetails } from "./types";
@@ -84,6 +88,32 @@ export async function runFixPipeline(
         `> ${fix.explanation}`,
       ].join("\n"),
     });
+
+    // 6. Post to #prs channel
+    const prsChannel = process.env.DISCORD_CHANNEL_PRS;
+    if (prsChannel) {
+      await sendChannelMessage(
+        prsChannel,
+        buildStatusMessage(
+          "\u{1F4E6} New Auto-Fix PR",
+          `**PR:** ${pr.url}\n**File:** \`${fix.filePath}\`\n**Category:** ${errorDetails.folderCategory}\n\n> ${fix.explanation}`,
+          0x6366f1 // indigo
+        )
+      );
+    }
+
+    // 7. Log to #claude-actions channel
+    const claudeChannel = process.env.DISCORD_CHANNEL_CLAUDE;
+    if (claudeChannel) {
+      await sendChannelMessage(
+        claudeChannel,
+        buildStatusMessage(
+          "\u{1F916} Claude Fix Generated",
+          `**Error:** \`${errorId}\`\n**File:** \`${fix.filePath}\`\n**PR:** ${pr.url}`,
+          0x22c55e // green
+        )
+      );
+    }
   } catch (err) {
     // Revert status on failure
     await supabase

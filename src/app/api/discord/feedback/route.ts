@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     }
 
     const success = run.conclusion === "success";
-    const channelId = process.env.DISCORD_CHANNEL_ERRORS;
+    const channelId = process.env.DISCORD_CHANNEL_DEPLOYS ?? process.env.DISCORD_CHANNEL_ERRORS;
 
     if (channelId) {
       const message = success
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
   // Handle Vercel deploy webhooks
   if (payload.type === "deployment" || payload.deployment) {
     const deployment = payload.deployment ?? payload;
-    const channelId = process.env.DISCORD_CHANNEL_ERRORS;
+    const channelId = process.env.DISCORD_CHANNEL_DEPLOYS ?? process.env.DISCORD_CHANNEL_ERRORS;
 
     if (channelId && deployment.state) {
       const isReady = deployment.state === "READY";
