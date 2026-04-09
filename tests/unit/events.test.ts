@@ -213,12 +213,16 @@ describe("events actions", () => {
       expect(mockRedirect).toHaveBeenCalledWith("/login");
     });
 
-    it("rejects non-creator non-admin users", async () => {
+    it("creates request for non-creator non-admin users instead of blocking", async () => {
+      // New behavior: non-creator creates a request and redirects to /calendario
+      // (instead of blocking with "Apenas o criador..." error)
       mockChain.single
-        .mockResolvedValueOnce({ data: { created_by: "other-user-id" }, error: null })
+        .mockResolvedValueOnce({ data: { created_by: "other-user-id", title: "Evento X", event_date: "2026-07-01", event_time: null, status: "active" }, error: null })
         .mockResolvedValueOnce({ data: { role: "member" }, error: null });
       await expect(updateEvent(fd(base))).rejects.toThrow("NEXT_REDIRECT");
-      expectRedirectContains("Apenas o criador ou admin pode editar");
+      // Should redirect to /calendario (with requestSent or error param)
+      const call = mockRedirect.mock.calls[0]?.[0] ?? "";
+      expect(call).toContain("/calendario");
     });
   });
 
@@ -241,12 +245,13 @@ describe("events actions", () => {
       expect(mockRedirect).toHaveBeenCalledWith("/login");
     });
 
-    it("rejects non-creator non-admin users", async () => {
+    it("creates request for non-creator non-admin users instead of blocking", async () => {
       mockChain.single
-        .mockResolvedValueOnce({ data: { created_by: "other-user-id" }, error: null })
+        .mockResolvedValueOnce({ data: { created_by: "other-user-id", title: "Evento X", event_date: "2026-07-01", event_time: null, status: "active" }, error: null })
         .mockResolvedValueOnce({ data: { role: "member" }, error: null });
       await expect(deleteEvent(fd(base))).rejects.toThrow("NEXT_REDIRECT");
-      expectRedirectContains("Apenas o criador ou admin pode excluir");
+      const call = mockRedirect.mock.calls[0]?.[0] ?? "";
+      expect(call).toContain("/calendario");
     });
   });
 
@@ -269,12 +274,13 @@ describe("events actions", () => {
       expect(mockRedirect).toHaveBeenCalledWith("/login");
     });
 
-    it("rejects non-creator non-admin users", async () => {
+    it("creates request for non-creator non-admin users instead of blocking", async () => {
       mockChain.single
-        .mockResolvedValueOnce({ data: { created_by: "other-user-id" }, error: null })
+        .mockResolvedValueOnce({ data: { created_by: "other-user-id", title: "Evento X", event_date: "2026-07-01", event_time: null, status: "active" }, error: null })
         .mockResolvedValueOnce({ data: { role: "member" }, error: null });
       await expect(cancelEvent(fd(base))).rejects.toThrow("NEXT_REDIRECT");
-      expectRedirectContains("Apenas o criador ou admin pode cancelar");
+      const call = mockRedirect.mock.calls[0]?.[0] ?? "";
+      expect(call).toContain("/calendario");
     });
   });
 });

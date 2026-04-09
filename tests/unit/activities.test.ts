@@ -370,40 +370,37 @@ describe("cancelActivityOccurrence", () => {
 // ---- deleteEvent ----------------------------------------------------------
 
 describe("deleteEvent", () => {
-  it("deletes event and returns success", async () => {
+  it("deletes event as creator and redirects", async () => {
     mockSupabase.auth.getUser.mockResolvedValue({ data: { user: FAKE_USER } });
     mockGetActiveGroup.mockResolvedValue(ACTIVE_GROUP);
 
-    // find event
+    // The activities.ts deleteEvent now delegates to events.ts deleteEvent
+    // which uses redirect() instead of returning { success: true }
+    // It fetches the event with select("*"), checks created_by, then deletes
     const findChain = chainMock({
-      data: { id: "evt-1", group_id: "group-1" },
+      data: { id: "evt-1", group_id: "group-1", created_by: FAKE_USER.id, title: "Test", event_date: "2026-07-01" },
       error: null,
     });
-    // delete
     const deleteChain = chainMock({ data: null, error: null });
 
     let callNum = 0;
     mockSupabase.from.mockImplementation(() => {
       callNum++;
-      if (callNum === 1) return findChain;
+      if (callNum <= 2) return findChain; // membership + event fetch
       return deleteChain;
     });
 
-    const result = await deleteEvent("evt-1");
-
-    expect(result).toEqual({ success: true });
+    await expect(deleteEvent("evt-1")).rejects.toThrow("NEXT_REDIRECT");
   });
 
-  it("returns error when event not found", async () => {
+  it("redirects with error when event not found", async () => {
     mockSupabase.auth.getUser.mockResolvedValue({ data: { user: FAKE_USER } });
     mockGetActiveGroup.mockResolvedValue(ACTIVE_GROUP);
 
     const findChain = chainMock({ data: null, error: null });
     mockSupabase.from.mockReturnValue(findChain);
 
-    const result = await deleteEvent("nonexistent");
-
-    expect(result).toEqual({ error: "Evento nao encontrado" });
+    await expect(deleteEvent("nonexistent")).rejects.toThrow("NEXT_REDIRECT");
   });
 
   it("returns error when eventId is empty", async () => {
