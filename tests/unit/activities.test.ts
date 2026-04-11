@@ -430,8 +430,9 @@ describe("deleteAppointment", () => {
       data: { id: "apt-1", group_id: "group-1" },
       error: null,
     });
-    // delete
-    const deleteChain = chainMock({ data: null, error: null });
+    // delete — now returns .select("id") result (awaitable chain)
+    const deleteChain = chainMock({ data: [{ id: "apt-1" }], error: null });
+    deleteChain.then = (resolve: (v: { data: { id: string }[]; error: null }) => void) => resolve({ data: [{ id: "apt-1" }], error: null });
 
     let callNum = 0;
     mockSupabase.from.mockImplementation(() => {

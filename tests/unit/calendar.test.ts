@@ -187,10 +187,13 @@ describe("calendar actions", () => {
         data: {
           id: "swap-1", target_user_id: "test-user-id", requester_id: "user-b",
           group_id: "group-1", original_date: "2026-06-10",
-          proposed_date: "2026-06-12", reason: "Viagem",
+          proposed_date: "2026-06-12", reason: "Viagem", status: "pending",
         },
         error: null,
       });
+      // The chain's select() after update() returns chain (default), which resolves to {data: [...]}
+      // Override the chain's thenable to return updated rows for the idempotent update check
+      mockChain.then = (resolve: any) => resolve({ data: [{ id: "swap-1" }], error: null });
       mockChain.single.mockResolvedValue({ data: { full_name: "Test User" }, error: null });
 
       const result = await respondToSwapRequest(fd({ requestId: "swap-1", response: "approved" }));
@@ -202,10 +205,11 @@ describe("calendar actions", () => {
         data: {
           id: "swap-1", target_user_id: "test-user-id", requester_id: "user-b",
           group_id: "group-1", original_date: "2026-06-10",
-          proposed_date: null, reason: null,
+          proposed_date: null, reason: null, status: "pending",
         },
         error: null,
       });
+      mockChain.then = (resolve: any) => resolve({ data: [{ id: "swap-1" }], error: null });
       mockChain.single.mockResolvedValue({ data: { full_name: "Test User" }, error: null });
 
       const result = await respondToSwapRequest(fd({ requestId: "swap-1", response: "rejected" }));

@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { postChatNotification } from "@/lib/chat-notify";
 import { captureServerEvent } from "@/lib/posthog-server";
-import { sendPushToUsers } from "@/lib/push";
+import { createNotificationWithPush } from "@/lib/push";
 
 // ---------------------------------------------------------------------------
 // Input sanitization helpers
@@ -80,6 +80,23 @@ async function verifyChildInGroup(
     .single();
   if (!data) {
     redirect("/dashboard?error=" + encodeURIComponent("Crianca nao pertence a este grupo."));
+  }
+}
+
+async function verifyProfessionalInGroup(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  professionalId: string,
+  groupId: string,
+) {
+  if (!professionalId) return;
+  const { data } = await supabase
+    .from("professionals")
+    .select("id")
+    .eq("id", professionalId)
+    .eq("group_id", groupId)
+    .single();
+  if (!data) {
+    redirect("/dashboard?error=" + encodeURIComponent("Profissional nao pertence a este grupo."));
   }
 }
 
@@ -190,6 +207,10 @@ export async function createAppointment(formData: FormData) {
 
   const childId = formData.get("childId") as string;
   const professionalId = formData.get("professionalId") as string;
+
+  await verifyChildInGroup(supabase, childId, groupId);
+  await verifyProfessionalInGroup(supabase, professionalId, groupId);
+
   const title = sanitizeText(formData.get("title") as string, 200);
   const appointmentDate = formData.get("appointmentDate") as string;
   const appointmentTime = formData.get("appointmentTime") as string;
@@ -259,12 +280,7 @@ export async function createAppointment(formData: FormData) {
     const childName = child?.full_name?.split(" ")[0] || "crianca";
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await sendPushToUsers(otherMembers, {
-        title: "Consulta agendada",
-        body: `📅 ${title} — ${childName} (${appointmentDate})`,
-        url: "/saude/consultas",
-        tag: "health_appointment",
-      });
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Consulta agendada", `📅 ${title} — ${childName} (${appointmentDate})`, "/saude/consultas")));
     }
   } catch {
     // Push failure should not break the action
@@ -383,6 +399,8 @@ export async function createMedication(formData: FormData) {
   await verifyMembership(supabase, groupId, user.id);
 
   const childId = formData.get("childId") as string;
+  await verifyChildInGroup(supabase, childId, groupId);
+
   const name = sanitizeText(formData.get("name") as string, 200);
   const dosage = sanitizeText(formData.get("dosage") as string, 200);
   const frequency = sanitizeText(formData.get("frequency") as string, 200);
@@ -474,9 +492,10 @@ export async function logMedicationDose(formData: FormData) {
     }
 
     // Warning: less than half the recommended interval
-    const freqHours = medication?.frequency_hours || 8;
-    const halfIntervalMinutes = (freqHours * 60) / 2;
-    if (minutesSinceLastDose < halfIntervalMinutes) {
+    // frequency_hours=0 or null means on-demand (SOS) — skip interval check
+    const freqHours = medication?.frequency_hours;
+    const halfIntervalMinutes = freqHours ? (freqHours * 60) / 2 : 0;
+    if (freqHours && halfIntervalMinutes > 0 && minutesSinceLastDose < halfIntervalMinutes) {
       // Allow but add warning in success message
       const { error } = await supabase.from("medication_doses").insert({
         medication_id: medicationId,
@@ -541,6 +560,8 @@ export async function createIllnessEpisode(formData: FormData) {
   await verifyMembership(supabase, groupId, user.id);
 
   const childId = formData.get("childId") as string;
+  await verifyChildInGroup(supabase, childId, groupId);
+
   const title = sanitizeText(formData.get("title") as string, 200);
   const symptomsRaw = formData.get("symptoms") as string;
   const symptoms = symptomsRaw
@@ -731,12 +752,7 @@ export async function createAllergy(formData: FormData) {
     const childName = child?.full_name?.split(" ")[0] || "crianca";
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await sendPushToUsers(otherMembers, {
-        title: "Nova alergia registrada",
-        body: `⚠️ ${name} (${severity || "leve"}) — ${childName}`,
-        url: "/saude/alergias",
-        tag: "health_allergy",
-      });
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Nova alergia registrada", `⚠️ ${name} (${severity || "leve"}) — ${childName}`, "/saude/alergias")));
     }
   } catch {
     // Push failure should not break the action
@@ -910,12 +926,7 @@ export async function createVaccinationRecord(formData: FormData) {
     const childName = child?.full_name?.split(" ")[0] || "crianca";
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await sendPushToUsers(otherMembers, {
-        title: "Vacina registrada",
-        body: `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`,
-        url: "/saude/vacinas",
-        tag: "health_vaccine",
-      });
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Vacina registrada", `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`, "/saude/vacinas")));
     }
   } catch {
     // Push failure should not break the action
@@ -966,12 +977,7 @@ export async function createVaccinationRecordBatch(formData: FormData): Promise<
     const childName = child?.full_name?.split(" ")[0] || "crianca";
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await sendPushToUsers(otherMembers, {
-        title: "Vacina registrada",
-        body: `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`,
-        url: "/saude/vacinas",
-        tag: "health_vaccine",
-      });
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Vacina registrada", `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`, "/saude/vacinas")));
     }
   } catch {
     // Push failure should not break the action
@@ -1027,12 +1033,7 @@ export async function createVaccinationRecordsBulk(
     const childName = child?.full_name?.split(" ")[0] || "crianca";
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await sendPushToUsers(otherMembers, {
-        title: "Vacinas registradas",
-        body: `💉 ${rows.length} vacina(s) importada(s) — ${childName}`,
-        url: "/saude/vacinas",
-        tag: "health_vaccine",
-      });
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Vacinas registradas", `💉 ${rows.length} vacina(s) importada(s) — ${childName}`, "/saude/vacinas")));
     }
   } catch {
     // Push failure should not break the action
@@ -1058,19 +1059,46 @@ export async function trackHealthView(formData: FormData) {
   await verifyMembership(supabase, groupId, user.id);
 
   // Upsert — update viewed_at if already exists
-  await supabase.from("health_views").upsert(
-    {
-      group_id: groupId,
-      record_type: recordType,
-      record_id: recordId || null,
-      child_id: childId,
-      viewed_by: user.id,
-      viewed_at: new Date().toISOString(),
-    },
-    {
-      onConflict: "record_type,record_id,viewed_by",
-    },
-  );
+  // Handle NULL record_id separately since UNIQUE constraints treat NULL != NULL
+  if (recordId) {
+    await supabase.from("health_views").upsert(
+      {
+        group_id: groupId,
+        record_type: recordType,
+        record_id: recordId,
+        child_id: childId,
+        viewed_by: user.id,
+        viewed_at: new Date().toISOString(),
+      },
+      {
+        onConflict: "record_type,record_id,viewed_by",
+      },
+    );
+  } else {
+    // For NULL record_id, check existence first then insert or update
+    const { data: existing } = await supabase
+      .from("health_views")
+      .select("id")
+      .eq("record_type", recordType)
+      .is("record_id", null)
+      .eq("viewed_by", user.id)
+      .single();
+
+    if (existing) {
+      await supabase.from("health_views")
+        .update({ viewed_at: new Date().toISOString(), child_id: childId })
+        .eq("id", existing.id);
+    } else {
+      await supabase.from("health_views").insert({
+        group_id: groupId,
+        record_type: recordType,
+        record_id: null,
+        child_id: childId,
+        viewed_by: user.id,
+        viewed_at: new Date().toISOString(),
+      });
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1113,12 +1141,7 @@ export async function createGrowthRecord(formData: FormData) {
       const parts: string[] = [];
       if (weightKg) parts.push(`${weightKg}kg`);
       if (heightCm) parts.push(`${heightCm}cm`);
-      await sendPushToUsers(otherMembers, {
-        title: "Medida registrada",
-        body: `📏 ${childName}: ${parts.join(", ") || "nova medida"}`,
-        url: "/saude/crescimento",
-        tag: "health_growth",
-      });
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Medida registrada", `📏 ${childName}: ${parts.join(", ") || "nova medida"}`, "/saude/crescimento")));
     }
   } catch {
     // Push failure should not break the action
@@ -1226,12 +1249,7 @@ export async function createSymptomEntry(
       user.id,
     );
     if (otherMembers.length > 0) {
-      await sendPushToUsers(otherMembers, {
-        title: `Sintoma registrado \u2014 ${childName}`,
-        body: `${label}${tempSuffix}${intensity ? ` (${intensity})` : ""}`,
-        url: "/saude/sintomas",
-        tag: "health_symptom",
-      });
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", `Sintoma registrado — ${childName}`, `${label}${tempSuffix}${intensity ? ` (${intensity})` : ""}`, "/saude/sintomas")));
     }
   } catch {
     // Push failure should not break the action
@@ -1280,7 +1298,7 @@ export async function createIllnessWithMedicationAndAppointment(
   if (hospitalVisit) illnessData.hospital_visit = true;
   if (hospitalName) illnessData.hospital_name = hospitalName;
 
-  const { error: illErr } = await supabase
+  const { data: illnessRow, error: illErr } = await supabase
     .from("illness_episodes")
     .insert(illnessData)
     .select("id")
@@ -1288,6 +1306,7 @@ export async function createIllnessWithMedicationAndAppointment(
 
   if (illErr) redirect("/saude?error=" + encodeURIComponent(illErr.message));
 
+  const illnessEpisodeId = illnessRow?.id || null;
   captureServerEvent(user.id, "illness_reported", { title });
 
   // --- Step 2: Medication (optional) ---
@@ -1309,6 +1328,7 @@ export async function createIllnessWithMedicationAndAppointment(
         frequency: medFrequency || "Conforme prescrito",
         frequency_hours: medFrequencyHours ? parseInt(medFrequencyHours, 10) : null,
         reason: title,
+        illness_episode_id: illnessEpisodeId,
         start_date: medStartDate || startDate || new Date().toISOString().slice(0, 10),
         end_date: medEndDate || null,
         created_by: user.id,
@@ -1316,7 +1336,12 @@ export async function createIllnessWithMedicationAndAppointment(
       .select("id")
       .single();
 
-    if (!medErr && med) {
+    if (medErr) {
+      // Illness was created but medication failed — report partial success
+      revalidatePath("/saude");
+      redirect("/saude?error=" + encodeURIComponent("Doenca registrada, mas erro ao criar medicamento: " + medErr.message));
+    }
+    if (med) {
       captureServerEvent(user.id, "medication_created", { name: medName });
     }
   }
@@ -1347,7 +1372,11 @@ export async function createIllnessWithMedicationAndAppointment(
         .select("id")
         .single();
 
-      if (!aptErr && apt) {
+      if (aptErr) {
+        revalidatePath("/saude");
+        redirect("/saude?error=" + encodeURIComponent("Doenca registrada, mas erro ao criar consulta: " + aptErr.message));
+      }
+      if (apt) {
         captureServerEvent(user.id, "appointment_created", { appointmentType: aptType });
 
         // Create calendar event
@@ -1393,12 +1422,7 @@ export async function createIllnessWithMedicationAndAppointment(
 
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await sendPushToUsers(otherMembers, {
-        title: `${childName} esta doente`,
-        body: `${title} (${severity || "leve"})${medName ? ` + ${medName}` : ""}`,
-        url: "/saude",
-        tag: "health_illness_wizard",
-      });
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", `${childName} esta doente`, `${title} (${severity || "leve"})${medName ? ` + ${medName}` : ""}`, "/saude")));
     }
   } catch {
     // Notification failure should not break the action
@@ -1439,19 +1463,30 @@ export async function resolveIllnessQuick(
 
   // Optionally finish related medications
   if (finishMeds) {
-    const { data: episode } = await supabase
-      .from("illness_episodes")
-      .select("child_id, title")
-      .eq("id", episodeId)
-      .single();
+    // First try by illness_episode_id (new FK), fallback to text match for legacy data
+    const { data: byEpisodeId } = await supabase
+      .from("active_medications")
+      .update({ status: "completed", end_date: new Date().toISOString().slice(0, 10) })
+      .eq("illness_episode_id", episodeId)
+      .eq("status", "active")
+      .select("id");
 
-    if (episode) {
-      await supabase
-        .from("active_medications")
-        .update({ status: "completed", end_date: new Date().toISOString().slice(0, 10) })
-        .eq("child_id", episode.child_id)
-        .eq("reason", episode.title)
-        .eq("status", "active");
+    // Fallback: if no medications found by FK, try legacy text match
+    if (!byEpisodeId || byEpisodeId.length === 0) {
+      const { data: episode } = await supabase
+        .from("illness_episodes")
+        .select("child_id, title")
+        .eq("id", episodeId)
+        .single();
+
+      if (episode) {
+        await supabase
+          .from("active_medications")
+          .update({ status: "completed", end_date: new Date().toISOString().slice(0, 10) })
+          .eq("child_id", episode.child_id)
+          .eq("reason", episode.title)
+          .eq("status", "active");
+      }
     }
   }
 

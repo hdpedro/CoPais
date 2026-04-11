@@ -303,7 +303,9 @@ export default function NewCompromissoForm({ children, members, groupId }: Props
           formData.set("responsibleUserId", custodyResponsibleId);
           await createCustodyEvent(formData);
         }
-      } catch {
+      } catch (err) {
+        // Rethrow redirect errors (NEXT_REDIRECT) so navigation works
+        if (err instanceof Error && err.message === "NEXT_REDIRECT") throw err;
         setSubmitted(false);
       }
     });

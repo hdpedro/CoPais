@@ -29,7 +29,7 @@ export default async function AppointmentsPage({
 
   const params = await searchParams;
   const todayStr = getBrazilToday();
-  const now = todayStr + "T23:59:59";
+  const now = new Date().toISOString();
 
   const upcoming =
     appointments?.filter(

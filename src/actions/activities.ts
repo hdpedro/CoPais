@@ -1040,18 +1040,24 @@ export async function deleteAppointment(appointmentId: string) {
     return { error: "Consulta nao encontrada" };
   }
 
-  const { error } = await supabase
+  const { data: deleted, error } = await supabase
     .from("medical_appointments")
     .delete()
-    .eq("id", appointmentId);
+    .eq("id", appointmentId)
+    .select("id");
 
   if (error) {
     console.error("deleteAppointment error:", error);
     return { error: error.message };
   }
 
+  if (!deleted || deleted.length === 0) {
+    return { error: "Falha ao excluir consulta. Verifique suas permissoes." };
+  }
+
   const { revalidatePath: rp } = await import("next/cache");
   rp("/calendario");
+  rp("/saude/consultas");
 
   return { success: true };
 }

@@ -176,6 +176,12 @@ export async function createSwapRequest(formData: FormData) {
 
   if (!targetUserId) return { error: "Responsavel nao encontrado para este dia." };
 
+  // Validate target user is a member of the same group
+  const targetMembership = await verifyGroupMembership(supabase, groupId, targetUserId);
+  if (!targetMembership) {
+    return { error: "Usuario alvo nao pertence a este grupo." };
+  }
+
   const isVisit = requestType === "visit";
   const isDebtSwap = requestType === "swap" && !proposedDate;
 
@@ -266,14 +272,24 @@ export async function respondToSwapRequest(formData: FormData) {
     return { error: "Solicitacao nao encontrada" };
   }
 
-  // Update status
-  const { error: updateError } = await supabase
+  if (req.status !== "pending") {
+    return { error: "Esta solicitacao ja foi processada." };
+  }
+
+  // Update status — only if still pending (idempotent)
+  const { data: updated, error: updateError } = await supabase
     .from("swap_requests")
     .update({ status: response, responded_at: new Date().toISOString() })
-    .eq("id", requestId);
+    .eq("id", requestId)
+    .eq("status", "pending")
+    .select("id");
 
   if (updateError) {
     return { error: updateError.message };
+  }
+
+  if (!updated || updated.length === 0) {
+    return { error: "Solicitacao ja foi processada por outro usuario." };
   }
 
   // If approved, swap custody for those dates
@@ -385,10 +401,13 @@ export async function generateSchedule(formData: FormData) {
 
   const groupId = formData.get("groupId") as string;
 
-  // Verify user belongs to this group
+  // Verify user belongs to this group AND is admin
   const membership = await verifyGroupMembership(supabase, groupId, user.id);
   if (!membership) {
     return { error: "Sem permissao para este grupo." };
+  }
+  if (membership.role !== "admin") {
+    return { error: "Apenas administradores podem gerar escalas." };
   }
 
   const childId = formData.get("childId") as string;
@@ -549,15 +568,17 @@ export async function generateSchedule(formData: FormData) {
       if (error) {
         // Attempt to restore old events on insert failure
         if (existingEvents && existingEvents.length > 0) {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const restoreData = existingEvents.map(({ id, ...rest }) => rest);
           await adminClient.from("custody_events").insert(restoreData);
         }
         return { error: "Erro ao inserir nova escala: " + error.message };
       }
     }
-  } catch (e) {
+  } catch {
     // Attempt to restore old events on unexpected failure
     if (existingEvents && existingEvents.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const restoreData = existingEvents.map(({ id, ...rest }) => rest);
       await adminClient.from("custody_events").insert(restoreData);
     }

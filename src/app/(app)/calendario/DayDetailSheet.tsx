@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, memo } from "react";
 import { useRouter } from "next/navigation";
 import { createSwapRequest } from "@/actions/calendar";
 import { deleteActivity, deleteEvent, deleteAppointment, cancelActivityOccurrence, changeActivityResponsible, changeActivityResponsibleAll, toggleChecklistItem, editActivityAll, editActivityOccurrence } from "@/actions/activities";
+import { updateEvent as updateEventAction } from "@/actions/events";
 import { getBrazilToday, type CustodyDayInfo } from "@/lib/calendar-utils";
 import { ACTIVITY_CATEGORIES } from "@/lib/constants";
 import { useI18n } from "@/i18n/provider";
@@ -95,6 +96,7 @@ export default memo(function DayDetailSheet({
   const [responsibleMode, setResponsibleMode] = useState<"pick" | "confirm">("pick");
   const [selectedNewResponsible, setSelectedNewResponsible] = useState<{ id: string; name: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingSource, setEditingSource] = useState<"activity" | "event" | "appointment" | undefined>(undefined);
   const [editScope, setEditScope] = useState<"this" | "all" | null>(null);
   const [editScopePickerId, setEditScopePickerId] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -239,6 +241,7 @@ export default memo(function DayDetailSheet({
 
   function startEdit(act: ActivityInfo, scope: "this" | "all") {
     setEditingId(act.id);
+    setEditingSource(act.source);
     setEditScope(scope);
     setEditScopePickerId(null);
     setEditForm({
@@ -263,34 +266,51 @@ export default memo(function DayDetailSheet({
   async function handleEditSave(activityId: string) {
     setEditSaving(true);
     try {
-      const formData = new FormData();
-      formData.set("activityId", activityId);
-      formData.set("name", editForm.name);
-      formData.set("timeStart", editForm.timeStart);
-      formData.set("timeEnd", editForm.timeEnd);
-      formData.set("location", editForm.location);
-      formData.set("teacherName", editForm.teacherName);
-      formData.set("className", editForm.className);
-      formData.set("room", editForm.room);
-      formData.set("notes", editForm.notes);
-      formData.set("responsibleId", editForm.responsibleId);
-
-      let result;
-      if (editScope === "all") {
-        result = await editActivityAll(formData);
-      } else {
-        formData.set("occurrenceDate", dateKey);
-        result = await editActivityOccurrence(formData);
-      }
-
-      if (result?.error) {
-        setError(result.error);
-      } else {
+      if (editingSource === "event") {
+        // Use events.ts updateEvent for events (with approval flow)
+        const formData = new FormData();
+        formData.set("eventId", activityId);
+        formData.set("groupId", groupId);
+        formData.set("title", editForm.name);
+        formData.set("description", editForm.notes);
+        formData.set("eventDate", dateKey);
+        formData.set("eventTime", editForm.timeStart);
+        formData.set("location", editForm.location);
+        formData.set("childId", "");
+        await updateEventAction(formData);
         cancelEdit();
         router.refresh();
+      } else {
+        // Use activities.ts for activities
+        const formData = new FormData();
+        formData.set("activityId", activityId);
+        formData.set("name", editForm.name);
+        formData.set("timeStart", editForm.timeStart);
+        formData.set("timeEnd", editForm.timeEnd);
+        formData.set("location", editForm.location);
+        formData.set("teacherName", editForm.teacherName);
+        formData.set("className", editForm.className);
+        formData.set("room", editForm.room);
+        formData.set("notes", editForm.notes);
+        formData.set("responsibleId", editForm.responsibleId);
+
+        let result;
+        if (editScope === "all") {
+          result = await editActivityAll(formData);
+        } else {
+          formData.set("occurrenceDate", dateKey);
+          result = await editActivityOccurrence(formData);
+        }
+
+        if (result?.error) {
+          setError(result.error);
+        } else {
+          cancelEdit();
+          router.refresh();
+        }
       }
     } catch {
-      // ignore redirect errors
+      // ignore redirect errors from server actions
     } finally {
       setEditSaving(false);
     }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { respondToEventRequest } from "@/actions/events";
 import { useI18n } from "@/i18n/provider";
 
@@ -25,6 +26,7 @@ interface EventRequestListProps {
 
 export default function EventRequestList({ requests, currentUserId }: EventRequestListProps) {
   useI18n();
+  const router = useRouter();
   const [responding, setResponding] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
@@ -46,6 +48,8 @@ export default function EventRequestList({ requests, currentUserId }: EventReque
       const result = await respondToEventRequest(formData);
       if (result?.error) {
         setError(result.error);
+      } else {
+        router.refresh();
       }
     } catch {
       setError("Erro ao responder solicitacao.");

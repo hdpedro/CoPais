@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { respondToSwapRequest } from "@/actions/calendar";
 import { getDisplayName } from "@/lib/constants";
 import { useI18n } from "@/i18n/provider";
@@ -25,6 +26,7 @@ interface SwapRequestListProps {
 
 export default function SwapRequestList({ requests, currentUserId }: SwapRequestListProps) {
   const { t } = useI18n();
+  const router = useRouter();
   const [responding, setResponding] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ requestId: string; response: "approved" | "rejected"; requesterName: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -42,6 +44,8 @@ export default function SwapRequestList({ requests, currentUserId }: SwapRequest
       const result = await respondToSwapRequest(formData);
       if (result?.error) {
         setError(result.error);
+      } else {
+        router.refresh();
       }
     } catch {
       setError(t("swapList.errorResponding"));
