@@ -36,7 +36,7 @@ import {
   markAsRead,
 } from "./client";
 import { formatForWhatsApp, splitMessage } from "./formatter";
-import { processReceiptImage } from "./media";
+import { processReceiptImage, processPrescriptionImage } from "./media";
 import { transcribeAudio } from "./audio";
 import { WAExtractedMessage } from "./types";
 
@@ -284,6 +284,50 @@ export async function processWhatsAppMessage(
   /* ================================================================ */
 
   if (message.type === "image" && message.mediaId) {
+    // Check if caption suggests a prescription
+    const isPrescription = message.caption &&
+      /receita|prescri[cç][aã]o|medicamento|rem[eé]dio/i.test(message.caption);
+
+    if (isPrescription) {
+      // Fetch first child for this group (simplification for WhatsApp)
+      const { data: children } = await supabase
+        .from("children")
+        .select("id, full_name, birth_date")
+        .eq("group_id", groupId)
+        .limit(1);
+
+      if (children && children.length > 0) {
+        const child = children[0];
+        await sendTextMessage(phone, `💊 Analisando receita de ${child.full_name?.split(" ")[0]}...`);
+
+        const prescResult = await processPrescriptionImage(
+          message.mediaId,
+          message.mediaMimeType || "image/jpeg",
+          child.id,
+          child.full_name?.split(" ")[0] || "crianca",
+          child.birth_date || "",
+          groupId,
+          userId,
+        );
+
+        if (prescResult) {
+          await sendTextMessage(phone, prescResult.summary);
+          await logMessage(supabase, phone, "outbound", "text", prescResult.summary, undefined, userId);
+          await logAIRequest({
+            userId, groupId,
+            provider: "vision",
+            feature: "prescription_ocr",
+            success: true,
+            responseTimeMs: Date.now() - start,
+          });
+          return;
+        }
+
+        await sendTextMessage(phone, "Nao consegui ler a receita. Tente com uma foto mais nitida ou envie pelo app.");
+        return;
+      }
+    }
+
     await sendTextMessage(phone, "Analisando a imagem... \uD83D\uDD0D");
 
     const receipt = await processReceiptImage(

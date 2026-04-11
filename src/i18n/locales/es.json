@@ -515,6 +515,8 @@
     "logSymptom": "Registrar síntoma",
     "illnessOrEmergency": "Enfermedad o emergencia",
     "scheduleAppointment": "Agendar consulta",
+    "sendPrescription": "Enviar Receta",
+    "prescriptionHint": "Toma una foto y descubre el contexto clinico",
     "newAppointmentOrExam": "Nueva consulta o examen",
     "illnesses": "Enfermedades",
     "activeCount": "{count} activa(s)",

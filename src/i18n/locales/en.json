@@ -515,6 +515,8 @@
     "logSymptom": "Log symptom",
     "illnessOrEmergency": "Illness or emergency",
     "scheduleAppointment": "Schedule appointment",
+    "sendPrescription": "Send Prescription",
+    "prescriptionHint": "Take a photo and discover the clinical context",
     "newAppointmentOrExam": "New appointment or exam",
     "illnesses": "Illnesses",
     "activeCount": "{count} active",

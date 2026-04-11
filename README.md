@@ -186,6 +186,7 @@ O app suporta **5 idiomas** completos:
 - **Crescimento** (`/saude/crescimento`): peso, altura, perimetro cefalico com **grafico visual** (`GrowthChart`), dados WHO
 - **Profissionais** (`/saude/profissionais`): diretorio com especialidade, CRM, telefone, WhatsApp
 - **Ficha de Emergencia** (`/saude/emergencia`): QR Code com dados criticos de saude para emergencias. Endpoint publico renderiza HTML auto-contido. Token UUID por crianca para seguranca
+- **Inferencia Clinica de Receita** (`/saude/receita`): Upload de foto de receita medica com OCR via Vision AI, inferencia de possiveis indicacoes clinicas por medicamento, cruzamento com historico da crianca (antibioticos recentes, recorrencias, sintomas, alergias), alertas inteligentes. Suporte via WhatsApp (caption "receita"). Feature gating: Free (OCR), Premium (inferencia + historico), Elite (alertas). Tabela `clinical_context_inferences` com enrichment em `illness_episodes`. Cache de inferencias por medicamento normalizado (30 dias). NUNCA diagnostica — linguagem informativa com disclaimer obrigatorio
 - **Exportacao** (`/saude/export`): exportar registros de saude
 - **Rastreamento de visualizacoes** (`HealthViewTracker`, `ViewedByBadge` com i18n)
 - **Push notifications** para TODOS os eventos de saude (alergias, vacinas, consultas, crescimento)

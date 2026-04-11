@@ -1581,3 +1581,160 @@ export async function addEvolutionQuick(
   revalidatePath("/chat");
   return { success: true };
 }
+
+// ---------------------------------------------------------------------------
+// Save Prescription to Health Module
+// ---------------------------------------------------------------------------
+
+export async function savePrescriptionToHealth(
+  formData: FormData,
+): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const user = await getAuthenticatedUser(supabase);
+
+  const inferenceId = formData.get("inferenceId") as string;
+  const groupId = formData.get("groupId") as string;
+  const childId = formData.get("childId") as string;
+  const selectedIndices = JSON.parse(formData.get("selectedMedications") as string || "[]") as number[];
+  const episodeId = formData.get("episodeId") as string | null;
+  const createEpisode = formData.get("createEpisode") === "true";
+  const episodeTitle = formData.get("episodeTitle") as string | null;
+
+  await verifyMembership(supabase, groupId, user.id);
+  await verifyChildInGroup(supabase, childId, groupId);
+
+  // Fetch the inference record
+  const { data: inference } = await supabase
+    .from("clinical_context_inferences")
+    .select("*")
+    .eq("id", inferenceId)
+    .eq("group_id", groupId)
+    .single();
+
+  if (!inference) return { success: false, error: "Inferencia nao encontrada." };
+
+  const medications = inference.medications_parsed as Array<{
+    name: string; dosage: string; frequency: string;
+    duration?: string | null; notes?: string | null;
+  }>;
+  const prescriptionData = inference.prescription_data as Record<string, unknown>;
+
+  // Determine episode to link
+  let linkedEpisodeId = episodeId || null;
+
+  if (createEpisode && !linkedEpisodeId) {
+    const { mapFrequencyToHours, computeEndDate } = await import("@/lib/ai/prescription-utils");
+
+    const title = episodeTitle || (inference.ai_summary as string)?.slice(0, 100) || "Receita medica";
+    const { data: newEpisode, error: epErr } = await supabase
+      .from("illness_episodes")
+      .insert({
+        group_id: groupId,
+        child_id: childId,
+        title,
+        symptoms: [],
+        start_date: (prescriptionData.prescription_date as string) || new Date().toISOString().slice(0, 10),
+        status: "active",
+        created_by: user.id,
+        possible_causes_json: inference.clinical_inferences,
+        ai_summary: inference.ai_summary,
+        recurrence_flags_json: (inference.history_context as Record<string, unknown>)?.recurrence_patterns || null,
+        severity_level: "moderado",
+        inference_confidence: inference.inference_confidence,
+        last_ai_enriched_at: new Date().toISOString(),
+      })
+      .select("id")
+      .single();
+
+    if (epErr) return { success: false, error: "Erro ao criar episodio: " + epErr.message };
+    linkedEpisodeId = newEpisode?.id || null;
+
+    // Save each selected medication
+    const startDate = (prescriptionData.prescription_date as string) || new Date().toISOString().slice(0, 10);
+    for (const idx of selectedIndices) {
+      const med = medications[idx];
+      if (!med) continue;
+
+      const freqHours = mapFrequencyToHours(med.frequency);
+      const endDate = computeEndDate(startDate, med.duration || null);
+
+      await supabase.from("active_medications").insert({
+        group_id: groupId,
+        child_id: childId,
+        name: med.name,
+        dosage: med.dosage || "Conforme prescrito",
+        frequency: med.frequency || "Conforme prescrito",
+        frequency_hours: freqHours,
+        reason: episodeTitle || title,
+        illness_episode_id: linkedEpisodeId,
+        prescribed_by: (prescriptionData.doctor_name as string) || null,
+        start_date: startDate,
+        end_date: endDate,
+        created_by: user.id,
+      });
+    }
+  } else {
+    // Save medications without creating episode
+    const { mapFrequencyToHours, computeEndDate } = await import("@/lib/ai/prescription-utils");
+    const startDate = (prescriptionData.prescription_date as string) || new Date().toISOString().slice(0, 10);
+
+    for (const idx of selectedIndices) {
+      const med = medications[idx];
+      if (!med) continue;
+
+      const freqHours = mapFrequencyToHours(med.frequency);
+      const endDate = computeEndDate(startDate, med.duration || null);
+
+      await supabase.from("active_medications").insert({
+        group_id: groupId,
+        child_id: childId,
+        name: med.name,
+        dosage: med.dosage || "Conforme prescrito",
+        frequency: med.frequency || "Conforme prescrito",
+        frequency_hours: freqHours,
+        reason: episodeTitle || null,
+        illness_episode_id: linkedEpisodeId,
+        prescribed_by: (prescriptionData.doctor_name as string) || null,
+        start_date: startDate,
+        end_date: endDate,
+        created_by: user.id,
+      });
+    }
+
+    // Enrich existing episode if provided
+    if (linkedEpisodeId) {
+      await supabase.from("illness_episodes").update({
+        possible_causes_json: inference.clinical_inferences,
+        ai_summary: inference.ai_summary,
+        recurrence_flags_json: (inference.history_context as Record<string, unknown>)?.recurrence_patterns || null,
+        inference_confidence: inference.inference_confidence,
+        last_ai_enriched_at: new Date().toISOString(),
+      }).eq("id", linkedEpisodeId);
+    }
+  }
+
+  // Notify co-parent
+  try {
+    const { data: childRow } = await supabase.from("children").select("full_name").eq("id", childId).single();
+    const childName = childRow?.full_name?.split(" ")[0] || "crianca";
+    const medCount = selectedIndices.length;
+    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
+    if (otherMembers.length > 0) {
+      await Promise.allSettled(otherMembers.map((uid) =>
+        createNotificationWithPush(uid, "system", "Receita registrada",
+          `${medCount} medicamento(s) de ${childName} adicionado(s) via receita`, "/saude/medicamentos")
+      ));
+    }
+  } catch {
+    // Non-critical
+  }
+
+  captureServerEvent(user.id, "prescription_saved", {
+    medications_count: selectedIndices.length,
+    created_episode: createEpisode,
+  });
+
+  revalidatePath("/saude");
+  revalidatePath("/saude/medicamentos");
+  return { success: true };
+}

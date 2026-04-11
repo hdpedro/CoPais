@@ -8,7 +8,9 @@ export type AIFeature =
   | "assistant_chat"
   | "assistant_tool"
   | "summary"
-  | "suggestion";
+  | "suggestion"
+  | "prescription_ocr"
+  | "clinical_inference";
 
 /** Chat message format (OpenAI-compatible) */
 export interface AIChatMessage {

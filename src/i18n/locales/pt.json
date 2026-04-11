@@ -516,6 +516,8 @@
     "illnessOrEmergency": "Doença ou emergência",
     "scheduleAppointment": "Marcar consulta",
     "newAppointmentOrExam": "Nova consulta ou exame",
+    "sendPrescription": "Enviar Receita",
+    "prescriptionHint": "Tire foto e descubra o contexto clinico",
     "illnesses": "Doenças",
     "activeCount": "{count} ativa(s)",
     "followUp": "Acompanhamento",

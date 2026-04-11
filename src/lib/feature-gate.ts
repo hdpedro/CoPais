@@ -18,6 +18,7 @@ const ELITE_FEATURES = new Set([
   "detailed_reports",
   "export_pdf",
   "data_backup",
+  "prescription_alerts",
 ]);
 
 export function canAccess(feature: string, tier: PlanTier): boolean {

@@ -58,3 +58,6 @@ export const pushChatRateLimiter = new RateLimiter({ windowMs: 60_000, maxReques
 /** AI parse-invite (image upload): 10 req/min per user */
 export const parseInviteRateLimiter = new RateLimiter({ windowMs: 60_000, maxRequests: 10 });
 export const parseVaccinesRateLimiter = new RateLimiter({ windowMs: 60_000, maxRequests: 10 });
+
+/** AI parse-prescription (heavier operation): 5 req/min per user */
+export const parsePrescriptionRateLimiter = new RateLimiter({ windowMs: 60_000, maxRequests: 5 });
