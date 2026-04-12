@@ -242,7 +242,6 @@ export default function PrescriptionParserClient({
             ref={fileInputRef}
             type="file"
             accept="image/*,application/pdf"
-            capture="environment"
             className="hidden"
             onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
           />
