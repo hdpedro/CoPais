@@ -359,9 +359,9 @@ describe("health actions", () => {
       susNumber: "987654", primaryPediatricianId: "prof-1",
     };
 
-    it("upserts medical info and redirects with success", async () => {
-      await expect(upsertMedicalInfo(fd(base))).rejects.toThrow("NEXT_REDIRECT");
-      expectRedirectContains("/saude/alergias?success=");
+    it("upserts medical info and returns success", async () => {
+      const result = await upsertMedicalInfo(fd(base));
+      expect(result).toEqual({ success: true });
     });
 
     it("redirects to /login when unauthenticated", async () => {

@@ -850,7 +850,7 @@ export async function deleteAllergy(formData: FormData) {
 // 11. upsertMedicalInfo
 // ---------------------------------------------------------------------------
 
-export async function upsertMedicalInfo(formData: FormData) {
+export async function upsertMedicalInfo(formData: FormData): Promise<{ success: boolean; error?: string }> {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
 
@@ -875,14 +875,16 @@ export async function upsertMedicalInfo(formData: FormData) {
       insurance_number: insuranceNumber || null,
       sus_number: susNumber || null,
       primary_pediatrician_id: primaryPediatricianId || null,
+      updated_at: new Date().toISOString(),
     },
     { onConflict: "child_id" },
   );
 
-  if (error) redirect("/saude/alergias?error=" + encodeURIComponent(error.message));
+  if (error) return { success: false, error: error.message };
 
   revalidatePath("/saude/alergias");
-  redirect("/saude/alergias?success=Informacoes+atualizadas");
+  revalidatePath("/saude");
+  return { success: true };
 }
 
 // ---------------------------------------------------------------------------

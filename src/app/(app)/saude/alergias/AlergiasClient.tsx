@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { ALLERGY_TYPES, ALLERGY_SEVERITIES, BLOOD_TYPES } from "@/lib/health-constants";
@@ -60,9 +61,12 @@ export default function AlergiasClient({
   error: errorMsg,
 }: Props) {
   const { t } = useI18n();
+  const router = useRouter();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [editingMedicalInfo, setEditingMedicalInfo] = useState(false);
+  const [savingMedicalInfo, setSavingMedicalInfo] = useState(false);
+  const [medicalInfoMsg, setMedicalInfoMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const severityConfig: Record<string, { bg: string; text: string; labelKey: string }> = {
     severe: { bg: "bg-red-100", text: "text-red-700", labelKey: "health.severityGrave" },
@@ -384,8 +388,36 @@ export default function AlergiasClient({
           )}
         </div>
 
+        {medicalInfoMsg && (
+          <div className={`rounded-lg p-3 mb-3 text-sm ${medicalInfoMsg.type === "success" ? "bg-green-50 border border-green-200 text-green-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+            {medicalInfoMsg.text}
+          </div>
+        )}
+
         {editingMedicalInfo && !isReadonly ? (
-          <form action={upsertMedicalInfo} className="bg-white rounded-xl p-4 shadow-sm space-y-4 border border-primary/20">
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setSavingMedicalInfo(true);
+              setMedicalInfoMsg(null);
+              try {
+                const fd = new FormData(e.currentTarget);
+                const result = await upsertMedicalInfo(fd);
+                if (result?.error) {
+                  setMedicalInfoMsg({ type: "error", text: result.error });
+                } else {
+                  setMedicalInfoMsg({ type: "success", text: "Informacoes atualizadas!" });
+                  setEditingMedicalInfo(false);
+                  router.refresh();
+                }
+              } catch {
+                setMedicalInfoMsg({ type: "error", text: "Erro ao salvar. Tente novamente." });
+              } finally {
+                setSavingMedicalInfo(false);
+              }
+            }}
+            className="bg-white rounded-xl p-4 shadow-sm space-y-4 border border-primary/20"
+          >
             <input type="hidden" name="childId" value={selectedChildId} />
             <input type="hidden" name="groupId" value={groupId} />
 
@@ -454,9 +486,10 @@ export default function AlergiasClient({
               </button>
               <button
                 type="submit"
-                className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors"
+                disabled={savingMedicalInfo}
+                className="px-3 py-1.5 text-xs font-medium text-white bg-primary rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                {t("common.save")}
+                {savingMedicalInfo ? "Salvando..." : t("common.save")}
               </button>
             </div>
           </form>
