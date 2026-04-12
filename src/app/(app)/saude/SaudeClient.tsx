@@ -858,6 +858,7 @@ export default function SaudeClient(props: SaudeClientProps) {
               <p className="text-sm font-bold text-white">{t("health.scheduleAppointment")}</p>
               <p className="text-[11px] text-white/70 mt-0.5">{t("health.newAppointmentOrExam")}</p>
             </Link>
+
             <Link
               href={`/saude/receita?crianca=${selectedChildId}`}
               className="bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl p-4 shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all group col-span-2"
@@ -873,6 +874,9 @@ export default function SaudeClient(props: SaudeClientProps) {
                   <p className="text-sm font-bold text-white">{t("health.sendPrescription")}</p>
                   <p className="text-[11px] text-white/70 mt-0.5">{t("health.prescriptionHint")}</p>
                 </div>
+                <svg className="w-5 h-5 text-white/50 ml-auto shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                </svg>
               </div>
             </Link>
           </div>
