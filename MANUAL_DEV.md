@@ -75,10 +75,20 @@ O app usa Capacitor para distribuicao na App Store. Configuracao em `capacitor.c
 - `@capacitor/haptics` — Feedback haptico (vibracoes)
 - `@capacitor/keyboard` — Controle do teclado virtual
 - `@capacitor/app` — Eventos do app (back button, state change)
+- `@capacitor/push-notifications` — Push notifications via APNs
+
+**Plugin nativo StoreKit (Apple IAP):**
+- `ios-plugins/StoreKitPlugin.swift` — StoreKit 2 para compras in-app (getProducts, purchase, restorePurchases)
+- `ios-plugins/StoreKitPlugin.m` — Bridge Obj-C para registrar no Capacitor
+- Copiar para `ios/App/App/` apos `npx cap add ios`
 
 **Utilitarios:**
 - `src/lib/capacitor.ts` — Bridge com funcoes safe (no-op no browser)
 - `src/lib/haptics.ts` — Haptic feedback com fallback Web Vibration API
+- `src/lib/native-init.ts` — Init centralizado (StatusBar, Keyboard, SplashScreen, Push)
+- `src/lib/payments.ts` — Sistema de pagamento unificado (Apple IAP + Stripe)
+- `src/lib/payment-platform.ts` — Deteccao de plataforma (apple_iap vs stripe)
+- `src/components/NativeShellGuard.tsx` — `WebOnly` (esconde componentes no native) + `NativeInit` (chama initNative)
 
 **CSS iOS / Mobile UX Nativo:**
 - Safe areas via `env(safe-area-inset-*)` em `globals.css`
@@ -100,7 +110,10 @@ O app usa Capacitor para distribuicao na App Store. Configuracao em `capacitor.c
 
 **Para buildar (requer Mac + Xcode):**
 ```bash
-npx cap add ios && npx cap sync ios && npx cap open ios
+npx cap add ios
+cp ios-plugins/StoreKitPlugin.swift ios/App/App/
+cp ios-plugins/StoreKitPlugin.m ios/App/App/
+npx cap sync ios && npx cap open ios
 ```
 
 ### Dependencias Completas (package.json)

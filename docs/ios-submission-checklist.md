@@ -238,13 +238,17 @@ npx cap open ios
 
 | Feature | Status |
 |---|---|
-| Push Notifications | Implemented (APNs via Capacitor) |
+| Push Notifications | Implemented (APNs via `@capacitor/push-notifications` + `native-init.ts`) |
+| In-App Purchase | Implemented (StoreKit 2 via `StoreKitPlugin.swift` + `payments.ts`) |
+| IAP Verification | Implemented (`/api/iap/verify` with JWS transaction) |
+| Restore Purchases | Implemented (button on pricing page) |
 | Haptic Feedback | Implemented (navigation, actions) |
 | Status Bar | Configured (light style) |
 | Splash Screen | Configured |
 | Keyboard handling | Configured (body resize) |
 | Offline support | Implemented (SW + offline page) |
 | Safe Areas | CSS env() variables |
+| Native Init | Implemented (`native-init.ts` — StatusBar, Keyboard, Push) |
 | Biometric Auth | Not yet (future) |
 | Camera | Not yet (future - receipts) |
 | Share Sheet | Not yet (future) |

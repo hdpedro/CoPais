@@ -8,7 +8,7 @@ export default async function PricingPage() {
   // Fetch plans
   const { data: plans } = await supabase
     .from("plans")
-    .select("id, name, description, price_brl, interval, stripe_price_id, features, sort_order")
+    .select("id, name, description, price_brl, interval, stripe_price_id, apple_product_id, features, sort_order")
     .eq("is_active", true)
     .order("sort_order");
 
@@ -35,6 +35,7 @@ export default async function PricingPage() {
         priceBrl: p.price_brl,
         interval: p.interval,
         stripePriceId: p.stripe_price_id,
+        appleProductId: p.apple_product_id,
         features: p.features as string[],
       }))}
       currentPlanId={currentPlanId}

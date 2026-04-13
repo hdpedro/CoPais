@@ -71,7 +71,10 @@ src/
 │   ├── constants.ts  # Constantes do app (cores, categorias, checklist items)
 │   ├── calendar-utils.ts  # Utilidades de data/calendario + computeSwapBalance()
 │   ├── recurrence-utils.ts # Motor de recorrencia (diario, semanal, etc.)
-│   ├── push.ts       # Push notifications (web-push, VAPID)
+│   ├── push.ts       # Push notifications (web-push VAPID + APNs nativo)
+│   ├── payments.ts   # Sistema de pagamento unificado (Apple IAP + Stripe)
+│   ├── payment-platform.ts # Deteccao de plataforma (apple_iap vs stripe)
+│   ├── native-init.ts # Init centralizado do native shell (StatusBar, Push, Keyboard)
 │   ├── auth-utils.ts # Verificacao de grupo
 │   ├── ical.ts       # Gerador iCalendar (RFC 5545)
 │   ├── chat-notify.ts # Notificacoes automaticas no chat
@@ -534,6 +537,12 @@ Politicas garantem que:
 | `00043_whatsapp_tables.sql` | **WhatsApp Integration**: 4 tabelas (phone_links, sessions, message_logs, notification_preferences) + RLS + triggers |
 | `00044_app_errors.sql` | Tabela de erros da aplicacao |
 | `00045_event_requests_and_history.sql` | **Event Approval System**: tabelas event_requests + event_history + notification_type enum + RLS |
+| `00046_swap_requests_rls_target_validation.sql` | Validacao RLS para swap requests |
+| `00047_medical_appointments_delete_policy.sql` | Policy de delete para medical appointments |
+| `00048_medication_episode_id.sql` | Campo episode_id em medications |
+| `00049_health_views_null_unique.sql` | Views de saude com unique nullable |
+| `00050_clinical_context_inferences.sql` | Inferencias de contexto clinico |
+| `00051_apple_product_ids.sql` | **Apple IAP**: seta `apple_product_id` nos planos + indices para lookup por product_id e transaction_id |
 
 ---
 

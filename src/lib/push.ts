@@ -156,39 +156,164 @@ async function getUserSubscriptions(userId: string): Promise<PushSubscriptionDat
 }
 
 /**
- * Send push notification to a specific user (all their devices)
+ * Get all APNs tokens for a user (for native iOS push notifications)
+ */
+async function getUserApnsTokens(userId: string): Promise<string[]> {
+  const supabase = getAdminClient();
+
+  const { data } = await supabase
+    .from("notifications")
+    .select("id, message")
+    .eq("user_id", userId)
+    .eq("type", "system")
+    .eq("title", "apns_token");
+
+  if (!data) return [];
+  return data.map((row) => row.message).filter(Boolean);
+}
+
+/**
+ * Send a push notification via APNs (Apple Push Notification service).
+ * Uses HTTP/2 APNs API with a .p8 signing key.
+ *
+ * Requires env vars: APNS_KEY_ID, APNS_TEAM_ID, APNS_KEY_P8, APNS_BUNDLE_ID
+ */
+async function sendApnsPush(token: string, payload: PushPayload): Promise<boolean> {
+  const keyId = process.env.APNS_KEY_ID;
+  const teamId = process.env.APNS_TEAM_ID;
+  const keyP8 = process.env.APNS_KEY_P8;
+  const bundleId = process.env.APNS_BUNDLE_ID || "com.kindar.app";
+
+  if (!keyId || !teamId || !keyP8) {
+    // APNs not configured — skip silently
+    return false;
+  }
+
+  try {
+    // Dynamic import to avoid issues when crypto is not available
+    const crypto = await import("crypto");
+
+    // Create JWT for APNs authentication
+    const header = Buffer.from(JSON.stringify({ alg: "ES256", kid: keyId })).toString("base64url");
+    const now = Math.floor(Date.now() / 1000);
+    const claims = Buffer.from(JSON.stringify({ iss: teamId, iat: now })).toString("base64url");
+    const signingInput = `${header}.${claims}`;
+
+    const key = crypto.createPrivateKey(keyP8.replace(/\\n/g, "\n"));
+    const sign = crypto.createSign("SHA256");
+    sign.update(signingInput);
+    const signature = sign.sign(key);
+
+    // Convert DER signature to raw r||s format for ES256
+    const r = signature.subarray(4, 4 + signature[3]);
+    const sOffset = 4 + signature[3] + 2;
+    const s = signature.subarray(sOffset, sOffset + signature[sOffset - 1]);
+    const rawSig = Buffer.concat([
+      Buffer.alloc(32 - r.length), r,
+      Buffer.alloc(32 - s.length), s,
+    ]).toString("base64url");
+
+    const jwt = `${signingInput}.${rawSig}`;
+
+    // Use production APNs URL
+    const apnsUrl = `https://api.push.apple.com/3/device/${token}`;
+
+    const apnsPayload = {
+      aps: {
+        alert: { title: payload.title, body: payload.body },
+        sound: "default",
+        badge: 1,
+        ...(payload.tag ? { "thread-id": payload.tag } : {}),
+      },
+      url: payload.url || "/dashboard",
+    };
+
+    const res = await fetch(apnsUrl, {
+      method: "POST",
+      headers: {
+        authorization: `bearer ${jwt}`,
+        "apns-topic": bundleId,
+        "apns-push-type": "alert",
+        "apns-priority": "10",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(apnsPayload),
+    });
+
+    return res.ok;
+  } catch (err) {
+    console.warn("[APNs] Failed to send:", err);
+    return false;
+  }
+}
+
+/**
+ * Remove an expired APNs token
+ */
+async function removeApnsToken(userId: string, token: string) {
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from("notifications")
+    .select("id, message")
+    .eq("user_id", userId)
+    .eq("type", "system")
+    .eq("title", "apns_token");
+
+  if (!data) return;
+  for (const row of data) {
+    if (row.message === token) {
+      await supabase.from("notifications").delete().eq("id", row.id);
+      return;
+    }
+  }
+}
+
+/**
+ * Send push notification to a specific user (all their devices: web + APNs)
  */
 export async function sendPushToUser(userId: string, payload: PushPayload) {
   try {
+    // Send via web-push (VAPID)
     const subscriptions = await getUserSubscriptions(userId);
-    if (subscriptions.length === 0) return;
-
-    const jsonPayload = JSON.stringify(payload);
-
-    await Promise.allSettled(
-      subscriptions.map(async (sub) => {
-        try {
-          await webpush.sendNotification(
-            {
-              endpoint: sub.endpoint,
-              keys: {
-                p256dh: sub.p256dh,
-                auth: sub.auth,
+    if (subscriptions.length > 0 && vapidConfigured) {
+      const jsonPayload = JSON.stringify(payload);
+      await Promise.allSettled(
+        subscriptions.map(async (sub) => {
+          try {
+            await webpush.sendNotification(
+              {
+                endpoint: sub.endpoint,
+                keys: {
+                  p256dh: sub.p256dh,
+                  auth: sub.auth,
+                },
               },
-            },
-            jsonPayload
-          );
-        } catch (err: unknown) {
-          // If subscription expired (410 Gone or 404), remove it
-          const statusCode = (err as { statusCode?: number })?.statusCode;
-          if (statusCode === 410 || statusCode === 404) {
-            await removePushSubscription(userId, sub.endpoint);
+              jsonPayload
+            );
+          } catch (err: unknown) {
+            const statusCode = (err as { statusCode?: number })?.statusCode;
+            if (statusCode === 410 || statusCode === 404) {
+              await removePushSubscription(userId, sub.endpoint);
+            }
           }
-        }
-      })
-    );
+        })
+      );
+    }
+
+    // Send via APNs (native iOS)
+    const apnsTokens = await getUserApnsTokens(userId);
+    if (apnsTokens.length > 0) {
+      await Promise.allSettled(
+        apnsTokens.map(async (token) => {
+          const sent = await sendApnsPush(token, payload);
+          if (!sent) {
+            // Token might be invalid, remove it
+            await removeApnsToken(userId, token);
+          }
+        })
+      );
+    }
   } catch {
-    // Push failure should never break the app
     console.warn("[PUSH] Failed to send push to user", userId);
   }
 }

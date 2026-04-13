@@ -6,6 +6,7 @@ import { SpeedInsights } from "@vercel/speed-insights/next";
 import { ServiceWorkerRegister } from "./sw-register";
 import AuthSessionProvider from "@/components/AuthSessionProvider";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
+import { WebOnly, NativeInit } from "@/components/NativeShellGuard";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -95,11 +96,14 @@ export default function RootLayout({
       </head>
       <body className={`${jakarta.variable} ${cormorant.variable} antialiased`}>
         {children}
-        <Analytics />
-        <SpeedInsights />
+        <WebOnly>
+          <Analytics />
+          <SpeedInsights />
+        </WebOnly>
         <AuthSessionProvider />
         <ServiceWorkerRegister />
         <PWAInstallBanner />
+        <NativeInit />
       </body>
     </html>
   );

@@ -12,6 +12,7 @@ interface Plan {
   priceBrl: number;
   interval: string;
   stripePriceId: string | null;
+  appleProductId: string | null;
   features: string[];
 }
 
@@ -55,17 +56,39 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
 
     if (plan.id === "free") return;
 
+    setLoading(plan.id);
+
+    // Apple In-App Purchase flow
     if (platform === "apple_iap") {
-      alert("Assinatura via App Store sera disponibilizada em breve. Use a versao web por enquanto.");
+      if (!plan.appleProductId) {
+        alert("Plano ainda nao configurado para a App Store.");
+        setLoading(null);
+        return;
+      }
+
+      try {
+        const { purchaseApple } = await import("@/lib/payments");
+        const result = await purchaseApple(plan.appleProductId);
+        if (result.success) {
+          router.push("/dashboard");
+          router.refresh();
+        } else if (result.error !== "cancelled") {
+          alert(result.error || "Erro no pagamento");
+        }
+      } catch {
+        alert("Erro de conexao. Tente novamente.");
+      }
+      setLoading(null);
       return;
     }
 
+    // Stripe Checkout flow
     if (!plan.stripePriceId) {
       alert("Plano ainda nao configurado. Entre em contato com o suporte.");
+      setLoading(null);
       return;
     }
 
-    setLoading(plan.id);
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
@@ -85,7 +108,30 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
     }
   }
 
+  async function handleRestorePurchases() {
+    setLoading("restore");
+    try {
+      const { restoreApplePurchases } = await import("@/lib/payments");
+      const result = await restoreApplePurchases();
+      if (result.success) {
+        alert(`${result.restoredCount} compra(s) restaurada(s) com sucesso!`);
+        router.refresh();
+      } else {
+        alert(result.error || "Nenhuma compra encontrada para restaurar.");
+      }
+    } catch {
+      alert("Erro ao restaurar compras.");
+    }
+    setLoading(null);
+  }
+
   async function handleManage() {
+    // Apple subscriptions are managed via App Store
+    if (platform === "apple_iap") {
+      globalThis.location.assign("https://apps.apple.com/account/subscriptions");
+      return;
+    }
+
     setLoading("manage");
     try {
       const res = await fetch("/api/stripe/portal", {
@@ -318,13 +364,26 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
           })}
         </div>
 
+        {/* Apple IAP: Restore purchases button */}
+        {platform === "apple_iap" && isLoggedIn && (
+          <div className="flex justify-center mt-8">
+            <button
+              onClick={handleRestorePurchases}
+              disabled={loading === "restore"}
+              className="text-sm text-[#C07055] font-medium hover:underline disabled:opacity-50"
+            >
+              {loading === "restore" ? "Restaurando..." : "Restaurar compras anteriores"}
+            </button>
+          </div>
+        )}
+
         {/* Trust signals */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mt-10 text-xs text-[#9A8878]">
           <span className="flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
             </svg>
-            Pagamento seguro via Stripe
+            {platform === "apple_iap" ? "Pagamento seguro via App Store" : "Pagamento seguro via Stripe"}
           </span>
           <span className="flex items-center gap-1.5">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>

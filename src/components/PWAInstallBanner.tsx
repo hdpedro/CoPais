@@ -1,12 +1,14 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { isNativeApp } from "@/lib/capacitor";
 
 /**
  * Shows a banner on iOS Safari prompting the user to "Add to Home Screen"
  * so the app runs in standalone mode (no URL bar).
  *
  * Only shows when:
+ * - NOT running inside Capacitor native shell
  * - Running on iOS (iPhone/iPad)
  * - NOT already in standalone mode (already installed)
  * - User hasn't dismissed it before (stored in localStorage)
@@ -15,6 +17,9 @@ export default function PWAInstallBanner() {
   const [show, setShow] = useState(false);
 
   useEffect(() => {
+    // Never show inside native app
+    if (isNativeApp()) return;
+
     // Check if already in standalone mode (installed PWA)
     const isStandalone =
       window.matchMedia("(display-mode: standalone)").matches ||

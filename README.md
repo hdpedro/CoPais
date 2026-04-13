@@ -43,7 +43,12 @@ O app esta configurado para distribuicao na Apple App Store via Capacitor:
 - **Bundle ID:** `com.kindar.app`
 - **Config:** `capacitor.config.ts`
 - **Modo:** Hybrid (carrega `kindar.com.br` com integracao nativa)
-- **Plugins:** StatusBar, SplashScreen, Haptics, Keyboard, App
+- **Plugins:** StatusBar, SplashScreen, Haptics, Keyboard, App, PushNotifications
+- **Apple IAP:** StoreKit 2 via plugin nativo (`ios-plugins/StoreKitPlugin.swift`) com `getProducts`, `purchase`, `restorePurchases`
+- **Pagamentos:** Sistema unificado Apple IAP + Stripe (`src/lib/payments.ts`), verificacao de receipt em `/api/iap/verify`
+- **Push Notifications:** Web-push (VAPID) + APNs nativo. Token APNs registrado via `/api/push/register-apns`. Entrega dual em `src/lib/push.ts`
+- **Init Nativo:** `src/lib/native-init.ts` centraliza setup de StatusBar, SplashScreen, Keyboard e push ao iniciar o app
+- **Native Shell Guards:** PWAInstallBanner e ServiceWorker desabilitados dentro do Capacitor; Analytics/SpeedInsights condicionais via `WebOnly` component
 - **Safe Areas:** CSS `env(safe-area-inset-*)` em todos os componentes (notch + home indicator)
 - **Touch targets:** minimo 44px em todos os elementos interativos (Apple HIG)
 - **Haptic feedback:** em interacoes (troca de tab, clique em dia, envio de mensagem)
@@ -52,15 +57,29 @@ O app esta configurado para distribuicao na Apple App Store via Capacitor:
 - **Viewport:** `viewport-fit=cover`, sem zoom
 - **7 loading skeletons:** arquivos `loading.tsx` com animate-pulse
 - **Offline:** Service Worker v3 com navigation caching + pagina offline (`/offline.html`)
-- **PWA Install Banner:** `PWAInstallBanner.tsx` exibe banner no iOS Safari pedindo para "Adicionar a Tela de Inicio" (modo standalone, sem barra de URL). Aparece apenas no iOS quando nao esta em standalone e o usuario nao dispensou; dispensa salva em `localStorage` (`kindar-pwa-dismissed`)
+- **PWA Install Banner:** `PWAInstallBanner.tsx` exibe banner no iOS Safari (escondido dentro do native shell)
 - **Deteccao de teclado:** bottom nav se esconde via `visualViewport` API
 - **Checklist de submissao:** `docs/ios-submission-checklist.md`
 
-Para buildar o iOS (requer Mac com Xcode):
+Para buildar o iOS (duas opcoes):
+
+**Opcao 1: GitHub Actions (sem Mac)**
+```bash
+# Build automatico via tag
+git tag v1.0.0
+git push origin v1.0.0
+# Ou: Actions > iOS Build & Upload > Run workflow
+```
+Setup dos secrets: `docs/ios-github-actions-setup.md`
+
+**Opcao 2: Local (requer Mac com Xcode)**
 ```bash
 npx cap add ios
+cp ios-plugins/StoreKitPlugin.swift ios/App/App/
+cp ios-plugins/StoreKitPlugin.m ios/App/App/
 npx cap sync ios
 npx cap open ios
+# No Xcode: ativar capabilities Push Notifications e In-App Purchase
 ```
 
 ## Internacionalizacao (i18n)
