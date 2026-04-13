@@ -674,7 +674,7 @@ export default function DashboardClient(props: DashboardClientProps) {
             })}
             {childHealthOverflow > 0 && (
               <Link href="/saude" prefetch={false} className="block text-center py-1.5">
-                <span className="text-[11px] font-semibold text-[#D4735A]">+{childHealthOverflow} criancas</span>
+                <span className="text-[11px] font-semibold text-[#D4735A]">+{childHealthOverflow} crianças</span>
               </Link>
             )}
           </div>
@@ -906,8 +906,8 @@ export default function DashboardClient(props: DashboardClientProps) {
           <QuickAction label={t("dashboard.agenda")} href="/calendario" color="#5B9E85"
             icon={<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
           />
-          <QuickAction label="Check-in" href="/checkin" color="#3B82F6"
-            icon={<><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></>}
+          <QuickAction label={t("dashboard.weeklyAnalysis")} href="/relatorios" color="#3B82F6"
+            icon={<><path d="M21 15V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10"/><path d="M3 21h18"/><path d="M7 17l3-3 2 2 5-5"/></>}
           />
           <QuickAction label={t("nav.documents")} href="/documentos" color="#F59E0B"
             icon={<><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></>}

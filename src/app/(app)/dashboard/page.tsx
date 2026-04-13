@@ -459,7 +459,7 @@ export default async function DashboardPage() {
   }
 
   const childHealthSummaries: ChildHealthSummary[] = (children || []).map((child) => {
-    const childName = child.full_name?.split(" ")[0] || "Crianca";
+    const childName = child.full_name?.split(" ")[0] || "Criança";
     const childMeds = (activeMedications || []).filter(m => m.child_id === child.id);
     const childIllnesses = (activeIllnesses || []).filter(i => i.child_id === child.id);
     const childAppts = (upcomingAppointments || []).filter(a => a.child_id === child.id);
@@ -499,7 +499,7 @@ export default async function DashboardPage() {
       nextAction = "Ver consulta";
     }
 
-    return { childId: child.id, childName, status, statusLabel: status === "treatment" ? "Em tratamento" : status === "monitoring" ? "Em acompanhamento" : "Saudavel", detail, activeMedication, nextAction };
+    return { childId: child.id, childName, status, statusLabel: status === "treatment" ? "Em tratamento" : status === "monitoring" ? "Em acompanhamento" : "Saudável", detail, activeMedication, nextAction };
   });
 
   // Sort by attention level: treatment > monitoring > healthy
@@ -617,7 +617,7 @@ export default async function DashboardPage() {
 
   // Illnesses
   const illnessProps: DashboardClientProps["activeIllnesses"] = (activeIllnesses || []).map((illness) => {
-    const childName = (illness.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
+    const childName = (illness.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Criança";
     const startDate = new Date(illness.start_date + "T12:00:00");
     const daysAgo = Math.round((nowMs - startDate.getTime()) / 86400000);
     const symptoms = (illness.symptoms as string[])?.slice(0, 3).join(", ") || "";
