@@ -980,7 +980,7 @@ function QuickAction({ label, href, color, icon }: { label: string; href: string
           {icon}
         </svg>
       </div>
-      <span className="text-[11px] font-medium text-[#2C2C2C]">{label}</span>
+      <span className="text-[11px] font-medium text-[#2C2C2C] text-center leading-tight">{label}</span>
     </Link>
   );
 }
