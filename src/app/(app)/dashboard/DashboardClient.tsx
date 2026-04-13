@@ -282,10 +282,9 @@ export default function DashboardClient(props: DashboardClientProps) {
     // hasHealthAlerts, activeIllnesses, activeMedications, criticalAllergies, upcomingAppointments — replaced by healthBlock
     hasTomorrowActivities,
     hasTodayActivities,
-    hasUpcomingActivities,
+    // hasUpcomingActivities, upcomingActivitiesList — removed, only today+tomorrow shown
     tomorrowActivities,
     todayActivities,
-    upcomingActivitiesList,
     pendingExpenses,
     pendingDecisions,
     pendingReports,
@@ -682,8 +681,8 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       )}
 
-      {/* === ACTIVITIES (today + tomorrow + upcoming, grouped by day) === */}
-      {show("activities") && (hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities) && (
+      {/* === ACTIVITIES (today + tomorrow only) === */}
+      {show("activities") && (hasTodayActivities || hasTomorrowActivities) && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider flex items-center gap-1.5">
@@ -750,39 +749,6 @@ export default function DashboardClient(props: DashboardClientProps) {
             </>
           )}
 
-          {/* Upcoming (grouped by date) */}
-          {hasUpcomingActivities && (() => {
-            // Group upcoming by date
-            const grouped: Record<string, typeof upcomingActivitiesList> = {};
-            for (const item of upcomingActivitiesList) {
-              if (!grouped[item.dayLabel]) grouped[item.dayLabel] = [];
-              grouped[item.dayLabel].push(item);
-            }
-            return Object.entries(grouped).slice(0, 3).map(([dayLabel, items]) => (
-              <div key={dayLabel}>
-                <p className="text-[10px] font-semibold text-[#7A8C8B] uppercase tracking-wider pt-1">{dayLabel}</p>
-                {items.map(({ act, date }) => {
-                  const catIcon = ACTIVITY_CATEGORIES.find((c) => c.value === act.category)?.icon || "\u{1F4CB}";
-                  return (
-                    <Link key={`up-${act.id}-${date}`} href={`/calendario?day=${date}&eventId=${act.id}`} prefetch={false} className="block mt-1.5">
-                      <div className="bg-white border border-gray-100/80 rounded-xl p-3 flex items-center gap-3">
-                        <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-base">
-                          {catIcon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-semibold text-[#2C2C2C] truncate">{act.name}</p>
-                          <p className="text-[11px] text-[#7A8C8B]">
-                            {act.timeStr && <span className="font-medium text-[#2C2C2C]">{act.timeStr}</span>}
-                            {act.childName && <> &middot; {act.childName}</>}
-                          </p>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </div>
-            ));
-          })()}
         </div>
       )}
 
