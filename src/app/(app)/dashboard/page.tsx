@@ -307,6 +307,19 @@ export default async function DashboardPage() {
     }
   }
 
+  // Sort activities by time (ascending)
+  const sortByTime = (a: DashActivityItem, b: DashActivityItem) => {
+    const timeA = a.time_start || "99:99";
+    const timeB = b.time_start || "99:99";
+    return timeA.localeCompare(timeB);
+  };
+  todayActivities.sort(sortByTime);
+  tomorrowActivities.sort(sortByTime);
+  upcomingActivities.sort((a, b) => {
+    if (a.date !== b.date) return a.date.localeCompare(b.date);
+    return (a.act.time_start || "99:99").localeCompare(b.act.time_start || "99:99");
+  });
+
   const hasTomorrowActivities = tomorrowActivities.length > 0;
   const hasTodayActivities = todayActivities.length > 0;
   const hasUpcomingActivities = upcomingActivities.length > 0;
@@ -433,6 +446,69 @@ export default async function DashboardPage() {
     (criticalAllergies && criticalAllergies.length > 0) ||
     (upcomingAppointments && upcomingAppointments.length > 0) ||
     (activeIllnesses && activeIllnesses.length > 0);
+
+  // Build per-child health summary for the new health block
+  interface ChildHealthSummary {
+    childId: string;
+    childName: string;
+    status: "healthy" | "monitoring" | "treatment";
+    statusLabel: string;
+    detail: string;
+    activeMedication: string | null;
+    nextAction: string | null;
+  }
+
+  const childHealthSummaries: ChildHealthSummary[] = (children || []).map((child) => {
+    const childName = child.full_name?.split(" ")[0] || "Crianca";
+    const childMeds = (activeMedications || []).filter(m => m.child_id === child.id);
+    const childIllnesses = (activeIllnesses || []).filter(i => i.child_id === child.id);
+    const childAppts = (upcomingAppointments || []).filter(a => a.child_id === child.id);
+    const childCheckin = recentCheckins?.find(ci => {
+      const ciChild = ci.children as unknown as { full_name: string | null } | null;
+      return ciChild?.full_name === child.full_name;
+    });
+
+    let status: "healthy" | "monitoring" | "treatment" = "healthy";
+    let detail = "Sem registros recentes";
+    let activeMedication: string | null = null;
+    let nextAction: string | null = null;
+
+    if (childMeds.length > 0) {
+      status = "treatment";
+      const med = childMeds[0] as unknown as { name: string; dosage: string; frequency: string };
+      const medName = med.name || "";
+      const medFreq = med.frequency || "";
+      activeMedication = medName;
+      detail = `${medName} ${medFreq}`;
+      nextAction = "Confirmar dose";
+    } else if (childIllnesses.length > 0) {
+      status = "monitoring";
+      const illness = childIllnesses[0];
+      const symptoms = (illness.symptoms as string[])?.slice(0, 2).join(", ") || "";
+      detail = illness.title + (symptoms ? ` · ${symptoms}` : "");
+      nextAction = "Atualizar estado";
+    } else if (childCheckin && childCheckin.checkin_date >= formatDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2))) {
+      status = "monitoring";
+      detail = childCheckin.title || "Check-in recente";
+    } else if (childAppts.length > 0) {
+      status = "monitoring";
+      const appt = childAppts[0];
+      const apptDate = new Date(appt.appointment_date);
+      const timeStr = apptDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+      detail = `Consulta ${appt.title || ""} · ${timeStr}`;
+      nextAction = "Ver consulta";
+    }
+
+    return { childId: child.id, childName, status, statusLabel: status === "treatment" ? "Em tratamento" : status === "monitoring" ? "Em acompanhamento" : "Saudavel", detail, activeMedication, nextAction };
+  });
+
+  // Sort by attention level: treatment > monitoring > healthy
+  childHealthSummaries.sort((a, b) => {
+    const order = { treatment: 0, monitoring: 1, healthy: 2 };
+    return order[a.status] - order[b.status];
+  });
+
+  const hasAnyCriticalChild = childHealthSummaries.some(c => c.status === "treatment");
 
   // UI constants
   const displayFullName = getDisplayName(profile?.full_name);
@@ -666,31 +742,21 @@ export default async function DashboardPage() {
   // === CONTEXT-AWARE SECTION ORDERING ===
   // Prioritize sections based on what matters RIGHT NOW for this user.
   // Each section has a priority (lower = more important). Show top N, collapse rest.
-  type SectionId = "swapAlerts" | "hero" | "weekStrip" | "healthAlerts" | "activities" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "agenda" | "quickActions" | "childCards" | "swapBalance" | "invite" | "custodyActivation";
+  type SectionId = "swapAlerts" | "hero" | "healthBlock" | "activities" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
 
   const sectionPriorities: { id: SectionId; priority: number; hasData: boolean }[] = [
-    // P1: Urgent — needs immediate action
     { id: "swapAlerts", priority: 1, hasData: custodyEnabled && hasCustody && pendingSwapsProps.length > 0 },
-    { id: "healthAlerts", priority: hasHealthAlerts && illnessProps.some(i => i.daysAgo <= 2) ? 2 : 5, hasData: !!hasHealthAlerts },
-    { id: "pendingExpenses", priority: 3, hasData: pendingExpenseProps.length > 0 },
-    { id: "pendingDecisions", priority: pendingDecisionsList.some(d => d.deadline && new Date(d.deadline + "T23:59:59").getTime() - now.getTime() < 3 * 86400000) ? 3 : 7, hasData: pendingDecisionsList.length > 0 },
-
-    // P2: Context — what's happening today/tomorrow
-    { id: "hero", priority: 4, hasData: true }, // always show
-    { id: "weekStrip", priority: 4, hasData: true }, // always show
-    { id: "activities", priority: 4, hasData: hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities },
-
-    // P3: Informational — useful but not urgent
+    { id: "hero", priority: 2, hasData: true }, // always show
+    { id: "childCards", priority: 3, hasData: (children?.length || 0) > 0 },
+    { id: "healthBlock", priority: 4, hasData: childHealthSummaries.length > 0 },
+    { id: "activities", priority: 5, hasData: hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities },
+    { id: "pendingExpenses", priority: 6, hasData: pendingExpenseProps.length > 0 },
+    { id: "pendingDecisions", priority: 7, hasData: pendingDecisionsList.length > 0 },
     { id: "pendingReports", priority: 8, hasData: pendingReportsFinal.length > 0 },
     { id: "financial", priority: 9, hasData: true },
-    { id: "agenda", priority: 9, hasData: upcomingEventsProps.length > 0 || hasTodayActivities || hasTomorrowActivities },
     { id: "quickActions", priority: 10, hasData: !isReadonly },
-
-    // P4: Low priority — accessible but not prominent
-    { id: "childCards", priority: 11, hasData: (children?.length || 0) > 0 },
-    { id: "swapBalance", priority: 12, hasData: custodyEnabled && hasCustody },
-    { id: "invite", priority: 13, hasData: (members?.length || 0) < 2 },
-    { id: "custodyActivation", priority: 14, hasData: !custodyEnabled && (members?.length || 0) >= 2 },
+    { id: "invite", priority: 11, hasData: (members?.length || 0) < 2 },
+    { id: "custodyActivation", priority: 12, hasData: !custodyEnabled && (members?.length || 0) >= 2 },
   ];
 
   // Filter to sections with data, sort by priority
@@ -753,6 +819,9 @@ export default async function DashboardPage() {
       category: d.category,
       deadline: d.deadline,
     })),
+    childHealthSummaries: childHealthSummaries.slice(0, 3),
+    childHealthOverflow: Math.max(0, childHealthSummaries.length - 3),
+    hasAnyCriticalChild,
     todayDate: todayKey,
     tomorrowDate: tomorrowKey,
     visibleSections,

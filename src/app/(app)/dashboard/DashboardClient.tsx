@@ -8,7 +8,7 @@ import { EXPENSE_CATEGORIES, ACTIVITY_CATEGORIES } from "@/lib/constants";
 import type { ParentColorMap } from "@/lib/calendar-utils";
 
 const ActivityReportModal = dynamic(() => import("@/app/(app)/atividades/ActivityReportModal"), { ssr: false });
-import ShareActivityButton from "@/components/ShareActivityButton";
+// ShareActivityButton removed — activities section simplified
 import CustodyActivationCard from "@/components/CustodyActivationCard";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 
@@ -142,6 +142,16 @@ interface ChildCard {
   checkinIsToday: boolean;
 }
 
+interface ChildHealthSummary {
+  childId: string;
+  childName: string;
+  status: "healthy" | "monitoring" | "treatment";
+  statusLabel: string;
+  detail: string;
+  activeMedication: string | null;
+  nextAction: string | null;
+}
+
 export interface DashboardClientProps {
   // Feature flags
   custodyEnabled: boolean;
@@ -218,6 +228,11 @@ export interface DashboardClientProps {
   // Swap balance
   mySwapDays: number;
 
+  // Health block
+  childHealthSummaries: ChildHealthSummary[];
+  childHealthOverflow: number;
+  hasAnyCriticalChild: boolean;
+
   // Invite
   memberCount: number;
 
@@ -263,14 +278,8 @@ export default function DashboardClient(props: DashboardClientProps) {
     groupName,
     hasChildren,
     endDateLabel,
-    weekDays,
-    weekCustodyMap,
-    parentColorEntries,
-    hasHealthAlerts,
-    activeIllnesses,
-    activeMedications,
-    criticalAllergies,
-    upcomingAppointments,
+    // weekDays, weekCustodyMap, parentColorEntries — removed with weekStrip
+    // hasHealthAlerts, activeIllnesses, activeMedications, criticalAllergies, upcomingAppointments — replaced by healthBlock
     hasTomorrowActivities,
     hasTodayActivities,
     hasUpcomingActivities,
@@ -280,10 +289,13 @@ export default function DashboardClient(props: DashboardClientProps) {
     pendingExpenses,
     pendingDecisions,
     pendingReports,
-    upcomingEvents,
+    // upcomingEvents — removed with agenda
     isReadonly,
     childCards,
-    mySwapDays,
+    // mySwapDays — removed with swapBalance
+    childHealthSummaries,
+    childHealthOverflow,
+    hasAnyCriticalChild,
     memberCount,
     onboardingStep,
     todayDate,
@@ -306,23 +318,6 @@ export default function DashboardClient(props: DashboardClientProps) {
       : greeting === "afternoon"
         ? t("dashboard.goodAfternoon")
         : t("dashboard.goodEvening");
-
-  // Build weekCustody lookup (memoized to avoid rebuild on every render)
-  const weekCustodyLookup = useMemo(() => {
-    const lookup: Record<string, { responsibleId: string; color: string }> = {};
-    for (const wc of weekCustodyMap) {
-      lookup[wc.dateKey] = { responsibleId: wc.responsibleId, color: wc.color };
-    }
-    return lookup;
-  }, [weekCustodyMap]);
-
-  const typeConfig: Record<string, { label: string; color: string }> = useMemo(() => ({
-    regular: { label: t("dashboard.typeRegular"), color: "#5B9E85" },
-    swap: { label: t("dashboard.typeSwap"), color: "#D4735A" },
-    holiday: { label: t("dashboard.typeHoliday"), color: "#8B5CF6" },
-    vacation: { label: t("dashboard.typeVacation"), color: "#3B82F6" },
-    special: { label: t("dashboard.typeSpecial"), color: "#F59E0B" },
-  }), [t]);
 
   // Memoize decision category lookups (avoids recreating objects on every render)
   const decisionCatIcons: Record<string, string> = useMemo(() => ({
@@ -386,32 +381,6 @@ export default function DashboardClient(props: DashboardClientProps) {
       return { ...dec, icon, color, deadlineLabel, bgStyle: { backgroundColor: color + "15" } };
     }),
     [pendingDecisions, decisionCatIcons, decisionCatColors, t, nowMs]
-  );
-
-  const renderedUpcomingEvents = useMemo(() =>
-    upcomingEvents.slice(0, 3).map((event) => {
-      const tc = typeConfig[event.custodyType] || typeConfig.regular;
-      const responsibleLabel = event.isMe
-        ? t("dashboard.withYou")
-        : `${t("dashboard.with")} ${event.responsibleName}`;
-      const name = event.notes
-        ? event.notes
-        : event.childName
-          ? `${event.childName} ${responsibleLabel}`
-          : event.isMe
-            ? t("dashboard.withYouCapital")
-            : event.responsibleName;
-      return {
-        ...event,
-        tc,
-        displayName: name,
-        bgStyle: { backgroundColor: event.color + "12" },
-        dayStyle: { color: event.color + "99" },
-        numStyle: { color: event.color },
-        dotStyle: { backgroundColor: event.color },
-      };
-    }),
-    [upcomingEvents, typeConfig, t]
   );
 
   // Memoize streak bar items to avoid inline style object recreation
@@ -594,52 +563,73 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       )}
 
-      {/* === WEEK STRIP === */}
-      {show("weekStrip") && <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
-        <div className="flex justify-between">
-          {weekDays.map((day) => {
-            const wc = weekCustodyLookup[day.dateKey];
-            return (
-              <Link
-                key={day.dateKey}
-                href="/calendario"
-                prefetch={false}
-                className={`flex flex-col items-center gap-1.5 py-2 px-2 rounded-xl transition-all ${
-                  day.isToday ? "bg-[#D4735A] text-white shadow-sm" : "text-[#7A8C8B] hover:bg-gray-50"
-                }`}
-              >
-                <span className={`text-[10px] font-medium uppercase ${day.isToday ? "text-white/70" : ""}`}>
-                  {day.label}
-                </span>
-                <span className={`text-[15px] font-bold ${day.isToday ? "text-white" : "text-[#2C2C2C]"}`}>
-                  {day.dayNum}
-                </span>
-                {custodyEnabled && hasCustody && wc && !day.isToday && (
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: wc.color }} />
-                )}
-                {day.isToday && <span className="w-1.5 h-1.5 rounded-full bg-white/70" />}
-              </Link>
-            );
-          })}
-        </div>
-        {custodyEnabled && hasCustody && (
-          <div className="flex items-center gap-4 mt-3 pt-2.5 border-t border-gray-100/80">
-            {parentColorEntries.map((entry) => (
-              <div key={entry.uid} className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
-                <span className="text-[11px] text-[#7A8C8B] font-medium capitalize">{entry.name}</span>
+      {/* === CHILDREN === */}
+      {show("childCards") && childCards.length > 0 && (
+        <div className="space-y-3">
+          {childCards.map((child) => (
+            <Link key={child.id} href={`/criancas/${child.id}`} prefetch={false} className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
+              {/* Header */}
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-12 h-12 bg-[#FFF3E0] rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-[22px] font-bold text-[#D4735A]">
+                    {child.initial}
+                  </span>
+                </div>
+                <div>
+                  <p className="font-bold text-[#2C2C2C] text-[15px]">{child.firstName}</p>
+                  <p className="text-[11px] text-[#9CA3AF]">
+                    {child.age} {child.age === 1 ? t("dashboard.yearOld") : t("dashboard.yearsOld")} &middot; {t("dashboard.bornIn")} {child.birthLabel}
+                  </p>
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>}
 
-      {/* === HEALTH ALERTS === */}
-      {show("healthAlerts") && hasHealthAlerts && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-[#EF4444] uppercase tracking-wider flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              {/* Info rows */}
+              <div className="space-y-2">
+                {child.custodyInfo && (
+                  <div className="flex items-center justify-between bg-[#EEECEA] rounded-xl px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={child.custodyInfo.isWithMe ? myColor : otherColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+                      </svg>
+                      <span className="text-[13px] text-[#2C2C2C]">
+                        {t("dashboard.todayWith", {
+                          name: child.custodyInfo.isWithMe
+                            ? t("dashboard.you")
+                            : child.custodyInfo.responsibleName,
+                        })}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#5B9E85]/10 text-[#5B9E85]">
+                      {t("dashboard.active")}
+                    </span>
+                  </div>
+                )}
+
+                {child.checkinTitle && (
+                  <div className="flex items-center justify-between bg-[#EEECEA] rounded-xl px-3 py-2.5">
+                    <div className="flex items-center gap-2">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
+                      </svg>
+                      <span className="text-[13px] text-[#2C2C2C] truncate">{child.checkinTitle}</span>
+                    </div>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#7A8C8B]/10 text-[#7A8C8B]">
+                      {child.checkinIsToday ? t("dashboard.today") : t("dashboard.yesterday")}
+                    </span>
+                  </div>
+                )}
+              </div>
+            </Link>
+          ))}
+        </div>
+      )}
+
+      {/* === HEALTH BLOCK (per-child summary) === */}
+      {show("healthBlock") && childHealthSummaries.length > 0 && (
+        <div className={`rounded-2xl p-4 shadow-sm border ${hasAnyCriticalChild ? "border-red-200/60 bg-red-50/30" : "border-gray-100/80 bg-white"}`}>
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[10px] font-bold text-[#7A8C8B] uppercase tracking-wider flex items-center gap-1.5">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={hasAnyCriticalChild ? "#EF4444" : "#5B9E85"} strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                 <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
               </svg>
               {t("nav.health")}
@@ -648,127 +638,57 @@ export default function DashboardClient(props: DashboardClientProps) {
               {t("common.viewAll")}
             </Link>
           </div>
-
-          {/* Active illness episodes */}
-          {activeIllnesses.map((illness) => (
-            <Link key={illness.id} href="/saude/doencas" prefetch={false} className="block">
-              <div className="bg-red-50 border border-red-200/60 rounded-2xl p-3.5 flex items-center gap-3">
-                <div className="w-9 h-9 bg-red-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[#2C2C2C]">{illness.childName} — {illness.title}</p>
-                  <p className="text-[11px] text-[#7A8C8B]">
-                    {illness.daysAgo === 0
-                      ? t("dashboard.today")
-                      : t("dashboard.daysAgo", { count: illness.daysAgo })}
-                    {illness.symptoms && <> &middot; {illness.symptoms}</>}
-                  </p>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
-            </Link>
-          ))}
-
-          {/* Active medications */}
-          {activeMedications.length > 0 && (
-            <Link href="/saude/medicamentos" prefetch={false} className="block">
-              <div className="bg-amber-50 border border-amber-200/60 rounded-2xl p-3.5 flex items-center gap-3">
-                <div className="w-9 h-9 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3"/>
-                    <line x1="9" y1="9" x2="15" y2="9"/><line x1="12" y1="6" x2="12" y2="12"/>
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[#2C2C2C]">
-                    {t("dashboard.activeMedications", { count: activeMedications.length })}
-                  </p>
-                  <p className="text-[11px] text-[#7A8C8B] truncate">
-                    {activeMedications.slice(0, 2).map((m) => `${m.name} (${m.childName})`).join(", ")}
-                  </p>
-                </div>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-              </div>
-            </Link>
-          )}
-
-          {/* Critical allergies */}
-          {criticalAllergies.length > 0 && (
-            <Link href="/saude/alergias" prefetch={false} className="block">
-              <div className="bg-orange-50 border border-orange-200/60 rounded-2xl p-3.5 flex items-center gap-3">
-                <div className="w-9 h-9 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EA580C" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[#2C2C2C]">
-                    {criticalAllergies.some(a => a.severity === "severe")
-                      ? t("dashboard.severeAllergy")
-                      : t("dashboard.moderateAllergy")}
-                  </p>
-                  <p className="text-[11px] text-[#7A8C8B] truncate">
-                    {criticalAllergies.slice(0, 3).map((a) => a.name).join(", ")}
-                  </p>
-                </div>
-                <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${
-                  criticalAllergies.some(a => a.severity === "severe")
-                    ? "bg-red-100 text-red-700"
-                    : "bg-amber-100 text-amber-700"
-                }`}>
-                  {criticalAllergies.some(a => a.severity === "severe")
-                    ? t("dashboard.severe")
-                    : t("dashboard.moderate")}
-                </span>
-              </div>
-            </Link>
-          )}
-
-          {/* Upcoming appointments */}
-          {upcomingAppointments.map((appt) => (
-            <Link key={appt.id} href="/saude/consultas" prefetch={false} className="block">
-              <div className="bg-blue-50 border border-blue-200/60 rounded-2xl p-3.5 flex items-center gap-3">
-                <div className="w-9 h-9 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                    <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>
-                  </svg>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13px] font-semibold text-[#2C2C2C]">
-                    {appt.title}{appt.childName ? ` — ${appt.childName}` : ""}
-                  </p>
-                  <p className="text-[11px] text-[#7A8C8B]">
-                    {appt.isToday
-                      ? t("dashboard.today")
-                      : appt.isTomorrow
-                        ? t("dashboard.tomorrowLabel")
-                        : appt.dateLabel}{" "}
-                    {t("dashboard.atTime", { time: appt.timeStr })}
-                    {appt.profName && <> &middot; {appt.profName}</>}
-                  </p>
-                </div>
-                {(appt.isToday || appt.isTomorrow) && (
-                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${appt.isToday ? "bg-blue-100 text-blue-700" : "bg-blue-50 text-blue-600"}`}>
-                    {appt.isToday ? t("dashboard.todayBadge") : t("dashboard.tomorrowBadge")}
-                  </span>
-                )}
-              </div>
-            </Link>
-          ))}
+          <div className="space-y-2.5">
+            {childHealthSummaries.map((child) => {
+              const statusColors = {
+                healthy: { bg: "bg-emerald-50", border: "border-emerald-200/60", dot: "bg-emerald-500", text: "text-emerald-700" },
+                monitoring: { bg: "bg-amber-50", border: "border-amber-200/60", dot: "bg-amber-500", text: "text-amber-700" },
+                treatment: { bg: "bg-red-50", border: "border-red-200/60", dot: "bg-red-500", text: "text-red-700" },
+              };
+              const colors = statusColors[child.status];
+              return (
+                <Link key={child.childId} href={`/saude?child=${child.childId}`} prefetch={false} className="block">
+                  <div className={`${colors.bg} ${colors.border} border rounded-xl p-3 flex items-center gap-3`}>
+                    <div className="w-9 h-9 bg-white/80 rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-[16px] font-bold text-[#D4735A]">
+                        {child.childName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
+                        <p className="text-[13px] font-semibold text-[#2C2C2C]">{child.childName}</p>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${colors.bg} ${colors.text} ml-auto`}>
+                          {child.statusLabel}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-[#7A8C8B] mt-0.5 truncate">{child.detail}</p>
+                    </div>
+                    {child.nextAction && (
+                      <span className="text-[9px] font-bold px-2 py-1 rounded-lg bg-white shadow-sm text-[#D4735A] flex-shrink-0 whitespace-nowrap">
+                        {child.nextAction}
+                      </span>
+                    )}
+                  </div>
+                </Link>
+              );
+            })}
+            {childHealthOverflow > 0 && (
+              <Link href="/saude" prefetch={false} className="block text-center py-1.5">
+                <span className="text-[11px] font-semibold text-[#D4735A]">+{childHealthOverflow} criancas</span>
+              </Link>
+            )}
+          </div>
         </div>
       )}
 
-      {/* === ACTIVITIES (tomorrow + today) === */}
-      {show("activities") && (hasTomorrowActivities || hasTodayActivities) && (
+      {/* === ACTIVITIES (today + tomorrow + upcoming, grouped by day) === */}
+      {show("activities") && (hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities) && (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider flex items-center gap-1.5">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D4735A" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
+                <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
               </svg>
               {t("dashboard.activities")}
             </p>
@@ -777,88 +697,92 @@ export default function DashboardClient(props: DashboardClientProps) {
             </Link>
           </div>
 
-          {/* Tomorrow's activities (priority) */}
-          {renderedTomorrowActivities.map((act) => {
-            return (
-              <Link key={act.id} href={`/calendario?day=${tomorrowDate}&eventId=${act.id}`} prefetch={false} className="block">
-                <div className="bg-[#D4735A]/[0.06] border border-[#D4735A]/15 rounded-2xl p-3.5 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-[#D4735A]/10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">
-                    {act.catIcon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-[#2C2C2C]">
-                      {t("dashboard.activityTomorrow", { name: act.name })}
-                    </p>
-                    <p className="text-[11px] text-[#7A8C8B]">
-                      {act.childName}{act.timeStr && ` \u00B7 ${act.timeStr}`}{act.location && ` \u00B7 ${act.location}`}
-                    </p>
-                    {act.checklistItems.length > 0 && (
-                      <p className="text-[10px] text-[#D4735A] font-medium mt-0.5">
-                        {t("dashboard.prepare")}{" "}
-                        {act.checklistItems.slice(0, 3).join(", ")}
-                        {act.checklistItems.length > 3 ? ` +${act.checklistItems.length - 3}` : ""}
+          {/* Today */}
+          {hasTodayActivities && (
+            <>
+              <p className="text-[10px] font-semibold text-[#5B9E85] uppercase tracking-wider pt-1">{t("dashboard.todayBadge")}</p>
+              {renderedTodayActivities.map((act) => (
+                <Link key={`today-${act.id}`} href={`/calendario?day=${todayDate}&eventId=${act.id}`} prefetch={false} className="block">
+                  <div className="bg-white border border-gray-100/80 rounded-xl p-3 flex items-center gap-3">
+                    <div className="w-9 h-9 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 text-base">
+                      {act.catIcon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-[#2C2C2C] truncate">{act.name}</p>
+                      <p className="text-[11px] text-[#7A8C8B]">
+                        {act.timeStr && <span className="font-medium text-[#2C2C2C]">{act.timeStr}</span>}
+                        {act.childName && <> &middot; {act.childName}</>}
+                        {act.location && <> &middot; {act.location}</>}
                       </p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+            </>
+          )}
+
+          {/* Tomorrow */}
+          {hasTomorrowActivities && (
+            <>
+              <p className="text-[10px] font-semibold text-[#D4735A] uppercase tracking-wider pt-1">{t("dashboard.tomorrowBadge")}</p>
+              {renderedTomorrowActivities.map((act) => (
+                <Link key={`tmrw-${act.id}`} href={`/calendario?day=${tomorrowDate}&eventId=${act.id}`} prefetch={false} className="block">
+                  <div className="bg-white border border-gray-100/80 rounded-xl p-3 flex items-center gap-3">
+                    <div className="w-9 h-9 bg-[#D4735A]/10 rounded-lg flex items-center justify-center flex-shrink-0 text-base">
+                      {act.catIcon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[13px] font-semibold text-[#2C2C2C] truncate">{act.name}</p>
+                      <p className="text-[11px] text-[#7A8C8B]">
+                        {act.timeStr && <span className="font-medium text-[#2C2C2C]">{act.timeStr}</span>}
+                        {act.childName && <> &middot; {act.childName}</>}
+                        {act.location && <> &middot; {act.location}</>}
+                      </p>
+                    </div>
+                    {act.checklistItems.length > 0 && (
+                      <span className="text-[9px] font-medium px-1.5 py-0.5 rounded-full bg-[#D4735A]/10 text-[#D4735A] flex-shrink-0">
+                        {act.checklistItems.length} itens
+                      </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#D4735A]/10 text-[#D4735A]">
-                      {t("dashboard.tomorrowBadge")}
-                    </span>
-                    <ShareActivityButton
-                      size="sm"
-                      activity={{
-                        name: act.name,
-                        category: act.category,
-                        childName: act.childName,
-                        timeStr: act.timeStr || "",
-                        location: act.location || "",
-                        checklistItems: act.checklistItems,
-                        dateLabel: t("dashboard.tomorrowBadge"),
-                      }}
-                    />
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+                </Link>
+              ))}
+            </>
+          )}
 
-          {/* Today's activities */}
-          {renderedTodayActivities.map((act) => {
-            return (
-              <Link key={act.id} href={`/calendario?day=${todayDate}&eventId=${act.id}`} prefetch={false} className="block">
-                <div className="bg-primary/[0.06] border border-primary/15 rounded-2xl p-3.5 flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center flex-shrink-0 text-lg">
-                    {act.catIcon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-[#2C2C2C]">
-                      {t("dashboard.activityToday", { name: act.name })}
-                    </p>
-                    <p className="text-[11px] text-[#7A8C8B]">
-                      {act.childName}{act.timeStr && ` \u00B7 ${act.timeStr}`}{act.location && ` \u00B7 ${act.location}`}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-1 flex-shrink-0">
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
-                      {t("dashboard.todayBadge")}
-                    </span>
-                    <ShareActivityButton
-                      size="sm"
-                      activity={{
-                        name: act.name,
-                        category: act.category,
-                        childName: act.childName,
-                        timeStr: act.timeStr || "",
-                        location: act.location || "",
-                        checklistItems: [],
-                        dateLabel: t("dashboard.todayBadge"),
-                      }}
-                    />
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
+          {/* Upcoming (grouped by date) */}
+          {hasUpcomingActivities && (() => {
+            // Group upcoming by date
+            const grouped: Record<string, typeof upcomingActivitiesList> = {};
+            for (const item of upcomingActivitiesList) {
+              if (!grouped[item.dayLabel]) grouped[item.dayLabel] = [];
+              grouped[item.dayLabel].push(item);
+            }
+            return Object.entries(grouped).slice(0, 3).map(([dayLabel, items]) => (
+              <div key={dayLabel}>
+                <p className="text-[10px] font-semibold text-[#7A8C8B] uppercase tracking-wider pt-1">{dayLabel}</p>
+                {items.map(({ act, date }) => {
+                  const catIcon = ACTIVITY_CATEGORIES.find((c) => c.value === act.category)?.icon || "\u{1F4CB}";
+                  return (
+                    <Link key={`up-${act.id}-${date}`} href={`/calendario?day=${date}&eventId=${act.id}`} prefetch={false} className="block mt-1.5">
+                      <div className="bg-white border border-gray-100/80 rounded-xl p-3 flex items-center gap-3">
+                        <div className="w-9 h-9 bg-gray-100 rounded-lg flex items-center justify-center flex-shrink-0 text-base">
+                          {catIcon}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-[#2C2C2C] truncate">{act.name}</p>
+                          <p className="text-[11px] text-[#7A8C8B]">
+                            {act.timeStr && <span className="font-medium text-[#2C2C2C]">{act.timeStr}</span>}
+                            {act.childName && <> &middot; {act.childName}</>}
+                          </p>
+                        </div>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            ));
+          })()}
         </div>
       )}
 
@@ -986,89 +910,6 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       )}
 
-      {/* === AGENDA (full width) === */}
-      {show("agenda") && <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider">
-              {t("dashboard.agenda")}
-            </p>
-            <Link href="/calendario" prefetch={false} className="text-[10px] font-semibold text-[#D4735A]">
-              {t("dashboard.viewMore")}
-            </Link>
-          </div>
-          {(upcomingEvents.length > 0) || hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities ? (
-            <div className="space-y-2.5">
-              {/* Custody events */}
-              {renderedUpcomingEvents.map((event) => (
-                  <Link key={event.id} href="/calendario" prefetch={false} className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-xl flex flex-col items-center justify-center flex-shrink-0" style={event.bgStyle}>
-                      <span className="text-[9px] font-bold uppercase leading-none" style={event.dayStyle}>
-                        {event.dateDayShort}
-                      </span>
-                      <span className="text-[14px] font-bold leading-tight" style={event.numStyle}>{event.dateNum}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#2C2C2C] text-[13px] truncate">{event.displayName}</p>
-                      <p className="text-[10px] font-medium" style={{ color: event.tc.color }}>{event.tc.label}</p>
-                    </div>
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={event.dotStyle} />
-                  </Link>
-              ))}
-
-              {/* Today's activities in agenda */}
-              {renderedTodayActivities.slice(0, 2).map((act) => (
-                  <Link key={`act-today-${act.id}`} href={`/calendario?day=${todayDate}&eventId=${act.id}`} prefetch={false} className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-primary/10 text-base">
-                      {act.catIcon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#2C2C2C] text-[13px] truncate">{act.name}</p>
-                      <p className="text-[10px] text-[#7A8C8B]">{act.childName}{act.timeStr && ` \u00B7 ${act.timeStr}`}</p>
-                    </div>
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary flex-shrink-0">
-                      {t("dashboard.todayBadge")}
-                    </span>
-                  </Link>
-              ))}
-
-              {/* Tomorrow's activities in agenda */}
-              {renderedTomorrowActivities.slice(0, 2).map((act) => (
-                  <Link key={`act-tmrw-${act.id}`} href={`/calendario?day=${tomorrowDate}&eventId=${act.id}`} prefetch={false} className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#D4735A]/10 text-base">
-                      {act.catIcon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#2C2C2C] text-[13px] truncate">{act.name}</p>
-                      <p className="text-[10px] text-[#7A8C8B]">{act.childName}{act.timeStr && ` \u00B7 ${act.timeStr}`}</p>
-                    </div>
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-[#D4735A]/10 text-[#D4735A] flex-shrink-0">
-                      {t("dashboard.tomorrowBadge")}
-                    </span>
-                  </Link>
-              ))}
-
-              {/* Upcoming activities (next 7 days) */}
-              {!hasTodayActivities && !hasTomorrowActivities && upcomingActivitiesList.slice(0, 2).map(({ act, date, dayLabel }) => {
-                const catIcon = ACTIVITY_CATEGORIES.find((c) => c.value === act.category)?.icon || "\u{1F4CB}";
-                return (
-                  <Link key={`act-up-${act.id}`} href={`/calendario?day=${date}&eventId=${act.id}`} prefetch={false} className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 bg-[#D4735A]/10 text-base">
-                      {catIcon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-[#2C2C2C] text-[13px] truncate">{act.name}</p>
-                      <p className="text-[10px] text-[#7A8C8B]">{act.childName}{act.timeStr && ` \u00B7 ${act.timeStr}`}</p>
-                    </div>
-                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-[#7A8C8B] flex-shrink-0">{dayLabel}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          ) : (
-            <p className="text-[12px] text-[#9CA3AF]">{t("dashboard.noEvents")}</p>
-          )}
-      </div>}
-
       {/* === QUICK ACTIONS === */}
       {show("quickActions") && !isReadonly && (
       <div>
@@ -1117,85 +958,6 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       </div>
       )}
-
-      {/* === CHILDREN === */}
-      {show("childCards") && childCards.length > 0 && (
-        <div className="space-y-3">
-          {childCards.map((child) => (
-            <Link key={child.id} href={`/criancas/${child.id}`} prefetch={false} className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
-              {/* Header */}
-              <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 bg-[#FFF3E0] rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-[22px] font-bold text-[#D4735A]">
-                    {child.initial}
-                  </span>
-                </div>
-                <div>
-                  <p className="font-bold text-[#2C2C2C] text-[15px]">{child.firstName}</p>
-                  <p className="text-[11px] text-[#9CA3AF]">
-                    {child.age} {child.age === 1 ? t("dashboard.yearOld") : t("dashboard.yearsOld")} &middot; {t("dashboard.bornIn")} {child.birthLabel}
-                  </p>
-                </div>
-              </div>
-
-              {/* Info rows */}
-              <div className="space-y-2">
-                {child.custodyInfo && (
-                  <div className="flex items-center justify-between bg-[#EEECEA] rounded-xl px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={child.custodyInfo.isWithMe ? myColor : otherColor} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-                      </svg>
-                      <span className="text-[13px] text-[#2C2C2C]">
-                        {t("dashboard.todayWith", {
-                          name: child.custodyInfo.isWithMe
-                            ? t("dashboard.you")
-                            : child.custodyInfo.responsibleName,
-                        })}
-                      </span>
-                    </div>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#5B9E85]/10 text-[#5B9E85]">
-                      {t("dashboard.active")}
-                    </span>
-                  </div>
-                )}
-
-                {child.checkinTitle && (
-                  <div className="flex items-center justify-between bg-[#EEECEA] rounded-xl px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>
-                      </svg>
-                      <span className="text-[13px] text-[#2C2C2C] truncate">{child.checkinTitle}</span>
-                    </div>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-[#7A8C8B]/10 text-[#7A8C8B]">
-                      {child.checkinIsToday ? t("dashboard.today") : t("dashboard.yesterday")}
-                    </span>
-                  </div>
-                )}
-              </div>
-            </Link>
-          ))}
-        </div>
-      )}
-
-      {/* === SWAP BALANCE === */}
-      {show("swapBalance") && custodyEnabled && hasCustody && <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 flex items-center justify-between">
-        <span className="text-[13px] text-[#7A8C8B]">{t("dashboard.swapBalance")}</span>
-        <div className="text-right">
-          <p className="text-xl font-bold text-[#2C2C2C]">
-            {mySwapDays >= 0 ? "+" : ""}{mySwapDays}{" "}
-            {Math.abs(mySwapDays) === 1 ? t("calendar.day") : t("calendar.days")}
-          </p>
-          {mySwapDays === 0 ? (
-            <p className="text-[11px] text-emerald-600 font-medium">{t("dashboard.upToDate")} &#10003;</p>
-          ) : mySwapDays > 0 ? (
-            <p className="text-[11px] text-[#D4735A] font-medium">{t("dashboard.inYourFavor")}</p>
-          ) : (
-            <p className="text-[11px] text-amber-600 font-medium">{t("dashboard.youOweDays")}</p>
-          )}
-        </div>
-      </div>}
 
       {/* === SHOW MORE === */}
       {hasHiddenSections && !showAll && (

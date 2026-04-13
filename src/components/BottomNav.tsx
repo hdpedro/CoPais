@@ -26,12 +26,9 @@ const navIcons = {
       <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
     </svg>
   ),
-  family: (active: boolean) => (
+  health: (active: boolean) => (
     <svg className="w-[22px] h-[22px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2 : 1.5} strokeLinecap="round" strokeLinejoin="round">
-      <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-      <circle cx="9" cy="7" r="4" />
-      <path d="M23 21v-2a4 4 0 00-3-3.87" />
-      <path d="M16 3.13a4 4 0 010 7.75" />
+      <path d="M22 12h-4l-3 9L9 3l-3 9H2" />
     </svg>
   ),
   more: (active: boolean) => (
@@ -52,7 +49,7 @@ export default memo(function BottomNav() {
     { href: "/dashboard", labelKey: "nav.home", icon: navIcons.home },
     { href: "/calendario", labelKey: "nav.calendar", icon: navIcons.calendar },
     { href: "/chat", labelKey: "nav.chat", icon: navIcons.chat },
-    { href: "/familia", labelKey: "nav.family", icon: navIcons.family },
+    { href: "/saude", labelKey: "nav.health", icon: navIcons.health },
     { href: "/mais", labelKey: "nav.more", icon: navIcons.more },
   ];
 
