@@ -42,11 +42,11 @@ const FIXED_HOLIDAYS: { month: number; day: number; name: string }[] = [
   { month: 1, day: 1, name: "Ano Novo" },
   { month: 4, day: 21, name: "Tiradentes" },
   { month: 5, day: 1, name: "Dia do Trabalho" },
-  { month: 9, day: 7, name: "Independencia" },
+  { month: 9, day: 7, name: "Independência" },
   { month: 10, day: 12, name: "N. Sra. Aparecida" },
   { month: 11, day: 2, name: "Finados" },
-  { month: 11, day: 15, name: "Proclamacao da Republica" },
-  { month: 11, day: 20, name: "Consciencia Negra" },
+  { month: 11, day: 15, name: "Proclamação da República" },
+  { month: 11, day: 20, name: "Consciência Negra" },
   { month: 12, day: 25, name: "Natal" },
 ];
 
@@ -65,14 +65,14 @@ export function getHolidaysForYear(year: number): Holiday[] {
   holidays.push({ date: formatDate(addDays(easter, -47)), name: "Carnaval" });
   holidays.push({ date: formatDate(addDays(easter, -46)), name: "Carnaval" });
   holidays.push({ date: formatDate(addDays(easter, -2)), name: "Sexta-feira Santa" });
-  holidays.push({ date: formatDate(easter), name: "Pascoa" });
+  holidays.push({ date: formatDate(easter), name: "Páscoa" });
   holidays.push({ date: formatDate(addDays(easter, 60)), name: "Corpus Christi" });
 
   return holidays;
 }
 
 // Retorna mapa dateKey -> nome do feriado para um range de meses
-export function getHolidayMap(year: number, months?: number[]): Record<string, string> {
+export function getHolidayMap(year: number): Record<string, string> {
   const map: Record<string, string> = {};
 
   // Gera feriados para o ano atual e adjacentes (para navegacao de meses)

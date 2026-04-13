@@ -34,8 +34,9 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   // Compute date ranges for queries
   const todayParts = getBrazilToday().split("-").map(Number);
   const now = new Date(todayParts[0], todayParts[1] - 1, todayParts[2], 12, 0, 0);
+  // Range: 1 month back + 12 months ahead (full year view)
   const threeMonthsAgo = new Date(todayParts[0], todayParts[1] - 1 - 1, 1);
-  const threeMonthsAhead = new Date(todayParts[0], todayParts[1] - 1 + 2, 0);
+  const threeMonthsAhead = new Date(todayParts[0], todayParts[1] - 1 + 13, 0);
   const rangeStart = formatDateKey(threeMonthsAgo);
   const rangeEnd = formatDateKey(threeMonthsAhead);
 
@@ -91,7 +92,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       .from("swap_requests")
       .select("id, original_date, proposed_date, reason, status, created_at, requester_id, target_user_id, requester:profiles!swap_requests_requester_id_fkey(full_name), target:profiles!swap_requests_target_user_id_fkey(full_name)")
       .eq("group_id", groupId)
-      .in("status", ["pending", "approved"])
+      .eq("status", "pending")
       .order("created_at", { ascending: false })
       .limit(10)
       .then(r => r, () => ({ data: [] as never[] })),
@@ -180,7 +181,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       }
     }
     custodyChangeBanner = {
-      childNames: childNamesSet.size > 0 ? Array.from(childNamesSet).join(", ") : "a crianca",
+      childNames: childNamesSet.size > 0 ? Array.from(childNamesSet).join(", ") : "a criança",
       parentName: tomorrowCustody.userName.split(" ")[0],
     };
   }
@@ -353,7 +354,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
             created_at: r.created_at as string,
             requester_id: r.requester_id as string,
             affected_user_ids: r.affected_user_ids as string[],
-            requester: requesterRaw ? { full_name: (requesterRaw as Record<string, unknown>).full_name as string || "Usuario", avatar_url: (requesterRaw as Record<string, unknown>).avatar_url as string | null } : null,
+            requester: requesterRaw ? { full_name: (requesterRaw as Record<string, unknown>).full_name as string || "Usuário", avatar_url: (requesterRaw as Record<string, unknown>).avatar_url as string | null } : null,
           };
         })}
         swapRequests={(swapRequests || []).map((r) => {
@@ -366,8 +367,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
             reason: r.reason,
             status: r.status,
             created_at: r.created_at,
-            requester: requesterRaw ? { full_name: requesterRaw.full_name || "Usuario" } : { full_name: "Usuario" },
-            target: targetRaw ? { full_name: targetRaw.full_name || "Usuario" } : { full_name: "Usuario" },
+            requester: requesterRaw ? { full_name: requesterRaw.full_name || "Usuário" } : { full_name: "Usuário" },
+            target: targetRaw ? { full_name: targetRaw.full_name || "Usuário" } : { full_name: "Usuário" },
             requester_id: r.requester_id,
             target_user_id: r.target_user_id,
           };

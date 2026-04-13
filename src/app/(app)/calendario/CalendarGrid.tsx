@@ -4,7 +4,6 @@ import { useState, useMemo, useCallback } from "react";
 import { useI18n } from "@/i18n/provider";
 import {
   getMonthGrid,
-  isToday,
   isWeekend,
   formatDateKey,
   parseDateKey,
@@ -53,10 +52,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   guarda: "#636E72",   // neutral gray (not used in pills, but just in case)
   other: "#636E72",    // neutral gray
 };
-
-function getCategoryColor(category: string): string {
-  return CATEGORY_COLORS[category] || CATEGORY_COLORS.other;
-}
 
 // Pre-computed pill styles per category to avoid creating new objects each render
 const CATEGORY_PILL_STYLES: Record<string, React.CSSProperties> = {};
@@ -171,12 +166,15 @@ export default function CalendarGrid({
           const info = custodyMap[dateKey];
           const dayNum = parseDateKey(dateKey).getDate();
           const today = dateKey === todayKey;
+          const isPast = dateKey < todayKey;
           const weekend = isWeekend(dateKey);
           const holiday = holidayMap[dateKey];
           const hasPendingSwap = pendingSwapDates?.has(dateKey) || false;
           const dayActivities = activities[dateKey] || [];
           const visibleActivities = dayActivities.slice(0, 2);
           const extraCount = dayActivities.length - 2;
+          // Week separator: add top border on Sundays (start of visual week)
+          const isSunday = idx % 7 === 0 && idx > 0 && dateKey;
 
           return (
             <button
@@ -185,9 +183,11 @@ export default function CalendarGrid({
               title={info ? info.userName : holiday || undefined}
               className={`
                 min-h-[72px] sm:min-h-[80px] rounded-lg flex flex-col items-stretch p-1 relative
-                text-sm transition-all overflow-hidden
+                text-sm transition-all overflow-hidden active:scale-[0.97]
                 ${holiday && !info ? "bg-purple-50/50" : weekend && !info ? "bg-gray-50/50" : ""}
-                ${today ? "ring-2 ring-primary ring-offset-1" : ""}
+                ${today ? "ring-2 ring-primary ring-offset-1 shadow-sm" : ""}
+                ${isPast && !today ? "opacity-60" : ""}
+                ${isSunday ? "border-t border-gray-100" : ""}
                 hover:bg-gray-50/80
               `}
               style={info ? { backgroundColor: info.color + "12" } : EMPTY_STYLE}
@@ -212,6 +212,13 @@ export default function CalendarGrid({
                   )}
                 </div>
               </div>
+
+              {/* Holiday name — subtle label */}
+              {holiday && (
+                <div className="text-[8px] leading-tight text-purple-500 font-medium truncate px-0.5 mb-0.5">
+                  {holiday}
+                </div>
+              )}
 
               {/* Event pills — Apple Calendar style */}
               <div className="flex flex-col gap-[2px] flex-1">

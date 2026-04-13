@@ -542,21 +542,25 @@ export async function generateSchedule(formData: FormData) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Fetch existing events before deleting, so we can restore on failure
+  // Fetch existing FUTURE events before deleting, so we can restore on failure
+  // Past events are NEVER deleted (historical integrity)
+  const todayStr = new Date().toISOString().split("T")[0];
   const { data: existingEvents } = await adminClient
     .from("custody_events")
     .select("*")
     .eq("group_id", groupId)
     .eq("child_id", childId)
-    .eq("custody_type", "regular");
+    .eq("custody_type", "regular")
+    .gte("start_date", todayStr);
 
-  // Delete ALL existing regular schedule events for this child/group before inserting new ones
+  // Delete only FUTURE regular schedule events (preserve past history)
   const { error: deleteError } = await adminClient
     .from("custody_events")
     .delete()
     .eq("group_id", groupId)
     .eq("child_id", childId)
-    .eq("custody_type", "regular");
+    .eq("custody_type", "regular")
+    .gte("start_date", todayStr);
 
   if (deleteError) return { error: "Erro ao limpar escala anterior: " + deleteError.message };
 
@@ -627,11 +631,13 @@ export async function clearCustodySchedule(groupId: string) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Delete all custody_events for this group
+  // Delete only FUTURE custody_events (preserve historical data)
+  const today = new Date().toISOString().split("T")[0];
   const { error: deleteError } = await adminClient
     .from("custody_events")
     .delete()
-    .eq("group_id", groupId);
+    .eq("group_id", groupId)
+    .gte("start_date", today);
 
   if (deleteError) {
     return { error: "Erro ao limpar escala: " + deleteError.message };
