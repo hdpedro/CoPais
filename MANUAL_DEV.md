@@ -1,7 +1,7 @@
 # Kindar - Manual de Desenvolvimento
 
 > Manual completo para desenvolvedores que vao trabalhar no projeto Kindar.
-> Ultima atualizacao: 31/03/2026
+> Ultima atualizacao: 15/04/2026
 
 ---
 

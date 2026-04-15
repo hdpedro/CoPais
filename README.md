@@ -4,7 +4,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 
 **Producao:** https://kindar.com.br
 **Dominio:** kindar.com.br
-**Ultima atualizacao:** 31/03/2026
+**Ultima atualizacao:** 15/04/2026
 
 ## Stack
 
@@ -26,7 +26,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 
 | Metrica | Quantidade |
 |---------|-----------|
-| Rotas (paginas + API) | 66 |
+| Rotas (paginas + API) | 68 |
 | Server Actions | 84 funcoes em 23 arquivos |
 | Tabelas no banco | 42+ |
 | Migrations | 43 |

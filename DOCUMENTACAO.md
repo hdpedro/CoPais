@@ -6,7 +6,7 @@
 
 **URL de producao:** https://kindar.com.br
 **Dominio:** kindar.com.br
-**Ultima atualizacao:** 31/03/2026
+**Ultima atualizacao:** 15/04/2026
 
 ---
 
