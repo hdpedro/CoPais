@@ -933,6 +933,27 @@ Canal WhatsApp que reutiliza 100% da infraestrutura do Assistente IA in-app.
 - **PWA Install Banner** (`PWAInstallBanner.tsx`): exibe banner no iOS Safari orientando o usuario a usar "Compartilhar > Adicionar a Tela de Inicio" para abrir o app em modo standalone (sem barra de URL). Condicoes: dispositivo iOS, nao esta em `standalone`, usuario nao dispensou. Dispensa persistida em `localStorage` (`kindar-pwa-dismissed`). Incluido no root layout (`src/app/layout.tsx`)
 - **manifest.json** atualizado com `id`, `prefer_related_applications: false` e `shortcuts`
 
+### App Store Release (iOS)
+
+Scripts automatizados para build e publicacao na App Store:
+
+| Arquivo | Descricao |
+|---------|-----------|
+| `scripts/app-store-release/build-capacitor.sh` | Build automatizado via Capacitor (requer Mac) |
+| `scripts/app-store-release/build-expo-native.sh` | Build via EAS para repo kindar-native |
+| `scripts/app-store-release/setup-kindar-native.sh` | Setup do repo kindar-native (clone, deps, .env) |
+| `scripts/app-store-release/validate-pre-build.sh` | Validacao pre-build (TS, env, config, icon, API) |
+| `scripts/app-store-release/app-store-metadata.json` | Metadados estruturados para App Store Connect |
+| `scripts/app-store-release/app-store-metadata-text.md` | Metadados em texto para copiar/colar no ASC |
+| `scripts/app-store-release/ExportOptions.plist` | Configuracao de exportacao Xcode |
+
+APIs nativas do backend:
+| Endpoint | Metodo | Descricao |
+|----------|--------|-----------|
+| `/api/native/notify` | POST | Side-effects (push, chat, analytics) apos writes no native |
+| `/api/push/register-apns` | POST | Registro de token APNs para push nativo |
+| `/api/iap/verify` | POST | Verificacao de transacao StoreKit 2 e ativacao de assinatura |
+
 ---
 
 ## Server Actions (84 funcoes em 23 arquivos)

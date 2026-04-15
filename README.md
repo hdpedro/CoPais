@@ -61,7 +61,7 @@ O app esta configurado para distribuicao na Apple App Store via Capacitor:
 - **Deteccao de teclado:** bottom nav se esconde via `visualViewport` API
 - **Checklist de submissao:** `docs/ios-submission-checklist.md`
 
-Para buildar o iOS (duas opcoes):
+Para buildar o iOS (tres opcoes):
 
 **Opcao 1: GitHub Actions (sem Mac)**
 ```bash
@@ -81,6 +81,25 @@ npx cap sync ios
 npx cap open ios
 # No Xcode: ativar capabilities Push Notifications e In-App Purchase
 ```
+
+**Opcao 3: Scripts automatizados (requer Mac)**
+```bash
+# Capacitor (este repo)
+./scripts/app-store-release/build-capacitor.sh 1.0.0
+
+# Expo (repo kindar-native)
+./scripts/app-store-release/build-expo-native.sh
+
+# Validacao pre-build
+./scripts/app-store-release/validate-pre-build.sh
+```
+
+**App Store Release:**
+- Scripts de automacao: `scripts/app-store-release/`
+- Metadados prontos para copiar: `scripts/app-store-release/app-store-metadata-text.md`
+- Metadados estruturados (JSON): `scripts/app-store-release/app-store-metadata.json`
+- Checklist de submissao: `docs/ios-submission-checklist.md`
+- Setup GitHub Actions: `docs/ios-github-actions-setup.md`
 
 ## Internacionalizacao (i18n)
 

@@ -116,6 +116,26 @@ cp ios-plugins/StoreKitPlugin.m ios/App/App/
 npx cap sync ios && npx cap open ios
 ```
 
+**Scripts automatizados de release para App Store:**
+```bash
+# Validar antes de buildar
+./scripts/app-store-release/validate-pre-build.sh
+
+# Build Capacitor (Mac com Xcode)
+./scripts/app-store-release/build-capacitor.sh 1.0.0
+
+# Build Expo/kindar-native (qualquer plataforma, EAS cloud)
+./scripts/app-store-release/build-expo-native.sh
+
+# Setup do repo kindar-native
+./scripts/app-store-release/setup-kindar-native.sh
+```
+
+**Metadados para App Store Connect:**
+- `scripts/app-store-release/app-store-metadata-text.md` — texto para copiar/colar
+- `scripts/app-store-release/app-store-metadata.json` — formato estruturado
+- `docs/ios-submission-checklist.md` — checklist completo de submissao
+
 ### Dependencias Completas (package.json)
 
 ```json

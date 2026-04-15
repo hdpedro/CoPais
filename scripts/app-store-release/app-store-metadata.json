@@ -1,0 +1,135 @@
+{
+  "app_identity": {
+    "bundle_id": "com.kindar.app",
+    "name": "Kindar",
+    "subtitle": "Dois lares, uma familia",
+    "sku": "com.kindar.app",
+    "primary_category": "LIFESTYLE",
+    "secondary_category": "PRODUCTIVITY",
+    "content_rights": "USES_THIRD_PARTY_CONTENT_NO"
+  },
+  "urls": {
+    "privacy_policy": "https://kindar.com.br/privacidade",
+    "support": "https://kindar.com.br",
+    "marketing": "https://kindar.com.br"
+  },
+  "pricing": {
+    "price_tier": 0,
+    "availability": ["BR"],
+    "notes": "Free with optional in-app subscriptions"
+  },
+  "age_rating": {
+    "rating": "4+",
+    "cartoon_fantasy_violence": "NONE",
+    "realistic_violence": "NONE",
+    "prolonged_graphic_sadistic_realistic_violence": "NONE",
+    "profanity_crude_humor": "NONE",
+    "mature_suggestive_themes": "NONE",
+    "horror_fear_themes": "NONE",
+    "medical_treatment_info": "NONE",
+    "alcohol_tobacco_drugs": "NONE",
+    "gambling": "NONE",
+    "sexual_content_nudity": "NONE",
+    "graphic_sexual_content_nudity": "NONE",
+    "unrestricted_web_access": false,
+    "gambling_contests": false
+  },
+  "app_privacy": {
+    "data_collection": true,
+    "data_types": [
+      {
+        "category": "Contact Info",
+        "types": ["Email Address", "Name"],
+        "purposes": ["App Functionality"],
+        "linked_to_user": true,
+        "used_for_tracking": false
+      },
+      {
+        "category": "Health & Fitness",
+        "types": ["Health"],
+        "purposes": ["App Functionality"],
+        "linked_to_user": true,
+        "used_for_tracking": false,
+        "notes": "Medical records (medications, allergies, vaccines, appointments) stored for children, managed by parents"
+      },
+      {
+        "category": "Financial Info",
+        "types": ["Other Financial Info"],
+        "purposes": ["App Functionality"],
+        "linked_to_user": true,
+        "used_for_tracking": false,
+        "notes": "Shared expense tracking between co-parents"
+      },
+      {
+        "category": "User Content",
+        "types": ["Photos or Videos", "Other User Content"],
+        "purposes": ["App Functionality"],
+        "linked_to_user": true,
+        "used_for_tracking": false,
+        "notes": "Profile photos, document uploads, chat messages"
+      },
+      {
+        "category": "Usage Data",
+        "types": ["Product Interaction"],
+        "purposes": ["Analytics"],
+        "linked_to_user": false,
+        "used_for_tracking": false,
+        "notes": "Anonymous usage analytics via PostHog"
+      }
+    ]
+  },
+  "review_information": {
+    "demo_account": {
+      "email": "henrique.pedros@hotmail.com",
+      "password": "12345678Pedro"
+    },
+    "notes": "After login, you'll see the dashboard with custody schedule, activities, health status, and pending items. Navigate using the 5 bottom tabs: Home, Calendar, Chat, Health, More. The app manages co-parenting coordination for separated families with shared custody. All features are functional with the demo account which has pre-populated data including children, custody schedule, health records, and expenses.",
+    "contact_info": {
+      "first_name": "Henrique",
+      "last_name": "de Pedro",
+      "email": "henrique.de.pedro@gmail.com",
+      "phone": ""
+    }
+  },
+  "locales": {
+    "pt-BR": {
+      "name": "Kindar",
+      "subtitle": "Dois lares, uma familia",
+      "promotional_text": "Organize a rotina dos seus filhos entre dois lares. Calendario, chat, despesas e saude em um so lugar.",
+      "keywords": "coparentalidade,guarda compartilhada,filhos,familia,calendario,despesas,saude,criancas,pais separados,organizacao familiar",
+      "whats_new": "Versao inicial do Kindar para iOS.",
+      "description": "Kindar e o app para pais separados organizarem a rotina dos filhos de forma colaborativa, transparente e respeitosa.\n\nFuncionalidades principais:\n\n• Calendario compartilhado com escala de guarda\n• Chat em tempo real entre os responsaveis\n• Registro de saude completo — medicamentos, alergias, vacinas, consultas, crescimento\n• Controle financeiro de despesas compartilhadas com aprovacao\n• Atividades e eventos das criancas\n• Decisoes em grupo com votacao\n• Documentos e acordos familiares compartilhados\n• Check-in diario das criancas\n• Informacoes escolares\n• Notificacoes em tempo real\n\nKindar representa os dois lares da crianca. Porque seus filhos merecem pais organizados."
+    },
+    "en-US": {
+      "name": "Kindar",
+      "subtitle": "Two homes, one family",
+      "promotional_text": "Organize your children's routine between two homes. Calendar, chat, expenses, and health in one place.",
+      "keywords": "co-parenting,shared custody,children,family,calendar,expenses,health,kids,separated parents,family organization",
+      "whats_new": "Initial release of Kindar for iOS.",
+      "description": "Kindar is the app for separated parents to organize their children's routine collaboratively, transparently, and respectfully.\n\nKey features:\n\n• Shared calendar with custody schedule\n• Real-time chat between guardians\n• Complete health records — medications, allergies, vaccines, appointments, growth tracking\n• Shared expense tracking with approval workflow\n• Children's activities and events\n• Group decisions with voting\n• Shared family documents and agreements\n• Daily child check-in\n• School information\n• Real-time notifications\n\nKindar represents both of a child's homes. Because your children deserve organized parents."
+    }
+  },
+  "screenshots": {
+    "required_sizes": {
+      "iphone_6_7": {
+        "label": "iPhone 6.7\" Display",
+        "resolution": "1290x2796",
+        "devices": "iPhone 15 Pro Max, iPhone 16 Plus"
+      },
+      "iphone_5_5": {
+        "label": "iPhone 5.5\" Display",
+        "resolution": "1242x2208",
+        "devices": "iPhone 8 Plus"
+      }
+    },
+    "recommended_screens": [
+      "Login screen",
+      "Dashboard / Home",
+      "Calendar with custody schedule",
+      "Chat conversation",
+      "Health module overview",
+      "Expenses list",
+      "More menu (all modules)"
+    ]
+  }
+}
