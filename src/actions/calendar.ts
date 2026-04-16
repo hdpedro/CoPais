@@ -8,6 +8,7 @@ import { verifyGroupMembership } from "@/lib/auth-utils";
 import { createNotificationWithPush } from "@/lib/push";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { postChatNotification } from "@/lib/chat-notify";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 
 export async function createCustodyEvent(formData: FormData) {
   const supabase = await createClient();
@@ -579,7 +580,8 @@ export async function generateSchedule(formData: FormData) {
         return { error: "Erro ao inserir nova escala: " + error.message };
       }
     }
-  } catch {
+  } catch (error) {
+    reportServerError(error, { filePath: "src/actions/calendar.ts" });
     // Attempt to restore old events on unexpected failure
     if (existingEvents && existingEvents.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars

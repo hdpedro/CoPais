@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";
 import { savePushSubscription, removePushSubscription } from "@/lib/push";
 import { pushSubscribeRateLimiter } from "@/lib/rate-limit";
@@ -32,6 +33,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("[PUSH] Subscribe error:", err);
+    reportServerError(err, { filePath: "src/app/api/push/subscribe/route.ts" });
     return NextResponse.json({ error: "Erro ao salvar inscricao" }, { status: 500 });
   }
 }

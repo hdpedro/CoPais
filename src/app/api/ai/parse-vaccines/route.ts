@@ -5,6 +5,7 @@
 /* ------------------------------------------------------------------ */
 
 import { NextRequest, NextResponse } from "next/server";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { compressImageForVision } from "@/lib/ai/image-utils";
@@ -169,6 +170,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("[parse-vaccines] Error:", err);
+    reportServerError(err, { filePath: "src/app/api/ai/parse-vaccines/route.ts" });
     return NextResponse.json(
       {
         success: false,

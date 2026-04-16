@@ -4,6 +4,7 @@
 /* ------------------------------------------------------------------ */
 
 import { NextRequest, NextResponse } from "next/server";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";
 import { AI_TOOLS, executeTool } from "@/lib/ai/tools";
 import { aiRateLimiter } from "@/lib/ai/rate-limit";
@@ -344,6 +345,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    reportServerError(error, { filePath: "src/app/api/ai/assistant/route.ts" });
     return NextResponse.json(
       { role: "assistant", content: "Desculpe, ocorreu um erro. Tente novamente. \uD83D\uDE4F" },
       { status: 500 }

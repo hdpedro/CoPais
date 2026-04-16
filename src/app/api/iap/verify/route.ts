@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
@@ -114,6 +115,7 @@ export async function POST(req: NextRequest) {
     });
   } catch (error) {
     console.error("[IAP] Verify error:", error);
+    reportServerError(error, { filePath: "src/app/api/iap/verify/route.ts" });
     return NextResponse.json(
       { error: "Verification failed" },
       { status: 500 }

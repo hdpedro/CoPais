@@ -5,6 +5,7 @@
 /* ------------------------------------------------------------------ */
 
 import { NextRequest, NextResponse } from "next/server";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 import { verifyWebhookSignature, normalizePhone } from "@/lib/whatsapp/signature";
 import { processWhatsAppMessage } from "@/lib/whatsapp/processor";
 import { WAWebhookPayload, WAExtractedMessage, WAInboundMessage } from "@/lib/whatsapp/types";
@@ -72,6 +73,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: "ok" }, { status: 200 });
   } catch (error) {
     console.error("[WA-WEBHOOK] Error:", error);
+    reportServerError(error, { filePath: "src/app/api/whatsapp/webhook/route.ts", severity: "critical" });
     return NextResponse.json({ status: "error" }, { status: 200 });
   }
 }

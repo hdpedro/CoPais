@@ -5,6 +5,7 @@
 /* ------------------------------------------------------------------ */
 
 import { NextRequest, NextResponse } from "next/server";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getActiveGroup } from "@/lib/group-utils";
@@ -529,6 +530,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("[parse-prescription] Error:", err);
+    reportServerError(err, { filePath: "src/app/api/ai/parse-prescription/route.ts" });
     return NextResponse.json(
       { success: false, error: "Erro interno ao processar a receita. Tente novamente." },
       { status: 500 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
 
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("[stripe/portal] Error:", error);
+    reportServerError(error, { filePath: "src/app/api/stripe/portal/route.ts" });
     return NextResponse.json({ error: "Failed to create portal session" }, { status: 500 });
   }
 }

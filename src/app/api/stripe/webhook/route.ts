@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import type Stripe from "stripe";
@@ -125,6 +126,7 @@ export async function POST(req: NextRequest) {
     }
   } catch (error) {
     console.error(`[stripe/webhook] Error handling ${event.type}:`, error);
+    reportServerError(error, { filePath: "src/app/api/stripe/webhook/route.ts", severity: "critical" });
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 

@@ -4,6 +4,7 @@
 /* ------------------------------------------------------------------ */
 
 import { NextRequest, NextResponse } from "next/server";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { getEventParser } from "@/lib/ai/parser";
@@ -99,6 +100,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (err) {
     console.error("[parse-invite] Error:", err);
+    reportServerError(err, { filePath: "src/app/api/ai/parse-invite/route.ts" });
     return NextResponse.json(
       {
         success: false,

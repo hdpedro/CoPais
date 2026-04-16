@@ -11,9 +11,8 @@ import { sendPushToUsers } from "@/lib/push";
 /**
  * Count how many parents (non-readonly members) are in a group.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function countParentsInGroup(
-  supabase: SupabaseClient<any>,
+  supabase: SupabaseClient<unknown>,
   groupId: string
 ): Promise<number> {
   const { data, error } = await supabase

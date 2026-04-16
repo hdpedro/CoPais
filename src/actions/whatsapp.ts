@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { hashPhone, normalizePhone } from "@/lib/whatsapp/signature";
 import { sendTemplateMessage, sendTextMessage } from "@/lib/whatsapp/client";
 import { revalidatePath } from "next/cache";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 
 /**
  * Step 1: Request WhatsApp linking — sends OTP via WhatsApp
@@ -84,6 +85,7 @@ export async function requestWhatsAppLink(formData: FormData) {
     );
   } catch (err) {
     console.error("[WA-LINK] Failed to send OTP:", err);
+    reportServerError(err, { filePath: "src/actions/whatsapp.ts" });
     // Try template if text fails (24h window may not be open)
     try {
       await sendTemplateMessage(phoneWithout, "hello_world", "en_US");
