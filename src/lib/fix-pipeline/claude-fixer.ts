@@ -47,34 +47,28 @@ export async function generateFix(error: ErrorDetails): Promise<FixResult> {
     throw new Error(`Could not read file: ${error.filePath}`);
   }
 
-  const systemPrompt = `You are a senior TypeScript/Next.js developer working on the Kindar (CoPais) application.
-Your job is to fix the bug described below. The app uses:
-- Next.js 16 App Router with React 19
-- Supabase for backend
-- TypeScript strict mode
-- Tailwind CSS v4
+  const systemPrompt = `Fix ONLY the reported error. Nothing else.
 
-Rules:
-1. Return ONLY the complete fixed file content — no markdown, no explanations, no code fences.
-2. Preserve all existing imports and exports.
-3. Make the minimal change necessary to fix the bug.
-4. Do not add unnecessary comments or refactoring.
-5. The fix must be production-ready.`;
+STRICT RULES:
+- Change the MINIMUM lines to fix the error (1-5 lines ideal)
+- DO NOT refactor, rename, reorganize, or "improve" anything
+- DO NOT add comments explaining the fix
+- DO NOT change formatting, spacing, or line breaks
+- DO NOT modify imports unless the fix requires a new one
+- DO NOT touch any code that is not directly related to the error
+- Return the COMPLETE file with ONLY the bug fix applied
+- No markdown, no code fences, no explanations — raw file content only
 
-  const userPrompt = `## Error
-**Message:** ${error.message}
-**File:** ${error.filePath}
-**Category:** ${error.folderCategory}
+Stack: Next.js 16, React 19, Supabase, TypeScript, Tailwind v4.`;
 
-## Stack Trace
-${error.stackTrace ?? "No stack trace available"}
+  const userPrompt = `Error: ${error.message}
+File: ${error.filePath}
+Stack: ${error.stackTrace ?? "N/A"}
 
-## Current File Content
-\`\`\`typescript
+Current file:
 ${fileContent}
-\`\`\`
 
-Fix this error. Return the complete corrected file.`;
+Fix ONLY this error. Return the complete file.`;
 
   // Call Claude API directly via fetch (avoids adding SDK dependency for single use)
   const res = await fetch("https://api.anthropic.com/v1/messages", {
