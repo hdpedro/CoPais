@@ -92,6 +92,8 @@ interface ChildDetailClientProps {
   groupId: string;
   isReadonly: boolean;
   tab: string;
+  uploadError?: string | null;
+  uploadSuccess?: string | null;
 }
 
 /* ───── Helpers ───── */
@@ -139,6 +141,8 @@ export default function ChildDetailClient({
   groupId,
   isReadonly,
   tab,
+  uploadError,
+  uploadSuccess,
 }: ChildDetailClientProps) {
   const { t, locale } = useI18n();
   const [selectedDoc, setSelectedDoc] = useState<DocumentRow | null>(null);
@@ -238,6 +242,8 @@ export default function ChildDetailClient({
           setSelectedDoc={setSelectedDoc}
           dateLocale={dateLocale}
           t={t}
+          uploadError={uploadError || null}
+          uploadSuccess={uploadSuccess || null}
         />
       )}
 
@@ -543,6 +549,8 @@ function TabDocumentos({
   setSelectedDoc,
   dateLocale,
   t,
+  uploadError,
+  uploadSuccess,
 }: {
   child: Child;
   documents: DocumentRow[];
@@ -553,20 +561,60 @@ function TabDocumentos({
   setSelectedDoc: (doc: DocumentRow | null) => void;
   dateLocale: string;
   t: (key: string, vars?: Record<string, string | number>) => string;
+  uploadError: string | null;
+  uploadSuccess: string | null;
 }) {
   const [isPending, startTransition] = useTransition();
   const [submitted, setSubmitted] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isDisabled = isPending || submitted;
 
+  const showError = !!uploadError && !dismissed;
+  const showSuccess = !!uploadSuccess && !dismissed;
+
   return (
     <div className="space-y-4">
+      {/* Error/Success banner */}
+      {showError && (
+        <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-start gap-3">
+          <svg className="w-5 h-5 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1 text-sm text-red-700">
+            <p className="font-semibold">Erro ao enviar documento</p>
+            <p>{uploadError}</p>
+          </div>
+          <button onClick={() => setDismissed(true)} className="text-red-400 hover:text-red-600" aria-label="Fechar">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {showSuccess && (
+        <div className="bg-green-50 border border-green-200 rounded-xl p-3 flex items-start gap-3">
+          <svg className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          <div className="flex-1 text-sm text-green-700">
+            <p>{uploadSuccess}</p>
+          </div>
+          <button onClick={() => setDismissed(true)} className="text-green-400 hover:text-green-600" aria-label="Fechar">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
       {/* Upload form */}
       {!isReadonly && (
         <form ref={formRef} action={(formData) => {
           if (isDisabled) return;
           setSubmitted(true);
+          setDismissed(false);
           startTransition(async () => {
             await uploadChildDocument(formData);
             setSubmitted(false);

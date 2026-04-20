@@ -163,7 +163,7 @@ export async function uploadChildDocument(formData: FormData) {
   captureServerEvent(user.id, "child_document_uploaded");
 
   revalidatePath("/criancas/" + childId);
-  redirect("/criancas/" + childId + "?tab=documentos");
+  redirect("/criancas/" + childId + "?tab=documentos&success=" + encodeURIComponent("Documento enviado com sucesso."));
 }
 
 export async function deleteChildDocument(documentId: string, childId: string) {
