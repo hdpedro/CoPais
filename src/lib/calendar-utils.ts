@@ -204,6 +204,145 @@ export function computeSwapBalance(
   return { balanceByUser, totalSwapDays };
 }
 
+export interface BalanceOperation {
+  id: string;
+  operation_type: "debit" | "credit" | "waive" | "gift_day" | "forgive_balance" | "reset_balance" | "manual_adjustment";
+  proposed_by: string;
+  target_user_id: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  days: number;
+  direction: "proposer_gains" | "target_gains" | "neutral" | "both_zero";
+  related_date: string | null;
+  notes: string | null;
+  created_at: string;
+  responded_at: string | null;
+}
+
+export interface EffectiveBalance {
+  rawBalance: SwapBalance;
+  ledgerAdjustments: Record<string, number>;
+  effectiveByUser: Record<string, number>;
+  totalSwapDays: number;
+  friendlyConcessions: number;
+  lastAgreementDate: string | null;
+  pendingOperations: number;
+}
+
+/**
+ * Apply ledger operations on top of the raw swap balance.
+ * - debit/credit: already reflected in raw balance (via custody_events), so no adjustment
+ * - waive: neutralize a previous debit (proposer cedes +1, target -1 cancelled out)
+ * - gift_day: same as waive (intentional cession)
+ * - forgive_balance: reduce proposer's debt by N days
+ * - reset_balance: set all to zero
+ * - manual_adjustment: neutral (notes only)
+ */
+export function getEffectiveBalance(
+  rawBalance: SwapBalance,
+  operations: BalanceOperation[]
+): EffectiveBalance {
+  const adjustments: Record<string, number> = {};
+  const effective: Record<string, number> = { ...rawBalance.balanceByUser };
+
+  // Initialize adjustments to zero for every known parent
+  for (const uid of Object.keys(rawBalance.balanceByUser)) {
+    adjustments[uid] = 0;
+  }
+
+  let friendlyConcessions = 0;
+  let lastAgreementDate: string | null = null;
+  let pendingOperations = 0;
+  let resetApplied = false;
+
+  // Get start of current month for concession counting
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  // Sort by created_at asc so reset applies in order
+  const sorted = [...operations].sort(
+    (a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  );
+
+  for (const op of sorted) {
+    if (op.status === "pending") {
+      pendingOperations++;
+      continue;
+    }
+    if (op.status !== "approved") continue;
+
+    // Track latest agreement date
+    if (op.responded_at && (!lastAgreementDate || op.responded_at > lastAgreementDate)) {
+      lastAgreementDate = op.responded_at;
+    }
+
+    // Count friendly concessions this month
+    if (op.responded_at && new Date(op.responded_at) >= monthStart) {
+      if (op.operation_type === "waive" || op.operation_type === "gift_day") {
+        friendlyConcessions++;
+      }
+    }
+
+    // Apply effect
+    switch (op.operation_type) {
+      case "waive":
+      case "gift_day": {
+        // Cancel the +/-1 from the raw balance for this single concession
+        const proposer = op.proposed_by;
+        const target = op.target_user_id;
+        const days = op.days || 1;
+        adjustments[proposer] = (adjustments[proposer] || 0) - days;
+        adjustments[target] = (adjustments[target] || 0) + days;
+        break;
+      }
+      case "forgive_balance": {
+        // Proposer forgives the target: target's debt reduced by N days
+        // Effect: target += days (less negative), proposer -= days (less positive)
+        const proposer = op.proposed_by;
+        const target = op.target_user_id;
+        const days = op.days || 1;
+        adjustments[target] = (adjustments[target] || 0) + days;
+        adjustments[proposer] = (adjustments[proposer] || 0) - days;
+        break;
+      }
+      case "reset_balance": {
+        resetApplied = true;
+        for (const uid of Object.keys(adjustments)) {
+          // Full reset: adjustment = -current_effective so final = 0
+          adjustments[uid] = -(rawBalance.balanceByUser[uid] || 0);
+        }
+        break;
+      }
+      case "debit":
+      case "credit":
+      case "manual_adjustment":
+      default:
+        // No adjustment (debit/credit already in raw balance; manual is informational)
+        break;
+    }
+  }
+
+  // Compute effective balance
+  if (resetApplied) {
+    for (const uid of Object.keys(effective)) {
+      effective[uid] = 0;
+    }
+  } else {
+    for (const uid of Object.keys(effective)) {
+      effective[uid] = (rawBalance.balanceByUser[uid] || 0) + (adjustments[uid] || 0);
+    }
+  }
+
+  return {
+    rawBalance,
+    ledgerAdjustments: adjustments,
+    effectiveByUser: effective,
+    totalSwapDays: rawBalance.totalSwapDays,
+    friendlyConcessions,
+    lastAgreementDate,
+    pendingOperations,
+  };
+}
+
 /** Check if a date string is today */
 export function isToday(dateKey: string): boolean {
   return dateKey === formatDateKey(new Date());

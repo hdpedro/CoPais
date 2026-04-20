@@ -935,13 +935,54 @@ Canal WhatsApp que reutiliza 100% da infraestrutura do Assistente IA in-app.
 
 ---
 
-## Server Actions (84 funcoes em 23 arquivos)
+### Sistema de Operacoes de Saldo (Custody Balance Operations)
+
+Sistema para ajustes consensuais de saldo entre coparentes, alem da divida automatica. Tabela `custody_balance_operations` (migration `00052`) com 7 tipos:
+
+| Tipo | Efeito |
+|------|--------|
+| `debit` | Gera saldo devedor (comportamento padrao) |
+| `credit` | Gera saldo positivo |
+| `waive` | Troca sem gerar saldo (isencao) |
+| `gift_day` | Cede dia sem cobranca |
+| `forgive_balance` | Reduz divida existente |
+| `reset_balance` | Zera todos os saldos (bilateral) |
+| `manual_adjustment` | Ajuste customizado |
+
+**Arquitetura hibrida:**
+- `computeSwapBalance()` em `calendar-utils.ts` calcula saldo fisico (computado de eventos)
+- `getEffectiveBalance()` aplica operacoes do ledger sobre o saldo fisico
+- Resultado: `{ effectiveByUser, friendlyConcessions, lastAgreementDate, pendingOperations }`
+
+**Server actions** em `src/actions/balance-operations.ts`:
+- `createBalanceOperation(formData)` — cria operacao pendente, notifica target
+- `respondToBalanceOperation(formData)` — aprova/rejeita bilateralmente
+
+**Componentes UI:**
+- `SwapBalanceCard.tsx` — card premium com status, ultimo acordo, concessoes amigaveis, botoes "Ver historico" / "Propor ajuste"
+- `BalanceOperationPicker.tsx` — seletor de tipo de operacao
+- `BalanceOperationList.tsx` — lista de operacoes pendentes
+- `BalanceHistorySheet.tsx` — historico cronologico completo
+- `ProposeBalanceAdjustmentSheet.tsx` — sheet para propor novo ajuste
+
+**Regras:**
+- Todas as operacoes requerem aprovacao bilateral
+- Zerar saldo: ambos precisam aceitar explicitamente
+- Perdao parcial: informar qtd dias
+- Snapshot de saldo gravado na aprovacao (auditoria)
+- RLS: proposer cria; target aprova/rejeita
+
+---
+
+## Server Actions (86 funcoes em 24 arquivos)
 
 | Action | Arquivo | Funcao |
 |--------|---------|--------|
 | createCustodyEvent | calendar.ts | Cria evento de guarda (unico ou recorrente) |
 | createSwapRequest | calendar.ts | Solicita troca de dia |
 | respondToSwapRequest | calendar.ts | Aprova/rejeita troca |
+| createBalanceOperation | balance-operations.ts | Propoe ajuste de saldo (waive/gift/forgive/reset/etc) |
+| respondToBalanceOperation | balance-operations.ts | Aprova/rejeita operacao de saldo bilateralmente |
 | generateSchedule | calendar.ts | Gera escala quinzenal em lote |
 | clearCustodySchedule | calendar.ts | Limpa escala de custodia existente |
 | getOrCreateCalendarToken | calendar.ts | Token para iCal |

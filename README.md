@@ -27,9 +27,9 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 | Metrica | Quantidade |
 |---------|-----------|
 | Rotas (paginas + API) | 66 |
-| Server Actions | 84 funcoes em 23 arquivos |
-| Tabelas no banco | 42+ |
-| Migrations | 43 |
+| Server Actions | 86 funcoes em 24 arquivos |
+| Tabelas no banco | 43+ |
+| Migrations | 52 |
 | Client Components | 36+ |
 | Componentes globais | 13 |
 | Chaves de traducao | ~1458 por idioma |
@@ -123,7 +123,8 @@ O app suporta **5 idiomas** completos:
 - Destaque do dia atual (ring), navegacao entre meses
 - **Day Detail Sheet** com accordion: guarda do dia + atividades + eventos ao clicar num dia
 - **Fix de eventos**: removida coluna `category` inexistente do SELECT na query de eventos (causava retorno null do Supabase); categoria hardcoded como "evento"
-- **Saldo de trocas (Swap Balance)**: componente `SwapBalanceCard` mostra debito/credito de dias entre pais, calculado por `computeSwapBalance()`
+- **Saldo de trocas (Swap Balance)**: componente `SwapBalanceCard` mostra debito/credito de dias entre pais, calculado por `computeSwapBalance()` + ajustes do ledger via `getEffectiveBalance()`
+- **Operacoes de Saldo Consensual (Balance Operations)**: sistema de ajustes bilaterais — debit, credit, waive (sem saldo), gift_day (doacao), forgive_balance (perdao parcial), reset_balance (zeramento), manual_adjustment. Tabela `custody_balance_operations` + actions em `balance-operations.ts`. UI: card premium com historico, botao "Propor ajuste", notificacoes push + chat. Todas as operacoes requerem aprovacao bilateral
 - **Troca como divida**: solicitar dia sem oferecer data de retorno gera divida de 1 dia
 - Planejador de fins de semana (mostra disponibilidade dos proximos weekends)
 - Exportacao iCal para sincronizar com celular (Google Calendar, Apple Calendar)
