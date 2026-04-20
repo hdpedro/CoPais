@@ -113,7 +113,7 @@ export default function ProposeBalanceAdjustmentSheet({
           {operationType === "reset_balance" && (
             <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
               <p className="text-xs text-amber-800">
-                ⚠️ <strong>Atencao:</strong> Zerar saldo reseta todas as pendencias. {targetName} precisa aprovar explicitamente.
+                ⚠️ <strong>Atenção:</strong> Zerar saldo reseta todas as pendências. {targetName} precisa aprovar explicitamente.
               </p>
             </div>
           )}

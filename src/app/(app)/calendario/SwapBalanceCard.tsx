@@ -68,7 +68,7 @@ export default function SwapBalanceCard({
   const statusLabel = pendingOperations > 0
     ? `${pendingOperations} proposta(s) aguardando`
     : isBalanced
-      ? "Sem pendencias"
+      ? "Sem pendências"
       : debtor && creditor
         ? `${parentColors[debtor[0]]?.name} deve ${Math.abs(debtor[1])} dia(s)`
         : "Saldo ajustado";
@@ -132,13 +132,13 @@ export default function SwapBalanceCard({
           {lastAgreementDate && (
             <p className="flex items-center gap-1.5">
               <span>🤝</span>
-              Ultimo acordo: {formatAgreementDate(lastAgreementDate)}
+              Último acordo: {formatAgreementDate(lastAgreementDate)}
             </p>
           )}
           {friendlyConcessions > 0 && (
             <p className="flex items-center gap-1.5">
               <span>📅</span>
-              {friendlyConcessions} concess{friendlyConcessions === 1 ? "ao" : "oes"} amigav{friendlyConcessions === 1 ? "el" : "eis"} este mes
+              {friendlyConcessions} concess{friendlyConcessions === 1 ? "ão" : "ões"} amigáv{friendlyConcessions === 1 ? "el" : "eis"} este mês
             </p>
           )}
         </div>
@@ -149,7 +149,7 @@ export default function SwapBalanceCard({
             onClick={() => setHistoryOpen(true)}
             className="flex-1 min-w-[100px] px-3 py-2 text-xs font-medium text-[#C07055] border border-[#E8E0D4] rounded-lg hover:bg-[#F5EFE6]"
           >
-            Ver historico
+            Ver histórico
           </button>
           {targetUserId && (
             <button
@@ -175,7 +175,7 @@ export default function SwapBalanceCard({
         <ProposeBalanceAdjustmentSheet
           groupId={groupId}
           targetUserId={targetUserId}
-          targetName={parentColors[targetUserId]?.name || "Outro responsavel"}
+          targetName={parentColors[targetUserId]?.name || "Outro responsável"}
           currentBalance={balanceByUser[currentUserId] || 0}
           onClose={() => setProposeOpen(false)}
         />

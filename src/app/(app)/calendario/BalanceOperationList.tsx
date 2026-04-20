@@ -25,11 +25,11 @@ interface Props {
 }
 
 const TYPE_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
-  debit: { icon: "🔁", label: "Debito", color: "amber" },
-  credit: { icon: "🔁", label: "Credito", color: "green" },
-  waive: { icon: "🤝", label: "Isencao (sem saldo)", color: "blue" },
-  gift_day: { icon: "🎁", label: "Doacao de dia", color: "pink" },
-  forgive_balance: { icon: "⚖️", label: "Perdao de saldo", color: "green" },
+  debit: { icon: "🔁", label: "Débito", color: "amber" },
+  credit: { icon: "🔁", label: "Crédito", color: "green" },
+  waive: { icon: "🤝", label: "Isenção (sem saldo)", color: "blue" },
+  gift_day: { icon: "🎁", label: "Doação de dia", color: "pink" },
+  forgive_balance: { icon: "⚖️", label: "Perdão de saldo", color: "green" },
   reset_balance: { icon: "🧹", label: "Zeramento consensual", color: "teal" },
   manual_adjustment: { icon: "🔧", label: "Ajuste manual", color: "gray" },
 };
@@ -81,8 +81,8 @@ export default function BalanceOperationList({ operations, currentUserId }: Prop
           const config = TYPE_CONFIG[op.operation_type] || { icon: "⚖️", label: op.operation_type, color: "gray" };
           const isTarget = op.target_user_id === currentUserId;
           const isProposer = op.proposed_by === currentUserId;
-          const proposerName = op.proposer?.full_name?.split(" ")[0] || "Alguem";
-          const targetName = op.target?.full_name?.split(" ")[0] || "Alguem";
+          const proposerName = op.proposer?.full_name?.split(" ")[0] || "Alguém";
+          const targetName = op.target?.full_name?.split(" ")[0] || "Alguém";
 
           return (
             <div
@@ -95,7 +95,7 @@ export default function BalanceOperationList({ operations, currentUserId }: Prop
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-semibold text-[#2C2C2C]">{config.label}</p>
                     <p className="text-xs text-[#9A8878]">
-                      {isProposer ? `Voce propôs para ${targetName}` : `${proposerName} propôs para voce`}
+                      {isProposer ? `Você propôs para ${targetName}` : `${proposerName} propôs para você`}
                     </p>
                   </div>
                 </div>

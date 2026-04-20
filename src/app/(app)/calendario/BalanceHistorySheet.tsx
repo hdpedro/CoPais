@@ -24,11 +24,11 @@ interface Props {
 }
 
 const TYPE_CONFIG: Record<string, { icon: string; label: string }> = {
-  debit: { icon: "🔁", label: "Debito" },
-  credit: { icon: "🔁", label: "Credito" },
-  waive: { icon: "🤝", label: "Isencao" },
-  gift_day: { icon: "🎁", label: "Doacao" },
-  forgive_balance: { icon: "⚖️", label: "Perdao de saldo" },
+  debit: { icon: "🔁", label: "Débito" },
+  credit: { icon: "🔁", label: "Crédito" },
+  waive: { icon: "🤝", label: "Isenção" },
+  gift_day: { icon: "🎁", label: "Doação" },
+  forgive_balance: { icon: "⚖️", label: "Perdão de saldo" },
   reset_balance: { icon: "🧹", label: "Zeramento" },
   manual_adjustment: { icon: "🔧", label: "Ajuste manual" },
 };
@@ -81,15 +81,15 @@ export default function BalanceHistorySheet({ operations, onClose }: Props) {
           {sorted.length === 0 ? (
             <div className="text-center py-12 text-sm text-[#9A8878]">
               <p className="text-4xl mb-3">📋</p>
-              <p>Nenhuma operacao registrada ainda.</p>
+              <p>Nenhuma operação registrada ainda.</p>
             </div>
           ) : (
             <ul className="space-y-3">
               {sorted.map((op) => {
                 const type = TYPE_CONFIG[op.operation_type] || { icon: "⚖️", label: op.operation_type };
                 const status = STATUS_CONFIG[op.status] || STATUS_CONFIG.pending;
-                const proposerName = op.proposer?.full_name?.split(" ")[0] || "Alguem";
-                const targetName = op.target?.full_name?.split(" ")[0] || "Alguem";
+                const proposerName = op.proposer?.full_name?.split(" ")[0] || "Alguém";
+                const targetName = op.target?.full_name?.split(" ")[0] || "Alguém";
 
                 return (
                   <li key={op.id} className="border border-[#E8E0D4] rounded-lg p-3">

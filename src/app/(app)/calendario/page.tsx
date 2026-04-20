@@ -262,8 +262,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       responded_at: op.responded_at,
       proposed_by: op.proposed_by,
       target_user_id: op.target_user_id,
-      proposer: proposerRaw ? { full_name: proposerRaw.full_name || "Usuario" } : null,
-      target: targetRaw ? { full_name: targetRaw.full_name || "Usuario" } : null,
+      proposer: proposerRaw ? { full_name: proposerRaw.full_name || "Usuário" } : null,
+      target: targetRaw ? { full_name: targetRaw.full_name || "Usuário" } : null,
     };
   });
 

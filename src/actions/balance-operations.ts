@@ -7,11 +7,11 @@ import { createNotificationWithPush } from "@/lib/push";
 import { postChatNotification } from "@/lib/chat-notify";
 
 const OPERATION_LABELS: Record<string, string> = {
-  debit: "Debito",
-  credit: "Credito",
-  waive: "Isencao",
-  gift_day: "Doacao de dia",
-  forgive_balance: "Perdao de saldo",
+  debit: "Débito",
+  credit: "Crédito",
+  waive: "Isenção",
+  gift_day: "Doação de dia",
+  forgive_balance: "Perdão de saldo",
   reset_balance: "Zeramento consensual",
   manual_adjustment: "Ajuste manual",
 };
@@ -67,14 +67,14 @@ export async function createBalanceOperation(formData: FormData) {
   }
 
   if (targetUserId === user.id) {
-    return { error: "Nao e possivel criar operacao consigo mesmo." };
+    return { error: "Não é possível criar operação consigo mesmo." };
   }
 
   const membership = await verifyGroupMembership(supabase, groupId, user.id);
-  if (!membership) return { error: "Sem permissao para este grupo." };
+  if (!membership) return { error: "Sem permissão para este grupo." };
 
   const targetMembership = await verifyGroupMembership(supabase, groupId, targetUserId);
-  if (!targetMembership) return { error: "Usuario alvo nao pertence a este grupo." };
+  if (!targetMembership) return { error: "Usuário alvo não pertence a este grupo." };
 
   const direction = directionForType(operationType, true);
 
@@ -100,7 +100,7 @@ export async function createBalanceOperation(formData: FormData) {
       .eq("id", user.id)
       .single();
 
-    const proposerName = proposerProfile?.full_name?.split(" ")[0] || "Alguem";
+    const proposerName = proposerProfile?.full_name?.split(" ")[0] || "Alguém";
     const label = OPERATION_LABELS[operationType] || operationType;
 
     await createNotificationWithPush(
@@ -148,9 +148,9 @@ export async function respondToBalanceOperation(formData: FormData) {
     .eq("id", operationId)
     .single();
 
-  if (!op) return { error: "Operacao nao encontrada." };
-  if (op.target_user_id !== user.id) return { error: "Apenas o destinatario pode responder." };
-  if (op.status !== "pending") return { error: "Esta operacao ja foi processada." };
+  if (!op) return { error: "Operação não encontrada." };
+  if (op.target_user_id !== user.id) return { error: "Apenas o destinatário pode responder." };
+  if (op.status !== "pending") return { error: "Esta operação já foi processada." };
 
   const { data: updated, error: updateError } = await supabase
     .from("custody_balance_operations")
@@ -164,7 +164,7 @@ export async function respondToBalanceOperation(formData: FormData) {
     .select("id");
 
   if (updateError) return { error: updateError.message };
-  if (!updated || updated.length === 0) return { error: "Operacao ja processada." };
+  if (!updated || updated.length === 0) return { error: "Operação já processada." };
 
   try {
     const { data: responderProfile } = await supabase
@@ -173,7 +173,7 @@ export async function respondToBalanceOperation(formData: FormData) {
       .eq("id", user.id)
       .single();
 
-    const responderName = responderProfile?.full_name?.split(" ")[0] || "Alguem";
+    const responderName = responderProfile?.full_name?.split(" ")[0] || "Alguém";
     const label = OPERATION_LABELS[op.operation_type] || op.operation_type;
     const statusText = response === "approved" ? "aprovada" : "recusada";
 
