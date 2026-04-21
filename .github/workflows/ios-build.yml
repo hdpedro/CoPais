@@ -51,13 +51,7 @@ jobs:
           mkdir -p out
           echo '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=https://kindar.com.br"></head><body></body></html>' > out/index.html
 
-      - name: Generate iOS project (CocoaPods template)
-        run: |
-          echo "=== Running cap add ios with CocoaPods template ==="
-          npx cap add ios --packagemanager CocoaPods
-          test -f ios/App/Podfile && echo "OK: Podfile exists" || { echo "ERROR: Podfile missing"; exit 1; }
-
-      - name: Sync Capacitor
+      - name: Sync Capacitor (update web assets + plugins)
         run: npx cap sync ios
 
       - name: Install CocoaPods
@@ -161,6 +155,14 @@ jobs:
           name: kindar-ios-${{ github.run_number }}
           path: ${{ runner.temp }}/export/*.ipa
           retention-days: 30
+
+      - name: Save build log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-${{ github.run_number }}
+          path: ${{ runner.temp }}/*.log
+          retention-days: 7
 
       - name: Cleanup
         if: always()

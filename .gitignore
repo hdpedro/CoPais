@@ -46,10 +46,15 @@ next-env.d.ts
 .env.local
 .env.test.local
 
-# Capacitor
-/ios
+# Capacitor - iOS platform committed for stable CI builds (like GripFlow)
+# /ios
 /android
 /out
+# Don't commit generated iOS build artifacts
+/ios/App/Pods/
+/ios/App/App.xcworkspace/xcuserdata/
+/ios/DerivedData/
+/ios/build/
 COnvite_Joaquim.jpeg
 
 .env*.local
