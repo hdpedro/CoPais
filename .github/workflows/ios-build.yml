@@ -46,6 +46,11 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Create minimal webDir
+        run: |
+          mkdir -p out
+          echo '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=https://kindar.com.br"></head><body></body></html>' > out/index.html
+
       - name: Generate iOS project (CocoaPods template)
         run: |
           echo "=== Running cap add ios with CocoaPods template ==="
