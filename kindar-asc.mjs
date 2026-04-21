@@ -419,11 +419,22 @@ async function configureSubscriptions(appId) {
 async function configureVersion(appId) {
   section("5. Configurando metadados da versão");
 
-  const resp = await GET(`/apps/${appId}/appStoreVersions`, { limit: 5, sort: "-createdDate" });
-  const versions = resp.data || [];
-  const version = versions.find((v) =>
-    ["PREPARE_FOR_SUBMISSION", "METADATA_REJECTED", "DEVELOPER_REJECTED", "REJECTED", "INVALID_BINARY"].includes(v.attributes?.appStoreState)
-  ) || versions[0];
+  // Apple rejects `sort` on /apps/{id}/appStoreVersions; filter by state instead
+  // and fall back to the last N by default order if nothing is editable.
+  const editableStates = ["PREPARE_FOR_SUBMISSION", "METADATA_REJECTED", "DEVELOPER_REJECTED", "REJECTED", "INVALID_BINARY"];
+  let version = null;
+  try {
+    const editable = await GET(`/apps/${appId}/appStoreVersions`, {
+      "filter[appStoreState]": editableStates.join(","),
+      "limit": 1,
+    });
+    version = editable.data?.[0] || null;
+  } catch { /* fallback below */ }
+  if (!version) {
+    const anyResp = await GET(`/apps/${appId}/appStoreVersions`, { limit: 5 });
+    const versions = anyResp.data || [];
+    version = versions.find((v) => editableStates.includes(v.attributes?.appStoreState)) || versions[0];
+  }
 
   if (!version) { warn("Nenhuma versão encontrada."); return null; }
 
