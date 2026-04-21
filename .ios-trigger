@@ -1,1 +1,1 @@
-trigger ios build - run with debug logging
+trigger run with committed iOS project
