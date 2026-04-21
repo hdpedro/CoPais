@@ -1,0 +1,18 @@
+# Native app — shipped via EAS, not Vercel
+kindar-native/
+
+# CI + automation artifacts
+.github/
+scripts/asc-automation/
+scripts/pre-submit-audit.mjs
+kindar-asc.mjs
+setup-asc.bat
+AuthKey*.p8
+DEPLOY-IOS.md
+
+# Local logs/reports
+next-dev.log
+next-dev.err.log
+playwright-report/
+test-results/
+coverage/
