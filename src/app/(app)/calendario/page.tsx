@@ -8,7 +8,9 @@ import {
   getNextWeekends,
   formatDateKey,
   computeSwapBalance,
+  getEffectiveBalance,
   getBrazilToday,
+  type BalanceOperation,
   type ParentColorMap,
   type CustodyEvent,
 } from "@/lib/calendar-utils";
@@ -51,6 +53,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     { data: eventRequests },
     { data: activityReports },
     { data: rawChecklistCompletions },
+    { data: balanceOperations },
   ] = await Promise.all([
     getCachedMembers(groupId),
     custodyEnabled
@@ -119,6 +122,13 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       .gte("occurrence_date", rangeStart)
       .lte("occurrence_date", rangeEnd)
       .limit(1000)
+      .then(r => r, () => ({ data: [] as never[] })),
+    supabase
+      .from("custody_balance_operations")
+      .select("id, operation_type, status, days, direction, related_date, notes, created_at, responded_at, proposed_by, target_user_id, proposer:profiles!custody_balance_operations_proposed_by_fkey(full_name), target:profiles!custody_balance_operations_target_user_id_fkey(full_name)")
+      .eq("group_id", groupId)
+      .order("created_at", { ascending: false })
+      .limit(50)
       .then(r => r, () => ({ data: [] as never[] })),
   ]);
 
@@ -196,13 +206,66 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     }
   }
 
-  // Swap balance
+  // Swap balance (raw, from events)
   const swapBalance = computeSwapBalance(
     custodyEvents,
     allMembersMap,
     rangeStart,
     rangeEnd
   );
+
+  // Balance operations ledger (approved + pending)
+  const rawBalanceOps = (balanceOperations || []) as unknown as Array<{
+    id: string;
+    operation_type: string;
+    status: string;
+    days: number;
+    direction: string;
+    related_date: string | null;
+    notes: string | null;
+    created_at: string;
+    responded_at: string | null;
+    proposed_by: string;
+    target_user_id: string;
+    proposer: { full_name: string } | null | Array<{ full_name: string }>;
+    target: { full_name: string } | null | Array<{ full_name: string }>;
+  }>;
+
+  const normalizedOps: BalanceOperation[] = rawBalanceOps.map((op) => ({
+    id: op.id,
+    operation_type: op.operation_type as BalanceOperation["operation_type"],
+    proposed_by: op.proposed_by,
+    target_user_id: op.target_user_id,
+    status: op.status as BalanceOperation["status"],
+    days: op.days,
+    direction: op.direction as BalanceOperation["direction"],
+    related_date: op.related_date,
+    notes: op.notes,
+    created_at: op.created_at,
+    responded_at: op.responded_at,
+  }));
+
+  const effectiveBalance = getEffectiveBalance(swapBalance, normalizedOps);
+
+  const balanceOpsList = rawBalanceOps.map((op) => {
+    const proposerRaw = Array.isArray(op.proposer) ? op.proposer[0] : op.proposer;
+    const targetRaw = Array.isArray(op.target) ? op.target[0] : op.target;
+    return {
+      id: op.id,
+      operation_type: op.operation_type,
+      status: op.status,
+      days: op.days,
+      direction: op.direction,
+      related_date: op.related_date,
+      notes: op.notes,
+      created_at: op.created_at,
+      responded_at: op.responded_at,
+      proposed_by: op.proposed_by,
+      target_user_id: op.target_user_id,
+      proposer: proposerRaw ? { full_name: proposerRaw.full_name || "Usuário" } : null,
+      target: targetRaw ? { full_name: targetRaw.full_name || "Usuário" } : null,
+    };
+  });
 
   // Weekend planner
   const weekends = getNextWeekends(8, custodyMap, user.id);
@@ -340,6 +403,8 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         custodyEnabled={custodyEnabled}
         weekends={weekends}
         swapBalance={swapBalance}
+        effectiveBalance={effectiveBalance}
+        balanceOperations={balanceOpsList}
         custodyChangeBanner={custodyChangeBanner}
         eventRequests={(eventRequests || []).map((r: Record<string, unknown>) => {
           const requesterRaw = Array.isArray(r.requester) ? r.requester[0] : r.requester;

@@ -334,7 +334,7 @@ export default memo(function DayDetailSheet({
   const isOtherParentDay = dayInfo && dayInfo.userId !== currentUserId;
   const todayStr = getBrazilToday();
   const isFutureDate = dateKey >= todayStr;
-  const canRequestSwap = isOtherParentDay && isFutureDate && !pendingSwapForDay;
+  const canRequestSwap = !!dayInfo && isFutureDate && !pendingSwapForDay;
 
   // Determine the responsible person for an activity on this day
   // Priority: 1. day-level override → 2. permanent responsible_id → 3. custody (who has the child)

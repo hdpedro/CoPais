@@ -12,11 +12,13 @@ export default async function ChildDetailPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; error?: string; success?: string }>;
 }) {
   const { id } = await params;
   const sp = await searchParams;
   const tab = sp.tab || "geral";
+  const uploadError = sp.error || null;
+  const uploadSuccess = sp.success || null;
 
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -105,6 +107,8 @@ export default async function ChildDetailPage({
       groupId={groupId}
       isReadonly={isReadonly}
       tab={tab}
+      uploadError={uploadError}
+      uploadSuccess={uploadSuccess}
     />
   );
 }

@@ -164,7 +164,7 @@ export default async function SemanaPage() {
   const pendingActions: Array<{ type: string; label: string; href: string; icon: string; urgency: "high" | "medium" | "low" }> = [];
   if (activeIllnesses && activeIllnesses.length > 0) {
     const childName = getDisplayName((activeIllnesses[0].children as unknown as { full_name: string } | null)?.full_name, true);
-    pendingActions.push({ type: "health", label: `Acompanhar saude de ${childName}`, href: "/saude/doencas", icon: "🩺", urgency: "high" });
+    pendingActions.push({ type: "health", label: `Acompanhar saúde de ${childName}`, href: "/saude/doencas", icon: "🩺", urgency: "high" });
   }
   if (activeMeds && activeMeds.length > 0) {
     pendingActions.push({ type: "health", label: "Confirmar medicamentos do dia", href: "/saude/medicamentos", icon: "💊", urgency: "high" });
@@ -174,7 +174,7 @@ export default async function SemanaPage() {
     pendingActions.push({ type: "routine", label: "Registrar check-in de hoje", href: "/checkin", icon: "✅", urgency: "medium" });
   }
   if (pendingDecisions && pendingDecisions.length > 0) {
-    pendingActions.push({ type: "routine", label: `${pendingDecisions.length} decisao(oes) pendente(s)`, href: "/decisoes", icon: "🗳️", urgency: "medium" });
+    pendingActions.push({ type: "routine", label: `${pendingDecisions.length} decisão(ões) pendente(s)`, href: "/decisoes", icon: "🗳️", urgency: "medium" });
   }
   if (swapRequests && swapRequests.length > 0) {
     pendingActions.push({ type: "custody", label: `${swapRequests.length} troca(s) de guarda pendente(s)`, href: "/calendario", icon: "🔄", urgency: "medium" });
@@ -239,13 +239,13 @@ export default async function SemanaPage() {
 
   let headerText = "";
   if (hasSickChild && pendingCount > 1) {
-    headerText = `${pendingCount} pendencias e atencao a saude de ${sickChildName}`;
+    headerText = `${pendingCount} pendências e atenção à saúde de ${sickChildName}`;
   } else if (hasSickChild) {
-    headerText = `Atencao a saude de ${sickChildName} esta semana`;
+    headerText = `Atenção à saúde de ${sickChildName} esta semana`;
   } else if (pendingCount >= 3) {
-    headerText = `${pendingCount} pendencias abertas que precisam de acao`;
+    headerText = `${pendingCount} pendências abertas que precisam de ação`;
   } else if (totalEvents > 10) {
-    headerText = "Rotina intensa com multiplas atividades";
+    headerText = "Rotina intensa com múltiplas atividades";
   } else if (totalEvents >= 5) {
     headerText = "Semana ativa e bem organizada";
   } else if (pendingCount === 0 && totalEvents <= 3) {
@@ -253,27 +253,27 @@ export default async function SemanaPage() {
   } else if (pendingCount > 0) {
     headerText = `Semana equilibrada com ${pendingCount} item(ns) pendente(s)`;
   } else {
-    headerText = "Rotina estavel — tudo sob controle";
+    headerText = "Rotina estável — tudo sob controle";
   }
 
   // ─── INTELLIGENT INSIGHT ───
   let insight = "";
   if (hasSickChild) {
-    insight = `${sickChildName} apresentou sinais recentes — acompanhe de perto a evolucao.`;
+    insight = `${sickChildName} apresentou sinais recentes — acompanhe de perto a evolução.`;
   } else if (totalEvents > 10 && activeDays >= 5) {
     insight = `Semana cheia com ${totalEvents} atividades em ${activeDays} dias. Priorizem descanso.`;
   } else if (totalCheckins >= 5) {
-    insight = `Otima consistencia com ${totalCheckins} check-ins registrados. Continuem assim!`;
+    insight = `Ótima consistência com ${totalCheckins} check-ins registrados. Continuem assim!`;
   } else if (pendingCount === 0 && totalEvents > 0) {
-    insight = "Rotina estavel e sem pendencias — bom momento para qualidade de tempo.";
+    insight = "Rotina estável e sem pendências — bom momento para qualidade de tempo.";
   } else if (totalEvents === 0 && totalCheckins === 0) {
-    insight = "Semana com poucos registros. Mantenham o habito de registrar a rotina.";
+    insight = "Semana com poucos registros. Mantenham o hábito de registrar a rotina.";
   } else if (pendingCount >= 3) {
-    insight = `${pendingCount} itens aguardando acao — resolva hoje para manter o dia em ordem.`;
+    insight = `${pendingCount} itens aguardando ação — resolva hoje para manter o dia em ordem.`;
   } else if (medsCount > 0) {
-    insight = `${medsCount} medicamento(s) ativo(s) esta semana. Nao esquecam as doses.`;
+    insight = `${medsCount} medicamento(s) ativo(s) esta semana. Não esqueçam as doses.`;
   } else {
-    insight = "Boa consistencia na rotina familiar. Continuem organizados!";
+    insight = "Boa consistência na rotina familiar. Continuem organizados!";
   }
 
   let weekMood: "calm" | "busy" | "alert" = "calm";

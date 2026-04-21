@@ -66,7 +66,7 @@ export default function WeeklySummaryClient({
           <Chip icon="✅" value={kpis.totalCheckins} label="check-ins" empty={kpis.totalCheckins === 0} />
           {kpis.medsCount > 0 && <Chip icon="💊" value={kpis.medsCount} label="med." accent />}
           {kpis.appointmentsCount > 0 && <Chip icon="🩺" value={kpis.appointmentsCount} label="consultas" />}
-          {kpis.pendingCount > 0 && <Chip icon="⚠️" value={kpis.pendingCount} label="pendencias" accent />}
+          {kpis.pendingCount > 0 && <Chip icon="⚠️" value={kpis.pendingCount} label="pendências" accent />}
           <Chip icon="💬" value={kpis.messagesCount} label="msgs" empty={kpis.messagesCount === 0} />
         </div>
       </div>
@@ -162,7 +162,7 @@ export default function WeeklySummaryClient({
                   <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full uppercase ${
                     action.type === "health" ? "bg-red-50 text-red-500" : action.type === "custody" ? "bg-amber-50 text-amber-600" : "bg-gray-100 text-gray-500"
                   }`}>
-                    {action.type === "health" ? "saude" : action.type === "custody" ? "guarda" : "rotina"}
+                    {action.type === "health" ? "saúde" : action.type === "custody" ? "guarda" : "rotina"}
                   </span>
                 </div>
               </Link>
@@ -209,9 +209,9 @@ export default function WeeklySummaryClient({
                 <div className="mt-2.5 pt-2 border-t border-gray-50">
                   <p className="text-[11px] text-[#9A8878]">
                     {child.healthStatus === "sick"
-                      ? `Em acompanhamento — ${child.illnessName || "atencao a saude"}`
+                      ? `Em acompanhamento — ${child.illnessName || "atenção à saúde"}`
                       : child.nextActivity
-                        ? `Proxima atividade: ${child.nextActivity}`
+                        ? `Próxima atividade: ${child.nextActivity}`
                         : child.hasActivity
                           ? "Rotina registrada esta semana"
                           : "Semana tranquila — sem registros ainda"
@@ -238,7 +238,7 @@ export default function WeeklySummaryClient({
                 </div>
                 <div className="flex-1">
                   <p className="text-[13px] font-medium text-[#2C2C2C]">
-                    {swap.isIncoming ? "Solicitacao recebida" : "Solicitacao enviada"}
+                    {swap.isIncoming ? "Solicitação recebida" : "Solicitação enviada"}
                   </p>
                   <p className="text-[10px] text-[#9A8878]">
                     {new Date(swap.date + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}
@@ -264,7 +264,7 @@ export default function WeeklySummaryClient({
               {kpis.messagesCount > 0 ? `${kpis.messagesCount} mensagens esta semana` : "Nenhuma mensagem esta semana"}
             </p>
             <p className="text-[10px] text-[#9A8878]">
-              {kpis.messagesCount > 0 ? "Comunicacao ativa" : "Comece uma conversa"}
+              {kpis.messagesCount > 0 ? "Comunicação ativa" : "Comece uma conversa"}
             </p>
           </div>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

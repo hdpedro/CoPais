@@ -52,7 +52,7 @@ export default function EventRequestList({ requests, currentUserId }: EventReque
         router.refresh();
       }
     } catch {
-      setError("Erro ao responder solicitacao.");
+      setError("Erro ao responder solicitação.");
     } finally {
       setResponding(null);
     }

@@ -132,7 +132,17 @@ export async function uploadChildDocument(formData: FormData) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  const fileName = `${groupId}/${Date.now()}-${file.name}`;
+  // Sanitize filename: remove accents and characters Supabase Storage rejects
+  // Keeps only a-z, A-Z, 0-9, dot, dash, underscore
+  const sanitizedFileName = file.name
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "") // strip diacritics (acentos)
+    .replace(/[^a-zA-Z0-9._-]/g, "_") // replace other special chars with _
+    .replace(/_+/g, "_") // collapse multiple underscores
+    .replace(/^_+|_+$/g, ""); // trim leading/trailing underscores
+
+  const safeName = sanitizedFileName || "document";
+  const fileName = `${groupId}/${Date.now()}-${safeName}`;
   const { error: uploadError } = await adminClient.storage
     .from("documents")
     .upload(fileName, file);
@@ -163,7 +173,7 @@ export async function uploadChildDocument(formData: FormData) {
   captureServerEvent(user.id, "child_document_uploaded");
 
   revalidatePath("/criancas/" + childId);
-  redirect("/criancas/" + childId + "?tab=documentos");
+  redirect("/criancas/" + childId + "?tab=documentos&success=" + encodeURIComponent("Documento enviado com sucesso."));
 }
 
 export async function deleteChildDocument(documentId: string, childId: string) {

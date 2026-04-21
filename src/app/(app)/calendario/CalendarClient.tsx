@@ -9,6 +9,7 @@ import SwapRequestList from "./SwapRequestList";
 import EventRequestList from "./EventRequestList";
 import CalendarExportButton from "./CalendarExportButton";
 import SwapBalanceCard from "./SwapBalanceCard";
+import BalanceOperationList from "./BalanceOperationList";
 import EnableCustodyLink from "@/components/EnableCustodyLink";
 import type { CustodyDayInfo, ParentColorMap, WeekendInfo, SwapBalance } from "@/lib/calendar-utils";
 
@@ -61,6 +62,29 @@ export interface ActivityInfo {
   source?: "activity" | "event" | "appointment";
 }
 
+interface BalanceOperationData {
+  id: string;
+  operation_type: string;
+  status: string;
+  days: number;
+  direction: string;
+  related_date: string | null;
+  notes: string | null;
+  created_at: string;
+  responded_at: string | null;
+  proposed_by: string;
+  target_user_id: string;
+  proposer: { full_name: string } | null;
+  target: { full_name: string } | null;
+}
+
+interface EffectiveBalanceData {
+  effectiveByUser: Record<string, number>;
+  friendlyConcessions: number;
+  lastAgreementDate: string | null;
+  pendingOperations: number;
+}
+
 interface CalendarClientProps {
   initialYear: number;
   initialMonth: number;
@@ -73,6 +97,8 @@ interface CalendarClientProps {
   groupId: string;
   weekends: WeekendInfo[];
   swapBalance: SwapBalance;
+  effectiveBalance: EffectiveBalanceData;
+  balanceOperations: BalanceOperationData[];
   custodyChangeBanner: { childNames: string; parentName: string } | null;
   custodyEnabled: boolean;
   swapRequests: SwapRequest[];
@@ -107,6 +133,8 @@ export default memo(function CalendarClient({
   groupId,
   weekends,
   swapBalance,
+  effectiveBalance,
+  balanceOperations,
   custodyChangeBanner,
   custodyEnabled,
   swapRequests,
@@ -184,9 +212,16 @@ export default memo(function CalendarClient({
 
       {hasCustodyData && (
         <SwapBalanceCard
-          balanceByUser={swapBalance.balanceByUser}
+          balanceByUser={effectiveBalance.effectiveByUser}
+          rawBalanceByUser={swapBalance.balanceByUser}
           totalSwapDays={swapBalance.totalSwapDays}
           parentColors={parentColors}
+          friendlyConcessions={effectiveBalance.friendlyConcessions}
+          lastAgreementDate={effectiveBalance.lastAgreementDate}
+          pendingOperations={effectiveBalance.pendingOperations}
+          currentUserId={currentUserId}
+          groupId={groupId}
+          operations={balanceOperations}
         />
       )}
 
@@ -197,6 +232,11 @@ export default memo(function CalendarClient({
       {hasCustodyData && (
         <SwapRequestList requests={swapRequests} currentUserId={currentUserId} />
       )}
+
+      <BalanceOperationList
+        operations={balanceOperations.filter((op) => op.status === "pending")}
+        currentUserId={currentUserId}
+      />
 
       <EventRequestList requests={eventRequests} currentUserId={currentUserId} />
 
