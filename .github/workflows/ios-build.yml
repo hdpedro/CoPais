@@ -56,6 +56,23 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync ios
 
+      - name: Install CocoaPods dependencies
+        run: |
+          cd ios/App
+          pod install --repo-update
+          echo "--- Workspace check ---"
+          ls -la *.xcworkspace/ 2>/dev/null || echo "NO WORKSPACE FOUND"
+          ls -la Pods/ | head -5
+
+      - name: Debug - iOS structure
+        run: |
+          echo "=== ios/ ==="
+          ls -la ios/
+          echo "=== ios/App/ ==="
+          ls -la ios/App/
+          echo "=== Workspace exists? ==="
+          test -d "ios/App/App.xcworkspace" && echo "YES" || echo "NO"
+
       - name: Select Xcode 16
         run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
 
