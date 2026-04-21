@@ -47,7 +47,9 @@
   "submit": {
     "production": {
       "ios": {
-        "appleId": "henrique.de.pedro@gmail.com",
+        "ascApiKeyPath": "../AuthKey.p8",
+        "ascApiKeyId": "736GBBC4YY",
+        "ascApiIssuerId": "52e31db4-ca31-4a2c-b99d-86b8b599b29e",
         "appleTeamId": "ZQ83W8MYUZ"
       }
     }

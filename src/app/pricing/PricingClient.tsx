@@ -398,6 +398,36 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
             14 dias gratis para testar
           </span>
         </div>
+
+        {/* Auto-renewal disclosure — required by Apple App Store Review Guideline 3.1.2(c) */}
+        <div className="mt-8 text-center text-[11px] text-[#9A8878] max-w-lg mx-auto leading-relaxed">
+          <p>
+            Assinatura autorrenovavel. Apos o periodo de teste gratuito de 14 dias, a assinatura sera cobrada automaticamente
+            no valor do plano selecionado. A assinatura e renovada automaticamente ao final de cada periodo, salvo
+            cancelamento pelo menos 24 horas antes do fim do periodo vigente.
+            {platform === "apple_iap"
+              ? " O pagamento sera cobrado na sua conta Apple ID. Gerencie ou cancele em Ajustes > Apple ID > Assinaturas."
+              : " Gerencie ou cancele a qualquer momento nas configuracoes da sua conta."}
+          </p>
+          <p className="mt-2">
+            <Link href="/termos" className="text-[#C07055] hover:underline">Termos de Uso</Link>
+            {" \u00b7 "}
+            <Link href="/privacidade" className="text-[#C07055] hover:underline">Politica de Privacidade</Link>
+            {platform === "apple_iap" && (
+              <>
+                {" \u00b7 "}
+                <a
+                  href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[#C07055] hover:underline"
+                >
+                  EULA Apple
+                </a>
+              </>
+            )}
+          </p>
+        </div>
       </div>
     </div>
   );

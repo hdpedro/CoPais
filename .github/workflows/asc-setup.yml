@@ -1,0 +1,46 @@
+name: App Store Connect Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run (nao faz mudancas reais)'
+        required: false
+        default: 'false'
+        type: choice
+        options:
+          - 'false'
+          - 'true'
+  push:
+    branches:
+      - asc-run
+
+jobs:
+  asc-setup:
+    name: Configurar Kindar no App Store Connect
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Criar arquivo de chave ASC
+        run: |
+          echo "${{ secrets.ASC_PRIVATE_KEY }}" > AuthKey_736GBBC4YY.p8
+
+      - name: Executar automacao ASC
+        run: |
+          if [ "${{ inputs.dry_run }}" = "true" ]; then
+            node kindar-asc.mjs --dry-run
+          else
+            node kindar-asc.mjs
+          fi
+
+      - name: Limpar chave
+        if: always()
+        run: rm -f AuthKey_736GBBC4YY.p8
