@@ -31,6 +31,7 @@ jobs:
       APP_ID: com.kindar.app
       SCHEME: App
       XCODE_WORKSPACE: ios/App/App.xcworkspace
+      CAPACITOR_TELEMETRY: "false"
 
     steps:
       - uses: actions/checkout@v4
@@ -45,16 +46,25 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Generate iOS project
-        run: npx cap add ios
-
-      - name: Copy native plugins
+      - name: Create minimal webDir
         run: |
-          cp ios-plugins/StoreKitPlugin.swift ios/App/App/ 2>/dev/null || true
-          cp ios-plugins/StoreKitPlugin.m ios/App/App/ 2>/dev/null || true
+          mkdir -p out
+          echo '<!DOCTYPE html><html><head><meta charset="utf-8"><meta http-equiv="refresh" content="0;url=https://kindar.com.br"></head><body></body></html>' > out/index.html
+
+      - name: Generate iOS project (CocoaPods template)
+        run: |
+          echo "=== Running cap add ios with CocoaPods template ==="
+          npx cap add ios --packagemanager CocoaPods
+          test -f ios/App/Podfile && echo "OK: Podfile exists" || { echo "ERROR: Podfile missing"; exit 1; }
 
       - name: Sync Capacitor
         run: npx cap sync ios
+
+      - name: Install CocoaPods
+        run: |
+          cd ios/App
+          pod install --repo-update
+          test -f App.xcworkspace/contents.xcworkspacedata && echo "OK: xcworkspace ready" || { echo "ERROR: xcworkspace not ready"; exit 1; }
 
       - name: Select Xcode 16
         run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
