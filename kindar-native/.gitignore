@@ -32,6 +32,8 @@ yarn-error.*
 
 # local env files
 .env
+.env.production
+.env.test
 .env*.local
 google-service-account.json
 
