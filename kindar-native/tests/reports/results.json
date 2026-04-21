@@ -1,0 +1,543 @@
+{
+  "config": {
+    "configFile": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\playwright.config.ts",
+    "rootDir": "C:/Users/henri/OneDrive/Área de Trabalho/APP CoPais/kindar-native/tests/e2e",
+    "forbidOnly": false,
+    "fullyParallel": false,
+    "globalSetup": null,
+    "globalTeardown": null,
+    "globalTimeout": 0,
+    "grep": {},
+    "grepInvert": null,
+    "maxFailures": 0,
+    "metadata": {
+      "actualWorkers": 1
+    },
+    "preserveOutput": "always",
+    "projects": [
+      {
+        "outputDir": "C:/Users/henri/OneDrive/Área de Trabalho/APP CoPais/kindar-native/test-results-secondary-users-2",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "platform": "pwa"
+        },
+        "id": "pwa",
+        "name": "pwa",
+        "testDir": "C:/Users/henri/OneDrive/Área de Trabalho/APP CoPais/kindar-native/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      },
+      {
+        "outputDir": "C:/Users/henri/OneDrive/Área de Trabalho/APP CoPais/kindar-native/test-results-secondary-users-2",
+        "repeatEach": 1,
+        "retries": 1,
+        "metadata": {
+          "platform": "expo-web"
+        },
+        "id": "expo-web",
+        "name": "expo-web",
+        "testDir": "C:/Users/henri/OneDrive/Área de Trabalho/APP CoPais/kindar-native/tests/e2e",
+        "testIgnore": [],
+        "testMatch": [
+          "**/*.@(spec|test).?(c|m)[jt]s?(x)"
+        ],
+        "timeout": 30000
+      }
+    ],
+    "quiet": false,
+    "reporter": [
+      [
+        "list",
+        null
+      ],
+      [
+        "html",
+        {
+          "open": "never",
+          "outputFolder": "tests/reports/html"
+        }
+      ],
+      [
+        "json",
+        {
+          "outputFile": "tests/reports/results.json"
+        }
+      ],
+      [
+        "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\utils\\parity-reporter.ts",
+        null
+      ]
+    ],
+    "reportSlowTests": {
+      "max": 5,
+      "threshold": 300000
+    },
+    "shard": null,
+    "tags": [],
+    "updateSnapshots": "missing",
+    "updateSourceMethod": "patch",
+    "version": "1.59.1",
+    "workers": 1,
+    "webServer": null
+  },
+  "suites": [
+    {
+      "title": "08-secondary-user.spec.ts",
+      "file": "08-secondary-user.spec.ts",
+      "column": 0,
+      "line": 0,
+      "specs": [],
+      "suites": [
+        {
+          "title": "Secondary User",
+          "file": "08-secondary-user.spec.ts",
+          "line": 8,
+          "column": 6,
+          "specs": [
+            {
+              "title": "dashboard loads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "pwa",
+                  "projectName": "pwa",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 3624,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-14T12:35:08.111Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f6c08cfa3c69df1aed2f-d7967085c46e143c206e",
+              "file": "08-secondary-user.spec.ts",
+              "line": 13,
+              "column": 7
+            },
+            {
+              "title": "calendar loads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "pwa",
+                  "projectName": "pwa",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5624,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-14T12:35:11.992Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f6c08cfa3c69df1aed2f-765c18d84acbfcf92a5e",
+              "file": "08-secondary-user.spec.ts",
+              "line": 18,
+              "column": 7
+            },
+            {
+              "title": "chat loads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "pwa",
+                  "projectName": "pwa",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 6306,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-14T12:35:17.645Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f6c08cfa3c69df1aed2f-f35108f72b2230578bd8",
+              "file": "08-secondary-user.spec.ts",
+              "line": 24,
+              "column": 7
+            },
+            {
+              "title": "health loads",
+              "ok": false,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "pwa",
+                  "projectName": "pwa",
+                  "results": [
+                    {
+                      "workerIndex": 0,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 20944,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('body')\nExpected pattern: \u001b[32m/Saúde|Saude/i\u001b[39m\nReceived string:  \u001b[31m\"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('body')\u001b[22m\n\u001b[2m    18 × locator resolved to <body class=\"plus_jakarta_sans_76f6c662-module__cgTQqG__variable cormorant_garamond_23842eba-module__CKV5hW__variable antialiased\">…</body>\u001b[22m\n\u001b[2m       - unexpected value \"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('body')\nExpected pattern: \u001b[32m/Saúde|Saude/i\u001b[39m\nReceived string:  \u001b[31m\"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('body')\u001b[22m\n\u001b[2m    18 × locator resolved to <body class=\"plus_jakarta_sans_76f6c662-module__cgTQqG__variable cormorant_garamond_23842eba-module__CKV5hW__variable antialiased\">…</body>\u001b[22m\n\u001b[2m       - unexpected value \"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[22m\n\n    at C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\e2e\\08-secondary-user.spec.ts:33:40",
+                        "location": {
+                          "file": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\e2e\\08-secondary-user.spec.ts",
+                          "column": 40,
+                          "line": 33
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 31 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/saude'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 32 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForLoadState(\u001b[32m'networkidle'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 33 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'body'\u001b[39m))\u001b[33m.\u001b[39mtoContainText(\u001b[35m/Saúde|Saude/i\u001b[39m\u001b[33m,\u001b[39m { timeout\u001b[33m:\u001b[39m \u001b[35m15000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 34 |\u001b[39m   })\u001b[33m;\u001b[39m\n \u001b[90m 35 |\u001b[39m\n \u001b[90m 36 |\u001b[39m   test(\u001b[32m'expenses loads'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\e2e\\08-secondary-user.spec.ts",
+                            "column": 40,
+                            "line": 33
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('body')\nExpected pattern: \u001b[32m/Saúde|Saude/i\u001b[39m\nReceived string:  \u001b[31m\"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('body')\u001b[22m\n\u001b[2m    18 × locator resolved to <body class=\"plus_jakarta_sans_76f6c662-module__cgTQqG__variable cormorant_garamond_23842eba-module__CKV5hW__variable antialiased\">…</body>\u001b[22m\n\u001b[2m       - unexpected value \"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[22m\n\n\n  31 |     await page.goto('/saude');\n  32 |     await page.waitForLoadState('networkidle');\n> 33 |     await expect(page.locator('body')).toContainText(/Saúde|Saude/i, { timeout: 15000 });\n     |                                        ^\n  34 |   });\n  35 |\n  36 |   test('expenses loads', async ({ page }) => {\n    at C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\e2e\\08-secondary-user.spec.ts:33:40"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-14T12:35:23.999Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\test-results-secondary-users-2\\08-secondary-user-Secondary-User-health-loads-pwa\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\test-results-secondary-users-2\\08-secondary-user-Secondary-User-health-loads-pwa\\error-context.md"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\e2e\\08-secondary-user.spec.ts",
+                        "column": 40,
+                        "line": 33
+                      }
+                    },
+                    {
+                      "workerIndex": 1,
+                      "parallelIndex": 0,
+                      "status": "failed",
+                      "duration": 29527,
+                      "error": {
+                        "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('body')\nExpected pattern: \u001b[32m/Saúde|Saude/i\u001b[39m\nReceived string:  \u001b[31m\"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('body')\u001b[22m\n\u001b[2m    18 × locator resolved to <body class=\"plus_jakarta_sans_76f6c662-module__cgTQqG__variable cormorant_garamond_23842eba-module__CKV5hW__variable antialiased\">…</body>\u001b[22m\n\u001b[2m       - unexpected value \"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[22m\n",
+                        "stack": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('body')\nExpected pattern: \u001b[32m/Saúde|Saude/i\u001b[39m\nReceived string:  \u001b[31m\"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('body')\u001b[22m\n\u001b[2m    18 × locator resolved to <body class=\"plus_jakarta_sans_76f6c662-module__cgTQqG__variable cormorant_garamond_23842eba-module__CKV5hW__variable antialiased\">…</body>\u001b[22m\n\u001b[2m       - unexpected value \"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[22m\n\n    at C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\e2e\\08-secondary-user.spec.ts:33:40",
+                        "location": {
+                          "file": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\e2e\\08-secondary-user.spec.ts",
+                          "column": 40,
+                          "line": 33
+                        },
+                        "snippet": "\u001b[0m \u001b[90m 31 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mgoto(\u001b[32m'/saude'\u001b[39m)\u001b[33m;\u001b[39m\n \u001b[90m 32 |\u001b[39m     \u001b[36mawait\u001b[39m page\u001b[33m.\u001b[39mwaitForLoadState(\u001b[32m'networkidle'\u001b[39m)\u001b[33m;\u001b[39m\n\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 33 |\u001b[39m     \u001b[36mawait\u001b[39m expect(page\u001b[33m.\u001b[39mlocator(\u001b[32m'body'\u001b[39m))\u001b[33m.\u001b[39mtoContainText(\u001b[35m/Saúde|Saude/i\u001b[39m\u001b[33m,\u001b[39m { timeout\u001b[33m:\u001b[39m \u001b[35m15000\u001b[39m })\u001b[33m;\u001b[39m\n \u001b[90m    |\u001b[39m                                        \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\n \u001b[90m 34 |\u001b[39m   })\u001b[33m;\u001b[39m\n \u001b[90m 35 |\u001b[39m\n \u001b[90m 36 |\u001b[39m   test(\u001b[32m'expenses loads'\u001b[39m\u001b[33m,\u001b[39m \u001b[36masync\u001b[39m ({ page }) \u001b[33m=>\u001b[39m {\u001b[0m"
+                      },
+                      "errors": [
+                        {
+                          "location": {
+                            "file": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\e2e\\08-secondary-user.spec.ts",
+                            "column": 40,
+                            "line": 33
+                          },
+                          "message": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('body')\nExpected pattern: \u001b[32m/Saúde|Saude/i\u001b[39m\nReceived string:  \u001b[31m\"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[39m\nTimeout: 15000ms\n\nCall log:\n\u001b[2m  - Expect \"toContainText\" with timeout 15000ms\u001b[22m\n\u001b[2m  - waiting for locator('body')\u001b[22m\n\u001b[2m    18 × locator resolved to <body class=\"plus_jakarta_sans_76f6c662-module__cgTQqG__variable cormorant_garamond_23842eba-module__CKV5hW__variable antialiased\">…</body>\u001b[22m\n\u001b[2m       - unexpected value \"Kindar4NotificationsHomeOrganizationCalendarDaily Check-inCommunicationChatAgreementsDecisionsSensitive TopicsFamilyChildrenFamilyHealthSchoolFinancialLast Week AnalysisExpensesDocumentsAccountInvite GuardianAAngelino Silva BarataView profileHealthLast update: 23 day(s) agoPDFEduardaJoaoHenrique viewed 32 min ago🚨Eduarda: AlergiaDay 24 · 🟡 Moderate · Febre, Tosse➡️ StableRegistered by HenriqueLog symptomView details💉29 overdue vaccine(s)Consult the pediatrician to update the vaccination booklet.⚠️ Poeira📈 Improved📉 Worsened✅ Mark as resolved📝Symptom DiaryQuickly log fever, vomiting and other symptoms🩺Report problemNew illness episode📅Schedule appointmentNew appointment or examRecent activity🤒Dor de barrigaRecuperada23 day(s) ago🤒AlergiaAtiva23 day(s) ago🤒FebreRecuperada23 day(s) ago29💉Vaccines📏Growth🩺Professionals1📋History📄PDF⚕️Emergency CardQR Code with health data for emergencies\"\u001b[22m\n\n\n  31 |     await page.goto('/saude');\n  32 |     await page.waitForLoadState('networkidle');\n> 33 |     await expect(page.locator('body')).toContainText(/Saúde|Saude/i, { timeout: 15000 });\n     |                                        ^\n  34 |   });\n  35 |\n  36 |   test('expenses loads', async ({ page }) => {\n    at C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\e2e\\08-secondary-user.spec.ts:33:40"
+                        }
+                      ],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 1,
+                      "startTime": "2026-04-14T12:35:47.015Z",
+                      "annotations": [],
+                      "attachments": [
+                        {
+                          "name": "screenshot",
+                          "contentType": "image/png",
+                          "path": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\test-results-secondary-users-2\\08-secondary-user-Secondary-User-health-loads-pwa-retry1\\test-failed-1.png"
+                        },
+                        {
+                          "name": "error-context",
+                          "contentType": "text/markdown",
+                          "path": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\test-results-secondary-users-2\\08-secondary-user-Secondary-User-health-loads-pwa-retry1\\error-context.md"
+                        },
+                        {
+                          "name": "trace",
+                          "contentType": "application/zip",
+                          "path": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\test-results-secondary-users-2\\08-secondary-user-Secondary-User-health-loads-pwa-retry1\\trace.zip"
+                        }
+                      ],
+                      "errorLocation": {
+                        "file": "C:\\Users\\henri\\OneDrive\\Área de Trabalho\\APP CoPais\\kindar-native\\tests\\e2e\\08-secondary-user.spec.ts",
+                        "column": 40,
+                        "line": 33
+                      }
+                    }
+                  ],
+                  "status": "unexpected"
+                }
+              ],
+              "id": "f6c08cfa3c69df1aed2f-a864ef02a2a913de6f9e",
+              "file": "08-secondary-user.spec.ts",
+              "line": 30,
+              "column": 7
+            },
+            {
+              "title": "expenses loads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "pwa",
+                  "projectName": "pwa",
+                  "results": [
+                    {
+                      "workerIndex": 2,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 5444,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-14T12:36:19.867Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f6c08cfa3c69df1aed2f-bb629437d6954654e8a8",
+              "file": "08-secondary-user.spec.ts",
+              "line": 36,
+              "column": 7
+            },
+            {
+              "title": "dashboard loads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "expo-web",
+                  "projectName": "expo-web",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 8850,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-14T12:36:27.694Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f6c08cfa3c69df1aed2f-002e6b582e5c9835da59",
+              "file": "08-secondary-user.spec.ts",
+              "line": 13,
+              "column": 7
+            },
+            {
+              "title": "calendar loads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "expo-web",
+                  "projectName": "expo-web",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 20716,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-14T12:36:36.756Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f6c08cfa3c69df1aed2f-5c85290cbb59f9a76704",
+              "file": "08-secondary-user.spec.ts",
+              "line": 18,
+              "column": 7
+            },
+            {
+              "title": "chat loads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "expo-web",
+                  "projectName": "expo-web",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 16624,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-14T12:36:57.499Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f6c08cfa3c69df1aed2f-dae0ae99fe20d332db50",
+              "file": "08-secondary-user.spec.ts",
+              "line": 24,
+              "column": 7
+            },
+            {
+              "title": "health loads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "expo-web",
+                  "projectName": "expo-web",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 21138,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-14T12:37:14.148Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f6c08cfa3c69df1aed2f-3c5a2e7c0f962b89e751",
+              "file": "08-secondary-user.spec.ts",
+              "line": 30,
+              "column": 7
+            },
+            {
+              "title": "expenses loads",
+              "ok": true,
+              "tags": [],
+              "tests": [
+                {
+                  "timeout": 30000,
+                  "annotations": [],
+                  "expectedStatus": "passed",
+                  "projectId": "expo-web",
+                  "projectName": "expo-web",
+                  "results": [
+                    {
+                      "workerIndex": 3,
+                      "parallelIndex": 0,
+                      "status": "passed",
+                      "duration": 21570,
+                      "errors": [],
+                      "stdout": [],
+                      "stderr": [],
+                      "retry": 0,
+                      "startTime": "2026-04-14T12:37:35.314Z",
+                      "annotations": [],
+                      "attachments": []
+                    }
+                  ],
+                  "status": "expected"
+                }
+              ],
+              "id": "f6c08cfa3c69df1aed2f-cecd154b8daad3eea74e",
+              "file": "08-secondary-user.spec.ts",
+              "line": 36,
+              "column": 7
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "errors": [],
+  "stats": {
+    "startTime": "2026-04-14T12:35:05.938Z",
+    "duration": 171334.11599999998,
+    "expected": 9,
+    "skipped": 0,
+    "unexpected": 1,
+    "flaky": 0
+  }
+}

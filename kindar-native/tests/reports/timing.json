@@ -1,0 +1,947 @@
+[
+  {
+    "test": "auth",
+    "platform": "native",
+    "action": "login",
+    "durationMs": 5594,
+    "timestamp": "2026-04-14T01:52:25.299Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_dashboard",
+    "durationMs": 5330,
+    "timestamp": "2026-04-14T01:53:03.382Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_calendar",
+    "durationMs": 2573,
+    "timestamp": "2026-04-14T01:53:08.728Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_chat",
+    "durationMs": 3281,
+    "timestamp": "2026-04-14T01:53:14.367Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_health",
+    "durationMs": 3863,
+    "timestamp": "2026-04-14T01:53:20.734Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_expenses",
+    "durationMs": 2610,
+    "timestamp": "2026-04-14T01:53:25.945Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_financial",
+    "durationMs": 2279,
+    "timestamp": "2026-04-14T01:53:30.594Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_activities",
+    "durationMs": 2240,
+    "timestamp": "2026-04-14T01:53:35.182Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_events",
+    "durationMs": 2951,
+    "timestamp": "2026-04-14T01:53:40.519Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_events",
+    "durationMs": 9061,
+    "timestamp": "2026-04-14T01:54:04.437Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_children",
+    "durationMs": 2614,
+    "timestamp": "2026-04-14T01:54:22.574Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_family",
+    "durationMs": 3103,
+    "timestamp": "2026-04-14T01:54:28.148Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_decisions",
+    "durationMs": 2053,
+    "timestamp": "2026-04-14T01:54:32.779Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_documents",
+    "durationMs": 2097,
+    "timestamp": "2026-04-14T01:54:37.403Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_notes",
+    "durationMs": 2045,
+    "timestamp": "2026-04-14T01:54:41.787Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_profile",
+    "durationMs": 14816,
+    "timestamp": "2026-04-14T01:54:58.939Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_notifications",
+    "durationMs": 3049,
+    "timestamp": "2026-04-14T01:55:05.203Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_agreements",
+    "durationMs": 2080,
+    "timestamp": "2026-04-14T01:55:09.873Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_checkin",
+    "durationMs": 2113,
+    "timestamp": "2026-04-14T01:55:14.459Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_school",
+    "durationMs": 2260,
+    "timestamp": "2026-04-14T01:55:19.447Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_week",
+    "durationMs": 2723,
+    "timestamp": "2026-04-14T01:55:25.341Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_expenses",
+    "durationMs": 2030,
+    "timestamp": "2026-04-14T01:56:20.748Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_expenses",
+    "durationMs": 1951,
+    "timestamp": "2026-04-14T01:56:32.102Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_financial",
+    "durationMs": 1985,
+    "timestamp": "2026-04-14T01:56:44.398Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_financial",
+    "durationMs": 4192,
+    "timestamp": "2026-04-14T01:56:59.012Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_activities",
+    "durationMs": 2187,
+    "timestamp": "2026-04-14T01:57:11.619Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_activities",
+    "durationMs": 2353,
+    "timestamp": "2026-04-14T01:57:23.925Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_events",
+    "durationMs": 3086,
+    "timestamp": "2026-04-14T01:57:37.886Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_events",
+    "durationMs": 5581,
+    "timestamp": "2026-04-14T01:58:01.448Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_children",
+    "durationMs": 8629,
+    "timestamp": "2026-04-14T01:58:28.791Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_children",
+    "durationMs": 2244,
+    "timestamp": "2026-04-14T01:58:40.510Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_family",
+    "durationMs": 6826,
+    "timestamp": "2026-04-14T01:58:57.681Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_family",
+    "durationMs": 3233,
+    "timestamp": "2026-04-14T01:59:10.464Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_profile",
+    "durationMs": 2143,
+    "timestamp": "2026-04-14T01:59:22.709Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_profile",
+    "durationMs": 2010,
+    "timestamp": "2026-04-14T01:59:33.879Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_notifications",
+    "durationMs": 8679,
+    "timestamp": "2026-04-14T01:59:53.273Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_notifications",
+    "durationMs": 3285,
+    "timestamp": "2026-04-14T02:00:06.209Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_documents",
+    "durationMs": 3474,
+    "timestamp": "2026-04-14T02:00:20.183Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_documents",
+    "durationMs": 2045,
+    "timestamp": "2026-04-14T02:00:31.571Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_agreements",
+    "durationMs": 1814,
+    "timestamp": "2026-04-14T02:00:43.717Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_agreements",
+    "durationMs": 3955,
+    "timestamp": "2026-04-14T02:00:58.775Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_decisions",
+    "durationMs": 3701,
+    "timestamp": "2026-04-14T02:01:14.804Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_decisions",
+    "durationMs": 2166,
+    "timestamp": "2026-04-14T02:01:26.438Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_checkin",
+    "durationMs": 1839,
+    "timestamp": "2026-04-14T02:01:38.655Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_checkin",
+    "durationMs": 5582,
+    "timestamp": "2026-04-14T02:01:55.621Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_school",
+    "durationMs": 2102,
+    "timestamp": "2026-04-14T02:02:07.932Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_school",
+    "durationMs": 1941,
+    "timestamp": "2026-04-14T02:02:19.275Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_notes",
+    "durationMs": 1978,
+    "timestamp": "2026-04-14T02:02:31.409Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_notes",
+    "durationMs": 2395,
+    "timestamp": "2026-04-14T02:02:42.956Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_sensitive-topics",
+    "durationMs": 5741,
+    "timestamp": "2026-04-14T02:03:01.825Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_sensitive-topics",
+    "durationMs": 2203,
+    "timestamp": "2026-04-14T02:03:13.525Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_week-view",
+    "durationMs": 2878,
+    "timestamp": "2026-04-14T02:03:26.935Z"
+  },
+  {
+    "test": "modules",
+    "platform": "pwa",
+    "action": "load_week-view",
+    "durationMs": 3038,
+    "timestamp": "2026-04-14T02:03:39.547Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_expenses",
+    "durationMs": 3564,
+    "timestamp": "2026-04-14T02:09:28.969Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 13939,
+    "timestamp": "2026-04-14T10:52:04.435Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 22179,
+    "timestamp": "2026-04-14T11:01:00.511Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 4974,
+    "timestamp": "2026-04-14T11:08:02.867Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 5038,
+    "timestamp": "2026-04-14T11:14:35.096Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 10732,
+    "timestamp": "2026-04-14T11:15:06.347Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 6956,
+    "timestamp": "2026-04-14T11:15:25.746Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 3892,
+    "timestamp": "2026-04-14T11:17:32.723Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 6044,
+    "timestamp": "2026-04-14T11:18:02.762Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_dashboard",
+    "durationMs": 2552,
+    "timestamp": "2026-04-14T11:19:19.321Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 18127,
+    "timestamp": "2026-04-14T11:19:40.236Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_chat",
+    "durationMs": 13154,
+    "timestamp": "2026-04-14T11:19:56.317Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_health",
+    "durationMs": 23660,
+    "timestamp": "2026-04-14T11:20:22.901Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_expenses",
+    "durationMs": 8649,
+    "timestamp": "2026-04-14T11:21:23.333Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_financial",
+    "durationMs": 9254,
+    "timestamp": "2026-04-14T11:22:22.047Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_activities",
+    "durationMs": 10027,
+    "timestamp": "2026-04-14T11:22:40.646Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_events",
+    "durationMs": 13079,
+    "timestamp": "2026-04-14T11:22:56.687Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_events",
+    "durationMs": 5455,
+    "timestamp": "2026-04-14T11:23:20.625Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_children",
+    "durationMs": 10507,
+    "timestamp": "2026-04-14T11:23:49.778Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_family",
+    "durationMs": 11692,
+    "timestamp": "2026-04-14T11:24:04.721Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_decisions",
+    "durationMs": 11848,
+    "timestamp": "2026-04-14T11:24:19.869Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_documents",
+    "durationMs": 12127,
+    "timestamp": "2026-04-14T11:24:35.191Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_notes",
+    "durationMs": 12490,
+    "timestamp": "2026-04-14T11:24:51.257Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_profile",
+    "durationMs": 3098,
+    "timestamp": "2026-04-14T11:24:58.013Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_notifications",
+    "durationMs": 10446,
+    "timestamp": "2026-04-14T11:25:11.473Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_agreements",
+    "durationMs": 10867,
+    "timestamp": "2026-04-14T11:25:25.966Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_checkin",
+    "durationMs": 11831,
+    "timestamp": "2026-04-14T11:25:40.468Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_school",
+    "durationMs": 12308,
+    "timestamp": "2026-04-14T11:25:56.490Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_week",
+    "durationMs": 11264,
+    "timestamp": "2026-04-14T11:26:11.365Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_dashboard",
+    "durationMs": 4923,
+    "timestamp": "2026-04-14T11:27:28.951Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 5923,
+    "timestamp": "2026-04-14T11:27:41.842Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_chat",
+    "durationMs": 4478,
+    "timestamp": "2026-04-14T11:27:54.990Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_health",
+    "durationMs": 4493,
+    "timestamp": "2026-04-14T11:28:04.692Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_expenses",
+    "durationMs": 4155,
+    "timestamp": "2026-04-14T11:28:14.285Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_financial",
+    "durationMs": 3985,
+    "timestamp": "2026-04-14T11:28:22.970Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_activities",
+    "durationMs": 4153,
+    "timestamp": "2026-04-14T11:28:32.130Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_events",
+    "durationMs": 4857,
+    "timestamp": "2026-04-14T11:28:42.407Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_children",
+    "durationMs": 5397,
+    "timestamp": "2026-04-14T11:28:55.529Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_family",
+    "durationMs": 4712,
+    "timestamp": "2026-04-14T11:29:06.014Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_decisions",
+    "durationMs": 4526,
+    "timestamp": "2026-04-14T11:29:16.179Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_documents",
+    "durationMs": 5168,
+    "timestamp": "2026-04-14T11:29:28.222Z"
+  },
+  {
+    "test": "dashboard",
+    "platform": "expo-web",
+    "action": "load_dashboard",
+    "durationMs": 4507,
+    "timestamp": "2026-04-14T11:30:52.685Z"
+  },
+  {
+    "test": "dashboard",
+    "platform": "expo-web",
+    "action": "load_dashboard",
+    "durationMs": 4787,
+    "timestamp": "2026-04-14T11:32:12.364Z"
+  },
+  {
+    "test": "calendar",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 2666,
+    "timestamp": "2026-04-14T11:32:40.488Z"
+  },
+  {
+    "test": "calendar",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 2707,
+    "timestamp": "2026-04-14T11:32:46.304Z"
+  },
+  {
+    "test": "calendar",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 2951,
+    "timestamp": "2026-04-14T11:32:52.007Z"
+  },
+  {
+    "test": "calendar",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 2808,
+    "timestamp": "2026-04-14T11:32:58.574Z"
+  },
+  {
+    "test": "calendar",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 2583,
+    "timestamp": "2026-04-14T11:33:05.180Z"
+  },
+  {
+    "test": "calendar",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 5468,
+    "timestamp": "2026-04-14T11:33:21.431Z"
+  },
+  {
+    "test": "calendar",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 4998,
+    "timestamp": "2026-04-14T11:33:32.630Z"
+  },
+  {
+    "test": "calendar",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 5281,
+    "timestamp": "2026-04-14T11:33:43.955Z"
+  },
+  {
+    "test": "calendar",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 5188,
+    "timestamp": "2026-04-14T11:33:56.965Z"
+  },
+  {
+    "test": "calendar",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 5039,
+    "timestamp": "2026-04-14T11:34:11.010Z"
+  },
+  {
+    "test": "chat",
+    "platform": "expo-web",
+    "action": "load_chat",
+    "durationMs": 2751,
+    "timestamp": "2026-04-14T11:34:42.667Z"
+  },
+  {
+    "test": "chat",
+    "platform": "expo-web",
+    "action": "load_chat",
+    "durationMs": 5224,
+    "timestamp": "2026-04-14T11:35:50.398Z"
+  },
+  {
+    "test": "health",
+    "platform": "expo-web",
+    "action": "load_health",
+    "durationMs": 5986,
+    "timestamp": "2026-04-14T11:36:55.491Z"
+  },
+  {
+    "test": "health",
+    "platform": "expo-web",
+    "action": "load_health",
+    "durationMs": 5090,
+    "timestamp": "2026-04-14T11:38:38.230Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_dashboard",
+    "durationMs": 19,
+    "timestamp": "2026-04-14T12:02:17.110Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_dashboard",
+    "durationMs": 5237,
+    "timestamp": "2026-04-14T12:02:17.116Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_calendar",
+    "durationMs": 2,
+    "timestamp": "2026-04-14T12:02:22.815Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_calendar",
+    "durationMs": 2735,
+    "timestamp": "2026-04-14T12:02:22.817Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_chat",
+    "durationMs": 1,
+    "timestamp": "2026-04-14T12:02:28.450Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_chat",
+    "durationMs": 2813,
+    "timestamp": "2026-04-14T12:02:28.452Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_health",
+    "durationMs": 2,
+    "timestamp": "2026-04-14T12:02:34.451Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_health",
+    "durationMs": 2972,
+    "timestamp": "2026-04-14T12:02:34.453Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_expenses",
+    "durationMs": 1,
+    "timestamp": "2026-04-14T12:02:39.915Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_expenses",
+    "durationMs": 2449,
+    "timestamp": "2026-04-14T12:02:39.917Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_financial",
+    "durationMs": 2,
+    "timestamp": "2026-04-14T12:02:48.925Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_financial",
+    "durationMs": 6408,
+    "timestamp": "2026-04-14T12:02:48.928Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_children",
+    "durationMs": 1,
+    "timestamp": "2026-04-14T12:02:54.829Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_children",
+    "durationMs": 2467,
+    "timestamp": "2026-04-14T12:02:54.831Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_notifications",
+    "durationMs": 1,
+    "timestamp": "2026-04-14T12:03:01.317Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_notifications",
+    "durationMs": 3488,
+    "timestamp": "2026-04-14T12:03:01.319Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 11521,
+    "timestamp": "2026-04-14T12:15:08.471Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 5715,
+    "timestamp": "2026-04-14T12:21:31.444Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 8314,
+    "timestamp": "2026-04-14T12:22:11.427Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 3439,
+    "timestamp": "2026-04-14T12:25:57.868Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 7417,
+    "timestamp": "2026-04-14T12:26:27.347Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 4024,
+    "timestamp": "2026-04-14T12:28:55.822Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 8272,
+    "timestamp": "2026-04-14T12:29:22.823Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 3393,
+    "timestamp": "2026-04-14T12:32:24.045Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 9607,
+    "timestamp": "2026-04-14T12:32:54.171Z"
+  }
+]
