@@ -1,0 +1,149 @@
+name: iOS Release (EAS + ASC automation)
+
+# Fire a full TestFlight + App Store submission pipeline on a version tag push.
+# Zero clicks after `git push --tags` (assuming all secrets + one-time ASC setup done).
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      skip_audit:
+        description: 'Pular pre-submit audit (emergencia)'
+        required: false
+        default: 'false'
+        type: choice
+        options: ['false', 'true']
+      stop_after:
+        description: 'Parar apos etapa: audit | metadata | build | submit | fullrelease'
+        required: false
+        default: 'fullrelease'
+        type: choice
+        options: ['audit', 'metadata', 'build', 'submit', 'fullrelease']
+
+concurrency:
+  group: ios-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    name: Kindar iOS Release
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_PRIVATE_KEY: ${{ secrets.ASC_PRIVATE_KEY }}
+      WEB_URL: https://kindar.com.br
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      # ── 1. Pre-submit audit ─────────────────────────────────────────────
+      - name: Wait Vercel to settle web deploy
+        if: github.event.inputs.skip_audit != 'true'
+        run: |
+          echo "Waiting 30s for Vercel auto-deploy to propagate..."
+          sleep 30
+          curl --retry 6 --retry-delay 10 --retry-all-errors -fsS "${WEB_URL}/termos" -o /dev/null && echo "/termos live"
+          curl --retry 6 --retry-delay 10 --retry-all-errors -fsS "${WEB_URL}/privacidade" -o /dev/null && echo "/privacidade live"
+
+      - name: Pre-submit audit
+        if: github.event.inputs.skip_audit != 'true'
+        run: node scripts/pre-submit-audit.mjs
+
+      - name: Stop after audit
+        if: github.event.inputs.stop_after == 'audit'
+        run: echo "STOP_AFTER=audit — parando" && exit 0
+
+      # ── 2. ASC metadata, IAPs, version, review info (idempotente) ───────
+      - name: Configure ASC metadata
+        if: github.event.inputs.stop_after != 'audit'
+        run: node kindar-asc.mjs
+
+      - name: Stop after metadata
+        if: github.event.inputs.stop_after == 'metadata'
+        run: echo "STOP_AFTER=metadata — parando" && exit 0
+
+      # ── 3. Install native deps ──────────────────────────────────────────
+      - name: Install kindar-native dependencies
+        if: github.event.inputs.stop_after != 'audit' && github.event.inputs.stop_after != 'metadata'
+        working-directory: kindar-native
+        run: npm ci --legacy-peer-deps
+
+      - name: Setup EAS CLI
+        if: github.event.inputs.stop_after != 'audit' && github.event.inputs.stop_after != 'metadata'
+        run: npm install -g eas-cli@latest
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+
+      # Write ASC p8 at monorepo root (path ../AuthKey.p8 from kindar-native/)
+      - name: Write ASC API key for EAS submit
+        if: github.event.inputs.stop_after != 'audit' && github.event.inputs.stop_after != 'metadata'
+        run: |
+          printf '%s' "$ASC_PRIVATE_KEY" > AuthKey.p8
+          chmod 600 AuthKey.p8
+
+      # ── 4. EAS build + submit ────────────────────────────────────────────
+      - name: EAS Build iOS (production)
+        if: github.event.inputs.stop_after != 'audit' && github.event.inputs.stop_after != 'metadata'
+        working-directory: kindar-native
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: eas build --platform ios --profile production --non-interactive --wait
+
+      - name: EAS Submit to App Store Connect
+        if: github.event.inputs.stop_after != 'audit' && github.event.inputs.stop_after != 'metadata' && github.event.inputs.stop_after != 'build'
+        working-directory: kindar-native
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_ASC_API_KEY_PATH: ${{ github.workspace }}/AuthKey.p8
+          EXPO_ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          EXPO_ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: eas submit --platform ios --profile production --non-interactive --latest
+
+      - name: Stop after build/submit
+        if: github.event.inputs.stop_after == 'build' || github.event.inputs.stop_after == 'submit'
+        run: echo "STOP_AFTER=${{ github.event.inputs.stop_after }} — parando" && exit 0
+
+      # ── 5. Wait Apple processing the uploaded build ──────────────────────
+      - name: Wait Apple processing
+        if: github.event.inputs.stop_after != 'audit' && github.event.inputs.stop_after != 'metadata' && github.event.inputs.stop_after != 'build' && github.event.inputs.stop_after != 'submit'
+        run: node kindar-asc.mjs --wait-processing
+
+      # ── 6. Submit for Review ─────────────────────────────────────────────
+      - name: Submit for Review
+        if: github.event.inputs.stop_after != 'audit' && github.event.inputs.stop_after != 'metadata' && github.event.inputs.stop_after != 'build' && github.event.inputs.stop_after != 'submit'
+        run: node kindar-asc.mjs --submit-review
+
+      # ── 7. Cleanup always ────────────────────────────────────────────────
+      - name: Cleanup ASC key
+        if: always()
+        run: rm -f AuthKey.p8
+
+      # ── 8. Notify ────────────────────────────────────────────────────────
+      - name: Slack notify (success)
+        if: success() && env.SLACK_WEBHOOK != ''
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          TAG="${GITHUB_REF_NAME:-manual}"
+          curl -X POST "$SLACK_WEBHOOK" -H 'Content-Type: application/json' \
+            -d "{\"text\":\"🚀 KINDAR iOS *release SUCCESS* — tag \`${TAG}\`. App submitted to Apple review.\"}"
+
+      - name: Slack notify (failure)
+        if: failure() && env.SLACK_WEBHOOK != ''
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        run: |
+          TAG="${GITHUB_REF_NAME:-manual}"
+          RUN_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          curl -X POST "$SLACK_WEBHOOK" -H 'Content-Type: application/json' \
+            -d "{\"text\":\"❌ KINDAR iOS *release FAILED* — tag \`${TAG}\`. Logs: ${RUN_URL}\"}"

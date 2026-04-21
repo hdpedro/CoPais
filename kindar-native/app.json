@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "Kindar",
+    "slug": "kindar",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "scheme": "kindar",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#EEECEA"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "requireFullScreen": true,
+      "bundleIdentifier": "com.kindar.app",
+      "usesAppleSignIn": true,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Kindar precisa acessar suas fotos para enviar imagens no chat e anexar comprovantes.",
+        "NSCameraUsageDescription": "Kindar precisa da camera para tirar fotos de comprovantes e documentos.",
+        "NSPhotoLibraryAddUsageDescription": "Kindar precisa salvar imagens na sua galeria."
+      }
+    },
+    "android": {
+      "package": "com.kindar.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#EEECEA"
+      },
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      "expo-secure-store",
+      "expo-apple-authentication",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Kindar precisa acessar suas fotos para enviar imagens.",
+          "cameraPermission": "Kindar precisa da camera para tirar fotos."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "sounds": []
+        }
+      ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "a0390045-42f5-4a37-8264-659fa09c1e0a"
+      },
+      "router": {}
+    },
+    "owner": "henriquedepedros-organization"
+  }
+}

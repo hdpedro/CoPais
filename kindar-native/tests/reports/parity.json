@@ -1,0 +1,68 @@
+[
+  {
+    "testTitle": "dashboard loads",
+    "suite": "Secondary User",
+    "pwa": {
+      "status": "passed",
+      "durationMs": 3624
+    },
+    "expoWeb": {
+      "status": "passed",
+      "durationMs": 8850
+    },
+    "match": true
+  },
+  {
+    "testTitle": "calendar loads",
+    "suite": "Secondary User",
+    "pwa": {
+      "status": "passed",
+      "durationMs": 5624
+    },
+    "expoWeb": {
+      "status": "passed",
+      "durationMs": 20716
+    },
+    "match": true
+  },
+  {
+    "testTitle": "chat loads",
+    "suite": "Secondary User",
+    "pwa": {
+      "status": "passed",
+      "durationMs": 6306
+    },
+    "expoWeb": {
+      "status": "passed",
+      "durationMs": 16624
+    },
+    "match": true
+  },
+  {
+    "testTitle": "health loads",
+    "suite": "Secondary User",
+    "pwa": {
+      "status": "failed",
+      "durationMs": 29527,
+      "error": "Error: \u001b[2mexpect(\u001b[22m\u001b[31mlocator\u001b[39m\u001b[2m).\u001b[22mtoContainText\u001b[2m(\u001b[22m\u001b[32mexpected\u001b[39m\u001b[2m)\u001b[22m failed\n\nLocator: locator('body')\nExpected pattern: \u001b[32m/Saúde|Saude/i\u001b[39m\nReceived string:  \u001b[3"
+    },
+    "expoWeb": {
+      "status": "passed",
+      "durationMs": 21138
+    },
+    "match": false
+  },
+  {
+    "testTitle": "expenses loads",
+    "suite": "Secondary User",
+    "pwa": {
+      "status": "passed",
+      "durationMs": 5444
+    },
+    "expoWeb": {
+      "status": "passed",
+      "durationMs": 21570
+    },
+    "match": true
+  }
+]

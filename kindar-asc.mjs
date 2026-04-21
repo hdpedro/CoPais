@@ -521,6 +521,141 @@ async function configureReview(versionId) {
   }
 }
 
+// ── STEP 7: Wait Apple processing the uploaded build ───────────────────────
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function waitProcessing(appId, { maxWaitMs = 30 * 60 * 1000, pollIntervalMs = 60 * 1000 } = {}) {
+  section("7. Aguardando Apple processar o build");
+  const start = Date.now();
+  let lastState = null;
+  while (Date.now() - start < maxWaitMs) {
+    const resp = await GET(`/apps/${appId}/builds`, {
+      "sort": "-uploadedDate",
+      "limit": 1,
+      "fields[builds]": "version,buildNumber,processingState,uploadedDate",
+    });
+    const b = resp.data?.[0];
+    if (!b) {
+      info("Nenhum build ainda — aguardando upload do EAS...");
+    } else {
+      const state = b.attributes.processingState;
+      if (state !== lastState) {
+        info(`Build ${b.attributes.version} (${b.attributes.buildNumber}) → ${state}`);
+        lastState = state;
+      }
+      if (state === "VALID") {
+        ok(`Build processado e pronto: id=${b.id}`);
+        return b.id;
+      }
+      if (state === "FAILED" || state === "INVALID") {
+        throw new Error(`Build falhou processamento: ${state}`);
+      }
+    }
+    await sleep(pollIntervalMs);
+  }
+  throw new Error(`Timeout ${maxWaitMs / 60000}min aguardando Apple processar build`);
+}
+
+// ── STEP 8: Submit for Review ──────────────────────────────────────────────
+async function submitForReview(appId) {
+  section("8. Submetendo para review");
+
+  // 1. Find version ready to submit
+  const versions = await GET(`/apps/${appId}/appStoreVersions`, {
+    "filter[appStoreState]": "PREPARE_FOR_SUBMISSION,WAITING_FOR_REVIEW,METADATA_REJECTED,DEVELOPER_REJECTED",
+    "fields[appStoreVersions]": "versionString,appStoreState",
+    "limit": 1,
+  });
+  const version = versions.data?.[0];
+  if (!version) throw new Error("Nenhuma versão pronta pra submit (PREPARE_FOR_SUBMISSION/METADATA_REJECTED/DEVELOPER_REJECTED)");
+  info(`Versão: ${version.attributes.versionString} (state=${version.attributes.appStoreState}, id=${version.id})`);
+
+  // 2. Bind build to version if not already (EAS upload does this, but double check)
+  try {
+    const buildRel = await GET(`/appStoreVersions/${version.id}/relationships/build`);
+    if (!buildRel?.data?.id) {
+      info("Versão sem build vinculado — vinculando o VALID mais recente");
+      const builds = await GET(`/apps/${appId}/builds`, {
+        "sort": "-uploadedDate",
+        "filter[processingState]": "VALID",
+        "limit": 1,
+      });
+      const buildId = builds.data?.[0]?.id;
+      if (!buildId) throw new Error("Nenhum build VALID encontrado pra vincular");
+      await PATCH(`/appStoreVersions/${version.id}/relationships/build`, {
+        data: { type: "builds", id: buildId },
+      });
+      ok(`Build ${buildId} vinculado à versão`);
+    }
+  } catch (e) {
+    warn(`Checagem de build vinculado: ${e.message}`);
+  }
+
+  // 3. Create review submission
+  const submission = await POST("/reviewSubmissions", {
+    data: {
+      type: "reviewSubmissions",
+      attributes: { platform: "IOS" },
+      relationships: { app: { data: { type: "apps", id: appId } } },
+    },
+  });
+  const submissionId = submission.data.id;
+  ok(`Submission criada: ${submissionId}`);
+
+  // 4. Attach the app version
+  await POST("/reviewSubmissionItems", {
+    data: {
+      type: "reviewSubmissionItems",
+      relationships: {
+        reviewSubmission: { data: { type: "reviewSubmissions", id: submissionId } },
+        appStoreVersion: { data: { type: "appStoreVersions", id: version.id } },
+      },
+    },
+  });
+  ok("Versão anexada à submission");
+
+  // 5. Attach IAPs/subscriptions that are pending review
+  const groups = await GET(`/apps/${appId}/subscriptionGroups`, { limit: 20 });
+  let attachedSubs = 0;
+  for (const g of (groups.data || [])) {
+    const subs = await GET(`/subscriptionGroups/${g.id}/subscriptions`, {
+      "fields[subscriptions]": "productId,state",
+      "limit": 50,
+    });
+    for (const s of (subs.data || [])) {
+      const state = s.attributes.state;
+      if (state === "READY_TO_SUBMIT" || state === "WAITING_FOR_REVIEW" || state === "DEVELOPER_ACTION_NEEDED") {
+        try {
+          await POST("/reviewSubmissionItems", {
+            data: {
+              type: "reviewSubmissionItems",
+              relationships: {
+                reviewSubmission: { data: { type: "reviewSubmissions", id: submissionId } },
+                subscription: { data: { type: "subscriptions", id: s.id } },
+              },
+            },
+          });
+          ok(`Subscription anexada: ${s.attributes.productId}`);
+          attachedSubs++;
+        } catch (e) {
+          warn(`Não consegui anexar ${s.attributes.productId}: ${e.message}`);
+        }
+      } else {
+        info(`Pulando ${s.attributes.productId} (state=${state})`);
+      }
+    }
+  }
+  info(`${attachedSubs} subscription(s) anexada(s)`);
+
+  // 6. Submit
+  await PATCH(`/reviewSubmissions/${submissionId}`, {
+    data: { type: "reviewSubmissions", id: submissionId, attributes: { submitted: true } },
+  });
+  ok(`🚀 Submission enviada pra review: ${submissionId}`);
+  console.log(`\n  https://appstoreconnect.apple.com/apps/-/distribution\n`);
+  return submissionId;
+}
+
 // ── MAIN ────────────────────────────────────────────────────────────────────
 async function main() {
   console.log(`\n${C.b}Kindar — App Store Connect Automation${C.r}`);
@@ -570,7 +705,12 @@ async function main() {
     process.exit(1);
   }
 
-  const DRY = process.argv.includes("--dry-run");
+  const ARGS = new Set(process.argv.slice(2));
+  const DRY = ARGS.has("--dry-run");
+  const WAIT_ONLY = ARGS.has("--wait-processing");
+  const SUBMIT_ONLY = ARGS.has("--submit-review");
+  const FULL_RELEASE = ARGS.has("--full-release");
+
   if (DRY) {
     warn("DRY RUN — não fará mudanças\n");
     const appId = await findApp();
@@ -581,21 +721,47 @@ async function main() {
 
   try {
     const appId = await findApp();
+
+    // Independent CLI modes (for CI orchestration):
+    //   --wait-processing  → só aguarda Apple processar o último build enviado pelo EAS
+    //   --submit-review    → só cria + envia review submission
+    //   --full-release     → roda tudo (setup + wait + submit)
+    //   (nenhum flag)      → comportamento original: setup metadata/IAPs/version/review
+    if (WAIT_ONLY) {
+      await waitProcessing(appId);
+      ok("wait-processing concluído");
+      return;
+    }
+
+    if (SUBMIT_ONLY) {
+      await submitForReview(appId);
+      return;
+    }
+
+    // Default: configure metadata (existing behavior, unchanged)
     await readGripFlowReference();
     await configureAppInfo(appId);
     await configureSubscriptions(appId);
     const versionId = await configureVersion(appId);
     await configureReview(versionId);
 
+    if (FULL_RELEASE) {
+      await waitProcessing(appId);
+      await submitForReview(appId);
+      section("RELEASE COMPLETO");
+      ok("App enviado pra review. Apple normalmente responde em 24-48h.");
+      console.log(`\n  https://appstoreconnect.apple.com/apps\n`);
+      return;
+    }
+
     section("CONCLUÍDO");
-    ok("Automação finalizada. Verifique no ASC:");
+    ok("Automação de metadata finalizada. Verifique no ASC:");
     console.log(`\n  https://appstoreconnect.apple.com/apps\n`);
-    console.log(`${C.Y}Ações manuais restantes:${C.r}`);
+    console.log(`${C.Y}Ações manuais restantes (primeira vez apenas):${C.r}`);
     console.log("  1. Preços de cada subscription (selecionar tier no ASC UI)");
-    console.log("  2. App Review Screenshots (upload PNG da tela de pricing)");
-    console.log("  3. Privacy Nutrition Labels (questionário no ASC)");
-    console.log("  4. Screenshots do app (6.7\", 5.5\")");
-    console.log("  5. Submit for Review (botão no ASC)\n");
+    console.log("  2. Privacy Nutrition Labels (questionário no ASC)");
+    console.log("  3. Screenshots do app (6.7\")");
+    console.log(`\n${C.Y}Depois, em release recorrente o workflow faz submit automático via --full-release.${C.r}\n`);
   } catch (e) {
     fail(`FALHOU: ${e.message}`);
     if (e.body) console.error(JSON.stringify(e.body, null, 2));
