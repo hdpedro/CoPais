@@ -39,6 +39,9 @@ jobs:
         with:
           node-version: '22'
 
+      - name: Install xcpretty
+        run: gem install xcpretty --no-document
+
       - name: Install dependencies
         run: npm install
 
@@ -67,6 +70,7 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          set -o pipefail
           xcodebuild archive \
             -workspace "$XCODE_WORKSPACE" \
             -scheme "$SCHEME" \
@@ -108,6 +112,7 @@ jobs:
           </plist>
           EOF
 
+          set -o pipefail
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Kindar.xcarchive" \
             -exportPath "$RUNNER_TEMP/export" \
@@ -121,8 +126,10 @@ jobs:
       - name: Upload to TestFlight
         if: inputs.upload_to_appstore != 'false' || startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/ios-run'
         run: |
+          IPA_PATH=$(find "$RUNNER_TEMP/export" -name "*.ipa" | head -1)
+          echo "IPA: $IPA_PATH"
           xcrun altool --upload-app \
-            -f "$RUNNER_TEMP/export/App.ipa" \
+            -f "$IPA_PATH" \
             -t ios \
             --apiKey "736GBBC4YY" \
             --apiIssuer "${{ secrets.ASC_ISSUER_ID }}" \
