@@ -45,33 +45,57 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Generate iOS project
-        run: npx cap add ios
+      - name: Check Capacitor versions
+        run: |
+          npx cap --version || true
+          npx cap config --json || true
+          echo "--- @capacitor/ios version ---"
+          cat node_modules/@capacitor/ios/package.json | grep '"version"' | head -1
+
+      - name: Generate iOS project (verbose)
+        run: |
+          echo "=== Running cap add ios ==="
+          npx cap add ios --verbose 2>&1
+          echo "=== Exit code: $? ==="
+          echo "=== ios/ structure after cap add ==="
+          find ios -maxdepth 3 -type f 2>/dev/null | head -30
+          echo "=== ios/ dirs ==="
+          find ios -maxdepth 3 -type d 2>/dev/null
+
+      - name: Verify iOS project structure
+        run: |
+          if [ ! -d "ios/App" ]; then
+            echo "ERROR: ios/App directory missing!"
+            ls -la ios/ 2>/dev/null || echo "ios/ does not exist"
+            exit 1
+          fi
+          if [ ! -f "ios/App/Podfile" ]; then
+            echo "ERROR: Podfile missing in ios/App/"
+            echo "=== Contents of ios/App/ ==="
+            ls -la ios/App/
+            echo "=== Searching for Podfile anywhere ==="
+            find . -name "Podfile" -not -path "./node_modules/*" 2>/dev/null
+            exit 1
+          fi
+          echo "OK: ios/App/Podfile exists"
 
       - name: Copy native plugins
         run: |
           cp ios-plugins/StoreKitPlugin.swift ios/App/App/ 2>/dev/null || true
           cp ios-plugins/StoreKitPlugin.m ios/App/App/ 2>/dev/null || true
 
-      - name: Sync Capacitor
-        run: npx cap sync ios
+      - name: Sync Capacitor (copy web assets + pod install)
+        run: npx cap sync ios --verbose
 
-      - name: Install CocoaPods dependencies
+      - name: Ensure CocoaPods installed
         run: |
           cd ios/App
-          pod install --repo-update
-          echo "--- Workspace check ---"
-          ls -la *.xcworkspace/ 2>/dev/null || echo "NO WORKSPACE FOUND"
-          ls -la Pods/ | head -5
-
-      - name: Debug - iOS structure
-        run: |
-          echo "=== ios/ ==="
-          ls -la ios/
-          echo "=== ios/App/ ==="
-          ls -la ios/App/
-          echo "=== Workspace exists? ==="
-          test -d "ios/App/App.xcworkspace" && echo "YES" || echo "NO"
+          if [ ! -d "App.xcworkspace" ]; then
+            echo "xcworkspace missing after sync, running pod install manually"
+            pod install --repo-update
+          fi
+          echo "--- Final structure ---"
+          ls -la
 
       - name: Select Xcode 16
         run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
