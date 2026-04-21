@@ -46,58 +46,26 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Check Capacitor setup
+      - name: Generate iOS project (CocoaPods template)
         run: |
-          echo "=== Capacitor CLI version ==="
-          npx cap --version || true
-          echo "=== @capacitor/ios installed? ==="
-          ls -la node_modules/@capacitor/ios/ 2>/dev/null | head -5
-          echo "=== ios-template exists? ==="
-          ls -la node_modules/@capacitor/ios/ios-template/ 2>/dev/null | head -10
-          echo "=== Podfile template exists? ==="
-          cat node_modules/@capacitor/ios/ios-template/App/Podfile 2>/dev/null | head -5 || echo "NO PODFILE TEMPLATE"
-
-      - name: Generate iOS project
-        run: |
-          echo "=== Running cap add ios ==="
-          npx cap add ios 2>&1 || { echo "cap add ios failed"; exit 1; }
-          echo "=== ios/ structure after cap add ==="
-          find ios -maxdepth 3 -not -path "*/Pods/*" 2>/dev/null | head -50
-          echo "=== Podfile exists? ==="
-          find . -name "Podfile" -not -path "./node_modules/*" 2>/dev/null
-
-      - name: Verify iOS project structure
-        run: |
-          if [ ! -d "ios/App" ]; then
-            echo "ERROR: ios/App directory missing after cap add ios"
-            ls -la ios/ 2>/dev/null || echo "ios/ does not exist"
-            exit 1
-          fi
-          if [ ! -f "ios/App/Podfile" ]; then
-            echo "ERROR: Podfile missing in ios/App/"
-            echo "=== Contents of ios/App/ ==="
-            ls -la ios/App/
-            exit 1
-          fi
-          echo "OK: ios/App/Podfile exists"
+          echo "=== Running cap add ios with CocoaPods template ==="
+          npx cap add ios --packagemanager CocoaPods
+          echo "=== Verifying Podfile ==="
+          test -f ios/App/Podfile && echo "OK: Podfile exists" || { echo "ERROR: Podfile missing"; exit 1; }
 
       - name: Copy native plugins
         run: |
           cp ios-plugins/StoreKitPlugin.swift ios/App/App/ 2>/dev/null || true
           cp ios-plugins/StoreKitPlugin.m ios/App/App/ 2>/dev/null || true
 
-      - name: Sync Capacitor
+      - name: Sync Capacitor (copies web assets)
         run: npx cap sync ios
 
-      - name: Ensure xcworkspace exists
+      - name: Install CocoaPods
         run: |
           cd ios/App
-          if [ ! -d "App.xcworkspace" ]; then
-            echo "xcworkspace missing after sync, running pod install manually"
-            pod install --repo-update
-          fi
-          echo "--- Final structure ---"
-          ls -la
+          pod install --repo-update
+          test -f App.xcworkspace/contents.xcworkspacedata && echo "OK: xcworkspace ready" || { echo "ERROR: xcworkspace not ready"; exit 1; }
 
       - name: Select Xcode 16
         run: sudo xcode-select -s /Applications/Xcode_16.2.app/Contents/Developer
