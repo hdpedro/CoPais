@@ -38,10 +38,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-          cache: npm
+
+      - name: Install xcpretty
+        run: gem install xcpretty --no-document
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
       - name: Generate iOS project
         run: npx cap add ios
@@ -68,6 +70,7 @@ jobs:
         env:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
+          set -o pipefail
           xcodebuild archive \
             -workspace "$XCODE_WORKSPACE" \
             -scheme "$SCHEME" \
@@ -109,6 +112,7 @@ jobs:
           </plist>
           EOF
 
+          set -o pipefail
           xcodebuild -exportArchive \
             -archivePath "$RUNNER_TEMP/Kindar.xcarchive" \
             -exportPath "$RUNNER_TEMP/export" \
@@ -120,10 +124,12 @@ jobs:
             | xcpretty
 
       - name: Upload to TestFlight
-        if: inputs.upload_to_appstore == 'true' || startsWith(github.ref, 'refs/tags/v')
+        if: inputs.upload_to_appstore != 'false' || startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/ios-run'
         run: |
+          IPA_PATH=$(find "$RUNNER_TEMP/export" -name "*.ipa" | head -1)
+          echo "IPA: $IPA_PATH"
           xcrun altool --upload-app \
-            -f "$RUNNER_TEMP/export/App.ipa" \
+            -f "$IPA_PATH" \
             -t ios \
             --apiKey "736GBBC4YY" \
             --apiIssuer "${{ secrets.ASC_ISSUER_ID }}" \
