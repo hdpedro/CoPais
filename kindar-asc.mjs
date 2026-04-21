@@ -538,21 +538,27 @@ async function main() {
     path.join(process.env.HOME || process.env.USERPROFILE || ".", "OneDrive", "Área de Trabalho", "APP GripFlow", p8Name),
   ];
 
-  let p8Path = null;
-  for (const c of candidates) {
-    if (fs.existsSync(c)) { p8Path = c; break; }
-  }
+  // Accept key from env var (GitHub Actions / CI)
+  if (process.env.ASC_PRIVATE_KEY) {
+    ok("Chave: variável de ambiente ASC_PRIVATE_KEY");
+    _pk = process.env.ASC_PRIVATE_KEY;
+  } else {
+    let p8Path = null;
+    for (const c of candidates) {
+      if (fs.existsSync(c)) { p8Path = c; break; }
+    }
 
-  if (!p8Path) {
-    fail(`${p8Name} não encontrado em nenhum local esperado.`);
-    console.log("  Tentei:");
-    for (const c of candidates) console.log(`    ${c}`);
-    console.log(`\n  Coloque ${p8Name} na mesma pasta deste script e rode de novo.`);
-    process.exit(1);
-  }
+    if (!p8Path) {
+      fail(`${p8Name} não encontrado em nenhum local esperado.`);
+      console.log("  Tentei:");
+      for (const c of candidates) console.log(`    ${c}`);
+      console.log(`\n  Coloque ${p8Name} na mesma pasta deste script e rode de novo.`);
+      process.exit(1);
+    }
 
-  ok(`Chave: ${p8Path}`);
-  _pk = fs.readFileSync(p8Path, "utf8");
+    ok(`Chave: ${p8Path}`);
+    _pk = fs.readFileSync(p8Path, "utf8");
+  }
 
   // Test auth
   info("Testando autenticação...");
