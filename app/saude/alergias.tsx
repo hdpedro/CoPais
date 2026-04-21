@@ -1,0 +1,144 @@
+/**
+ * Alergias — Lista + Criar alergia por crianca.
+ */
+import { useState, useCallback } from 'react';
+import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert } from 'react-native';
+import { useFocusEffect, router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { supabase } from '../../src/lib/supabase';
+import { safeWrite } from '../../src/services/offline';
+import { notifyAction } from '../../src/services/notify';
+import { useAuth } from '../../src/store/auth';
+import { getDisplayName } from '../../src/lib/constants';
+import ScreenHeader from '../../src/components/ui/ScreenHeader';
+import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+
+interface Allergy { id: string; name: string; allergy_type: string; severity: string; reaction: string | null; childName: string; child_id: string; }
+
+const SEV_ICONS: Record<string, { icon: string; color: string }> = {
+  severe: { icon: '🔴', color: '#E53935' }, moderate: { icon: '🟡', color: '#E8A228' }, mild: { icon: '🟢', color: '#4CAF50' },
+};
+
+export default function AlergiasScreen() {
+  const insets = useSafeAreaInsets();
+  const { userId, activeGroup } = useAuth();
+  const [allergies, setAllergies] = useState<Allergy[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [type, setType] = useState('food');
+  const [severity, setSeverity] = useState('mild');
+  const [reaction, setReaction] = useState('');
+  const [selectedChild, setSelectedChild] = useState('');
+  const [children, setChildren] = useState<Array<{id: string; full_name: string}>>([]);
+  const [saving, setSaving] = useState(false);
+
+  const load = useCallback(async () => {
+    if (!activeGroup) return;
+    const [{ data: a }, { data: c }] = await Promise.all([
+      supabase.from('child_allergies').select('id, name, allergy_type, severity, reaction, child_id, children(full_name)').eq('group_id', activeGroup.groupId),
+      supabase.from('children').select('id, full_name').eq('group_id', activeGroup.groupId),
+    ]);
+    setAllergies((a || []).map((x: any) => ({ ...x, childName: getDisplayName(x.children?.full_name) })));
+    setChildren(c || []);
+    if (c && c.length > 0 && !selectedChild) setSelectedChild(c[0].id);
+    setLoading(false);
+  }, [activeGroup]);
+
+  useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  async function handleCreate() {
+    if (!name.trim() || !selectedChild || !userId || !activeGroup) return;
+    setSaving(true);
+    const result = await safeWrite({
+      table: 'child_allergies', operation: 'insert',
+      payload: { group_id: activeGroup.groupId, child_id: selectedChild, name: name.trim(), allergy_type: type, severity, reaction: reaction.trim() || null, created_by: userId },
+    });
+    if (result.success) {
+      if (!result.queued) notifyAction('health_event_created', activeGroup.groupId, { title: `Alergia: ${name}`, childName: children.find(c => c.id === selectedChild)?.full_name?.split(' ')[0] || '' });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowForm(false); setName(''); setReaction('');
+      load();
+    } else { Alert.alert('Erro', result.error || 'Falha ao salvar'); }
+    setSaving(false);
+  }
+
+  async function handleDelete(id: string) {
+    Alert.alert('Remover', 'Tem certeza?', [
+      { text: 'Cancelar' },
+      { text: 'Remover', style: 'destructive', onPress: async () => {
+        await safeWrite({ table: 'child_allergies', operation: 'delete', payload: { id } });
+        load();
+      }},
+    ]);
+  }
+
+  return (
+    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <ScreenHeader title="Alergias" rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => setShowForm(!showForm) }} />
+
+      {showForm ? (
+        <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
+          {children.length > 1 ? (
+            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, flexWrap: 'wrap' }}>
+              {children.map(c => (
+                <TouchableOpacity key={c.id} onPress={() => setSelectedChild(c.id)}
+                  style={{ paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.full, backgroundColor: selectedChild === c.id ? colors.brand : colors.bgSurface }}>
+                  <Text style={{ fontSize: font.sizes.sm, color: selectedChild === c.id ? '#fff' : colors.text }}>{c.full_name.split(' ')[0]}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+          <TextInput value={name} onChangeText={setName} placeholder="Nome da alergia" placeholderTextColor={colors.textDim}
+            style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+            {['mild', 'moderate', 'severe'].map(s => (
+              <TouchableOpacity key={s} onPress={() => setSeverity(s)}
+                style={{ flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, alignItems: 'center',
+                  backgroundColor: severity === s ? `${(SEV_ICONS[s]?.color || colors.brand)}20` : colors.bgSurface,
+                  borderWidth: severity === s ? 1.5 : 0, borderColor: SEV_ICONS[s]?.color }}>
+                <Text style={{ fontSize: 14 }}>{SEV_ICONS[s]?.icon}</Text>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.text }}>{s === 'mild' ? 'Leve' : s === 'moderate' ? 'Moderada' : 'Grave'}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          <TextInput value={reaction} onChangeText={setReaction} placeholder="Reacao (opcional)" placeholderTextColor={colors.textDim}
+            style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
+          <TouchableOpacity onPress={handleCreate} disabled={saving || !name.trim()}
+            style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', opacity: saving || !name.trim() ? 0.5 : 1 }}>
+            <Text style={{ color: '#fff', fontWeight: font.weights.bold }}>{saving ? 'Salvando...' : 'Adicionar alergia'}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
+      <FlatList data={allergies} keyExtractor={item => item.id}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
+        ListEmptyComponent={loading ? null : (
+          <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'] }}>
+            <Text style={{ fontSize: 32, marginBottom: spacing.md }}>⚠️</Text>
+            <Text style={{ color: colors.textMuted }}>Nenhuma alergia registrada</Text>
+          </View>
+        )}
+        renderItem={({ item }) => {
+          const sev = SEV_ICONS[item.severity] || SEV_ICONS.mild;
+          return (
+            <TouchableOpacity onLongPress={() => handleDelete(item.id)} activeOpacity={0.7}
+              style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
+                flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderLeftWidth: 3, borderLeftColor: sev.color }}>
+              <Text style={{ fontSize: 18 }}>{sev.icon}</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.name}</Text>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
+                  {item.childName} · {item.allergy_type}{item.reaction ? ` · ${item.reaction}` : ''}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          );
+        }}
+      />
+    </View>
+  );
+}
