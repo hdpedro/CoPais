@@ -1,1 +1,1 @@
-trigger ios build - run 2 - Node 22 fix
+trigger ios build - run with debug logging
