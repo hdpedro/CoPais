@@ -97,7 +97,15 @@ jobs:
             -authenticationKeyPath "$HOME/.appstoreconnect/private_keys/AuthKey_736GBBC4YY.p8" \
             -authenticationKeyID "736GBBC4YY" \
             -authenticationKeyIssuerID "${{ secrets.ASC_ISSUER_ID }}" \
-            | xcpretty
+            2>&1 | tee "$RUNNER_TEMP/archive.log" | xcpretty
+          ARCHIVE_RC=${PIPESTATUS[0]}
+          if [ $ARCHIVE_RC -ne 0 ]; then
+            echo "=== ARCHIVE FAILED - last 200 lines of raw log ==="
+            tail -200 "$RUNNER_TEMP/archive.log"
+            echo "=== Errors only ==="
+            grep -E "error:|FAILED" "$RUNNER_TEMP/archive.log" | head -30
+            exit $ARCHIVE_RC
+          fi
 
       - name: Export IPA
         env:
