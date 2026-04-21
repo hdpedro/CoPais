@@ -11,6 +11,9 @@ on:
         options:
           - 'false'
           - 'true'
+  push:
+    branches:
+      - asc-run
 
 jobs:
   asc-setup:
