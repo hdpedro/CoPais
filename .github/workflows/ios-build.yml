@@ -31,6 +31,7 @@ jobs:
       APP_ID: com.kindar.app
       SCHEME: App
       XCODE_WORKSPACE: ios/App/App.xcworkspace
+      CAPACITOR_TELEMETRY: "false"
 
     steps:
       - uses: actions/checkout@v4
@@ -45,27 +46,30 @@ jobs:
       - name: Install dependencies
         run: npm install
 
-      - name: Check Capacitor versions
+      - name: Check Capacitor setup
         run: |
+          echo "=== Capacitor CLI version ==="
           npx cap --version || true
-          npx cap config --json || true
-          echo "--- @capacitor/ios version ---"
-          cat node_modules/@capacitor/ios/package.json | grep '"version"' | head -1
+          echo "=== @capacitor/ios installed? ==="
+          ls -la node_modules/@capacitor/ios/ 2>/dev/null | head -5
+          echo "=== ios-template exists? ==="
+          ls -la node_modules/@capacitor/ios/ios-template/ 2>/dev/null | head -10
+          echo "=== Podfile template exists? ==="
+          cat node_modules/@capacitor/ios/ios-template/App/Podfile 2>/dev/null | head -5 || echo "NO PODFILE TEMPLATE"
 
-      - name: Generate iOS project (verbose)
+      - name: Generate iOS project
         run: |
           echo "=== Running cap add ios ==="
-          npx cap add ios --verbose 2>&1
-          echo "=== Exit code: $? ==="
+          npx cap add ios 2>&1 || { echo "cap add ios failed"; exit 1; }
           echo "=== ios/ structure after cap add ==="
-          find ios -maxdepth 3 -type f 2>/dev/null | head -30
-          echo "=== ios/ dirs ==="
-          find ios -maxdepth 3 -type d 2>/dev/null
+          find ios -maxdepth 3 -not -path "*/Pods/*" 2>/dev/null | head -50
+          echo "=== Podfile exists? ==="
+          find . -name "Podfile" -not -path "./node_modules/*" 2>/dev/null
 
       - name: Verify iOS project structure
         run: |
           if [ ! -d "ios/App" ]; then
-            echo "ERROR: ios/App directory missing!"
+            echo "ERROR: ios/App directory missing after cap add ios"
             ls -la ios/ 2>/dev/null || echo "ios/ does not exist"
             exit 1
           fi
@@ -73,8 +77,6 @@ jobs:
             echo "ERROR: Podfile missing in ios/App/"
             echo "=== Contents of ios/App/ ==="
             ls -la ios/App/
-            echo "=== Searching for Podfile anywhere ==="
-            find . -name "Podfile" -not -path "./node_modules/*" 2>/dev/null
             exit 1
           fi
           echo "OK: ios/App/Podfile exists"
@@ -84,10 +86,10 @@ jobs:
           cp ios-plugins/StoreKitPlugin.swift ios/App/App/ 2>/dev/null || true
           cp ios-plugins/StoreKitPlugin.m ios/App/App/ 2>/dev/null || true
 
-      - name: Sync Capacitor (copy web assets + pod install)
-        run: npx cap sync ios --verbose
+      - name: Sync Capacitor
+        run: npx cap sync ios
 
-      - name: Ensure CocoaPods installed
+      - name: Ensure xcworkspace exists
         run: |
           cd ios/App
           if [ ! -d "App.xcworkspace" ]; then
