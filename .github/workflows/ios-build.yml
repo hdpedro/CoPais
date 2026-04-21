@@ -55,15 +55,9 @@ jobs:
         run: |
           echo "=== Running cap add ios with CocoaPods template ==="
           npx cap add ios --packagemanager CocoaPods
-          echo "=== Verifying Podfile ==="
           test -f ios/App/Podfile && echo "OK: Podfile exists" || { echo "ERROR: Podfile missing"; exit 1; }
 
-      - name: Copy native plugins
-        run: |
-          cp ios-plugins/StoreKitPlugin.swift ios/App/App/ 2>/dev/null || true
-          cp ios-plugins/StoreKitPlugin.m ios/App/App/ 2>/dev/null || true
-
-      - name: Sync Capacitor (copies web assets)
+      - name: Sync Capacitor
         run: npx cap sync ios
 
       - name: Install CocoaPods
