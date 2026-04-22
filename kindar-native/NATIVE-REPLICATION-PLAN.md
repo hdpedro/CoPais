@@ -161,7 +161,53 @@ Cada sprint só é considerado fechado quando:
 **Commits por sprint**: prefixos convencionais (feat/fix/refactor)
 **Progress**: atualizar este arquivo a cada sprint com ✅ e commit SHA
 
-**Status atual (atualizado 2026-04-22 sessão 2):**
+**Status atual (atualizado 2026-04-22 sessão 4):**
+
+### Progresso consolidado
+Native LOC foi de 8.144 → **15.610** (quase dobrou em uma sessão autônoma).
+
+- ✅ Sprint 0: auth platform rule + plano
+- ✅ Sprint 2: 14/14 telas novas criadas (criancas nova+[id], atividades/nova,
+  saude sintomas/doencas/doencas-nova/emergencia/export/receita, convite
+  enviar+[token], onboarding/convite, calendario escala/convite)
+- 🔶 Sprint 1: Dashboard actionable cards ✓, Login platform-correct ✓, saude
+  hub com 12 modulos. Remanente: streakDays, pendingReports, onboardingChecklist
+- 🔶 Sprint 3: 5/8 workflows end-to-end
+  - ✓ Swap requests (calendario banner)
+  - ✓ Decisoes (voto + argumentos + tally)
+  - ✓ Invitations (share + accept via deep link)
+  - ✓ Agreements (aceite + categorias + inegociavel)
+  - ✓ Sensitive notes deletion (2-party approval)
+  - ⏳ Event requests, custody balance ops
+- ✅ Sprint 4: Push notifications — setupNotificationHandler + APNs/FCM
+  register + deep link on tap + clearBadge. Inbox notificacoes integrado.
+- 🔶 Sprint 5: UX premium parcial (haptics em ~todas as actions, skeleton em
+  alguns spots, animations FadeInDown no dashboard/calendario). Sistematizar
+  em todas as telas pendente.
+- ⏳ Sprint 6-9: performance tuning, multi-user realtime sync, testes, release.
+
+### Comprehensive summary
+- **Services novos**: swaps.ts, health.ts, invitations.ts, schedule.ts,
+  sensitive.ts, push-setup.ts (6 novos)
+- **Services estendidos**: decisions.ts, agreements.ts, events.ts, notify.ts
+- **Telas novas**: 14 (todas do Sprint 2)
+- **Telas aprimoradas**: dashboard, calendar, login, decisoes (+[id]), acordos,
+  despesas, familia, notificacoes, temas-sensiveis, saude (tab)
+- **PWA API estendida**: `/api/native/notify` com 12 novas actions cobrindo
+  todos os workflows (swap/decision/invitation/agreement/sensitive)
+
+### O que falta pra 100%
+1. Event Requests workflow (2/8)
+2. Custody Balance Operations (4/8)
+3. Dashboard: streakDays, pendingReports, onboarding checklist
+4. Login: visual polish pra match do PWA
+5. Calendar DayDetailSheet completo (tap no dia → modal rico)
+6. Saude sub-screens polish (alergias, medicamentos, consultas, vacinas,
+   crescimento, profissionais, receita detalhe)
+7. Chat realtime com supabase subscriptions + send message inline
+8. Performance: FlatList optimization + useMemo em renders pesados
+9. Tests automatizados (Detox ou Maestro)
+10. Release pipeline (TestFlight ja validado, Play Store precisa setup)
 
 ### Sprint 0 — Auth ✅ 3/5
 - [x] Login platform rules (commit `de988ab`)
