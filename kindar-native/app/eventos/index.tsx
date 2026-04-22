@@ -2,7 +2,6 @@ import { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../src/store/auth';
 import { fetchEvents, type SocialEvent } from '../../src/services/events';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
@@ -47,13 +46,13 @@ export default function EventosScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Eventos" />
+      <ScreenHeader title="Eventos" rightAction={{ icon: 'mail-outline', onPress: () => router.push('/eventos/pedidos') }} />
       <FlatList data={events} keyExtractor={item => item.id} renderItem={renderItem}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : <EmptyState icon="🎯" title="Nenhum evento" subtitle="Crie eventos do grupo" />}
       />
-      <FAB onPress={() => {}} />
+      <FAB onPress={() => router.push('/calendario/novo')} />
     </View>
   );
 }
