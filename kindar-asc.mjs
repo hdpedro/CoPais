@@ -744,6 +744,15 @@ async function waitProcessing(appId, { maxWaitMs = 30 * 60 * 1000, pollIntervalM
       }
       if (state === "VALID") {
         ok(`Build processado e pronto: id=${b.id}`);
+        // Distribute to TestFlight groups + individual testers so invitation
+        // emails go out. Internal team gets builds automatically; externals
+        // need this explicit attachment.
+        try {
+          await distributeBuildToTesters(appId, b.id);
+        } catch (e) {
+          warn(`Distribuição para testers falhou: ${e.message}`);
+          warn("Você pode distribuir manualmente em App Store Connect → TestFlight");
+        }
         return b.id;
       }
       if (state === "FAILED" || state === "INVALID") {
@@ -753,6 +762,119 @@ async function waitProcessing(appId, { maxWaitMs = 30 * 60 * 1000, pollIntervalM
     await sleep(pollIntervalMs);
   }
   throw new Error(`Timeout ${maxWaitMs / 60000}min aguardando Apple processar build`);
+}
+
+// ── STEP 7b: Distribute build to TestFlight beta groups + testers ──────────
+//
+// Without this step, individual testers stay in "Nenhuma compilação disponível"
+// and never receive the TestFlight invite email. Internal team members get
+// builds automatically; external individual testers do NOT.
+//
+// Strategy:
+//   1. Take the latest VALID build
+//   2. Attach it to every existing beta group (POST /v1/betaGroups/{id}/relationships/builds)
+//      → triggers TestFlight invitation emails to all group members
+//   3. Attach it to every individual beta tester that has no current build
+//      (POST /v1/betaTesterAssignments via /v1/builds/{id}/relationships/individualTesters)
+//   4. Mark the build available for external testing via POST /v1/buildBetaDetails
+//
+async function distributeBuildToTesters(appId, buildId) {
+  section("7b. Distribuindo build para testers");
+
+  // 1. List all beta groups for this app
+  let betaGroups = [];
+  try {
+    const resp = await GET(`/apps/${appId}/betaGroups`, {
+      "fields[betaGroups]": "name,isInternalGroup,publicLinkEnabled",
+      "limit": 50,
+    });
+    betaGroups = resp.data || [];
+    info(`${betaGroups.length} beta group(s) encontrado(s)`);
+  } catch (e) {
+    warn(`Listando beta groups: ${e.message}`);
+  }
+
+  // 2. Attach build to every group
+  let groupsAssigned = 0;
+  for (const g of betaGroups) {
+    try {
+      await POST(`/betaGroups/${g.id}/relationships/builds`, {
+        data: [{ type: "builds", id: buildId }],
+      });
+      ok(`  Build → grupo "${g.attributes?.name}" ${g.attributes?.isInternalGroup ? "(interno)" : "(externo)"}`);
+      groupsAssigned++;
+    } catch (e) {
+      const msg = e.message || "";
+      if (msg.includes("409") || msg.toLowerCase().includes("already")) {
+        info(`  Grupo "${g.attributes?.name}" ja tinha o build`);
+      } else {
+        warn(`  Grupo "${g.attributes?.name}": ${msg}`);
+      }
+    }
+  }
+
+  // 3. List all individual beta testers (not via group) and attach the build
+  let individualTesters = [];
+  try {
+    const resp = await GET(`/apps/${appId}/betaTesters`, {
+      "fields[betaTesters]": "email,firstName,lastName,state",
+      "limit": 200,
+    });
+    individualTesters = resp.data || [];
+    info(`${individualTesters.length} tester(s) total no app`);
+  } catch (e) {
+    warn(`Listando betaTesters: ${e.message}`);
+  }
+
+  // 4. Attach the build to testers who need it
+  //    POST /v1/builds/{id}/relationships/individualTesters takes an array of
+  //    betaTester IDs and makes the build available to them (sends TF invite).
+  if (individualTesters.length > 0) {
+    try {
+      await POST(`/builds/${buildId}/relationships/individualTesters`, {
+        data: individualTesters.map((t) => ({ type: "betaTesters", id: t.id })),
+      });
+      ok(`Build anexado a ${individualTesters.length} tester(s) individual(is)`);
+    } catch (e) {
+      const msg = e.message || "";
+      if (msg.includes("409") || msg.toLowerCase().includes("already")) {
+        info(`Testers ja tinham o build atribuido`);
+      } else {
+        warn(`individualTesters: ${msg}`);
+      }
+    }
+  }
+
+  // 5. Mark the build available for external testing (unblocks non-internal)
+  try {
+    await PATCH(`/buildBetaDetails/${buildId}`, {
+      data: {
+        type: "buildBetaDetails",
+        id: buildId,
+        attributes: { autoNotifyEnabled: true },
+      },
+    });
+    ok("Build configurado para notificar testers automaticamente");
+  } catch {
+    // buildBetaDetails id != buildId on some orgs; try the build relationship path
+    try {
+      const rel = await GET(`/builds/${buildId}/buildBetaDetail`).catch(() => null);
+      if (rel?.data?.id) {
+        await PATCH(`/buildBetaDetails/${rel.data.id}`, {
+          data: {
+            type: "buildBetaDetails",
+            id: rel.data.id,
+            attributes: { autoNotifyEnabled: true },
+          },
+        });
+        ok("Build configurado (via buildBetaDetail rel)");
+      }
+    } catch (e) {
+      warn(`buildBetaDetails: ${e.message}`);
+    }
+  }
+
+  ok(`Distribuição concluída: ${groupsAssigned} grupo(s), ${individualTesters.length} tester(s)`);
 }
 
 // ── STEP 8: Submit for Review ──────────────────────────────────────────────
