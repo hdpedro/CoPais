@@ -72,15 +72,30 @@ export interface PendingExpense {
   paidByName: string;
 }
 
+export interface PendingReport {
+  activityId: string;
+  activityName: string;
+  childName: string;
+  childId: string | null;
+  occurrenceDate: string;      // YYYY-MM-DD
+  daysAgo: number;
+}
+
 interface DashboardData {
   // Greeting
   greeting: 'morning' | 'afternoon' | 'evening';
   firstName: string;
   formattedDate: string;
+  custodySummary: string | null;    // "Eduarda com Angelino hoje"
 
-  // Custody
+  // Hero / custody
   custodyChildren: CustodyChild[];
   hasCustody: boolean;
+  nextSwapLabel: string | null;     // "QUI 23/4"
+  nextSwapPerson: string | null;    // "HENRIQUE"
+  streakDays: number;
+  streakTotal: number;
+  endDateLabel: string | null;      // "regular - qua"
 
   // Children
   children: Array<{ id: string; full_name: string; birth_date: string }>;
@@ -114,6 +129,9 @@ interface DashboardData {
   // Health summaries
   childHealthSummaries: ChildHealthSummary[];
   hasAnyCriticalChild: boolean;
+
+  // Pending activity reports
+  pendingReports: PendingReport[];
 }
 
 function formatDate(): string {
@@ -274,6 +292,98 @@ export function useDashboard() {
         };
       });
 
+      // Compute next swap + streak days for hero card
+      let nextSwapLabel: string | null = null;
+      let nextSwapPerson: string | null = null;
+      let streakDays = 0;
+      let streakTotal = 0;
+      let endDateLabel: string | null = null;
+      if (custodyEvents && custodyEvents.length > 0) {
+        const ce = (custodyEvents as any[])[0];
+        const startDate = new Date(ce.start_date + 'T12:00:00');
+        const endDate = new Date(ce.end_date + 'T12:00:00');
+        const todayDate = new Date(today + 'T12:00:00');
+        streakDays = Math.max(1, Math.floor((todayDate.getTime() - startDate.getTime()) / 86400000) + 1);
+        streakTotal = Math.max(1, Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
+
+        // end_date + 1 day = next swap day
+        const next = new Date(endDate);
+        next.setDate(next.getDate() + 1);
+        const weekdays = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
+        const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+        nextSwapLabel = `${weekdays[next.getDay()]} ${next.getDate()}/${months[next.getMonth()]}`;
+
+        // Find who takes custody after end_date by looking at the next event
+        // (heuristic: the OTHER parent — we only show the name of whoever isn't current)
+        const currentResponsible = ce.responsible_user_id;
+        const otherMember = memberList.find(m => m.user_id !== currentResponsible);
+        if (otherMember) nextSwapPerson = otherMember.name.toUpperCase();
+
+        const custodyType = ce.custody_type || 'regular';
+        const dayOfWeekPt = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'][endDate.getDay()];
+        endDateLabel = `${custodyType} - ${dayOfWeekPt}`;
+      }
+
+      // Custody summary for greeting subtitle: "Eduarda com Angelino hoje"
+      let custodySummary: string | null = null;
+      if (custodyChildren.length > 0) {
+        const c = custodyChildren[0];
+        const who = c.isWithMe ? 'você' : c.responsibleName;
+        custodySummary = `${c.childFirstName} com ${who} hoje`;
+      }
+
+      // Pending activity reports: for each recurring activity, find occurrences
+      // in the last 7 days (excluding today) that have no activity_report row.
+      const pendingReports: PendingReport[] = [];
+      try {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const weekAgoStr = formatDateKey(weekAgo);
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = formatDateKey(yesterday);
+
+        const [{ data: pastOccs }, { data: existingReports }] = await Promise.all([
+          supabase.from('calendar_occurrences')
+            .select('activity_id, occurrence_date, child_activities(id, name, child_id, children(full_name))')
+            .eq('group_id', groupId)
+            .eq('status', 'active')
+            .gte('occurrence_date', weekAgoStr)
+            .lte('occurrence_date', yesterdayStr)
+            .order('occurrence_date', { ascending: false })
+            .limit(30)
+            .then(r => r, () => ({ data: [] as never[] })),
+          supabase.from('activity_reports')
+            .select('activity_id, occurrence_date')
+            .eq('group_id', groupId)
+            .gte('occurrence_date', weekAgoStr)
+            .lte('occurrence_date', yesterdayStr)
+            .limit(200)
+            .then(r => r, () => ({ data: [] as never[] })),
+        ]);
+
+        const reported = new Set((existingReports || []).map((r: any) => `${r.activity_id}__${r.occurrence_date}`));
+        const seenKeys = new Set<string>();
+        for (const o of (pastOccs as any[])) {
+          const act = o.child_activities;
+          if (!act) continue;
+          const key = `${o.activity_id}__${o.occurrence_date}`;
+          if (reported.has(key) || seenKeys.has(key)) continue;
+          seenKeys.add(key);
+          const occDate = new Date(o.occurrence_date + 'T12:00:00');
+          const daysAgo = Math.max(0, Math.floor((Date.now() - occDate.getTime()) / 86400000));
+          pendingReports.push({
+            activityId: o.activity_id,
+            activityName: act.name,
+            childName: getDisplayName(act.children?.full_name) || 'Geral',
+            childId: act.child_id || null,
+            occurrenceDate: o.occurrence_date,
+            daysAgo,
+          });
+          if (pendingReports.length >= 5) break;
+        }
+      } catch { /* pending reports are a nice-to-have */ }
+
       // Map occurrences to ActivityItems
       const mapOccurrences = (occs: any[]): ActivityItem[] =>
         (occs || []).map((o: any) => {
@@ -366,12 +476,25 @@ export function useDashboard() {
 
       const hasAnyCriticalChild = childHealthSummaries.some(s => s.status === 'treatment');
 
+      // Prefer display_name → full_name's first word → email prefix (never the raw email)
+      const displayFirst = profile?.display_name
+        || getDisplayName(profile?.full_name)
+        || (profile?.email ? profile.email.split('@')[0].split('.')[0] : '')
+        || '';
+      const firstName = displayFirst.charAt(0).toUpperCase() + displayFirst.slice(1);
+
       const dashData: DashboardData = {
         greeting: getGreeting(),
-        firstName: getDisplayName(profile?.full_name),
+        firstName,
         formattedDate: formatDate(),
+        custodySummary,
         custodyChildren,
         hasCustody: custodyChildren.length > 0,
+        nextSwapLabel,
+        nextSwapPerson,
+        streakDays,
+        streakTotal,
+        endDateLabel,
         children: children || [],
         todayActivities: mapOccurrences(todayOccurrences || []),
         tomorrowActivities: mapOccurrences(tomorrowOccurrences || []),
@@ -389,6 +512,7 @@ export function useDashboard() {
         childCards,
         childHealthSummaries,
         hasAnyCriticalChild,
+        pendingReports,
       };
       setData(dashData);
       cacheSet(cacheKey, dashData);

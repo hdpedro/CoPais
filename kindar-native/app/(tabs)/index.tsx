@@ -10,6 +10,7 @@ import { useDashboard } from '../../src/hooks/useDashboard';
 import { useI18n } from '../../src/i18n';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 import { ACTIVITY_CATEGORIES } from '../../src/lib/constants';
+import ActivityReportModal from '../../src/components/activities/ActivityReportModal';
 
 const GREETING_MAP = { morning: 'Bom dia', afternoon: 'Boa tarde', evening: 'Boa noite' };
 
@@ -26,15 +27,16 @@ const DECISION_CAT_COLORS: Record<string, string> = {
 const MONTHS_PT_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
 function formatDatePt(isoDate: string): string {
-  // input: YYYY-MM-DD
   const [, m, d] = isoDate.split('-').map(Number);
   return `${d} de ${MONTHS_PT_SHORT[(m || 1) - 1]}`;
 }
-
+function formatShortDate(isoDate: string): string {
+  const [, m, d] = isoDate.split('-').map(Number);
+  return `${d}/${m}`;
+}
 function formatBRL(v: number): string {
   return `R$ ${v.toFixed(2).replace('.', ',')}`;
 }
-
 function formatDeadline(deadline: string | null): { label: string; urgent: boolean } | null {
   if (!deadline) return null;
   const now = Date.now();
@@ -48,10 +50,13 @@ function formatDeadline(deadline: string | null): { label: string; urgent: boole
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { activeGroup } = useAuth();
+  const { activeGroup, userId } = useAuth();
   const { data, loading, refresh } = useDashboard();
-  useI18n(); // still initialize i18n context; t() used in future iterations
+  useI18n();
   const [refreshing, setRefreshing] = useState(false);
+  const [reportModal, setReportModal] = useState<{
+    open: boolean; activityId: string; activityName: string; childId: string | null; occurrenceDate: string;
+  } | null>(null);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -70,428 +75,653 @@ export default function DashboardScreen() {
 
   const greeting = data ? GREETING_MAP[data.greeting] : 'Ola';
   const firstName = data?.firstName || '';
+  const firstCustody = data?.custodyChildren?.[0];
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: colors.bg }}
-      contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: 120, paddingHorizontal: spacing.lg }}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
-      showsVerticalScrollIndicator={false}
-    >
-      {/* Header */}
-      <Animated.View entering={FadeInDown.delay(0).duration(400)}>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing['2xl'] }}>
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.text }}>
-              {greeting}, {firstName}
-            </Text>
-            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.xs }}>
-              {data?.formattedDate}
-            </Text>
-            {activeGroup ? (
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-                {activeGroup.groupName}
-              </Text>
-            ) : null}
-          </View>
-          <TouchableOpacity
-            onPress={() => router.push('/notificacoes')}
-            style={{ position: 'relative', padding: spacing.sm }}
-          >
-            <Ionicons name="notifications-outline" size={22} color={colors.text} />
-            {(data?.unreadNotifications || 0) > 0 ? (
-              <View style={{
-                position: 'absolute', top: 4, right: 4, width: 16, height: 16,
-                borderRadius: 8, backgroundColor: colors.error,
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
-                  {data!.unreadNotifications > 9 ? '9+' : data!.unreadNotifications}
-                </Text>
-              </View>
-            ) : null}
-          </TouchableOpacity>
-        </View>
-      </Animated.View>
-
-      {/* Custody Card */}
-      {data?.hasCustody ? (
-        <Animated.View entering={FadeInDown.delay(100).duration(400)}>
-          <View style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
-            marginBottom: spacing.lg, ...shadows.md,
-          }}>
-            <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md }}>
-              Guarda Hoje
-            </Text>
-            {data.custodyChildren.map((child, i) => (
-              <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: i < data.custodyChildren.length - 1 ? spacing.md : 0 }}>
-                <View style={{ width: 4, height: 32, borderRadius: 2, backgroundColor: child.color }} />
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
-                    {child.childFirstName}
-                  </Text>
-                  <Text style={{ fontSize: font.sizes.sm, color: child.isWithMe ? colors.brand : colors.textSecondary }}>
-                    {child.isWithMe ? 'Com voce' : `Com ${child.responsibleName}`}
-                  </Text>
-                </View>
-                <Ionicons
-                  name={child.isWithMe ? 'home' : 'swap-horizontal'}
-                  size={18}
-                  color={child.isWithMe ? colors.brand : colors.textMuted}
-                />
-              </View>
-            ))}
-          </View>
-        </Animated.View>
-      ) : null}
-
-      {/* Critical child alert — shown above pending when any child in treatment */}
-      {data?.hasAnyCriticalChild ? (
-        <Animated.View entering={FadeInDown.delay(120).duration(400)}>
-          <TouchableOpacity
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(tabs)/saude'); }}
-            activeOpacity={0.8}
-            style={{
-              backgroundColor: `${colors.error}12`, borderRadius: radius.xl,
-              borderWidth: 1, borderColor: `${colors.error}30`,
-              padding: spacing.lg, marginBottom: spacing.lg,
-              flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-            }}
-          >
-            <Text style={{ fontSize: 22 }}>🚨</Text>
+    <>
+      <ScrollView
+        style={{ flex: 1, backgroundColor: colors.bg }}
+        contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: 120, paddingHorizontal: spacing.lg }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
+        showsVerticalScrollIndicator={false}
+      >
+        {/* === HEADER === */}
+        <Animated.View entering={FadeInDown.delay(0).duration(400)}>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.error }}>
-                Atencao em saude
+              <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.text }}>
+                {greeting}, {firstName}
               </Text>
-              <Text style={{ fontSize: font.sizes.xs, color: colors.text, marginTop: 2 }}>
-                {data.childHealthSummaries.filter(s => s.status === 'treatment').length} crianca(s) em tratamento
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.error} />
-          </TouchableOpacity>
-        </Animated.View>
-      ) : null}
-
-      {/* Pending Swaps — detailed cards */}
-      {(data?.pendingSwapsList.length || 0) > 0 ? (
-        <Animated.View entering={FadeInDown.delay(140).duration(400)}>
-          <View style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
-            marginBottom: spacing.lg, ...shadows.sm,
-          }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
-              <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-                🔄 Trocas de guarda
-              </Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/calendario')}>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>Ver todas</Text>
-              </TouchableOpacity>
-            </View>
-            {data!.pendingSwapsList.map((s, i) => {
-              const orig = formatDatePt(s.originalDate);
-              const prop = s.proposedDate ? formatDatePt(s.proposedDate) : null;
-              return (
-                <TouchableOpacity
-                  key={s.id}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/(tabs)/calendario'); }}
-                  activeOpacity={0.7}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                    paddingVertical: spacing.sm,
-                    borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
-                  }}
-                >
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.secondary}20`, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 14 }}>🔄</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text }} numberOfLines={1}>
-                      {s.requesterName} quer trocar {orig}
-                      {prop ? ` por ${prop}` : ''}
-                    </Text>
-                    {s.reason ? (
-                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>
-                        {s.reason}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Animated.View>
-      ) : null}
-
-      {/* Pending Decisions — with category + deadline urgency */}
-      {(data?.pendingDecisionsList.length || 0) > 0 ? (
-        <Animated.View entering={FadeInDown.delay(160).duration(400)}>
-          <View style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
-            marginBottom: spacing.lg, ...shadows.sm,
-          }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
-              <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-                🗳️ Decisoes pra votar
-              </Text>
-              <TouchableOpacity onPress={() => router.push('/decisoes')}>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>Ver todas</Text>
-              </TouchableOpacity>
-            </View>
-            {data!.pendingDecisionsList.slice(0, 3).map((d, i) => {
-              const icon = DECISION_CAT_ICONS[d.category] || '📋';
-              const color = DECISION_CAT_COLORS[d.category] || colors.brand;
-              const deadlineInfo = formatDeadline(d.deadline);
-              return (
-                <TouchableOpacity
-                  key={d.id}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/decisoes'); }}
-                  activeOpacity={0.7}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                    paddingVertical: spacing.sm,
-                    borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
-                  }}
-                >
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${color}20`, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 14 }}>{icon}</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text }} numberOfLines={1}>
-                      {d.title}
-                    </Text>
-                    {deadlineInfo ? (
-                      <Text style={{ fontSize: font.sizes.xs, color: deadlineInfo.urgent ? colors.error : colors.textSecondary, marginTop: 2 }}>
-                        {deadlineInfo.label}
-                      </Text>
-                    ) : null}
-                  </View>
-                  <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </Animated.View>
-      ) : null}
-
-      {/* Pending Expenses — with amount and who paid */}
-      {(data?.pendingExpensesList.length || 0) > 0 ? (
-        <Animated.View entering={FadeInDown.delay(180).duration(400)}>
-          <View style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
-            marginBottom: spacing.lg, ...shadows.sm,
-          }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
-              <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-                🧾 Despesas pra aprovar
-              </Text>
-              <TouchableOpacity onPress={() => router.push('/despesas')}>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>Ver todas</Text>
-              </TouchableOpacity>
-            </View>
-            {data!.pendingExpensesList.slice(0, 3).map((e, i) => (
-              <TouchableOpacity
-                key={e.id}
-                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
-                activeOpacity={0.7}
-                style={{
-                  flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                  paddingVertical: spacing.sm,
-                  borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
-                }}
-              >
-                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.accent}20`, alignItems: 'center', justifyContent: 'center' }}>
-                  <Text style={{ fontSize: 14 }}>💳</Text>
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text }} numberOfLines={1}>
-                    {e.description}
-                  </Text>
-                  <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>
-                    {e.paidByName} · {formatBRL(e.amount)}
-                  </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
-              </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
-      ) : null}
-
-      {/* Financial Balance */}
-      {data?.balance !== undefined && data.balance !== 0 ? (
-        <Animated.View entering={FadeInDown.delay(180).duration(400)}>
-          <TouchableOpacity onPress={() => router.push('/financeiro')} activeOpacity={0.7} style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
-            marginBottom: spacing.lg, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-          }}>
-            <Text style={{ fontSize: 20 }}>💰</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Saldo financeiro</Text>
-              <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: data.balance >= 0 ? colors.success : colors.error }}>
-                R$ {Math.abs(data.balance).toFixed(2)}
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 2 }}>
+                {data?.formattedDate}
+                {data?.custodySummary ? ` · ${data.custodySummary}` : ''}
               </Text>
             </View>
-            <Text style={{ fontSize: font.sizes.xs, color: data.balance >= 0 ? colors.success : colors.error, fontWeight: font.weights.medium }}>
-              {data.balance >= 0 ? 'A receber' : 'A pagar'}
-            </Text>
-          </TouchableOpacity>
-        </Animated.View>
-      ) : null}
-
-      {/* Today Activities */}
-      {(data?.todayActivities?.length || 0) > 0 ? (
-        <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-          <View style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
-            marginBottom: spacing.lg, ...shadows.sm,
-          }}>
-            <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md }}>
-              Atividades Hoje
-            </Text>
-            {data!.todayActivities.map((act, i) => {
-              const catIcon = ACTIVITY_CATEGORIES.find(c => c.value === act.category)?.icon || '📌';
-              return (
-                <View key={act.id + i} style={{
-                  flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                  paddingVertical: spacing.sm,
-                  borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
-                }}>
-                  <Text style={{ fontSize: 18 }}>{catIcon}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
-                      {act.name}
-                    </Text>
-                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                      {[act.timeStr, act.childName, act.location].filter(Boolean).join(' · ')}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </Animated.View>
-      ) : null}
-
-      {/* Tomorrow Activities */}
-      {(data?.tomorrowActivities?.length || 0) > 0 ? (
-        <Animated.View entering={FadeInDown.delay(300).duration(400)}>
-          <View style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
-            marginBottom: spacing.lg, ...shadows.sm,
-          }}>
-            <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md }}>
-              Amanha
-            </Text>
-            {data!.tomorrowActivities.map((act, i) => {
-              const catIcon = ACTIVITY_CATEGORIES.find(c => c.value === act.category)?.icon || '📌';
-              return (
-                <View key={act.id + i} style={{
-                  flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                  paddingVertical: spacing.sm,
-                  borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
-                }}>
-                  <Text style={{ fontSize: 18 }}>{catIcon}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
-                      {act.name}
-                    </Text>
-                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                      {[act.timeStr, act.childName, act.location].filter(Boolean).join(' · ')}
-                    </Text>
-                  </View>
-                </View>
-              );
-            })}
-          </View>
-        </Animated.View>
-      ) : null}
-
-      {/* Health Summary — matches PWA childHealthSummaries block */}
-      {(data?.childHealthSummaries?.length || 0) > 0 ? (
-        <Animated.View entering={FadeInDown.delay(350).duration(400)}>
-          <View style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
-            marginBottom: spacing.lg, ...shadows.sm,
-          }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
-              <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-                Saude
-              </Text>
-              <TouchableOpacity onPress={() => router.push('/(tabs)/saude')}>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>Ver tudo</Text>
-              </TouchableOpacity>
-            </View>
-            {data!.childHealthSummaries.map((h, i) => {
-              const statusConfig = {
-                healthy: { icon: '🟢', color: colors.success, label: 'Saudavel' },
-                monitoring: { icon: '🟡', color: colors.warning, label: 'Em observacao' },
-                treatment: { icon: '🔴', color: colors.error, label: 'Em tratamento' },
-              }[h.status];
-              return (
-                <View key={h.childId} style={{
-                  flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                  paddingVertical: spacing.sm,
-                  borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
-                }}>
-                  <Text style={{ fontSize: 16 }}>{statusConfig.icon}</Text>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
-                      {h.childName}
-                    </Text>
-                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{h.detail}</Text>
-                  </View>
-                  <Text style={{ fontSize: font.sizes.xs, color: statusConfig.color, fontWeight: font.weights.medium }}>
-                    {statusConfig.label}
-                  </Text>
-                </View>
-              );
-            })}
-          </View>
-        </Animated.View>
-      ) : null}
-
-      {/* Quick Actions */}
-      <Animated.View entering={FadeInDown.delay(400).duration(400)}>
-        <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md }}>
-          Acesso Rapido
-        </Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
-          {[
-            { icon: 'wallet-outline' as const, label: 'Despesas', route: '/despesas', color: colors.accent },
-            { icon: 'document-text-outline' as const, label: 'Documentos', route: '/documentos', color: colors.info },
-            { icon: 'heart-outline' as const, label: 'Saude', route: '/(tabs)/saude', color: colors.error },
-            { icon: 'people-outline' as const, label: 'Familia', route: '/familia', color: colors.violet },
-            { icon: 'school-outline' as const, label: 'Escola', route: '/escola', color: colors.brand },
-            { icon: 'flag-outline' as const, label: 'Eventos', route: '/eventos', color: colors.secondary },
-          ].map((action) => (
             <TouchableOpacity
-              key={action.label}
-              onPress={() => {
-                Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(action.route as Parameters<typeof router.push>[0]);
-              }}
-              activeOpacity={0.7}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/notificacoes'); }}
+              style={{ position: 'relative', padding: spacing.sm }}
+              hitSlop={6}
+            >
+              <Ionicons name="notifications-outline" size={22} color={colors.text} />
+              {(data?.unreadNotifications || 0) > 0 ? (
+                <View style={{
+                  position: 'absolute', top: 4, right: 4, minWidth: 16, height: 16,
+                  borderRadius: 8, backgroundColor: colors.error, paddingHorizontal: 3,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
+                    {data!.unreadNotifications > 9 ? '9+' : data!.unreadNotifications}
+                  </Text>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+
+        {/* === HERO CARD (custody) === */}
+        {data?.hasCustody && firstCustody ? (
+          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+            <View style={{
+              backgroundColor: '#2C2C2C', borderRadius: radius.xl,
+              padding: spacing.xl, marginBottom: spacing.lg,
+              ...shadows.md,
+            }}>
+              {/* Top row: Guarda ativa + próxima troca */}
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.md }}>
+                <View style={{
+                  flexDirection: 'row', alignItems: 'center', gap: 6,
+                  backgroundColor: 'rgba(255,255,255,0.1)', borderRadius: radius.full,
+                  paddingHorizontal: 10, paddingVertical: 3,
+                }}>
+                  <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
+                  <Text style={{ fontSize: 11, fontWeight: font.weights.semibold, color: '#fff' }}>
+                    Guarda ativa
+                  </Text>
+                </View>
+                {data.nextSwapLabel && data.nextSwapPerson ? (
+                  <View style={{ alignItems: 'flex-end' }}>
+                    <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: font.weights.medium, letterSpacing: 0.8, textTransform: 'uppercase' }}>
+                      Próxima troca
+                    </Text>
+                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: font.weights.semibold }}>
+                      {data.nextSwapLabel} · {data.nextSwapPerson}
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Main info */}
+              <Text style={{ fontSize: 22, fontWeight: font.weights.bold, color: '#fff', lineHeight: 28 }}>
+                <Text style={{ color: '#D4735A' }}>{firstCustody.childFirstName}</Text>{' '}
+                está com {firstCustody.isWithMe ? 'você' : firstCustody.responsibleName}
+              </Text>
+              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                {firstCustody.childFirstName}{data.endDateLabel ? ` · ${data.endDateLabel}` : ''}
+              </Text>
+
+              {/* Progress bar */}
+              {data.streakTotal > 1 ? (
+                <View style={{ marginTop: spacing.md }}>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: font.weights.medium }}>
+                      Dia
+                    </Text>
+                    <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: font.weights.medium }}>
+                      {data.streakDays} de {data.streakTotal} consecutivos
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', gap: 4 }}>
+                    {Array.from({ length: data.streakTotal }).map((_, i) => (
+                      <View
+                        key={i}
+                        style={{
+                          flex: 1, height: 6, borderRadius: 3,
+                          backgroundColor: i < data.streakDays ? '#D4735A' : 'rgba(255,255,255,0.12)',
+                        }}
+                      />
+                    ))}
+                  </View>
+                </View>
+              ) : null}
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* === CHILD CARDS === */}
+        {(data?.childCards?.length || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(130).duration(400)}>
+            {data!.childCards.map(child => {
+              const custody = data!.custodyChildren.find(c => c.childFirstName === child.firstName);
+              const birthYear = data!.children.find(c => c.id === child.id)?.birth_date?.split('-')[0] || '';
+              const birthMonthIdx = Number(data!.children.find(c => c.id === child.id)?.birth_date?.split('-')[1] || 1) - 1;
+              const birthLabel = `${MONTHS_PT_SHORT[birthMonthIdx]?.charAt(0).toUpperCase()}${MONTHS_PT_SHORT[birthMonthIdx]?.slice(1)}/${birthYear}`;
+              return (
+                <TouchableOpacity
+                  key={child.id}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/criancas/${child.id}`); }}
+                  activeOpacity={0.85}
+                  style={{
+                    backgroundColor: colors.bgElevated, borderRadius: radius.xl,
+                    padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: custody ? spacing.sm : 0 }}>
+                    <View style={{
+                      width: 44, height: 44, borderRadius: 22,
+                      backgroundColor: colors.brandLight,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Text style={{ fontSize: 20, fontWeight: font.weights.bold, color: colors.brand }}>
+                        {child.firstName.charAt(0).toUpperCase()}
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
+                        {child.firstName}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: colors.textMuted }}>
+                        {child.age} {child.age === 1 ? 'ano' : 'anos'}{birthYear ? ` · nasceu em ${birthLabel}` : ''}
+                      </Text>
+                    </View>
+                  </View>
+                  {custody ? (
+                    <View style={{
+                      backgroundColor: colors.bg, borderRadius: radius.md,
+                      paddingHorizontal: spacing.md, paddingVertical: 10,
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                    }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Ionicons name="home-outline" size={14} color={custody.color} />
+                        <Text style={{ fontSize: 13, color: colors.text }}>
+                          Hoje com {custody.isWithMe ? 'você' : custody.responsibleName}
+                        </Text>
+                      </View>
+                      <View style={{
+                        backgroundColor: 'rgba(91,158,133,0.12)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.full,
+                      }}>
+                        <Text style={{ fontSize: 10, color: '#5B9E85', fontWeight: font.weights.semibold }}>
+                          Ativo
+                        </Text>
+                      </View>
+                    </View>
+                  ) : null}
+                </TouchableOpacity>
+              );
+            })}
+          </Animated.View>
+        ) : null}
+
+        {/* === HEALTH ALERT (if any critical) === */}
+        {data?.hasAnyCriticalChild ? (
+          <Animated.View entering={FadeInDown.delay(150).duration(400)}>
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(tabs)/saude'); }}
+              activeOpacity={0.8}
               style={{
-                width: '30%', backgroundColor: colors.bgElevated, borderRadius: radius.lg,
-                padding: spacing.lg, alignItems: 'center', gap: spacing.sm, ...shadows.sm,
+                backgroundColor: `${colors.error}12`, borderRadius: radius.xl,
+                borderWidth: 1, borderColor: `${colors.error}30`,
+                padding: spacing.lg, marginBottom: spacing.lg,
+                flexDirection: 'row', alignItems: 'center', gap: spacing.md,
               }}
             >
-              <View style={{
-                width: 40, height: 40, borderRadius: 12,
-                backgroundColor: `${action.color}15`,
-                alignItems: 'center', justifyContent: 'center',
-              }}>
-                <Ionicons name={action.icon} size={20} color={action.color} />
+              <Text style={{ fontSize: 22 }}>🚨</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.error }}>
+                  Atencao em saude
+                </Text>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.text, marginTop: 2 }}>
+                  {data.childHealthSummaries.filter(s => s.status === 'treatment').length} crianca(s) em tratamento
+                </Text>
               </View>
-              <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.medium, color: colors.text, textAlign: 'center' }}>
-                {action.label}
+              <Ionicons name="chevron-forward" size={16} color={colors.error} />
+            </TouchableOpacity>
+          </Animated.View>
+        ) : null}
+
+        {/* === ACTIVITIES TODAY / TOMORROW === */}
+        {((data?.todayActivities?.length || 0) > 0 || (data?.tomorrowActivities?.length || 0) > 0) ? (
+          <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+            <View style={{ marginBottom: spacing.lg }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="time-outline" size={12} color={colors.brand} />
+                  <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                    Atividades
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => router.push('/atividades')}>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>ver todas</Text>
+                </TouchableOpacity>
+              </View>
+
+              {(data?.todayActivities?.length || 0) > 0 ? (
+                <>
+                  <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: '#5B9E85', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6 }}>
+                    Hoje
+                  </Text>
+                  {data!.todayActivities.map(act => {
+                    const catIcon = ACTIVITY_CATEGORIES.find(c => c.value === act.category)?.icon || '📌';
+                    return (
+                      <View
+                        key={`today-${act.id}`}
+                        style={{
+                          backgroundColor: colors.bgElevated, borderRadius: radius.md,
+                          padding: spacing.md, marginBottom: 6,
+                          flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.sm,
+                        }}
+                      >
+                        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${colors.brand}15`, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 16 }}>{catIcon}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
+                            {act.name}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                            {act.timeStr ? <Text style={{ color: colors.text, fontWeight: font.weights.medium }}>{act.timeStr}</Text> : null}
+                            {act.childName ? ` · ${act.childName}` : ''}
+                            {act.location ? ` · ${act.location}` : ''}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </>
+              ) : null}
+
+              {(data?.tomorrowActivities?.length || 0) > 0 ? (
+                <>
+                  <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 8, marginBottom: 6 }}>
+                    Amanhã
+                  </Text>
+                  {data!.tomorrowActivities.map(act => {
+                    const catIcon = ACTIVITY_CATEGORIES.find(c => c.value === act.category)?.icon || '📌';
+                    return (
+                      <View
+                        key={`tmw-${act.id}`}
+                        style={{
+                          backgroundColor: colors.bgElevated, borderRadius: radius.md,
+                          padding: spacing.md, marginBottom: 6,
+                          flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.sm,
+                        }}
+                      >
+                        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${colors.brand}15`, alignItems: 'center', justifyContent: 'center' }}>
+                          <Text style={{ fontSize: 16 }}>{catIcon}</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                          <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
+                            {act.name}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                            {act.timeStr ? <Text style={{ color: colors.text, fontWeight: font.weights.medium }}>{act.timeStr}</Text> : null}
+                            {act.childName ? ` · ${act.childName}` : ''}
+                            {act.location ? ` · ${act.location}` : ''}
+                          </Text>
+                        </View>
+                      </View>
+                    );
+                  })}
+                </>
+              ) : null}
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* === PENDING DECISIONS (Votar buttons) === */}
+        {(data?.pendingDecisionsList.length || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
+            <View style={{ marginBottom: spacing.lg }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="checkmark-done-outline" size={12} color={colors.brand} />
+                  <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                    Decisões pendentes
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => router.push('/decisoes')}>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>ver tudo</Text>
+                </TouchableOpacity>
+              </View>
+              {data!.pendingDecisionsList.slice(0, 3).map(d => {
+                const icon = DECISION_CAT_ICONS[d.category] || '📋';
+                const color = DECISION_CAT_COLORS[d.category] || colors.brand;
+                const deadlineInfo = formatDeadline(d.deadline);
+                return (
+                  <View
+                    key={d.id}
+                    style={{
+                      backgroundColor: 'rgba(232,162,40,0.08)',
+                      borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
+                      flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                    }}
+                  >
+                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: `${color}20`, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 14 }}>{icon}</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }} numberOfLines={1}>
+                        {d.title}
+                      </Text>
+                      {deadlineInfo ? (
+                        <Text style={{ fontSize: 11, color: deadlineInfo.urgent ? colors.error : colors.textSecondary, marginTop: 2 }}>
+                          {deadlineInfo.label}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <TouchableOpacity
+                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/decisoes/${d.id}`); }}
+                      style={{
+                        backgroundColor: colors.brand, paddingHorizontal: spacing.md, paddingVertical: 6,
+                        borderRadius: radius.full,
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>Votar</Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* === PENDING ACTIVITY REPORTS === */}
+        {(data?.pendingReports?.length || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(220).duration(400)}>
+            <View style={{ marginBottom: spacing.lg }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="clipboard-outline" size={12} color={colors.brand} />
+                  <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                    Status pendentes
+                  </Text>
+                </View>
+                <TouchableOpacity onPress={() => router.push('/atividades')}>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>ver tudo</Text>
+                </TouchableOpacity>
+              </View>
+              {data!.pendingReports.slice(0, 3).map(r => (
+                <View
+                  key={`${r.activityId}-${r.occurrenceDate}`}
+                  style={{
+                    backgroundColor: 'rgba(232,162,40,0.08)',
+                    borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
+                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                  }}
+                >
+                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(232,162,40,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                    <Ionicons name="clipboard-outline" size={16} color="#E8A228" />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
+                      {r.activityName}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                      {r.childName} · {formatShortDate(r.occurrenceDate)}
+                      {r.daysAgo > 0 ? ` (há ${r.daysAgo}d)` : ''}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setReportModal({
+                        open: true, activityId: r.activityId, activityName: r.activityName,
+                        childId: r.childId, occurrenceDate: r.occurrenceDate,
+                      });
+                    }}
+                    style={{
+                      backgroundColor: '#E8A228', paddingHorizontal: spacing.md, paddingVertical: 6,
+                      borderRadius: radius.full,
+                    }}
+                  >
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>Atualizar</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* === PENDING SWAPS (detailed cards) === */}
+        {(data?.pendingSwapsList.length || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(240).duration(400)}>
+            <View style={{
+              backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg,
+              marginBottom: spacing.lg, ...shadows.sm,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                  🔄 Trocas de guarda
+                </Text>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/calendario')}>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>Ver todas</Text>
+                </TouchableOpacity>
+              </View>
+              {data!.pendingSwapsList.map((s, i) => {
+                const orig = formatDatePt(s.originalDate);
+                const prop = s.proposedDate ? formatDatePt(s.proposedDate) : null;
+                return (
+                  <TouchableOpacity
+                    key={s.id}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/(tabs)/calendario'); }}
+                    activeOpacity={0.7}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                      paddingVertical: spacing.sm,
+                      borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                    }}
+                  >
+                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.secondary}20`, alignItems: 'center', justifyContent: 'center' }}>
+                      <Text style={{ fontSize: 14 }}>🔄</Text>
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: font.weights.medium, color: colors.text }} numberOfLines={1}>
+                        {s.requesterName} quer trocar {orig}{prop ? ` por ${prop}` : ''}
+                      </Text>
+                      {s.reason ? (
+                        <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                          {s.reason}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* === PENDING EXPENSES (cards) === */}
+        {(data?.pendingExpensesList.length || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(260).duration(400)}>
+            <View style={{
+              backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg,
+              marginBottom: spacing.lg, ...shadows.sm,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                  🧾 Despesas pra aprovar
+                </Text>
+                <TouchableOpacity onPress={() => router.push('/despesas')}>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>Ver todas</Text>
+                </TouchableOpacity>
+              </View>
+              {data!.pendingExpensesList.slice(0, 3).map((e, i) => (
+                <TouchableOpacity
+                  key={e.id}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
+                  activeOpacity={0.7}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                    paddingVertical: spacing.sm,
+                    borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                  }}
+                >
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.accent}20`, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 14 }}>💳</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: 13, fontWeight: font.weights.medium, color: colors.text }} numberOfLines={1}>
+                      {e.description}
+                    </Text>
+                    <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                      {e.paidByName} · {formatBRL(e.amount)}
+                    </Text>
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* === FINANCIAL BALANCE === */}
+        {data?.balance !== undefined && data.balance !== 0 ? (
+          <Animated.View entering={FadeInDown.delay(280).duration(400)}>
+            <TouchableOpacity onPress={() => router.push('/financeiro')} activeOpacity={0.7} style={{
+              backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
+              marginBottom: spacing.lg, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+            }}>
+              <Text style={{ fontSize: 20 }}>💰</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Saldo financeiro</Text>
+                <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: data.balance >= 0 ? colors.success : colors.error }}>
+                  {formatBRL(Math.abs(data.balance))}
+                </Text>
+              </View>
+              <Text style={{ fontSize: font.sizes.xs, color: data.balance >= 0 ? colors.success : colors.error, fontWeight: font.weights.medium }}>
+                {data.balance >= 0 ? 'A receber' : 'A pagar'}
               </Text>
             </TouchableOpacity>
-          ))}
-        </View>
-      </Animated.View>
-    </ScrollView>
+          </Animated.View>
+        ) : null}
+
+        {/* === HEALTH BLOCK === */}
+        {(data?.childHealthSummaries?.length || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(300).duration(400)}>
+            <View style={{
+              backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg,
+              marginBottom: spacing.lg, ...shadows.sm,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                  Saude
+                </Text>
+                <TouchableOpacity onPress={() => router.push('/(tabs)/saude')}>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>Ver tudo</Text>
+                </TouchableOpacity>
+              </View>
+              {data!.childHealthSummaries.map((h, i) => {
+                const statusConfig = {
+                  healthy: { icon: '🟢', color: colors.success, label: 'Saudavel' },
+                  monitoring: { icon: '🟡', color: colors.warning, label: 'Em observacao' },
+                  treatment: { icon: '🔴', color: colors.error, label: 'Em tratamento' },
+                }[h.status];
+                return (
+                  <View key={h.childId} style={{
+                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                    paddingVertical: spacing.sm,
+                    borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                  }}>
+                    <Text style={{ fontSize: 16 }}>{statusConfig.icon}</Text>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
+                        {h.childName}
+                      </Text>
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{h.detail}</Text>
+                    </View>
+                    <Text style={{ fontSize: font.sizes.xs, color: statusConfig.color, fontWeight: font.weights.medium }}>
+                      {statusConfig.label}
+                    </Text>
+                  </View>
+                );
+              })}
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* === QUICK ACTIONS === */}
+        <Animated.View entering={FadeInDown.delay(320).duration(400)}>
+          <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: spacing.sm }}>
+            Ações rápidas
+          </Text>
+
+          {/* Primary CTA — Nova despesa */}
+          <TouchableOpacity
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas/nova'); }}
+            activeOpacity={0.85}
+            style={{
+              backgroundColor: colors.brand, borderRadius: radius.xl,
+              padding: spacing.lg, marginBottom: spacing.sm,
+              flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.sm,
+            }}
+          >
+            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+              <Ionicons name="add" size={24} color="#fff" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: 15, fontWeight: font.weights.bold, color: '#fff' }}>
+                Nova despesa
+              </Text>
+              <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>
+                Registrar gasto compartilhado
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
+          </TouchableOpacity>
+
+          {/* Secondary grid 3x2 — match PWA order */}
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+            {[
+              { icon: 'calendar-outline' as const, label: 'Agenda', route: '/(tabs)/calendario', color: '#5B9E85' },
+              { icon: 'stats-chart-outline' as const, label: 'Análise da última semana', route: '/semana', color: '#3B82F6' },
+              { icon: 'document-outline' as const, label: 'Documentos', route: '/documentos', color: '#F59E0B' },
+              { icon: 'cash-outline' as const, label: 'Financeiro', route: '/financeiro', color: '#5B9E85' },
+              { icon: 'reader-outline' as const, label: 'Acordos', route: '/acordos', color: '#F59E0B' },
+              { icon: 'heart-outline' as const, label: 'Saúde', route: '/(tabs)/saude', color: '#EF4444' },
+            ].map(action => (
+              <TouchableOpacity
+                key={action.label}
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(action.route as Parameters<typeof router.push>[0]);
+                }}
+                activeOpacity={0.75}
+                style={{
+                  width: '31.5%', backgroundColor: colors.bgElevated, borderRadius: radius.xl,
+                  padding: spacing.md, alignItems: 'center', gap: spacing.xs, minHeight: 92, ...shadows.sm,
+                }}
+              >
+                <View style={{
+                  width: 36, height: 36, borderRadius: 12,
+                  backgroundColor: `${action.color}15`,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Ionicons name={action.icon} size={18} color={action.color} />
+                </View>
+                <Text style={{ fontSize: 11, fontWeight: font.weights.medium, color: colors.text, textAlign: 'center' }} numberOfLines={2}>
+                  {action.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </Animated.View>
+      </ScrollView>
+
+      {/* Activity Report Modal */}
+      {reportModal?.open && activeGroup && userId ? (
+        <ActivityReportModal
+          visible={reportModal.open}
+          onClose={() => setReportModal(null)}
+          groupId={activeGroup.groupId}
+          activityId={reportModal.activityId}
+          activityName={reportModal.activityName}
+          childId={reportModal.childId}
+          reporterId={userId}
+          occurrenceDate={reportModal.occurrenceDate}
+          onSubmitted={refresh}
+        />
+      ) : null}
+    </>
   );
 }
