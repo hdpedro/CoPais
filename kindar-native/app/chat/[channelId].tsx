@@ -41,6 +41,24 @@ interface Message {
   created_at: string;
   image_url: string | null;
   reply_to_id: string | null;
+  read_by: Record<string, string> | null;
+}
+
+interface ChannelSummary {
+  id: string;
+  name: string;
+  icon: string | null;
+  channel_type: string;
+  child_name: string | null;
+}
+
+// Detect system notification messages (prefixed with emoji) — rendered as
+// centered cards instead of regular bubbles. Mirrors PWA chat-notify pattern.
+const SYSTEM_PREFIXES = ['✅', '🔄', '🎯', '🏥', '💊', '⚖️', '📅', '📝', '💰', '🎁', '🤝', '🧹', '🔧', '🚨', '📈', '📉'];
+function isSystemMessage(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const first = [...text.trim()][0];
+  return SYSTEM_PREFIXES.some(p => text.trim().startsWith(p)) || (first ? /\p{Emoji}/u.test(first) : false);
 }
 
 export default function ChatRoomScreen() {
@@ -52,6 +70,8 @@ export default function ChatRoomScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [channelName, setChannelName] = useState('Chat');
+  const [channels, setChannels] = useState<ChannelSummary[]>([]);
+  const [memberCount, setMemberCount] = useState(0);
   const [pendingImage, setPendingImage] = useState<{ uri: string; mime: string } | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
@@ -62,22 +82,31 @@ export default function ChatRoomScreen() {
     if (!channelId || !activeGroup) return;
 
     async function load() {
-      // Channel name
-      const { data: ch } = await supabase
-        .from('chat_channels')
-        .select('name')
-        .eq('id', channelId)
-        .single();
+      // Channel name + all channels for tabs + member count in one shot
+      const [{ data: ch }, { data: allCh }, { data: members }] = await Promise.all([
+        supabase.from('chat_channels').select('name').eq('id', channelId).single(),
+        supabase.from('chat_channels')
+          .select('id, name, icon, channel_type, sort_order, child_id, children(full_name)')
+          .eq('group_id', activeGroup!.groupId)
+          .order('sort_order'),
+        supabase.from('group_members')
+          .select('user_id, profiles(full_name, display_name, email)')
+          .eq('group_id', activeGroup!.groupId),
+      ]);
       if (ch) setChannelName(ch.name);
+      setChannels((allCh || []).map((c: any) => ({
+        id: c.id, name: c.name, icon: c.icon,
+        channel_type: c.channel_type,
+        child_name: c.children?.full_name?.split(' ')[0] || null,
+      })));
+      setMemberCount((members || []).length);
 
-      // Members for name lookup
-      const { data: members } = await supabase
-        .from('group_members')
-        .select('user_id, profiles(full_name)')
-        .eq('group_id', activeGroup!.groupId);
       const memberMap: Record<string, string> = {};
       (members || []).forEach((m: any) => {
-        memberMap[m.user_id] = getDisplayName(m.profiles?.full_name);
+        const p = m.profiles || {};
+        memberMap[m.user_id] = p.display_name
+          || getDisplayName(p.full_name)
+          || (p.email ? p.email.split('@')[0].split('.')[0] : 'Usuario');
       });
       membersRef.current = memberMap;
 
@@ -130,7 +159,8 @@ export default function ChatRoomScreen() {
           return [...prev, {
             id: msg.id, text: msg.text, sender_id: msg.sender_id,
             senderName: membersRef.current[msg.sender_id] || 'Usuario',
-            created_at: msg.created_at, image_url: msg.image_url, reply_to_id: msg.reply_to_id,
+            created_at: msg.created_at, image_url: msg.image_url,
+            reply_to_id: msg.reply_to_id, read_by: msg.read_by || null,
           }];
         });
         // Mark as read
@@ -149,7 +179,9 @@ export default function ChatRoomScreen() {
       }, (payload) => {
         const updated = payload.new as any;
         setMessages(prev => prev.map(m =>
-          m.id === updated.id ? { ...m, text: updated.text, image_url: updated.image_url } : m
+          m.id === updated.id
+            ? { ...m, text: updated.text, image_url: updated.image_url, read_by: updated.read_by || null }
+            : m
         ));
       })
       .on('postgres_changes', {
@@ -244,10 +276,84 @@ export default function ChatRoomScreen() {
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
-  const renderMessage = useCallback(({ item }: { item: Message }) => {
-    const isMe = item.sender_id === userId;
-    const hasImage = !!item.image_url;
-    const hasText = !!item.text?.trim();
+  // Message list with date separators + system message cards
+  // Note: `items` is the message list with `kind: 'date' | 'system' | 'message'` markers
+  const messageItems = useCallback(() => {
+    const items: Array<{ kind: 'date'; key: string; label: string } | { kind: 'system'; msg: Message } | { kind: 'message'; msg: Message }> = [];
+    let prevDay = '';
+    const todayKey = new Date().toISOString().slice(0, 10);
+    const yesterday = new Date(); yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = yesterday.toISOString().slice(0, 10);
+    for (const m of messages) {
+      const dayKey = m.created_at.slice(0, 10);
+      if (dayKey !== prevDay) {
+        const d = new Date(m.created_at);
+        let label: string;
+        if (dayKey === todayKey) label = 'Hoje';
+        else if (dayKey === yesterdayKey) label = 'Ontem';
+        else label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+        items.push({ kind: 'date', key: `date-${dayKey}`, label });
+        prevDay = dayKey;
+      }
+      if (isSystemMessage(m.text) && m.sender_id !== userId) {
+        items.push({ kind: 'system', msg: m });
+      } else {
+        items.push({ kind: 'message', msg: m });
+      }
+    }
+    return items;
+  }, [messages, userId]);
+
+  const renderItem = useCallback(({ item }: { item: ReturnType<typeof messageItems>[number] }) => {
+    if (item.kind === 'date') {
+      return (
+        <View style={{ alignItems: 'center', marginVertical: spacing.md }}>
+          <View style={{
+            backgroundColor: colors.bgSurface, paddingHorizontal: spacing.md, paddingVertical: 4,
+            borderRadius: radius.full,
+          }}>
+            <Text style={{ fontSize: 11, color: colors.textSecondary, fontWeight: font.weights.medium }}>
+              {item.label}
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    if (item.kind === 'system') {
+      const m = item.msg;
+      return (
+        <View style={{ alignItems: 'center', marginVertical: 6, paddingHorizontal: spacing.lg }}>
+          <View style={{
+            maxWidth: '85%',
+            backgroundColor: colors.bgElevated, borderRadius: radius.lg,
+            paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+            borderWidth: 1, borderColor: colors.borderLight, ...shadows.sm,
+          }}>
+            {!m.sender_id.includes(userId || '---') ? (
+              <Text style={{ fontSize: 10, color: colors.textMuted, marginBottom: 2 }}>
+                {m.senderName}
+              </Text>
+            ) : null}
+            <Text style={{ fontSize: 13, color: colors.text, lineHeight: 18 }}>
+              {m.text}
+            </Text>
+            <Text style={{ fontSize: 9, color: colors.textDim, marginTop: 4 }}>
+              {formatTime(m.created_at)}
+            </Text>
+          </View>
+        </View>
+      );
+    }
+
+    const m = item.msg;
+    const isMe = m.sender_id === userId;
+    const hasImage = !!m.image_url;
+    const hasText = !!m.text?.trim();
+    // Read status — count how many OTHER members have read_by[their_id]
+    const readersCount = m.read_by ? Object.keys(m.read_by).filter(u => u !== userId).length : 0;
+    const wasRead = isMe && readersCount > 0;
+
     return (
       <View style={{
         alignItems: isMe ? 'flex-end' : 'flex-start',
@@ -256,7 +362,7 @@ export default function ChatRoomScreen() {
       }}>
         {!isMe ? (
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: 2, marginLeft: spacing.xs }}>
-            {item.senderName}
+            {m.senderName}
           </Text>
         ) : null}
         <View style={{
@@ -271,11 +377,11 @@ export default function ChatRoomScreen() {
           {hasImage ? (
             <TouchableOpacity
               activeOpacity={0.85}
-              onPress={() => item.image_url && setPreviewUrl(item.image_url)}
+              onPress={() => m.image_url && setPreviewUrl(m.image_url)}
               style={{ borderRadius: radius.md, overflow: 'hidden', marginBottom: hasText ? spacing.xs : 0 }}
             >
               <Image
-                source={{ uri: item.image_url! }}
+                source={{ uri: m.image_url! }}
                 style={{ width: 220, height: 220, backgroundColor: 'rgba(0,0,0,0.06)' }}
                 resizeMode="cover"
               />
@@ -287,19 +393,27 @@ export default function ChatRoomScreen() {
               color: isMe ? '#fff' : colors.text,
               lineHeight: 20,
             }}>
-              {item.text}
+              {m.text}
             </Text>
           ) : null}
-          <Text style={{
-            fontSize: 9,
-            color: isMe ? 'rgba(255,255,255,0.6)' : colors.textDim,
-            textAlign: 'right',
+          <View style={{
+            flexDirection: 'row', alignItems: 'center', gap: 3,
+            justifyContent: 'flex-end',
             marginTop: 4,
             marginRight: hasImage && !hasText ? 8 : 0,
             marginBottom: hasImage && !hasText ? 4 : 0,
           }}>
-            {formatTime(item.created_at)}
-          </Text>
+            <Text style={{ fontSize: 9, color: isMe ? 'rgba(255,255,255,0.6)' : colors.textDim }}>
+              {formatTime(m.created_at)}
+            </Text>
+            {isMe ? (
+              <Ionicons
+                name={wasRead ? 'checkmark-done' : 'checkmark'}
+                size={12}
+                color={wasRead ? '#9ee4c9' : 'rgba(255,255,255,0.7)'}
+              />
+            ) : null}
+          </View>
         </View>
       </View>
     );
@@ -314,21 +428,82 @@ export default function ChatRoomScreen() {
       {/* Header */}
       <View style={{
         paddingTop: insets.top + spacing.sm,
-        paddingBottom: spacing.md,
+        paddingBottom: spacing.sm,
         paddingHorizontal: spacing.lg,
         backgroundColor: colors.bgElevated,
         borderBottomWidth: 0.5,
         borderBottomColor: colors.borderLight,
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: spacing.md,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
-          <Ionicons name="chevron-back" size={24} color={colors.text} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text, flex: 1 }}>
-          {channelName}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+            <Ionicons name="chevron-back" size={24} color={colors.text} />
+          </TouchableOpacity>
+          <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
+              {channelName === 'Geral' || channelName === 'geral' ? 'Chat do grupo' : channelName}
+            </Text>
+            {memberCount > 0 ? (
+              <View style={{
+                backgroundColor: colors.bgSurface, paddingHorizontal: spacing.sm, paddingVertical: 2,
+                borderRadius: radius.full,
+              }}>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, fontWeight: font.weights.medium }}>
+                  {memberCount} membro{memberCount !== 1 ? 's' : ''}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+        </View>
+
+        {/* Channel tabs pills */}
+        {channels.length > 1 ? (
+          <FlatList
+            horizontal
+            data={channels}
+            keyExtractor={c => c.id}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={{ gap: spacing.sm, paddingTop: spacing.sm, paddingRight: spacing.lg }}
+            renderItem={({ item: c }) => {
+              const active = c.id === channelId;
+              const childLetter = c.child_name?.charAt(0).toUpperCase() || '';
+              const displayLabel = c.channel_type === 'child' && c.child_name ? c.child_name : c.name;
+              return (
+                <TouchableOpacity
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.replace(`/chat/${c.id}`); }}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 6,
+                    paddingHorizontal: spacing.md, paddingVertical: 6,
+                    borderRadius: radius.full,
+                    backgroundColor: active ? colors.brand : colors.bgSurface,
+                  }}
+                >
+                  {c.channel_type === 'child' && childLetter ? (
+                    <View style={{
+                      width: 20, height: 20, borderRadius: 10,
+                      backgroundColor: active ? 'rgba(255,255,255,0.25)' : colors.brandLight,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: active ? '#fff' : colors.brand }}>
+                        {childLetter}
+                      </Text>
+                    </View>
+                  ) : c.icon ? (
+                    <Text style={{ fontSize: 14 }}>{c.icon}</Text>
+                  ) : (
+                    <Ionicons name="chatbubble-ellipses" size={12} color={active ? '#fff' : colors.textSecondary} />
+                  )}
+                  <Text style={{
+                    fontSize: 13,
+                    fontWeight: active ? font.weights.semibold : font.weights.medium,
+                    color: active ? '#fff' : colors.text,
+                  }}>
+                    {displayLabel}
+                  </Text>
+                </TouchableOpacity>
+              );
+            }}
+          />
+        ) : null}
       </View>
 
       {/* Messages */}
@@ -339,9 +514,9 @@ export default function ChatRoomScreen() {
       ) : (
         <FlatList
           ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={item => item.id}
+          data={messageItems()}
+          renderItem={renderItem}
+          keyExtractor={it => it.kind === 'date' ? it.key : it.msg.id}
           contentContainerStyle={{ paddingVertical: spacing.md }}
           onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
         />
