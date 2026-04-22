@@ -1,19 +1,42 @@
 import { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import {
+  View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
+} from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../src/store/auth';
-import { fetchActivities, type Activity } from '../../src/services/activities';
+import {
+  fetchActivities, updateActivity, deleteActivity, type Activity,
+} from '../../src/services/activities';
 import { ACTIVITY_CATEGORIES } from '../../src/lib/constants';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import FAB from '../../src/components/ui/FAB';
 import EmptyState from '../../src/components/ui/EmptyState';
+import { TimePickerField } from '../../src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+
+function normalizeTime(t: string | null | undefined): string | null {
+  if (!t) return null;
+  return t.length >= 5 ? t.slice(0, 5) : t;
+}
 
 export default function AtividadesScreen() {
   const { activeGroup } = useAuth();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [editing, setEditing] = useState<Activity | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  // Form state
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('other');
+  const [timeStart, setTimeStart] = useState<string | null>(null);
+  const [timeEnd, setTimeEnd] = useState<string | null>(null);
+  const [location, setLocation] = useState('');
+  const [notes, setNotes] = useState('');
 
   const load = useCallback(async () => {
     if (!activeGroup) return;
@@ -24,11 +47,74 @@ export default function AtividadesScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  function openEditor(activity: Activity) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setName(activity.name);
+    setCategory(activity.category || 'other');
+    setTimeStart(normalizeTime(activity.time_start));
+    setTimeEnd(normalizeTime(activity.time_end));
+    setLocation(activity.location || '');
+    setNotes(activity.notes || '');
+    setEditing(activity);
+  }
+
+  async function handleSave() {
+    if (!editing || !name.trim()) return;
+    setSaving(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const result = await updateActivity(editing.id, {
+      name: name.trim(),
+      category,
+      time_start: timeStart ? `${timeStart}:00` : null,
+      time_end: timeEnd ? `${timeEnd}:00` : null,
+      location: location.trim() || null,
+      notes: notes.trim() || null,
+    });
+    setSaving(false);
+    if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setEditing(null);
+      await load();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', result.error || 'Falha ao salvar');
+    }
+  }
+
+  function confirmDelete(activity: Activity) {
+    Alert.alert(
+      'Remover atividade',
+      `Remover "${activity.name}" da lista? O historico fica preservado.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover', style: 'destructive',
+          onPress: async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            const res = await deleteActivity(activity.id);
+            if (res.success) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              setEditing(null);
+              await load();
+            } else {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              Alert.alert('Erro', res.error || 'Falha');
+            }
+          },
+        },
+      ]
+    );
+  }
+
   const renderItem = ({ item }: { item: Activity }) => {
     const cat = ACTIVITY_CATEGORIES.find(c => c.value === item.category);
     return (
-      <TouchableOpacity activeOpacity={0.7}
-        style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => openEditor(item)}
+        onLongPress={() => confirmDelete(item)}
+        style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+      >
         <Text style={{ fontSize: 22 }}>{cat?.icon || '📌'}</Text>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.name}</Text>
@@ -54,6 +140,110 @@ export default function AtividadesScreen() {
         ListEmptyComponent={loading ? null : <EmptyState icon="📋" title="Nenhuma atividade" subtitle="Crie atividades recorrentes para as criancas" />}
       />
       <FAB onPress={() => router.push('/atividades/nova')} />
+
+      <Modal visible={!!editing} animationType="slide" transparent onRequestClose={() => setEditing(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setEditing(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+          <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+              <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
+                Editar atividade
+              </Text>
+              {editing ? (
+                <TouchableOpacity onPress={() => confirmDelete(editing)}>
+                  <Ionicons name="trash-outline" size={22} color={colors.error} />
+                </TouchableOpacity>
+              ) : null}
+            </View>
+            <ScrollView>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4, fontWeight: font.weights.medium }}>Nome</Text>
+              <TextInput
+                value={name} onChangeText={setName}
+                placeholder="Nome da atividade" placeholderTextColor={colors.textMuted}
+                style={{
+                  backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
+                  paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+                  fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md,
+                }}
+              />
+
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4, fontWeight: font.weights.medium }}>Categoria</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
+                {ACTIVITY_CATEGORIES.map(c => {
+                  const active = category === c.value;
+                  return (
+                    <TouchableOpacity
+                      key={c.value}
+                      onPress={() => setCategory(c.value)}
+                      style={{
+                        paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
+                        backgroundColor: active ? colors.brand : colors.bg,
+                        borderWidth: 1, borderColor: active ? colors.brand : colors.borderLight,
+                        flexDirection: 'row', alignItems: 'center', gap: 6,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14 }}>{c.icon}</Text>
+                      <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
+                        {c.value}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                <View style={{ flex: 1 }}>
+                  <TimePickerField label="Inicio" value={timeStart} onChange={setTimeStart} placeholder="—" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <TimePickerField label="Fim" value={timeEnd} onChange={setTimeEnd} placeholder="—" />
+                </View>
+              </View>
+
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4, fontWeight: font.weights.medium }}>Local</Text>
+              <TextInput
+                value={location} onChangeText={setLocation}
+                placeholder="Onde acontece" placeholderTextColor={colors.textMuted}
+                style={{
+                  backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
+                  paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+                  fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md,
+                }}
+              />
+
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4, fontWeight: font.weights.medium }}>Observacoes</Text>
+              <TextInput
+                value={notes} onChangeText={setNotes}
+                placeholder="Notas, material necessario..." placeholderTextColor={colors.textMuted}
+                multiline
+                style={{
+                  backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
+                  paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+                  fontSize: font.sizes.md, color: colors.text, minHeight: 80, textAlignVertical: 'top',
+                  marginBottom: spacing.lg,
+                }}
+              />
+
+              <TouchableOpacity
+                disabled={saving || !name.trim()}
+                onPress={handleSave}
+                style={{
+                  backgroundColor: colors.brand, borderRadius: radius.md,
+                  paddingVertical: spacing.md + 2, alignItems: 'center',
+                  opacity: saving || !name.trim() ? 0.5 : 1,
+                }}
+              >
+                {saving ? <ActivityIndicator color="#fff" /> : (
+                  <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
+                    Salvar alteracoes
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }

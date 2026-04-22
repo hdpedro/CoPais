@@ -5,12 +5,15 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert,
+  Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
+import { updateChild } from '../../src/services/children';
+import { DatePickerField } from '../../src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -59,6 +62,18 @@ export default function ChildDetailScreen() {
   const [metrics, setMetrics] = useState<ChildMetrics | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  // Edit form state
+  const [fullName, setFullName] = useState('');
+  const [birthDate, setBirthDate] = useState('');
+  const [gender, setGender] = useState<string | null>(null);
+  const [bloodType, setBloodType] = useState('');
+  const [allergiesText, setAllergiesText] = useState('');
+  const [notes, setNotes] = useState('');
+  const [cpf, setCpf] = useState('');
+  const [rg, setRg] = useState('');
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -96,6 +111,58 @@ export default function ChildDetailScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await load();
     setRefreshing(false);
+  }
+
+  function openEditor() {
+    if (!child) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setFullName(child.full_name);
+    setBirthDate(child.birth_date);
+    setGender(child.gender);
+    setBloodType(child.blood_type || '');
+    setAllergiesText((child.allergies || []).join(', '));
+    setNotes(child.notes || '');
+    setCpf(child.cpf || '');
+    setRg(child.rg || '');
+    setEditing(true);
+  }
+
+  async function handleSave() {
+    if (!child || !fullName.trim() || !birthDate) return;
+    const allergiesList = allergiesText.split(',').map(s => s.trim()).filter(Boolean);
+    setSaving(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const result = await updateChild(child.id, {
+      full_name: fullName.trim(),
+      birth_date: birthDate,
+      gender: gender,
+      blood_type: bloodType.trim() || null,
+      allergies: allergiesList.length > 0 ? allergiesList : null,
+      notes: notes.trim() || null,
+      cpf: cpf.trim() || null,
+      rg: rg.trim() || null,
+    });
+    setSaving(false);
+    if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setEditing(false);
+      await load();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', result.error || 'Falha ao salvar');
+    }
+  }
+
+  function openActionsMenu() {
+    Alert.alert(
+      child?.full_name || 'Acoes',
+      'O que voce quer fazer?',
+      [
+        { text: 'Editar dados', onPress: openEditor },
+        { text: 'Remover crianca', style: 'destructive', onPress: handleDelete },
+        { text: 'Cancelar', style: 'cancel' },
+      ]
+    );
   }
 
   async function handleDelete() {
@@ -144,7 +211,7 @@ export default function ChildDetailScreen() {
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }} numberOfLines={1}>
           {child.full_name.split(' ')[0]}
         </Text>
-        <TouchableOpacity onPress={handleDelete} hitSlop={12}>
+        <TouchableOpacity onPress={openActionsMenu} hitSlop={12}>
           <Ionicons name="ellipsis-horizontal" size={22} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
@@ -214,7 +281,109 @@ export default function ChildDetailScreen() {
           <QuickLink icon="📅" title="Eventos" subtitle="Aniversarios e ocasioes especiais" onPress={() => router.push('/eventos')} />
         </View>
       </ScrollView>
+
+      {/* Edit modal */}
+      <Modal visible={editing} animationType="slide" transparent onRequestClose={() => setEditing(false)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setEditing(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+          <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
+              Editar {child?.full_name?.split(' ')[0]}
+            </Text>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <FieldLabel>Nome completo</FieldLabel>
+              <FieldInput value={fullName} onChangeText={setFullName} placeholder="Nome completo" />
+
+              <FieldLabel>Data de nascimento</FieldLabel>
+              <DatePickerField value={birthDate || null} onChange={setBirthDate} maximumDate={new Date()} />
+
+              <FieldLabel>Genero</FieldLabel>
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+                {[
+                  { value: 'female', label: 'Feminino' },
+                  { value: 'male', label: 'Masculino' },
+                  { value: null, label: 'Nao informar' },
+                ].map(opt => {
+                  const active = gender === opt.value;
+                  return (
+                    <TouchableOpacity
+                      key={opt.label}
+                      onPress={() => setGender(opt.value)}
+                      style={{
+                        flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md,
+                        backgroundColor: active ? colors.brand : colors.bg,
+                        borderWidth: 1, borderColor: active ? colors.brand : colors.borderLight,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
+                        {opt.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              <FieldLabel>Tipo sanguineo</FieldLabel>
+              <FieldInput value={bloodType} onChangeText={setBloodType} placeholder="Ex: O+, A-, AB+" autoCapitalize="characters" maxLength={4} />
+
+              <FieldLabel>Alergias (separe por virgula)</FieldLabel>
+              <FieldInput value={allergiesText} onChangeText={setAllergiesText} placeholder="Amendoim, lactose, penicilina" />
+
+              <FieldLabel>CPF</FieldLabel>
+              <FieldInput value={cpf} onChangeText={setCpf} placeholder="000.000.000-00" keyboardType="number-pad" maxLength={14} />
+
+              <FieldLabel>RG</FieldLabel>
+              <FieldInput value={rg} onChangeText={setRg} placeholder="00.000.000-0" />
+
+              <FieldLabel>Observacoes</FieldLabel>
+              <FieldInput value={notes} onChangeText={setNotes} placeholder="Informacoes adicionais" multiline />
+
+              <TouchableOpacity
+                disabled={saving || !fullName.trim() || !birthDate}
+                onPress={handleSave}
+                style={{
+                  backgroundColor: colors.brand, borderRadius: radius.md,
+                  paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.md,
+                  opacity: saving || !fullName.trim() || !birthDate ? 0.5 : 1,
+                }}
+              >
+                {saving ? <ActivityIndicator color="#fff" /> : (
+                  <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
+                    Salvar alteracoes
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4, marginTop: spacing.sm, fontWeight: font.weights.medium }}>
+      {children}
+    </Text>
+  );
+}
+
+function FieldInput(props: React.ComponentProps<typeof TextInput>) {
+  return (
+    <TextInput
+      {...props}
+      placeholderTextColor={colors.textMuted}
+      style={{
+        backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
+        paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+        fontSize: font.sizes.md, color: colors.text,
+        minHeight: props.multiline ? 80 : undefined,
+        textAlignVertical: props.multiline ? 'top' : 'auto',
+      }}
+    />
   );
 }
 

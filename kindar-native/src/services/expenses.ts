@@ -97,6 +97,10 @@ export async function approveExpense(expenseId: string, userId: string, groupId:
   return result;
 }
 
+export async function deleteExpense(expenseId: string) {
+  return safeWrite({ table: 'expenses', operation: 'delete', payload: { id: expenseId } });
+}
+
 export async function rejectExpense(expenseId: string, userId: string, groupId: string, description?: string) {
   const result = await safeWrite({
     table: 'expenses',

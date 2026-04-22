@@ -1,5 +1,8 @@
+/* eslint-disable jsx-a11y/alt-text */
 import { useState, useCallback, useMemo } from 'react';
-import { View, Text, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert, Modal, Image, Pressable } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../src/store/auth';
@@ -7,6 +10,7 @@ import {
   fetchExpenses,
   approveExpense,
   rejectExpense,
+  deleteExpense,
   fetchFinancialSummary,
   type Expense,
 } from '../../src/services/expenses';
@@ -27,12 +31,14 @@ function formatBRL(v: number): string {
 }
 
 export default function DespesasScreen() {
+  const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
   const [expenses, setExpenses] = useState<Expense[]>([]);
   const [balance, setBalance] = useState<{ myTotal: number; otherTotal: number; balance: number; totalMonth: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [responding, setResponding] = useState<string | null>(null);
+  const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!activeGroup || !userId) return;
@@ -93,13 +99,47 @@ export default function DespesasScreen() {
     setResponding(null);
   }
 
+  function confirmDelete(expense: Expense) {
+    Alert.alert(
+      'Remover despesa',
+      `Remover "${expense.description}"? Essa acao nao pode ser desfeita.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover', style: 'destructive',
+          onPress: async () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            const res = await deleteExpense(expense.id);
+            if (res.success) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await load();
+            } else {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              Alert.alert('Erro', res.error || 'Falha');
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  function handleItemPress(expense: Expense) {
+    if (expense.receipt_url) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setViewingReceipt(expense.receipt_url);
+    }
+  }
+
   const renderItem = ({ item, section }: { item: Expense; section: { title: string } }) => {
     const cat = EXPENSE_CATEGORIES.find(c => c.value === item.category);
     const status = STATUS_COLORS[item.status] || STATUS_COLORS.pending;
     const isActionable = section.title.startsWith('Aguardando');
+    const canDelete = item.paid_by === userId && item.status === 'pending';
     return (
       <TouchableOpacity
         activeOpacity={0.9}
+        onPress={() => handleItemPress(item)}
+        onLongPress={canDelete ? () => confirmDelete(item) : undefined}
         style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.lg,
           padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
@@ -110,9 +150,14 @@ export default function DespesasScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <Text style={{ fontSize: 22 }}>{cat?.icon || '📦'}</Text>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
-              {item.description}
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text, flex: 1 }}>
+                {item.description}
+              </Text>
+              {item.receipt_url ? (
+                <Ionicons name="receipt-outline" size={14} color={colors.textSecondary} />
+              ) : null}
+            </View>
             <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
               {item.paidByName} · {item.expense_date?.split('-').reverse().join('/')}
               {item.childName ? ` · ${item.childName}` : ''}
@@ -239,6 +284,24 @@ export default function DespesasScreen() {
         />
       )}
       <FAB onPress={() => router.push('/despesas/nova')} />
+
+      {/* Receipt viewer modal */}
+      <Modal visible={!!viewingReceipt} transparent animationType="fade" onRequestClose={() => setViewingReceipt(null)}>
+        <Pressable
+          onPress={() => setViewingReceipt(null)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center' }}
+        >
+          {viewingReceipt ? (
+            <Image source={{ uri: viewingReceipt }} style={{ width: '96%', height: '80%' }} resizeMode="contain" />
+          ) : null}
+          <TouchableOpacity
+            onPress={() => setViewingReceipt(null)}
+            style={{ position: 'absolute', top: insets.top + 12, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ionicons name="close" size={22} color="#fff" />
+          </TouchableOpacity>
+        </Pressable>
+      </Modal>
     </View>
   );
 }

@@ -1,6 +1,7 @@
 /**
  * Activities Service — All writes use safeWrite for offline support.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { supabase } from '../lib/supabase';
 import { safeWrite } from './offline';
@@ -20,6 +21,19 @@ export async function fetchActivities(groupId: string): Promise<Activity[]> {
     .select('id, name, category, child_id, recurrence_type, start_date, end_date, days_of_week, time_start, time_end, location, notes, is_active, teacher_name, class_name, responsible_id, children(full_name)')
     .eq('group_id', groupId).eq('is_active', true).order('name');
   return (data || []).map((a: any) => ({ ...a, childName: a.children?.full_name?.split(' ')[0] || 'Todos' }));
+}
+
+export async function updateActivity(activityId: string, updates: {
+  name?: string; category?: string; location?: string | null; notes?: string | null;
+  time_start?: string | null; time_end?: string | null; days_of_week?: string | null;
+  recurrence_type?: string;
+}) {
+  return safeWrite({ table: 'child_activities', operation: 'update', payload: { id: activityId, ...updates } });
+}
+
+export async function deleteActivity(activityId: string) {
+  // PWA soft-deletes via is_active=false to preserve history. Match that behavior.
+  return safeWrite({ table: 'child_activities', operation: 'update', payload: { id: activityId, is_active: false } });
 }
 
 export async function createActivity(params: {
