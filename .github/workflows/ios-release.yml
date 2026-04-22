@@ -21,8 +21,11 @@ on:
         type: choice
         options: ['audit', 'metadata', 'build', 'submit', 'fullrelease']
 
+# Serialize ALL iOS release runs (not per-ref) — concurrent runs race on EAS
+# autoIncrement and produce "You've already submitted this build" errors at
+# submit time. Queue them strictly to avoid duplicate uploads.
 concurrency:
-  group: ios-release-${{ github.ref }}
+  group: ios-release-all
   cancel-in-progress: false
 
 jobs:
