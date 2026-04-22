@@ -13,11 +13,44 @@ import { ACTIVITY_CATEGORIES } from '../../src/lib/constants';
 
 const GREETING_MAP = { morning: 'Bom dia', afternoon: 'Boa tarde', evening: 'Boa noite' };
 
+// Mirror of PWA decisionCatIcons / decisionCatColors — keep in sync.
+const DECISION_CAT_ICONS: Record<string, string> = {
+  escola: '🎒', saude: '🏥', atividade: '⚽',
+  viagem: '✈️', financeiro: '💰', moradia: '🏠', outro: '📋',
+};
+const DECISION_CAT_COLORS: Record<string, string> = {
+  escola: '#3B82F6', saude: '#EF4444', atividade: '#22C55E',
+  viagem: '#8B5CF6', financeiro: '#F59E0B', moradia: '#5B9E85', outro: '#6B7280',
+};
+
+const MONTHS_PT_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+function formatDatePt(isoDate: string): string {
+  // input: YYYY-MM-DD
+  const [, m, d] = isoDate.split('-').map(Number);
+  return `${d} de ${MONTHS_PT_SHORT[(m || 1) - 1]}`;
+}
+
+function formatBRL(v: number): string {
+  return `R$ ${v.toFixed(2).replace('.', ',')}`;
+}
+
+function formatDeadline(deadline: string | null): { label: string; urgent: boolean } | null {
+  if (!deadline) return null;
+  const now = Date.now();
+  const d = new Date(deadline + 'T23:59:59').getTime();
+  const daysUntil = Math.ceil((d - now) / 86400000);
+  if (daysUntil < 0) return { label: 'Prazo expirado', urgent: true };
+  if (daysUntil === 0) return { label: 'Hoje', urgent: true };
+  if (daysUntil <= 3) return { label: `Em ${daysUntil} dia${daysUntil > 1 ? 's' : ''}`, urgent: true };
+  return { label: formatDatePt(deadline), urgent: false };
+}
+
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup } = useAuth();
   const { data, loading, refresh } = useDashboard();
-  const { t } = useI18n();
+  useI18n(); // still initialize i18n context; t() used in future iterations
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -113,43 +146,175 @@ export default function DashboardScreen() {
         </Animated.View>
       ) : null}
 
-      {/* Pending Alerts — matches PWA priority section */}
-      {((data?.pendingSwaps || 0) > 0 || (data?.pendingExpenses || 0) > 0 || (data?.pendingDecisions || 0) > 0) ? (
-        <Animated.View entering={FadeInDown.delay(150).duration(400)}>
+      {/* Critical child alert — shown above pending when any child in treatment */}
+      {data?.hasAnyCriticalChild ? (
+        <Animated.View entering={FadeInDown.delay(120).duration(400)}>
+          <TouchableOpacity
+            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(tabs)/saude'); }}
+            activeOpacity={0.8}
+            style={{
+              backgroundColor: `${colors.error}12`, borderRadius: radius.xl,
+              borderWidth: 1, borderColor: `${colors.error}30`,
+              padding: spacing.lg, marginBottom: spacing.lg,
+              flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+            }}
+          >
+            <Text style={{ fontSize: 22 }}>🚨</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.error }}>
+                Atencao em saude
+              </Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.text, marginTop: 2 }}>
+                {data.childHealthSummaries.filter(s => s.status === 'treatment').length} crianca(s) em tratamento
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={16} color={colors.error} />
+          </TouchableOpacity>
+        </Animated.View>
+      ) : null}
+
+      {/* Pending Swaps — detailed cards */}
+      {(data?.pendingSwapsList.length || 0) > 0 ? (
+        <Animated.View entering={FadeInDown.delay(140).duration(400)}>
           <View style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
             marginBottom: spacing.lg, ...shadows.sm,
           }}>
-            <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md }}>
-              Pendencias
-            </Text>
-            {(data?.pendingSwaps || 0) > 0 ? (
-              <TouchableOpacity onPress={() => router.push('/(tabs)/calendario')} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm }}>
-                <Text style={{ fontSize: 16 }}>🔄</Text>
-                <Text style={{ fontSize: font.sizes.sm, color: colors.secondary, flex: 1 }}>
-                  {data!.pendingSwaps} troca{data!.pendingSwaps > 1 ? 's' : ''} pendente{data!.pendingSwaps > 1 ? 's' : ''}
-                </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+              <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
+                🔄 Trocas de guarda
+              </Text>
+              <TouchableOpacity onPress={() => router.push('/(tabs)/calendario')}>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>Ver todas</Text>
+              </TouchableOpacity>
+            </View>
+            {data!.pendingSwapsList.map((s, i) => {
+              const orig = formatDatePt(s.originalDate);
+              const prop = s.proposedDate ? formatDatePt(s.proposedDate) : null;
+              return (
+                <TouchableOpacity
+                  key={s.id}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/(tabs)/calendario'); }}
+                  activeOpacity={0.7}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                    paddingVertical: spacing.sm,
+                    borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                  }}
+                >
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.secondary}20`, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 14 }}>🔄</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text }} numberOfLines={1}>
+                      {s.requesterName} quer trocar {orig}
+                      {prop ? ` por ${prop}` : ''}
+                    </Text>
+                    {s.reason ? (
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                        {s.reason}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Animated.View>
+      ) : null}
+
+      {/* Pending Decisions — with category + deadline urgency */}
+      {(data?.pendingDecisionsList.length || 0) > 0 ? (
+        <Animated.View entering={FadeInDown.delay(160).duration(400)}>
+          <View style={{
+            backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
+            marginBottom: spacing.lg, ...shadows.sm,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+              <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
+                🗳️ Decisoes pra votar
+              </Text>
+              <TouchableOpacity onPress={() => router.push('/decisoes')}>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>Ver todas</Text>
+              </TouchableOpacity>
+            </View>
+            {data!.pendingDecisionsList.slice(0, 3).map((d, i) => {
+              const icon = DECISION_CAT_ICONS[d.category] || '📋';
+              const color = DECISION_CAT_COLORS[d.category] || colors.brand;
+              const deadlineInfo = formatDeadline(d.deadline);
+              return (
+                <TouchableOpacity
+                  key={d.id}
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/decisoes'); }}
+                  activeOpacity={0.7}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                    paddingVertical: spacing.sm,
+                    borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                  }}
+                >
+                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${color}20`, alignItems: 'center', justifyContent: 'center' }}>
+                    <Text style={{ fontSize: 14 }}>{icon}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text }} numberOfLines={1}>
+                      {d.title}
+                    </Text>
+                    {deadlineInfo ? (
+                      <Text style={{ fontSize: font.sizes.xs, color: deadlineInfo.urgent ? colors.error : colors.textSecondary, marginTop: 2 }}>
+                        {deadlineInfo.label}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </Animated.View>
+      ) : null}
+
+      {/* Pending Expenses — with amount and who paid */}
+      {(data?.pendingExpensesList.length || 0) > 0 ? (
+        <Animated.View entering={FadeInDown.delay(180).duration(400)}>
+          <View style={{
+            backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
+            marginBottom: spacing.lg, ...shadows.sm,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+              <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
+                🧾 Despesas pra aprovar
+              </Text>
+              <TouchableOpacity onPress={() => router.push('/despesas')}>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>Ver todas</Text>
+              </TouchableOpacity>
+            </View>
+            {data!.pendingExpensesList.slice(0, 3).map((e, i) => (
+              <TouchableOpacity
+                key={e.id}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                  paddingVertical: spacing.sm,
+                  borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                }}
+              >
+                <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.accent}20`, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 14 }}>💳</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text }} numberOfLines={1}>
+                    {e.description}
+                  </Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                    {e.paidByName} · {formatBRL(e.amount)}
+                  </Text>
+                </View>
                 <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
               </TouchableOpacity>
-            ) : null}
-            {(data?.pendingExpenses || 0) > 0 ? (
-              <TouchableOpacity onPress={() => router.push('/despesas')} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, borderTopWidth: 0.5, borderTopColor: colors.borderLight }}>
-                <Text style={{ fontSize: 16 }}>🧾</Text>
-                <Text style={{ fontSize: font.sizes.sm, color: colors.accent, flex: 1 }}>
-                  {data!.pendingExpenses} despesa{data!.pendingExpenses > 1 ? 's' : ''} para aprovar
-                </Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
-              </TouchableOpacity>
-            ) : null}
-            {(data?.pendingDecisions || 0) > 0 ? (
-              <TouchableOpacity onPress={() => router.push('/decisoes')} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: spacing.sm, borderTopWidth: 0.5, borderTopColor: colors.borderLight }}>
-                <Text style={{ fontSize: 16 }}>🗳️</Text>
-                <Text style={{ fontSize: font.sizes.sm, color: colors.info, flex: 1 }}>
-                  {data!.pendingDecisions} decisao(oes) pendente(s)
-                </Text>
-                <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
-              </TouchableOpacity>
-            ) : null}
+            ))}
           </View>
         </Animated.View>
       ) : null}
@@ -305,7 +470,7 @@ export default function DashboardScreen() {
               key={action.label}
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(action.route as any);
+                router.push(action.route as Parameters<typeof router.push>[0]);
               }}
               activeOpacity={0.7}
               style={{

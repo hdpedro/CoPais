@@ -1,7 +1,13 @@
 /**
  * useDashboard — Fetches all dashboard data from Supabase.
  * Mirrors the web dashboard page.tsx queries.
+ *
+ * Note: Supabase joined selects return nested shapes that don't round-trip
+ * cleanly through generated types without writing a dozen manual interfaces.
+ * Using `any` narrowly inside this file is deliberate — the output contract
+ * (DashboardData) is fully typed below and that's what callers see.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
@@ -40,6 +46,32 @@ interface ChildCard {
   age: number;
 }
 
+export interface PendingSwap {
+  id: string;
+  requesterName: string;
+  originalDate: string;
+  proposedDate: string | null;
+  reason: string | null;
+  type: string;
+  createdAt: string;
+}
+
+export interface PendingDecision {
+  id: string;
+  title: string;
+  category: string;
+  deadline: string | null;
+}
+
+export interface PendingExpense {
+  id: string;
+  description: string;
+  amount: number;
+  category: string;
+  expenseDate: string;
+  paidByName: string;
+}
+
 interface DashboardData {
   // Greeting
   greeting: 'morning' | 'afternoon' | 'evening';
@@ -60,18 +92,28 @@ interface DashboardData {
   // Members with colors
   members: Array<{ user_id: string; name: string; color: string }>;
 
-  // Quick stats
+  // Group metadata
+  groupName: string;
+  memberCount: number;
+
+  // Quick stats (counts)
   unreadNotifications: number;
   pendingExpenses: number;
   pendingDecisions: number;
   balance: number;
   pendingSwaps: number;
 
+  // Detailed pending lists (actionable cards)
+  pendingSwapsList: PendingSwap[];
+  pendingDecisionsList: PendingDecision[];
+  pendingExpensesList: PendingExpense[];
+
   // Children cards
   childCards: ChildCard[];
 
   // Health summaries
   childHealthSummaries: ChildHealthSummary[];
+  hasAnyCriticalChild: boolean;
 }
 
 function formatDate(): string {
@@ -163,12 +205,15 @@ export function useDashboard() {
           .eq('user_id', userId)
           .eq('is_read', false)
           .then(r => r, () => ({ data: null, count: 0 } as never)),
+        // Pending expenses awaiting my approval (details for actionable card)
         supabase.from('expenses')
-          .select('id', { count: 'exact', head: true })
+          .select('id, description, amount, category, expense_date, paid_by, profiles!expenses_paid_by_fkey(full_name)')
           .eq('group_id', groupId)
           .eq('status', 'pending')
           .neq('paid_by', userId)
-          .then(r => r, () => ({ data: null, count: 0 } as never)),
+          .order('created_at', { ascending: false })
+          .limit(5)
+          .then(r => r, () => ({ data: [] as never[] })),
         // Active illnesses for health summary
         supabase.from('illness_episodes')
           .select('id, title, status, child_id, children(full_name)')
@@ -183,12 +228,14 @@ export function useDashboard() {
           .eq('status', 'active')
           .limit(10)
           .then(r => r, () => ({ data: [] as never[] })),
-        // Open decisions count
+        // Open decisions with details (for actionable card)
         supabase.from('decisions')
-          .select('id', { count: 'exact', head: true })
+          .select('id, title, category, deadline, status')
           .eq('group_id', groupId)
-          .eq('status', 'open')
-          .then(r => r, () => ({ data: null, count: 0 } as never)),
+          .eq('status', 'aberta')
+          .order('created_at', { ascending: false })
+          .limit(10)
+          .then(r => r, () => ({ data: [] as never[] })),
         // Approved expenses for balance calculation
         supabase.from('expenses')
           .select('amount, paid_by')
@@ -196,15 +243,17 @@ export function useDashboard() {
           .eq('status', 'approved')
           .limit(10000)
           .then(r => r, () => ({ data: [] as never[] })),
-        // Pending swap requests
+        // Pending swap requests (details for actionable card)
         activeGroup.custodyEnabled
           ? supabase.from('swap_requests')
-              .select('id', { count: 'exact', head: true })
+              .select('id, original_date, proposed_date, reason, type, created_at, requester_id, profiles!swap_requests_requester_id_fkey(full_name)')
               .eq('group_id', groupId)
               .eq('status', 'pending')
               .eq('target_user_id', userId)
-              .then(r => r, () => ({ data: null, count: 0 } as never))
-          : Promise.resolve({ data: null, count: 0 } as never),
+              .order('created_at', { ascending: false })
+              .limit(3)
+              .then(r => r, () => ({ data: [] as never[] }))
+          : Promise.resolve({ data: [] as never[] }),
       ]);
 
       // Build member color map
@@ -274,6 +323,49 @@ export function useDashboard() {
         else otherTotal += e.amount;
       });
 
+      // Build actionable pending lists
+      const pendingSwapsList: PendingSwap[] = (pendingSwapsData || []).map((s: any) => ({
+        id: s.id,
+        requesterName: getDisplayName(s.profiles?.full_name) || 'Co-responsavel',
+        originalDate: s.original_date,
+        proposedDate: s.proposed_date,
+        reason: s.reason,
+        type: s.type || 'swap',
+        createdAt: s.created_at,
+      }));
+
+      // Decisions — filter out those the user already voted on
+      const openDecisionList = (openDecisions || []) as any[];
+      const openDecisionIds = openDecisionList.map((d: any) => d.id);
+      let votedIds = new Set<string>();
+      if (openDecisionIds.length > 0) {
+        const { data: votes } = await supabase
+          .from('decision_votes')
+          .select('decision_id')
+          .eq('user_id', userId)
+          .in('decision_id', openDecisionIds);
+        votedIds = new Set((votes || []).map((v: any) => v.decision_id));
+      }
+      const pendingDecisionsList: PendingDecision[] = openDecisionList
+        .filter((d: any) => !votedIds.has(d.id))
+        .map((d: any) => ({
+          id: d.id,
+          title: d.title,
+          category: d.category,
+          deadline: d.deadline,
+        }));
+
+      const pendingExpensesList: PendingExpense[] = (pendingExp || []).map((e: any) => ({
+        id: e.id,
+        description: e.description,
+        amount: Number(e.amount) || 0,
+        category: e.category,
+        expenseDate: e.expense_date,
+        paidByName: getDisplayName(e.profiles?.full_name) || 'Co-responsavel',
+      }));
+
+      const hasAnyCriticalChild = childHealthSummaries.some(s => s.status === 'treatment');
+
       const dashData: DashboardData = {
         greeting: getGreeting(),
         firstName: getDisplayName(profile?.full_name),
@@ -284,18 +376,24 @@ export function useDashboard() {
         todayActivities: mapOccurrences(todayOccurrences || []),
         tomorrowActivities: mapOccurrences(tomorrowOccurrences || []),
         members: memberList,
+        groupName: activeGroup.groupName || 'Familia',
+        memberCount: memberList.length,
         unreadNotifications: (notifications as any)?.count || 0,
-        pendingExpenses: (pendingExp as any)?.count || 0,
-        pendingDecisions: (openDecisions as any)?.count || 0,
+        pendingExpenses: pendingExpensesList.length,
+        pendingDecisions: pendingDecisionsList.length,
         balance: (myTotal - otherTotal) / 2,
-        pendingSwaps: (pendingSwapsData as any)?.count || 0,
+        pendingSwaps: pendingSwapsList.length,
+        pendingSwapsList,
+        pendingDecisionsList,
+        pendingExpensesList,
         childCards,
         childHealthSummaries,
+        hasAnyCriticalChild,
       };
       setData(dashData);
       cacheSet(cacheKey, dashData);
       setError(null);
-    } catch (e) {
+    } catch {
       setError('Erro ao carregar dados');
     } finally {
       setLoading(false);
