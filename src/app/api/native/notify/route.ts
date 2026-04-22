@@ -36,7 +36,9 @@ type ActionType =
   | "decision_closed"
   | "invitation_sent"
   | "invitation_cancelled"
-  | "invitation_accepted";
+  | "invitation_accepted"
+  | "agreement_accepted"
+  | "agreement_revoked";
 
 interface NotifyRequest {
   action: ActionType;
@@ -204,6 +206,21 @@ const ACTION_CONFIGS: Record<ActionType, {
     chatMessageFn: (name) => `👋 ${name} entrou no grupo`,
     link: "/familia",
     analyticsEvent: "invitation_accepted",
+  },
+  agreement_accepted: {
+    notificationType: "system",
+    titleFn: () => "Acordo aceito",
+    messageFn: (name, d) => `${name} aceitou o acordo: ${d.title}`,
+    chatMessageFn: (name, d) => `🤝 ${name} aceitou o acordo: ${d.title}`,
+    link: "/acordos",
+    analyticsEvent: "agreement_accepted",
+  },
+  agreement_revoked: {
+    notificationType: "system",
+    titleFn: () => "Acordo removido",
+    messageFn: (name) => `${name} removeu um acordo`,
+    link: "/acordos",
+    analyticsEvent: "agreement_revoked",
   },
 };
 

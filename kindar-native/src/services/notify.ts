@@ -30,7 +30,9 @@ type NotifyAction =
   | 'decision_closed'
   | 'invitation_sent'
   | 'invitation_cancelled'
-  | 'invitation_accepted';
+  | 'invitation_accepted'
+  | 'agreement_accepted'
+  | 'agreement_revoked';
 
 /**
  * Fire-and-forget notification to PWA backend.
