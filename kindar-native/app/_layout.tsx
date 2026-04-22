@@ -1,19 +1,47 @@
 import { useEffect } from 'react';
-import { Stack } from 'expo-router';
+import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, Text } from 'react-native';
+import { View, ActivityIndicator, Text, Linking } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useAuth } from '../src/store/auth';
 import { setupOffline } from '../src/services/offline';
+import {
+  setupNotificationHandler,
+  registerForPushNotificationsAsync,
+  addNotificationResponseListener,
+} from '../src/services/push-setup';
 import { colors } from '../src/design-system/tokens';
 
 export default function RootLayout() {
-  const { isLoading, initialize } = useAuth();
+  const { isLoading, initialize, userId } = useAuth();
 
+  // One-time setup: offline sync + notification handler
   useEffect(() => {
     initialize();
     const cleanup = setupOffline();
+    setupNotificationHandler();
     return cleanup;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Register for push after login
+  useEffect(() => {
+    if (!userId) return;
+    registerForPushNotificationsAsync().catch(() => {});
+  }, [userId]);
+
+  // Navigate on notification tap
+  useEffect(() => {
+    const remove = addNotificationResponseListener(url => {
+      if (!url) return;
+      // Parse full URLs (kindar://...) via Linking, relative paths via router
+      if (url.startsWith('http') || url.startsWith('kindar://')) {
+        Linking.openURL(url).catch(() => {});
+      } else {
+        router.push(url as Parameters<typeof router.push>[0]);
+      }
+    });
+    return remove;
   }, []);
 
   if (isLoading) {
