@@ -58,7 +58,7 @@ export function useCalendar() {
         { data: socialEvents },
       ] = await Promise.all([
         supabase.from('group_members')
-          .select('user_id, profiles(full_name)')
+          .select('user_id, profiles(full_name, display_name, email)')
           .eq('group_id', groupId)
           .then(r => r, () => ({ data: [] as never[] })),
         activeGroup.custodyEnabled
@@ -88,12 +88,21 @@ export function useCalendar() {
           .then(r => r, () => ({ data: [] as never[] })),
       ]);
 
-      // Members
-      const memberList: MemberColor[] = (memberData || []).map((m: any, i: number) => ({
-        userId: m.user_id,
-        name: getDisplayName(m.profiles?.full_name),
-        color: i === 0 ? PARENT_COLORS.primary : PARENT_COLORS.secondary,
-      }));
+      // Members — display name cascade: display_name → full_name.first →
+      // email prefix. Never surface raw email (fixes screenshot complaint).
+      const memberList: MemberColor[] = (memberData || []).map((m: any, i: number) => {
+        const p = m.profiles || {};
+        const raw = p.display_name
+          || getDisplayName(p.full_name)
+          || (p.email ? p.email.split('@')[0].split('.')[0] : '')
+          || 'Parceiro';
+        const name = raw.charAt(0).toUpperCase() + raw.slice(1);
+        return {
+          userId: m.user_id,
+          name,
+          color: i === 0 ? PARENT_COLORS.primary : PARENT_COLORS.secondary,
+        };
+      });
       setMembers(memberList);
 
       const allEvents: CalendarEvent[] = [];
