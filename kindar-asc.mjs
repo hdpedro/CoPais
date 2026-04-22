@@ -345,11 +345,11 @@ async function configureAppInfo(appId) {
     violenceCartoonOrFantasy: "NONE",
     violenceRealistic: "NONE",
     violenceRealisticProlongedGraphicOrSadistic: "NONE",
-    healthOrWellnessTopics: "NONE",
     // Boolean: presence/behavior flags (confirmed via Apple 409 errors)
     advertising: false,               // no third-party ads
     messagingAndChat: true,           // chat between co-parents
     userGeneratedContent: true,       // notes + chat messages
+    healthOrWellnessTopics: true,     // health records (medications, allergies, vaccines)
     gambling: false,
     lootBox: false,
     unrestrictedWebAccess: false,
@@ -513,7 +513,8 @@ async function configurePricing(appId) {
 
   // The appPriceSchedule always exists (id == appId); what matters is whether
   // it has a published manualPrice. Apple validates "pricing has been set" by
-  // the presence of an appPrice row, not just a schedule shell.
+  // the presence of an appPrice row, not just a schedule shell. So even if the
+  // schedule exists, re-POST to guarantee at least one manualPrice is present.
 
   // 1. Find the FREE priceTier for USA base territory. Apple caps limit at 200.
   let freePointId = null;
@@ -538,9 +539,24 @@ async function configurePricing(appId) {
     return;
   }
 
-  // 2. POST /v1/appPriceSchedules with manualPrices nested in 'included'.
-  // Apple replaces the entire schedule every POST, so we need at least one
-  // manualPrice referencing the FREE price point for USA base territory.
+  // 2. Check what the current schedule actually contains.
+  //    /v1/appPriceSchedules/{id}/manualPrices tells us if a price is published.
+  //    If empty, submission will fail with 'pricing has not been set'.
+  let hasManualPrice = false;
+  try {
+    const current = await GET(`/appPriceSchedules/${appId}/manualPrices`, { "limit": 1 }).catch(() => null);
+    hasManualPrice = (current?.data?.length || 0) > 0;
+  } catch { /* will retry POST below */ }
+
+  if (hasManualPrice) {
+    ok("Preço Free ja publicado (manualPrice existe)");
+    return;
+  }
+
+  // 3. POST a replacement schedule with manualPrices inline. Apple's API
+  //    REPLACES the entire schedule on POST (there is no standalone PATCH
+  //    for manualPrices). The included appPrices use a placeholder id
+  //    ('new-price-1') that Apple resolves server-side.
   const priceId = `new-price-1`;
   try {
     const res = await POST(`/appPriceSchedules`, {
@@ -565,12 +581,7 @@ async function configurePricing(appId) {
     });
     ok(`Preço Free publicado (scheduleId=${res?.data?.id || "?"})`);
   } catch (e) {
-    const msg = e.message || "";
-    if (msg.includes("409") || msg.toLowerCase().includes("already")) {
-      ok("Preço já existe no schedule");
-      return;
-    }
-    warn(`appPriceSchedules POST: ${msg}`);
+    warn(`appPriceSchedules POST: ${e.message}`);
     warn("Ação manual: App Store Connect → Pricing and Availability → Free → Save");
   }
 }
