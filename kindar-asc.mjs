@@ -794,14 +794,20 @@ async function distributeBuildToTesters(appId, buildId) {
     warn(`Listando beta groups: ${e.message}`);
   }
 
-  // 2. Attach build to every group
+  // 2. Attach build to EXTERNAL groups only. Internal groups are auto-
+  // distributed by Apple to ASC team members; the API rejects manual
+  // attachment ("Cannot add internal group to a build.").
   let groupsAssigned = 0;
   for (const g of betaGroups) {
+    if (g.attributes?.isInternalGroup) {
+      info(`  Pulando grupo interno "${g.attributes?.name}" (auto-distribuido)`);
+      continue;
+    }
     try {
       await POST(`/betaGroups/${g.id}/relationships/builds`, {
         data: [{ type: "builds", id: buildId }],
       });
-      ok(`  Build → grupo "${g.attributes?.name}" ${g.attributes?.isInternalGroup ? "(interno)" : "(externo)"}`);
+      ok(`  Build → grupo "${g.attributes?.name}" (externo)`);
       groupsAssigned++;
     } catch (e) {
       const msg = e.message || "";
@@ -813,10 +819,12 @@ async function distributeBuildToTesters(appId, buildId) {
     }
   }
 
-  // 3. List all individual beta testers (not via group) and attach the build
+  // 3. List all individual beta testers via top-level endpoint with filter.
+  // The nested /apps/{id}/betaTesters only allows DELETE — GET returns 403.
   let individualTesters = [];
   try {
-    const resp = await GET(`/apps/${appId}/betaTesters`, {
+    const resp = await GET(`/betaTesters`, {
+      "filter[apps]": appId,
       "fields[betaTesters]": "email,firstName,lastName,state",
       "limit": 200,
     });
