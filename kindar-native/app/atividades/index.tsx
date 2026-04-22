@@ -1,7 +1,6 @@
 import { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../src/store/auth';
 import { fetchActivities, type Activity } from '../../src/services/activities';
 import { ACTIVITY_CATEGORIES } from '../../src/lib/constants';
@@ -54,7 +53,7 @@ export default function AtividadesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : <EmptyState icon="📋" title="Nenhuma atividade" subtitle="Crie atividades recorrentes para as criancas" />}
       />
-      <FAB onPress={() => {}} />
+      <FAB onPress={() => router.push('/atividades/nova')} />
     </View>
   );
 }
