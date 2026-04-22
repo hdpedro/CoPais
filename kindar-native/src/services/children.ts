@@ -14,8 +14,8 @@ export interface Child {
 
 export interface ChildEducation {
   school_name: string | null; school_address: string | null; school_phone: string | null;
-  grade: string | null; teacher_name: string | null; coordinator_name: string | null;
-  entry_time: string | null; exit_time: string | null; extracurriculars: string | null;
+  grade: string | null; class_name: string | null; teacher_name: string | null; coordinator_name: string | null;
+  entry_time: string | null; exit_time: string | null; extracurricular_activities: string[] | null;
 }
 
 export async function fetchChildren(groupId: string): Promise<Child[]> {
@@ -27,9 +27,35 @@ export async function fetchChildren(groupId: string): Promise<Child[]> {
 
 export async function fetchChildEducation(childId: string): Promise<ChildEducation | null> {
   const { data } = await supabase.from('child_education')
-    .select('school_name, school_address, school_phone, grade, teacher_name, coordinator_name, entry_time, exit_time, extracurriculars')
-    .eq('child_id', childId).single();
+    .select('school_name, school_address, school_phone, grade, class_name, teacher_name, coordinator_name, entry_time, exit_time, extracurricular_activities')
+    .eq('child_id', childId).maybeSingle();
   return data;
+}
+
+export async function upsertChildEducation(params: {
+  childId: string;
+  groupId: string;
+  school_name: string | null;
+  school_address: string | null;
+  school_phone: string | null;
+  grade: string | null;
+  class_name: string | null;
+  teacher_name: string | null;
+  coordinator_name: string | null;
+  entry_time: string | null;
+  exit_time: string | null;
+  extracurricular_activities: string[] | null;
+}): Promise<{ success: true } | { success: false; error: string }> {
+  const { childId, groupId, ...rest } = params;
+  const { data: existing } = await supabase.from('child_education').select('id').eq('child_id', childId).maybeSingle();
+  if (existing) {
+    const { error } = await supabase.from('child_education').update(rest).eq('id', existing.id);
+    if (error) return { success: false, error: error.message };
+  } else {
+    const { error } = await supabase.from('child_education').insert({ child_id: childId, group_id: groupId, ...rest });
+    if (error) return { success: false, error: error.message };
+  }
+  return { success: true };
 }
 
 export async function createChild(params: { groupId: string; fullName: string; birthDate: string; gender?: string; notes?: string }) {
