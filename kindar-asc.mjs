@@ -331,7 +331,9 @@ async function configureAppInfo(appId) {
   //   bool  → feature presence flag
   const ageRatingAttrs = {
     // Enum: NONE | INFREQUENT_OR_MILD | FREQUENT_OR_INTENSE
+    // (content severity scale for rating classification)
     alcoholTobaccoOrDrugUseOrReferences: "NONE",
+    contests: "NONE",
     gamblingSimulated: "NONE",
     gunsOrOtherWeapons: "NONE",
     horrorOrFearThemes: "NONE",
@@ -344,19 +346,15 @@ async function configureAppInfo(appId) {
     violenceRealistic: "NONE",
     violenceRealisticProlongedGraphicOrSadistic: "NONE",
     healthOrWellnessTopics: "NONE",
+    userGeneratedContent: "INFREQUENT_OR_MILD",  // chat/notes (reported via moderation)
 
-    // Boolean: presence/behavior flags
-    // Note: in Apple's 2024+ schema several previously-enum fields are
-    // booleans now (messagingAndChat, advertising, userGeneratedContent
-    // all returned "expected BOOLEAN" on PATCH with string values).
+    // Boolean: presence/behavior flags (confirmed via Apple 409 errors)
     advertising: false,               // no third-party ads
+    messagingAndChat: true,           // chat between co-parents
     gambling: false,
     lootBox: false,
     unrestrictedWebAccess: false,
-    contests: false,
     parentalControls: false,
-    messagingAndChat: true,           // chat entre parents
-    userGeneratedContent: true,       // notas e mensagens
 
     // Specific enum
     ageAssurance: "NOT_APPLICABLE",
@@ -540,53 +538,39 @@ async function configurePricing(appId) {
     return;
   }
 
-  // 2. POST /v2/appPriceSchedules with manualPrices nested.
-  // Apple retired standalone POST /appPrices — the only way to publish is
-  // a new schedule carrying the manualPrices array inline. A single entry
-  // pointing at the FREE price point is enough for a free app.
+  // 2. POST /v1/appPriceSchedules with manualPrices nested in 'included'.
+  // Apple replaces the entire schedule every POST, so we need at least one
+  // manualPrice referencing the FREE price point for USA base territory.
   const priceId = `new-price-1`;
   try {
-    const res = await fetch("https://api.appstoreconnect.apple.com/v2/appPriceSchedules", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token()}`,
-        "Content-Type": "application/json",
+    const res = await POST(`/appPriceSchedules`, {
+      data: {
+        type: "appPriceSchedules",
+        relationships: {
+          app: { data: { type: "apps", id: appId } },
+          baseTerritory: { data: { type: "territories", id: "USA" } },
+          manualPrices: { data: [{ type: "appPrices", id: priceId }] },
+        },
       },
-      body: JSON.stringify({
-        data: {
-          type: "appPriceSchedules",
+      included: [
+        {
+          type: "appPrices",
+          id: priceId,
+          attributes: { startDate: null },
           relationships: {
-            app: { data: { type: "apps", id: appId } },
-            baseTerritory: { data: { type: "territories", id: "USA" } },
-            manualPrices: { data: [{ type: "appPrices", id: priceId }] },
+            appPricePoint: { data: { type: "appPricePoints", id: freePointId } },
           },
         },
-        included: [
-          {
-            type: "appPrices",
-            id: priceId,
-            attributes: { startDate: null },
-            relationships: {
-              appPricePoint: { data: { type: "appPricePoints", id: freePointId } },
-            },
-          },
-        ],
-      }),
+      ],
     });
-    const text = await res.text();
-    if (res.ok) {
-      ok(`Preço Free publicado via v2 (pricePoint=${freePointId})`);
-    } else {
-      // 409/422 "already exists" is fine
-      if (res.status === 409 || text.includes("ENTITY_UNIQUE_CONSTRAINT") || text.toLowerCase().includes("already")) {
-        ok("Preço já configurado no schedule");
-        return;
-      }
-      warn(`/v2/appPriceSchedules POST → ${res.status}: ${text.slice(0, 400)}`);
-      warn("Ação manual: App Store Connect → Pricing and Availability → Free → Save");
-    }
+    ok(`Preço Free publicado (scheduleId=${res?.data?.id || "?"})`);
   } catch (e) {
-    warn(`appPriceSchedules v2 POST: ${e.message}`);
+    const msg = e.message || "";
+    if (msg.includes("409") || msg.toLowerCase().includes("already")) {
+      ok("Preço já existe no schedule");
+      return;
+    }
+    warn(`appPriceSchedules POST: ${msg}`);
     warn("Ação manual: App Store Connect → Pricing and Availability → Free → Save");
   }
 }
