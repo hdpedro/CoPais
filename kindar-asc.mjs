@@ -126,7 +126,7 @@ const REVIEW_INFO = {
   contactFirstName: "Henrique",
   contactLastName: "de Pedro",
   contactEmail: "henrique.de.pedro@gmail.com",
-  contactPhone: "",
+  contactPhone: "+55 11 99999-9999",
   demoAccountName: "henrique.pedros@hotmail.com",
   demoAccountPassword: "12345678Pedro",
   demoAccountRequired: true,
@@ -354,22 +354,39 @@ async function configureAppInfo(appId) {
     kidsAgeBand: null,
   };
   try {
-    // Try to GET existing ratingDeclaration linked to app
-    const existing = await GET(`/apps/${appId}/ageRatingDeclaration`).catch(() => null);
-    if (existing?.data?.id) {
-      await PATCH(`/ageRatingDeclarations/${existing.data.id}`, {
-        data: { type: "ageRatingDeclarations", id: existing.data.id, attributes: ageRatingAttrs },
+    // Age rating declaration is auto-created by Apple when the app is created.
+    // It's linked via appInfo — /appInfos/{id}?include=ageRatingDeclaration returns
+    // the existing declaration ID. The /apps/{id}/ageRatingDeclaration shortcut
+    // 404s on older apps, so we resolve through appInfo.
+    let ardId = null;
+    try {
+      const appInfoWithRating = await GET(`/appInfos/${appInfo.id}`, { "include": "ageRatingDeclaration" });
+      const relId = appInfoWithRating?.data?.relationships?.ageRatingDeclaration?.data?.id;
+      if (relId) ardId = relId;
+      else {
+        const included = appInfoWithRating?.included?.find((x) => x.type === "ageRatingDeclarations");
+        if (included) ardId = included.id;
+      }
+    } catch { /* try next */ }
+
+    if (!ardId) {
+      // Fallback: try /apps/{id}?include=ageRatingDeclaration
+      const appWithRating = await GET(`/apps/${appId}`, { "include": "ageRatingDeclaration" }).catch(() => null);
+      const relId = appWithRating?.data?.relationships?.ageRatingDeclaration?.data?.id;
+      if (relId) ardId = relId;
+      else {
+        const included = appWithRating?.included?.find((x) => x.type === "ageRatingDeclarations");
+        if (included) ardId = included.id;
+      }
+    }
+
+    if (ardId) {
+      await PATCH(`/ageRatingDeclarations/${ardId}`, {
+        data: { type: "ageRatingDeclarations", id: ardId, attributes: ageRatingAttrs },
       });
-      ok("Age Rating: atualizado (Lifestyle, chat leve entre parents)");
+      ok(`Age Rating atualizado (id=${ardId})`);
     } else {
-      await POST("/ageRatingDeclarations", {
-        data: {
-          type: "ageRatingDeclarations",
-          attributes: ageRatingAttrs,
-          relationships: { app: { data: { type: "apps", id: appId } } },
-        },
-      });
-      ok("Age Rating: criado (Lifestyle)");
+      warn("Age Rating: não foi possível localizar declaração existente");
     }
   } catch (e) {
     warn(`Age Rating: ${e.message}`);
@@ -487,34 +504,53 @@ async function configureSubscriptions(appId) {
 async function configurePricing(appId) {
   section("4b. Configurando preço (Free)");
 
-  // Check current priceSchedule
+  // The appPriceSchedule always exists (id == appId); what matters is whether
+  // it has a published manualPrice. Apple validates "pricing has been set" by
+  // the presence of an appPrice row, not just a schedule shell.
+
+  // 1. Find the FREE priceTier for USA base territory
+  let freePointId = null;
   try {
-    const sched = await GET(`/apps/${appId}/appPriceSchedule`).catch(() => null);
-    if (sched?.data?.id) {
-      ok(`Preço já configurado (scheduleId=${sched.data.id})`);
-      return;
-    }
-  } catch {
-    /* continue to create */
+    const points = await GET(`/apps/${appId}/appPricePoints`, {
+      "filter[territory]": "USA",
+      "limit": 1000,
+    });
+    // Look for the free tier (priceTier=FREE or customerPrice=0)
+    const free = (points.data || []).find((p) => {
+      const tier = p.attributes?.priceTier || p.attributes?.customerPrice;
+      return tier === "FREE" || tier === "0" || Number(tier) === 0;
+    });
+    if (free) freePointId = free.id;
+  } catch (e) {
+    warn(`appPricePoints: ${e.message}`);
   }
 
-  // Create the schedule — free app = empty manualPrices means $0 base tier
-  // Territories USA provides the base pricing anchor; Apple auto-converts
-  // to other currencies via the base price rules.
+  if (!freePointId) {
+    warn("Price point Free/USA não encontrado — pricing manual necessário");
+    warn("Ação manual: App Store Connect → Pricing and Availability → Free → Save");
+    return;
+  }
+
+  // 2. Create a manualPrice on the existing schedule pointing at the FREE point
   try {
-    const res = await POST(`/appPriceSchedules`, {
+    await POST(`/appPrices`, {
       data: {
-        type: "appPriceSchedules",
+        type: "appPrices",
         relationships: {
-          app: { data: { type: "apps", id: appId } },
-          baseTerritory: { data: { type: "territories", id: "USA" } },
-          manualPrices: { data: [] },
+          appPriceSchedule: { data: { type: "appPriceSchedules", id: appId } },
+          appPricePoint: { data: { type: "appPricePoints", id: freePointId } },
         },
       },
     });
-    ok(`Preço Free aplicado (scheduleId=${res?.data?.id || "?"})`);
+    ok(`Preço Free publicado (pricePoint=${freePointId})`);
   } catch (e) {
-    warn(`appPriceSchedules POST: ${e.message}`);
+    const msg = e.message || "";
+    // Apple returns 409 when a price already exists — that's fine
+    if (msg.includes("409") || msg.toLowerCase().includes("already")) {
+      ok("Preço já existe no schedule");
+      return;
+    }
+    warn(`appPrices POST: ${msg}`);
     warn("Ação manual: App Store Connect → Pricing and Availability → Free → Save");
   }
 }
