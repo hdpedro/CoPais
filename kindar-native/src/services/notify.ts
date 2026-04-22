@@ -24,7 +24,10 @@ type NotifyAction =
   | 'document_uploaded'
   | 'swap_request_created'
   | 'swap_approved'
-  | 'swap_rejected';
+  | 'swap_rejected'
+  | 'decision_voted'
+  | 'decision_argument_posted'
+  | 'decision_closed';
 
 /**
  * Fire-and-forget notification to PWA backend.

@@ -30,7 +30,10 @@ type ActionType =
   | "document_uploaded"
   | "swap_request_created"
   | "swap_approved"
-  | "swap_rejected";
+  | "swap_rejected"
+  | "decision_voted"
+  | "decision_argument_posted"
+  | "decision_closed";
 
 interface NotifyRequest {
   action: ActionType;
@@ -146,6 +149,35 @@ const ACTION_CONFIGS: Record<ActionType, {
     chatMessageFn: (name) => `❌ ${name} rejeitou a troca`,
     link: "/calendario",
     analyticsEvent: "swap_rejected",
+  },
+  decision_voted: {
+    notificationType: "system",
+    titleFn: () => "Voto registrado",
+    messageFn: (name, d) => {
+      const choiceMap: Record<string, string> = { sim: "a favor", nao: "contra", abster: "abstencao" };
+      return `${name} votou ${choiceMap[String(d.choice)] || d.choice} em: ${d.decisionTitle}`;
+    },
+    link: "/decisoes",
+    analyticsEvent: "decision_voted",
+  },
+  decision_argument_posted: {
+    notificationType: "system",
+    titleFn: () => "Novo argumento",
+    messageFn: (name, d) => `${name} argumentou em: ${d.decisionTitle}`,
+    chatMessageFn: (name, d) => `💬 ${name} argumentou (${d.stance}) em: ${d.decisionTitle}`,
+    link: "/decisoes",
+    analyticsEvent: "decision_argument_posted",
+  },
+  decision_closed: {
+    notificationType: "system",
+    titleFn: () => "Decisao encerrada",
+    messageFn: (name, d) => {
+      const statusMap: Record<string, string> = { aprovada: "aprovada", rejeitada: "rejeitada", expirada: "expirada" };
+      return `${d.title} foi ${statusMap[String(d.finalStatus)] || "encerrada"}`;
+    },
+    chatMessageFn: (name, d) => `🗳️ Decisao encerrada: ${d.title} (${d.finalStatus})`,
+    link: "/decisoes",
+    analyticsEvent: "decision_closed",
   },
 };
 
