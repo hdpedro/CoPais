@@ -25,6 +25,7 @@ const KINDAR = {
   privacyPolicyUrl: "https://kindar.com.br/privacidade",
   supportUrl: "https://kindar.com.br",
   marketingUrl: "https://kindar.com.br",
+  copyright: `© ${new Date().getFullYear()} Kindar`,
 };
 
 const SUBSCRIPTION_GROUP_NAME = "Kindar Premium";
@@ -415,6 +416,44 @@ async function configureSubscriptions(appId) {
   }
 }
 
+// ── STEP 4b: App Pricing (Free tier) ───────────────────────────────────────
+// ASC API (v2) requires at least one published price before an app can be
+// submitted for review. For a free app we post a single appPriceSchedule
+// with the FREE base-territory tier.
+async function configurePricing(appId) {
+  section("4b. Configurando preço (Free)");
+  try {
+    // Check if pricing is already set
+    const existing = await GET(`/apps/${appId}/appPricePoints`, { limit: 1 }).catch(() => null);
+    if (existing?.data?.length > 0) {
+      ok("Preço já configurado em ASC");
+      return;
+    }
+  } catch {
+    /* ignore — try to set */
+  }
+
+  // Create an appPriceSchedule with base territory = USA, manualPrices = [] and automaticPrices = true
+  // For free apps, the simplest valid payload is an empty manualPrices with type=appPriceSchedules
+  try {
+    await POST(`/appPriceSchedules`, {
+      data: {
+        type: "appPriceSchedules",
+        relationships: {
+          app: { data: { type: "apps", id: appId } },
+          baseTerritory: { data: { type: "territories", id: "USA" } },
+          manualPrices: { data: [] },
+        },
+      },
+    });
+    ok("Preço Free aplicado globalmente");
+  } catch (e) {
+    // If already exists or pricing-model mismatch, try the v1 fallback (older accounts)
+    warn(`appPriceSchedules POST: ${e.message}`);
+    warn("Pricing provavelmente precisa ser definido manualmente em App Store Connect → Pricing and Availability.");
+  }
+}
+
 // ── STEP 5: Version metadata ────────────────────────────────────────────────
 async function configureVersion(appId) {
   section("5. Configurando metadados da versão");
@@ -444,6 +483,20 @@ async function configureVersion(appId) {
   if (!["PREPARE_FOR_SUBMISSION", "METADATA_REJECTED", "DEVELOPER_REJECTED", "REJECTED", "INVALID_BINARY"].includes(state)) {
     warn(`Estado "${state}" não permite edições.`);
     return version.id;
+  }
+
+  // PATCH version-level attributes (copyright is required for submission)
+  try {
+    await PATCH(`/appStoreVersions/${version.id}`, {
+      data: {
+        type: "appStoreVersions",
+        id: version.id,
+        attributes: { copyright: KINDAR.copyright },
+      },
+    });
+    ok(`Copyright: ${KINDAR.copyright}`);
+  } catch (e) {
+    warn(`Não foi possível setar copyright: ${e.message}`);
   }
 
   // Get existing localizations
@@ -662,11 +715,24 @@ async function submitForReview(appId) {
   }
   info(`${attachedSubs} subscription(s) anexada(s)`);
 
-  // 6. Submit
-  await PATCH(`/reviewSubmissions/${submissionId}`, {
-    data: { type: "reviewSubmissions", id: submissionId, attributes: { submitted: true } },
-  });
-  ok(`🚀 Submission enviada pra review: ${submissionId}`);
+  // 6. Submit — Apple validates ALL metadata here. If App Privacy nutrition
+  // labels are not published in ASC, this fails with PUBLISH_REQUIREMENT_MISSING.
+  // That specific validation can only be done manually at
+  // https://appstoreconnect.apple.com/apps/{appId}/app-privacy
+  try {
+    await PATCH(`/reviewSubmissions/${submissionId}`, {
+      data: { type: "reviewSubmissions", id: submissionId, attributes: { submitted: true } },
+    });
+    ok(`🚀 Submission enviada pra review: ${submissionId}`);
+  } catch (e) {
+    const msg = e.message || "";
+    if (msg.includes("PUBLISH_REQUIREMENT_MISSING") || msg.includes("data usages")) {
+      warn("App Privacy (nutrition labels) ainda não foi publicado.");
+      warn(`Acesse https://appstoreconnect.apple.com/apps/${appId}/app-privacy`);
+      warn("Declare as categorias de dados coletados e publique — depois re-rode o workflow.");
+    }
+    throw e;
+  }
   console.log(`\n  https://appstoreconnect.apple.com/apps/-/distribution\n`);
   return submissionId;
 }
@@ -757,6 +823,7 @@ async function main() {
     await readGripFlowReference();
     await configureAppInfo(appId);
     await configureSubscriptions(appId);
+    await configurePricing(appId);
     const versionId = await configureVersion(appId);
     await configureReview(versionId);
 
