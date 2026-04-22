@@ -1,6 +1,7 @@
 /**
  * Events Service — All writes use safeWrite.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { supabase } from '../lib/supabase';
 import { safeWrite } from './offline';
@@ -20,15 +21,33 @@ export async function fetchEvents(groupId: string): Promise<SocialEvent[]> {
 }
 
 export async function createEvent(params: {
-  groupId: string; title: string; description?: string; eventDate: string;
-  location?: string; allDay?: boolean; createdBy: string;
+  groupId: string;
+  title: string;
+  description?: string;
+  notes?: string;
+  eventDate: string;
+  endDate?: string;
+  eventTime?: string;
+  location?: string;
+  allDay?: boolean;
+  childId?: string;
+  createdBy: string;
 }) {
+  const allDay = params.allDay ?? !params.eventTime;
+  const eventTime = params.eventTime ? (params.eventTime.length === 5 ? `${params.eventTime}:00` : params.eventTime) : null;
+
   const result = await safeWrite({
     table: 'events', operation: 'insert',
     payload: {
-      group_id: params.groupId, title: params.title.trim(),
-      description: params.description?.trim() || null, event_date: params.eventDate,
-      location: params.location?.trim() || null, all_day: params.allDay ?? true,
+      group_id: params.groupId,
+      title: params.title.trim(),
+      description: params.description?.trim() || params.notes?.trim() || null,
+      event_date: params.eventDate,
+      end_date: params.endDate || null,
+      event_time: eventTime,
+      location: params.location?.trim() || null,
+      all_day: allDay,
+      child_id: params.childId || null,
       created_by: params.createdBy,
     },
   });
