@@ -92,11 +92,18 @@ jobs:
           chmod 600 AuthKey.p8
 
       # ── 4. EAS build + submit ────────────────────────────────────────────
+      # Pass ASC API key env vars so EAS can auto-provision iOS distribution
+      # certificate + provisioning profile on first build (no manual `eas
+      # credentials` step required).
       - name: EAS Build iOS (production)
         if: github.event.inputs.stop_after != 'audit' && github.event.inputs.stop_after != 'metadata'
         working-directory: kindar-native
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+          EXPO_ASC_API_KEY_PATH: ${{ github.workspace }}/AuthKey.p8
+          EXPO_ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          EXPO_ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          EXPO_APPLE_TEAM_ID: ZQ83W8MYUZ
         run: eas build --platform ios --profile production --non-interactive --wait
 
       - name: EAS Submit to App Store Connect
