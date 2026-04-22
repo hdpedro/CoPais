@@ -32,7 +32,11 @@ type NotifyAction =
   | 'invitation_cancelled'
   | 'invitation_accepted'
   | 'agreement_accepted'
-  | 'agreement_revoked';
+  | 'agreement_revoked'
+  | 'sensitive_note_created'
+  | 'sensitive_note_deletion_requested'
+  | 'sensitive_note_deleted'
+  | 'sensitive_note_deletion_cancelled';
 
 /**
  * Fire-and-forget notification to PWA backend.

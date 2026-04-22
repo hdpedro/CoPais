@@ -38,7 +38,11 @@ type ActionType =
   | "invitation_cancelled"
   | "invitation_accepted"
   | "agreement_accepted"
-  | "agreement_revoked";
+  | "agreement_revoked"
+  | "sensitive_note_created"
+  | "sensitive_note_deletion_requested"
+  | "sensitive_note_deleted"
+  | "sensitive_note_deletion_cancelled";
 
 interface NotifyRequest {
   action: ActionType;
@@ -221,6 +225,34 @@ const ACTION_CONFIGS: Record<ActionType, {
     messageFn: (name) => `${name} removeu um acordo`,
     link: "/acordos",
     analyticsEvent: "agreement_revoked",
+  },
+  sensitive_note_created: {
+    notificationType: "system",
+    titleFn: () => "Nova nota sensivel",
+    messageFn: (name, d) => `${name} registrou: ${d.title}`,
+    link: "/temas-sensiveis",
+    analyticsEvent: "sensitive_note_created",
+  },
+  sensitive_note_deletion_requested: {
+    notificationType: "system",
+    titleFn: () => "Pedido de exclusao",
+    messageFn: (name, d) => `${name} quer excluir: ${d.title} — sua aprovacao necessaria`,
+    link: "/temas-sensiveis",
+    analyticsEvent: "sensitive_note_deletion_requested",
+  },
+  sensitive_note_deleted: {
+    notificationType: "system",
+    titleFn: () => "Nota sensivel excluida",
+    messageFn: (name, d) => `${name} excluiu: ${d.title}`,
+    link: "/temas-sensiveis",
+    analyticsEvent: "sensitive_note_deleted",
+  },
+  sensitive_note_deletion_cancelled: {
+    notificationType: "system",
+    titleFn: () => "Pedido de exclusao cancelado",
+    messageFn: (name) => `${name} cancelou a exclusao de uma nota sensivel`,
+    link: "/temas-sensiveis",
+    analyticsEvent: "sensitive_note_deletion_cancelled",
   },
 };
 

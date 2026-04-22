@@ -1,47 +1,386 @@
+/**
+ * Temas Sensiveis — notas sensiveis com fluxo de aprovacao de exclusao (workflow 8 of 8).
+ * Mirrors PWA /temas-sensiveis.
+ */
 import { useState, useCallback } from 'react';
-import { View, Text, FlatList, RefreshControl } from 'react-native';
+import {
+  View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
+} from 'react-native';
 import { useFocusEffect } from 'expo-router';
-import { supabase } from '../../src/lib/supabase';
+import * as Haptics from 'expo-haptics';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/store/auth';
-import { getDisplayName } from '../../src/lib/constants';
+import {
+  fetchSensitiveNotes, createSensitiveNote, requestDeletion, approveDeletion, cancelDeletion,
+  type SensitiveNote, type SensitiveTopic,
+} from '../../src/services/sensitive';
+import { fetchChildren, type Child } from '../../src/services/children';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
+import FAB from '../../src/components/ui/FAB';
 import EmptyState from '../../src/components/ui/EmptyState';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
-interface SensitiveTopic { id: string; title: string; content: string | null; category: string; authorName: string; created_at: string; }
+const TOPIC_META: Record<string, { label: string; icon: string; color: string }> = {
+  consumo: { label: 'Consumo', icon: '🚬', color: '#F59E0B' },
+  bullying: { label: 'Bullying', icon: '😞', color: '#EF4444' },
+  conflito: { label: 'Conflito', icon: '⚡', color: '#E8A228' },
+  saude_mental: { label: 'Saude mental', icon: '🧠', color: '#8B5CF6' },
+  sexualidade: { label: 'Sexualidade', icon: '❤️', color: '#EC4899' },
+  morte_luto: { label: 'Morte/Luto', icon: '🕊️', color: '#6B7280' },
+  divorcio: { label: 'Divorcio', icon: '💔', color: '#D4735A' },
+  abuso: { label: 'Abuso', icon: '🚨', color: '#E53935' },
+  escola: { label: 'Escola', icon: '🎒', color: '#3B82F6' },
+  outro: { label: 'Outro', icon: '📝', color: '#5B9E85' },
+};
 
-export default function TemasScreen() {
-  const { activeGroup } = useAuth();
-  const [topics, setTopics] = useState<SensitiveTopic[]>([]);
+function formatRelative(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const days = Math.floor(diff / 86400000);
+  if (days === 0) return 'Hoje';
+  if (days === 1) return 'Ontem';
+  if (days < 7) return `${days}d atras`;
+  return iso.slice(0, 10).split('-').reverse().join('/');
+}
+
+export default function TemasSensiveisScreen() {
+  const { activeGroup, userId } = useAuth();
+  const [notes, setNotes] = useState<SensitiveNote[]>([]);
+  const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
+  const [acting, setActing] = useState<string | null>(null);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [newTitle, setNewTitle] = useState('');
+  const [newContent, setNewContent] = useState('');
+  const [newTopic, setNewTopic] = useState<SensitiveTopic>('outro');
+  const [newChildId, setNewChildId] = useState<string | null>(null);
+  const [newUrgent, setNewUrgent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
     if (!activeGroup) return;
-    const { data } = await supabase.from('sensitive_notes')
-      .select('id, title, content, category, created_at, profiles!sensitive_notes_created_by_fkey(full_name)')
-      .eq('group_id', activeGroup.groupId)
-      .order('created_at', { ascending: false }).limit(50);
-    setTopics((data || []).map((d: any) => ({ ...d, authorName: getDisplayName(d.profiles?.full_name) })));
+    const [n, c] = await Promise.all([
+      fetchSensitiveNotes(activeGroup.groupId),
+      fetchChildren(activeGroup.groupId),
+    ]);
+    setNotes(n); setChildren(c);
     setLoading(false);
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  async function handleRequestDelete(note: SensitiveNote) {
+    if (!userId || !activeGroup) return;
+    Alert.alert(
+      'Pedir exclusao',
+      'Se voce for o unico responsavel no grupo, a nota sera excluida agora. Se ha mais responsaveis, a exclusao precisa ser aprovada pelo outro.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Pedir exclusao',
+          style: 'destructive',
+          onPress: async () => {
+            setActing(note.id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            const res = await requestDeletion(note.id, userId, activeGroup.groupId, note.title);
+            setActing(null);
+            if (res.success) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              if (res.deleted) Alert.alert('Excluida', 'Nota excluida imediatamente.');
+              await load();
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  async function handleApproveDelete(note: SensitiveNote) {
+    if (!userId || !activeGroup) return;
+    Alert.alert(
+      'Aprovar exclusao',
+      `${note.deletionRequesterName} pediu exclusao de ${note.title}. Confirmar exclusao definitiva?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            setActing(note.id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+            const res = await approveDeletion(note.id, userId, activeGroup.groupId, note.title);
+            setActing(null);
+            if (res.success) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await load();
+            } else {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              Alert.alert('Erro', res.error || 'Falha');
+            }
+          },
+        },
+      ]
+    );
+  }
+
+  async function handleCancelDelete(note: SensitiveNote) {
+    if (!activeGroup) return;
+    setActing(note.id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    await cancelDeletion(note.id, activeGroup.groupId);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setActing(null);
+    await load();
+  }
+
+  async function submitNew() {
+    if (!userId || !activeGroup || !newTitle.trim() || !newContent.trim()) return;
+    setSubmitting(true);
+    const res = await createSensitiveNote({
+      groupId: activeGroup.groupId,
+      childId: newChildId || undefined,
+      topic: newTopic,
+      title: newTitle,
+      content: newContent,
+      isUrgent: newUrgent,
+      createdBy: userId,
+    });
+    setSubmitting(false);
+    if (res.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setComposerOpen(false);
+      setNewTitle(''); setNewContent(''); setNewTopic('outro'); setNewChildId(null); setNewUrgent(false);
+      await load();
+    }
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Temas Sensiveis" />
-      <FlatList data={topics} keyExtractor={item => item.id}
+      <ScreenHeader title="Temas sensiveis" />
+      <FlatList
+        data={notes}
+        keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-        ListEmptyComponent={loading ? null : <EmptyState icon="🔒" title="Nenhum tema" subtitle="Registre temas delicados com privacidade" />}
-        renderItem={({ item }) => (
-          <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm }}>
-            <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.title}</Text>
-            {item.content ? <Text numberOfLines={2} style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 4 }}>{item.content}</Text> : null}
-            <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.xs }}>{item.authorName}</Text>
-          </View>
-        )}
+        ListEmptyComponent={loading ? null : <EmptyState icon="🔒" title="Nenhuma nota" subtitle="Registre temas delicados para aliar abordagens entre os responsaveis" />}
+        renderItem={({ item: n }) => {
+          const topic = TOPIC_META[n.topic] || TOPIC_META.outro;
+          const isAwaitingApproval = !!n.deletion_requested_by;
+          const iRequestedDeletion = n.deletion_requested_by === userId;
+          const canIApprove = isAwaitingApproval && !iRequestedDeletion;
+          const child = children.find(c => c.id === n.child_id);
+          return (
+            <View
+              style={{
+                backgroundColor: colors.bgElevated, borderRadius: radius.xl,
+                padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
+                borderWidth: n.is_urgent ? 2 : 0, borderColor: colors.error,
+                opacity: isAwaitingApproval ? 0.85 : 1,
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md }}>
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: `${topic.color}20`, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ fontSize: 18 }}>{topic.icon}</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2, flexWrap: 'wrap' }}>
+                    <Text style={{ fontSize: font.sizes.xs, color: topic.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>{topic.label}</Text>
+                    {n.is_urgent ? (
+                      <View style={{ backgroundColor: `${colors.error}15`, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                        <Text style={{ fontSize: 10, color: colors.error, fontWeight: font.weights.bold }}>URGENTE</Text>
+                      </View>
+                    ) : null}
+                    {child ? <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>· {child.full_name.split(' ')[0]}</Text> : null}
+                  </View>
+                  <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, marginBottom: 2 }}>
+                    {n.title}
+                  </Text>
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, lineHeight: 20 }}>
+                    {n.content}
+                  </Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm }}>
+                    {n.authorName} · {formatRelative(n.created_at)}
+                  </Text>
+                </View>
+              </View>
+
+              {isAwaitingApproval ? (
+                <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.warning}15`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.warning}40` }}>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.warning, fontWeight: font.weights.semibold, marginBottom: 4, textTransform: 'uppercase' }}>
+                    Aguardando aprovacao da exclusao
+                  </Text>
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>
+                    {iRequestedDeletion
+                      ? 'Voce pediu a exclusao. O outro responsavel precisa aprovar.'
+                      : `${n.deletionRequesterName || 'Outro responsavel'} pediu a exclusao desta nota.`}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                    {canIApprove ? (
+                      <TouchableOpacity
+                        disabled={acting === n.id}
+                        onPress={() => handleApproveDelete(n)}
+                        style={{ flex: 1, paddingVertical: 8, borderRadius: radius.md, backgroundColor: colors.error, alignItems: 'center' }}
+                      >
+                        {acting === n.id ? <ActivityIndicator size="small" color="#fff" /> : (
+                          <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>Aprovar exclusao</Text>
+                        )}
+                      </TouchableOpacity>
+                    ) : null}
+                    <TouchableOpacity
+                      disabled={acting === n.id}
+                      onPress={() => handleCancelDelete(n)}
+                      style={{ flex: canIApprove ? 1 : undefined, paddingVertical: 8, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center' }}
+                    >
+                      <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>Cancelar pedido</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  disabled={acting === n.id}
+                  onPress={() => handleRequestDelete(n)}
+                  style={{ alignSelf: 'flex-end', marginTop: spacing.sm, paddingVertical: 4, paddingHorizontal: 8 }}
+                >
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.error }}>Pedir exclusao</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          );
+        }}
       />
+      <FAB onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setComposerOpen(true); }} />
+
+      <Modal visible={composerOpen} animationType="slide" transparent>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <TouchableOpacity activeOpacity={1} onPress={() => setComposerOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+          <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
+            <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
+              Nova nota sensivel
+            </Text>
+            <ScrollView>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Tema</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+                {(Object.keys(TOPIC_META) as SensitiveTopic[]).map(k => {
+                  const m = TOPIC_META[k];
+                  const active = newTopic === k;
+                  return (
+                    <TouchableOpacity
+                      key={k}
+                      onPress={() => setNewTopic(k)}
+                      style={{
+                        paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
+                        backgroundColor: active ? `${m.color}20` : colors.bg,
+                        borderWidth: 1, borderColor: active ? m.color : colors.borderLight,
+                        flexDirection: 'row', alignItems: 'center', gap: 6,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14 }}>{m.icon}</Text>
+                      <Text style={{ fontSize: font.sizes.sm, color: active ? m.color : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
+                        {m.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+
+              {children.length > 0 ? (
+                <>
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Crianca (opcional)</Text>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+                    <TouchableOpacity
+                      onPress={() => setNewChildId(null)}
+                      style={{
+                        paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
+                        backgroundColor: newChildId === null ? colors.brand : colors.bg,
+                        borderWidth: 1, borderColor: newChildId === null ? colors.brand : colors.borderLight,
+                      }}
+                    >
+                      <Text style={{ fontSize: font.sizes.sm, color: newChildId === null ? '#fff' : colors.text }}>Geral</Text>
+                    </TouchableOpacity>
+                    {children.map(c => {
+                      const active = newChildId === c.id;
+                      return (
+                        <TouchableOpacity
+                          key={c.id}
+                          onPress={() => setNewChildId(c.id)}
+                          style={{
+                            paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
+                            backgroundColor: active ? colors.brand : colors.bg,
+                            borderWidth: 1, borderColor: active ? colors.brand : colors.borderLight,
+                          }}
+                        >
+                          <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text }}>
+                            {c.full_name.split(' ')[0]}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </>
+              ) : null}
+
+              <TextInput
+                value={newTitle} onChangeText={setNewTitle}
+                placeholder="Titulo"
+                placeholderTextColor={colors.textMuted}
+                style={{
+                  backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
+                  paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+                  fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm,
+                }}
+              />
+              <TextInput
+                value={newContent} onChangeText={setNewContent}
+                placeholder="Detalhes (so voces veem)"
+                placeholderTextColor={colors.textMuted}
+                multiline
+                style={{
+                  backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
+                  paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+                  fontSize: font.sizes.md, color: colors.text, minHeight: 100, textAlignVertical: 'top',
+                  marginBottom: spacing.md,
+                }}
+              />
+
+              <TouchableOpacity
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setNewUrgent(!newUrgent); }}
+                style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg }}
+                activeOpacity={0.7}
+              >
+                <View style={{
+                  width: 20, height: 20, borderRadius: 4,
+                  borderWidth: 1.5,
+                  borderColor: newUrgent ? colors.error : colors.borderLight,
+                  backgroundColor: newUrgent ? colors.error : 'transparent',
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {newUrgent ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
+                </View>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
+                  Marcar como urgente
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                disabled={submitting || !newTitle.trim() || !newContent.trim()}
+                onPress={submitNew}
+                style={{
+                  backgroundColor: colors.brand, borderRadius: radius.md,
+                  paddingVertical: spacing.md + 2, alignItems: 'center',
+                  opacity: submitting || !newTitle.trim() || !newContent.trim() ? 0.5 : 1,
+                }}
+              >
+                {submitting ? <ActivityIndicator color="#fff" /> : (
+                  <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
+                    Registrar
+                  </Text>
+                )}
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
     </View>
   );
 }
