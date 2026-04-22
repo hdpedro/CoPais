@@ -7,7 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useHealth, type ChildHealthState, type HealthEvent } from '../../src/hooks/useHealth';
+import { useHealth } from '../../src/hooks/useHealth';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
 const STATUS_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
@@ -209,8 +209,14 @@ export default function SaudeScreen() {
               { icon: '💉', label: 'Vacinas', route: '/saude/vacinas' },
               { icon: '📏', label: 'Crescimento', route: '/saude/crescimento' },
               { icon: '👨‍⚕️', label: 'Profissionais', route: '/saude/profissionais' },
+              { icon: '🤒', label: 'Doencas', route: '/saude/doencas' },
+              { icon: '🩹', label: 'Sintomas', route: '/saude/sintomas' },
+              { icon: '📸', label: 'Receita OCR', route: '/saude/receita' },
+              { icon: '🚨', label: 'Emergencia', route: '/saude/emergencia' },
+              { icon: '📤', label: 'Exportar', route: '/saude/export' },
+              { icon: '📋', label: 'Timeline', route: '/saude/timeline' },
             ].map(mod => (
-              <TouchableOpacity key={mod.route} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(mod.route as any); }}
+              <TouchableOpacity key={mod.route} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(mod.route as Parameters<typeof router.push>[0]); }}
                 style={{ width: '31%', backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', gap: spacing.xs, ...shadows.sm }}>
                 <Text style={{ fontSize: 20 }}>{mod.icon}</Text>
                 <Text style={{ fontSize: font.sizes.xs, color: colors.text, fontWeight: font.weights.medium, textAlign: 'center' }}>{mod.label}</Text>
@@ -250,7 +256,7 @@ export default function SaudeScreen() {
               Nenhum registro de saude
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs }}>
-              Toque em "Registrar" para adicionar o primeiro evento
+              Toque em {'\u201C'}Registrar{'\u201D'} para adicionar o primeiro evento
             </Text>
           </View>
         ) : (
