@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
-  Platform, ScrollView, ActivityIndicator, Switch,
+  Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -137,42 +137,47 @@ export default function LoginScreen() {
           </TouchableOpacity>
         ) : null}
 
-        <TouchableOpacity
-          onPress={async () => {
-            setLoading(true);
-            const result = await signInWithGoogle();
-            if (result.success) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              await useAuth.getState().initialize();
-              const state = useAuth.getState();
-              router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
-            } else if (result.error !== 'Login cancelado') {
-              setError(result.error || 'Erro');
-            }
-            setLoading(false);
-          }}
-          style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.md,
-            borderWidth: 1, borderColor: colors.authBorder,
-            paddingVertical: spacing.md + 2, flexDirection: 'row',
-            alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-            marginBottom: spacing.lg,
-          }}
-        >
-          <Ionicons name="logo-google" size={16} color="#4285F4" />
-          <Text style={{ color: colors.authText, fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-            Entrar com Google
-          </Text>
-        </TouchableOpacity>
+        {/* Platform rule: Google only on Android. iOS uses Apple only (above). */}
+        {Platform.OS === 'android' ? (
+          <TouchableOpacity
+            onPress={async () => {
+              setLoading(true);
+              const result = await signInWithGoogle();
+              if (result.success) {
+                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                await useAuth.getState().initialize();
+                const state = useAuth.getState();
+                router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
+              } else if (result.error !== 'Login cancelado') {
+                setError(result.error || 'Erro');
+              }
+              setLoading(false);
+            }}
+            style={{
+              backgroundColor: colors.bgElevated, borderRadius: radius.md,
+              borderWidth: 1, borderColor: colors.authBorder,
+              paddingVertical: spacing.md + 2, flexDirection: 'row',
+              alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+              marginBottom: spacing.lg,
+            }}
+          >
+            <Ionicons name="logo-google" size={16} color="#4285F4" />
+            <Text style={{ color: colors.authText, fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
+              Entrar com Google
+            </Text>
+          </TouchableOpacity>
+        ) : null}
 
-        {/* Divider — matches PWA "ou entre com e-mail" */}
-        <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl }}>
-          <View style={{ flex: 1, height: 1, backgroundColor: colors.authBorder }} />
-          <Text style={{ paddingHorizontal: spacing.lg, fontSize: font.sizes.sm, color: colors.authMuted }}>
-            ou entre com e-mail
-          </Text>
-          <View style={{ flex: 1, height: 1, backgroundColor: colors.authBorder }} />
-        </View>
+        {/* Divider — shown only when a social button is above (iOS/Android native) */}
+        {(Platform.OS === 'ios' || Platform.OS === 'android') ? (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl }}>
+            <View style={{ flex: 1, height: 1, backgroundColor: colors.authBorder }} />
+            <Text style={{ paddingHorizontal: spacing.lg, fontSize: font.sizes.sm, color: colors.authMuted }}>
+              ou entre com e-mail
+            </Text>
+            <View style={{ flex: 1, height: 1, backgroundColor: colors.authBorder }} />
+          </View>
+        ) : null}
 
         {/* Email */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>

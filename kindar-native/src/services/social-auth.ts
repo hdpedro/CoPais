@@ -37,11 +37,12 @@ export async function signInWithApple(): Promise<{ success: boolean; error?: str
 
     if (error) return { success: false, error: error.message };
     return { success: true };
-  } catch (e: any) {
-    if (e.code === 'ERR_REQUEST_CANCELED' || e.code === 'ERR_CANCELED') {
+  } catch (e: unknown) {
+    const err = e as { code?: string; message?: string };
+    if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') {
       return { success: false, error: 'Cancelado' };
     }
-    return { success: false, error: e.message || 'Erro no Apple Sign-In' };
+    return { success: false, error: err.message || 'Erro no Apple Sign-In' };
   }
 }
 
@@ -76,6 +77,13 @@ function extractTokensFromUrl(urlString: string): { accessToken: string | null; 
 }
 
 export async function signInWithGoogle(): Promise<{ success: boolean; error?: string }> {
+  // Platform rule: Google Sign-In is the Android/Web path. On iOS we use
+  // Apple Sign-In exclusively — refuse here as defense-in-depth against UI
+  // regressions that might expose the Google button on iOS.
+  if (Platform.OS === 'ios') {
+    return { success: false, error: 'Google Sign-In indisponivel no iOS — use Apple' };
+  }
+
   try {
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
@@ -114,10 +122,11 @@ export async function signInWithGoogle(): Promise<{ success: boolean; error?: st
 
     if (sessionError) return { success: false, error: sessionError.message };
     return { success: true };
-  } catch (e: any) {
-    if (e.message?.includes('cancel') || e.message?.includes('dismiss')) {
+  } catch (e: unknown) {
+    const err = e as { code?: string; message?: string };
+    if (err.message?.includes('cancel') || err.message?.includes('dismiss')) {
       return { success: false, error: 'Login cancelado' };
     }
-    return { success: false, error: e.message || 'Erro no Google Sign-In' };
+    return { success: false, error: err.message || 'Erro no Google Sign-In' };
   }
 }
