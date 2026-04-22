@@ -1,13 +1,27 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../src/store/auth';
 import { fetchNotifications, markAsRead, markAllAsRead, type AppNotification } from '../../src/services/notifications';
+import { clearBadge } from '../../src/services/push-setup';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import EmptyState from '../../src/components/ui/EmptyState';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+
+const TYPE_ROUTES: Record<string, string> = {
+  expense_new: '/despesas',
+  expense_approved: '/financeiro',
+  expense_rejected: '/financeiro',
+  swap_request: '/(tabs)/calendario',
+  swap_response: '/(tabs)/calendario',
+  chat_message: '/(tabs)/chat',
+  document_uploaded: '/documentos',
+  custody_change: '/(tabs)/calendario',
+  invitation: '/familia',
+  activity_reminder: '/atividades',
+  activity: '/atividades',
+};
 
 const TYPE_ICONS: Record<string, string> = {
   expense_new: '🧾', expense_approved: '✅', expense_rejected: '❌',
@@ -40,6 +54,9 @@ export default function NotificacoesScreen() {
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
+  // Clear push badge when user opens inbox
+  useEffect(() => { clearBadge().catch(() => {}); }, []);
+
   async function handleMarkAllRead() {
     if (!userId) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -47,11 +64,22 @@ export default function NotificacoesScreen() {
     load();
   }
 
+  async function handleTap(n: AppNotification) {
+    if (!n.is_read) {
+      await markAsRead(n.id);
+    }
+    const route = TYPE_ROUTES[n.type];
+    if (route) {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      router.push(route as Parameters<typeof router.push>[0]);
+    } else {
+      load();
+    }
+  }
+
   const renderItem = ({ item }: { item: AppNotification }) => (
     <TouchableOpacity
-      onPress={async () => {
-        if (!item.is_read) { await markAsRead(item.id); load(); }
-      }}
+      onPress={() => handleTap(item)}
       activeOpacity={0.7}
       style={{
         backgroundColor: item.is_read ? colors.bgElevated : `${colors.brand}08`,
