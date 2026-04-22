@@ -178,11 +178,63 @@ async function findBundleId() {
   return b.id;
 }
 
+async function ensureBundleCapabilities(bundleIdResourceId) {
+  // Enable required capabilities on the bundleId. These flow into any provisioning
+  // profile we create afterwards.
+  const required = [
+    { key: "PUSH_NOTIFICATIONS", label: "Push Notifications" },
+    { key: "APPLE_ID_AUTH", label: "Sign in with Apple" },
+    // IN_APP_PURCHASE is default enabled per Apple but safer to pin:
+    { key: "IN_APP_PURCHASE", label: "In-App Purchase" },
+  ];
+
+  // List existing capabilities on this bundle
+  const existing = await asc("GET", `/v1/bundleIds/${bundleIdResourceId}/bundleIdCapabilities`);
+  const existingTypes = new Set((existing.data || []).map((c) => c.attributes.capabilityType));
+
+  // Some capabilities require `settings` — e.g. Sign in with Apple needs
+  // a primary-app-consent choice. Map those here.
+  const capSettings = {
+    APPLE_ID_AUTH: [
+      {
+        key: "APPLE_ID_AUTH_APP_CONSENT",
+        options: [{ key: "PRIMARY_APP_CONSENT" }],
+      },
+    ],
+  };
+
+  for (const cap of required) {
+    if (existingTypes.has(cap.key)) {
+      info(`Capability ${cap.label} já habilitada`);
+      continue;
+    }
+    const attributes = { capabilityType: cap.key };
+    if (capSettings[cap.key]) attributes.settings = capSettings[cap.key];
+
+    try {
+      await asc("POST", "/v1/bundleIdCapabilities", {
+        data: {
+          type: "bundleIdCapabilities",
+          attributes,
+          relationships: {
+            bundleId: { data: { type: "bundleIds", id: bundleIdResourceId } },
+          },
+        },
+      });
+      ok(`Capability habilitada: ${cap.label} (${cap.key})`);
+    } catch (e) {
+      warn(`Capability ${cap.label} falhou: ${e.message}`);
+    }
+  }
+}
+
 async function createProfile(certId, tmpDir) {
   section("2. Provisioning Profile");
 
   const bundleIdResourceId = await findBundleId();
   info(`Bundle resource: ${bundleIdResourceId}`);
+
+  await ensureBundleCapabilities(bundleIdResourceId);
 
   // Revoke existing profiles with same name (avoid dupes)
   const existing = await asc("GET", `/v1/profiles?filter[name]=${encodeURIComponent(CONFIG.profileName)}`);
