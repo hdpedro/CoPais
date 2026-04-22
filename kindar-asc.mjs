@@ -344,9 +344,12 @@ async function configureAppInfo(appId) {
     violenceRealistic: "NONE",
     violenceRealisticProlongedGraphicOrSadistic: "NONE",
     healthOrWellnessTopics: "NONE",
-    advertising: "NONE",
 
-    // Boolean: presence flags
+    // Boolean: presence/behavior flags
+    // Note: in Apple's 2024+ schema several previously-enum fields are
+    // booleans now (messagingAndChat, advertising, userGeneratedContent
+    // all returned "expected BOOLEAN" on PATCH with string values).
+    advertising: false,               // no third-party ads
     gambling: false,
     lootBox: false,
     unrestrictedWebAccess: false,
@@ -537,26 +540,53 @@ async function configurePricing(appId) {
     return;
   }
 
-  // 2. Create a manualPrice on the existing schedule pointing at the FREE point
+  // 2. POST /v2/appPriceSchedules with manualPrices nested.
+  // Apple retired standalone POST /appPrices — the only way to publish is
+  // a new schedule carrying the manualPrices array inline. A single entry
+  // pointing at the FREE price point is enough for a free app.
+  const priceId = `new-price-1`;
   try {
-    await POST(`/appPrices`, {
-      data: {
-        type: "appPrices",
-        relationships: {
-          appPriceSchedule: { data: { type: "appPriceSchedules", id: appId } },
-          appPricePoint: { data: { type: "appPricePoints", id: freePointId } },
-        },
+    const res = await fetch("https://api.appstoreconnect.apple.com/v2/appPriceSchedules", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${token()}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify({
+        data: {
+          type: "appPriceSchedules",
+          relationships: {
+            app: { data: { type: "apps", id: appId } },
+            baseTerritory: { data: { type: "territories", id: "USA" } },
+            manualPrices: { data: [{ type: "appPrices", id: priceId }] },
+          },
+        },
+        included: [
+          {
+            type: "appPrices",
+            id: priceId,
+            attributes: { startDate: null },
+            relationships: {
+              appPricePoint: { data: { type: "appPricePoints", id: freePointId } },
+            },
+          },
+        ],
+      }),
     });
-    ok(`Preço Free publicado (pricePoint=${freePointId})`);
-  } catch (e) {
-    const msg = e.message || "";
-    // Apple returns 409 when a price already exists — that's fine
-    if (msg.includes("409") || msg.toLowerCase().includes("already")) {
-      ok("Preço já existe no schedule");
-      return;
+    const text = await res.text();
+    if (res.ok) {
+      ok(`Preço Free publicado via v2 (pricePoint=${freePointId})`);
+    } else {
+      // 409/422 "already exists" is fine
+      if (res.status === 409 || text.includes("ENTITY_UNIQUE_CONSTRAINT") || text.toLowerCase().includes("already")) {
+        ok("Preço já configurado no schedule");
+        return;
+      }
+      warn(`/v2/appPriceSchedules POST → ${res.status}: ${text.slice(0, 400)}`);
+      warn("Ação manual: App Store Connect → Pricing and Availability → Free → Save");
     }
-    warn(`appPrices POST: ${msg}`);
+  } catch (e) {
+    warn(`appPriceSchedules v2 POST: ${e.message}`);
     warn("Ação manual: App Store Connect → Pricing and Availability → Free → Save");
   }
 }
