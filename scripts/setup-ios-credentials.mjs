@@ -107,8 +107,16 @@ function csrPEMToRaw(csrPath) {
 }
 
 function buildP12(keyPath, certPath, p12Path, password) {
-  // Combine PEM private key + PEM cert into .p12 (PKCS#12)
-  sh(`openssl pkcs12 -export -out "${p12Path}" -inkey "${keyPath}" -in "${certPath}" -password pass:${password} -name "${CONFIG.certCN}"`);
+  // Combine PEM private key + PEM cert into .p12 (PKCS#12).
+  // CRITICAL: use legacy PBE encryption (PBE-SHA1-3DES + SHA1 MAC) for
+  // macOS keychain compatibility. OpenSSL 3.x defaults to AES256+SHA256
+  // which older macOS keychains in EAS builders reject silently
+  // ("hasn't been imported successfully").
+  sh(
+    `openssl pkcs12 -export -out "${p12Path}" -inkey "${keyPath}" -in "${certPath}" ` +
+    `-password pass:${password} -name "${CONFIG.certCN}" ` +
+    `-keypbe PBE-SHA1-3DES -certpbe PBE-SHA1-3DES -macalg SHA1 -legacy`
+  );
 }
 
 // ── Steps ───────────────────────────────────────────────────────────────────
