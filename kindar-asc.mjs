@@ -346,11 +346,10 @@ async function configureAppInfo(appId) {
     violenceRealistic: "NONE",
     violenceRealisticProlongedGraphicOrSadistic: "NONE",
     healthOrWellnessTopics: "NONE",
-    userGeneratedContent: "INFREQUENT_OR_MILD",  // chat/notes (reported via moderation)
-
     // Boolean: presence/behavior flags (confirmed via Apple 409 errors)
     advertising: false,               // no third-party ads
     messagingAndChat: true,           // chat between co-parents
+    userGeneratedContent: true,       // notes + chat messages
     gambling: false,
     lootBox: false,
     unrestrictedWebAccess: false,
@@ -780,7 +779,35 @@ async function submitForReview(appId) {
     warn(`Checagem de build vinculado: ${e.message}`);
   }
 
-  // 3. Create review submission
+  // 3a. Apple caps concurrent review submissions at 5. Delete stale ones from
+  // previous failed attempts so we can create a fresh submission.
+  try {
+    const existing = await GET(`/reviewSubmissions`, {
+      "filter[app]": appId,
+      "filter[platform]": "IOS",
+      "filter[state]": "READY_FOR_REVIEW,WAITING_FOR_REVIEW,IN_REVIEW,UNRESOLVED_ISSUES,CANCELING",
+      "limit": 50,
+    }).catch(() => null);
+    const stale = (existing?.data || []).filter(s => {
+      const state = s.attributes?.state;
+      // Keep actively reviewed; cancel everything still pending/unresolved from our retries
+      return state === "READY_FOR_REVIEW" || state === "UNRESOLVED_ISSUES";
+    });
+    for (const s of stale) {
+      try {
+        await PATCH(`/reviewSubmissions/${s.id}`, {
+          data: { type: "reviewSubmissions", id: s.id, attributes: { canceled: true } },
+        });
+        info(`Submission stale cancelada: ${s.id}`);
+      } catch (e) {
+        warn(`Não consegui cancelar submission ${s.id}: ${e.message}`);
+      }
+    }
+  } catch (e) {
+    warn(`Cleanup de submissions antigas: ${e.message}`);
+  }
+
+  // 3b. Create review submission
   const submission = await POST("/reviewSubmissions", {
     data: {
       type: "reviewSubmissions",
