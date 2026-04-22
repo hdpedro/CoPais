@@ -310,6 +310,70 @@ async function configureAppInfo(appId) {
   } catch (e) {
     warn(`Localizations: ${e.message}`);
   }
+
+  // Content Rights Declaration — required for submission
+  try {
+    await PATCH(`/apps/${appId}`, {
+      data: {
+        type: "apps",
+        id: appId,
+        attributes: { contentRightsDeclaration: "DOES_NOT_USE_THIRD_PARTY_CONTENT" },
+      },
+    });
+    ok("Content Rights: DOES_NOT_USE_THIRD_PARTY_CONTENT");
+  } catch (e) {
+    warn(`Content Rights: ${e.message}`);
+  }
+
+  // Age Rating Declaration — lifestyle app, everything NONE except messaging + UGC
+  const ageRatingAttrs = {
+    // Violence / mature content
+    alcoholTobaccoOrDrugUseOrReferences: "NONE",
+    contests: "NONE",
+    gambling: false,
+    gamblingSimulated: "NONE",
+    gunsOrOtherWeapons: "NONE",
+    horrorOrFearThemes: "NONE",
+    lootBox: false,
+    matureOrSuggestiveThemes: "NONE",
+    medicalOrTreatmentInformation: "NONE",
+    profanityOrCrudeHumor: "NONE",
+    sexualContentGraphicAndNudity: "NONE",
+    sexualContentOrNudity: "NONE",
+    violenceCartoonOrFantasy: "NONE",
+    violenceRealistic: "NONE",
+    violenceRealisticProlongedGraphicOrSadistic: "NONE",
+    // App behavior
+    advertising: "NONE",
+    ageAssurance: "NOT_APPLICABLE",
+    healthOrWellnessTopics: "NONE",
+    messagingAndChat: "INFREQUENT_OR_MILD",   // In-app chat between parents
+    parentalControls: "NONE",
+    unrestrictedWebAccess: false,
+    userGeneratedContent: "INFREQUENT_OR_MILD", // Chat messages, notes
+    kidsAgeBand: null,
+  };
+  try {
+    // Try to GET existing ratingDeclaration linked to app
+    const existing = await GET(`/apps/${appId}/ageRatingDeclaration`).catch(() => null);
+    if (existing?.data?.id) {
+      await PATCH(`/ageRatingDeclarations/${existing.data.id}`, {
+        data: { type: "ageRatingDeclarations", id: existing.data.id, attributes: ageRatingAttrs },
+      });
+      ok("Age Rating: atualizado (Lifestyle, chat leve entre parents)");
+    } else {
+      await POST("/ageRatingDeclarations", {
+        data: {
+          type: "ageRatingDeclarations",
+          attributes: ageRatingAttrs,
+          relationships: { app: { data: { type: "apps", id: appId } } },
+        },
+      });
+      ok("Age Rating: criado (Lifestyle)");
+    }
+  } catch (e) {
+    warn(`Age Rating: ${e.message}`);
+  }
 }
 
 // ── STEP 4: Subscriptions ───────────────────────────────────────────────────
@@ -422,21 +486,23 @@ async function configureSubscriptions(appId) {
 // with the FREE base-territory tier.
 async function configurePricing(appId) {
   section("4b. Configurando preço (Free)");
+
+  // Check current priceSchedule
   try {
-    // Check if pricing is already set
-    const existing = await GET(`/apps/${appId}/appPricePoints`, { limit: 1 }).catch(() => null);
-    if (existing?.data?.length > 0) {
-      ok("Preço já configurado em ASC");
+    const sched = await GET(`/apps/${appId}/appPriceSchedule`).catch(() => null);
+    if (sched?.data?.id) {
+      ok(`Preço já configurado (scheduleId=${sched.data.id})`);
       return;
     }
   } catch {
-    /* ignore — try to set */
+    /* continue to create */
   }
 
-  // Create an appPriceSchedule with base territory = USA, manualPrices = [] and automaticPrices = true
-  // For free apps, the simplest valid payload is an empty manualPrices with type=appPriceSchedules
+  // Create the schedule — free app = empty manualPrices means $0 base tier
+  // Territories USA provides the base pricing anchor; Apple auto-converts
+  // to other currencies via the base price rules.
   try {
-    await POST(`/appPriceSchedules`, {
+    const res = await POST(`/appPriceSchedules`, {
       data: {
         type: "appPriceSchedules",
         relationships: {
@@ -446,11 +512,10 @@ async function configurePricing(appId) {
         },
       },
     });
-    ok("Preço Free aplicado globalmente");
+    ok(`Preço Free aplicado (scheduleId=${res?.data?.id || "?"})`);
   } catch (e) {
-    // If already exists or pricing-model mismatch, try the v1 fallback (older accounts)
     warn(`appPriceSchedules POST: ${e.message}`);
-    warn("Pricing provavelmente precisa ser definido manualmente em App Store Connect → Pricing and Availability.");
+    warn("Ação manual: App Store Connect → Pricing and Availability → Free → Save");
   }
 }
 
@@ -682,38 +747,17 @@ async function submitForReview(appId) {
   });
   ok("Versão anexada à submission");
 
-  // 5. Attach IAPs/subscriptions that are pending review
-  const groups = await GET(`/apps/${appId}/subscriptionGroups`, { limit: 20 });
-  let attachedSubs = 0;
-  for (const g of (groups.data || [])) {
-    const subs = await GET(`/subscriptionGroups/${g.id}/subscriptions`, {
-      "fields[subscriptions]": "productId,state",
-      "limit": 50,
-    });
-    for (const s of (subs.data || [])) {
-      const state = s.attributes.state;
-      if (state === "READY_TO_SUBMIT" || state === "WAITING_FOR_REVIEW" || state === "DEVELOPER_ACTION_NEEDED") {
-        try {
-          await POST("/reviewSubmissionItems", {
-            data: {
-              type: "reviewSubmissionItems",
-              relationships: {
-                reviewSubmission: { data: { type: "reviewSubmissions", id: submissionId } },
-                subscription: { data: { type: "subscriptions", id: s.id } },
-              },
-            },
-          });
-          ok(`Subscription anexada: ${s.attributes.productId}`);
-          attachedSubs++;
-        } catch (e) {
-          warn(`Não consegui anexar ${s.attributes.productId}: ${e.message}`);
-        }
-      } else {
-        info(`Pulando ${s.attributes.productId} (state=${state})`);
-      }
-    }
-  }
-  info(`${attachedSubs} subscription(s) anexada(s)`);
+  // 5. Subscriptions — SKIP attachment on first submission.
+  //
+  // Apple validates every subscription's own metadata (description, keywords,
+  // supportUrl, age ratings, screenshots) when attaching to a review submission,
+  // which surfaces ~20 additional blockers that stall the first launch.
+  //
+  // Strategy: submit the app binary only first (gets Kindar into App Store).
+  // Subscriptions get their own subsequent submission cycle once the app is
+  // approved — this is the standard pattern for apps with complex IAPs.
+  info("Pulando anexo de subscriptions nesta submission (first-launch)");
+  info("Subs serão submetidas em ciclo proprio apos app aprovado");
 
   // 6. Submit — Apple validates ALL metadata here. If App Privacy nutrition
   // labels are not published in ASC, this fails with PUBLISH_REQUIREMENT_MISSING.
