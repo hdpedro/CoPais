@@ -356,7 +356,8 @@ async function configureAppInfo(appId) {
     parentalControls: false,
 
     // Specific enum
-    ageAssurance: "NOT_APPLICABLE",
+    // ageAssurance is boolean per Apple 2024+: "does the app ask user to confirm age?"
+    ageAssurance: false,
     kidsAgeBand: null,
   };
   try {
@@ -779,44 +780,57 @@ async function submitForReview(appId) {
     warn(`Checagem de build vinculado: ${e.message}`);
   }
 
-  // 3a. Apple caps concurrent review submissions at 5. Delete stale ones from
-  // previous failed attempts so we can create a fresh submission.
+  // 3. Apple caps concurrent review submissions at 5. Stale ones from prior
+  // failed attempts may not be cancellable (Apple returns 409 "not in
+  // cancellable state"). Strategy: REUSE existing submissions instead of
+  // creating new ones. Since each new attempt was never submitted=true, they
+  // sit orphan and consume the concurrency slot.
+  let submissionId = null;
   try {
     const existing = await GET(`/reviewSubmissions`, {
       "filter[app]": appId,
       "filter[platform]": "IOS",
-      "filter[state]": "READY_FOR_REVIEW,WAITING_FOR_REVIEW,IN_REVIEW,UNRESOLVED_ISSUES,CANCELING",
+      "fields[reviewSubmissions]": "state,submittedDate,platform",
       "limit": 50,
     }).catch(() => null);
-    const stale = (existing?.data || []).filter(s => {
-      const state = s.attributes?.state;
-      // Keep actively reviewed; cancel everything still pending/unresolved from our retries
-      return state === "READY_FOR_REVIEW" || state === "UNRESOLVED_ISSUES";
-    });
-    for (const s of stale) {
+
+    // Look for one we can reuse: state that allows adding items + submit
+    // (READY_FOR_REVIEW means "created but not submitted")
+    const reusable = (existing?.data || []).find(s =>
+      s.attributes?.state === "READY_FOR_REVIEW" && !s.attributes?.submittedDate
+    );
+
+    if (reusable) {
+      submissionId = reusable.id;
+      ok(`Reusando submission existente: ${submissionId} (state=${reusable.attributes.state})`);
+
+      // Clean any items already attached — they may reference an older version
       try {
-        await PATCH(`/reviewSubmissions/${s.id}`, {
-          data: { type: "reviewSubmissions", id: s.id, attributes: { canceled: true } },
-        });
-        info(`Submission stale cancelada: ${s.id}`);
-      } catch (e) {
-        warn(`Não consegui cancelar submission ${s.id}: ${e.message}`);
-      }
+        const items = await GET(`/reviewSubmissions/${submissionId}/items`, { "limit": 50 });
+        for (const it of (items.data || [])) {
+          try {
+            await api("DELETE", `/reviewSubmissionItems/${it.id}`);
+            info(`  item antigo removido: ${it.id}`);
+          } catch (e) { warn(`  não consegui remover item ${it.id}: ${e.message}`); }
+        }
+      } catch { /* best-effort */ }
     }
   } catch (e) {
-    warn(`Cleanup de submissions antigas: ${e.message}`);
+    warn(`Busca de submission existente: ${e.message}`);
   }
 
-  // 3b. Create review submission
-  const submission = await POST("/reviewSubmissions", {
-    data: {
-      type: "reviewSubmissions",
-      attributes: { platform: "IOS" },
-      relationships: { app: { data: { type: "apps", id: appId } } },
-    },
-  });
-  const submissionId = submission.data.id;
-  ok(`Submission criada: ${submissionId}`);
+  // If no reusable submission, create new one
+  if (!submissionId) {
+    const submission = await POST("/reviewSubmissions", {
+      data: {
+        type: "reviewSubmissions",
+        attributes: { platform: "IOS" },
+        relationships: { app: { data: { type: "apps", id: appId } } },
+      },
+    });
+    submissionId = submission.data.id;
+    ok(`Submission criada: ${submissionId}`);
+  }
 
   // 4. Attach the app version
   await POST("/reviewSubmissionItems", {
