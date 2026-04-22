@@ -161,4 +161,44 @@ Cada sprint só é considerado fechado quando:
 **Commits por sprint**: prefixos convencionais (feat/fix/refactor)
 **Progress**: atualizar este arquivo a cada sprint com ✅ e commit SHA
 
-**Status atual**: Sprint 0 — 3/5 done (login platform rules ✓, guard ✓, divider ✓; faltam callback e2e + persistência)
+**Status atual (atualizado 2026-04-22 sessão 2):**
+
+### Sprint 0 — Auth ✅ 3/5
+- [x] Login platform rules (commit `de988ab`)
+- [x] Guard defensivo Google iOS
+- [x] Divider condicional
+- [ ] `/auth/callback` deep link e2e teste no Android real
+- [ ] Re-login silencioso validado via TestFlight
+
+### Sprint 1 — Dashboard ✅ 60%
+- [x] Actionable pending cards (swaps + decisions + expenses) (commit `b22e0bc`)
+- [x] Critical child alert banner
+- [x] Decision category taxonomy (icons + colors) pt-BR
+- [x] Deadline urgency (expired / near / normal)
+- [x] Hook extends: pendingSwapsList, pendingDecisionsList, pendingExpensesList,
+      groupName, memberCount, hasAnyCriticalChild
+- [ ] streakDays (consecutive custody days calc)
+- [ ] pendingReports (activity reports awaiting completion)
+- [ ] Onboarding checklist card pra usuários novos
+- [ ] Visible sections user-toggleable preferences
+
+### Sprint 3 — Workflows de aprovação ✅ 1/8
+- [x] **Swap requests end-to-end** (commit `4c64c34`):
+  - `src/services/swaps.ts` com loadMyPendingSwaps/respondToSwap/createSwap
+  - Banner no calendar com Accept/Reject inline
+  - PWA `/api/native/notify` estende com 3 ações swap (push + chat + analytics)
+- [ ] Event Requests (edit/cancel/reschedule/delete)
+- [ ] Custody Balance Operations
+- [ ] Decisões + votos + argumentos (UI de detalhe com arguments)
+- [ ] Despesas (approve/reject inline)
+- [ ] Sensitive Notes Deletion
+- [ ] Agreements
+- [ ] Invitations (accept/decline inline)
+
+### Próximo batch (ordem de execução)
+1. **Saúde timeline detalhado** — 227→400 LOC, adicionar filtros + swipe actions
+2. **Despesas approve inline** — estender despesas index com accept/reject (workflow 6 of 8)
+3. **Decisoes + votos + argumentos** — workflow 5 of 8, inclui thread
+4. **/criancas/nova** + **/criancas/[id]** — Sprint 2, telas ausentes
+5. **/calendario/escala** — configurar modelo de custódia
+6. **Login visual parity** — ajustar tipografia, cores e gradient match do PWA
