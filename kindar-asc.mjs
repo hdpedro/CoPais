@@ -540,10 +540,13 @@ async function waitProcessing(appId, { maxWaitMs = 30 * 60 * 1000, pollIntervalM
   const start = Date.now();
   let lastState = null;
   while (Date.now() - start < maxWaitMs) {
-    const resp = await GET(`/apps/${appId}/builds`, {
+    // ASC API 2026: use /v1/builds with filter[app] (sort not allowed on /apps/{id}/builds;
+    // 'buildNumber' no longer on fields allowlist). Keep fields minimal for forward-compat.
+    const resp = await GET(`/builds`, {
+      "filter[app]": appId,
       "sort": "-uploadedDate",
       "limit": 1,
-      "fields[builds]": "version,buildNumber,processingState,uploadedDate",
+      "fields[builds]": "version,processingState,uploadedDate",
     });
     const b = resp.data?.[0];
     if (!b) {
@@ -551,7 +554,7 @@ async function waitProcessing(appId, { maxWaitMs = 30 * 60 * 1000, pollIntervalM
     } else {
       const state = b.attributes.processingState;
       if (state !== lastState) {
-        info(`Build ${b.attributes.version} (${b.attributes.buildNumber}) → ${state}`);
+        info(`Build ${b.attributes.version} → ${state}`);
         lastState = state;
       }
       if (state === "VALID") {
@@ -586,7 +589,8 @@ async function submitForReview(appId) {
     const buildRel = await GET(`/appStoreVersions/${version.id}/relationships/build`);
     if (!buildRel?.data?.id) {
       info("Versão sem build vinculado — vinculando o VALID mais recente");
-      const builds = await GET(`/apps/${appId}/builds`, {
+      const builds = await GET(`/builds`, {
+        "filter[app]": appId,
         "sort": "-uploadedDate",
         "filter[processingState]": "VALID",
         "limit": 1,
