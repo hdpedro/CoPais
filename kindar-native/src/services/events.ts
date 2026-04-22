@@ -9,13 +9,13 @@ import { notifyAction } from './notify';
 
 export interface SocialEvent {
   id: string; title: string; description: string | null; event_date: string;
-  end_date: string | null; location: string | null; all_day: boolean;
+  end_date: string | null; event_time: string | null; location: string | null; all_day: boolean;
   assigned_to: string | null; assignedName?: string;
 }
 
 export async function fetchEvents(groupId: string): Promise<SocialEvent[]> {
   const { data } = await supabase.from('events')
-    .select('id, title, description, event_date, end_date, location, all_day, assigned_to, profiles!events_assigned_to_fkey(full_name)')
+    .select('id, title, description, event_date, end_date, event_time, location, all_day, assigned_to, profiles!events_assigned_to_fkey(full_name)')
     .eq('group_id', groupId).order('event_date', { ascending: false }).limit(100);
   return (data || []).map((e: any) => ({ ...e, assignedName: e.profiles?.full_name?.split(' ')[0] || '' }));
 }
@@ -55,4 +55,19 @@ export async function createEvent(params: {
     notifyAction('event_created', params.groupId, { title: params.title });
   }
   return result;
+}
+
+export async function updateEvent(eventId: string, updates: {
+  title?: string;
+  description?: string | null;
+  event_date?: string;
+  event_time?: string | null;
+  location?: string | null;
+  all_day?: boolean;
+}) {
+  return safeWrite({ table: 'events', operation: 'update', payload: { id: eventId, ...updates } });
+}
+
+export async function deleteEvent(eventId: string) {
+  return safeWrite({ table: 'events', operation: 'delete', payload: { id: eventId } });
 }

@@ -1,10 +1,31 @@
 /**
  * Expenses Service — All writes use safeWrite for offline support.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { supabase } from '../lib/supabase';
 import { safeWrite } from './offline';
 import { notifyAction } from './notify';
+
+// Upload receipt image to 'receipts' storage bucket. Returns public URL or null.
+export async function uploadExpenseReceipt(params: {
+  uri: string; mimeType: string; groupId: string;
+}): Promise<{ success: true; url: string } | { success: false; error: string }> {
+  try {
+    const res = await fetch(params.uri);
+    const arrayBuffer = await res.arrayBuffer();
+    const ext = params.mimeType.split('/')[1] || 'jpg';
+    const path = `${params.groupId}/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('receipts').upload(path, arrayBuffer, {
+      contentType: params.mimeType, upsert: false,
+    });
+    if (error) return { success: false, error: error.message };
+    const { data } = supabase.storage.from('receipts').getPublicUrl(path);
+    return { success: true, url: data.publicUrl };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Falha no upload' };
+  }
+}
 
 export interface Expense {
   id: string;
@@ -41,7 +62,8 @@ export async function fetchExpenses(groupId: string, limit = 200): Promise<Expen
 
 export async function createExpense(params: {
   groupId: string; childId?: string; category: string; description: string;
-  amount: number; paidBy: string; splitRatio?: Record<string, number>; expenseDate: string;
+  amount: number; paidBy: string; splitRatio?: Record<string, number>;
+  expenseDate: string; receiptUrl?: string | null;
 }) {
   const result = await safeWrite({
     table: 'expenses',
@@ -52,6 +74,7 @@ export async function createExpense(params: {
       amount: params.amount, paid_by: params.paidBy,
       split_ratio: params.splitRatio || { default: 50 },
       expense_date: params.expenseDate, status: 'pending',
+      receipt_url: params.receiptUrl || null,
     },
   });
   if (result.success && !result.queued) {

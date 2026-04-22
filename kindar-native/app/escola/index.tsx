@@ -14,6 +14,7 @@ import { useAuth } from '../../src/store/auth';
 import { fetchChildren, fetchChildEducation, upsertChildEducation, type ChildEducation } from '../../src/services/children';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import EmptyState from '../../src/components/ui/EmptyState';
+import { TimePickerField } from '../../src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
 interface ChildSchool {
@@ -23,20 +24,6 @@ interface ChildSchool {
   education: ChildEducation | null;
 }
 
-function formatTimeInput(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 4);
-  if (digits.length <= 2) return digits;
-  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
-}
-function parseTimeHHMM(display: string): string | null {
-  if (!display) return null;
-  const m = display.match(/^(\d{2}):(\d{2})$/);
-  if (!m) return null;
-  const [, h, mi] = m;
-  const hn = Number(h), mn = Number(mi);
-  if (hn < 0 || hn > 23 || mn < 0 || mn > 59) return null;
-  return `${h}:${mi}:00`;
-}
 function displayTime(t: string | null): string {
   if (!t) return '';
   return t.slice(0, 5);
@@ -98,15 +85,8 @@ export default function EscolaScreen() {
 
   async function handleSave() {
     if (!editing || !activeGroup) return;
-    let entryIso: string | null = null, exitIso: string | null = null;
-    if (entryTime) {
-      entryIso = parseTimeHHMM(entryTime);
-      if (!entryIso) { Alert.alert('Horario de entrada invalido', 'Use HH:MM'); return; }
-    }
-    if (exitTime) {
-      exitIso = parseTimeHHMM(exitTime);
-      if (!exitIso) { Alert.alert('Horario de saida invalido', 'Use HH:MM'); return; }
-    }
+    const entryIso = entryTime ? `${entryTime}:00` : null;
+    const exitIso = exitTime ? `${exitTime}:00` : null;
     const extras = extracurriculars.split(',').map(s => s.trim()).filter(Boolean);
     setSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -194,14 +174,12 @@ export default function EscolaScreen() {
               <Label>Coordenador(a)</Label>
               <Input value={coordinatorName} onChangeText={setCoordinatorName} placeholder="Ex: Joao" />
 
-              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                 <View style={{ flex: 1 }}>
-                  <Label>Entrada (HH:MM)</Label>
-                  <Input value={entryTime} onChangeText={v => setEntryTime(formatTimeInput(v))} placeholder="07:30" keyboardType="number-pad" maxLength={5} />
+                  <TimePickerField label="Entrada" value={entryTime || null} onChange={setEntryTime} placeholder="07:30" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <Label>Saida (HH:MM)</Label>
-                  <Input value={exitTime} onChangeText={v => setExitTime(formatTimeInput(v))} placeholder="12:00" keyboardType="number-pad" maxLength={5} />
+                  <TimePickerField label="Saida" value={exitTime || null} onChange={setExitTime} placeholder="12:00" />
                 </View>
               </View>
 

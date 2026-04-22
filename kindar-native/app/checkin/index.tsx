@@ -19,6 +19,7 @@ import { fetchChildren, type Child } from '../../src/services/children';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import FAB from '../../src/components/ui/FAB';
 import EmptyState from '../../src/components/ui/EmptyState';
+import { DatePickerField, dateToIso } from '../../src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
 interface CheckinItem {
@@ -31,23 +32,6 @@ const CAT_LABELS: Record<string, string> = {
   health: 'Saude', hygiene: 'Higiene', other: 'Outro',
 };
 
-function todayDisplay(): string {
-  const d = new Date();
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-}
-function parseDateDMY(display: string): string | null {
-  const m = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
-  if (!m) return null;
-  const [, d, mo, y] = m;
-  return `${y}-${mo}-${d}`;
-}
-function formatDateInput(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
-}
-
 export default function CheckinScreen() {
   const { userId, activeGroup } = useAuth();
   const [items, setItems] = useState<CheckinItem[]>([]);
@@ -58,7 +42,7 @@ export default function CheckinScreen() {
   const [category, setCategory] = useState<string>('mood');
   const [title, setTitle] = useState('');
   const [notes, setNotes] = useState('');
-  const [dateDisplay, setDateDisplay] = useState(todayDisplay());
+  const [dateIso, setDateIso] = useState<string>(dateToIso(new Date()));
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -84,9 +68,6 @@ export default function CheckinScreen() {
 
   async function handleSubmit() {
     if (!activeGroup || !userId || !title.trim()) return;
-    const iso = parseDateDMY(dateDisplay);
-    if (!iso) { Alert.alert('Data invalida', 'Use DD/MM/AAAA'); return; }
-
     setSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const result = await safeWrite({
@@ -96,7 +77,7 @@ export default function CheckinScreen() {
         child_id: childId || null,
         category, title: title.trim(),
         notes: notes.trim() || null,
-        checkin_date: iso,
+        checkin_date: dateIso,
         logged_by: userId,
       },
     });
@@ -110,7 +91,7 @@ export default function CheckinScreen() {
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setComposerOpen(false);
-      setChildId(null); setCategory('mood'); setTitle(''); setNotes(''); setDateDisplay(todayDisplay());
+      setChildId(null); setCategory('mood'); setTitle(''); setNotes(''); setDateIso(dateToIso(new Date()));
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -230,16 +211,9 @@ export default function CheckinScreen() {
                 }}
               />
 
-              <TextInput
-                value={dateDisplay} onChangeText={v => setDateDisplay(formatDateInput(v))}
-                placeholder="DD/MM/AAAA" keyboardType="number-pad" maxLength={10}
-                placeholderTextColor={colors.textMuted}
-                style={{
-                  backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
-                  paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
-                  fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm,
-                }}
-              />
+              <View style={{ marginBottom: spacing.sm }}>
+                <DatePickerField value={dateIso} onChange={setDateIso} placeholder="Data do check-in" maximumDate={new Date()} />
+              </View>
 
               <TextInput
                 value={notes} onChangeText={setNotes}

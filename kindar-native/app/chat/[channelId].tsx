@@ -1,11 +1,13 @@
-import { useState, useEffect, useRef, useCallback, memo } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any, jsx-a11y/alt-text */
+import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  KeyboardAvoidingView, Platform, ActivityIndicator, Image, Modal, Pressable, Alert,
 } from 'react-native';
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { safeWrite } from '../../src/services/offline';
@@ -13,6 +15,23 @@ import { notifyAction } from '../../src/services/notify';
 import { useAuth } from '../../src/store/auth';
 import { getDisplayName } from '../../src/lib/constants';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+
+async function uploadChatImage(uri: string, mimeType: string, groupId: string): Promise<string | null> {
+  try {
+    const res = await fetch(uri);
+    const arrayBuffer = await res.arrayBuffer();
+    const ext = mimeType.split('/')[1] || 'jpg';
+    const path = `${groupId}/chat/${Date.now()}.${ext}`;
+    const { error } = await supabase.storage.from('documents').upload(path, arrayBuffer, {
+      contentType: mimeType, upsert: false,
+    });
+    if (error) return null;
+    const { data } = supabase.storage.from('documents').getPublicUrl(path);
+    return data.publicUrl;
+  } catch {
+    return null;
+  }
+}
 
 interface Message {
   id: string;
@@ -33,6 +52,8 @@ export default function ChatRoomScreen() {
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
   const [channelName, setChannelName] = useState('Chat');
+  const [pendingImage, setPendingImage] = useState<{ uri: string; mime: string } | null>(null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const membersRef = useRef<Record<string, string>>({});
 
@@ -152,29 +173,71 @@ export default function ChatRoomScreen() {
     }
   }, [messages.length]);
 
+  const pickImage = useCallback(async (source: 'camera' | 'library') => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    if (source === 'camera') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Permissao necessaria', 'Precisamos da camera'); return; }
+      const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.75, exif: false });
+      if (!r.canceled && r.assets?.[0]) setPendingImage({ uri: r.assets[0].uri, mime: r.assets[0].mimeType || 'image/jpeg' });
+    } else {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { Alert.alert('Permissao necessaria', 'Precisamos acesso as fotos'); return; }
+      const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75, exif: false });
+      if (!r.canceled && r.assets?.[0]) setPendingImage({ uri: r.assets[0].uri, mime: r.assets[0].mimeType || 'image/jpeg' });
+    }
+  }, []);
+
+  const openAttachSheet = useCallback(() => {
+    Alert.alert('Anexar imagem', 'Escolha a origem', [
+      { text: 'Camera', onPress: () => pickImage('camera') },
+      { text: 'Galeria', onPress: () => pickImage('library') },
+      { text: 'Cancelar', style: 'cancel' },
+    ]);
+  }, [pickImage]);
+
   const sendMessage = useCallback(async () => {
-    if (!newMessage.trim() || !channelId || !userId || !activeGroup || sending) return;
+    const hasText = newMessage.trim().length > 0;
+    if ((!hasText && !pendingImage) || !channelId || !userId || !activeGroup || sending) return;
 
     setSending(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const text = newMessage.trim();
+    const img = pendingImage;
     setNewMessage('');
+    setPendingImage(null);
+
+    let imageUrl: string | null = null;
+    if (img) {
+      imageUrl = await uploadChatImage(img.uri, img.mime, activeGroup.groupId);
+      if (!imageUrl) {
+        Alert.alert('Erro', 'Nao foi possivel enviar a imagem');
+        setNewMessage(text);
+        setPendingImage(img);
+        setSending(false);
+        return;
+      }
+    }
 
     const result = await safeWrite({
       table: 'chat_messages',
       operation: 'insert',
-      payload: { group_id: activeGroup.groupId, channel_id: channelId, sender_id: userId, text },
+      payload: {
+        group_id: activeGroup.groupId, channel_id: channelId, sender_id: userId,
+        text: text || null, image_url: imageUrl,
+      },
     });
 
     if (result.success && !result.queued) {
-      notifyAction('chat_message_sent', activeGroup.groupId, { text });
+      notifyAction('chat_message_sent', activeGroup.groupId, { text: text || '[imagem]' });
     } else if (!result.success && !result.queued) {
-      setNewMessage(text); // Restore message on failure
+      setNewMessage(text);
+      setPendingImage(img);
     }
 
     setSending(false);
-  }, [newMessage, channelId, userId, activeGroup, sending]);
+  }, [newMessage, pendingImage, channelId, userId, activeGroup, sending]);
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);
@@ -183,6 +246,8 @@ export default function ChatRoomScreen() {
 
   const renderMessage = useCallback(({ item }: { item: Message }) => {
     const isMe = item.sender_id === userId;
+    const hasImage = !!item.image_url;
+    const hasText = !!item.text?.trim();
     return (
       <View style={{
         alignItems: isMe ? 'flex-end' : 'flex-start',
@@ -200,21 +265,38 @@ export default function ChatRoomScreen() {
           borderRadius: radius.lg,
           borderTopRightRadius: isMe ? 4 : radius.lg,
           borderTopLeftRadius: isMe ? radius.lg : 4,
-          padding: spacing.md,
+          padding: hasImage && !hasText ? 4 : spacing.md,
           ...(!isMe ? shadows.sm : {}),
         }}>
-          <Text style={{
-            fontSize: font.sizes.md,
-            color: isMe ? '#fff' : colors.text,
-            lineHeight: 20,
-          }}>
-            {item.text}
-          </Text>
+          {hasImage ? (
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => item.image_url && setPreviewUrl(item.image_url)}
+              style={{ borderRadius: radius.md, overflow: 'hidden', marginBottom: hasText ? spacing.xs : 0 }}
+            >
+              <Image
+                source={{ uri: item.image_url! }}
+                style={{ width: 220, height: 220, backgroundColor: 'rgba(0,0,0,0.06)' }}
+                resizeMode="cover"
+              />
+            </TouchableOpacity>
+          ) : null}
+          {hasText ? (
+            <Text style={{
+              fontSize: font.sizes.md,
+              color: isMe ? '#fff' : colors.text,
+              lineHeight: 20,
+            }}>
+              {item.text}
+            </Text>
+          ) : null}
           <Text style={{
             fontSize: 9,
             color: isMe ? 'rgba(255,255,255,0.6)' : colors.textDim,
             textAlign: 'right',
             marginTop: 4,
+            marginRight: hasImage && !hasText ? 8 : 0,
+            marginBottom: hasImage && !hasText ? 4 : 0,
           }}>
             {formatTime(item.created_at)}
           </Text>
@@ -265,6 +347,21 @@ export default function ChatRoomScreen() {
         />
       )}
 
+      {/* Pending image preview */}
+      {pendingImage ? (
+        <View style={{
+          flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+          padding: spacing.sm, backgroundColor: colors.bgElevated,
+          borderTopWidth: 0.5, borderTopColor: colors.borderLight,
+        }}>
+          <Image source={{ uri: pendingImage.uri }} style={{ width: 56, height: 56, borderRadius: radius.sm, backgroundColor: colors.bgSurface }} />
+          <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.textSecondary }}>Imagem pronta para enviar</Text>
+          <TouchableOpacity onPress={() => setPendingImage(null)} hitSlop={8}>
+            <Ionicons name="close-circle" size={22} color={colors.textMuted} />
+          </TouchableOpacity>
+        </View>
+      ) : null}
+
       {/* Input */}
       <View style={{
         flexDirection: 'row',
@@ -277,6 +374,19 @@ export default function ChatRoomScreen() {
         borderTopColor: colors.borderLight,
         gap: spacing.sm,
       }}>
+        <TouchableOpacity
+          onPress={openAttachSheet}
+          disabled={sending}
+          hitSlop={6}
+          style={{
+            width: 40, height: 40, borderRadius: 20,
+            backgroundColor: colors.bgSurface,
+            alignItems: 'center', justifyContent: 'center',
+            marginBottom: 2,
+          }}
+        >
+          <Ionicons name="attach" size={20} color={colors.textSecondary} />
+        </TouchableOpacity>
         <View style={{
           flex: 1,
           backgroundColor: colors.bgSurface,
@@ -300,17 +410,37 @@ export default function ChatRoomScreen() {
         </View>
         <TouchableOpacity
           onPress={sendMessage}
-          disabled={!newMessage.trim() || sending}
+          disabled={(!newMessage.trim() && !pendingImage) || sending}
           style={{
             width: 40, height: 40, borderRadius: 20,
-            backgroundColor: newMessage.trim() ? colors.brand : colors.borderLight,
+            backgroundColor: (newMessage.trim() || pendingImage) ? colors.brand : colors.borderLight,
             alignItems: 'center', justifyContent: 'center',
             marginBottom: 2,
           }}
         >
-          <Ionicons name="send" size={18} color={newMessage.trim() ? '#fff' : colors.textDim} />
+          {sending
+            ? <ActivityIndicator size="small" color="#fff" />
+            : <Ionicons name="send" size={18} color={(newMessage.trim() || pendingImage) ? '#fff' : colors.textDim} />}
         </TouchableOpacity>
       </View>
+
+      {/* Image preview modal (tap-to-zoom) */}
+      <Modal visible={!!previewUrl} transparent animationType="fade" onRequestClose={() => setPreviewUrl(null)}>
+        <Pressable
+          onPress={() => setPreviewUrl(null)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.92)', alignItems: 'center', justifyContent: 'center' }}
+        >
+          {previewUrl ? (
+            <Image source={{ uri: previewUrl }} style={{ width: '96%', height: '80%' }} resizeMode="contain" />
+          ) : null}
+          <TouchableOpacity
+            onPress={() => setPreviewUrl(null)}
+            style={{ position: 'absolute', top: insets.top + 12, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}
+          >
+            <Ionicons name="close" size={22} color="#fff" />
+          </TouchableOpacity>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
