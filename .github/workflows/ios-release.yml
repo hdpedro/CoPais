@@ -111,7 +111,7 @@ jobs:
                 "path": "./dist-cert.p12",
                 "password": "$IOS_P12_PASSWORD"
               },
-              "provisioningProfile": "./profile.mobileprovision"
+              "provisioningProfilePath": "./profile.mobileprovision"
             }
           }
           JSON
