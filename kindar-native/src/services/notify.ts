@@ -27,7 +27,10 @@ type NotifyAction =
   | 'swap_rejected'
   | 'decision_voted'
   | 'decision_argument_posted'
-  | 'decision_closed';
+  | 'decision_closed'
+  | 'invitation_sent'
+  | 'invitation_cancelled'
+  | 'invitation_accepted';
 
 /**
  * Fire-and-forget notification to PWA backend.

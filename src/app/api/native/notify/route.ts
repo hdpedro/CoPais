@@ -33,7 +33,10 @@ type ActionType =
   | "swap_rejected"
   | "decision_voted"
   | "decision_argument_posted"
-  | "decision_closed";
+  | "decision_closed"
+  | "invitation_sent"
+  | "invitation_cancelled"
+  | "invitation_accepted";
 
 interface NotifyRequest {
   action: ActionType;
@@ -178,6 +181,29 @@ const ACTION_CONFIGS: Record<ActionType, {
     chatMessageFn: (name, d) => `🗳️ Decisao encerrada: ${d.title} (${d.finalStatus})`,
     link: "/decisoes",
     analyticsEvent: "decision_closed",
+  },
+  invitation_sent: {
+    notificationType: "invitation",
+    titleFn: () => "Convite enviado",
+    messageFn: (name, d) => `${name} convidou ${d.email} como ${d.role}`,
+    chatMessageFn: (name, d) => `📧 ${name} convidou ${d.email}`,
+    link: "/familia",
+    analyticsEvent: "invitation_sent",
+  },
+  invitation_cancelled: {
+    notificationType: "system",
+    titleFn: () => "Convite cancelado",
+    messageFn: (name) => `${name} cancelou um convite pendente`,
+    link: "/familia",
+    analyticsEvent: "invitation_cancelled",
+  },
+  invitation_accepted: {
+    notificationType: "invitation",
+    titleFn: () => "Novo membro",
+    messageFn: (name) => `${name} entrou no grupo`,
+    chatMessageFn: (name) => `👋 ${name} entrou no grupo`,
+    link: "/familia",
+    analyticsEvent: "invitation_accepted",
   },
 };
 
