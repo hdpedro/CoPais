@@ -21,7 +21,10 @@ type NotifyAction =
   | 'health_event_created'
   | 'chat_message_sent'
   | 'child_created'
-  | 'document_uploaded';
+  | 'document_uploaded'
+  | 'swap_request_created'
+  | 'swap_approved'
+  | 'swap_rejected';
 
 /**
  * Fire-and-forget notification to PWA backend.

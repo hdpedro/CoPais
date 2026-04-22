@@ -10,10 +10,17 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useCalendar, type CalendarEvent } from '../../src/hooks/useCalendar';
 import { useAuth } from '../../src/store/auth';
 import { DAY_NAMES, MONTH_NAMES } from '../../src/lib/constants';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+import { respondToSwap } from '../../src/services/swaps';
 
 function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+const MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+function formatSwapDate(iso: string): string {
+  const [, m, d] = iso.split('-').map(Number);
+  return `${d}/${MONTHS_SHORT[(m || 1) - 1]}`;
 }
 
 function getDaysInMonth(year: number, month: number): number {
@@ -26,10 +33,30 @@ function getFirstDayOfWeek(year: number, month: number): number {
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
-  const { events, members, loading, refresh } = useCalendar();
-  const { userId } = useAuth();
+  const { events, members, pendingSwaps, refresh } = useCalendar();
+  const { activeGroup } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  const [responding, setResponding] = useState<string | null>(null);
+
+  const handleSwapDecision = useCallback(async (
+    swapId: string,
+    decision: 'approved' | 'rejected',
+    requesterId: string,
+    originalDate: string
+  ) => {
+    if (!activeGroup) return;
+    setResponding(swapId);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const result = await respondToSwap(swapId, decision, activeGroup.groupId, requesterId, originalDate);
+    if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await refresh();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    }
+    setResponding(null);
+  }, [activeGroup, refresh]);
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -91,6 +118,74 @@ export default function CalendarScreen() {
             <Ionicons name="chevron-forward" size={24} color={colors.text} />
           </TouchableOpacity>
         </View>
+
+        {/* Pending Swap Banner — actionable */}
+        {pendingSwaps.length > 0 ? (
+          <Animated.View entering={FadeInDown.duration(300)}>
+            <View style={{
+              marginHorizontal: spacing.lg, marginBottom: spacing.lg,
+              backgroundColor: `${colors.secondary}10`, borderRadius: radius.xl,
+              borderWidth: 1, borderColor: `${colors.secondary}30`,
+              padding: spacing.lg,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <Text style={{ fontSize: 18 }}>🔄</Text>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
+                  {pendingSwaps.length === 1 ? '1 troca pendente' : `${pendingSwaps.length} trocas pendentes`}
+                </Text>
+              </View>
+              {pendingSwaps.map((s, i) => (
+                <View
+                  key={s.id}
+                  style={{
+                    paddingVertical: spacing.sm,
+                    borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                  }}
+                >
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
+                    {s.requesterName} quer trocar {formatSwapDate(s.originalDate)}
+                    {s.proposedDate ? ` por ${formatSwapDate(s.proposedDate)}` : ''}
+                  </Text>
+                  {s.reason ? (
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2, fontStyle: 'italic' }}>
+                      {`\u201C${s.reason}\u201D`}
+                    </Text>
+                  ) : null}
+                  <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                    <TouchableOpacity
+                      disabled={responding === s.id}
+                      onPress={() => handleSwapDecision(s.id, 'rejected', s.requesterId, s.originalDate)}
+                      style={{
+                        flex: 1, paddingVertical: 8, borderRadius: radius.md,
+                        borderWidth: 1, borderColor: colors.borderLight,
+                        alignItems: 'center',
+                        opacity: responding === s.id ? 0.5 : 1,
+                      }}
+                    >
+                      <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
+                        Rejeitar
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      disabled={responding === s.id}
+                      onPress={() => handleSwapDecision(s.id, 'approved', s.requesterId, s.originalDate)}
+                      style={{
+                        flex: 1, paddingVertical: 8, borderRadius: radius.md,
+                        backgroundColor: colors.brand,
+                        alignItems: 'center',
+                        opacity: responding === s.id ? 0.5 : 1,
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                        Aprovar
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </Animated.View>
+        ) : null}
 
         {/* Member Legend */}
         {members.length > 0 ? (

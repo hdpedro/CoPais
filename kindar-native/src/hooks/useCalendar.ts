@@ -2,11 +2,13 @@
  * useCalendar — Fetches calendar data (custody events, activities, social events).
  */
 
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
 import { PARENT_COLORS, getDisplayName } from '../lib/constants';
+import { loadMyPendingSwaps, type SwapRequestDetail } from '../services/swaps';
 
 export interface CalendarEvent {
   id: string;
@@ -32,6 +34,7 @@ export function useCalendar() {
   const { userId, activeGroup } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [members, setMembers] = useState<MemberColor[]>([]);
+  const [pendingSwaps, setPendingSwaps] = useState<SwapRequestDetail[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -136,6 +139,14 @@ export function useCalendar() {
       });
 
       setEvents(allEvents);
+
+      // Pending swap requests addressed to me (for the action banner)
+      if (activeGroup.custodyEnabled) {
+        const swaps = await loadMyPendingSwaps(groupId, userId);
+        setPendingSwaps(swaps);
+      } else {
+        setPendingSwaps([]);
+      }
     } catch {
       // Silently fail
     } finally {
@@ -145,7 +156,7 @@ export function useCalendar() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  return { events, members, loading, refresh: loadData };
+  return { events, members, pendingSwaps, loading, refresh: loadData };
 }
 
 // Re-export colors for use in the calendar

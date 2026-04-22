@@ -27,7 +27,10 @@ type ActionType =
   | "health_event_created"
   | "chat_message_sent"
   | "child_created"
-  | "document_uploaded";
+  | "document_uploaded"
+  | "swap_request_created"
+  | "swap_approved"
+  | "swap_rejected";
 
 interface NotifyRequest {
   action: ActionType;
@@ -117,6 +120,32 @@ const ACTION_CONFIGS: Record<ActionType, {
     messageFn: (name, d) => `${name} enviou: ${d.name}`,
     link: "/documentos",
     analyticsEvent: "document_uploaded",
+  },
+  swap_request_created: {
+    notificationType: "swap_request",
+    titleFn: () => "Nova troca de guarda",
+    messageFn: (name, d) =>
+      `${name} solicitou troca ${d.proposedDate ? `${d.originalDate} por ${d.proposedDate}` : `do dia ${d.originalDate}`}`,
+    chatMessageFn: (name, d) =>
+      `🔄 ${name} pediu troca ${d.proposedDate ? `${d.originalDate}→${d.proposedDate}` : `do dia ${d.originalDate}`}${d.reason ? ` (${d.reason})` : ""}`,
+    link: "/calendario",
+    analyticsEvent: "swap_request_created",
+  },
+  swap_approved: {
+    notificationType: "swap_response",
+    titleFn: () => "Troca aprovada",
+    messageFn: (name) => `${name} aprovou sua solicitacao de troca`,
+    chatMessageFn: (name) => `✅ ${name} aprovou a troca`,
+    link: "/calendario",
+    analyticsEvent: "swap_approved",
+  },
+  swap_rejected: {
+    notificationType: "swap_response",
+    titleFn: () => "Troca rejeitada",
+    messageFn: (name) => `${name} rejeitou sua solicitacao de troca`,
+    chatMessageFn: (name) => `❌ ${name} rejeitou a troca`,
+    link: "/calendario",
+    analyticsEvent: "swap_rejected",
   },
 };
 
