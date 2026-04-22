@@ -31,8 +31,11 @@ export default function CriancasScreen() {
     const age = calcAge(item.birth_date);
     const initial = item.full_name[0]?.toUpperCase() || '?';
     return (
-      <TouchableOpacity activeOpacity={0.7}
-        style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.md, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}>
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={() => router.push({ pathname: '/criancas/[id]', params: { id: item.id } } as never)}
+        style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.md, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.lg }}
+      >
         <View style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: colors.brandLight, alignItems: 'center', justifyContent: 'center' }}>
           <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.brand }}>{initial}</Text>
         </View>
@@ -54,7 +57,7 @@ export default function CriancasScreen() {
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : <EmptyState icon="👶" title="Nenhuma crianca" subtitle="Adicione as criancas do grupo" />}
       />
-      <FAB onPress={() => {}} />
+      <FAB onPress={() => router.push('/criancas/nova')} />
     </View>
   );
 }
