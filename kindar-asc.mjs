@@ -91,7 +91,7 @@ Funcionalidades principais:
 • Notificações em tempo real
 
 Kindar representa os dois lares da criança. Porque seus filhos merecem responsáveis organizados.`,
-    keywords: "coparentalidade,guarda compartilhada,filhos,família,calendário,despesas,saúde,crianças,pais separados,organização familiar",
+    keywords: "coparentalidade,guarda,filhos,família,calendário,saúde,crianças,pais,organização,rotina",
     promotionalText: "Organize a rotina dos seus filhos entre dois lares. Calendário, chat, despesas e saúde em um só lugar.",
     whatsNew: "Versão inicial do Kindar para iOS.",
     supportUrl: "https://kindar.com.br",
@@ -114,7 +114,7 @@ Key features:
 • Real-time notifications
 
 Kindar represents both of a child's homes. Because your children deserve organized caregivers.`,
-    keywords: "co-parenting,shared custody,children,family,calendar,expenses,health,kids,separated parents,family organization",
+    keywords: "coparenting,shared custody,family,calendar,kids,health,expenses,routine,children,parents",
     promotionalText: "Organize your children's routine between two homes. Calendar, chat, expenses and health in one place.",
     whatsNew: "Initial release of Kindar for iOS.",
     supportUrl: "https://kindar.com.br",
@@ -325,16 +325,16 @@ async function configureAppInfo(appId) {
     warn(`Content Rights: ${e.message}`);
   }
 
-  // Age Rating Declaration — lifestyle app, everything NONE except messaging + UGC
+  // Age Rating Declaration — Apple's 2024+ schema mixes enums (NONE/INFREQUENT/FREQUENT)
+  // and booleans. Based on current ASC API responses:
+  //   enum  → content severity scale
+  //   bool  → feature presence flag
   const ageRatingAttrs = {
-    // Violence / mature content
+    // Enum: NONE | INFREQUENT_OR_MILD | FREQUENT_OR_INTENSE
     alcoholTobaccoOrDrugUseOrReferences: "NONE",
-    contests: "NONE",
-    gambling: false,
     gamblingSimulated: "NONE",
     gunsOrOtherWeapons: "NONE",
     horrorOrFearThemes: "NONE",
-    lootBox: false,
     matureOrSuggestiveThemes: "NONE",
     medicalOrTreatmentInformation: "NONE",
     profanityOrCrudeHumor: "NONE",
@@ -343,14 +343,20 @@ async function configureAppInfo(appId) {
     violenceCartoonOrFantasy: "NONE",
     violenceRealistic: "NONE",
     violenceRealisticProlongedGraphicOrSadistic: "NONE",
-    // App behavior
-    advertising: "NONE",
-    ageAssurance: "NOT_APPLICABLE",
     healthOrWellnessTopics: "NONE",
-    messagingAndChat: "INFREQUENT_OR_MILD",   // In-app chat between parents
-    parentalControls: "NONE",
+    advertising: "NONE",
+
+    // Boolean: presence flags
+    gambling: false,
+    lootBox: false,
     unrestrictedWebAccess: false,
-    userGeneratedContent: "INFREQUENT_OR_MILD", // Chat messages, notes
+    contests: false,
+    parentalControls: false,
+    messagingAndChat: true,           // chat entre parents
+    userGeneratedContent: true,       // notas e mensagens
+
+    // Specific enum
+    ageAssurance: "NOT_APPLICABLE",
     kidsAgeBand: null,
   };
   try {
@@ -508,12 +514,12 @@ async function configurePricing(appId) {
   // it has a published manualPrice. Apple validates "pricing has been set" by
   // the presence of an appPrice row, not just a schedule shell.
 
-  // 1. Find the FREE priceTier for USA base territory
+  // 1. Find the FREE priceTier for USA base territory. Apple caps limit at 200.
   let freePointId = null;
   try {
     const points = await GET(`/apps/${appId}/appPricePoints`, {
       "filter[territory]": "USA",
-      "limit": 1000,
+      "limit": 200,
     });
     // Look for the free tier (priceTier=FREE or customerPrice=0)
     const free = (points.data || []).find((p) => {
