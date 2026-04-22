@@ -29,6 +29,7 @@
     },
     "production": {
       "node": "20.18.0",
+      "credentialsSource": "local",
       "ios": {
         "buildConfiguration": "Release",
         "autoIncrement": true

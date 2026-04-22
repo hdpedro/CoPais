@@ -18,6 +18,11 @@ expo-env.d.ts
 *.key
 *.mobileprovision
 
+# Local build credentials (written in CI, never committed)
+credentials.json
+dist-cert.p12
+profile.mobileprovision
+
 # Metro
 .metro-health-check*
 
