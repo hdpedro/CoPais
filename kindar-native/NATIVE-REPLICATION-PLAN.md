@@ -164,7 +164,7 @@ Cada sprint só é considerado fechado quando:
 **Status atual (atualizado 2026-04-22 sessão 4):**
 
 ### Progresso consolidado
-Native LOC foi de 8.144 → **15.610** (quase dobrou em uma sessão autônoma).
+Native LOC foi de 8.144 → **16.012** (+7.868, quase 2× em uma sessão autônoma, 43 commits).
 
 - ✅ Sprint 0: auth platform rule + plano
 - ✅ Sprint 2: 14/14 telas novas criadas (criancas nova+[id], atividades/nova,
@@ -172,13 +172,15 @@ Native LOC foi de 8.144 → **15.610** (quase dobrou em uma sessão autônoma).
   enviar+[token], onboarding/convite, calendario escala/convite)
 - 🔶 Sprint 1: Dashboard actionable cards ✓, Login platform-correct ✓, saude
   hub com 12 modulos. Remanente: streakDays, pendingReports, onboardingChecklist
-- 🔶 Sprint 3: 5/8 workflows end-to-end
+- ✅ Sprint 3: 7/8 workflows end-to-end
   - ✓ Swap requests (calendario banner)
   - ✓ Decisoes (voto + argumentos + tally)
   - ✓ Invitations (share + accept via deep link)
   - ✓ Agreements (aceite + categorias + inegociavel)
   - ✓ Sensitive notes deletion (2-party approval)
-  - ⏳ Event requests, custody balance ops
+  - ✓ Event requests (action types edit/cancel/reschedule/delete + inbox)
+  - ✓ Despesas (approve/reject inline no despesas screen)
+  - ⏳ Custody Balance Operations detalhado (swaps ja atualizam, falta UI standalone)
 - ✅ Sprint 4: Push notifications — setupNotificationHandler + APNs/FCM
   register + deep link on tap + clearBadge. Inbox notificacoes integrado.
 - 🔶 Sprint 5: UX premium parcial (haptics em ~todas as actions, skeleton em
