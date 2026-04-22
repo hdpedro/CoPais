@@ -1,6 +1,7 @@
 /**
  * Consultas — Lista de consultas + criar nova.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps, react-hooks/preserve-manual-memoization */
 import { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -19,6 +20,33 @@ const STATUS_COLORS: Record<string, { label: string; color: string }> = {
   scheduled: { label: 'Agendada', color: '#3b82f6' }, completed: { label: 'Realizada', color: '#4CAF50' }, cancelled: { label: 'Cancelada', color: '#8A8A8A' },
 };
 
+function todayDisplay(): string {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+
+function parseDateDMY(display: string): string | null {
+  const m = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  const dt = new Date(+y, +mo - 1, +d);
+  if (dt.getFullYear() !== +y || dt.getMonth() !== +mo - 1 || dt.getDate() !== +d) return null;
+  return `${y}-${mo}-${d}`;
+}
+
+function formatDateInput(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
+
+function formatTimeInput(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 4);
+  if (digits.length <= 2) return digits;
+  return `${digits.slice(0, 2)}:${digits.slice(2)}`;
+}
+
 export default function ConsultasScreen() {
   const { userId, activeGroup } = useAuth();
   const [appts, setAppts] = useState<Appt[]>([]);
@@ -27,6 +55,8 @@ export default function ConsultasScreen() {
   const [children, setChildren] = useState<Array<{id: string; full_name: string}>>([]);
   const [selectedChild, setSelectedChild] = useState('');
   const [title, setTitle] = useState('');
+  const [dateDisplay, setDateDisplay] = useState(todayDisplay());
+  const [timeDisplay, setTimeDisplay] = useState('');
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -48,15 +78,27 @@ export default function ConsultasScreen() {
 
   async function handleCreate() {
     if (!title.trim() || !selectedChild || !userId || !activeGroup) return;
+    const isoDate = parseDateDMY(dateDisplay);
+    if (!isoDate) { Alert.alert('Data invalida', 'Use DD/MM/AAAA'); return; }
+    // Compose ISO timestamp with time if provided
+    let appointmentIso: string;
+    if (timeDisplay && /^(\d{2}):(\d{2})$/.test(timeDisplay)) {
+      const [h, mi] = timeDisplay.split(':').map(Number);
+      if (h < 0 || h > 23 || mi < 0 || mi > 59) { Alert.alert('Hora invalida', 'Use HH:MM entre 00:00 e 23:59'); return; }
+      appointmentIso = `${isoDate}T${timeDisplay}:00`;
+    } else {
+      appointmentIso = `${isoDate}T12:00:00`;
+    }
+
     setSaving(true);
     const result = await safeWrite({
       table: 'medical_appointments', operation: 'insert',
-      payload: { group_id: activeGroup.groupId, child_id: selectedChild, title: title.trim(), appointment_date: new Date().toISOString(), location: location.trim() || null, status: 'scheduled', notes: notes.trim() || null, created_by: userId },
+      payload: { group_id: activeGroup.groupId, child_id: selectedChild, title: title.trim(), appointment_date: appointmentIso, location: location.trim() || null, status: 'scheduled', notes: notes.trim() || null, created_by: userId },
     });
     if (result.success) {
       if (!result.queued) notifyAction('health_event_created', activeGroup.groupId, { title: title, childName: children.find(c => c.id === selectedChild)?.full_name?.split(' ')[0] || '', eventType: 'appointment' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setShowForm(false); setTitle(''); setLocation(''); setNotes('');
+      setShowForm(false); setTitle(''); setDateDisplay(todayDisplay()); setTimeDisplay(''); setLocation(''); setNotes('');
       load();
     } else { Alert.alert('Erro', result.error || 'Falha'); }
     setSaving(false);
@@ -86,6 +128,12 @@ export default function ConsultasScreen() {
           ) : null}
           <TextInput value={title} onChangeText={setTitle} placeholder="Tipo (Pediatra, Dentista...)" placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
+            <TextInput value={dateDisplay} onChangeText={v => setDateDisplay(formatDateInput(v))} placeholder="DD/MM/AAAA" keyboardType="number-pad" maxLength={10} placeholderTextColor={colors.textDim}
+              style={{ flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
+            <TextInput value={timeDisplay} onChangeText={v => setTimeDisplay(formatTimeInput(v))} placeholder="HH:MM" keyboardType="number-pad" maxLength={5} placeholderTextColor={colors.textDim}
+              style={{ flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
+          </View>
           <TextInput value={location} onChangeText={setLocation} placeholder="Local (opcional)" placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
           <TextInput value={notes} onChangeText={setNotes} placeholder="Observacoes (opcional)" placeholderTextColor={colors.textDim} multiline

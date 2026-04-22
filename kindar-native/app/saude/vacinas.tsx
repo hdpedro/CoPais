@@ -1,6 +1,7 @@
 /**
  * Vacinas — Lista de vacinacao + registrar nova.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps, react-hooks/preserve-manual-memoization */
 import { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -8,11 +9,30 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../src/lib/supabase';
 import { safeWrite } from '../../src/services/offline';
 import { useAuth } from '../../src/store/auth';
-import { getDisplayName, getBrazilToday } from '../../src/lib/constants';
+import { getDisplayName } from '../../src/lib/constants';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
 interface Vaccine { id: string; vaccine_name: string; dose_label: string | null; administered_date: string; location: string | null; childName: string; }
+
+function todayDisplay(): string {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+function parseDateDMY(display: string): string | null {
+  const m = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  const dt = new Date(+y, +mo - 1, +d);
+  if (dt.getFullYear() !== +y || dt.getMonth() !== +mo - 1 || dt.getDate() !== +d) return null;
+  return `${y}-${mo}-${d}`;
+}
+function formatDateInput(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
 
 export default function VacinasScreen() {
   const { userId, activeGroup } = useAuth();
@@ -23,6 +43,8 @@ export default function VacinasScreen() {
   const [selectedChild, setSelectedChild] = useState('');
   const [name, setName] = useState('');
   const [dose, setDose] = useState('');
+  const [dateDisplay, setDateDisplay] = useState(todayDisplay());
+  const [location, setLocation] = useState('');
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -42,14 +64,16 @@ export default function VacinasScreen() {
 
   async function handleCreate() {
     if (!name.trim() || !selectedChild || !userId || !activeGroup) return;
+    const iso = parseDateDMY(dateDisplay);
+    if (!iso) { Alert.alert('Data invalida', 'Use DD/MM/AAAA'); return; }
     setSaving(true);
     const result = await safeWrite({
       table: 'vaccination_records', operation: 'insert',
-      payload: { group_id: activeGroup.groupId, child_id: selectedChild, vaccine_name: name.trim(), dose_label: dose.trim() || null, administered_date: getBrazilToday(), created_by: userId },
+      payload: { group_id: activeGroup.groupId, child_id: selectedChild, vaccine_name: name.trim(), dose_label: dose.trim() || null, administered_date: iso, location: location.trim() || null, created_by: userId },
     });
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setShowForm(false); setName(''); setDose('');
+      setShowForm(false); setName(''); setDose(''); setDateDisplay(todayDisplay()); setLocation('');
       load();
     } else { Alert.alert('Erro', result.error || 'Falha'); }
     setSaving(false);
@@ -70,7 +94,13 @@ export default function VacinasScreen() {
             </View>
           ) : null}
           <TextInput value={name} onChangeText={setName} placeholder="Nome da vacina" placeholderTextColor={colors.textDim} style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
-          <TextInput value={dose} onChangeText={setDose} placeholder="Dose (ex: 1a dose, reforco)" placeholderTextColor={colors.textDim} style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
+          <TextInput value={dose} onChangeText={setDose} placeholder="Dose (ex: 1a dose, reforco)" placeholderTextColor={colors.textDim} style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+            <TextInput value={dateDisplay} onChangeText={v => setDateDisplay(formatDateInput(v))} placeholder="DD/MM/AAAA" keyboardType="number-pad" maxLength={10} placeholderTextColor={colors.textDim}
+              style={{ flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
+            <TextInput value={location} onChangeText={setLocation} placeholder="Local (opcional)" placeholderTextColor={colors.textDim}
+              style={{ flex: 1.2, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
+          </View>
           <TouchableOpacity onPress={handleCreate} disabled={saving || !name.trim()} style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', opacity: saving || !name.trim() ? 0.5 : 1 }}>
             <Text style={{ color: '#fff', fontWeight: font.weights.bold }}>{saving ? 'Salvando...' : 'Registrar vacina'}</Text>
           </TouchableOpacity>

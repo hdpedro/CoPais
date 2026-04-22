@@ -1,6 +1,7 @@
 /**
- * Crescimento — Registros de peso/altura.
+ * Crescimento — Registros de peso/altura/perimetro cefalico.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps, react-hooks/preserve-manual-memoization */
 import { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -8,11 +9,30 @@ import * as Haptics from 'expo-haptics';
 import { supabase } from '../../src/lib/supabase';
 import { safeWrite } from '../../src/services/offline';
 import { useAuth } from '../../src/store/auth';
-import { getDisplayName, getBrazilToday } from '../../src/lib/constants';
+import { getDisplayName } from '../../src/lib/constants';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
 interface GrowthRecord { id: string; measured_date: string; weight_kg: number | null; height_cm: number | null; head_cm: number | null; childName: string; }
+
+function todayDisplay(): string {
+  const d = new Date();
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+}
+function parseDateDMY(display: string): string | null {
+  const m = display.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const [, d, mo, y] = m;
+  const dt = new Date(+y, +mo - 1, +d);
+  if (dt.getFullYear() !== +y || dt.getMonth() !== +mo - 1 || dt.getDate() !== +d) return null;
+  return `${y}-${mo}-${d}`;
+}
+function formatDateInput(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
+  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
+}
 
 export default function CrescimentoScreen() {
   const { userId, activeGroup } = useAuth();
@@ -23,6 +43,8 @@ export default function CrescimentoScreen() {
   const [selectedChild, setSelectedChild] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
+  const [headCm, setHeadCm] = useState('');
+  const [dateDisplay, setDateDisplay] = useState(todayDisplay());
   const [saving, setSaving] = useState(false);
 
   const load = useCallback(async () => {
@@ -41,13 +63,21 @@ export default function CrescimentoScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   async function handleCreate() {
-    if ((!weight && !height) || !selectedChild || !userId || !activeGroup) { Alert.alert('Preencha peso ou altura'); return; }
+    if ((!weight && !height && !headCm) || !selectedChild || !userId || !activeGroup) { Alert.alert('Preencha ao menos um campo', 'Peso, altura ou perimetro cefalico'); return; }
+    const iso = parseDateDMY(dateDisplay);
+    if (!iso) { Alert.alert('Data invalida', 'Use DD/MM/AAAA'); return; }
     setSaving(true);
     const result = await safeWrite({
       table: 'growth_records', operation: 'insert',
-      payload: { group_id: activeGroup.groupId, child_id: selectedChild, measured_date: getBrazilToday(), weight_kg: weight ? parseFloat(weight.replace(',', '.')) : null, height_cm: height ? parseFloat(height.replace(',', '.')) : null, created_by: userId },
+      payload: {
+        group_id: activeGroup.groupId, child_id: selectedChild, measured_date: iso,
+        weight_kg: weight ? parseFloat(weight.replace(',', '.')) : null,
+        height_cm: height ? parseFloat(height.replace(',', '.')) : null,
+        head_cm: headCm ? parseFloat(headCm.replace(',', '.')) : null,
+        created_by: userId,
+      },
     });
-    if (result.success) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setShowForm(false); setWeight(''); setHeight(''); load(); }
+    if (result.success) { Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success); setShowForm(false); setWeight(''); setHeight(''); setHeadCm(''); setDateDisplay(todayDisplay()); load(); }
     else { Alert.alert('Erro', result.error || 'Falha'); }
     setSaving(false);
   }
@@ -62,10 +92,12 @@ export default function CrescimentoScreen() {
               {children.map(c => (<TouchableOpacity key={c.id} onPress={() => setSelectedChild(c.id)} style={{ paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.full, backgroundColor: selectedChild === c.id ? colors.brand : colors.bgSurface }}><Text style={{ fontSize: font.sizes.sm, color: selectedChild === c.id ? '#fff' : colors.text }}>{c.full_name.split(' ')[0]}</Text></TouchableOpacity>))}
             </View>
           ) : null}
-          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
+          <TextInput value={dateDisplay} onChangeText={v => setDateDisplay(formatDateInput(v))} placeholder="DD/MM/AAAA" keyboardType="number-pad" maxLength={10} placeholderTextColor={colors.textDim} style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
             <TextInput value={weight} onChangeText={setWeight} placeholder="Peso (kg)" keyboardType="decimal-pad" placeholderTextColor={colors.textDim} style={{ flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
             <TextInput value={height} onChangeText={setHeight} placeholder="Altura (cm)" keyboardType="decimal-pad" placeholderTextColor={colors.textDim} style={{ flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
           </View>
+          <TextInput value={headCm} onChangeText={setHeadCm} placeholder="Perimetro cefalico (cm) — opcional" keyboardType="decimal-pad" placeholderTextColor={colors.textDim} style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
           <TouchableOpacity onPress={handleCreate} disabled={saving} style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', opacity: saving ? 0.5 : 1 }}>
             <Text style={{ color: '#fff', fontWeight: font.weights.bold }}>{saving ? 'Salvando...' : 'Registrar medida'}</Text>
           </TouchableOpacity>
