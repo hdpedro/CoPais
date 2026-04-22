@@ -36,7 +36,11 @@ type NotifyAction =
   | 'sensitive_note_created'
   | 'sensitive_note_deletion_requested'
   | 'sensitive_note_deleted'
-  | 'sensitive_note_deletion_cancelled';
+  | 'sensitive_note_deletion_cancelled'
+  | 'event_request_created'
+  | 'event_request_approved'
+  | 'event_request_rejected'
+  | 'event_request_cancelled';
 
 /**
  * Fire-and-forget notification to PWA backend.

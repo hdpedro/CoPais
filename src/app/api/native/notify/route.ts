@@ -42,7 +42,11 @@ type ActionType =
   | "sensitive_note_created"
   | "sensitive_note_deletion_requested"
   | "sensitive_note_deleted"
-  | "sensitive_note_deletion_cancelled";
+  | "sensitive_note_deletion_cancelled"
+  | "event_request_created"
+  | "event_request_approved"
+  | "event_request_rejected"
+  | "event_request_cancelled";
 
 interface NotifyRequest {
   action: ActionType;
@@ -253,6 +257,40 @@ const ACTION_CONFIGS: Record<ActionType, {
     messageFn: (name) => `${name} cancelou a exclusao de uma nota sensivel`,
     link: "/temas-sensiveis",
     analyticsEvent: "sensitive_note_deletion_cancelled",
+  },
+  event_request_created: {
+    notificationType: "custody_change",
+    titleFn: () => "Pedido de alteracao de evento",
+    messageFn: (name, d) => {
+      const actionMap: Record<string, string> = {
+        edit: "editar", cancel: "cancelar", reschedule: "reagendar", delete: "excluir",
+      };
+      return `${name} propos ${actionMap[String(d.actionType)] || 'alterar'} um evento${d.reason ? `: ${d.reason}` : ''}`;
+    },
+    chatMessageFn: (name, d) => `📅 ${name} pediu alteracao de evento${d.reason ? ` (${d.reason})` : ''}`,
+    link: "/eventos",
+    analyticsEvent: "event_request_created",
+  },
+  event_request_approved: {
+    notificationType: "custody_change",
+    titleFn: () => "Alteracao aprovada",
+    messageFn: (name) => `${name} aprovou uma alteracao de evento`,
+    link: "/eventos",
+    analyticsEvent: "event_request_approved",
+  },
+  event_request_rejected: {
+    notificationType: "custody_change",
+    titleFn: () => "Alteracao rejeitada",
+    messageFn: (name) => `${name} rejeitou uma alteracao de evento`,
+    link: "/eventos",
+    analyticsEvent: "event_request_rejected",
+  },
+  event_request_cancelled: {
+    notificationType: "system",
+    titleFn: () => "Pedido cancelado",
+    messageFn: (name) => `${name} cancelou um pedido de alteracao`,
+    link: "/eventos",
+    analyticsEvent: "event_request_cancelled",
   },
 };
 
