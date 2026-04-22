@@ -22,7 +22,9 @@
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "Kindar precisa acessar suas fotos para enviar imagens no chat e anexar comprovantes.",
         "NSCameraUsageDescription": "Kindar precisa da camera para tirar fotos de comprovantes e documentos.",
-        "NSPhotoLibraryAddUsageDescription": "Kindar precisa salvar imagens na sua galeria."
+        "NSPhotoLibraryAddUsageDescription": "Kindar precisa salvar imagens na sua galeria.",
+        "NSCalendarsUsageDescription": "Kindar precisa acessar seu calendario para sincronizar eventos de guarda e atividades.",
+        "NSCalendarsFullAccessUsageDescription": "Kindar precisa acessar seu calendario para sincronizar eventos de guarda e atividades."
       }
     },
     "android": {
@@ -33,7 +35,9 @@
       },
       "permissions": [
         "android.permission.CAMERA",
-        "android.permission.READ_EXTERNAL_STORAGE"
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.READ_CALENDAR",
+        "android.permission.WRITE_CALENDAR"
       ]
     },
     "plugins": [
@@ -55,7 +59,13 @@
         }
       ],
       "expo-web-browser",
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-calendar",
+        {
+          "calendarPermission": "Kindar precisa acessar seu calendario para sincronizar eventos de guarda e atividades."
+        }
+      ]
     ],
     "extra": {
       "eas": {

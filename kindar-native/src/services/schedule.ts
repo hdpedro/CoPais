@@ -114,30 +114,82 @@ export async function generateSchedule(params: {
   const { error: insertError } = await supabase.from('custody_events').insert(events);
   if (insertError) return { success: false, error: insertError.message };
 
-  // Store the pattern on the group so it can be edited later
+  // Save schedule configuration in custody_schedules (matches PWA schema:
+  // dedicated table with UNIQUE(group_id, child_id)). Fixes bug where native
+  // was saving to coparenting_groups.custody_pattern (wrong table), making
+  // existing schedules invisible when reopening the Gerar Escala screen.
   await supabase
-    .from('coparenting_groups')
-    .update({
-      custody_pattern: params.pattern,
-      custody_pattern_start_date: params.startDate,
-      custody_enabled: true,
-    })
-    .eq('id', params.groupId);
+    .from('custody_schedules')
+    .upsert(
+      {
+        group_id: params.groupId,
+        child_id: params.childId,
+        pattern: params.pattern,
+        start_date: params.startDate,
+        months: params.months,
+        created_by: params.createdBy,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: 'group_id,child_id' }
+    );
+
+  // Flip custody_enabled on the group (calendar features key off this flag)
+  await supabase.from('coparenting_groups').update({ custody_enabled: true }).eq('id', params.groupId);
 
   notifyAction('event_created', params.groupId, { title: `Escala quinzenal (${events.length} eventos)` });
 
   return { success: true, inserted: events.length };
 }
 
-/** Fetch existing pattern stored on the group. */
-export async function fetchSchedulePattern(groupId: string): Promise<{ pattern: (string | null)[] | null; startDate: string | null }> {
-  const { data } = await supabase
-    .from('coparenting_groups')
-    .select('custody_pattern, custody_pattern_start_date')
-    .eq('id', groupId)
-    .maybeSingle();
-  return {
-    pattern: (data as any)?.custody_pattern || null,
-    startDate: (data as any)?.custody_pattern_start_date || null,
+/**
+ * Fetch existing schedule pattern. Mirrors PWA page.tsx load logic:
+ *   1. Primary: custody_schedules table (pattern, start_date per group+child)
+ *   2. Fallback: reconstruct from existing regular custody_events by walking
+ *      14 days from the earliest event.
+ */
+export async function fetchSchedulePattern(
+  groupId: string,
+  childId?: string
+): Promise<{ pattern: (string | null)[] | null; startDate: string | null }> {
+  // 1. Try dedicated table first
+  let query = supabase
+    .from('custody_schedules')
+    .select('pattern, start_date, child_id')
+    .eq('group_id', groupId);
+  if (childId) query = query.eq('child_id', childId);
+  const { data: saved } = await query.limit(1).maybeSingle();
+  if (saved) {
+    return {
+      pattern: (saved as any).pattern || null,
+      startDate: (saved as any).start_date || null,
+    };
+  }
+
+  // 2. Fallback: walk existing regular custody events and reconstruct
+  const { data: events } = await supabase
+    .from('custody_events')
+    .select('start_date, end_date, responsible_user_id, child_id')
+    .eq('group_id', groupId)
+    .eq('custody_type', 'regular')
+    .order('start_date', { ascending: true })
+    .limit(60);
+
+  if (!events || events.length === 0) return { pattern: null, startDate: null };
+  const firstStart = events[0].start_date as string;
+  const origin = new Date(firstStart + 'T12:00:00');
+  const fmt = (d: Date) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
   };
+  const pattern: (string | null)[] = Array(14).fill(null);
+  for (let i = 0; i < 14; i++) {
+    const target = new Date(origin);
+    target.setDate(target.getDate() + i);
+    const targetStr = fmt(target);
+    const hit = (events as any[]).find((e: any) => targetStr >= e.start_date && targetStr <= e.end_date);
+    if (hit) pattern[i] = hit.responsible_user_id;
+  }
+  return { pattern, startDate: firstStart };
 }

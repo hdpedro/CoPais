@@ -16,6 +16,7 @@ import { respondToSwap } from '../../src/services/swaps';
 import WeekendPlanner from '../../src/components/calendar/WeekendPlanner';
 import SwapRequestModal from '../../src/components/calendar/SwapRequestModal';
 import SwapBalanceCard from '../../src/components/calendar/SwapBalanceCard';
+import { syncEventsToDeviceCalendar } from '../../src/services/calendar-sync';
 
 function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -39,6 +40,7 @@ export default function CalendarScreen() {
   const [responding, setResponding] = useState<string | null>(null);
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [swapIsVisit, setSwapIsVisit] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const handleSwapDecision = useCallback(async (
     swapId: string,
@@ -447,12 +449,32 @@ export default function CalendarScreen() {
 
         {/* Sync with native calendar */}
         <TouchableOpacity
-          onPress={() => {
+          onPress={async () => {
+            if (syncing) return;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             Alert.alert(
               'Sincronizar com Celular',
-              'Em breve você poderá exportar seus eventos para o calendário nativo do iOS/Android.',
-              [{ text: 'OK' }]
+              `Vamos exportar os próximos eventos (guarda, atividades, eventos) para o calendário "Kindar" no seu celular. Eventos anteriormente sincronizados serão substituídos.`,
+              [
+                { text: 'Cancelar', style: 'cancel' },
+                {
+                  text: 'Sincronizar',
+                  onPress: async () => {
+                    setSyncing(true);
+                    const memberNames: Record<string, string> = {};
+                    members.forEach(m => { memberNames[m.userId] = m.name; });
+                    const res = await syncEventsToDeviceCalendar(events, memberNames);
+                    setSyncing(false);
+                    if (res.success) {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                      Alert.alert('Pronto', `${res.created || 0} evento(s) sincronizado(s). Veja no app Calendário do seu celular.`);
+                    } else {
+                      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                      Alert.alert('Erro', res.error || 'Falha ao sincronizar');
+                    }
+                  },
+                },
+              ]
             );
           }}
           activeOpacity={0.8}
@@ -460,11 +482,17 @@ export default function CalendarScreen() {
             marginHorizontal: spacing.lg, marginBottom: spacing.lg,
             backgroundColor: colors.bgElevated, borderRadius: radius.xl,
             padding: spacing.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm, ...shadows.sm,
+            opacity: syncing ? 0.5 : 1,
           }}
+          disabled={syncing}
         >
-          <Ionicons name="calendar-outline" size={18} color={colors.brand} />
+          {syncing ? (
+            <Ionicons name="sync" size={18} color={colors.brand} />
+          ) : (
+            <Ionicons name="calendar-outline" size={18} color={colors.brand} />
+          )}
           <Text style={{ fontSize: font.sizes.sm, color: colors.brand, fontWeight: font.weights.semibold }}>
-            Sincronizar com Celular
+            {syncing ? 'Sincronizando...' : 'Sincronizar com Celular'}
           </Text>
         </TouchableOpacity>
       </ScrollView>

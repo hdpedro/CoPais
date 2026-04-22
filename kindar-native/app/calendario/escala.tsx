@@ -59,28 +59,39 @@ export default function EscalaScreen() {
   const load = useCallback(async () => {
     if (!activeGroup || !userId) return;
 
-    const [childList, memberResp, existing] = await Promise.all([
+    const [childList, memberResp] = await Promise.all([
       fetchChildren(activeGroup.groupId),
-      supabase.from('group_members').select('user_id, profiles(full_name)').eq('group_id', activeGroup.groupId),
-      fetchSchedulePattern(activeGroup.groupId),
+      supabase.from('group_members').select('user_id, profiles(full_name, display_name, email)').eq('group_id', activeGroup.groupId),
     ]);
 
     setChildren(childList);
-    if (childList.length > 0 && !childId) setChildId(childList[0].id);
+    const targetChildId = childId || childList[0]?.id || '';
+    if (!childId && targetChildId) setChildId(targetChildId);
 
-    const memList: Member[] = ((memberResp.data || []) as any[]).map((m: any, i: number) => ({
-      userId: m.user_id,
-      name: m.profiles?.full_name?.split(' ')[0] || 'Membro',
-      color: i === 0 ? PARENT_COLORS.primary : PARENT_COLORS.secondary,
-    }));
+    const memList: Member[] = ((memberResp.data || []) as any[]).map((m: any, i: number) => {
+      const p = m.profiles || {};
+      const raw = p.display_name
+        || p.full_name?.split(' ')[0]
+        || (p.email ? p.email.split('@')[0].split('.')[0] : '')
+        || 'Membro';
+      return {
+        userId: m.user_id,
+        name: raw.charAt(0).toUpperCase() + raw.slice(1),
+        color: i === 0 ? PARENT_COLORS.primary : PARENT_COLORS.secondary,
+      };
+    });
     setMembers(memList);
 
-    if (existing.pattern && existing.pattern.length === 14) {
-      setPattern(existing.pattern);
-    }
-    if (existing.startDate) {
-      setStartDateIso(existing.startDate);
-      setStartDateDisplay(displayDate(existing.startDate));
+    // Load pattern specifically for the selected child (fallback: any regular event)
+    if (targetChildId) {
+      const existing = await fetchSchedulePattern(activeGroup.groupId, targetChildId);
+      if (existing.pattern && existing.pattern.length === 14) {
+        setPattern(existing.pattern);
+      }
+      if (existing.startDate) {
+        setStartDateIso(existing.startDate);
+        setStartDateDisplay(displayDate(existing.startDate));
+      }
     }
     setLoading(false);
   }, [activeGroup, userId, childId]);
