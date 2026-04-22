@@ -36,6 +36,119 @@ export async function deleteActivity(activityId: string) {
   return safeWrite({ table: 'child_activities', operation: 'update', payload: { id: activityId, is_active: false } });
 }
 
+// ── Checklist ──────────────────────────────────────────────────────────────
+
+export interface ChecklistItem { id: string; name: string; sort_order: number | null; }
+
+export async function fetchChecklist(activityId: string): Promise<ChecklistItem[]> {
+  const { data } = await supabase
+    .from('activity_checklist_items')
+    .select('id, name, sort_order')
+    .eq('activity_id', activityId)
+    .order('sort_order', { ascending: true });
+  return (data || []) as ChecklistItem[];
+}
+
+export async function fetchChecklistCompletions(activityId: string, occurrenceDate: string): Promise<Set<string>> {
+  const { data } = await supabase
+    .from('checklist_completions')
+    .select('item_id')
+    .eq('activity_id', activityId)
+    .eq('occurrence_date', occurrenceDate);
+  return new Set((data || []).map((d: any) => d.item_id));
+}
+
+export async function toggleChecklistItem(params: {
+  activityId: string;
+  itemId: string;
+  occurrenceDate: string;
+  completed: boolean;
+  completedBy: string;
+}): Promise<{ success: true } | { success: false; error: string }> {
+  if (params.completed) {
+    const { error } = await supabase
+      .from('checklist_completions')
+      .upsert({
+        activity_id: params.activityId,
+        item_id: params.itemId,
+        occurrence_date: params.occurrenceDate,
+        completed_by: params.completedBy,
+      }, { onConflict: 'item_id,occurrence_date' });
+    if (error) return { success: false, error: error.message };
+  } else {
+    const { error } = await supabase
+      .from('checklist_completions')
+      .delete()
+      .eq('item_id', params.itemId)
+      .eq('occurrence_date', params.occurrenceDate);
+    if (error) return { success: false, error: error.message };
+  }
+  return { success: true };
+}
+
+// ── Activity Report ────────────────────────────────────────────────────────
+
+export type ActivityReportStatus = 'completed' | 'missed' | 'cancelled';
+export type ActivityReportMood = 'happy' | 'neutral' | 'sad' | 'anxious' | 'tired';
+
+export interface ActivityReport {
+  id: string;
+  activity_id: string;
+  occurrence_date: string;
+  status: ActivityReportStatus;
+  notes: string | null;
+  child_mood: ActivityReportMood | null;
+  reported_by: string;
+}
+
+export async function fetchActivityReport(activityId: string, occurrenceDate: string): Promise<ActivityReport | null> {
+  const { data } = await supabase
+    .from('activity_reports')
+    .select('id, activity_id, occurrence_date, status, notes, child_mood, reported_by')
+    .eq('activity_id', activityId)
+    .eq('occurrence_date', occurrenceDate)
+    .maybeSingle();
+  return (data as ActivityReport) || null;
+}
+
+export async function submitActivityReport(params: {
+  groupId: string;
+  activityId: string;
+  childId: string | null;
+  occurrenceDate: string;
+  status: ActivityReportStatus;
+  notes: string | null;
+  childMood: ActivityReportMood | null;
+  reportedBy: string;
+}): Promise<{ success: true } | { success: false; error: string }> {
+  const existing = await fetchActivityReport(params.activityId, params.occurrenceDate);
+  if (existing) {
+    const { error } = await supabase
+      .from('activity_reports')
+      .update({
+        status: params.status,
+        notes: params.notes,
+        child_mood: params.childMood,
+        reported_by: params.reportedBy,
+      })
+      .eq('id', existing.id);
+    if (error) return { success: false, error: error.message };
+  } else {
+    const { error } = await supabase.from('activity_reports').insert({
+      group_id: params.groupId,
+      activity_id: params.activityId,
+      child_id: params.childId,
+      occurrence_date: params.occurrenceDate,
+      status: params.status,
+      notes: params.notes,
+      child_mood: params.childMood,
+      reported_by: params.reportedBy,
+    });
+    if (error) return { success: false, error: error.message };
+  }
+  return { success: true };
+}
+
 export async function createActivity(params: {
   groupId: string; name: string; category: string; childId?: string;
   recurrenceType?: string; startDate: string; timeStart?: string; timeEnd?: string;

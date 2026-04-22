@@ -3,13 +3,13 @@
  * Mirrors PWA /saude/doencas.
  */
 import { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert, TextInput } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/store/auth';
-import { fetchIllnesses, resolveIllness, type IllnessEpisode } from '../../src/services/health';
+import { fetchIllnesses, resolveIllness, addEvolutionQuick, type IllnessEpisode } from '../../src/services/health';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
 const SEV_META: Record<string, { label: string; color: string }> = {
@@ -24,11 +24,16 @@ function daysSince(startDate: string): number {
 
 export default function DoencasScreen() {
   const insets = useSafeAreaInsets();
-  const { activeGroup } = useAuth();
+  const { activeGroup, profile } = useAuth();
   const [illnesses, setIllnesses] = useState<IllnessEpisode[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<'all' | 'active' | 'resolved'>('active');
+  // Evolution quick-action state (per-card)
+  const [expanded, setExpanded] = useState<{ episodeId: string; type: 'improving' | 'worsening' } | null>(null);
+  const [evolutionNote, setEvolutionNote] = useState('');
+  const [submittingEvolution, setSubmittingEvolution] = useState(false);
+  const [evolutionFeedback, setEvolutionFeedback] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     if (!activeGroup) return;
@@ -44,6 +49,36 @@ export default function DoencasScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await load();
     setRefreshing(false);
+  }
+
+  function startEvolution(episodeId: string, type: 'improving' | 'worsening') {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setExpanded({ episodeId, type });
+    setEvolutionNote('');
+  }
+
+  async function submitEvolution() {
+    if (!expanded) return;
+    setSubmittingEvolution(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const res = await addEvolutionQuick({
+      episodeId: expanded.episodeId,
+      type: expanded.type,
+      note: evolutionNote,
+      authorFullName: profile?.full_name || null,
+    });
+    setSubmittingEvolution(false);
+    if (res.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setEvolutionFeedback(expanded.type === 'improving' ? 'Melhora registrada' : 'Piora registrada');
+      setExpanded(null);
+      setEvolutionNote('');
+      setTimeout(() => setEvolutionFeedback(null), 2500);
+      await load();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', res.error);
+    }
   }
 
   async function handleResolve(ill: IllnessEpisode) {
@@ -85,6 +120,14 @@ export default function DoencasScreen() {
           Doencas
         </Text>
       </View>
+
+      {/* Evolution feedback banner */}
+      {evolutionFeedback ? (
+        <View style={{ marginHorizontal: spacing.lg, marginTop: spacing.md, backgroundColor: 'rgba(34,197,94,0.1)', borderRadius: radius.md, borderWidth: 1, borderColor: 'rgba(34,197,94,0.3)', padding: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+          <Ionicons name="checkmark-circle" size={18} color="#15803d" />
+          <Text style={{ color: '#15803d', fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>{evolutionFeedback}</Text>
+        </View>
+      ) : null}
 
       {/* Filter chips */}
       <View style={{ flexDirection: 'row', gap: spacing.sm, padding: spacing.lg, paddingBottom: 0 }}>
@@ -174,19 +217,86 @@ export default function DoencasScreen() {
                       ) : null}
                     </View>
                   </View>
-                  {isActive ? (
-                    <TouchableOpacity
-                      onPress={() => handleResolve(i)}
-                      style={{
-                        alignSelf: 'flex-start', marginTop: spacing.md,
-                        paddingHorizontal: spacing.md, paddingVertical: 6,
-                        borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
-                      }}
-                    >
-                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, fontWeight: font.weights.medium }}>
-                        Marcar como resolvida
+                  {isActive && expanded?.episodeId === i.id ? (
+                    <View style={{ marginTop: spacing.md, backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.md }}>
+                      <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
+                        {expanded.type === 'improving' ? '📈' : '📉'} {i.title}
                       </Text>
-                    </TouchableOpacity>
+                      <TextInput
+                        value={evolutionNote}
+                        onChangeText={setEvolutionNote}
+                        placeholder="Nota opcional (febre baixou, continua tossindo...)"
+                        placeholderTextColor={colors.textMuted}
+                        multiline
+                        maxLength={500}
+                        style={{
+                          fontSize: font.sizes.sm, color: colors.text,
+                          borderWidth: 1, borderColor: colors.borderLight, borderRadius: radius.sm,
+                          paddingHorizontal: spacing.sm, paddingVertical: spacing.xs,
+                          minHeight: 56, textAlignVertical: 'top', marginBottom: spacing.sm,
+                        }}
+                      />
+                      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                        <TouchableOpacity
+                          disabled={submittingEvolution}
+                          onPress={submitEvolution}
+                          style={{
+                            flex: 1, paddingVertical: 8, borderRadius: radius.sm,
+                            backgroundColor: expanded.type === 'improving' ? '#22c55e' : '#ef4444',
+                            alignItems: 'center', opacity: submittingEvolution ? 0.5 : 1,
+                          }}
+                        >
+                          {submittingEvolution
+                            ? <ActivityIndicator size="small" color="#fff" />
+                            : <Text style={{ color: '#fff', fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>Confirmar</Text>}
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                          onPress={() => { setExpanded(null); setEvolutionNote(''); }}
+                          style={{
+                            paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.sm,
+                            backgroundColor: colors.bgSurface, alignItems: 'center',
+                          }}
+                        >
+                          <Text style={{ color: colors.textSecondary, fontSize: font.sizes.xs, fontWeight: font.weights.medium }}>Cancelar</Text>
+                        </TouchableOpacity>
+                      </View>
+                    </View>
+                  ) : isActive ? (
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+                      <TouchableOpacity
+                        onPress={() => startEvolution(i.id, 'improving')}
+                        style={{
+                          flex: 1, paddingVertical: 8, borderRadius: radius.sm,
+                          backgroundColor: 'rgba(34,197,94,0.1)', alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: font.sizes.xs, color: '#15803d', fontWeight: font.weights.semibold }}>
+                          📈 Melhorou
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => startEvolution(i.id, 'worsening')}
+                        style={{
+                          flex: 1, paddingVertical: 8, borderRadius: radius.sm,
+                          backgroundColor: 'rgba(239,68,68,0.1)', alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: font.sizes.xs, color: '#b91c1c', fontWeight: font.weights.semibold }}>
+                          📉 Piorou
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleResolve(i)}
+                        style={{
+                          paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.sm,
+                          borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
+                        }}
+                      >
+                        <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, fontWeight: font.weights.medium }}>
+                          Encerrar
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
                   ) : null}
                 </View>
               );

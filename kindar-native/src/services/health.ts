@@ -163,3 +163,39 @@ export async function resolveIllness(illnessId: string, endDate: string) {
     payload: { id: illnessId, status: 'resolved', end_date: endDate },
   });
 }
+
+/**
+ * Append an evolution entry ("melhorou" / "piorou" + optional note) to an
+ * illness episode's notes column. Mirrors PWA addEvolutionQuick action.
+ */
+export async function addEvolutionQuick(params: {
+  episodeId: string;
+  type: 'improving' | 'worsening';
+  note: string;
+  authorFullName: string | null;
+}): Promise<{ success: true } | { success: false; error: string }> {
+  const { data: episode, error: fetchErr } = await supabase
+    .from('illness_episodes')
+    .select('notes')
+    .eq('id', params.episodeId)
+    .single();
+  if (fetchErr || !episode) return { success: false, error: fetchErr?.message || 'Episodio nao encontrado' };
+
+  const authorName = params.authorFullName?.split(' ')[0] || 'Responsavel';
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', timeZone: 'America/Sao_Paulo' });
+  const typeLabel = params.type === 'improving' ? 'melhorou' : 'piorou';
+  const cleanNote = params.note.trim().slice(0, 500);
+  const evolutionText = cleanNote ? `${typeLabel}: ${cleanNote}` : typeLabel;
+  const newEntry = `[${dateStr} ${timeStr} - ${authorName}] ${evolutionText}`;
+  const updatedNotes = episode.notes ? `${newEntry}\n${episode.notes}` : newEntry;
+
+  const result = await safeWrite({
+    table: 'illness_episodes',
+    operation: 'update',
+    payload: { id: params.episodeId, notes: updatedNotes },
+  });
+  if (!result.success) return { success: false, error: result.error || 'Falha' };
+  return { success: true };
+}

@@ -14,7 +14,9 @@ import { ACTIVITY_CATEGORIES } from '../../src/lib/constants';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import FAB from '../../src/components/ui/FAB';
 import EmptyState from '../../src/components/ui/EmptyState';
-import { TimePickerField } from '../../src/components/ui/DateTimeField';
+import { TimePickerField, dateToIso } from '../../src/components/ui/DateTimeField';
+import ActivityReportModal from '../../src/components/activities/ActivityReportModal';
+import ActivityChecklistModal from '../../src/components/activities/ActivityChecklistModal';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
 function normalizeTime(t: string | null | undefined): string | null {
@@ -23,12 +25,14 @@ function normalizeTime(t: string | null | undefined): string | null {
 }
 
 export default function AtividadesScreen() {
-  const { activeGroup } = useAuth();
+  const { activeGroup, userId } = useAuth();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState<Activity | null>(null);
   const [saving, setSaving] = useState(false);
+  const [reporting, setReporting] = useState<Activity | null>(null);
+  const [checklisting, setChecklisting] = useState<Activity | null>(null);
 
   // Form state
   const [name, setName] = useState('');
@@ -109,25 +113,54 @@ export default function AtividadesScreen() {
   const renderItem = ({ item }: { item: Activity }) => {
     const cat = ACTIVITY_CATEGORIES.find(c => c.value === item.category);
     return (
-      <TouchableOpacity
-        activeOpacity={0.7}
-        onPress={() => openEditor(item)}
-        onLongPress={() => confirmDelete(item)}
-        style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+      <View
+        style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm }}
       >
-        <Text style={{ fontSize: 22 }}>{cat?.icon || '📌'}</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.name}</Text>
-          <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-            {[item.childName, item.time_start?.slice(0, 5), item.location].filter(Boolean).join(' · ')}
-          </Text>
-        </View>
-        {item.recurrence_type !== 'never' ? (
-          <View style={{ backgroundColor: `${colors.brand}15`, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 }}>
-            <Text style={{ fontSize: font.sizes.xs, color: colors.brand }}>{item.recurrence_type}</Text>
+        <TouchableOpacity
+          activeOpacity={0.7}
+          onPress={() => openEditor(item)}
+          onLongPress={() => confirmDelete(item)}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+        >
+          <Text style={{ fontSize: 22 }}>{cat?.icon || '📌'}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.name}</Text>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
+              {[item.childName, item.time_start?.slice(0, 5), item.location].filter(Boolean).join(' · ')}
+            </Text>
           </View>
-        ) : null}
-      </TouchableOpacity>
+          {item.recurrence_type !== 'never' ? (
+            <View style={{ backgroundColor: `${colors.brand}15`, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 }}>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.brand }}>{item.recurrence_type}</Text>
+            </View>
+          ) : null}
+        </TouchableOpacity>
+
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+          <TouchableOpacity
+            onPress={() => setChecklisting(item)}
+            style={{
+              flex: 1, paddingVertical: 8, borderRadius: radius.sm,
+              borderWidth: 1, borderColor: colors.borderLight,
+              alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4,
+            }}
+          >
+            <Ionicons name="list-outline" size={14} color={colors.textSecondary} />
+            <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, fontWeight: font.weights.medium }}>Checklist</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => setReporting(item)}
+            style={{
+              flex: 1, paddingVertical: 8, borderRadius: radius.sm,
+              backgroundColor: `${colors.brand}15`,
+              alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 4,
+            }}
+          >
+            <Ionicons name="clipboard-outline" size={14} color={colors.brand} />
+            <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>Relatar</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
     );
   };
 
@@ -140,6 +173,33 @@ export default function AtividadesScreen() {
         ListEmptyComponent={loading ? null : <EmptyState icon="📋" title="Nenhuma atividade" subtitle="Crie atividades recorrentes para as criancas" />}
       />
       <FAB onPress={() => router.push('/atividades/nova')} />
+
+      {/* Report modal — current occurrence date = today */}
+      {reporting && activeGroup && userId ? (
+        <ActivityReportModal
+          visible={!!reporting}
+          onClose={() => setReporting(null)}
+          groupId={activeGroup.groupId}
+          activityId={reporting.id}
+          activityName={reporting.name}
+          childId={reporting.child_id}
+          reporterId={userId}
+          occurrenceDate={dateToIso(new Date())}
+          onSubmitted={load}
+        />
+      ) : null}
+
+      {/* Checklist modal */}
+      {checklisting && userId ? (
+        <ActivityChecklistModal
+          visible={!!checklisting}
+          onClose={() => setChecklisting(null)}
+          activityId={checklisting.id}
+          activityName={checklisting.name}
+          occurrenceDate={dateToIso(new Date())}
+          completedBy={userId}
+        />
+      ) : null}
 
       <Modal visible={!!editing} animationType="slide" transparent onRequestClose={() => setEditing(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>

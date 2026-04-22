@@ -12,6 +12,9 @@ import { useAuth } from '../../src/store/auth';
 import { DAY_NAMES, MONTH_NAMES } from '../../src/lib/constants';
 import { colors, spacing, radius, font } from '../../src/design-system/tokens';
 import { respondToSwap } from '../../src/services/swaps';
+import WeekendPlanner from '../../src/components/calendar/WeekendPlanner';
+import SwapRequestModal from '../../src/components/calendar/SwapRequestModal';
+import SwapBalanceCard from '../../src/components/calendar/SwapBalanceCard';
 
 function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -33,11 +36,13 @@ function getFirstDayOfWeek(year: number, month: number): number {
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
-  const { events, members, pendingSwaps, refresh } = useCalendar();
-  const { activeGroup } = useAuth();
+  const { events, members, pendingSwaps, balanceOps, refresh } = useCalendar();
+  const { activeGroup, userId } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [responding, setResponding] = useState<string | null>(null);
+  const [swapModalOpen, setSwapModalOpen] = useState(false);
+  const [swapIsVisit, setSwapIsVisit] = useState(false);
 
   const handleSwapDecision = useCallback(async (
     swapId: string,
@@ -187,6 +192,22 @@ export default function CalendarScreen() {
           </Animated.View>
         ) : null}
 
+        {/* Weekend planner strip */}
+        {activeGroup?.custodyEnabled && userId ? (
+          <WeekendPlanner events={events} currentUserId={userId} />
+        ) : null}
+
+        {/* Balance card (only renders if there's activity) */}
+        {activeGroup?.custodyEnabled && userId ? (
+          <SwapBalanceCard
+            operations={balanceOps}
+            members={members}
+            currentUserId={userId}
+            groupId={activeGroup.groupId}
+            onChanged={refresh}
+          />
+        ) : null}
+
         {/* Member Legend */}
         {members.length > 0 ? (
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.xl, marginBottom: spacing.lg }}>
@@ -318,8 +339,64 @@ export default function CalendarScreen() {
               ))}
             </ScrollView>
           )}
+
+          {/* Quick actions — propose swap / visit on custody days that belong to the other parent */}
+          {(() => {
+            if (!selectedDay || !activeGroup?.custodyEnabled || !userId) return null;
+            const custodyEvent = selectedEvents.find(e => e.type === 'custody');
+            if (!custodyEvent || !custodyEvent.responsibleId) return null;
+            if (custodyEvent.responsibleId === userId) return null; // my own day
+            return (
+              <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+                <TouchableOpacity
+                  onPress={() => { setSwapIsVisit(false); setSwapModalOpen(true); }}
+                  style={{
+                    flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
+                    backgroundColor: colors.brand, alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                    🔄 Pedir troca
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => { setSwapIsVisit(true); setSwapModalOpen(true); }}
+                  style={{
+                    flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
+                    borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
+                  }}
+                >
+                  <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
+                    👋 Pedir visita
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            );
+          })()}
         </View>
       </Modal>
+
+      {/* Swap request modal */}
+      {(() => {
+        if (!selectedDay || !activeGroup?.custodyEnabled || !userId) return null;
+        const custodyEvent = selectedEvents.find(e => e.type === 'custody');
+        if (!custodyEvent || !custodyEvent.responsibleId) return null;
+        const targetMember = members.find(m => m.userId === custodyEvent.responsibleId);
+        return (
+          <SwapRequestModal
+            visible={swapModalOpen}
+            onClose={() => setSwapModalOpen(false)}
+            onSubmitted={refresh}
+            selectedDate={selectedDay}
+            targetUserId={custodyEvent.responsibleId}
+            targetUserName={targetMember?.name || 'Co-responsavel'}
+            targetColor={custodyEvent.color}
+            groupId={activeGroup.groupId}
+            currentUserId={userId}
+            isVisitRequest={swapIsVisit}
+          />
+        );
+      })()}
 
       {/* FAB — Create Event */}
       <TouchableOpacity

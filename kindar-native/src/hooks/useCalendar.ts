@@ -9,6 +9,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
 import { PARENT_COLORS, getDisplayName } from '../lib/constants';
 import { loadMyPendingSwaps, type SwapRequestDetail } from '../services/swaps';
+import { listBalanceOperations, type BalanceOperation } from '../services/balance-operations';
 
 export interface CalendarEvent {
   id: string;
@@ -35,6 +36,7 @@ export function useCalendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [members, setMembers] = useState<MemberColor[]>([]);
   const [pendingSwaps, setPendingSwaps] = useState<SwapRequestDetail[]>([]);
+  const [balanceOps, setBalanceOps] = useState<BalanceOperation[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -142,10 +144,15 @@ export function useCalendar() {
 
       // Pending swap requests addressed to me (for the action banner)
       if (activeGroup.custodyEnabled) {
-        const swaps = await loadMyPendingSwaps(groupId, userId);
+        const [swaps, ops] = await Promise.all([
+          loadMyPendingSwaps(groupId, userId),
+          listBalanceOperations(groupId),
+        ]);
         setPendingSwaps(swaps);
+        setBalanceOps(ops);
       } else {
         setPendingSwaps([]);
+        setBalanceOps([]);
       }
     } catch {
       // Silently fail
@@ -156,7 +163,7 @@ export function useCalendar() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  return { events, members, pendingSwaps, loading, refresh: loadData };
+  return { events, members, pendingSwaps, balanceOps, loading, refresh: loadData };
 }
 
 // Re-export colors for use in the calendar

@@ -3,15 +3,14 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator,
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/store/auth';
 import { safeWrite } from '../../src/services/offline';
 import { useI18n } from '../../src/i18n';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
+import WhatsAppLinkSection from '../../src/components/profile/WhatsAppLinkSection';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
 export default function PerfilScreen() {
-  const insets = useSafeAreaInsets();
   const { userId, profile, activeGroup } = useAuth();
   const { locale, setLocale } = useI18n();
   const [editing, setEditing] = useState(false);
@@ -147,6 +146,9 @@ export default function PerfilScreen() {
             </View>
           )}
         </View>
+
+        {/* WhatsApp link */}
+        <WhatsAppLinkSection />
 
         {/* Language */}
         <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm }}>
