@@ -311,7 +311,9 @@ export async function respondToSwapRequest(formData: FormData) {
       swapEvents.push({
         group_id: req.group_id,
         child_id: origEvents[0].child_id,
-        responsible_user_id: req.requester_id, // requester takes this day
+        responsible_user_id: origEvents[0].responsible_user_id === req.requester_id
+            ? req.target_user_id   // requester owned the day → target gets it
+            : req.requester_id,    // target owned the day → requester gets it
         start_date: req.original_date,
         end_date: req.original_date,
         custody_type: "swap",

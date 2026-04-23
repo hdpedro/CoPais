@@ -358,6 +358,6 @@ export async function createNotificationWithPush(
     title,
     body: message,
     url: link || "/dashboard",
-    tag: type,
+    tag: `${type}-${Date.now()}`,
   });
 }

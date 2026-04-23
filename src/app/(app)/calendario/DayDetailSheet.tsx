@@ -407,7 +407,11 @@ export default memo(function DayDetailSheet({
       formData.set("groupId", groupId);
       formData.set("originalDate", dateKey);
       formData.set("reason", reason);
-      formData.set("targetUserId", dayInfo?.userId || "");
+      const isOwnDay = dayInfo?.userId === currentUserId;
+      const targetId = isOwnDay
+        ? Object.keys(memberNames).find((id) => id !== currentUserId) || ""
+        : dayInfo?.userId || "";
+      formData.set("targetUserId", targetId);
       formData.set("requestType", swapType);
       if (swapType === "swap" && proposedDate) {
         formData.set("proposedDate", proposedDate);
