@@ -97,24 +97,43 @@ export default function DashboardScreen() {
                 {data?.custodySummary ? ` · ${data.custodySummary}` : ''}
               </Text>
             </View>
-            <TouchableOpacity
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/notificacoes'); }}
-              style={{ position: 'relative', padding: spacing.sm }}
-              hitSlop={6}
-            >
-              <Ionicons name="notifications-outline" size={22} color={colors.text} />
-              {(data?.unreadNotifications || 0) > 0 ? (
-                <View style={{
-                  position: 'absolute', top: 4, right: 4, minWidth: 16, height: 16,
-                  borderRadius: 8, backgroundColor: colors.error, paddingHorizontal: 3,
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+              {/* Kindar AI button — matches PWA mic button next to bell */}
+              <TouchableOpacity
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ai'); }}
+                hitSlop={6}
+                accessibilityLabel="Abrir Kindar AI"
+                style={{
+                  width: 36, height: 36, borderRadius: 18,
+                  backgroundColor: colors.brand,
                   alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
-                    {data!.unreadNotifications > 9 ? '9+' : data!.unreadNotifications}
-                  </Text>
-                </View>
-              ) : null}
-            </TouchableOpacity>
+                  ...shadows.sm,
+                }}
+              >
+                <Ionicons name="sparkles" size={18} color="#fff" />
+              </TouchableOpacity>
+
+              {/* Notifications bell */}
+              <TouchableOpacity
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/notificacoes'); }}
+                style={{ position: 'relative', padding: spacing.sm }}
+                hitSlop={6}
+                accessibilityLabel="Abrir notificações"
+              >
+                <Ionicons name="notifications-outline" size={22} color={colors.text} />
+                {(data?.unreadNotifications || 0) > 0 ? (
+                  <View style={{
+                    position: 'absolute', top: 4, right: 4, minWidth: 16, height: 16,
+                    borderRadius: 8, backgroundColor: colors.error, paddingHorizontal: 3,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    <Text style={{ color: '#fff', fontSize: 9, fontWeight: '700' }}>
+                      {data!.unreadNotifications > 9 ? '9+' : data!.unreadNotifications}
+                    </Text>
+                  </View>
+                ) : null}
+              </TouchableOpacity>
+            </View>
           </View>
         </Animated.View>
 

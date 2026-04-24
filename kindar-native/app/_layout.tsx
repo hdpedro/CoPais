@@ -96,6 +96,7 @@ export default function RootLayout() {
           <Stack.Screen name="temas-sensiveis" />
           <Stack.Screen name="semana" />
           <Stack.Screen name="pricing" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+          <Stack.Screen name="ai" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
         </Stack>
       </View>
       <StatusBar style="dark" />
