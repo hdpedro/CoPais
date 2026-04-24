@@ -4,6 +4,14 @@
  * Mesmo backend que o AIAssistant do PWA (685 LOC), que usa AI Router
  * (Groq → Together → Gemini) + 12 tools (create_expense, create_event,
  * get_custody_info, etc.) com confirmacao antes de acoes.
+ *
+ * TODO (v1.1.22+): Voice input via @jamsch/expo-speech-recognition (usa
+ * SFSpeechRecognizer no iOS + SpeechRecognizer no Android). Requer:
+ *  1. npm i @jamsch/expo-speech-recognition
+ *  2. Config plugin no app.json com NSMicrophoneUsageDescription +
+ *     NSSpeechRecognitionUsageDescription
+ *  3. Prebuild + nova build EAS
+ * Nao foi incluido nesta build (35) para nao atrasar o pacote de fixes.
  */
 
 import { useState, useRef, useCallback, useEffect } from 'react';

@@ -346,10 +346,13 @@ export function useDashboard() {
         const yesterdayStr = formatDateKey(yesterday);
 
         const [{ data: pastOccs }, { data: existingReports }] = await Promise.all([
+          // NOTE: calendar_occurrences has NO status column (see migration
+          // 00038_calendar_occurrences.sql) — filtering by status silently
+          // returned 0 rows and hid the Pendentes section. Mirror the PWA
+          // dashboard query which only filters by group + date range.
           supabase.from('calendar_occurrences')
-            .select('activity_id, occurrence_date, child_activities(id, name, child_id, children(full_name))')
+            .select('activity_id, occurrence_date, child_activities!inner(id, name, child_id, children(full_name))')
             .eq('group_id', groupId)
-            .eq('status', 'active')
             .gte('occurrence_date', weekAgoStr)
             .lte('occurrence_date', yesterdayStr)
             .order('occurrence_date', { ascending: false })

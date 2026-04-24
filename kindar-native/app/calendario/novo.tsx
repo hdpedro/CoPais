@@ -132,7 +132,9 @@ export default function NovoEventoScreen() {
         <>
           <WebView
             ref={webviewRef}
-            source={{ uri: `${WEB_URL}/calendario/novo` }}
+            // Route via /native-bridge so the SSR browser client writes
+            // auth cookies BEFORE middleware runs on the target page.
+            source={{ uri: `${WEB_URL}/native-bridge?next=${encodeURIComponent('/calendario/novo')}` }}
             injectedJavaScriptBeforeContentLoaded={injectedJS}
             onLoadEnd={() => setLoading(false)}
             onNavigationStateChange={handleNavChange}
