@@ -5,13 +5,20 @@
 **Kindar** e um aplicativo de coparentalidade que ajuda pais separados a organizarem a rotina dos filhos de forma colaborativa, transparente e respeitosa. O nome "Kindar" representa os dois lares da crianca.
 
 **URL de producao:** https://kindar.com.br
+**iOS App:** Kindar Native (Expo) — TestFlight + App Store
 **Dominio:** kindar.com.br
-**Ultima atualizacao:** 31/03/2026
+**Repositorio:** https://github.com/hdpedro/CoPais (**PUBLICO** desde 24/04/2026 para CI grátis)
+**Ultima atualizacao:** 24/04/2026 (v1.1.19)
+
+> **Arquitetura dual**: este monorepo tem 2 apps compartilhando o mesmo backend Supabase:
+> - `src/` → **PWA** (Next.js)
+> - `kindar-native/` → **Kindar Native** (Expo SDK 54 / React Native 0.76)
 
 ---
 
 ## Stack Tecnologica
 
+### PWA (Next.js)
 | Camada | Tecnologia | Versao |
 |--------|-----------|--------|
 | Framework | Next.js (App Router) | 16.1.7 |
@@ -24,11 +31,38 @@
 | i18n | Custom (I18nProvider + useI18n) | 5 idiomas, ~1488 chaves, 40 secoes |
 | Analytics | PostHog | 30+ eventos |
 | Error Tracking | Sentry | — |
-| Deploy | Vercel | Hobby |
-| Mobile | Capacitor | ^7 |
-| Testes E2E | Playwright | 34 testes |
-| Testes Unitarios | Vitest | 50 testes |
-| Repositorio | GitHub | hdpedro/CoPais |
+| Deploy | Vercel (Hobby, gratis para repo publico) | — |
+| Mobile legado | Capacitor | ^7 (deprecado) |
+
+### Kindar Native (Expo)
+| Camada | Tecnologia | Versao |
+|--------|-----------|--------|
+| Framework | Expo SDK | 54 |
+| Runtime | React Native (New Architecture) | 0.76 |
+| Router | expo-router | ^4 (file-based) |
+| Pickers | @react-native-community/datetimepicker | ~8.4 |
+| WebView | react-native-webview | ~13.14 (para `criancas/[id]` e `calendario/novo`) |
+| Calendar export | expo-calendar | ~14.1 |
+| Image | expo-image-picker + expo-document-picker | ~16/14 |
+| Push | expo-notifications | ~0.30 |
+| Build | EAS Build (production profile) | cli 18.x |
+| Submit | EAS Submit + ASC API (via `kindar-asc.mjs`) | custom |
+| CI | GitHub Actions (`ios-release.yml`), concurrency `ios-release-all` | — |
+
+### Testes
+| Tipo | Tecnologia | Qtd |
+|------|-----------|-----|
+| Unitarios | Vitest | **286 testes passando** |
+| E2E | Playwright | 34 testes |
+| Lint | ESLint --max-warnings 0 | — |
+| Typecheck | tsc --noEmit | — |
+
+### Repositorio
+| Campo | Valor |
+|-------|-------|
+| Host | GitHub |
+| URL | https://github.com/hdpedro/CoPais |
+| Visibilidade | **PUBLICA** (Actions ilimitadas, Vercel grátis) |
 
 ---
 
@@ -439,6 +473,45 @@ Audit trail completo de todas as alteracoes em eventos.
 #### 32-38. Tabelas adicionais
 Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals`, entre outras criadas nas migrations de saude e financeiro.
 
+#### 43-47. Tabelas usadas pelo Kindar Native (mapeadas agora no native)
+
+**43. custody_schedules** — Pattern da escala de guarda quinzenal (2 semanas = 14 dias), `UNIQUE(group_id, child_id)`.
+- `group_id` (FK coparenting_groups), `child_id` (FK children)
+- `pattern` (JSONB, array[14] de user_id ou null — weeks alternadas Dom→Sab)
+- `start_date` (DATE), `months` (INT — duracao da geracao)
+- `created_by` (FK profiles), `updated_at`
+- **Consumido por:** `fetchSchedulePattern(groupId, childId)` no native com fallback que reconstroi pattern a partir de `custody_events` existentes
+
+**44. custody_balance_operations** — Ajustes bilaterais de saldo de dias.
+- `group_id`, `proposed_by`, `target_user_id`
+- `operation_type` (TEXT: 'debit'|'waive'|'gift_day'|'forgive_balance'|'reset_balance'|'manual_adjustment')
+- `status` ('pending'|'approved'|'rejected'|'cancelled')
+- `days` (INT), `direction` ('to_proposer'|'to_target'), `notes` (TEXT), `swap_request_id` (FK swap_requests, opcional)
+- `responded_by`, `responded_at`
+- **UI Native:** `SwapBalanceCard` + `BalanceHistorySheet` + `ProposeBalanceAdjustmentSheet` (em `kindar-native/src/components/calendar/`)
+
+**45. activity_reports** — Relatorio pos-ocorrencia de atividade.
+- `activity_id` (FK child_activities), `occurrence_date` (DATE), `UNIQUE(activity_id, occurrence_date)`
+- `status` ('completed'|'missed'|'cancelled')
+- `child_mood` ('happy'|'neutral'|'sad'|'anxious'|'tired'), `notes` (TEXT), `reported_by`
+- **UI Native:** `ActivityReportModal` acionado via botao "Relatar" no card de atividade
+
+**46. checklist_completions** — Itens da checklist de atividade marcados como feitos.
+- `activity_id`, `item_id` (FK activity_checklist_items), `occurrence_date`
+- `UNIQUE(item_id, occurrence_date)`, `completed_by`
+- **UI Native:** `ActivityChecklistModal` com toggle + progress bar
+
+**47. daily_checkins, children, child_allergies, child_medical_info, child_education** — ja existiam, mas sao totalmente expostas no native:
+- `child_education` exposto em `kindar-native/app/escola/index.tsx` com CRUD (tabs Info/Saude/Educacao do perfil)
+- `daily_checkins` exposto em `kindar-native/app/checkin/index.tsx` (CRUD com seletor de categoria)
+
+### Storage Buckets usados no native
+
+| Bucket | Tamanho max | MIME permitidos | Uso |
+|--------|-------------|-----------------|-----|
+| `documents` | 10MB | images, PDF, DOC | `/documentos` upload + chat images (prefix `{groupId}/chat/`) |
+| `receipts` | 5MB | images, PDF | Comprovante em `/despesas/nova` |
+
 #### 39-42. WhatsApp Integration (Migration 00043)
 
 **39. whatsapp_phone_links** — Vinculacao de numero WhatsApp ao perfil do usuario.
@@ -543,6 +616,7 @@ Politicas garantem que:
 | `00049_health_views_null_unique.sql` | Views de saude com unique nullable |
 | `00050_clinical_context_inferences.sql` | Inferencias de contexto clinico |
 | `00051_apple_product_ids.sql` | **Apple IAP**: seta `apple_product_id` nos planos + indices para lookup por product_id e transaction_id |
+| `00052_cron_logs.sql` | **Observabilidade de CRONs**: tabela `cron_logs` (name, success, processed, sent, errors JSONB, started_at, finished_at, duration_ms) + indices |
 
 ---
 
@@ -1091,8 +1165,11 @@ Sistema para ajustes consensuais de saldo entre coparentes, alem da divida autom
 | `/api/chat/export` | GET | Exportacao de chat em PDF |
 | `/api/chat/messages` | GET | Busca mensagens por canal |
 | `/api/create-group` | POST | Criacao de grupo familiar |
-| `/api/cron/activity-reminders` | GET | Cron: lembretes push 24h antes |
-| `/api/cron/custody-change` | GET | Cron: notificacao de mudanca de custodia |
+| `/api/cron/activity-reminders` | GET | Cron: lembretes push 24h antes + relatorios nao preenchidos (via `runCronWithReport`) |
+| `/api/cron/custody-change` | GET | Cron: notificacao de mudanca de custodia (via `runCronWithReport`) |
+| `/api/cron/retention` | GET | Cron: notificacoes de retencao D+1/3/7/14 (via `runCronWithReport`) |
+| `/api/cron/daily-report` | GET | Cron: agrega logs do dia e envia relatorio por email |
+| `/api/cron/monthly-report` | GET | Cron: relatorio mensal da crianca enviado por email aos pais (dia 1 de cada mes) |
 | `/api/push/chat` | POST | Push notification para nova mensagem |
 | `/api/push/subscribe` | POST | Registro de push subscription (VAPID) |
 | `/api/whatsapp/webhook` | GET/POST | WhatsApp webhook: GET verificacao Meta, POST receber mensagens. Pipeline: identity → session → parser → tools → confirmacao via botoes |
@@ -1262,7 +1339,7 @@ src/
 │       ├── calendar/[token]/ # iCal feed (1 route)
 │       ├── chat/         # messages + export (2 routes)
 │       ├── create-group/ # (1 route)
-│       ├── cron/         # activity-reminders + custody-change (2 routes)
+│       ├── cron/         # 5 routes via runCronWithReport: activity-reminders, custody-change, retention, daily-report, monthly-report
 │       └── push/         # subscribe + chat (2 routes)
 ├── components/           # 12 componentes globais
 │   ├── BottomNav.tsx, Sidebar.tsx, ResponsiveShell.tsx

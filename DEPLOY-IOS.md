@@ -1,177 +1,364 @@
-# KINDAR — iOS Release Autônomo
+# Kindar Native — Pipeline iOS (TestFlight + App Store)
 
-Deploy iOS TestFlight + App Store Review totalmente automatizado a partir do Windows.
+Deploy iOS totalmente automatizado do Windows. Objetivo:
+`git tag vX.Y.Z && git push --tags` → build na TestFlight distribuido aos testers.
 
-Objetivo: `git tag vX.Y.Z && git push --tags` → app no TestFlight + submetido pra review, zero clique manual.
-
----
-
-## Como funciona
-
-```
-  git tag v1.2.0 && git push --tags
-            ↓
-  GitHub Actions (.github/workflows/ios-release.yml)
-            ↓
-  1. Pre-submit audit    (scripts/pre-submit-audit.mjs)
-  2. Metadata + IAPs     (kindar-asc.mjs)
-  3. EAS Build iOS       (kindar-native/, profile production)
-  4. EAS Submit → ASC    (IPA upload via ASC API key)
-  5. Wait Apple process  (kindar-asc.mjs --wait-processing)
-  6. Submit for Review   (kindar-asc.mjs --submit-review)
-  7. Slack notify
-```
-
-Tempo típico: 20-30min até submission enviada. Depois Apple responde em 24-48h por email.
+**Ultima atualizacao:** 24/04/2026 — v1.1.19, build 32 na TestFlight.
 
 ---
 
-## Setup ÚNICO (~4h, uma vez na vida)
-
-### 1. Apple Developer ($99/ano)
-
-- https://developer.apple.com/enroll — aprovação em 24-48h
-
-### 2. App Store Connect — contratos e fiscal
-
-Em https://appstoreconnect.apple.com/business:
-
-- **Paid Applications Agreement** → aceitar + banking info (BR: COMPE + Conta) + **24h processa**
-- **W-8BEN** → preencher com CPF como Foreign TIN, sem treaty benefits
-- **U.S. Certificate of Foreign Status** → mesmos dados
-- **Formulário fiscal BR** → CPF
-
-Sem status **"Active"** nesses 3, IAP review falha.
-
-### 3. App Store Connect API key
-
-`Users and Access` → `Integrations` → `App Store Connect API` → `Generate API Key`:
-
-- Role: **Admin**
-- Baixa o `.p8` (mostra só 1 vez)
-- Anota `Key ID` e `Issuer ID`
-
-> ⚠️ A key atual `736GBBC4YY` / issuer `52e31db4-ca31-4a2c-b99d-86b8b599b29e` já está hardcoded em `kindar-asc.mjs` e `scripts/pre-submit-audit.mjs`. Se regenerar, atualize esses dois arquivos.
-
-### 4. Expo / EAS
-
-```powershell
-npx eas-cli login
-npx eas-cli whoami   # confirma
-```
-
-Gere um token de CI:
-
-```powershell
-npx eas-cli build:cache:list   # só pra garantir login ok
-# depois, em https://expo.dev/accounts/<you>/settings/access-tokens → create token
-```
-
-### 5. GitHub Secrets (repo CoPais → Settings → Secrets → Actions)
-
-| Secret | Valor | Obrigatório |
-|---|---|---|
-| `EXPO_TOKEN` | Token de CI Expo | ✅ |
-| `ASC_KEY_ID` | `736GBBC4YY` | ✅ |
-| `ASC_ISSUER_ID` | `52e31db4-ca31-4a2c-b99d-86b8b599b29e` | ✅ |
-| `ASC_PRIVATE_KEY` | Conteúdo RAW do `AuthKey_736GBBC4YY.p8` (multi-linha com `-----BEGIN/END-----`) | ✅ |
-| `SLACK_WEBHOOK` | URL de webhook Slack | opcional |
-
-**Formato do `ASC_PRIVATE_KEY`**: cola o arquivo `.p8` inteiro, preservando quebras de linha. GitHub Secrets aceita multi-linha diretamente — **não** escape com `\n`.
-
-### 6. App no App Store Connect
-
-Já existe com bundle `com.kindar.app`. Confirmado via `kindar-asc.mjs`. Se um dia precisar recriar:
-
-1. https://appstoreconnect.apple.com/apps → `+` → New App
-2. Bundle ID: `com.kindar.app`
-3. SKU: `com.kindar.app`
-4. Primary Language: Portuguese (Brazil)
-5. User Access: Full Access
-
----
-
-## Fluxo do dia-a-dia
+## TL;DR — como fazer release
 
 ```bash
-# 1. Edita código
-git add . && git commit -m "feat: nova feature"
-git push origin main                  # Vercel auto-deploy do /pricing, /termos, /privacidade
+# 1. Commit e push
+git commit -m "feat: ..."
+git push origin main
 
-# 2. Bump version em kindar-native/app.json (expo.version)
-#    E em package.json, README, onde mais for relevante.
+# 2. Tag
+git tag v1.1.X
+git push origin v1.1.X
 
-# 3. Tag + push
-git tag v1.2.0
-git push --tags                       # ← dispara o workflow iOS Release
+# 3. Assistir CI (automático)
+gh run watch $(gh run list --workflow=ios-release.yml --limit 1 --json databaseId -q '.[0].databaseId')
 
-# 4. Toma café. Slack avisa em ~25min.
-# 5. Apple responde por email em 24-48h.
+# ~10-15 min depois: build aparece no TestFlight, Angelino e demais testers recebem email
 ```
 
-### Execução parcial (emergência / debug)
-
-No GitHub → Actions → `iOS Release` → Run workflow:
-
-- **skip_audit = true** → pula validações web/native
-- **stop_after = audit | metadata | build | submit | fullrelease** → interrompe no ponto escolhido
-
-Útil pra testar etapas isoladamente sem esperar 30min de build.
+Quando a App Privacy estiver preenchida em ASC (one-time manual), a pipeline tambem submete para review.
 
 ---
 
-## Pontos manuais inevitáveis
+## Arquitetura
 
-1. **Primeira submissão** em um novo app: precisa preencher manualmente no ASC:
-   - **Preços** de cada subscription (tier)
-   - **Privacy Nutrition Labels** (questionário)
-   - **Screenshots** (6.7" para iPhone 16 Pro Max — 1290×2796 px, 5 imagens mínimo)
-   - **App Review Screenshots** (se reviewer pedir — só pra features de IAP)
-
-2. **Rejeições subjetivas**: quando Apple interpreta algo do lado dela, você responde manualmente em `Resolution Center` do ASC.
-
-3. **Renovação do contrato anual**: 30 dias antes do vencimento, ASC te pede pra re-aceitar.
-
----
-
-## Status da migração (commits nesta branch)
-
-- [x] `git subtree add kindar-native/` — Expo app importado como subdir
-- [x] `src/app/termos/page.tsx` — 175 linhas, LGPD compliant
-- [x] `src/app/privacidade/page.tsx` — 196 linhas
-- [x] `src/app/pricing/PricingClient.tsx` — bloco de auto-renewal disclosure 3.1.2(c)
-- [x] `kindar-asc.mjs` — estendido com `waitProcessing()` e `submitForReview()`
-- [x] `scripts/pre-submit-audit.mjs` — validação pre-release
-- [x] `kindar-native/eas.json` — submit config via ASC API key
-- [x] `.github/workflows/ios-release.yml` — pipeline completo
-
-### Pós-merge desta branch, você deve:
-
-1. **Arquivar o repo antigo `hdpedro/kindar-native`** via GitHub UI (Settings → Archive). A cópia no monorepo é autoritativa daqui pra frente.
-2. **Deletar a pasta sibling `APP CoPais/kindar-native/`** (fora do monorepo) — ela é órfã agora. Antes de deletar, mova `.env.production` e `.env.test` pra `DEV/kindar-native/` se forem necessários localmente.
-3. **Gerar e configurar `EXPO_TOKEN`** no GitHub Secrets.
-4. **Validar `ASC_PRIVATE_KEY`** — deve ter sido setado no setup anterior quando `kindar-asc.mjs` foi criado. Se não, pega em `../../AuthKey_736GBBC4YY.p8` e cola no secret.
-
-### Known issues nesta branch
-
-- **`src/lib/cron/types.ts`** existe untracked localmente e tracked em `origin/main`. Rebase falhou por isso. Resolver antes do merge: comparar os dois arquivos e escolher qual versão vale.
-- **WIP stashed**: rodei `git stash push` antes da migração pra preservar seus 11 arquivos modificados. Depois de fazer merge da branch ou abandonar, rode `git stash pop` pra recuperar. Listado como: `stash@{0}: On feat/monorepo-ios-ship: WIP before monorepo-ios-ship migration`.
-
----
-
-## Lições críticas
-
-1. **NUNCA submit antes do Paid Apps Agreement estar `Active`** — Apple rejeita IAP.
-2. **NUNCA use screenshot do app como promo image de IAP** — Apple rejeita 2.3.2.
-3. **NUNCA deixe display name igual em Mensal e Anual** — Apple rejeita 2.3.2.
-4. **SEMPRE `/termos` + `/privacidade` funcionais** antes de qualquer submit.
-5. **SEMPRE bump da version em `kindar-native/app.json`** antes de tagar — se não, EAS rejeita build duplicado.
+```
+ git push --tags (v1.1.X)
+         ↓
+ GitHub Actions (.github/workflows/ios-release.yml)
+ concurrency: ios-release-all  ← serializa todos os runs (evita race EAS autoIncrement)
+         ↓
+ ┌───────────────────────────────────────────────────────┐
+ │ 1. Pre-submit audit  (scripts/pre-submit-audit.mjs)   │
+ │ 2. Configure ASC     (kindar-asc.mjs)                 │
+ │    ├─ App info (categorias, privacy URL)              │
+ │    ├─ Subscriptions (4 IAPs — Premium/Elite M/A)      │
+ │    ├─ Pricing Free   (/v1/appPriceSchedules POST)     │
+ │    ├─ Version meta   (pt-BR + en-US, copyright)       │
+ │    ├─ Review info    (contactPhone, demo account)     │
+ │    ├─ Age rating     (schema 2024+ mix bool/enum)     │
+ │    └─ Content rights (DOES_NOT_USE_THIRD_PARTY...)    │
+ │ 3. EAS Build iOS production                           │
+ │    └─ autoIncrement buildNumber, upload IPA pra EAS   │
+ │ 4. EAS Submit → ASC  (AuthKey.p8 local credentials)   │
+ │ 5. Wait Apple        (kindar-asc.mjs --wait-processing)│
+ │    ├─ Poll /v1/builds?filter[app]= ate VALID          │
+ │    └─ distributeBuildToTesters                        │
+ │         ├─ Skip internal groups (auto-distribuidos)   │
+ │         ├─ POST /betaGroups/{id}/relationships/builds │
+ │         └─ POST /builds/{id}/relationships/           │
+ │                individualTesters                      │
+ │ 6. Submit for Review (kindar-asc.mjs --submit-review) │
+ │    ├─ Reusa submission READY_FOR_REVIEW               │
+ │    ├─ Anexa appStoreVersion                           │
+ │    └─ PATCH submitted=true                            │
+ └───────────────────────────────────────────────────────┘
+         ↓
+ App Store Connect (review em 24-48h se App Privacy OK)
+ TestFlight (testers recebem email de convite automatico)
+```
 
 ---
 
-## Contatos
+## Arquivos-chave
 
-- Apple Dev: henrique.de.pedro@gmail.com (Team ID `ZQ83W8MYUZ`)
-- Bundle ID: `com.kindar.app`
-- EAS Project: `a0390045-42f5-4a37-8264-659fa09c1e0a`
-- Produtos IAP: `com.kindar.{premium,elite}.{monthly,annual}`
+| Arquivo | Funcao |
+|---------|--------|
+| `.github/workflows/ios-release.yml` | Orquestracao completa |
+| `kindar-asc.mjs` | Automacao App Store Connect API (metadata, submit, distribute) |
+| `kindar-native/eas.json` | Profiles EAS (production usa `credentialsSource: local`) |
+| `kindar-native/app.json` | Expo config (bundle id, version, plugins, permissions) |
+| `AuthKey_736GBBC4YY.p8` | ASC API private key (na pasta raiz ou home, nunca commitado) |
+
+---
+
+## Setup inicial (já feito, documentado para futura rotação de credenciais)
+
+### 1. App Store Connect API Key
+Gere em https://appstoreconnect.apple.com/access/integrations/api. Role Admin.
+- Salve o `.p8` como `AuthKey_{keyId}.p8` na pasta raiz do projeto
+- KeyID: `736GBBC4YY`
+- Issuer ID: `52e31db4-ca31-4a2c-b99d-86b8b599b29e`
+- Team ID: `ZQ83W8MYUZ`
+
+### 2. GitHub Secrets (Repo Settings → Secrets and variables → Actions)
+- `ASC_KEY_ID` = `736GBBC4YY`
+- `ASC_ISSUER_ID` = `52e31db4-...`
+- `ASC_PRIVATE_KEY` = conteúdo do `.p8`
+- `EXPO_TOKEN` = criado em `expo.dev/accounts/.../settings/access-tokens`
+- `IOS_P12_BASE64`, `IOS_P12_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE64` = gerados via `scripts/setup-ios-credentials.mjs` (executa uma vez)
+
+### 3. Expo / EAS
+`kindar-native/eas.json`:
+```json
+{
+  "build": {
+    "production": {
+      "credentialsSource": "local",
+      "ios": { "buildConfiguration": "Release", "autoIncrement": true }
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "ascAppId": "6762701916",
+        "ascApiKeyPath": "../AuthKey.p8",
+        "ascApiKeyId": "736GBBC4YY",
+        "ascApiKeyIssuerId": "52e31db4-...",
+        "appleTeamId": "ZQ83W8MYUZ"
+      }
+    }
+  }
+}
+```
+
+---
+
+## Schema Age Rating (ASC API 2024+)
+
+**Importante** — Apple mudou o schema; alguns campos viraram boolean mesmo tendo sido enum antes.
+
+**BOOLEAN** (feature presence flags):
+```ts
+advertising: false,
+messagingAndChat: true,
+userGeneratedContent: true,
+healthOrWellnessTopics: true,
+gambling: false,
+lootBox: false,
+unrestrictedWebAccess: false,
+parentalControls: false,
+ageAssurance: false,
+```
+
+**ENUM** (`NONE | INFREQUENT_OR_MILD | FREQUENT_OR_INTENSE`):
+```ts
+alcoholTobaccoOrDrugUseOrReferences: "NONE",
+contests: "NONE",
+gamblingSimulated: "NONE",
+gunsOrOtherWeapons: "NONE",
+horrorOrFearThemes: "NONE",
+matureOrSuggestiveThemes: "NONE",
+medicalOrTreatmentInformation: "NONE",
+profanityOrCrudeHumor: "NONE",
+sexualContentGraphicAndNudity: "NONE",
+sexualContentOrNudity: "NONE",
+violenceCartoonOrFantasy: "NONE",
+violenceRealistic: "NONE",
+violenceRealisticProlongedGraphicOrSadistic: "NONE",
+```
+
+**Update pattern** (create nao funciona, 403):
+```ts
+const ardId = appInfo.relationships.ageRatingDeclaration.data.id;  // resolve via include
+await PATCH(`/ageRatingDeclarations/${ardId}`, { ... });
+```
+
+---
+
+## Pricing (Free app)
+
+**Nao funciona** POST em `/appPrices` (404) ou `/v2/appPriceSchedules` (404).
+
+**Funciona**: POST `/v1/appPriceSchedules` com manualPrices nested em `included`:
+```ts
+const freePointId = await GET(`/apps/${appId}/appPricePoints`, {
+  "filter[territory]": "USA",
+  "limit": 200,  // max 200 (nao 1000)
+});  // procura customerPrice === 0
+
+await POST(`/appPriceSchedules`, {
+  data: {
+    type: "appPriceSchedules",
+    relationships: {
+      app: { data: { type: "apps", id: appId } },
+      baseTerritory: { data: { type: "territories", id: "USA" } },
+      manualPrices: { data: [{ type: "appPrices", id: "new-price-1" }] },
+    },
+  },
+  included: [{
+    type: "appPrices",
+    id: "new-price-1",
+    relationships: {
+      appPricePoint: { data: { type: "appPricePoints", id: freePointId } },
+    },
+  }],
+});
+```
+
+---
+
+## Review Submission — limite de 5 concurrent
+
+Apple cap 5 `reviewSubmissions` por app. Se voce fez multiplos deploys que falharam no `submit_for_review`, cada um deixou uma submission orfa.
+
+**Solucao** (implementado em `kindar-asc.mjs`): busca submission existente em state `READY_FOR_REVIEW` e reusa:
+```ts
+const existing = await GET(`/reviewSubmissions`, {
+  "filter[app]": appId,
+  "filter[platform]": "IOS",
+  "fields[reviewSubmissions]": "state,submittedDate,platform",
+});
+const reusable = existing.data.find(s =>
+  s.attributes.state === 'READY_FOR_REVIEW' && !s.attributes.submittedDate
+);
+if (reusable) {
+  // Limpar items antigos, reusar ID
+} else {
+  // Criar nova (se houver slot)
+}
+```
+
+---
+
+## Auto-distribute para TestFlight testers
+
+Apos build VALID, `distributeBuildToTesters(appId, buildId)` em `kindar-asc.mjs`:
+
+```ts
+// 1. Beta groups EXTERNOS (internals Apple distribui auto, rejeitam POST)
+const groups = await GET(`/apps/${appId}/betaGroups`, { "fields[betaGroups]": "name,isInternalGroup" });
+for (const g of groups.data.filter(x => !x.attributes.isInternalGroup)) {
+  await POST(`/betaGroups/${g.id}/relationships/builds`, {
+    data: [{ type: "builds", id: buildId }],
+  });
+}
+
+// 2. Testers individuais via top-level /betaTesters (nao via /apps/{id}/betaTesters — 403)
+const testers = await GET(`/betaTesters`, { "filter[apps]": appId, "limit": 200 });
+await POST(`/builds/${buildId}/relationships/individualTesters`, {
+  data: testers.data.map(t => ({ type: "betaTesters", id: t.id })),
+});
+
+// 3. Auto-notify
+await PATCH(`/buildBetaDetails/${buildId}`, {
+  data: { type: "buildBetaDetails", id: buildId, attributes: { autoNotifyEnabled: true } },
+});
+```
+
+Testers recebem email de convite automaticamente.
+
+---
+
+## Itens manuais (ASC UI, one-time)
+
+Nao ha API publica para:
+
+### 1. App Privacy Nutrition Labels
+`https://appstoreconnect.apple.com/apps/6762701916/app-privacy`
+→ Responder questionario (Kindar coleta: email, nome, identificadores, dados de criancas) → **Publish**
+
+### 2. Screenshots iPhone 6.7"
+`https://appstoreconnect.apple.com/apps/6762701916/distribution/info` → Screenshots
+→ Upload ≥1 por locale (pt-BR, en-US). Resolucao 1290×2796.
+
+Depois desses 2 items, a pipeline submete para review sem intervencao (via `--full-release` flag ou etapa 6 do workflow).
+
+---
+
+## Rodar localmente (sem CI)
+
+Usa-se quando GitHub Actions tem problema transient ou voce quer debugar:
+
+```bash
+cd kindar-native
+
+# 1. Setup credentials (one-time ou quando expirar)
+cd .. && node scripts/setup-ios-credentials.mjs && cd kindar-native
+
+# 2. Build + Submit
+eas build --platform ios --profile production --non-interactive --wait
+eas submit --platform ios --profile production --latest
+
+# 3. Wait + Distribute
+cd .. && node kindar-asc.mjs --wait-processing
+```
+
+Obs.: EAS free tier = 30 builds/mes, depois slow queue. Se hitou 100% no mes, ou espera dia 1 do proximo mes ou paga pay-as-you-go.
+
+---
+
+## Debugging
+
+### Ver status do ultimo run
+```bash
+gh run list --workflow=ios-release.yml --limit 1 --json databaseId,status,conclusion
+```
+
+### Ver logs de falha
+```bash
+gh run view {runId} --log-failed | tail -80
+```
+
+### Abortar run em andamento
+```bash
+gh run cancel {runId}
+```
+
+### Ver build queue do EAS
+```bash
+cd kindar-native && eas build:list --limit 5 --platform ios
+```
+
+### Ver state no ASC via script
+```bash
+node kindar-asc.mjs --dry-run
+```
+
+---
+
+## Troubleshooting
+
+### "You've already submitted this build"
+- Causa: EAS Submit retry ou 2 runs concorrentes com mesmo buildNumber
+- Fix: serializar workflow (`concurrency: ios-release-all`) + bump `version` em `app.json` se necessario
+
+### "Cannot add internal group to a build" (422)
+- Normal — internal groups (ASC team) recebem auto
+- Filtro `isInternalGroup: true` aplicado em `distributeBuildToTesters`
+
+### "The relationship 'betaTesters' does not allow 'GET_RELATED'" (403)
+- Usar endpoint top-level: `GET /v1/betaTesters?filter[apps]={appId}` em vez de `/apps/{appId}/betaTesters`
+
+### "Maximum limit=5 of concurrency has reached"
+- 5+ reviewSubmissions orfas
+- Fix: script reusa submission existente em `READY_FOR_REVIEW` em vez de criar nova
+
+### "PUBLISH_REQUIREMENT_MISSING — data usages"
+- App Privacy Labels nao publicado
+- Manual: https://appstoreconnect.apple.com/apps/{appId}/app-privacy
+
+### Build falha em "EAS Build" com generic "Build request failed"
+- Transient do EAS server
+- Fix: aguardar 1-2min e re-tagar, ou trigger via workflow_dispatch:
+```bash
+gh workflow run ios-release.yml --ref v1.1.X
+```
+
+---
+
+## Historico de versoes
+
+| Tag | Build | Conteudo |
+|-----|-------|----------|
+| v1.1.0 - 1.1.9 | 14-22 | Iteracoes ASC API schema 2024+ (age rating bool/enum, pricing v1, submission reuse, content rights) |
+| v1.1.10 | 26 | Pricing com appPrices correto |
+| v1.1.11 | 27 | TestFlight auto-distribute + dashboard rewrite |
+| v1.1.12 | 28 | Calendario rico + feriados BR |
+| v1.1.13 | — (travada) | Chat rico |
+| v1.1.14 | 29 | Skip internal groups + betaTesters top-level |
+| v1.1.15 | 30 | Escala custody_schedules + novo evento WebView + sync celular |
+| v1.1.16 | 31 | Serializa CI + bump version 1.0.1 |
+| v1.1.17 | 32 | `/criancas/[id]` WebView (paridade 964 LOC PWA) |
+| v1.1.18 | (fila) | Swap fixes do PR #3 Angelino + direction correcta |
+| v1.1.19 | (fila) | Dashboard health heuristica invertida + remove saldo + nextAction |
+
+**Status: repo publico → CI ilimitada. Proximos builds entram sem quota.**

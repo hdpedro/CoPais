@@ -2,12 +2,21 @@
 
 Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais, avos e cuidadores a organizarem a rotina das criancas de forma colaborativa e respeitosa.
 
-**Producao:** https://kindar.com.br
+**Producao (PWA):** https://kindar.com.br
+**iOS Native:** Kindar Native (Expo/React Native) — TestFlight / App Store
 **Dominio:** kindar.com.br
-**Ultima atualizacao:** 31/03/2026
+**Repositorio:** https://github.com/hdpedro/CoPais (publico)
+**Ultima atualizacao:** 24/04/2026 (v1.1.19)
+
+> 🏗️ **Arquitetura dual**: este repo contem **2 apps** que compartilham o mesmo backend (Supabase):
+> - **PWA** (Next.js 16, `src/`) — web + Capacitor wrapper legado
+> - **Kindar Native** (Expo/React Native, `kindar-native/`) — app iOS nativo com hybrid WebView para telas complexas (criancas/[id], calendario/novo)
+>
+> Ambos compartilham o mesmo Supabase, RLS, storage buckets, push notifications (via `/api/native/notify`) e API de automacao (`/api/native/whatsapp`).
 
 ## Stack
 
+### PWA (`src/`)
 - **Framework:** Next.js 16 (App Router, Turbopack)
 - **UI:** React 19
 - **Auth & Database:** Supabase (Auth, Postgres, Realtime, RLS)
@@ -15,72 +24,116 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **Linguagem:** TypeScript 5
 - **IA:** Multi-provider Router (Groq → Together → Gemini fallback) — assistente conversacional com function calling (12 tools), parsers robustos para PT-BR; Tesseract.js (OCR) para parser de convites de festa; Vision AI para leitura de carteirinha de vacinacao e OCR de recibos (WhatsApp). Vision: Groq llama-4-scout → Together Llama-Vision-Free → Gemini 2.0 Flash. Text: Groq llama-3.3-70b → Together Llama-3.3-70B-Turbo-Free → Gemini 2.0 Flash
 - **WhatsApp IA:** Kindar Assistente via Meta Cloud API — webhook, parser local, confirmacao via botoes interativos, OCR de recibos, multi-grupo
-- **Deploy:** Vercel
+- **Deploy:** Vercel (Hobby — free, repo publico)
 - **Analytics:** PostHog (30+ eventos rastreados)
 - **Error Tracking:** Sentry
-- **Mobile (iOS):** Capacitor 7 (hybrid app para App Store)
 - **i18n:** 5 idiomas (PT, EN, ES, FR, DE) — ~1488 chaves por locale, 40 secoes
-- **Testes:** Playwright E2E (34 testes) + Vitest unitarios (50 testes para AI parser)
+- **Testes:** Playwright E2E (34 testes) + Vitest unitarios (286 testes totais)
+
+### Kindar Native (`kindar-native/`)
+- **Framework:** Expo SDK 54 (React Native 0.76, New Architecture)
+- **Router:** expo-router v4 (file-based, tab + stack)
+- **Auth:** Apple Sign-In (iOS) / Google OAuth (Android) / email
+- **Storage:** expo-secure-store (tokens), expo-document-picker, expo-image-picker, expo-calendar
+- **Pickers nativos:** `@react-native-community/datetimepicker` (bottom-sheet wheel iOS, dialog Android)
+- **WebView hibrida:** `react-native-webview` com session injection Supabase — usado em `criancas/[id]` e `calendario/novo` para reaproveitar 2000+ LOC do PWA
+- **Offline:** `safeWrite` queue em `src/services/offline.ts` (AsyncStorage)
+- **Push:** APNs via expo-notifications + server-side `/api/native/notify`
+- **Build:** EAS Build (production) com `appVersionSource: remote` + autoIncrement
+- **Submit:** EAS Submit → App Store Connect API (via `kindar-asc.mjs` local + GitHub Actions)
+- **Distribuicao:** Auto-distribute do build para testers individuais + grupos externos (`distributeBuildToTesters` em `kindar-asc.mjs`)
 
 ## Numeros do Projeto
 
 | Metrica | Quantidade |
 |---------|-----------|
-| Rotas (paginas + API) | 66 |
+| Rotas PWA (paginas + API) | 66 |
+| Rotas Native (expo-router) | 56 telas |
 | Server Actions | 86 funcoes em 24 arquivos |
-| Tabelas no banco | 43+ |
+| API routes `/api/native/*` | 2 (notify, whatsapp) |
+| Tabelas no banco | 45+ (inclui custody_schedules, custody_balance_operations, activity_reports, medication_doses, checklist_completions, whatsapp_phone_links, clinical_context_inferences) |
 | Migrations | 52 |
-| Client Components | 36+ |
-| Componentes globais | 13 |
-| Chaves de traducao | ~1458 por idioma |
-| Secoes i18n | 39 |
-| Idiomas | 5 (PT, EN, ES, FR, DE) |
+| Client Components PWA | 36+ |
+| Componentes Native | 22 (ui, calendar, activities, profile) |
+| Chaves de traducao | ~1488 por idioma (PT/EN/ES/FR/DE) |
+| Testes Vitest | 286 passando |
+| Builds iOS (TestFlight) | v1.0.1 (32+) |
 
-## iOS App (Capacitor)
+## Kindar Native (iOS/Android app)
 
-O app esta configurado para distribuicao na Apple App Store via Capacitor:
+O app nativo vive em `kindar-native/` e foi construido com **Expo SDK 54**. Compartilha 100% do backend com o PWA (mesmo Supabase, mesmas tabelas, mesmas actions). Cobre **paridade funcional completa** com o PWA nas telas criticas (dashboard, calendario, chat, saude, despesas, criancas).
 
-- **Bundle ID:** `com.kindar.app`
-- **Config:** `capacitor.config.ts`
-- **Modo:** Hybrid (carrega `kindar.com.br` com integracao nativa)
-- **Plugins:** StatusBar, SplashScreen, Haptics, Keyboard, App, PushNotifications
-- **Apple IAP:** StoreKit 2 via plugin nativo (`ios-plugins/StoreKitPlugin.swift`) com `getProducts`, `purchase`, `restorePurchases`
-- **Pagamentos:** Sistema unificado Apple IAP + Stripe (`src/lib/payments.ts`), verificacao de receipt em `/api/iap/verify`
-- **Push Notifications:** Web-push (VAPID) + APNs nativo. Token APNs registrado via `/api/push/register-apns`. Entrega dual em `src/lib/push.ts`
-- **Init Nativo:** `src/lib/native-init.ts` centraliza setup de StatusBar, SplashScreen, Keyboard e push ao iniciar o app
-- **Native Shell Guards:** PWAInstallBanner e ServiceWorker desabilitados dentro do Capacitor; Analytics/SpeedInsights condicionais via `WebOnly` component
-- **Safe Areas:** CSS `env(safe-area-inset-*)` em todos os componentes (notch + home indicator)
-- **Touch targets:** minimo 44px em todos os elementos interativos (Apple HIG)
-- **Haptic feedback:** em interacoes (troca de tab, clique em dia, envio de mensagem)
-- **Page transitions:** animacao fade-in (200ms) entre paginas
-- **Active press states:** `scale(0.97)` em dispositivos touch
-- **Viewport:** `viewport-fit=cover`, sem zoom
-- **7 loading skeletons:** arquivos `loading.tsx` com animate-pulse
-- **Offline:** Service Worker v3 com navigation caching + pagina offline (`/offline.html`)
-- **PWA Install Banner:** `PWAInstallBanner.tsx` exibe banner no iOS Safari (escondido dentro do native shell)
-- **Deteccao de teclado:** bottom nav se esconde via `visualViewport` API
-- **Checklist de submissao:** `docs/ios-submission-checklist.md`
+### Estrategia: Native-first com WebView para features complexas
 
-Para buildar o iOS (duas opcoes):
+Telas simples (CRUD, listas) sao implementadas nativamente (FlatList + expo-router). Telas com forms de 1000+ LOC ou logica rica (ex: `/criancas/[id]` com 4 tabs + upload, `/calendario/novo` com recorrencia customizada) sao reaproveitadas via **WebView com session injection**:
 
-**Opcao 1: GitHub Actions (sem Mac)**
-```bash
-# Build automatico via tag
-git tag v1.0.0
-git push origin v1.0.0
-# Ou: Actions > iOS Build & Upload > Run workflow
+```ts
+// Inject Supabase session into WebView localStorage BEFORE page load
+const injectedJS = `
+  localStorage.setItem('sb-{project-ref}-auth-token', ${JSON.stringify(sessionPayload)});
+`;
+<WebView source={{ uri: PWA_URL + path }} injectedJavaScriptBeforeContentLoaded={injectedJS} />
 ```
-Setup dos secrets: `docs/ios-github-actions-setup.md`
 
-**Opcao 2: Local (requer Mac com Xcode)**
+Usuario nao precisa fazer login; UX indistinguivel de tela nativa; app ganha todas as features do PWA automaticamente quando o PWA evolui.
+
+### Telas native puras (reescritas em React Native)
+
+| Tela | Gap fechado vs PWA |
+|------|--------------------|
+| Dashboard | Hero dark com streak, child cards, pending reports, grid 3x2 "Acoes rapidas" |
+| Calendario | Cells ricas com pills de horario, feriados BR, CTA "Gerar escala", legenda com nomes (nao email), banner "Amanha: troca de guarda" |
+| Chat | Channel tabs, "Hoje" divider, read checks ✓✓, system cards para notificacoes do grupo, image attach |
+| Saude (7 subtelas) | Consultas, Vacinas, Crescimento, Doencas (com EvolutionQuickAction ✅ 📈/📉 inline), Medicamentos (com `ConfirmDoseButton` + historico), Alergias, Receita (OCR) |
+| Despesas | Delete (longpress) + Receipt viewer modal + date picker nativo + foto comprovante |
+| Atividades | Tap = edit, longpress = soft-delete, `Checklist` + `Relatar` modals |
+| Escola | Edit flow por crianca com TimePickerField |
+| Criancas | Edit modal com todos os campos PWA (full_name, birth_date, gender, blood_type, allergies, CPF, RG, notes) |
+| Swap + Balance Operations | `SwapBalanceCard` + `BalanceHistorySheet` + `ProposeBalanceAdjustmentSheet` + approve/reject inline |
+| Eventos | Edit + delete + toggle "dia inteiro" |
+
+### Telas via WebView (reaproveitam PWA)
+
+| Tela | Motivo |
+|------|--------|
+| `/criancas/[id]` | 964 LOC no PWA com 4 tabs + upload de documentos + growth charts |
+| `/calendario/novo` | 1167 LOC no PWA com recorrencia avancada, split custody, approval workflow |
+
+### Features native-only (nao existem no PWA)
+
+- **Sincronizar com Celular** — `expo-calendar` exporta eventos (guarda/atividades/eventos) para o calendario nativo do iOS/Android. Compacta runs contiguos de custody em single multi-day entry (em vez de N entries diarias).
+- **Auto-distribute para TestFlight** — `kindar-asc.mjs` apos build VALID: lista beta groups externos + testers individuais, anexa build via `POST /v1/betaGroups/{id}/relationships/builds` e `POST /v1/builds/{id}/relationships/individualTesters` → email de convite enviado automaticamente.
+- **Push deep link** — `addNotificationResponseListener` em `_layout.tsx` faz `Linking.openURL` ou `router.push` baseado no payload.
+
+### Build e deploy
+
 ```bash
-npx cap add ios
-cp ios-plugins/StoreKitPlugin.swift ios/App/App/
-cp ios-plugins/StoreKitPlugin.m ios/App/App/
-npx cap sync ios
-npx cap open ios
-# No Xcode: ativar capabilities Push Notifications e In-App Purchase
+# Tag release → CI roda automaticamente
+git tag v1.1.20
+git push origin v1.1.20
+
+# GitHub Actions (ios-release.yml) executa:
+# 1. audit → metadata config (categorias, copyright, age rating, content rights, pricing)
+# 2. EAS Build production (autoIncrement build number)
+# 3. EAS Submit to ASC (via AuthKey.p8)
+# 4. Wait Apple processing (max 30min polling)
+# 5. distributeBuildToTesters (anexa build a grupos externos + testers individuais)
+# 6. Submit for Review (cria reviewSubmission, anexa version)
 ```
+
+Fluxo local (se tiver quota EAS):
+```bash
+cd kindar-native
+eas build --platform ios --profile production --non-interactive --wait
+eas submit --platform ios --profile production --latest
+cd .. && node kindar-asc.mjs --wait-processing
+```
+
+Ver [`DEPLOY-IOS.md`](DEPLOY-IOS.md) para detalhes do pipeline ASC (schema 2024+ do age rating, custody_schedules vs coparenting_groups, pricing via v1 com manualPrices nested).
+
+### Legado: iOS App (Capacitor)
+
+> ⚠️ **Deprecado em favor do Kindar Native**. Mantido como fallback PWA wrapper (`ios-plugins/` + `capacitor.config.ts`). Builds novos devem usar Expo via `kindar-native/`.
 
 ## Internacionalizacao (i18n)
 
@@ -146,6 +199,8 @@ O app suporta **5 idiomas** completos:
 - Suporte a **multiplos filhos** por atividade/evento (opcao "Todos")
 - **Cron automatico** para lembretes via Vercel Cron (`/api/cron/activity-reminders`)
 - **Cron de lembretes nao respondidos** (`sendMissedReportReminders`)
+- **Observabilidade de CRONs**: executor central com retry 1x, log persistente em `cron_logs`, relatorio diario agregado por email via `/api/cron/daily-report`
+- **Relatorio Mensal da Crianca**: email automatico no dia 1 de cada mes com resumo completo (atividades, saude, custodia, despesas) enviado a cada responsavel via `/api/cron/monthly-report`
 - **Compartilhar atividade via WhatsApp**: botao de share nos cards do dashboard, DayDetailSheet e ChecklistModal. Usa Web Share API (mobile) com fallback para `wa.me/?text=`. Texto formatado com emoji da categoria, nome da crianca, horario e local
 
 ### 4. Invite Parser — Adicionar via Convite (`/calendario/convite`)
@@ -402,8 +457,11 @@ Todos os PostgREST FK joins foram removidos e substituidos por **joins manuais**
 | `/api/chat/export` | Exportacao de chat em PDF |
 | `/api/chat/messages` | Busca mensagens por canal |
 | `/api/create-group` | Criacao de grupo familiar |
-| `/api/cron/activity-reminders` | Cron: lembretes push 24h antes |
+| `/api/cron/activity-reminders` | Cron: lembretes push 24h antes + relatorios nao preenchidos |
 | `/api/cron/custody-change` | Cron: notificacao de mudanca de custodia |
+| `/api/cron/retention` | Cron: notificacoes de retencao D+1/3/7/14 |
+| `/api/cron/daily-report` | Cron: agrega logs e envia relatorio por email |
+| `/api/cron/monthly-report` | Cron: relatorio mensal da crianca por email (dia 1) |
 | `/api/discord/interactions` | Discord bot: recebe cliques de botoes (Fix/Acknowledge/Ignore) |
 | `/api/discord/feedback` | Webhook: recebe status de CI/deploy e posta no Discord |
 | `/api/log-error` | Error tracking: captura, classifica por pasta e notifica Discord |
@@ -478,7 +536,7 @@ src/
       auth/             # Auth routes (signout, test-login)
       calendar/[token]  # API publica para exportacao iCal
       chat/             # Chat API (messages + export)
-      cron/             # Cron jobs (lembretes de atividades, mudanca de custodia)
+      cron/             # Cron jobs (5 routes via runCronWithReport: activity-reminders, custody-change, retention, daily-report, monthly-report)
       create-group/     # Criacao de grupo familiar
       push/             # Push notifications (subscribe + chat)
     (auth)/             # Rotas publicas (login, signup, etc.)
@@ -528,6 +586,14 @@ src/
     posthog.ts             # PostHog client analytics
     posthog-server.ts      # PostHog server analytics
     push.ts                # Web Push notifications (VAPID)
+    cron/
+      types.ts             # CronResult, CronReport, DailyReport
+      cron-executor.ts     # runCronWithReport (auth, retry, log)
+      report-aggregator.ts # generateDailyReport
+      report-formatter.ts  # HTML + texto do relatorio diario
+    reports/
+      monthly-child-report.ts    # Coletor de dados mensal por crianca
+      monthly-report-formatter.ts # HTML + texto do relatorio mensal
     recurrence-utils.ts    # Motor de recorrencia (7 tipos: diario, semanal, etc.)
     sbp-vaccine-calendar.ts # Calendario vacinal SBP
     tone-moderator.ts      # Analise de tom para chat
@@ -552,6 +618,7 @@ GROQ_API_KEY=                     # Chave API do Groq (assistente IA + invite pa
 AI_MODE=                          # (opcional) "pilot" (padrao, free tier) para troca futura de backend do parser
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=     # Chave publica VAPID (push notifications)
 VAPID_PRIVATE_KEY=                # Chave privada VAPID
+CRON_REPORT_EMAIL=                # Email para relatorio diario dos CRONs (opcional)
 ```
 
 ## Desenvolvimento
@@ -575,6 +642,8 @@ npx playwright test
 
 ## Deploy
 
+### PWA (Vercel)
+
 ```bash
 npx vercel --prod
 ```
@@ -585,6 +654,18 @@ npx vercel env add NEXT_PUBLIC_SUPABASE_URL production
 npx vercel env add NEXT_PUBLIC_SUPABASE_ANON_KEY production
 npx vercel env add SUPABASE_SERVICE_ROLE_KEY production
 ```
+
+### Kindar Native (iOS)
+
+Tag release → workflow `ios-release.yml` disparado automaticamente:
+```bash
+git tag v1.1.X
+git push origin v1.1.X
+```
+
+Pipeline completo em `DEPLOY-IOS.md`. Workflow serializado (`concurrency: ios-release-all`) para evitar colisoes de `buildNumber` no EAS autoIncrement.
+
+**Repositorio publico** → GitHub Actions e Vercel rodam sem custo (limite so se aplica a repos privados no tier Free).
 
 ## Acessibilidade
 

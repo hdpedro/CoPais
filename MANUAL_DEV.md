@@ -1,7 +1,8 @@
 # Kindar - Manual de Desenvolvimento
 
 > Manual completo para desenvolvedores que vao trabalhar no projeto Kindar.
-> Ultima atualizacao: 31/03/2026
+> Ultima atualizacao: **24/04/2026 (v1.1.19)**
+> Repositorio: **https://github.com/hdpedro/CoPais** (publico desde 24/04/2026)
 
 ---
 
@@ -30,6 +31,8 @@
 21. [Guia de Contribuicao](#21-guia-de-contribuicao)
 22. [Troubleshooting](#22-troubleshooting)
 23. [Decisoes Arquiteturais](#23-decisoes-arquiteturais)
+24. [Kindar Native (iOS/Android)](#24-kindar-native-iosandroid)
+25. [Pipeline iOS CI/CD (GitHub Actions + EAS + ASC)](#25-pipeline-ios-cicd-github-actions--eas--asc)
 
 ---
 
@@ -197,6 +200,9 @@ GEMINI_API_KEY=...                # Ultimo recurso
 
 # (opcional) Modo do parser de convites: "pilot" (padrao, free tier)
 AI_MODE=pilot
+
+# Email para receber relatorio diario dos CRONs (opcional)
+CRON_REPORT_EMAIL=admin@kindar.com.br
 ```
 
 ### Scripts Disponiveis
@@ -556,7 +562,12 @@ Kindar/
     │   └── api/
     │       ├── calendar/[token]/route.ts # Feed iCalendar (RFC 5545)
     │       ├── chat/                     # Chat API
-    │       └── cron/activity-reminders/  # Cron: push 24h antes
+    │       └── cron/                     # CRONs (todas via runCronWithReport)
+    │           ├── activity-reminders/  # Push 24h antes + relatorios (23:00 UTC)
+    │           ├── custody-change/      # Troca de guarda (10:00 UTC)
+    │           ├── retention/           # Retencao D+1/3/7/14 (14:00 UTC)
+    │           ├── daily-report/        # Relatorio diario por email (01:00 UTC)
+    │           └── monthly-report/     # Relatorio mensal da crianca (dia 1, 12:00 UTC)
     │
     ├── actions/                      # === SERVER ACTIONS ===
     │   ├── auth.ts                   # signUp, signIn, signOut, resetPassword
@@ -1232,7 +1243,7 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - **Editar ocorrencia unica vs todas** (estilo Google Calendar) com overrides JSONB
 - **Checklist inteligente** com itens pre-preenchidos por categoria
 - **Push notifications** 24h antes via web-push (VAPID)
-- **Cron job** automatico para lembretes (`/api/cron/activity-reminders`)
+- **Cron jobs** automaticos com observabilidade via `runCronWithReport` (retry 1x, log em `cron_logs`, relatorio diario por email)
 - Suporte a multiplos filhos por atividade (opcao "Todos")
 - Eventos sociais integrados no calendario
 - **Fix de eventos no calendario**: removida coluna `category` inexistente do SELECT em `calendario/page.tsx` (Supabase retornava null); categoria hardcoded como "evento"
@@ -1759,6 +1770,204 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - **Bug corrigido**: "comprei remedio 53,90" era salvo como R$ 539 — `parseAmount()` tratava o ponto decimal de "53.9" (ja parseado) como separador de milhar, removendo-o e gerando 539
 - **Fix em `parseAmount()`** (`ai-tools.ts`): ponto seguido de exatamente 3 digitos = milhar (ex: "1.500"); ponto seguido de 1-2 digitos = decimal (ex: "53.9")
 - **Fix em `mapLocalActionToTool()`** (`route.ts`): `createExpense` agora usa `Number(p.amount)` em vez de `parseAmount(p.amount)`, evitando re-parsing
+
+---
+
+## 24. Kindar Native (iOS/Android)
+
+### Visao geral
+App nativo Expo/React Native em `kindar-native/`. Compartilha 100% do backend com o PWA (mesmo Supabase, mesmas tabelas, mesmas actions server-side). Cobre paridade funcional completa com o PWA em 20 modulos.
+
+### Estrutura
+```
+kindar-native/
+├── app/                         # expo-router (file-based routing)
+│   ├── (tabs)/                  # Bottom tabs: index (Dashboard), calendario, chat, saude, + layout
+│   ├── auth/                    # Login, signup, forgot-password, callback
+│   ├── onboarding/              # Primeiro acesso
+│   ├── calendario/              # novo (WebView), escala, convite
+│   ├── criancas/                # [id] (WebView), nova
+│   ├── saude/                   # alergias, consultas, crescimento, doencas, medicamentos, profissionais, receita, sintomas, vacinas, emergencia
+│   ├── atividades/              # index (com edit modal) + nova
+│   ├── despesas/                # index + nova
+│   ├── chat/[channelId].tsx     # Chat room
+│   ├── eventos/ decisoes/ acordos/ documentos/ escola/ notas/
+│   ├── financeiro/ familia/ perfil/ notificacoes/ semana/
+│   ├── temas-sensiveis/ pricing/
+│   └── _layout.tsx              # Root stack + push listener + initialize auth
+├── src/
+│   ├── components/
+│   │   ├── ui/                  # DateTimeField (DatePicker, TimePicker), FAB, ScreenHeader, EmptyState
+│   │   ├── calendar/            # WeekendPlanner, SwapRequestModal, SwapBalanceCard, BalanceHistorySheet, ProposeBalanceAdjustmentSheet
+│   │   ├── activities/          # ActivityReportModal, ActivityChecklistModal
+│   │   └── profile/             # WhatsAppLinkSection
+│   ├── hooks/                   # useDashboard, useCalendar, useHealth
+│   ├── services/                # offline (safeWrite), activities, children, documents, events, expenses, schedule, swaps, balance-operations, health, whatsapp, calendar-sync, push-setup, notify
+│   ├── store/                   # auth (zustand)
+│   ├── lib/                     # supabase, constants, brazilian-holidays
+│   ├── design-system/           # tokens (colors, spacing, radius, font, shadows)
+│   └── i18n/                    # 5 idiomas (locales/*.json)
+├── app.json                     # Expo config (bundle id, plugins, infoPlist permissions)
+├── eas.json                     # EAS Build profiles (development, preview, production)
+├── AuthKey.p8                   # ASC API key (gitignored)
+└── kindar-asc.mjs               # (no root) Automation script para metadata + distribution
+```
+
+### Padroes arquiteturais native
+
+#### A) WebView hibrida para telas complexas
+Quando uma tela do PWA tem ≥500 LOC com logica de form rico (recorrencia, upload, tabs), reaproveita via WebView:
+
+```tsx
+// kindar-native/app/criancas/[id].tsx
+const sessionPayload = JSON.stringify({ access_token, refresh_token, ... });
+const injectedJS = `
+  localStorage.setItem('sb-${PROJECT_REF}-auth-token', ${JSON.stringify(sessionPayload)});
+  true;
+`;
+<WebView
+  source={{ uri: `${WEB_URL}/criancas/${id}` }}
+  injectedJavaScriptBeforeContentLoaded={injectedJS}
+  onNavigationStateChange={handleNavChange}  // detecta redirect de save e fecha
+  sharedCookiesEnabled
+/>
+```
+
+**Usado em:**
+- `/criancas/[id]` (964 LOC PWA reaproveitado)
+- `/calendario/novo` (1167 LOC PWA reaproveitado)
+
+**Trade-off:** latencia de boot ~1s, exige conexao. Ganho: evolui com o PWA automaticamente.
+
+#### B) safeWrite offline queue
+Todos os writes native passam por `safeWrite` em `src/services/offline.ts`:
+```ts
+const result = await safeWrite({
+  table: 'expenses',
+  operation: 'insert',  // 'insert' | 'update' | 'delete'
+  payload: { ... },
+});
+// if offline → enqueue in AsyncStorage, sync on NetInfo reconnect
+```
+
+#### C) Side-effects via `/api/native/notify`
+Push/chat notifications nao sao enviadas no client — sao delegadas ao PWA backend via Bearer token:
+```ts
+// kindar-native/src/services/notify.ts
+notifyAction('expense_approved', groupId, { description });
+// POST https://kindar.com.br/api/native/notify
+// → usa createNotificationWithPush do PWA lib/push.ts
+```
+
+#### D) Pickers nativos
+`DateTimePicker` e `TimePickerField` em `src/components/ui/DateTimeField.tsx` — bottom-sheet wheel iOS, dialog nativo Android. Substituem DD/MM/AAAA TextInputs manuais.
+
+#### E) Session injection nos WebViews
+Usuario faz login no native; ao abrir WebView, injeta o access_token+refresh_token no localStorage do WebView antes da navegacao (key: `sb-{project-ref}-auth-token`). PWA boots com sessao ativa, sem tela de login.
+
+### Fluxos principais
+
+| Tela | Native puro | WebView | Motivo WebView |
+|------|-------------|---------|----------------|
+| Dashboard | ✅ | — | Hierarchia premium |
+| Calendario | ✅ | — | Grid nativo com feriados BR |
+| Chat | ✅ | — | Realtime + image attach |
+| Saude (9 tabs) | ✅ | — | Cada subtela e pequena |
+| Despesas | ✅ | — | Simples |
+| Atividades | ✅ | — | Modal edit rico mas contido |
+| Eventos | ✅ | — | CRUD limpo |
+| Criancas list | ✅ | — | — |
+| **Criancas [id]** | — | **✅** | 964 LOC, 4 tabs, upload |
+| **Calendario novo** | — | **✅** | 1167 LOC, recorrencia |
+| Escala | ✅ | — | 14-day picker |
+
+### Patterns comuns
+
+**Shared display name cascade** (evita mostrar email como nome):
+```ts
+const raw = profile?.display_name
+  || profile?.full_name?.split(' ')[0]
+  || (profile?.email ? profile.email.split('@')[0].split('.')[0] : '')
+  || 'Usuario';
+const name = raw.charAt(0).toUpperCase() + raw.slice(1);
+```
+
+**Haptic + Alert confirm para destructive**:
+```ts
+Alert.alert('Remover', `Remover ${item.title}? Acao nao pode ser desfeita.`, [
+  { text: 'Cancelar', style: 'cancel' },
+  { text: 'Remover', style: 'destructive', onPress: async () => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    await deleteFn(item.id);
+  }},
+]);
+```
+
+### Desenvolvimento local
+
+```bash
+cd kindar-native
+npm install
+npx expo start           # dev server com QR para Expo Go
+npx expo start --ios     # simulador iOS (requer Xcode/macOS)
+```
+
+### Referencias
+- `kindar-native/NATIVE-REPLICATION-PLAN.md` — roadmap de replicacao PWA↔Native (status final)
+- `DEPLOY-IOS.md` — pipeline EAS + ASC completo
+- `kindar-asc.mjs` — script de automacao App Store Connect (age rating schema 2024+, pricing v1 manualPrices nested, reviewSubmission reuse, auto-distribute)
+
+---
+
+## 25. Pipeline iOS CI/CD (GitHub Actions + EAS + ASC)
+
+### Workflow `.github/workflows/ios-release.yml`
+
+Disparado em push de tag `v*`. Serializado via `concurrency: ios-release-all` (evita race no EAS autoIncrement que causa "already submitted").
+
+```
+1. Audit (scripts locais + secrets check)
+2. Configure ASC metadata (kindar-asc.mjs sem flags)
+   ├── App info: categorias (LIFESTYLE/PRODUCTIVITY)
+   ├── Subscriptions (4 IAPs: Premium/Elite × monthly/annual)
+   ├── Pricing (Free tier via /v1/appPriceSchedules POST com manualPrices nested)
+   ├── Version metadata (pt-BR, en-US + copyright + whatsNew)
+   ├── Review info (contactPhone obrigatorio, demo account)
+   └── Age rating (schema 2024+: mix bool/enum — advertising/messagingAndChat/UGC = bool, violence/sexual/horror = enum NONE)
+3. EAS Build iOS production (autoIncrement buildNumber)
+4. EAS Submit to ASC (AuthKey.p8 via EXPO_ASC_*)
+5. Wait Apple processing (kindar-asc.mjs --wait-processing)
+   ├── Poll /v1/builds?filter[app]= ate VALID
+   └── distributeBuildToTesters: anexa build a beta groups externos + testers individuais
+6. Submit for Review (kindar-asc.mjs --submit-review)
+   ├── Reusa reviewSubmission pending (evita concurrency limit 5)
+   ├── Anexa app version
+   └── PATCH submitted=true (se metadata completo)
+```
+
+### Pegadinhas descobertas (todas mitigadas)
+
+| Problema | Solucao |
+|----------|---------|
+| `sort` + `buildNumber` rejeitados em `/v1/apps/{id}/builds` | Migrou para `/v1/builds?filter[app]={id}` |
+| Age rating POST → 403 "does not allow CREATE" | Apple auto-cria; busca ID via `/appInfos/{id}?include=ageRatingDeclaration`, faz PATCH |
+| Pricing: schedule existe mas sem manualPrice | `/v1/appPriceSchedules` POST com `manualPrices: { data: [...] }` + `included` carregando appPrice referenciando price point FREE |
+| `reviewSubmission` concurrency limit 5 | Reusa submission em state=READY_FOR_REVIEW em vez de criar nova |
+| `betaTesters` 403 via `/apps/{id}/betaTesters` | Usa top-level `/betaTesters?filter[apps]={id}` |
+| Internal groups rejeitados: "Cannot add internal group to a build" | Filtra `isInternalGroup: true` e pula (Apple distribui auto) |
+| "Already submitted this build" | Serializa CI (`concurrency: ios-release-all`) + bump `version` (1.0.0 → 1.0.1) |
+| App Privacy Labels | **Manual** em `https://appstoreconnect.apple.com/apps/{appId}/app-privacy` (nao ha API publica funcional) |
+| Screenshots iPhone 6.7" | **Manual** (upload 1 por locale no ASC) |
+
+### Secrets GitHub necessarios
+- `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_PRIVATE_KEY` (Apple ASC API key)
+- `EXPO_TOKEN` (EAS auth)
+- `IOS_P12_BASE64`, `IOS_P12_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE64` (gerados pelo `scripts/setup-ios-credentials.mjs`)
+
+### Runs/build tracking
+- Tag `v1.1.19` → build 32 (TestFlight)
+- Proximas tags auto-distribuem para Angelino (external tester)
+- Pipeline corre gratis — repo **publico** = Actions ilimitadas
 
 ---
 
