@@ -22,7 +22,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -31,7 +31,7 @@ function getSupabaseProjectRef(): string {
   return url.replace("https://", "").replace(".supabase.co", "");
 }
 
-export default function NativeBridgePage() {
+function NativeBridgeInner() {
   const router = useRouter();
   const search = useSearchParams();
   const [error, setError] = useState<string | null>(null);
@@ -102,5 +102,26 @@ export default function NativeBridgePage() {
         )}
       </div>
     </div>
+  );
+}
+
+// useSearchParams() requer Suspense boundary no Next 16 pra static prerender.
+// Sem isso, `next build` falha com "should be wrapped in a suspense boundary".
+// Esse bug travou 6 deploys Vercel seguidos — nenhuma mudanca Apple chegou a
+// producao ate esse fix.
+export default function NativeBridgePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#F5EFE6]">
+          <div className="text-center p-6">
+            <div className="w-8 h-8 border-2 border-[#D4735A] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+            <p className="text-xs text-[#7A8C8B]">Carregando...</p>
+          </div>
+        </div>
+      }
+    >
+      <NativeBridgeInner />
+    </Suspense>
   );
 }
