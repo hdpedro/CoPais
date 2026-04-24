@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator, Alert, Platform, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -9,6 +9,10 @@ import { useI18n } from '../../src/i18n';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import WhatsAppLinkSection from '../../src/components/profile/WhatsAppLinkSection';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+
+const PRIVACY_URL = 'https://kindar.com.br/privacidade';
+const TERMS_URL = 'https://kindar.com.br/termos';
+const SUPPORT_URL = 'https://kindar.com.br/suporte';
 
 export default function PerfilScreen() {
   const { userId, profile, activeGroup } = useAuth();
@@ -176,6 +180,43 @@ export default function PerfilScreen() {
           <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>Assinatura</Text>
           <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
         </TouchableOpacity>
+
+        {/* Legal + Suporte — links exigidos por Apple Guideline 5.1.1
+            (privacidade acessivel in-app) + pre-requisito ASC (Support URL) */}
+        <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, marginBottom: spacing.lg, ...shadows.sm, overflow: 'hidden' }}>
+          <TouchableOpacity
+            onPress={() => Linking.openURL(PRIVACY_URL)}
+            style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}
+          >
+            <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
+            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>Politica de Privacidade</Text>
+            <Ionicons name="open-outline" size={16} color={colors.textDim} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => Linking.openURL(TERMS_URL)}
+            style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}
+          >
+            <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
+            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>Termos de Uso</Text>
+            <Ionicons name="open-outline" size={16} color={colors.textDim} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => Linking.openURL(SUPPORT_URL)}
+            style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}
+          >
+            <Ionicons name="help-circle-outline" size={20} color={colors.textSecondary} />
+            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>Suporte</Text>
+            <Ionicons name="open-outline" size={16} color={colors.textDim} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.push('/perfil/deletar-conta')}
+            style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+          >
+            <Ionicons name="trash-outline" size={20} color={colors.error} />
+            <Text style={{ fontSize: font.sizes.md, color: colors.error, flex: 1 }}>Deletar conta</Text>
+            <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+          </TouchableOpacity>
+        </View>
 
         {/* Sign out */}
         <TouchableOpacity onPress={handleSignOut}
