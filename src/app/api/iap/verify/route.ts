@@ -18,11 +18,23 @@ import { createAdminClient } from "@/lib/supabase/admin";
  */
 export async function POST(req: NextRequest) {
   try {
-    // Authenticate the user
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    // Authenticate: aceita Bearer (native via fetch) ou cookie (web).
+    // O native envia Bearer porque Next middleware nao valida tokens em
+    // /api/* e o cookie nao existe fora do webview com ssr configurado.
+    const authHeader = req.headers.get("authorization");
+    let user: { id: string } | null = null;
+
+    if (authHeader?.startsWith("Bearer ")) {
+      const token = authHeader.slice(7);
+      const adminForAuth = createAdminClient();
+      const { data, error } = await adminForAuth.auth.getUser(token);
+      if (!error && data.user) user = { id: data.user.id };
+    } else {
+      const supabase = await createClient();
+      const { data: { user: webUser } } = await supabase.auth.getUser();
+      if (webUser) user = { id: webUser.id };
+    }
+
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
