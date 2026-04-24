@@ -42,11 +42,15 @@ export async function POST(req: NextRequest) {
         const periodStart = (sub as unknown as { current_period_start: number }).current_period_start;
         const periodEnd = (sub as unknown as { current_period_end: number }).current_period_end;
 
-        // Expire any existing active/trialing subscriptions for this user first
+        // Expire only existing Stripe-provider subs for this user. CRITICAL:
+        // scope by payment_provider="stripe" so an active Apple IAP sub is
+        // NOT overwritten when the user starts/renews a subscription on web.
+        // /api/iap/verify already filters symmetrically by payment_provider="apple".
         await supabase
           .from("subscriptions")
           .update({ status: "expired", updated_at: new Date().toISOString() })
           .eq("user_id", userId)
+          .eq("payment_provider", "stripe")
           .in("status", ["active", "trialing", "past_due"]);
 
         // Insert the new subscription
