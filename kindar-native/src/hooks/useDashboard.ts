@@ -36,7 +36,9 @@ interface ChildHealthSummary {
   childId: string;
   childName: string;
   status: 'healthy' | 'monitoring' | 'treatment';
+  statusLabel: string;           // 'Em tratamento' / 'Em acompanhamento' / 'Saudavel'
   detail: string;
+  nextAction: string | null;     // 'Confirmar dose' / 'Atualizar estado' / null
 }
 
 interface ChildCard {
@@ -411,18 +413,43 @@ export function useDashboard() {
         };
       });
 
-      // Health summaries per child
+      // Health summaries per child — matches PWA src/app/(app)/dashboard/page.tsx:
+      //   - active medication  → treatment  + 'Confirmar dose'
+      //   - active illness     → monitoring + 'Atualizar estado'
+      //   - (checkin recente)  → monitoring (no action)
+      //   - healthy            → no action
+      // Previous native logic had meds/illness INVERTED — fixed now.
       const childHealthSummaries: ChildHealthSummary[] = childCards.map(child => {
-        const hasIllness = (illnessData || []).some((i: any) => i.child_id === child.id);
-        const hasMed = (medsData || []).some((m: any) => m.child_id === child.id);
-        const status: 'healthy' | 'monitoring' | 'treatment' =
-          hasIllness ? 'treatment' : hasMed ? 'monitoring' : 'healthy';
-        const detail = hasIllness
-          ? (illnessData || []).find((i: any) => i.child_id === child.id)?.title || 'Doente'
-          : hasMed
-            ? (medsData || []).find((m: any) => m.child_id === child.id)?.name || 'Medicado'
-            : 'Saudavel';
-        return { childId: child.id, childName: child.firstName, status, detail };
+        const childMeds = (medsData || []).filter((m: any) => m.child_id === child.id);
+        const childIllnesses = (illnessData || []).filter((i: any) => i.child_id === child.id);
+
+        let status: 'healthy' | 'monitoring' | 'treatment' = 'healthy';
+        let detail = 'Sem registros recentes';
+        let nextAction: string | null = null;
+
+        if (childMeds.length > 0) {
+          status = 'treatment';
+          const med = childMeds[0] as any;
+          detail = med.name || 'Medicado';
+          nextAction = 'Confirmar dose';
+        } else if (childIllnesses.length > 0) {
+          status = 'monitoring';
+          const ill = childIllnesses[0] as any;
+          detail = ill.title || 'Acompanhamento';
+          nextAction = 'Atualizar estado';
+        }
+
+        const statusLabel =
+          status === 'treatment' ? 'Em tratamento'
+          : status === 'monitoring' ? 'Em acompanhamento'
+          : 'Saudavel';
+
+        return { childId: child.id, childName: child.firstName, status, statusLabel, detail, nextAction };
+      });
+      // Sort: treatment (highest priority) > monitoring > healthy — matches PWA
+      childHealthSummaries.sort((a, b) => {
+        const order = { treatment: 0, monitoring: 1, healthy: 2 };
+        return order[a.status] - order[b.status];
       });
 
       // Calculate balance

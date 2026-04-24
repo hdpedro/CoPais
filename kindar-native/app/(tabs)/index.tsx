@@ -575,28 +575,12 @@ export default function DashboardScreen() {
           </Animated.View>
         ) : null}
 
-        {/* === FINANCIAL BALANCE === */}
-        {data?.balance !== undefined && data.balance !== 0 ? (
-          <Animated.View entering={FadeInDown.delay(280).duration(400)}>
-            <TouchableOpacity onPress={() => router.push('/financeiro')} activeOpacity={0.7} style={{
-              backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
-              marginBottom: spacing.lg, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-            }}>
-              <Text style={{ fontSize: 20 }}>💰</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Saldo financeiro</Text>
-                <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: data.balance >= 0 ? colors.success : colors.error }}>
-                  {formatBRL(Math.abs(data.balance))}
-                </Text>
-              </View>
-              <Text style={{ fontSize: font.sizes.xs, color: data.balance >= 0 ? colors.success : colors.error, fontWeight: font.weights.medium }}>
-                {data.balance >= 0 ? 'A receber' : 'A pagar'}
-              </Text>
-            </TouchableOpacity>
-          </Animated.View>
-        ) : null}
+        {/* Saldo financeiro foi removido do dashboard — PWA nao exibe saldo
+            na home. Usuario acha em Financeiro via grid "Ações rápidas" ou
+            em Despesas. Manter saldo aqui violava hierarquia de prioridade
+            (ponto #8 da auditoria UX). */}
 
-        {/* === HEALTH BLOCK === */}
+        {/* === HEALTH BLOCK — matches PWA childHealthSummaries === */}
         {(data?.childHealthSummaries?.length || 0) > 0 ? (
           <Animated.View entering={FadeInDown.delay(300).duration(400)}>
             <View style={{
@@ -604,36 +588,68 @@ export default function DashboardScreen() {
               marginBottom: spacing.lg, ...shadows.sm,
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-                <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                  Saude
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Ionicons name="pulse-outline" size={12} color={data?.hasAnyCriticalChild ? '#EF4444' : '#5B9E85'} />
+                  <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                    Saude
+                  </Text>
+                </View>
                 <TouchableOpacity onPress={() => router.push('/(tabs)/saude')}>
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>Ver tudo</Text>
                 </TouchableOpacity>
               </View>
               {data!.childHealthSummaries.map((h, i) => {
                 const statusConfig = {
-                  healthy: { icon: '🟢', color: colors.success, label: 'Saudavel' },
-                  monitoring: { icon: '🟡', color: colors.warning, label: 'Em observacao' },
-                  treatment: { icon: '🔴', color: colors.error, label: 'Em tratamento' },
+                  healthy:    { dot: '#22c55e', bg: 'rgba(34,197,94,0.08)',  border: 'rgba(34,197,94,0.2)',  text: '#15803d' },
+                  monitoring: { dot: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.3)', text: '#b45309' },
+                  treatment:  { dot: '#ef4444', bg: 'rgba(239,68,68,0.08)',  border: 'rgba(239,68,68,0.25)', text: '#b91c1c' },
                 }[h.status];
                 return (
-                  <View key={h.childId} style={{
-                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                    paddingVertical: spacing.sm,
-                    borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
-                  }}>
-                    <Text style={{ fontSize: 16 }}>{statusConfig.icon}</Text>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
-                        {h.childName}
+                  <TouchableOpacity
+                    key={h.childId}
+                    activeOpacity={0.8}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/(tabs)/saude?child=${h.childId}` as Parameters<typeof router.push>[0]); }}
+                    style={{
+                      backgroundColor: statusConfig.bg,
+                      borderWidth: 1, borderColor: statusConfig.border, borderRadius: radius.md,
+                      padding: spacing.md, marginTop: i > 0 ? 6 : 0,
+                      flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+                    }}
+                  >
+                    <View style={{
+                      width: 34, height: 34, borderRadius: 17,
+                      backgroundColor: 'rgba(255,255,255,0.85)',
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Text style={{ fontSize: 14, fontWeight: font.weights.bold, color: colors.brand }}>
+                        {h.childName.charAt(0).toUpperCase()}
                       </Text>
-                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{h.detail}</Text>
                     </View>
-                    <Text style={{ fontSize: font.sizes.xs, color: statusConfig.color, fontWeight: font.weights.medium }}>
-                      {statusConfig.label}
-                    </Text>
-                  </View>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: statusConfig.dot }} />
+                        <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text, flex: 1 }} numberOfLines={1}>
+                          {h.childName}
+                        </Text>
+                        <Text style={{ fontSize: 10, color: statusConfig.text, fontWeight: font.weights.semibold }}>
+                          {h.statusLabel}
+                        </Text>
+                      </View>
+                      <Text numberOfLines={1} style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+                        {h.detail}
+                      </Text>
+                    </View>
+                    {h.nextAction ? (
+                      <View style={{
+                        backgroundColor: '#fff', ...shadows.sm, borderRadius: 8,
+                        paddingHorizontal: 8, paddingVertical: 5,
+                      }}>
+                        <Text style={{ fontSize: 9, color: colors.brand, fontWeight: font.weights.bold }}>
+                          {h.nextAction}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </TouchableOpacity>
                 );
               })}
             </View>
