@@ -49,8 +49,17 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Redirect unauthenticated users (except public routes)
-  const publicRoutes = ["/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/auth/callback", "/convite", "/session-recovery", "/api/calendar", "/api/setup-db", "/api/auth", "/pricing", "/api/stripe/webhook", "/api/whatsapp/webhook", "/api/discord", "/api/log-error"];
+  // Redirect unauthenticated users (except public routes).
+  //
+  // /native-bridge is public because the native WebView injects the session
+  // into localStorage with the SSR storage key (sb-{ref}-auth-token) BEFORE
+  // this request arrives. The page then calls supabase.auth.setSession() to
+  // materialize cookies, which middleware will see on the *next* request to
+  // the actual target (?next=/…). Without this allowlist, middleware would
+  // bounce to /session-recovery, which uses different localStorage keys
+  // (kindar-auth-persist, kindar-auth-backup) and can't see the native's
+  // injected session → falls through to /login.
+  const publicRoutes = ["/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/auth/callback", "/convite", "/session-recovery", "/native-bridge", "/api/calendar", "/api/setup-db", "/api/auth", "/pricing", "/suporte", "/privacidade", "/termos", "/api/stripe/webhook", "/api/whatsapp/webhook", "/api/discord", "/api/log-error"];
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
   );
