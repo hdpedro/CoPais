@@ -54,7 +54,21 @@ export async function loadMyPendingSwaps(groupId: string, userId: string): Promi
   /* eslint-enable */
 }
 
-/** Respond to a swap request: 'approved' or 'rejected'. Non-interactive — caller handles UI feedback. */
+/**
+ * Respond to a swap request ('approved' | 'rejected').
+ *
+ * Mirrors the PWA server action `respondToSwapRequest` in src/actions/calendar.ts
+ * — atomically updates status AND materializes the swap as custody_events so the
+ * calendar reflects the change.
+ *
+ * Previously native only updated status → approved swaps were invisible in the
+ * calendar. This full port fixes that, and also applies the direction fix from
+ * Angelino PR #3:
+ *   - If requester owned the original day, target gets it on approval
+ *   - Otherwise requester gets it
+ * (old naive code always assigned to requester, which broke cases where the
+ * requester was offering HIS OWN day as a swap.)
+ */
 export async function respondToSwap(
   swapId: string,
   decision: 'approved' | 'rejected',
@@ -62,16 +76,93 @@ export async function respondToSwap(
   requesterId: string,
   originalDate: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
+  // 1. Fetch full request record (need proposed_date, target, reason, type)
+  const { data: req } = await supabase
     .from('swap_requests')
-    .update({
-      status: decision,
-      responded_at: new Date().toISOString(),
-    })
-    .eq('id', swapId);
+    .select('id, requester_id, target_user_id, original_date, proposed_date, reason, type, status, group_id')
+    .eq('id', swapId)
+    .maybeSingle();
+  if (!req) return { success: false, error: 'Solicitacao nao encontrada' };
+  if (req.status !== 'pending') return { success: false, error: 'Solicitacao ja processada' };
 
-  if (error) return { success: false, error: error.message };
+  // 2. Update status (idempotent via .eq('status', 'pending'))
+  const { data: updated, error: updateError } = await supabase
+    .from('swap_requests')
+    .update({ status: decision, responded_at: new Date().toISOString() })
+    .eq('id', swapId)
+    .eq('status', 'pending')
+    .select('id');
+  if (updateError) return { success: false, error: updateError.message };
+  if (!updated || updated.length === 0) return { success: false, error: 'Ja processada por outro usuario' };
 
+  // 3. If approved, materialize swap as custody_events rows
+  if (decision === 'approved') {
+    // Find current responsible for original_date
+    const { data: origEvents } = await supabase
+      .from('custody_events')
+      .select('child_id, responsible_user_id, start_date, end_date')
+      .eq('group_id', req.group_id)
+      .lte('start_date', req.original_date)
+      .gte('end_date', req.original_date)
+      .limit(1);
+
+    const swapEvents: Array<Record<string, unknown>> = [];
+
+    if (origEvents && origEvents[0]) {
+      // Direction fix (Angelino PR #3): day flips to whoever was NOT the
+      // original owner. Requester offering OWN day → target gets it;
+      // otherwise requester gets target's day as requested.
+      const currentOwner = origEvents[0].responsible_user_id;
+      const newOwner = currentOwner === req.requester_id
+        ? req.target_user_id
+        : req.requester_id;
+      swapEvents.push({
+        group_id: req.group_id,
+        child_id: origEvents[0].child_id,
+        responsible_user_id: newOwner,
+        start_date: req.original_date,
+        end_date: req.original_date,
+        custody_type: 'swap',
+        notes: req.proposed_date
+          ? `Troca aprovada: ${req.reason || 'sem motivo'}`
+          : `Divida de dia: ${req.reason || 'sem motivo'}`,
+        created_by: req.target_user_id,
+      });
+    }
+
+    if (req.proposed_date) {
+      const { data: propEvents } = await supabase
+        .from('custody_events')
+        .select('child_id, responsible_user_id, start_date, end_date')
+        .eq('group_id', req.group_id)
+        .lte('start_date', req.proposed_date)
+        .gte('end_date', req.proposed_date)
+        .limit(1);
+      if (propEvents && propEvents[0]) {
+        const currentOwner = propEvents[0].responsible_user_id;
+        const newOwner = currentOwner === req.requester_id
+          ? req.target_user_id
+          : req.requester_id;
+        swapEvents.push({
+          group_id: req.group_id,
+          child_id: propEvents[0].child_id,
+          responsible_user_id: newOwner,
+          start_date: req.proposed_date,
+          end_date: req.proposed_date,
+          custody_type: 'swap',
+          notes: `Troca aprovada: ${req.reason || 'sem motivo'}`,
+          created_by: req.target_user_id,
+        });
+      }
+    }
+
+    if (swapEvents.length > 0) {
+      const { error: insertError } = await supabase.from('custody_events').insert(swapEvents);
+      if (insertError) return { success: false, error: insertError.message };
+    }
+  }
+
+  // 4. Fire side-effects (push + chat message) via PWA's /api/native/notify
   notifyAction(decision === 'approved' ? 'swap_approved' : 'swap_rejected', groupId, {
     swapId,
     requesterId,

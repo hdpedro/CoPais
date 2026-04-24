@@ -551,12 +551,13 @@ export default function CalendarScreen() {
             </ScrollView>
           )}
 
-          {/* Quick actions for custody days that belong to the other parent */}
+          {/* Quick actions for custody days — both own and other-parent days.
+              Mirrors PWA PR #1 (allow swap request on own custody days). */}
           {(() => {
             if (!selectedDay || !activeGroup?.custodyEnabled || !userId) return null;
             const custodyEvent = selectedEvents.find(e => e.type === 'custody');
             if (!custodyEvent || !custodyEvent.responsibleId) return null;
-            if (custodyEvent.responsibleId === userId) return null;
+            const isOwnDay = custodyEvent.responsibleId === userId;
             return (
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
                 <TouchableOpacity
@@ -567,41 +568,51 @@ export default function CalendarScreen() {
                   }}
                 >
                   <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                    🔄 Pedir troca
+                    🔄 {isOwnDay ? 'Oferecer troca' : 'Pedir troca'}
                   </Text>
                 </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={() => { setSwapIsVisit(true); setSwapModalOpen(true); }}
-                  style={{
-                    flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
-                    borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
-                  }}
-                >
-                  <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-                    👋 Pedir visita
-                  </Text>
-                </TouchableOpacity>
+                {!isOwnDay ? (
+                  <TouchableOpacity
+                    onPress={() => { setSwapIsVisit(true); setSwapModalOpen(true); }}
+                    style={{
+                      flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
+                      borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
+                    }}
+                  >
+                    <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
+                      👋 Pedir visita
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
               </View>
             );
           })()}
         </View>
       </Modal>
 
-      {/* Swap request modal */}
+      {/* Swap request modal — target resolution matches PWA PR #3 (Angelino):
+          if the selected day is MY own day, target = the OTHER parent (not me).
+          Otherwise target = day's current responsible. */}
       {(() => {
         if (!selectedDay || !activeGroup?.custodyEnabled || !userId) return null;
         const custodyEvent = selectedEvents.find(e => e.type === 'custody');
         if (!custodyEvent || !custodyEvent.responsibleId) return null;
-        const targetMember = members.find(m => m.userId === custodyEvent.responsibleId);
+        const isOwnDay = custodyEvent.responsibleId === userId;
+        const otherMember = members.find(m => m.userId !== userId);
+        const targetUserId = isOwnDay
+          ? (otherMember?.userId || '')
+          : custodyEvent.responsibleId;
+        if (!targetUserId) return null;
+        const targetMember = members.find(m => m.userId === targetUserId);
         return (
           <SwapRequestModal
             visible={swapModalOpen}
             onClose={() => setSwapModalOpen(false)}
             onSubmitted={refresh}
             selectedDate={selectedDay}
-            targetUserId={custodyEvent.responsibleId}
+            targetUserId={targetUserId}
             targetUserName={targetMember?.name || 'Co-responsavel'}
-            targetColor={custodyEvent.color}
+            targetColor={targetMember?.color || custodyEvent.color}
             groupId={activeGroup.groupId}
             currentUserId={userId}
             isVisitRequest={swapIsVisit}
