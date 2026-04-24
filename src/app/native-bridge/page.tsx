@@ -73,11 +73,19 @@ function NativeBridgeInner() {
           return;
         }
 
+        // Marca sessionStorage ANTES de redirecionar — ResponsiveShell le
+        // isso pra esconder sidebar/header/bottomnav e renderizar full-screen.
+        try { sessionStorage.setItem("kindar-native-webview", "1"); } catch {}
+
+        // Garante ?native=1 no destino tambem (belt-and-suspenders: caso
+        // sessionStorage seja limpo, o query param ainda pega na 1a request).
+        const nextUrl = next.includes("?") ? `${next}&native=1` : `${next}?native=1`;
+
         // Hard redirect so the new cookies apply to the very next request
         if (typeof window !== "undefined") {
-          window.location.replace(next);
+          window.location.replace(nextUrl);
         } else {
-          router.replace(next);
+          router.replace(nextUrl);
         }
       } catch (e: unknown) {
         const msg = (e as { message?: string })?.message || "Erro inesperado";

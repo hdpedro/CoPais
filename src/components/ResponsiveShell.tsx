@@ -28,6 +28,26 @@ export default function ResponsiveShell({
   const isDesktop = useIsDesktop();
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
+  // Native WebView mode: quando o app iOS/Android abre paginas via WebView,
+  // anexa ?native=1 na URL. Nesse caso, escondemos TODO o shell (sidebar,
+  // header mobile, bottom nav, AI assistant) porque o app nativo ja renderiza
+  // sua propria navegacao. O flag persiste via sessionStorage para nav interna.
+  //
+  // setTimeout-wrap evita lint react-hooks/set-state-in-effect e tambem
+  // serve pra adiar o setState pra proximo tick (zero perceptivel).
+  const [isNativeWebView, setIsNativeWebView] = useState(false);
+  useEffect(() => {
+    const t = setTimeout(() => {
+      const fromQuery = new URLSearchParams(window.location.search).get("native") === "1";
+      const fromStorage = sessionStorage.getItem("kindar-native-webview") === "1";
+      if (fromQuery) {
+        try { sessionStorage.setItem("kindar-native-webview", "1"); } catch {}
+      }
+      setIsNativeWebView(fromQuery || fromStorage);
+    }, 0);
+    return () => clearTimeout(t);
+  }, []);
+
   // Detect virtual keyboard on mobile (iOS/Android)
   useEffect(() => {
     if (isDesktop) return;
@@ -52,6 +72,18 @@ export default function ResponsiveShell({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, [isDesktop]);
+
+  // Native WebView: return children raw. Pagina PWA renderiza full-screen
+  // sem shell (logo, sidebar, bottom nav) — o app nativo fornece navegacao.
+  if (isNativeWebView) {
+    return (
+      <main className="min-h-screen bg-white">
+        <div className="max-w-4xl mx-auto px-5 py-4 pb-6 native-webview">
+          {children}
+        </div>
+      </main>
+    );
+  }
 
   return (
     <>
