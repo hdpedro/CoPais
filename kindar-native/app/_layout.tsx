@@ -10,24 +10,32 @@ import {
   registerForPushNotificationsAsync,
   addNotificationResponseListener,
 } from '../src/services/push-setup';
+import { initializeIAP, identifyUser, resetUser } from '../src/services/iap';
 import { colors } from '../src/design-system/tokens';
 
 export default function RootLayout() {
   const { isLoading, initialize, userId } = useAuth();
 
-  // One-time setup: offline sync + notification handler
+  // One-time setup: offline sync + notification handler + RevenueCat
   useEffect(() => {
     initialize();
     const cleanup = setupOffline();
     setupNotificationHandler();
+    // RevenueCat pode inicializar antes do login (anon user); quando userId
+    // aparecer, o effect abaixo chama identifyUser() pra fazer o link.
+    initializeIAP().catch(() => {});
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Register for push after login
+  // Register for push + identify RevenueCat user after login
   useEffect(() => {
-    if (!userId) return;
+    if (!userId) {
+      resetUser().catch(() => {});
+      return;
+    }
     registerForPushNotificationsAsync().catch(() => {});
+    identifyUser(userId).catch(() => {});
   }, [userId]);
 
   // Navigate on notification tap

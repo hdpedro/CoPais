@@ -143,25 +143,47 @@ export async function generateSchedule(params: {
 
 /**
  * Fetch existing schedule pattern. Mirrors PWA page.tsx load logic:
- *   1. Primary: custody_schedules table (pattern, start_date per group+child)
- *   2. Fallback: reconstruct from existing regular custody_events by walking
+ *   1. Primary: custody_schedules row for (group, child) — dedicated table
+ *   2. If no child match, take ANY saved schedule for the group (PWA does
+ *      this — its query is `.eq(group_id, …).limit(1).single()` with no
+ *      child filter). Keeps parity when patterns were saved before a
+ *      specific child was selected, or saved at group level.
+ *   3. Fallback: reconstruct from existing regular custody_events by walking
  *      14 days from the earliest event.
  */
 export async function fetchSchedulePattern(
   groupId: string,
   childId?: string
 ): Promise<{ pattern: (string | null)[] | null; startDate: string | null }> {
-  // 1. Try dedicated table first
-  let query = supabase
+  // 1a. Try child-specific row first (prefers exact match)
+  if (childId) {
+    const { data: childRow } = await supabase
+      .from('custody_schedules')
+      .select('pattern, start_date')
+      .eq('group_id', groupId)
+      .eq('child_id', childId)
+      .limit(1)
+      .maybeSingle();
+    if (childRow) {
+      return {
+        pattern: (childRow as any).pattern || null,
+        startDate: (childRow as any).start_date || null,
+      };
+    }
+  }
+
+  // 1b. Fall back to ANY saved schedule for the group (mirrors PWA behavior
+  //     which does `.eq(group_id).limit(1).single()` without child filter).
+  const { data: anyRow } = await supabase
     .from('custody_schedules')
-    .select('pattern, start_date, child_id')
-    .eq('group_id', groupId);
-  if (childId) query = query.eq('child_id', childId);
-  const { data: saved } = await query.limit(1).maybeSingle();
-  if (saved) {
+    .select('pattern, start_date')
+    .eq('group_id', groupId)
+    .limit(1)
+    .maybeSingle();
+  if (anyRow) {
     return {
-      pattern: (saved as any).pattern || null,
-      startDate: (saved as any).start_date || null,
+      pattern: (anyRow as any).pattern || null,
+      startDate: (anyRow as any).start_date || null,
     };
   }
 

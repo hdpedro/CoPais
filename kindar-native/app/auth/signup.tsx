@@ -1,13 +1,16 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
-  Platform, ScrollView, ActivityIndicator,
+  Platform, ScrollView, ActivityIndicator, Linking,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/store/auth';
 import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+
+const PRIVACY_URL = 'https://kindar.com.br/privacidade';
+const TERMS_URL = 'https://kindar.com.br/termos';
 
 export default function SignupScreen() {
   const [fullName, setFullName] = useState('');
@@ -220,25 +223,41 @@ export default function SignupScreen() {
           />
         </View>
 
-        {/* LGPD Consent */}
-        <TouchableOpacity
-          onPress={() => setLgpdConsent(!lgpdConsent)}
-          style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing['2xl'] }}
-          activeOpacity={0.7}
-        >
-          <View style={{
-            width: 18, height: 18, borderRadius: 4, marginTop: 2,
-            borderWidth: 1.5,
-            borderColor: lgpdConsent ? colors.brand : colors.border,
-            backgroundColor: lgpdConsent ? colors.brand : 'transparent',
-            alignItems: 'center', justifyContent: 'center',
-          }}>
+        {/* LGPD Consent — with CLICKABLE links to Termos + Privacidade
+            (Apple Guideline 5.1.1 requires privacy policy link accessible
+            in-app before account creation). */}
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing['2xl'] }}>
+          <TouchableOpacity
+            onPress={() => setLgpdConsent(!lgpdConsent)}
+            activeOpacity={0.7}
+            style={{
+              width: 18, height: 18, borderRadius: 4, marginTop: 2,
+              borderWidth: 1.5,
+              borderColor: lgpdConsent ? colors.brand : colors.border,
+              backgroundColor: lgpdConsent ? colors.brand : 'transparent',
+              alignItems: 'center', justifyContent: 'center',
+            }}
+          >
             {lgpdConsent ? <Ionicons name="checkmark" size={12} color="#fff" /> : null}
-          </View>
+          </TouchableOpacity>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, flex: 1, lineHeight: 18 }}>
-            Concordo com os Termos de Uso e Politica de Privacidade. Seus dados serao tratados conforme a LGPD.
+            Concordo com os{' '}
+            <Text
+              style={{ color: colors.brand, textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL(TERMS_URL)}
+            >
+              Termos de Uso
+            </Text>
+            {' '}e{' '}
+            <Text
+              style={{ color: colors.brand, textDecorationLine: 'underline' }}
+              onPress={() => Linking.openURL(PRIVACY_URL)}
+            >
+              Politica de Privacidade
+            </Text>
+            . Seus dados serao tratados conforme a LGPD.
           </Text>
-        </TouchableOpacity>
+        </View>
 
         {/* Signup Button */}
         <TouchableOpacity

@@ -120,7 +120,12 @@ export default function ChildDetailScreen() {
         <>
           <WebView
             ref={webviewRef}
-            source={{ uri: `${WEB_URL}/criancas/${id}` }}
+            // Route via /native-bridge so the SSR browser client writes
+            // auth cookies BEFORE middleware runs. Direct navigation to
+            // /criancas/{id} triggers middleware (server-side, reads cookies)
+            // which redirects to /login — the WebView's injected localStorage
+            // hasn't been copied to cookies yet on the first request.
+            source={{ uri: `${WEB_URL}/native-bridge?next=${encodeURIComponent('/criancas/' + id)}` }}
             injectedJavaScriptBeforeContentLoaded={injectedJS}
             onLoadEnd={() => setLoading(false)}
             onNavigationStateChange={handleNavChange}

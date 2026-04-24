@@ -23,13 +23,14 @@ Todas as 20 feature-areas do PWA têm implementação native equivalente (seja n
 | Decisões | ✅ | Nativo — votação com Votar inline no dashboard |
 | Eventos | ✅ | Nativo — edit + delete + toggle dia inteiro + pedidos |
 | Acordos | ✅ | Nativo — CRUD |
-| Crianças | Lista ✅ / Detail **WebView** | `[id]` via WebView (964 LOC PWA) com session injection |
-| Novo evento | **WebView** | `/calendario/novo` via WebView (1167 LOC PWA) |
-| Escala guarda | ✅ | Nativo — pattern 14 dias, 4 modelos, gera custody_events |
+| Crianças | Lista ✅ / Detail **WebView** | `[id]` via WebView (964 LOC PWA) + `/native-bridge` pra escrever cookies SSR antes do middleware |
+| Novo evento | **WebView** | `/calendario/novo` via WebView (1167 LOC PWA) + `/native-bridge` |
+| Análise da semana | **WebView** | `/semana` via WebView (v1.1.21) — PWA WeeklySummaryClient muito mais rico |
+| Escala guarda | ✅ | Nativo — pattern 14 dias, 4 modelos, gera custody_events. Load tolera schedule por child OU por grupo (parity com PWA) |
 | Swap / Balance | ✅ | Nativo — SwapRequestModal, SwapBalanceCard, BalanceHistorySheet, ProposeBalanceAdjustmentSheet, respondToSwap materializa custody_events |
 | Família | ✅ | Nativo — invite, remove, leave, cancel invitation |
 | Escola | ✅ | Nativo — edit por criança com TimePickerField |
-| Documentos | ✅ | Nativo — upload, viewer, categorias |
+| Documentos | **WebView** | `/documentos` via WebView (v1.1.21) — PWA DocumentsDashboard mais completo (filtros, preview, analytics) |
 | Notas | ✅ | Nativo — CRUD |
 | Temas sensíveis | ✅ | Nativo — base de listagem |
 | Perfil | ✅ | Nativo — edit inline, i18n seletor, WhatsApp link OTP, sign out |
@@ -102,6 +103,19 @@ Se uma sequência de buildNumbers ficou em "already submitted" state em version 
 
 ### 5. Repo público desbloqueia CI grátis
 Private repo no tier Free = 2000 min/mês de Actions. Público = ilimitado. Vercel idem (Hobby grátis em público).
+
+### 6. WebView precisa de bridge SSR pra auth (v1.1.21)
+Injeção de session direto no localStorage do WebView NAO funciona pra middleware Next.js — middleware roda server-side (antes do JS cliente) e lê cookies, nao localStorage. Resultado: `/criancas/[id]` bateu no middleware → redirect `/login`.
+
+**Fix**: criamos `src/app/native-bridge/page.tsx` que roda client-side, lê a session do localStorage (ja injetada pelo `injectedJavaScriptBeforeContentLoaded`), chama `supabase.auth.setSession()` — o `@supabase/ssr` browser client escreve cookies via CookieStore. Depois `window.location.replace(next)` faz fresh request onde middleware agora ve cookies validos.
+
+WebViews nativos navegam via `${WEB_URL}/native-bridge?next=${encodeURIComponent('/target/path')}` em vez do destino direto.
+
+### 7. Native dashboard queries espelham PWA ou quebram silencioso (v1.1.21)
+`calendar_occurrences` NAO tem coluna `status` (ver migration `00038_calendar_occurrences.sql`). Native filtrava `.eq('status','active')` herdado de copy-paste de outra query — retornava 0 rows silencioso, escondendo "Status Pendentes". Lição: sempre copiar a query do PWA como source of truth, nao adaptar de memoria.
+
+### 8. custody_schedules fallback group-level (v1.1.21)
+PWA load: `.eq('group_id').limit(1).single()` — sem child_id filter. Native estava filtrando por child, perdia schedules salvos com child_id diferente. Fix: tenta child-specific primeiro, fallback pra qualquer row do grupo.
 
 ---
 
