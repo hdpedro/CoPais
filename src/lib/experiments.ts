@@ -66,7 +66,7 @@ export interface ExperimentDef {
  * requires updating this table AND creating the corresponding flag on
  * PostHog — the names must match exactly.
  */
-const REGISTRY: Record<ExperimentKey, ExperimentDef> = {
+export const REGISTRY: Record<ExperimentKey, ExperimentDef> = {
   [EXPERIMENTS.LANDING_HEADLINE]: {
     key: EXPERIMENTS.LANDING_HEADLINE,
     variants: ["control", "family", "early"] as const,
@@ -81,7 +81,7 @@ const REGISTRY: Record<ExperimentKey, ExperimentDef> = {
   },
 };
 
-function isValidVariant(def: ExperimentDef, value: unknown): value is string {
+export function isValidVariant(def: ExperimentDef, value: unknown): value is string {
   return typeof value === "string" && def.variants.includes(value);
 }
 
@@ -120,37 +120,7 @@ export function getExperimentVariant(key: ExperimentKey): string {
   return fallback;
 }
 
-// ============================================================
-// SERVER-SIDE — for Server Components + actions
-// ============================================================
-
-/**
- * Server-side variant lookup. Requires the caller to pass the userId
- * (usually from `getUser()`) since PostHog server flags are
- * deterministically hashed on that ID.
- *
- * Falls back to control if PostHog server isn't configured.
- */
-export async function getServerExperimentVariant(
-  key: ExperimentKey,
-  userId: string | null | undefined
-): Promise<string> {
-  const def = REGISTRY[key];
-  const fallback = def.variants[0];
-  if (!userId) return fallback;
-
-  const phKey = process.env.NEXT_PUBLIC_POSTHOG_KEY;
-  const phHost = process.env.NEXT_PUBLIC_POSTHOG_HOST || "https://us.i.posthog.com";
-  if (!phKey) return fallback;
-
-  try {
-    const { PostHog } = await import("posthog-node");
-    const client = new PostHog(phKey, { host: phHost, flushAt: 1, flushInterval: 0 });
-    const variant = await client.getFeatureFlag(key, userId);
-    await client.shutdown();
-    if (isValidVariant(def, variant)) return variant;
-  } catch {
-    // swallow
-  }
-  return fallback;
-}
+// SERVER-SIDE: import from "@/lib/experiments-server" — has
+// getServerExperimentVariant. Keeping client+server in the same file
+// makes Turbopack pull `posthog-node` (uses `node:fs`) into Client
+// Component bundles, breaking the build.

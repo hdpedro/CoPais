@@ -1,24 +1,18 @@
 /**
- * Analytics — standardized funnel events.
+ * Analytics — standardized funnel events. CLIENT-SIDE ONLY.
  *
- * Why this exists: we already use PostHog via `captureServerEvent` and
- * the client `posthog-js` instance directly. That works but scatters
- * event names across dozens of files, causing typos and drift. This
- * module centralizes every growth-critical event so:
+ * Why client-only: posthog-node imports `node:fs` and crashes Turbopack
+ * if it's transitively pulled into a Client Component bundle. We split:
  *
- *   1. Event names are constants — no typos
- *   2. TypeScript types enforce the right properties per event
- *   3. Adding a new event means touching ONE file
- *   4. We document what each event means in one place
+ *   - `src/lib/analytics.ts` (this file) — client only, uses posthog-js
+ *   - `src/lib/analytics-server.ts` — server only, uses posthog-node
  *
- * Client-side: call `trackEvent(...)` from "use client" components.
- * Server-side: call `captureServerEvent(userId, EVENT, props)` from
- * actions / route handlers. (Note: analytics.ts re-exports the server
- * helper so you only import from one place.)
+ * Both files share the EVENTS catalog so event names stay consistent.
+ * Use `trackEvent` from "use client" components, `trackServerEvent`
+ * from actions / route handlers.
  */
 
 import { getPostHogClient } from "./posthog";
-import { captureServerEvent as captureServerEventRaw } from "./posthog-server";
 
 // ============================================================
 // EVENT CATALOG — every growth-critical event lives here
@@ -105,18 +99,6 @@ export function resetAnalytics(): void {
   }
 }
 
-// ============================================================
-// SERVER-SIDE tracking — re-export for single import path
-// ============================================================
-
-/**
- * Server-side event capture. Wraps posthog-server with a typed
- * event name so we can't pass arbitrary strings.
- */
-export function trackServerEvent(
-  userId: string,
-  event: EventName,
-  properties?: Record<string, unknown>
-): void {
-  captureServerEventRaw(userId, event, properties);
-}
+// SERVER-SIDE: import from "@/lib/analytics-server" — has trackServerEvent.
+// Keeping client+server in the same file makes Turbopack pull `posthog-node`
+// (which uses `node:fs`) into Client Component bundles, breaking the build.
