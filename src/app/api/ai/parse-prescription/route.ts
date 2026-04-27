@@ -510,7 +510,16 @@ export async function POST(request: NextRequest) {
       ocr_confidence: inferenceConfidence,
     });
 
-    // 14. Return
+    // 14. Quest step: first successful prescription OCR
+    try {
+      const { markQuestStep } = await import("@/actions/onboarding-quest");
+      await markQuestStep("ocr_prescription", { provider: ocrProvider });
+    } catch (err) {
+      // Non-fatal — onboarding progress should never fail a real request.
+      console.error("[parse-prescription] markQuestStep failed:", err);
+    }
+
+    // 15. Return
     return NextResponse.json({
       success: true,
       inference: {

@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { grantTrialIfEligible } from "@/lib/billing";
+import { markQuestStep } from "@/actions/onboarding-quest";
 
 export async function createGroup(formData: FormData): Promise<{ error?: string; success?: boolean }> {
   const supabase = await createClient();
@@ -42,6 +44,17 @@ export async function createGroup(formData: FormData): Promise<{ error?: string;
       birth_date: childBirthDate,
     });
     if (childError) return { error: childError.message };
+    // Quest step: first child added
+    await markQuestStep("add_child", { via: "createGroup" });
+  }
+
+  // Grant the 7-day Premium Jurídico trial — "show the ceiling" onboarding.
+  // Idempotent + user-scoped (one trial per user ever). Failure is non-fatal:
+  // group creation succeeds even if the trial grant races with a parallel
+  // signup or if the user already had a prior sub.
+  const trialResult = await grantTrialIfEligible(supabase, user.id, groupId);
+  if (trialResult.granted) {
+    captureServerEvent(user.id, "trial_started", { group_id: groupId });
   }
 
   captureServerEvent(user.id, "group_created");
@@ -104,6 +117,7 @@ export async function addChild(formData: FormData) {
   if (error) redirect("/criancas/nova?error=" + encodeURIComponent(error.message));
 
   captureServerEvent(user.id, "child_added");
+  await markQuestStep("add_child", { via: "addChild" });
 
   redirect("/criancas");
 }

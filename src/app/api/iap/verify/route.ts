@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { getPrimaryGroupId } from "@/lib/billing";
 
 /**
  * Verify Apple IAP transaction and activate subscription.
@@ -54,12 +55,19 @@ export async function POST(req: NextRequest) {
     // Use admin client to bypass RLS for writes
     const admin = createAdminClient();
 
-    // Map Apple product ID to our plan
+    // Map product ID to plan. apple_product_id is shared with Google
+    // (same SKU convention) so this lookup works for both providers.
+    // Support sending `platform` hint to disambiguate when Apple/Google
+    // happen to use different product IDs for the same plan.
+    const platform: string = body.platform || "apple";
+    const providerTag = platform === "google" ? "google" : "apple";
+    const methodHint = platform === "google" ? "google_iap" : "apple_iap";
+
     const { data: plan } = await admin
       .from("plans")
-      .select("id, interval")
+      .select("id, interval, max_subscribers")
       .eq("apple_product_id", productId)
-      .single();
+      .maybeSingle();
 
     if (!plan) {
       return NextResponse.json(
@@ -67,6 +75,12 @@ export async function POST(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Resolve the user's primary group — subscriptions are per-group as
+    // of migration 00054. Users without a group shouldn't reach checkout
+    // but fail-soft so we don't crash on edge cases.
+    const supabaseRead = await createClient();
+    const groupId = await getPrimaryGroupId(supabaseRead, user.id);
 
     // Calculate subscription period
     const now = new Date();
@@ -77,14 +91,24 @@ export async function POST(req: NextRequest) {
       periodEnd.setMonth(periodEnd.getMonth() + 1);
     }
 
-    // Check for existing Apple subscription for this user
+    // Expire existing trial sub (if any) — user is upgrading from
+    // the 7-day Premium Jurídico degustação. Keep IAP subs from a
+    // different provider untouched to preserve cross-platform state.
+    await admin
+      .from("subscriptions")
+      .update({ status: "expired", updated_at: now.toISOString() })
+      .eq("user_id", user.id)
+      .eq("payment_provider", "trial")
+      .in("status", ["active", "trialing"]);
+
+    // Check for existing subscription for this user on the same provider
     const { data: existingSub } = await admin
       .from("subscriptions")
       .select("id, status")
       .eq("user_id", user.id)
-      .eq("payment_provider", "apple")
-      .in("status", ["active", "trialing"])
-      .single();
+      .eq("payment_provider", providerTag)
+      .in("status", ["active", "trialing", "past_due"])
+      .maybeSingle();
 
     if (existingSub) {
       // Update existing subscription (upgrade/downgrade/renewal)
@@ -93,7 +117,10 @@ export async function POST(req: NextRequest) {
         .update({
           plan_id: plan.id,
           status: "active",
-          apple_original_transaction_id: originalTransactionId || null,
+          apple_original_transaction_id: providerTag === "apple" ? originalTransactionId || null : null,
+          google_purchase_token: providerTag === "google" ? originalTransactionId || null : null,
+          payment_method_hint: methodHint,
+          coparenting_group_id: groupId ?? undefined,
           current_period_start: now.toISOString(),
           current_period_end: periodEnd.toISOString(),
           cancel_at_period_end: false,
@@ -101,23 +128,33 @@ export async function POST(req: NextRequest) {
         })
         .eq("id", existingSub.id);
     } else {
-      // Create new subscription
-      await admin.from("subscriptions").insert({
+      // Create new subscription. The Early Bird trigger in migration
+      // 00056 will raise if the plan is sold out — surface that to
+      // the native client so it shows a "Early Bird esgotou" message.
+      const { error: insertErr } = await admin.from("subscriptions").insert({
         user_id: user.id,
+        coparenting_group_id: groupId,
         plan_id: plan.id,
         status: "active",
-        payment_provider: "apple",
-        apple_original_transaction_id: originalTransactionId || null,
+        payment_provider: providerTag,
+        payment_method_hint: methodHint,
+        apple_original_transaction_id: providerTag === "apple" ? originalTransactionId || null : null,
+        google_purchase_token: providerTag === "google" ? originalTransactionId || null : null,
         current_period_start: now.toISOString(),
         current_period_end: periodEnd.toISOString(),
       });
-    }
 
-    // Update the user's plan in the profiles table (if it exists)
-    await admin
-      .from("profiles")
-      .update({ plan_id: plan.id, updated_at: now.toISOString() })
-      .eq("id", user.id);
+      if (insertErr) {
+        // Early Bird sold out, duplicate, or any other trigger/constraint
+        if (insertErr.message?.includes("sold out") || insertErr.code === "check_violation") {
+          return NextResponse.json(
+            { error: "Early Bird esgotou — escolha o plano Harmonia (R$ 24,90/mês)." },
+            { status: 409 }
+          );
+        }
+        throw insertErr;
+      }
+    }
 
     return NextResponse.json({
       success: true,

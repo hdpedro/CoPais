@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { markQuestStep } from "@/actions/onboarding-quest";
 
 export async function createInvitation(formData: FormData) {
   const supabase = await createClient();
@@ -50,6 +51,10 @@ export async function createInvitation(formData: FormData) {
     group_id: groupId,
     role,
   });
+
+  // Quest step: inviting a co-responsible unlocks the 'invite_co' step
+  // regardless of the invitee's role — the value is "you reached out".
+  await markQuestStep("invite_co", { role });
 
   // Update onboarding progress to step 4 (complete)
   await supabase.from("profiles")

@@ -89,6 +89,12 @@ export async function POST(req: NextRequest) {
     }
     const userText = lastUserMsg.content;
 
+    // Quest step: first AI assistant interaction. Fire-and-forget so the
+    // chat response isn't delayed by the tracker write.
+    import("@/actions/onboarding-quest")
+      .then(({ markQuestStep }) => markQuestStep("ai_agreement", { channel: "assistant" }))
+      .catch((err) => console.error("[assistant] quest track failed:", err));
+
     const { contextStr, toolCtx, custodyEnabled } = await buildAssistantContext(supabase, user.id, groupId);
 
     /* ================================================================ */

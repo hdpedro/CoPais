@@ -1,0 +1,274 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { createSplitExpenseForPeriod } from "@/lib/billing/split";
+import { sendSubscriptionWelcomeEmail } from "@/lib/emails/subscription-welcome";
+import { reportServerError } from "@/lib/error-tracking/report-server";
+
+/**
+ * RevenueCat webhook — receives server-side events for iOS and Android
+ * in-app purchases. This is the canonical source of truth for native
+ * subscriptions; the client-side flow in `iap.ts` calls `/api/iap/verify`
+ * immediately after a purchase (optimistic update), and this webhook
+ * reconciles any divergence.
+ *
+ * Events we care about:
+ *   INITIAL_PURCHASE    — first-time buy, create sub
+ *   RENEWAL             — new period, extend period_end + create split expense
+ *   CANCELLATION        — user canceled auto-renew (still active until period_end)
+ *   EXPIRATION          — subscription ended (no more access)
+ *   BILLING_ISSUE       — Apple/Google couldn't charge — mark past_due
+ *   PRODUCT_CHANGE      — user upgraded/downgraded plan
+ *   UNCANCELLATION      — user restored auto-renew
+ *
+ * Docs: https://www.revenuecat.com/docs/integrations/webhooks/event-types-and-fields
+ *
+ * Security: RevenueCat signs requests with a shared secret passed in the
+ * Authorization header as `Bearer <secret>`. Configure in RevenueCat
+ * Dashboard > Integrations > Webhooks. Set REVENUECAT_WEBHOOK_SECRET env.
+ */
+
+interface RevenueCatEvent {
+  type: string;
+  id: string;
+  app_user_id: string; // = Supabase user.id (set by iap.ts identifyUser)
+  original_app_user_id: string;
+  product_id: string;
+  period_type: "NORMAL" | "TRIAL" | "INTRO" | "PROMOTIONAL";
+  purchased_at_ms: number;
+  expiration_at_ms: number | null;
+  store: "APP_STORE" | "PLAY_STORE" | "STRIPE" | "PROMOTIONAL";
+  environment: "SANDBOX" | "PRODUCTION";
+  entitlement_ids?: string[];
+  cancel_reason?: string;
+  transaction_id?: string;
+  original_transaction_id?: string;
+}
+
+export async function POST(req: NextRequest) {
+  // 1. Verify shared secret
+  const authHeader = req.headers.get("authorization") || "";
+  const expected = process.env.REVENUECAT_WEBHOOK_SECRET;
+  if (!expected || authHeader !== `Bearer ${expected}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const body = await req.json();
+  const event: RevenueCatEvent | undefined = body.event;
+  if (!event) {
+    return NextResponse.json({ error: "Missing event" }, { status: 400 });
+  }
+
+  const admin = createAdminClient();
+
+  try {
+    // 2. Resolve provider + plan from product_id
+    const providerTag = event.store === "PLAY_STORE" ? "google" : "apple";
+    const methodHint = event.store === "PLAY_STORE" ? "google_iap" : "apple_iap";
+
+    const { data: plan } = await admin
+      .from("plans")
+      .select("id, interval")
+      .eq("apple_product_id", event.product_id)
+      .maybeSingle();
+
+    if (!plan) {
+      console.warn(`[revenuecat/webhook] Unknown product_id: ${event.product_id}`);
+      // Return 200 anyway — we don't want RevenueCat to retry an event
+      // we can never resolve. Log for manual investigation.
+      return NextResponse.json({ ok: true, ignored: true, reason: "unknown_product" });
+    }
+
+    // 3. Resolve user's primary group
+    const { data: groupMember } = await admin
+      .from("group_members")
+      .select("group_id")
+      .eq("user_id", event.app_user_id)
+      .order("joined_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
+
+    const coparentingGroupId = groupMember?.group_id ?? null;
+
+    // 4. Route by event type
+    const now = new Date();
+    const periodEnd = event.expiration_at_ms ? new Date(event.expiration_at_ms) : null;
+    const periodStart = new Date(event.purchased_at_ms);
+
+    switch (event.type) {
+      case "INITIAL_PURCHASE":
+      case "UNCANCELLATION": {
+        // Expire the 7-day trial sub if active.
+        await admin
+          .from("subscriptions")
+          .update({ status: "expired", updated_at: now.toISOString() })
+          .eq("user_id", event.app_user_id)
+          .eq("payment_provider", "trial")
+          .in("status", ["active", "trialing"]);
+
+        // Upsert by (user_id, payment_provider)
+        const { data: existing } = await admin
+          .from("subscriptions")
+          .select("id")
+          .eq("user_id", event.app_user_id)
+          .eq("payment_provider", providerTag)
+          .in("status", ["active", "trialing", "past_due", "canceled"])
+          .maybeSingle();
+
+        const subPayload = {
+          plan_id: plan.id,
+          status: "active" as const,
+          apple_original_transaction_id:
+            providerTag === "apple" ? event.original_transaction_id || null : null,
+          google_purchase_token:
+            providerTag === "google" ? event.original_transaction_id || null : null,
+          payment_method_hint: methodHint,
+          coparenting_group_id: coparentingGroupId,
+          current_period_start: periodStart.toISOString(),
+          current_period_end: periodEnd?.toISOString() ?? now.toISOString(),
+          cancel_at_period_end: false,
+          updated_at: now.toISOString(),
+        };
+
+        if (existing) {
+          await admin.from("subscriptions").update(subPayload).eq("id", existing.id);
+        } else {
+          await admin.from("subscriptions").insert({
+            user_id: event.app_user_id,
+            payment_provider: providerTag,
+            ...subPayload,
+          });
+        }
+
+        // Welcome email on first purchase only. UNCANCELLATION doesn't
+        // qualify — that's someone resuming auto-renew after canceling.
+        if (event.type === "INITIAL_PURCHASE") {
+          const { data: profile } = await admin
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", event.app_user_id)
+            .maybeSingle();
+          if (profile?.email) {
+            await sendSubscriptionWelcomeEmail(profile.email, profile.full_name, plan.id);
+          }
+        }
+        break;
+      }
+
+      case "RENEWAL": {
+        // Extend period + create split expense if auto_split is on.
+        const { data: dbSub } = await admin
+          .from("subscriptions")
+          .select("id, coparenting_group_id, user_id, plan_id, auto_split, auto_split_co_user_id, auto_split_co_share")
+          .eq("user_id", event.app_user_id)
+          .eq("payment_provider", providerTag)
+          .in("status", ["active", "past_due"])
+          .maybeSingle();
+
+        if (dbSub) {
+          await admin
+            .from("subscriptions")
+            .update({
+              plan_id: plan.id,
+              status: "active",
+              current_period_start: periodStart.toISOString(),
+              current_period_end: periodEnd?.toISOString() ?? now.toISOString(),
+              cancel_at_period_end: false,
+              updated_at: now.toISOString(),
+            })
+            .eq("id", dbSub.id);
+
+          // Auto-split on renewal (mirrors Stripe webhook logic)
+          if (
+            dbSub.auto_split &&
+            dbSub.auto_split_co_user_id &&
+            dbSub.auto_split_co_share &&
+            dbSub.coparenting_group_id
+          ) {
+            await createSplitExpenseForPeriod(admin, {
+              subscriptionId: dbSub.id,
+              groupId: dbSub.coparenting_group_id,
+              payerUserId: dbSub.user_id,
+              coUserId: dbSub.auto_split_co_user_id,
+              coSharePercent: dbSub.auto_split_co_share,
+              planId: plan.id,
+              periodStart: periodStart.toISOString().slice(0, 10),
+            });
+          }
+        }
+        break;
+      }
+
+      case "CANCELLATION": {
+        // User canceled auto-renew — subscription still active until expiration.
+        await admin
+          .from("subscriptions")
+          .update({
+            cancel_at_period_end: true,
+            updated_at: now.toISOString(),
+          })
+          .eq("user_id", event.app_user_id)
+          .eq("payment_provider", providerTag)
+          .in("status", ["active", "past_due"]);
+        break;
+      }
+
+      case "EXPIRATION": {
+        // Subscription ended. Mark as canceled — user loses access now.
+        await admin
+          .from("subscriptions")
+          .update({
+            status: "canceled",
+            updated_at: now.toISOString(),
+          })
+          .eq("user_id", event.app_user_id)
+          .eq("payment_provider", providerTag)
+          .in("status", ["active", "past_due"]);
+        break;
+      }
+
+      case "BILLING_ISSUE": {
+        await admin
+          .from("subscriptions")
+          .update({
+            status: "past_due",
+            updated_at: now.toISOString(),
+          })
+          .eq("user_id", event.app_user_id)
+          .eq("payment_provider", providerTag)
+          .eq("status", "active");
+        break;
+      }
+
+      case "PRODUCT_CHANGE": {
+        // User upgraded/downgraded — new plan takes effect on next period.
+        // We update the plan_id now; period_end follows existing renewal cycle.
+        await admin
+          .from("subscriptions")
+          .update({
+            plan_id: plan.id,
+            updated_at: now.toISOString(),
+          })
+          .eq("user_id", event.app_user_id)
+          .eq("payment_provider", providerTag)
+          .in("status", ["active", "past_due"]);
+        break;
+      }
+
+      default:
+        // Other events (TRANSFER, SUBSCRIBER_ALIAS, etc) don't affect
+        // our subscriptions table directly. Log and move on.
+        console.log(`[revenuecat/webhook] Ignoring event type: ${event.type}`);
+    }
+
+    console.log(`[revenuecat/webhook] OK: ${event.type} for user ${event.app_user_id}`);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error(`[revenuecat/webhook] Error handling ${event.type}:`, err);
+    reportServerError(err, {
+      filePath: "src/app/api/revenuecat/webhook/route.ts",
+      severity: "critical",
+    });
+    // Return 500 so RevenueCat retries.
+    return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
+  }
+}

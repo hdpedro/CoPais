@@ -21,6 +21,7 @@ export const EXPENSE_CATEGORIES = [
   { value: "transport", label: "Transporte", icon: "🚗" },
   { value: "leisure", label: "Lazer", icon: "⚽" },
   { value: "housing", label: "Moradia", icon: "🏠" },
+  { value: "subscription", label: "Assinatura Kindar", icon: "💛" },
   { value: "other", label: "Outros", icon: "📦" },
 ] as const;
 
