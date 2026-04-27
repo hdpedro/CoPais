@@ -1,12 +1,10 @@
 /**
- * Alergias — Lista + Criar alergia por crianca.
+ * Alergias — Lista + Criar alergia por criança (com type picker e severidade).
  */
 import { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert } from 'react-native';
-import { useFocusEffect, router } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
+import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, ScrollView } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { safeWrite } from '../../src/services/offline';
 import { notifyAction } from '../../src/services/notify';
@@ -21,8 +19,15 @@ const SEV_ICONS: Record<string, { icon: string; color: string }> = {
   severe: { icon: '🔴', color: '#E53935' }, moderate: { icon: '🟡', color: '#E8A228' }, mild: { icon: '🟢', color: '#4CAF50' },
 };
 
+// Allergy types — match the labels PWA uses (`src/app/(app)/saude/alergias/nova/page.tsx`).
+const TYPE_OPTIONS: { value: string; label: string; icon: string }[] = [
+  { value: 'food', label: 'Alimentar', icon: '🍔' },
+  { value: 'medication', label: 'Medicamento', icon: '💊' },
+  { value: 'environmental', label: 'Ambiental', icon: '🌿' },
+  { value: 'other', label: 'Outro', icon: '🔖' },
+];
+
 export default function AlergiasScreen() {
-  const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -41,10 +46,12 @@ export default function AlergiasScreen() {
       supabase.from('child_allergies').select('id, name, allergy_type, severity, reaction, child_id, children(full_name)').eq('group_id', activeGroup.groupId),
       supabase.from('children').select('id, full_name').eq('group_id', activeGroup.groupId),
     ]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     setAllergies((a || []).map((x: any) => ({ ...x, childName: getDisplayName(x.children?.full_name) })));
     setChildren(c || []);
     if (c && c.length > 0 && !selectedChild) setSelectedChild(c[0].id);
     setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
@@ -93,6 +100,27 @@ export default function AlergiasScreen() {
           ) : null}
           <TextInput value={name} onChangeText={setName} placeholder="Nome da alergia" placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
+
+          {/* Type picker — was hardcoded to 'food' before */}
+          <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4 }}>Tipo</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }}>
+            <View style={{ flexDirection: 'row', gap: 6 }}>
+              {TYPE_OPTIONS.map(t => (
+                <TouchableOpacity key={t.value} onPress={() => setType(t.value)}
+                  style={{
+                    paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full,
+                    backgroundColor: type === t.value ? colors.brand : colors.bgSurface,
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                  }}>
+                  <Text style={{ fontSize: 14 }}>{t.icon}</Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: type === t.value ? '#fff' : colors.text }}>
+                    {t.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </ScrollView>
+
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
             {['mild', 'moderate', 'severe'].map(s => (
               <TouchableOpacity key={s} onPress={() => setSeverity(s)}

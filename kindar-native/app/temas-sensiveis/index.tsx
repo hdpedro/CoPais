@@ -25,10 +25,10 @@ const TOPIC_META: Record<string, { label: string; icon: string; color: string }>
   consumo: { label: 'Consumo', icon: '🚬', color: '#F59E0B' },
   bullying: { label: 'Bullying', icon: '😞', color: '#EF4444' },
   conflito: { label: 'Conflito', icon: '⚡', color: '#E8A228' },
-  saude_mental: { label: 'Saude mental', icon: '🧠', color: '#8B5CF6' },
+  saude_mental: { label: 'Saúde mental', icon: '🧠', color: '#8B5CF6' },
   sexualidade: { label: 'Sexualidade', icon: '❤️', color: '#EC4899' },
   morte_luto: { label: 'Morte/Luto', icon: '🕊️', color: '#6B7280' },
-  divorcio: { label: 'Divorcio', icon: '💔', color: '#D4735A' },
+  divorcio: { label: 'Divórcio', icon: '💔', color: '#D4735A' },
   abuso: { label: 'Abuso', icon: '🚨', color: '#E53935' },
   escola: { label: 'Escola', icon: '🎒', color: '#3B82F6' },
   outro: { label: 'Outro', icon: '📝', color: '#5B9E85' },
@@ -39,7 +39,7 @@ function formatRelative(iso: string): string {
   const days = Math.floor(diff / 86400000);
   if (days === 0) return 'Hoje';
   if (days === 1) return 'Ontem';
-  if (days < 7) return `${days}d atras`;
+  if (days < 7) return `${days}d atrás`;
   return iso.slice(0, 10).split('-').reverse().join('/');
 }
 
@@ -72,12 +72,12 @@ export default function TemasSensiveisScreen() {
   async function handleRequestDelete(note: SensitiveNote) {
     if (!userId || !activeGroup) return;
     Alert.alert(
-      'Pedir exclusao',
-      'Se voce for o unico responsavel no grupo, a nota sera excluida agora. Se ha mais responsaveis, a exclusao precisa ser aprovada pelo outro.',
+      'Pedir exclusão',
+      'Se você for o único responsável no grupo, a nota será excluída agora. Se há mais responsáveis, a exclusão precisa ser aprovada pelo outro.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Pedir exclusao',
+          text: 'Pedir exclusão',
           style: 'destructive',
           onPress: async () => {
             setActing(note.id);
@@ -86,7 +86,7 @@ export default function TemasSensiveisScreen() {
             setActing(null);
             if (res.success) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              if (res.deleted) Alert.alert('Excluida', 'Nota excluida imediatamente.');
+              if (res.deleted) Alert.alert('Excluída', 'Nota excluída imediatamente.');
               await load();
             }
           },
@@ -98,8 +98,8 @@ export default function TemasSensiveisScreen() {
   async function handleApproveDelete(note: SensitiveNote) {
     if (!userId || !activeGroup) return;
     Alert.alert(
-      'Aprovar exclusao',
-      `${note.deletionRequesterName} pediu exclusao de ${note.title}. Confirmar exclusao definitiva?`,
+      'Aprovar exclusão',
+      `${note.deletionRequesterName} pediu exclusão de ${note.title}. Confirmar exclusão definitiva?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -156,13 +156,13 @@ export default function TemasSensiveisScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Temas sensiveis" />
+      <ScreenHeader title="Temas sensíveis" />
       <FlatList
         data={notes}
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-        ListEmptyComponent={loading ? null : <EmptyState icon="🔒" title="Nenhuma nota" subtitle="Registre temas delicados para aliar abordagens entre os responsaveis" />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="🔒" title="Nenhuma nota" subtitle="Registre temas delicados para aliar abordagens entre os responsáveis" />}
         renderItem={({ item: n }) => {
           const topic = TOPIC_META[n.topic] || TOPIC_META.outro;
           const isAwaitingApproval = !!n.deletion_requested_by;
@@ -207,12 +207,12 @@ export default function TemasSensiveisScreen() {
               {isAwaitingApproval ? (
                 <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.warning}15`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.warning}40` }}>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.warning, fontWeight: font.weights.semibold, marginBottom: 4, textTransform: 'uppercase' }}>
-                    Aguardando aprovacao da exclusao
+                    Aguardando aprovação da exclusão
                   </Text>
                   <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>
                     {iRequestedDeletion
-                      ? 'Voce pediu a exclusao. O outro responsavel precisa aprovar.'
-                      : `${n.deletionRequesterName || 'Outro responsavel'} pediu a exclusao desta nota.`}
+                      ? 'Você pediu a exclusão. O outro responsável precisa aprovar.'
+                      : `${n.deletionRequesterName || 'Outro responsável'} pediu a exclusão desta nota.`}
                   </Text>
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                     {canIApprove ? (
@@ -222,7 +222,7 @@ export default function TemasSensiveisScreen() {
                         style={{ flex: 1, paddingVertical: 8, borderRadius: radius.md, backgroundColor: colors.error, alignItems: 'center' }}
                       >
                         {acting === n.id ? <ActivityIndicator size="small" color="#fff" /> : (
-                          <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>Aprovar exclusao</Text>
+                          <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>Aprovar exclusão</Text>
                         )}
                       </TouchableOpacity>
                     ) : null}
@@ -241,7 +241,7 @@ export default function TemasSensiveisScreen() {
                   onPress={() => handleRequestDelete(n)}
                   style={{ alignSelf: 'flex-end', marginTop: spacing.sm, paddingVertical: 4, paddingHorizontal: 8 }}
                 >
-                  <Text style={{ fontSize: font.sizes.xs, color: colors.error }}>Pedir exclusao</Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.error }}>Pedir exclusão</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -256,7 +256,7 @@ export default function TemasSensiveisScreen() {
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
-              Nova nota sensivel
+              Nova nota sensível
             </Text>
             <ScrollView>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Tema</Text>
@@ -286,7 +286,7 @@ export default function TemasSensiveisScreen() {
 
               {children.length > 0 ? (
                 <>
-                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Crianca (opcional)</Text>
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Criança (opcional)</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                     <TouchableOpacity
                       onPress={() => setNewChildId(null)}
@@ -322,7 +322,7 @@ export default function TemasSensiveisScreen() {
 
               <TextInput
                 value={newTitle} onChangeText={setNewTitle}
-                placeholder="Titulo"
+                placeholder="Título"
                 placeholderTextColor={colors.textMuted}
                 style={{
                   backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -332,7 +332,7 @@ export default function TemasSensiveisScreen() {
               />
               <TextInput
                 value={newContent} onChangeText={setNewContent}
-                placeholder="Detalhes (so voces veem)"
+                placeholder="Detalhes (só vocês veem)"
                 placeholderTextColor={colors.textMuted}
                 multiline
                 style={{

@@ -75,26 +75,13 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
 
     setLoading(plan.id);
 
-    // Apple In-App Purchase flow
+    // Apple In-App Purchase flow — only triggered when running inside the
+    // native iOS app. The native client (kindar-native/) intercepts this
+    // before the PWA paywall is reached and uses RevenueCat directly. If we
+    // somehow get here on the PWA with platform='apple_iap', fall back to
+    // showing the App Store install prompt.
     if (platform === "apple_iap") {
-      if (!plan.appleProductId) {
-        alert("Plano ainda nao configurado para a App Store.");
-        setLoading(null);
-        return;
-      }
-
-      try {
-        const { purchaseApple } = await import("@/lib/payments");
-        const result = await purchaseApple(plan.appleProductId);
-        if (result.success) {
-          router.push("/dashboard");
-          router.refresh();
-        } else if (result.error !== "cancelled") {
-          alert(result.error || "Erro no pagamento");
-        }
-      } catch {
-        alert("Erro de conexao. Tente novamente.");
-      }
+      alert("Compras Apple estao disponiveis somente dentro do app iOS.");
       setLoading(null);
       return;
     }
@@ -126,20 +113,13 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
   }
 
   async function handleRestorePurchases() {
-    setLoading("restore");
-    try {
-      const { restoreApplePurchases } = await import("@/lib/payments");
-      const result = await restoreApplePurchases();
-      if (result.success) {
-        alert(`${result.restoredCount} compra(s) restaurada(s) com sucesso!`);
-        router.refresh();
-      } else {
-        alert(result.error || "Nenhuma compra encontrada para restaurar.");
-      }
-    } catch {
-      alert("Erro ao restaurar compras.");
-    }
-    setLoading(null);
+    // Restore Apple purchases is now handled inside the native iOS app
+    // (kindar-native/src/services/iap.ts → Purchases.restorePurchases()).
+    // From the PWA there's nothing to restore — point the user at the
+    // native app instead.
+    alert(
+      "A restauracao de compras Apple acontece dentro do app iOS Kindar. Abra o app e va em Perfil > Restaurar Compras."
+    );
   }
 
   async function handleManage() {

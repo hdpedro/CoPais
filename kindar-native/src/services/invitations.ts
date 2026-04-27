@@ -7,6 +7,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api-fetch';
 import { notifyAction } from './notify';
 
 export interface Invitation {
@@ -52,31 +53,27 @@ export async function createInvitation(params: {
   role: string;
   invitedBy: string;
 }): Promise<{ success: boolean; error?: string; token?: string; id?: string }> {
-  const groupRole: 'readonly' | 'member' =
-    params.role === 'mediator' || params.role === 'lawyer' ? 'readonly' : 'member';
-
-  const { data, error } = await supabase
-    .from('invitations')
-    .insert({
-      group_id: params.groupId,
-      invited_by: params.invitedBy,
-      email: params.email.trim().toLowerCase(),
-      role: params.role,
-      group_role: groupRole,
-    })
-    .select('id, token')
-    .single();
-
-  if (error || !data) return { success: false, error: error?.message || 'Erro ao criar convite' };
-
-  notifyAction('invitation_sent', params.groupId, {
-    email: params.email,
-    role: params.role,
-  });
-  return { success: true, token: data.token, id: data.id };
+  // Wave G: server-side admin gate + quest tracking + onboarding step.
+  // The previous direct INSERT skipped admin verification entirely.
+  const r = await apiFetch<{ success: boolean; invitationId: string; token: string }>(
+    '/api/invitations',
+    {
+      method: 'POST',
+      body: {
+        groupId: params.groupId,
+        email: params.email,
+        role: params.role,
+      },
+    },
+  );
+  if (!r.ok || !r.data) return { success: false, error: r.error };
+  return { success: true, token: r.data.token, id: r.data.invitationId };
 }
 
 export async function cancelInvitation(invitationId: string, groupId: string): Promise<{ success: boolean; error?: string }> {
+  // Cancellation only updates status — RLS allows the inviter to do this
+  // and admin gating is enforced via the existing `update` policy. Read
+  // path stays here while a future API wrapper unifies the audit trail.
   const { error } = await supabase
     .from('invitations')
     .update({ status: 'cancelled' })

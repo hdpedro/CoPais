@@ -29,6 +29,16 @@ interface ParsedMedication {
   include: boolean;
 }
 
+// Server response from /api/ai/parse-prescription (subset of fields native uses)
+interface InferenceResponse {
+  id: string;
+  prescription_data?: { doctor_name?: string; crm?: string };
+  medications_parsed?: Array<{
+    name?: string; dosage?: string; frequency?: string;
+    duration?: string; notes?: string;
+  }>;
+}
+
 type Step = 'upload' | 'processing' | 'preview';
 
 export default function ReceitaScreen() {
@@ -41,6 +51,7 @@ export default function ReceitaScreen() {
   const [medications, setMedications] = useState<ParsedMedication[]>([]);
   const [doctorName, setDoctorName] = useState('');
   const [crm, setCrm] = useState('');
+  const [inferenceId, setInferenceId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -63,9 +74,11 @@ export default function ReceitaScreen() {
       Alert.alert('Permissao negada', mode === 'camera' ? 'Permissao de camera necessaria' : 'Permissao de galeria necessaria');
       return;
     }
+    // base64 not needed — we POST the file as multipart/form-data to match
+    // the PWA endpoint's contract (`request.formData()` reads `file`+`childId`).
     const result = mode === 'camera'
-      ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8, base64: true })
-      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8, base64: true });
+      ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })
+      : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
 
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
@@ -75,17 +88,26 @@ export default function ReceitaScreen() {
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Sessao expirada');
-      const base64 = asset.base64;
-      if (!base64) throw new Error('Imagem sem base64');
+      if (!session) throw new Error('Sessão expirada');
+
+      // Build multipart body. React Native FormData accepts the special
+      // `{uri, name, type}` shape — fetch then sets the correct
+      // multipart/form-data Content-Type with boundary automatically.
+      const fileMime = asset.mimeType || 'image/jpeg';
+      const fileName = asset.fileName || `prescription-${Date.now()}.jpg`;
+      const form = new FormData();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      form.append('file', { uri: asset.uri, name: fileName, type: fileMime } as any);
+      form.append('childId', selectedChildId!);
 
       const resp = await fetch(`${WEB_URL}/api/ai/parse-prescription`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          // Do NOT set Content-Type manually — fetch must inject the
+          // multipart boundary itself.
           Authorization: `Bearer ${session.access_token}`,
         },
-        body: JSON.stringify({ image: `data:image/jpeg;base64,${base64}` }),
+        body: form,
       });
 
       if (!resp.ok) {
@@ -94,7 +116,12 @@ export default function ReceitaScreen() {
       }
       const data = await resp.json();
 
-      const meds: ParsedMedication[] = (data.medications || []).map((m: { name?: string; dosage?: string; frequency?: string; duration?: string; notes?: string }) => ({
+      // Response shape (from src/app/api/ai/parse-prescription/route.ts):
+      //   { success: true, inference: { id, medications_parsed: [...],
+      //                                  prescription_data: { doctor_name, crm },
+      //                                  alerts, clinical_inferences, ... } }
+      const inference: InferenceResponse = data?.inference ?? {};
+      const meds: ParsedMedication[] = (inference.medications_parsed || []).map(m => ({
         name: m.name || '',
         dosage: m.dosage || null,
         frequency: m.frequency || null,
@@ -104,12 +131,13 @@ export default function ReceitaScreen() {
       }));
 
       if (meds.length === 0) {
-        throw new Error('Nenhum medicamento identificado. Tente uma foto mais nitida ou outra receita.');
+        throw new Error('Nenhum medicamento identificado. Tente uma foto mais nítida ou outra receita.');
       }
 
       setMedications(meds);
-      setDoctorName(data.doctor_name || '');
-      setCrm(data.doctor_crm || '');
+      setDoctorName(inference.prescription_data?.doctor_name || '');
+      setCrm(inference.prescription_data?.crm || '');
+      setInferenceId(inference.id || null);
       setStep('preview');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: unknown) {
@@ -122,35 +150,53 @@ export default function ReceitaScreen() {
   }, [selectedChildId]);
 
   async function handleSave() {
-    if (!activeGroup || !selectedChildId) return;
-    const toSave = medications.filter(m => m.include && m.name.trim());
-    if (toSave.length === 0) { Alert.alert('Nenhum medicamento selecionado', 'Marque ao menos um medicamento pra salvar'); return; }
+    if (!activeGroup || !selectedChildId || !inferenceId) {
+      Alert.alert('Erro', 'Sessão de receita inválida. Tire uma nova foto.');
+      return;
+    }
+    // Pick which parsed medications the user marked to save.
+    const selectedIndices = medications
+      .map((m, i) => (m.include && m.name.trim() ? i : -1))
+      .filter(i => i >= 0);
+    if (selectedIndices.length === 0) {
+      Alert.alert('Nenhum medicamento selecionado', 'Marque ao menos um medicamento para salvar');
+      return;
+    }
 
     setSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const rows = toSave.map(m => ({
-      group_id: activeGroup.groupId,
-      child_id: selectedChildId,
-      name: m.name.trim(),
-      dosage: m.dosage?.trim() || null,
-      frequency: m.frequency?.trim() || null,
-      duration: m.duration?.trim() || null,
-      notes: m.notes?.trim() || null,
-      doctor_name: doctorName.trim() || null,
-      doctor_crm: crm.trim() || null,
-      status: 'active',
-      start_date: new Date().toISOString().slice(0, 10),
-    }));
-    const { error: insertError } = await supabase.from('active_medications').insert(rows);
-    setSaving(false);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Sessão expirada');
 
-    if (insertError) {
+      const resp = await fetch(`${WEB_URL}/api/health/save-prescription`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          inferenceId,
+          groupId: activeGroup.groupId,
+          childId: selectedChildId,
+          selectedIndices,
+          // Native flow goes light — no automatic episode creation by default.
+          createEpisode: false,
+        }),
+      });
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(txt || `Erro ${resp.status}`);
+      }
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      router.back();
+    } catch (e: unknown) {
+      const err = e as { message?: string };
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', insertError.message);
-      return;
+      Alert.alert('Erro', err.message || 'Falha ao salvar medicamentos.');
+    } finally {
+      setSaving(false);
     }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    router.back();
   }
 
   function updateMed(idx: number, field: keyof ParsedMedication, value: string | boolean) {

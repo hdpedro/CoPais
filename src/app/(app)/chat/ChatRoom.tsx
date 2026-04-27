@@ -410,7 +410,7 @@ export default function ChatRoom({
           filter: `group_id=eq.${groupId}`,
         },
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (payload: any) => {
+        async (payload: any) => {
           const msg = payload.new as Message;
 
           // Only show messages for the active channel
@@ -439,6 +439,14 @@ export default function ChatRoom({
 
           // Skip empty messages (no text and no image)
           if (!msg.text?.trim() && !msg.image_url) return;
+
+          // Sign image_url — realtime ships the path, bucket is private.
+          if (msg.image_url && !msg.image_url.startsWith("http") && !msg.image_url.startsWith("blob:")) {
+            const { data: signed } = await supabase.storage
+              .from("documents")
+              .createSignedUrl(msg.image_url, 3600);
+            if (signed?.signedUrl) msg.image_url = signed.signedUrl;
+          }
 
           // Guard against updates after unmount
           if (!mountedRef.current) return;
@@ -614,12 +622,19 @@ export default function ChatRoom({
         return;
       }
 
-      const { data: urlData } = supabase.storage.from("documents").getPublicUrl(filePath);
-      uploadedImageUrl = urlData.publicUrl;
+      // Store path-only (post-migration 062). Sign URL for the optimistic
+      // preview so the sender sees their image immediately; receivers will
+      // sign on read via the message list.
+      uploadedImageUrl = filePath;
+      const { data: signedData } = await supabase.storage
+        .from("documents")
+        .createSignedUrl(filePath, 3600);
+      const previewUrl2 = signedData?.signedUrl ?? null;
 
-      // Update optimistic message with real URL
       setMessages((prev) =>
-        prev.map((m) => (m.id === optimisticId ? { ...m, image_url: uploadedImageUrl } : m))
+        prev.map((m) =>
+          m.id === optimisticId ? { ...m, image_url: previewUrl2 ?? filePath } : m,
+        ),
       );
     }
 

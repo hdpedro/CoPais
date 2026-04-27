@@ -7,25 +7,33 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/lib/supabase';
+import { translateAuthError } from '../../src/lib/auth-errors';
+import { useI18n } from '../../src/i18n';
 import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
 export default function ForgotPasswordScreen() {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState('');
+  const t = useI18n(s => s.t);
 
   async function handleReset() {
     if (!email) { setError('Informe seu email'); return; }
     setLoading(true);
     setError('');
 
+    // Use EXPO_PUBLIC_WEB_URL so PR/staging/preview builds land back on
+    // their own domain instead of always production.
     const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: 'https://kindar.com.br/reset-password',
+      redirectTo: `${WEB_URL}/auth/callback?next=/reset-password&type=recovery`,
     });
 
     if (err) {
-      setError(err.message);
+      // Translate raw Supabase English errors to PT-BR for user-facing surface.
+      setError(translateAuthError(err.message));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } else {
       setSent(true);
@@ -72,7 +80,7 @@ export default function ForgotPasswordScreen() {
         </TouchableOpacity>
 
         <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.text, marginBottom: spacing.sm }}>
-          Recuperar senha
+          {t('auth.resetPassword')}
         </Text>
         <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, marginBottom: spacing['3xl'], lineHeight: 22 }}>
           Informe seu email e enviaremos um link para redefinir sua senha.
@@ -99,7 +107,7 @@ export default function ForgotPasswordScreen() {
           <TextInput
             value={email}
             onChangeText={setEmail}
-            placeholder="seu@email.com"
+            placeholder={t('auth.emailPlaceholder')}
             placeholderTextColor={colors.textDim}
             keyboardType="email-address"
             autoCapitalize="none"

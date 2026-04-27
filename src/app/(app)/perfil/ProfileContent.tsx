@@ -139,6 +139,16 @@ export default function ProfileContent({
           {t("auth.logout")}
         </button>
       </form>
+
+      {/* Delete account — Apple Guideline 5.1.1(v) requires this in-app */}
+      <div className="mt-6 pt-6 border-t border-gray-100">
+        <Link
+          href="/perfil/deletar-conta"
+          className="block text-center text-sm text-muted hover:text-error transition-colors"
+        >
+          Excluir minha conta permanentemente
+        </Link>
+      </div>
     </div>
   );
 }

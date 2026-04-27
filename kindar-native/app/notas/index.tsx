@@ -16,37 +16,44 @@ import FAB from '../../src/components/ui/FAB';
 import EmptyState from '../../src/components/ui/EmptyState';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
-const CATEGORIES: { value: string; label: string; icon: string; color: string }[] = [
-  { value: 'geral', label: 'Geral', icon: '📝', color: '#6B7280' },
-  { value: 'observacoes', label: 'Observacoes', icon: '👀', color: '#3B82F6' },
-  { value: 'ideias', label: 'Ideias', icon: '💡', color: '#F59E0B' },
-  { value: 'pendente', label: 'Pendente', icon: '⏳', color: '#E8A228' },
-  { value: 'importante', label: 'Importante', icon: '⭐', color: '#E53935' },
+// Categories must match the CHECK constraint on private_notes.category
+// (migration 00019). Aligning the labels with the PWA prevents UX drift
+// between web and native.
+type NoteCategory = 'lembrete' | 'observacao' | 'preparacao' | 'juridico' | 'outro';
+const CATEGORIES: { value: NoteCategory; label: string; icon: string; color: string }[] = [
+  { value: 'lembrete', label: 'Lembrete', icon: '📝', color: '#6B7280' },
+  { value: 'observacao', label: 'Observação', icon: '👀', color: '#3B82F6' },
+  { value: 'preparacao', label: 'Preparação', icon: '📋', color: '#F59E0B' },
+  { value: 'juridico', label: 'Jurídico', icon: '⚖️', color: '#5B9E85' },
+  { value: 'outro', label: 'Outro', icon: '✏️', color: '#E53935' },
 ];
 
 export default function NotasScreen() {
-  const { userId } = useAuth();
+  const { userId, activeGroup } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
   const [editing, setEditing] = useState<Note | null>(null);
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState('geral');
+  const [category, setCategory] = useState<NoteCategory>('lembrete');
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
-    if (!userId) return;
-    setNotes(await fetchNotes(userId));
+    if (!userId || !activeGroup) return;
+    // Pass BOTH user_id AND group_id — the previous implementation passed
+    // only user_id, which leaks notes between groups when the user has more
+    // than one membership. Schema requires both columns NOT NULL.
+    setNotes(await fetchNotes(userId, activeGroup.groupId));
     setLoading(false);
-  }, [userId]);
+  }, [userId, activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   function openCreate() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setEditing(null);
-    setTitle(''); setContent(''); setCategory('geral');
+    setTitle(''); setContent(''); setCategory('lembrete');
     setComposerOpen(true);
   }
 
@@ -55,17 +62,28 @@ export default function NotasScreen() {
     setEditing(note);
     setTitle(note.title);
     setContent(note.content || '');
-    setCategory((note as unknown as { category?: string }).category || 'geral');
+    const cat = (note.category as NoteCategory | null) ?? 'lembrete';
+    setCategory(['lembrete','observacao','preparacao','juridico','outro'].includes(cat) ? cat : 'lembrete');
     setComposerOpen(true);
   }
 
   async function handleSubmit() {
-    if (!userId || !title.trim()) return;
+    if (!userId || !activeGroup || !title.trim()) return;
     setSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const result = editing
-      ? await updateNote(editing.id, { title: title.trim(), content: content.trim() || undefined })
-      : await createNote({ userId, title, content: content.trim() || undefined, category });
+      ? await updateNote(editing.id, {
+          title: title.trim(),
+          content: content.trim() || undefined,
+          category,
+        })
+      : await createNote({
+          userId,
+          groupId: activeGroup.groupId,
+          title,
+          content: content.trim() || undefined,
+          category,
+        });
     setSubmitting(false);
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -73,7 +91,7 @@ export default function NotasScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', 'Nao foi possivel salvar');
+      Alert.alert('Erro', 'Não foi possível salvar');
     }
   }
 
@@ -160,33 +178,30 @@ export default function NotasScreen() {
               ) : null}
             </View>
             <ScrollView>
-              {!editing ? (
-                <>
-                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Categoria</Text>
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
-                    {CATEGORIES.map(c => {
-                      const active = category === c.value;
-                      return (
-                        <TouchableOpacity
-                          key={c.value}
-                          onPress={() => setCategory(c.value)}
-                          style={{
-                            paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
-                            backgroundColor: active ? `${c.color}20` : colors.bg,
-                            borderWidth: 1, borderColor: active ? c.color : colors.borderLight,
-                            flexDirection: 'row', alignItems: 'center', gap: 6,
-                          }}
-                        >
-                          <Text style={{ fontSize: 14 }}>{c.icon}</Text>
-                          <Text style={{ fontSize: font.sizes.sm, color: active ? c.color : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                            {c.label}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
-                </>
-              ) : null}
+              {/* Category picker shown in both create and edit modes (PWA parity). */}
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Categoria</Text>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+                {CATEGORIES.map(c => {
+                  const active = category === c.value;
+                  return (
+                    <TouchableOpacity
+                      key={c.value}
+                      onPress={() => setCategory(c.value)}
+                      style={{
+                        paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
+                        backgroundColor: active ? `${c.color}20` : colors.bg,
+                        borderWidth: 1, borderColor: active ? c.color : colors.borderLight,
+                        flexDirection: 'row', alignItems: 'center', gap: 6,
+                      }}
+                    >
+                      <Text style={{ fontSize: 14 }}>{c.icon}</Text>
+                      <Text style={{ fontSize: font.sizes.sm, color: active ? c.color : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
+                        {c.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
 
               <TextInput
                 value={title} onChangeText={setTitle}

@@ -1,14 +1,40 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
+
+const REMEMBER_KEY = '@kindar_remember_email';
 import { useAuth } from '../../src/store/auth';
 import { signInWithApple, signInWithGoogle } from '../../src/services/social-auth';
+import { supabase } from '../../src/lib/supabase';
+import { useI18n } from '../../src/i18n';
 import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
+
+// Mirrors PWA `OnboardingPage` auto-accept: any pending invitation matching
+// the user's email gets accepted server-side. Idempotent — safe to call after
+// every sign-in. Returns true if a group was joined.
+async function tryAutoAcceptInvitation(): Promise<boolean> {
+  try {
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) return false;
+    const resp = await fetch(`${WEB_URL}/api/onboarding/auto-accept-invitation`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${session.access_token}` },
+    });
+    if (!resp.ok) return false;
+    const data = await resp.json();
+    return !!data.accepted;
+  } catch {
+    return false;
+  }
+}
 
 export default function LoginScreen() {
   const { convite } = useLocalSearchParams<{ convite?: string }>();
@@ -19,6 +45,19 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const { signIn } = useAuth();
+  const t = useI18n(s => s.t);
+
+  // Hydrate persisted email on mount (rememberMe). Improves UX for users
+  // who log in/out repeatedly — Mobile autofill is less reliable than
+  // browser autofill, so we keep our own copy. Password is NEVER stored.
+  useEffect(() => {
+    AsyncStorage.getItem(REMEMBER_KEY).then((stored) => {
+      if (stored) {
+        setEmail(stored);
+        setRememberMe(true);
+      }
+    }).catch(() => {});
+  }, []);
 
   async function handleLogin() {
     if (!email || !password) {
@@ -33,17 +72,21 @@ export default function LoginScreen() {
 
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      const state = useAuth.getState();
-      if (convite) {
-        // Convite acceptance is handled via PWA URL — open in browser
-        const { Linking } = await import('react-native');
-        Linking.openURL(`https://kindar.com.br/convite/${convite}`);
-        // Then reload auth state (user will now be in a group)
-        setTimeout(() => useAuth.getState().loadActiveGroup(), 3000);
-        router.replace('/(tabs)');
+      // Persist or clear remembered email based on the checkbox state.
+      if (rememberMe) {
+        AsyncStorage.setItem(REMEMBER_KEY, email.trim().toLowerCase()).catch(() => {});
       } else {
-        router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
+        AsyncStorage.removeItem(REMEMBER_KEY).catch(() => {});
       }
+      // Always try auto-accept (mirrors PWA): if the user signed up via
+      // invite link, the email-matched invitation gets accepted server-side
+      // before we route. Idempotent for users without pending invites.
+      const accepted = await tryAutoAcceptInvitation();
+      if (accepted) {
+        await useAuth.getState().loadActiveGroup();
+      }
+      const state = useAuth.getState();
+      router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(result.error || 'Erro ao entrar');
@@ -77,7 +120,7 @@ export default function LoginScreen() {
             fontSize: font.sizes.xs, color: colors.authMuted, marginTop: spacing.xs,
             letterSpacing: 2, textTransform: 'uppercase',
           }}>
-            a rotina organizada · para toda a familia
+            {t('auth.tagline')}
           </Text>
         </View>
 
@@ -88,10 +131,10 @@ export default function LoginScreen() {
             padding: spacing.md, marginBottom: spacing.lg, alignItems: 'center',
           }}>
             <Text style={{ color: colors.authPrimary, fontWeight: font.weights.medium, fontSize: font.sizes.md }}>
-              Voce foi convidado!
+              {t('auth.invited')}
             </Text>
             <Text style={{ color: colors.authMuted, fontSize: font.sizes.sm, marginTop: 2 }}>
-              Entre para aceitar o convite
+              {t('auth.invitedLoginHint')}
             </Text>
           </View>
         ) : null}
@@ -116,6 +159,8 @@ export default function LoginScreen() {
               if (result.success) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 await useAuth.getState().initialize();
+                const accepted = await tryAutoAcceptInvitation();
+                if (accepted) await useAuth.getState().loadActiveGroup();
                 const state = useAuth.getState();
                 router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
               } else if (result.error !== 'Cancelado') {
@@ -146,6 +191,8 @@ export default function LoginScreen() {
               if (result.success) {
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                 await useAuth.getState().initialize();
+                const accepted = await tryAutoAcceptInvitation();
+                if (accepted) await useAuth.getState().loadActiveGroup();
                 const state = useAuth.getState();
                 router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
               } else if (result.error !== 'Login cancelado') {
@@ -173,7 +220,7 @@ export default function LoginScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl }}>
             <View style={{ flex: 1, height: 1, backgroundColor: colors.authBorder }} />
             <Text style={{ paddingHorizontal: spacing.lg, fontSize: font.sizes.sm, color: colors.authMuted }}>
-              ou entre com e-mail
+              {t('auth.orEmailLogin')}
             </Text>
             <View style={{ flex: 1, height: 1, backgroundColor: colors.authBorder }} />
           </View>
@@ -181,7 +228,7 @@ export default function LoginScreen() {
 
         {/* Email */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-          E-mail
+          {t('auth.email')}
         </Text>
         <TextInput
           nativeID="email"
@@ -189,7 +236,7 @@ export default function LoginScreen() {
           accessibilityLabel="E-mail"
           value={email}
           onChangeText={setEmail}
-          placeholder="seu@email.com"
+          placeholder={t('auth.emailPlaceholder')}
           placeholderTextColor={colors.authMuted}
           keyboardType="email-address"
           autoCapitalize="none"
@@ -205,7 +252,7 @@ export default function LoginScreen() {
 
         {/* Password */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-          Senha
+          {t('auth.password')}
         </Text>
         <View style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -219,7 +266,7 @@ export default function LoginScreen() {
             accessibilityLabel="Senha"
             value={password}
             onChangeText={setPassword}
-            placeholder="Sua senha"
+            placeholder={t('auth.passwordPlaceholder')}
             placeholderTextColor={colors.authMuted}
             secureTextEntry={!showPassword}
             autoComplete="password"
@@ -254,7 +301,7 @@ export default function LoginScreen() {
 
           <TouchableOpacity onPress={() => router.push('/auth/forgot-password')}>
             <Text style={{ fontSize: font.sizes.sm, color: colors.authPrimary }}>
-              Esqueceu a senha?
+              {t('auth.forgotPassword')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -276,7 +323,7 @@ export default function LoginScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Entrar
+              {t('auth.loginButton')}
             </Text>
           )}
         </TouchableOpacity>
@@ -284,11 +331,11 @@ export default function LoginScreen() {
         {/* Sign Up */}
         <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing['3xl'], gap: spacing.xs }}>
           <Text style={{ color: colors.authMuted, fontSize: font.sizes.sm }}>
-            Ainda nao tem conta?
+            {t('auth.noAccount')}
           </Text>
           <TouchableOpacity onPress={() => router.push('/auth/signup')}>
             <Text style={{ color: colors.authPrimary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-              Criar conta
+              {t('auth.createAccountLink')}
             </Text>
           </TouchableOpacity>
         </View>

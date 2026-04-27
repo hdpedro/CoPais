@@ -77,6 +77,8 @@ export default function SaudeScreen() {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                 router.push('/saude/registrar');
               }}
+              testID="saude-fab-registrar"
+              accessibilityLabel="Registrar"
               style={{
                 backgroundColor: colors.brand, borderRadius: radius.full,
                 flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
@@ -203,20 +205,22 @@ export default function SaudeScreen() {
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.xl }}>
             {[
-              { icon: '⚠️', label: 'Alergias', route: '/saude/alergias' },
-              { icon: '💊', label: 'Medicamentos', route: '/saude/medicamentos' },
-              { icon: '🏥', label: 'Consultas', route: '/saude/consultas' },
-              { icon: '💉', label: 'Vacinas', route: '/saude/vacinas' },
-              { icon: '📏', label: 'Crescimento', route: '/saude/crescimento' },
-              { icon: '👨‍⚕️', label: 'Profissionais', route: '/saude/profissionais' },
-              { icon: '🤒', label: 'Doencas', route: '/saude/doencas' },
-              { icon: '🩹', label: 'Sintomas', route: '/saude/sintomas' },
-              { icon: '📸', label: 'Receita OCR', route: '/saude/receita' },
-              { icon: '🚨', label: 'Emergencia', route: '/saude/emergencia' },
-              { icon: '📤', label: 'Exportar', route: '/saude/export' },
-              { icon: '📋', label: 'Timeline', route: '/saude/timeline' },
+              { icon: '⚠️', label: 'Alergias', route: '/saude/alergias', testID: 'saude-mod-alergias' },
+              { icon: '💊', label: 'Medicamentos', route: '/saude/medicamentos', testID: 'saude-mod-medicamentos' },
+              { icon: '🏥', label: 'Consultas', route: '/saude/consultas', testID: 'saude-mod-consultas' },
+              { icon: '💉', label: 'Vacinas', route: '/saude/vacinas', testID: 'saude-mod-vacinas' },
+              { icon: '📏', label: 'Crescimento', route: '/saude/crescimento', testID: 'saude-mod-crescimento' },
+              { icon: '👨‍⚕️', label: 'Profissionais', route: '/saude/profissionais', testID: 'saude-mod-profissionais' },
+              { icon: '🤒', label: 'Doencas', route: '/saude/doencas', testID: 'saude-mod-doencas' },
+              { icon: '🩹', label: 'Sintomas', route: '/saude/sintomas', testID: 'saude-mod-sintomas' },
+              { icon: '📸', label: 'Receita OCR', route: '/saude/receita', testID: 'saude-mod-receita' },
+              { icon: '🚨', label: 'Emergencia', route: '/saude/emergencia', testID: 'saude-mod-emergencia' },
+              { icon: '📤', label: 'Exportar', route: '/saude/export', testID: 'saude-mod-exames' },
+              { icon: '📋', label: 'Timeline', route: '/saude/timeline', testID: 'saude-mod-timeline' },
             ].map(mod => (
               <TouchableOpacity key={mod.route} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(mod.route as Parameters<typeof router.push>[0]); }}
+                testID={mod.testID}
+                accessibilityLabel={mod.label}
                 style={{ width: '31%', backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', gap: spacing.xs, ...shadows.sm }}>
                 <Text style={{ fontSize: 20 }}>{mod.icon}</Text>
                 <Text style={{ fontSize: font.sizes.xs, color: colors.text, fontWeight: font.weights.medium, textAlign: 'center' }}>{mod.label}</Text>

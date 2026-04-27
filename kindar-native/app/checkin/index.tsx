@@ -28,8 +28,8 @@ interface CheckinItem {
 }
 
 const CAT_LABELS: Record<string, string> = {
-  screen_time: 'Tempo de tela', food: 'Alimentacao', sleep: 'Sono', mood: 'Humor',
-  health: 'Saude', hygiene: 'Higiene', other: 'Outro',
+  screen_time: 'Tempo de tela', food: 'Alimentação', sleep: 'Sono', mood: 'Humor',
+  health: 'Saúde', hygiene: 'Higiene', other: 'Outro',
 };
 
 export default function CheckinScreen() {
@@ -95,7 +95,7 @@ export default function CheckinScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', 'Nao foi possivel registrar');
+      Alert.alert('Erro', 'Não foi possível registrar');
     }
   }
 
@@ -107,7 +107,7 @@ export default function CheckinScreen() {
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-        ListEmptyComponent={loading ? null : <EmptyState icon="✅" title="Nenhum check-in" subtitle="Registre o dia a dia das criancas" />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="✅" title="Nenhum check-in" subtitle="Registre o dia a dia das crianças" />}
         renderItem={({ item }) => {
           const cat = CHECKIN_CATEGORIES.find((c: any) => c.value === item.category);
           const catLabel = CAT_LABELS[item.category] || item.category;
@@ -166,7 +166,7 @@ export default function CheckinScreen() {
 
               {children.length > 0 ? (
                 <>
-                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Crianca</Text>
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Criança</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                     <TouchableOpacity
                       onPress={() => setChildId(null)}
@@ -202,7 +202,7 @@ export default function CheckinScreen() {
 
               <TextInput
                 value={title} onChangeText={setTitle}
-                placeholder="Titulo (ex: Recusou o jantar)"
+                placeholder="Título (ex: Recusou o jantar)"
                 placeholderTextColor={colors.textMuted}
                 style={{
                   backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,

@@ -18,7 +18,7 @@ import { colors, spacing, radius, font, shadows } from '../../src/design-system/
 
 const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
   escola: { icon: '🎒', color: '#3B82F6', label: 'Escola' },
-  saude: { icon: '🏥', color: '#EF4444', label: 'Saude' },
+  saude: { icon: '🏥', color: '#EF4444', label: 'Saúde' },
   atividade: { icon: '⚽', color: '#22C55E', label: 'Atividade' },
   viagem: { icon: '✈️', color: '#8B5CF6', label: 'Viagem' },
   financeiro: { icon: '💰', color: '#F59E0B', label: 'Financeiro' },
@@ -43,7 +43,7 @@ function formatDeadline(deadline: string | null): { label: string; urgent: boole
   if (daysUntil <= 3) return { label: `Em ${daysUntil} dia${daysUntil > 1 ? 's' : ''}`, urgent: true };
   const [, m, day] = deadline.split('-').map(Number);
   const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  return { label: `Ate ${day}/${months[(m || 1) - 1]}`, urgent: false };
+  return { label: `Até ${day}/${months[(m || 1) - 1]}`, urgent: false };
 }
 
 export default function DecisoesScreen() {
@@ -55,6 +55,7 @@ export default function DecisoesScreen() {
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newCategory, setNewCategory] = useState<DecisionCategory>('outro');
+  const [newDeadline, setNewDeadline] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
   const load = useCallback(async () => {
@@ -98,13 +99,14 @@ export default function DecisoesScreen() {
       title: newTitle,
       description: newDescription.trim() || undefined,
       category: newCategory,
+      deadline: newDeadline || undefined,
       createdBy: userId,
     });
     setSubmitting(false);
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setComposerOpen(false);
-      setNewTitle(''); setNewDescription(''); setNewCategory('outro');
+      setNewTitle(''); setNewDescription(''); setNewCategory('outro'); setNewDeadline('');
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -191,7 +193,7 @@ export default function DecisoesScreen() {
           <View style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <Ionicons name="checkmark-circle" size={14} color={colors.success} />
             <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-              Voce votou: {d.myVote === 'sim' ? 'A favor' : d.myVote === 'nao' ? 'Contra' : 'Abster'}
+              Você votou: {d.myVote === 'sim' ? 'A favor' : d.myVote === 'nao' ? 'Contra' : 'Abster'}
             </Text>
           </View>
         ) : null}
@@ -206,7 +208,7 @@ export default function DecisoesScreen() {
               borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderLight,
             }}
           >
-            <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Encerrar votacao</Text>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Encerrar votação</Text>
           </TouchableOpacity>
         ) : null}
       </TouchableOpacity>
@@ -215,7 +217,7 @@ export default function DecisoesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Decisoes" />
+      <ScreenHeader title="Decisões" />
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={colors.brand} />
@@ -226,7 +228,7 @@ export default function DecisoesScreen() {
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-          ListEmptyComponent={<EmptyState icon="🗳️" title="Nenhuma decisao" subtitle="Abra uma decisao para votacao em grupo" />}
+          ListEmptyComponent={<EmptyState icon="🗳️" title="Nenhuma decisão" subtitle="Abra uma decisão para votação em grupo" />}
           renderItem={renderItem}
         />
       )}
@@ -251,13 +253,13 @@ export default function DecisoesScreen() {
           }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
-              Nova decisao
+              Nova decisão
             </Text>
 
             <TextInput
               value={newTitle}
               onChangeText={setNewTitle}
-              placeholder="Titulo da decisao"
+              placeholder="Título da decisão"
               placeholderTextColor={colors.textMuted}
               style={{
                 backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -269,7 +271,7 @@ export default function DecisoesScreen() {
             <TextInput
               value={newDescription}
               onChangeText={setNewDescription}
-              placeholder="Descricao (opcional)"
+              placeholder="Descrição (opcional)"
               placeholderTextColor={colors.textMuted}
               multiline
               style={{
@@ -279,6 +281,38 @@ export default function DecisoesScreen() {
                 marginBottom: spacing.md, textAlignVertical: 'top',
               }}
             />
+
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Prazo (opcional)</Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+              {[
+                { id: 'none', label: 'Sem prazo', days: null },
+                { id: '3d', label: 'Em 3 dias', days: 3 },
+                { id: '7d', label: 'Em 1 semana', days: 7 },
+                { id: '14d', label: 'Em 2 semanas', days: 14 },
+              ].map(p => {
+                const computed = p.days
+                  // eslint-disable-next-line react-hooks/purity
+                  ? new Date(Date.now() + p.days * 86400000).toISOString().slice(0, 10)
+                  : '';
+                const active = (p.days === null && !newDeadline) || newDeadline === computed;
+                return (
+                  <TouchableOpacity
+                    key={p.id}
+                    onPress={() => setNewDeadline(computed)}
+                    style={{
+                      paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+                      borderRadius: radius.md,
+                      backgroundColor: active ? colors.brand : colors.bg,
+                      borderWidth: 1, borderColor: active ? colors.brand : colors.borderLight,
+                    }}
+                  >
+                    <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text }}>
+                      {p.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
 
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Categoria</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.lg }}>
@@ -319,7 +353,7 @@ export default function DecisoesScreen() {
             >
               {submitting ? <ActivityIndicator color="#fff" /> : (
                 <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  Abrir decisao
+                  Abrir decisão
                 </Text>
               )}
             </TouchableOpacity>

@@ -83,8 +83,8 @@ export default function DoencasScreen() {
 
   async function handleResolve(ill: IllnessEpisode) {
     Alert.alert(
-      'Encerrar episodio',
-      `Marcar "${ill.title}" como resolvida? Fica no historico.`,
+      'Encerrar episódio',
+      `Marcar "${ill.title}" como resolvida? Fica no histórico.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -117,7 +117,7 @@ export default function DoencasScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Doencas
+          Doenças
         </Text>
       </View>
 
@@ -165,10 +165,10 @@ export default function DoencasScreen() {
             <View style={{ alignItems: 'center', paddingVertical: spacing['3xl'] }}>
               <Text style={{ fontSize: 44, marginBottom: spacing.md }}>🩺</Text>
               <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.xs }}>
-                {filter === 'active' ? 'Nenhuma doenca ativa' : 'Nenhum episodio'}
+                {filter === 'active' ? 'Nenhuma doença ativa' : 'Nenhum episódio'}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center' }}>
-                Registre episodios para acompanhar a evolucao de doencas e tratamentos
+                Registre episódios para acompanhar a evolução de doenças e tratamentos
               </Text>
             </View>
           ) : (
@@ -202,12 +202,12 @@ export default function DoencasScreen() {
                         ) : null}
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>·</Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                          {isActive ? `Ha ${days}d` : `Durou ${i.end_date ? Math.floor((new Date(i.end_date).getTime() - new Date(i.start_date).getTime()) / 86400000) : '?'}d`}
+                          {isActive ? `Há ${days}d` : `Durou ${i.end_date ? Math.floor((new Date(i.end_date).getTime() - new Date(i.start_date).getTime()) / 86400000) : '?'}d`}
                         </Text>
                       </View>
-                      {i.symptoms ? (
+                      {i.symptoms && i.symptoms.length > 0 ? (
                         <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.sm }}>
-                          {i.symptoms}
+                          {Array.isArray(i.symptoms) ? i.symptoms.join(', ') : i.symptoms}
                         </Text>
                       ) : null}
                       {i.hospital ? (

@@ -28,8 +28,8 @@ interface HealthExportData {
   pediatrician: { name: string; phone: string | null; specialty: string | null } | null;
   appointments: { title: string; appointment_date: string }[];
   illnesses: { title: string; start_date: string; end_date: string | null }[];
-  vaccines: { name: string; applied_at: string | null }[];
-  growthLast: { date: string; height_cm: number | null; weight_kg: number | null } | null;
+  vaccines: { vaccine_name: string; administered_date: string | null; dose_label: string | null }[];
+  growthLast: { measured_date: string; height_cm: number | null; weight_kg: number | null } | null;
 }
 
 function formatDate(iso: string | null): string {
@@ -73,8 +73,11 @@ export default function ExportScreen() {
       supabase.from('active_medications').select('name, dosage, frequency').eq('child_id', selectedChildId).eq('status', 'active'),
       supabase.from('medical_appointments').select('title, appointment_date').eq('child_id', selectedChildId).order('appointment_date', { ascending: false }).limit(10),
       supabase.from('illness_episodes').select('title, start_date, end_date').eq('child_id', selectedChildId).order('start_date', { ascending: false }).limit(10),
-      supabase.from('vaccination_records').select('name, applied_at').eq('child_id', selectedChildId).order('applied_at', { ascending: false }).limit(30),
-      supabase.from('growth_records').select('date, height_cm, weight_kg').eq('child_id', selectedChildId).order('date', { ascending: false }).limit(1).maybeSingle(),
+      // Schema: vaccination_records uses `vaccine_name`/`administered_date`,
+      // growth_records uses `measured_date` (NOT `name`/`applied_at`/`date`).
+      // Pre-existing column-name bug fixed 2026-04-27.
+      supabase.from('vaccination_records').select('vaccine_name, dose_label, administered_date').eq('child_id', selectedChildId).order('administered_date', { ascending: false }).limit(30),
+      supabase.from('growth_records').select('measured_date, height_cm, weight_kg').eq('child_id', selectedChildId).order('measured_date', { ascending: false }).limit(1).maybeSingle(),
     ]);
 
     let pediatrician = null;
@@ -111,13 +114,13 @@ export default function ExportScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const lines: string[] = [];
     const { child } = data;
-    lines.push(`*HISTORICO MEDICO — ${child.full_name.toUpperCase()}*`);
+    lines.push(`*HISTÓRICO MÉDICO — ${child.full_name.toUpperCase()}*`);
     lines.push(`Idade: ${calcAge(child.birth_date)}  ·  Nasc: ${formatDate(child.birth_date)}`);
     lines.push('');
 
-    lines.push('*DADOS BASICOS*');
-    lines.push(`Tipo sanguineo: ${data.bloodType || 'nao informado'}`);
-    lines.push(`Plano de saude: ${data.insurance || 'nao informado'}`);
+    lines.push('*DADOS BÁSICOS*');
+    lines.push(`Tipo sanguíneo: ${data.bloodType || 'não informado'}`);
+    lines.push(`Plano de saúde: ${data.insurance || 'não informado'}`);
     if (data.sus) lines.push(`SUS: ${data.sus}`);
     lines.push('');
 
@@ -141,21 +144,21 @@ export default function ExportScreen() {
     }
 
     if (data.illnesses.length > 0) {
-      lines.push(`*HISTORICO DE DOENCAS (ultimos 10)*`);
-      data.illnesses.forEach(i => lines.push(`• ${i.title} — ${formatDate(i.start_date)} ate ${i.end_date ? formatDate(i.end_date) : 'ativa'}`));
+      lines.push(`*HISTÓRICO DE DOENÇAS (últimos 10)*`);
+      data.illnesses.forEach(i => lines.push(`• ${i.title} — ${formatDate(i.start_date)} até ${i.end_date ? formatDate(i.end_date) : 'ativa'}`));
       lines.push('');
     }
 
     if (data.vaccines.length > 0) {
       lines.push(`*VACINAS (${data.vaccines.length})*`);
-      data.vaccines.slice(0, 10).forEach(v => lines.push(`• ${v.name}${v.applied_at ? ` — ${formatDate(v.applied_at)}` : ''}`));
+      data.vaccines.slice(0, 10).forEach(v => lines.push(`• ${v.vaccine_name}${v.dose_label ? ` (${v.dose_label})` : ''}${v.administered_date ? ` — ${formatDate(v.administered_date)}` : ''}`));
       if (data.vaccines.length > 10) lines.push(`... e mais ${data.vaccines.length - 10} vacinas.`);
       lines.push('');
     }
 
     if (data.growthLast) {
-      lines.push('*CRESCIMENTO (ultimo registro)*');
-      lines.push(`Data: ${formatDate(data.growthLast.date)}`);
+      lines.push('*CRESCIMENTO (último registro)*');
+      lines.push(`Data: ${formatDate(data.growthLast.measured_date)}`);
       if (data.growthLast.height_cm) lines.push(`Altura: ${data.growthLast.height_cm} cm`);
       if (data.growthLast.weight_kg) lines.push(`Peso: ${data.growthLast.weight_kg} kg`);
       lines.push('');
@@ -166,7 +169,7 @@ export default function ExportScreen() {
 
     const summary = lines.join('\n');
     try {
-      await Share.share({ message: summary, title: `Historico medico — ${child.full_name}` });
+      await Share.share({ message: summary, title: `Histórico médico — ${child.full_name}` });
     } catch { /* cancelled */ }
   }
 
@@ -185,7 +188,7 @@ export default function ExportScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Export de saude
+          Export de saúde
         </Text>
         <TouchableOpacity onPress={handleShare} hitSlop={12}>
           <Ionicons name="share-outline" size={22} color={colors.brand} />
@@ -233,9 +236,9 @@ export default function ExportScreen() {
           </Text>
         </View>
 
-        <Section title="Dados basicos">
-          <Row label="Tipo sanguineo" value={data.bloodType || '—'} />
-          <Row label="Plano de saude" value={data.insurance || '—'} />
+        <Section title="Dados básicos">
+          <Row label="Tipo sanguíneo" value={data.bloodType || '—'} />
+          <Row label="Plano de saúde" value={data.insurance || '—'} />
           {data.sus ? <Row label="SUS" value={data.sus} /> : null}
         </Section>
 
@@ -264,22 +267,22 @@ export default function ExportScreen() {
           ))}
         </Section>
 
-        <Section title={`Historico de doencas (${data.illnesses.length})`}>
-          {data.illnesses.length === 0 ? <Empty>Nenhum episodio</Empty> : data.illnesses.slice(0, 5).map((ill, i) => (
+        <Section title={`Histórico de doenças (${data.illnesses.length})`}>
+          {data.illnesses.length === 0 ? <Empty>Nenhum episódio</Empty> : data.illnesses.slice(0, 5).map((ill, i) => (
             <Row key={i} label={ill.title} value={`${formatDate(ill.start_date)} → ${ill.end_date ? formatDate(ill.end_date) : 'ativa'}`} />
           ))}
         </Section>
 
         <Section title={`Vacinas (${data.vaccines.length})`}>
           {data.vaccines.length === 0 ? <Empty>Nenhuma registrada</Empty> : data.vaccines.slice(0, 5).map((v, i) => (
-            <Row key={i} label={v.name} value={formatDate(v.applied_at)} />
+            <Row key={i} label={`${v.vaccine_name}${v.dose_label ? ` (${v.dose_label})` : ''}`} value={formatDate(v.administered_date)} />
           ))}
           {data.vaccines.length > 5 ? <Empty>... e mais {data.vaccines.length - 5} vacinas</Empty> : null}
         </Section>
 
         {data.growthLast ? (
-          <Section title="Crescimento (ultimo registro)">
-            <Row label="Data" value={formatDate(data.growthLast.date)} />
+          <Section title="Crescimento (último registro)">
+            <Row label="Data" value={formatDate(data.growthLast.measured_date)} />
             {data.growthLast.height_cm ? <Row label="Altura" value={`${data.growthLast.height_cm} cm`} /> : null}
             {data.growthLast.weight_kg ? <Row label="Peso" value={`${data.growthLast.weight_kg} kg`} /> : null}
           </Section>

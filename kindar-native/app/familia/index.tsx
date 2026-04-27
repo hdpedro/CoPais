@@ -1,27 +1,45 @@
 /**
- * Familia — lista membros + convites pendentes + acoes (convidar, sair, remover).
- * Mirrors PWA /familia.
+ * Familia — lista membros + convites pendentes + acoes (convidar, mudar
+ * role, remover, sair). Mirrors PWA /familia, including the role-change
+ * UX from `MemberActions.tsx:69-122` so iOS admins are not stuck with a
+ * remove-only menu.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/lib/supabase';
+import { apiFetch } from '../../src/lib/api-fetch';
 import { useAuth } from '../../src/store/auth';
 import { listInvitations, cancelInvitation, type Invitation } from '../../src/services/invitations';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
+type GroupRole = 'admin' | 'member' | 'readonly';
+
 interface Member {
   userId: string;
   fullName: string;
-  role: 'admin' | 'member' | 'readonly' | string;
+  role: GroupRole | string;
   email: string | null;
 }
+
+interface ChildPreview {
+  id: string;
+  full_name: string;
+  birth_date: string;
+}
+
+const ROLE_DESCRIPTIONS: Record<GroupRole, string> = {
+  admin: 'Pode gerenciar membros, convites e configurações do grupo.',
+  member: 'Pode ver e adicionar conteúdo, mas não gerencia o grupo.',
+  readonly: 'Apenas visualiza — não pode editar ou criar nada (mediador, advogado, etc.).',
+};
 
 const ROLE_META: Record<string, { label: string; icon: string; color: string }> = {
   admin: { label: 'Admin', icon: '⭐', color: '#F59E0B' },
@@ -32,17 +50,26 @@ const ROLE_META: Record<string, { label: string; icon: string; color: string }> 
 export default function FamiliaScreen() {
   const { activeGroup, userId, signOut } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
+  const [children, setChildren] = useState<ChildPreview[]>([]);
+  const [childAges, setChildAges] = useState<Record<string, number>>({});
   const [pendingInvites, setPendingInvites] = useState<Invitation[]>([]);
+  const [acceptedInvites, setAcceptedInvites] = useState<Invitation[]>([]);
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
+  const [roleModalMember, setRoleModalMember] = useState<Member | null>(null);
 
   const load = useCallback(async () => {
     if (!activeGroup) return;
-    const [memRes, invites] = await Promise.all([
+    const [memRes, childRes, invites] = await Promise.all([
       supabase
         .from('group_members')
         .select('user_id, role, profiles(full_name, email)')
         .eq('group_id', activeGroup.groupId),
+      supabase
+        .from('children')
+        .select('id, full_name, birth_date')
+        .eq('group_id', activeGroup.groupId)
+        .order('birth_date'),
       listInvitations(activeGroup.groupId),
     ]);
     setMembers(((memRes.data || []) as any[]).map((m: any) => ({
@@ -51,7 +78,20 @@ export default function FamiliaScreen() {
       role: m.role,
       email: m.profiles?.email || null,
     })));
+    const childList = (childRes.data || []) as ChildPreview[];
+    setChildren(childList);
+    // Compute ages outside render (React purity rule). Recomputed on each load.
+    const now = Date.now();
+    const ages: Record<string, number> = {};
+    childList.forEach((c) => {
+      ages[c.id] = Math.floor(
+        (now - new Date(c.birth_date + 'T12:00:00').getTime()) /
+          (365.25 * 24 * 60 * 60 * 1000)
+      );
+    });
+    setChildAges(ages);
     setPendingInvites(invites.filter(i => i.status === 'pending'));
+    setAcceptedInvites(invites.filter(i => i.status === 'accepted').slice(0, 5));
     setLoading(false);
   }, [activeGroup]);
 
@@ -73,15 +113,15 @@ export default function FamiliaScreen() {
           onPress: async () => {
             setActing(member.userId);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            const { error } = await supabase
-              .from('group_members')
-              .delete()
-              .eq('group_id', activeGroup.groupId)
-              .eq('user_id', member.userId);
+            // Wave G: server-side admin gate (no more direct mutation).
+            const r = await apiFetch('/api/family/members', {
+              method: 'DELETE',
+              query: { groupId: activeGroup.groupId, memberId: member.userId },
+            });
             setActing(null);
-            if (error) {
+            if (!r.ok) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', error.message);
+              Alert.alert('Erro', r.error || 'Não foi possível remover');
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               await load();
@@ -104,13 +144,13 @@ export default function FamiliaScreen() {
           style: 'destructive',
           onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            const { error } = await supabase
-              .from('group_members')
-              .delete()
-              .eq('group_id', activeGroup.groupId)
-              .eq('user_id', userId);
-            if (error) {
-              Alert.alert('Erro', error.message);
+            // Server enforces "last admin can't leave" guard.
+            const r = await apiFetch('/api/family/members', {
+              method: 'DELETE',
+              query: { groupId: activeGroup.groupId },
+            });
+            if (!r.ok) {
+              Alert.alert('Erro', r.error || 'Não foi possível sair do grupo');
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               // Force signout to reset state
@@ -125,17 +165,53 @@ export default function FamiliaScreen() {
 
   async function handleCancelInvite(inv: Invitation) {
     if (!activeGroup) return;
-    setActing(inv.id);
+    Alert.alert(
+      'Cancelar convite',
+      `Cancelar convite enviado para ${inv.email}?`,
+      [
+        { text: 'Manter', style: 'cancel' },
+        {
+          text: 'Cancelar convite',
+          style: 'destructive',
+          onPress: async () => {
+            setActing(inv.id);
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+            await cancelInvitation(inv.id, activeGroup.groupId);
+            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            setActing(null);
+            await load();
+          },
+        },
+      ]
+    );
+  }
+
+  async function handleChangeRole(member: Member, newRole: GroupRole) {
+    if (!activeGroup) return;
+    setRoleModalMember(null);
+    setActing(member.userId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    await cancelInvitation(inv.id, activeGroup.groupId);
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    // Wave G: server-side admin gate (RLS has no UPDATE policy on group_members).
+    const r = await apiFetch('/api/family/members', {
+      method: 'PATCH',
+      body: { groupId: activeGroup.groupId, memberId: member.userId, newRole },
+    });
+
     setActing(null);
+    if (!r.ok) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', r.error || 'Não foi possível alterar o papel');
+      return;
+    }
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     await load();
   }
 
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Familia" />
+      <ScreenHeader title={activeGroup?.groupName || 'Família'} />
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={colors.brand} />
@@ -219,23 +295,73 @@ export default function FamiliaScreen() {
                   ) : null}
                 </View>
                 {amAdmin && !isSelf ? (
-                  <TouchableOpacity
-                    disabled={acting === m.userId}
-                    onPress={() => handleRemoveMember(m)}
-                    hitSlop={12}
-                    style={{ padding: 4 }}
-                  >
-                    <Ionicons name="remove-circle-outline" size={22} color={colors.error} />
-                  </TouchableOpacity>
+                  <View style={{ flexDirection: 'row', gap: 2 }}>
+                    {/* Change role — opens modal with 3 radios */}
+                    <TouchableOpacity
+                      disabled={acting === m.userId}
+                      onPress={() => {
+                        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                        setRoleModalMember(m);
+                      }}
+                      hitSlop={8}
+                      style={{ padding: 6 }}
+                    >
+                      <Ionicons name="swap-vertical-outline" size={20} color={colors.textSecondary} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      disabled={acting === m.userId}
+                      onPress={() => handleRemoveMember(m)}
+                      hitSlop={8}
+                      style={{ padding: 6 }}
+                    >
+                      <Ionicons name="remove-circle-outline" size={22} color={colors.error} />
+                    </TouchableOpacity>
+                  </View>
                 ) : null}
               </View>
             );
           }}
           ListFooterComponent={
             <>
+              {/* Children section — same data as PWA FamiliaClient */}
+              {children.length > 0 ? (
+                <>
+                  <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.xl, marginBottom: spacing.sm }}>
+                    Crianças ({children.length})
+                  </Text>
+                  {children.map(c => (
+                    <TouchableOpacity
+                      key={c.id}
+                      onPress={() => router.push({ pathname: '/criancas/[id]', params: { id: c.id } } as never)}
+                      activeOpacity={0.8}
+                      style={{
+                        backgroundColor: colors.bgElevated, borderRadius: radius.lg,
+                        padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
+                        flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                      }}
+                    >
+                      <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brandLight, alignItems: 'center', justifyContent: 'center' }}>
+                        <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.brand }}>
+                          {c.full_name[0]?.toUpperCase() || '?'}
+                        </Text>
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
+                          {c.full_name}
+                        </Text>
+                        <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
+                          {childAges[c.id] ?? 0} anos · {c.birth_date.split('-').reverse().join('/')}
+                        </Text>
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+                    </TouchableOpacity>
+                  ))}
+                </>
+              ) : null}
+
               {pendingInvites.length > 0 ? (
                 <>
-                  <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.lg, marginBottom: spacing.sm }}>
+                  <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.xl, marginBottom: spacing.sm }}>
                     Convites pendentes ({pendingInvites.length})
                   </Text>
                   {pendingInvites.map(inv => (
@@ -274,7 +400,37 @@ export default function FamiliaScreen() {
                 </>
               ) : null}
 
-              {/* Leave group */}
+              {/* Recent accepted history */}
+              {acceptedInvites.length > 0 ? (
+                <>
+                  <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.xl, marginBottom: spacing.sm }}>
+                    Convites aceitos
+                  </Text>
+                  {acceptedInvites.map(inv => (
+                    <View
+                      key={inv.id}
+                      style={{
+                        backgroundColor: colors.bgElevated, borderRadius: radius.md,
+                        padding: spacing.md, marginBottom: spacing.xs,
+                        flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                        opacity: 0.85,
+                      }}
+                    >
+                      <Ionicons name="checkmark-circle-outline" size={18} color={colors.success} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ fontSize: font.sizes.sm, color: colors.text }} numberOfLines={1}>
+                          {inv.email}
+                        </Text>
+                        <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
+                          {inv.role} · {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </>
+              ) : null}
+
+              {/* Leave group — wording matches PWA LeaveGroupButton */}
               {!amAdmin || members.length > 1 ? (
                 <TouchableOpacity
                   onPress={handleLeaveGroup}
@@ -289,6 +445,68 @@ export default function FamiliaScreen() {
           }
         />
       )}
+
+      {/* Role-change modal — mirrors PWA MemberActions.tsx (3 radios + descriptions) */}
+      <Modal visible={!!roleModalMember} transparent animationType="fade" onRequestClose={() => setRoleModalMember(null)}>
+        <View style={{ flex: 1, backgroundColor: '#00000080', justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
+          <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, width: '100%', maxWidth: 400 }}>
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
+              Mudar papel
+            </Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 4, marginBottom: spacing.lg }}>
+              {roleModalMember?.fullName ? roleModalMember.fullName.split(' ')[0] : ''}
+            </Text>
+
+            {(['admin', 'member', 'readonly'] as GroupRole[]).map(r => {
+              const isCurrent = roleModalMember?.role === r;
+              const meta = ROLE_META[r];
+              return (
+                <TouchableOpacity
+                  key={r}
+                  disabled={isCurrent}
+                  onPress={() => roleModalMember && handleChangeRole(roleModalMember, r)}
+                  activeOpacity={0.85}
+                  style={{
+                    flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md,
+                    paddingVertical: spacing.md, paddingHorizontal: spacing.md,
+                    borderRadius: radius.md, marginBottom: spacing.sm,
+                    backgroundColor: isCurrent ? `${colors.brand}10` : 'transparent',
+                    borderWidth: 1, borderColor: isCurrent ? colors.brand : colors.borderLight,
+                    opacity: isCurrent ? 0.7 : 1,
+                  }}
+                >
+                  <View style={{ marginTop: 2 }}>
+                    <Text style={{ fontSize: 20 }}>{meta.icon}</Text>
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+                      <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
+                        {meta.label}
+                      </Text>
+                      {isCurrent ? (
+                        <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.semibold }}>
+                          Atual
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
+                      {ROLE_DESCRIPTIONS[r]}
+                    </Text>
+                  </View>
+                  {!isCurrent ? <Ionicons name="chevron-forward" size={16} color={colors.textDim} style={{ marginTop: 2 }} /> : null}
+                </TouchableOpacity>
+              );
+            })}
+
+            <TouchableOpacity
+              onPress={() => setRoleModalMember(null)}
+              style={{ marginTop: spacing.md, paddingVertical: spacing.md, alignItems: 'center' }}
+            >
+              <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }

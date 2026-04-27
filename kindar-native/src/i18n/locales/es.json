@@ -24,7 +24,8 @@
     "error": "Error",
     "success": "Éxito",
     "viewAll": "",
-    "confirmDelete": "¿Está seguro de que desea eliminar"
+    "confirmDelete": "¿Está seguro de que desea eliminar",
+    "hello": "Hola"
   },
   "auth": {
     "login": "Iniciar sesión",
@@ -607,7 +608,16 @@
     "improving": "Mejorando",
     "worsening": "Empeorando",
     "diagnosis": "Diagnóstico",
-    "evolution": "Evolución",
+    "evolution": {
+      "improved": "Mejoró",
+      "worsened": "Empeoró",
+      "notePlaceholder": "¿Qué cambió? (opcional)",
+      "confirm": "Confirmar",
+      "cancel": "Cancelar",
+      "saving": "Guardando...",
+      "savedImproving": "Evolución registrada — mejorando",
+      "savedWorsening": "Evolución registrada — empeorando"
+    },
     "previousUpdates": "+{count} actualizaciones anteriores",
     "noRecoveredEpisode": "No hay episodios recuperados registrados.",
     "resolvedEpisodesAppear": "Los episodios resueltos aparecerán aquí.",
@@ -886,12 +896,12 @@
       "markRecovered": "Marcar como recuperada"
     },
     "resolve": {
-      "confirmMessage": "¿Confirma que el niño se recuperó de esta enfermedad?",
-      "finishMedsQuestion": "¿También finalizar medicamentos relacionados?",
-      "saving": "Guardando...",
-      "yesResolved": "Sí, se recuperó",
+      "markResolved": "Marcar como resuelta",
+      "confirmMessage": "¿Está seguro que la enfermedad fue resuelta?",
+      "finishMedsQuestion": "¿Finalizar medicamentos relacionados también?",
+      "yesResolved": "Sí, resuelta",
       "cancel": "Cancelar",
-      "markResolved": "Marcar como recuperada"
+      "saving": "Guardando..."
     },
     "viewedBy": {
       "someone": "Alguien",
@@ -980,24 +990,6 @@
       "disclaimer": "Este documento fue generado automáticamente y no sustituye la orientación médica profesional."
     },
     "recentActivity": "Actividad reciente",
-    "evolution": {
-      "improved": "Mejoró",
-      "worsened": "Empeoró",
-      "notePlaceholder": "¿Qué cambió? (opcional)",
-      "confirm": "Confirmar",
-      "cancel": "Cancelar",
-      "saving": "Guardando...",
-      "savedImproving": "Evolución registrada — mejorando",
-      "savedWorsening": "Evolución registrada — empeorando"
-    },
-    "resolve": {
-      "markResolved": "Marcar como resuelta",
-      "confirmMessage": "¿Está seguro que la enfermedad fue resuelta?",
-      "finishMedsQuestion": "¿Finalizar medicamentos relacionados también?",
-      "yesResolved": "Sí, resuelta",
-      "cancel": "Cancelar",
-      "saving": "Guardando..."
-    },
     "wizard": {
       "title": "El niño está enfermo",
       "subtitle": "Registre todo de una vez — enfermedad, medicamento y consulta",

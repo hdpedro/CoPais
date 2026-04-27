@@ -1,40 +1,52 @@
-# Plano de Replicação Native — Paridade 100% com PWA
+# Plano de Replicação Native — Paridade com PWA
 
 **Objetivo original (Apr 22, 2026)**: app nativo iOS/Android com 100% das features do PWA + UX nativa premium.
 **Data início**: 2026-04-22
-**Status (24/04/2026)**: ✅ **CONCLUÍDO** — paridade funcional total + deploy em TestFlight (build 32+).
+
+**Status (27/04/2026)**: 🟡 **~75% paridade funcional** — telas portadas mas write-paths críticos faltam.
+TestFlight build 32+ (v1.0.1) está rodando, MAS auditoria total identificou gaps reais antes do release público.
+
+> Atualização pós-auditoria 2026-04-27: este plano antes claimed "100% paridade".
+> Validação independente (estática + curl no Supabase produção + Playwright cross-platform)
+> mostrou que muitas telas existem mas têm CRUD parcial. Texto abaixo recalibrado.
 
 ---
 
-## Resultado final
+## Resultado real (auditado 2026-04-27)
 
-### Paridade funcional: 100%
-Todas as 20 feature-areas do PWA têm implementação native equivalente (seja nativa ou via WebView):
+### Paridade funcional: ~75% ponderada
 
-| Feature | Native | Abordagem |
-|---------|--------|-----------|
-| Dashboard | ✅ | Nativo — hero dark + child cards + pendingReports + grid acoes rapidas |
-| Calendário | ✅ | Nativo — grid com pills, feriados BR, banner troca, legenda correta, CTA "Gerar escala" |
-| Chat | ✅ | Nativo — tabs canal, "Hoje" divider, read checks, system cards, image attach |
-| Saúde (9 subtelas) | ✅ | Nativo — consultas, vacinas, crescimento, doenças (+EvolutionQuickAction), medicamentos (+ConfirmDose + histórico), alergias, receita OCR, emergência, profissionais |
-| Check-in diário | ✅ | Nativo — create flow completo com 7 categorias |
-| Despesas / Financeiro | ✅ | Nativo — delete, receipt viewer, split ratio, aprovação inline |
-| Atividades | ✅ | Nativo — edit modal, checklist modal, report modal |
-| Decisões | ✅ | Nativo — votação com Votar inline no dashboard |
-| Eventos | ✅ | Nativo — edit + delete + toggle dia inteiro + pedidos |
-| Acordos | ✅ | Nativo — CRUD |
-| Crianças | Lista ✅ / Detail **WebView** | `[id]` via WebView (964 LOC PWA) + `/native-bridge` pra escrever cookies SSR antes do middleware |
-| Novo evento | **WebView** | `/calendario/novo` via WebView (1167 LOC PWA) + `/native-bridge` |
-| Análise da semana | **WebView** | `/semana` via WebView (v1.1.21) — PWA WeeklySummaryClient muito mais rico |
-| Escala guarda | ✅ | Nativo — pattern 14 dias, 4 modelos, gera custody_events. Load tolera schedule por child OU por grupo (parity com PWA) |
-| Swap / Balance | ✅ | Nativo — SwapRequestModal, SwapBalanceCard, BalanceHistorySheet, ProposeBalanceAdjustmentSheet, respondToSwap materializa custody_events |
-| Família | ✅ | Nativo — invite, remove, leave, cancel invitation |
-| Escola | ✅ | Nativo — edit por criança com TimePickerField |
-| Documentos | **WebView** | `/documentos` via WebView (v1.1.21) — PWA DocumentsDashboard mais completo (filtros, preview, analytics) |
-| Notas | ✅ | Nativo — CRUD |
-| Temas sensíveis | ✅ | Nativo — base de listagem |
-| Perfil | ✅ | Nativo — edit inline, i18n seletor, WhatsApp link OTP, sign out |
-| Notificações | ✅ | Nativo — inbox + push deep link |
+Todas as 20+ feature-areas do PWA têm tela equivalente no nativo, mas a profundidade do CRUD varia:
+
+| Feature | Status real | % paridade | Notas |
+|---------|-------------|-----------|-------|
+| Dashboard | ✅ nativo | 90% | hero dark + child cards + pending lists; **realtime de notificações adicionado 2026-04-27** |
+| Calendário (lista) | ✅ nativo | 85% | grid com pills, feriados BR, escala 4 modelos, swap com balance |
+| Calendário → Novo evento | **WebView** | 70% | `/calendario/novo` via PWA — bridge OK, mas não é UX nativa |
+| Análise da semana | **WebView** | 70% | `/semana` via PWA — `WeeklySummaryClient` muito mais rico |
+| Documentos | **WebView** | 70% | listagem nativa OK; filtros/preview/analytics só PWA |
+| Chat | ✅ nativo + realtime | 90% | tabs, read checks, system cards, image attach |
+| Saúde (hub + 9 subtelas) | 🟡 nativo parcial | **30%** | telas existem mas service tem 6 exports vs 26 do PWA — write-paths críticos faltam (consultas/vacinas/crescimento/medicamentos/alergias/profissionais/receita) |
+| Check-in diário | ✅ nativo | 85% | 7 categorias, safeWrite |
+| Despesas / Financeiro | 🟡 parcial | 80% | CRUD nativo OK; **settlement (cálculo a pagar) é PWA-only** |
+| Atividades | 🟡 parcial | 80% | edit modal, checklist, report; alguns occurrence overrides faltam |
+| Decisões | ✅ nativo + realtime arguments | 95% | até superior ao PWA em features |
+| Eventos | 🟡 parcial | 70% | edit/delete OK; criação delegada ao WebView |
+| Acordos | ✅ nativo | 95% | CRUD completo |
+| Crianças | ✅ lista + detail nativos | 90% | detail foi portado p/ nativo (não é mais WebView, plan estava desatualizado) |
+| Escala guarda | ✅ nativo | 95% | pattern 14 dias, 4 modelos, gera custody_events |
+| Swap / Balance | ✅ nativo | 95% | modal, balance card, history sheet, propose adjustment |
+| Família | ✅ nativo | 90% | invite, remove, leave, cancel |
+| Escola | 🟡 parcial | 60% | edita `child_education`; **`school_logs` (histórico) é PWA-only** |
+| Notas | ✅ nativo | 95% | CRUD completo |
+| Temas sensíveis | 🟡 só listagem | 50% | **CRUD ausente no nativo** (271 LOC PWA, 0 native) |
+| Perfil | ✅ nativo | 90% | edit inline, i18n, WhatsApp link OTP, sign out, deletar conta |
+| Notificações (inbox) | ✅ + realtime | 80% | **realtime live update adicionado 2026-04-27** (antes era polling-only) |
+| Onboarding quest | 🟡 telas só | 70% | telas existem mas **não escrevem em `onboarding_quests`** — gamificação não persistida |
+| Settlement / split | ❌ PWA-only | 0% | `settlements` (221 LOC) e `subscription-split` (193 LOC) sem nativo |
+| Push iOS (APNs) | ✅ funciona | 100% | APNs HTTP/2 com .p8 ES256 |
+| Push Android (FCM) | ✅ corrigido 2026-04-27 | 100% | sender FCM HTTP v1 + dual-platform register endpoint |
+| IAP segurança | ✅ corrigido 2026-04-27 | 100% | `/iap/verify` cria `status='pending'`; RevenueCat webhook flipa para `active` (assim ataque com productId forjado não confere acesso) |
 
 ### Features native-only (nao existem no PWA)
 - **Sincronizar com Celular** — `expo-calendar` exporta eventos pro calendário nativo iOS/Android
@@ -137,19 +149,37 @@ Depois desses 2 itens, a pipeline submete pra review sem intervenção manual.
 
 ---
 
-## Métricas finais
+## Métricas reais (auditadas 2026-04-27)
 
 | Métrica | Valor |
 |---------|-------|
 | Telas native | 56 rotas expo-router |
+| Telas WebView remanescentes | 2 (`/calendario/novo`, `/semana`) |
 | Componentes reusáveis | 22 (`src/components/{ui,calendar,activities,profile}`) |
-| Services | 14 (`src/services/`) |
+| Services | 25 (`src/services/`) |
 | Hooks | 3 (`useDashboard`, `useCalendar`, `useHealth`) |
-| Tabelas Supabase expostas | 45+ |
-| Testes Vitest | 286 passando |
+| Tabelas Supabase usadas pelo nativo | 42 |
+| Tabelas que só o PWA usa | 28 (~40% — ver lista no relatório de auditoria) |
+| Testes Vitest | 286 passando (PWA) |
+| Testes Playwright PWA × Expo Web | 4/5 match na última run completa |
 | iOS builds deployados | 32 (v1.0.1) |
 | TestFlight testers ativos | 2 (Henrique + Angelino) |
-| Paridade funcional com PWA | **100%** |
+| **Paridade funcional ponderada** | **~75%** |
+| Push iOS (APNs) | ✅ funcionando |
+| Push Android (FCM) | ✅ funcionando após fix 2026-04-27 |
+| Realtime no nativo | ✅ chat + notifications + decision_arguments |
+| IAP security | ✅ `pending → active via webhook` |
+
+### Gaps que ainda IMPEDEM "100% paridade":
+
+1. **Saúde** — port CRUD nativo (~1500 LOC). Hoje só leitura/parcial.
+2. **Settlement + subscription-split** — port nativo (~400 LOC).
+3. **Onboarding quest** — persistir `onboarding_quests` no fluxo nativo.
+4. **Temas sensíveis** — port CRUD (271 LOC).
+5. **Calendário "novo evento" + "/semana"** — re-port nativo (sair do WebView).
+6. **`school_logs`** — adicionar histórico de ocorrências escolares no nativo.
+
+Sem esses 6 itens, o "100% paridade" não é factual.
 
 ---
 

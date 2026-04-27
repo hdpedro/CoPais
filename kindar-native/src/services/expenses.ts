@@ -7,7 +7,9 @@ import { supabase } from '../lib/supabase';
 import { safeWrite } from './offline';
 import { notifyAction } from './notify';
 
-// Upload receipt image to 'receipts' storage bucket. Returns public URL or null.
+// Upload receipt image to 'receipts' storage bucket. Returns the storage
+// path (post-migration 062 the bucket is private; reads must use
+// createSignedUrl). The caller stores `path` as `expenses.receipt_url`.
 export async function uploadExpenseReceipt(params: {
   uri: string; mimeType: string; groupId: string;
 }): Promise<{ success: true; url: string } | { success: false; error: string }> {
@@ -20,8 +22,7 @@ export async function uploadExpenseReceipt(params: {
       contentType: params.mimeType, upsert: false,
     });
     if (error) return { success: false, error: error.message };
-    const { data } = supabase.storage.from('receipts').getPublicUrl(path);
-    return { success: true, url: data.publicUrl };
+    return { success: true, url: path };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Falha no upload' };
   }
@@ -113,21 +114,108 @@ export async function rejectExpense(expenseId: string, userId: string, groupId: 
   return result;
 }
 
-export async function fetchFinancialSummary(groupId: string, userId: string) {
+/**
+ * Compute financial summary with PWA-equivalent math.
+ *
+ * Mirrors `src/app/(app)/financeiro/FinancialDashboard.tsx:50-152`:
+ *   - For each approved expense, look up the user's share via
+ *     `expense.split_ratio[userId]`. Falls back to 50/50 if not present.
+ *   - `myTotal` = sum the user has spent (paid_by === userId)
+ *   - `otherTotal` = sum the OTHER member spent (paid_by !== userId)
+ *   - `myShouldPay` = sum of the user's share across all approved expenses
+ *   - balance = (myActuallyPaid - myShouldPay) corrected by confirmed
+ *     settlements (subtract what the user already paid back, add what
+ *     the other member paid back).
+ *
+ * Positive balance ⇒ user is owed money. Negative ⇒ user owes money.
+ *
+ * The previous implementation ignored `split_ratio` and `settlements`
+ * entirely, producing incorrect numbers for any non-50/50 split or
+ * after any partial settlement.
+ */
+/**
+ * Per-month spending breakdown for the dashboard view (Wave G).
+ * Returns the total spent in the month + how much each member contributed.
+ * Mirrors PWA `FinancialDashboard.tsx` `memberSpending`+`totalMonth` calc.
+ */
+export async function fetchMonthlySpending(
+  groupId: string,
+  month: number, // 0-11
+  year: number,
+): Promise<{ totalMonth: number; memberSpending: Record<string, number>; expensesCount: number }> {
+  // Build YYYY-MM-DD bounds for the month
+  const start = new Date(year, month, 1);
+  const end = new Date(year, month + 1, 0);
+  const fmt = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
   const { data: expenses } = await supabase
     .from('expenses')
-    .select('amount, paid_by, status, split_ratio')
+    .select('amount, paid_by, status, expense_date')
     .eq('group_id', groupId)
-    .eq('status', 'approved')
-    .limit(10000);
+    .gte('expense_date', fmt(start))
+    .lte('expense_date', fmt(end))
+    .neq('status', 'rejected')
+    .limit(1000);
 
-  let myTotal = 0;
-  let otherTotal = 0;
-  (expenses || []).forEach((e: any) => {
-    if (e.paid_by === userId) myTotal += e.amount;
-    else otherTotal += e.amount;
+  let totalMonth = 0;
+  const memberSpending: Record<string, number> = {};
+  (expenses || []).forEach((e: { amount: number | string; paid_by: string }) => {
+    const amount = Number(e.amount) || 0;
+    totalMonth += amount;
+    memberSpending[e.paid_by] = (memberSpending[e.paid_by] || 0) + amount;
   });
 
-  const balance = (myTotal - otherTotal) / 2;
-  return { myTotal, otherTotal, balance, totalMonth: myTotal + otherTotal };
+  return { totalMonth, memberSpending, expensesCount: expenses?.length || 0 };
+}
+
+export async function fetchFinancialSummary(groupId: string, userId: string) {
+  const [{ data: expenses }, { data: settlements }] = await Promise.all([
+    supabase
+      .from('expenses')
+      .select('amount, paid_by, status, split_ratio')
+      .eq('group_id', groupId)
+      .eq('status', 'approved')
+      .limit(10000),
+    supabase
+      .from('settlements')
+      .select('amount, paid_by, paid_to, status')
+      .eq('group_id', groupId)
+      .eq('status', 'confirmed'),
+  ]);
+
+  let myActuallyPaid = 0;
+  let otherActuallyPaid = 0;
+  let myShouldPay = 0;
+
+  (expenses || []).forEach((e: any) => {
+    const amount = Number(e.amount) || 0;
+    const split = (e.split_ratio || {}) as Record<string, number>;
+    const myShareRaw = split[userId];
+    const myShare = typeof myShareRaw === 'number' ? (myShareRaw / 100) * amount : amount / 2;
+    myShouldPay += myShare;
+
+    if (e.paid_by === userId) myActuallyPaid += amount;
+    else otherActuallyPaid += amount;
+  });
+
+  // Settlements: when the user paid the other → reduces what they owe.
+  //              when the other paid the user → increases the user's debt.
+  let settlementAdjust = 0;
+  (settlements || []).forEach((s: any) => {
+    const amt = Number(s.amount) || 0;
+    if (s.paid_by === userId) settlementAdjust += amt;        // user paid back
+    else if (s.paid_to === userId) settlementAdjust -= amt;   // user received back
+  });
+
+  // myActuallyPaid - myShouldPay = positive ⇒ the user spent more than
+  // their fair share, so they are OWED money.
+  const balance = Math.round((myActuallyPaid - myShouldPay + settlementAdjust) * 100) / 100;
+
+  return {
+    myTotal: myActuallyPaid,
+    otherTotal: otherActuallyPaid,
+    balance,
+    totalMonth: myActuallyPaid + otherActuallyPaid,
+  };
 }

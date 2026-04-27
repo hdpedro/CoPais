@@ -24,7 +24,8 @@
     "error": "Erreur",
     "success": "Succès",
     "viewAll": "",
-    "confirmDelete": "Êtes-vous sûr de vouloir supprimer"
+    "confirmDelete": "Êtes-vous sûr de vouloir supprimer",
+    "hello": "Bonjour"
   },
   "auth": {
     "login": "Se connecter",
@@ -607,7 +608,16 @@
     "improving": "En amélioration",
     "worsening": "En aggravation",
     "diagnosis": "Diagnostic",
-    "evolution": "Évolution",
+    "evolution": {
+      "improved": "Amélioré",
+      "worsened": "Aggravé",
+      "notePlaceholder": "Qu'est-ce qui a changé ? (optionnel)",
+      "confirm": "Confirmer",
+      "cancel": "Annuler",
+      "saving": "Enregistrement...",
+      "savedImproving": "Évolution enregistrée — amélioration",
+      "savedWorsening": "Évolution enregistrée — aggravation"
+    },
     "previousUpdates": "+{count} mises à jour précédentes",
     "noRecoveredEpisode": "Aucun épisode guéri enregistré.",
     "resolvedEpisodesAppear": "Les épisodes résolus apparaîtront ici.",
@@ -886,12 +896,12 @@
       "markRecovered": "Marquer comme guéri"
     },
     "resolve": {
-      "confirmMessage": "Confirmez que l'enfant s'est rétabli de cette maladie ?",
+      "markResolved": "Marquer comme guéri",
+      "confirmMessage": "Êtes-vous sûr que la maladie est guérie ?",
       "finishMedsQuestion": "Terminer aussi les médicaments associés ?",
-      "saving": "Enregistrement...",
-      "yesResolved": "Oui, rétabli",
+      "yesResolved": "Oui, guéri",
       "cancel": "Annuler",
-      "markResolved": "Marquer comme rétabli"
+      "saving": "Enregistrement..."
     },
     "viewedBy": {
       "someone": "Quelqu'un",
@@ -980,24 +990,6 @@
       "disclaimer": "Ce document a été généré automatiquement et ne remplace pas un avis médical professionnel."
     },
     "recentActivity": "Activité récente",
-    "evolution": {
-      "improved": "Amélioré",
-      "worsened": "Aggravé",
-      "notePlaceholder": "Qu'est-ce qui a changé ? (optionnel)",
-      "confirm": "Confirmer",
-      "cancel": "Annuler",
-      "saving": "Enregistrement...",
-      "savedImproving": "Évolution enregistrée — amélioration",
-      "savedWorsening": "Évolution enregistrée — aggravation"
-    },
-    "resolve": {
-      "markResolved": "Marquer comme guéri",
-      "confirmMessage": "Êtes-vous sûr que la maladie est guérie ?",
-      "finishMedsQuestion": "Terminer aussi les médicaments associés ?",
-      "yesResolved": "Oui, guéri",
-      "cancel": "Annuler",
-      "saving": "Enregistrement..."
-    },
     "wizard": {
       "title": "L'enfant est malade",
       "subtitle": "Enregistrez tout d'un coup — maladie, médicament et rendez-vous",

@@ -9,12 +9,13 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
-import { useState, useCallback } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
 import { PARENT_COLORS, getDisplayName } from '../lib/constants';
 import { cacheGet, cacheSet, isOnline } from '../services/offline';
+import { subscribeToNotifications } from '../services/notifications';
 
 interface CustodyChild {
   childFirstName: string;
@@ -556,6 +557,10 @@ export function useDashboard() {
 
   // Reload every time tab gains focus
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
+
+  // Live update: re-fetch when a notification is created/updated so the
+  // badge count + pending lists stay fresh without manual pull-to-refresh.
+  useEffect(() => subscribeToNotifications(userId, loadData), [userId, loadData]);
 
   return { data, loading, error, refresh: loadData };
 }

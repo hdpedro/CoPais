@@ -71,7 +71,6 @@ export default function DocumentosScreen() {
   // e Supabase (que só pode rodar client-side, depois do mount).
   useEffect(() => {
     if (!groupId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     load().finally(() => setLoading(false));
   }, [groupId, load]);
@@ -111,9 +110,12 @@ export default function DocumentosScreen() {
     return Object.entries(map);
   }, [filtered, children]);
 
-  function handleOpen(doc: Document) {
+  async function handleOpen(doc: Document) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Linking.openURL(doc.file_url).catch(() => Alert.alert('Erro', 'Não foi possível abrir.'));
+    const { getSignedFileUrl } = await import('../../src/services/storage');
+    const signed = await getSignedFileUrl('documents', doc.file_url, 3600);
+    const target = signed || doc.file_url;
+    Linking.openURL(target).catch(() => Alert.alert('Erro', 'Não foi possível abrir.'));
   }
 
   function handleDelete(doc: Document) {

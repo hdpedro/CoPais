@@ -57,10 +57,9 @@ export async function createExpense(formData: FormData) {
       redirect("/despesas/nova?error=" + encodeURIComponent("Erro ao enviar comprovante: " + uploadError.message));
     }
 
-    const { data: urlData } = adminClient.storage
-      .from("receipts")
-      .getPublicUrl(fileName);
-    receiptUrl = urlData.publicUrl;
+    // After migration 062: store the storage path only. Reads sign URLs at
+    // render time via getSignedFileUrl().
+    receiptUrl = fileName;
   }
 
   if (!Number.isFinite(amount) || amount <= 0 || amount > 999999.99) {

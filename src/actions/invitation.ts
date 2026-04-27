@@ -143,20 +143,42 @@ export async function acceptInvitation(token: string) {
  * This handles the case where a user signs up via invite link but the
  * invite token is lost during Supabase's email confirmation redirect chain.
  * Returns true if an invitation was accepted (caller should redirect to /dashboard).
+ *
+ * Optional `forUserId` lets API routes pass a Bearer-resolved userId so
+ * native callers don't depend on cookie auth (which the middleware blocks
+ * for native fetches without first hitting `/native-bridge`).
  */
-export async function autoAcceptPendingInvitations(): Promise<boolean> {
-  const supabase = await createClient();
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user || !user.email) return false;
-
-  // Use service role to bypass RLS and find invitations by email
+export async function autoAcceptPendingInvitations(forUserId?: string): Promise<boolean> {
+  // Use service role for the entire flow so we don't depend on user-scoped
+  // RLS for cross-table reads (`invitations.email`, `profiles.email`).
   const serviceSupabase = createServiceClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
+
+  // Resolve user identity. Caller can pass `forUserId` (e.g. the API
+  // route that already authenticated a Bearer token); otherwise fall back
+  // to cookie auth via the regular client.
+  let resolvedUserId: string | null = forUserId ?? null;
+  let resolvedEmail: string | null = null;
+
+  if (resolvedUserId) {
+    const { data: profile } = await serviceSupabase
+      .from("profiles")
+      .select("email")
+      .eq("id", resolvedUserId)
+      .maybeSingle();
+    resolvedEmail = profile?.email ?? null;
+  } else {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || !user.email) return false;
+    resolvedUserId = user.id;
+    resolvedEmail = user.email;
+  }
+  if (!resolvedUserId || !resolvedEmail) return false;
+  // Local alias so the rest of the function reads cleanly.
+  const user = { id: resolvedUserId, email: resolvedEmail };
 
   // Find pending invitations for this user's email
   const { data: invitations } = await serviceSupabase

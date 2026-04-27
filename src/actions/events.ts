@@ -159,8 +159,8 @@ export async function createEvent(formData: FormData) {
         .upload(fileName, image);
 
       if (!uploadError) {
-        const { data: urlData } = supabase.storage.from("documents").getPublicUrl(fileName);
-        imageUrl = urlData.publicUrl;
+        // Path-only (post-migration 062). Reads sign URLs at render time.
+        imageUrl = fileName;
       } else {
         console.error("Event image upload failed:", uploadError.message);
         imageUrl = null;

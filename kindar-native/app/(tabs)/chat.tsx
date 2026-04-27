@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
-import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
@@ -34,8 +34,11 @@ export default function ChatScreen() {
     const groupId = activeGroup.groupId;
 
     try {
-      // 2 parallel queries instead of N+1
-      const [{ data: channelData }, { data: reads }] = await Promise.all([
+      // 3 parallel queries: channels, reads, children. Mirrors PWA
+      // `chat/page.tsx:getChannels` so we can auto-create the default
+      // "geral" channel + per-child channels when the user opens chat
+      // in a brand-new group for the first time.
+      const [{ data: rawChannels }, { data: reads }, { data: kids }] = await Promise.all([
         supabase
           .from('chat_channels')
           .select('id, slug, name, channel_type, icon, sort_order')
@@ -45,8 +48,48 @@ export default function ChatScreen() {
           .from('chat_channel_reads')
           .select('channel_id, last_read_at')
           .eq('user_id', userId),
+        supabase
+          .from('children')
+          .select('id, full_name')
+          .eq('group_id', groupId),
       ]);
 
+      let channels: any[] = rawChannels || [];
+
+      // Auto-create channels: matches PWA logic (page.tsx:35-79).
+      const existingSlugs = new Set(channels.map((c: any) => c.slug));
+      const channelsToCreate: any[] = [];
+      if (channels.length === 0) {
+        channelsToCreate.push({
+          group_id: groupId, slug: 'geral', name: 'Geral',
+          icon: '💬', sort_order: 0, channel_type: 'topic',
+        });
+      }
+      (kids || []).forEach((c: any, i: number) => {
+        const slug = `child-${c.id}`;
+        if (!existingSlugs.has(slug)) {
+          channelsToCreate.push({
+            group_id: groupId,
+            slug,
+            name: c.full_name?.split(' ')[0] || 'Filho',
+            channel_type: 'child',
+            child_id: c.id,
+            icon: '👶',
+            sort_order: 10 + i,
+          });
+        }
+      });
+      if (channelsToCreate.length > 0) {
+        await supabase.from('chat_channels').insert(channelsToCreate);
+        const { data: refreshed } = await supabase
+          .from('chat_channels')
+          .select('id, slug, name, channel_type, icon, sort_order')
+          .eq('group_id', groupId)
+          .order('sort_order');
+        if (refreshed) channels = refreshed;
+      }
+
+      const channelData = channels;
       if (!channelData) return;
 
       // Build read timestamp map
@@ -92,6 +135,27 @@ export default function ChatScreen() {
   }, [activeGroup, userId]);
 
   useFocusEffect(useCallback(() => { loadChannels(); }, [loadChannels]));
+
+  // Realtime: refresh the channel list whenever any chat_message in this
+  // group is INSERTed. Mirrors PWA `ChatRoom.tsx:403-410` which subscribes
+  // by `group_id` so unread badges on inactive channels update live.
+  useEffect(() => {
+    if (!activeGroup) return;
+    const ch = supabase
+      .channel(`chat-list:${activeGroup.groupId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'chat_messages',
+          filter: `group_id=eq.${activeGroup.groupId}`,
+        },
+        () => loadChannels(),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [activeGroup, loadChannels]);
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -152,6 +216,8 @@ export default function ChatScreen() {
                     router.push(`/chat/${ch.id}`);
                   }}
                   activeOpacity={0.7}
+                  testID={`chat-channel-${ch.id}`}
+                  accessibilityLabel={`Abrir canal ${ch.name}`}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
                     backgroundColor: colors.bgElevated, borderRadius: radius.lg,

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { getDisplayName } from "@/lib/constants";
+import { getSignedFileUrl } from "@/lib/storage-signed-url";
 import ExpensesClient from "./ExpensesClient";
 
 export default async function ExpensesPage({ searchParams }: { searchParams: Promise<{ success?: string; error?: string }> }) {
@@ -27,19 +28,24 @@ export default async function ExpensesPage({ searchParams }: { searchParams: Pro
   const pending = expenses?.filter(e => e.status === "pending").length || 0;
   const rejected = expenses?.filter(e => e.status === "rejected").length || 0;
 
-  const serializedExpenses = (expenses || []).map((e) => ({
-    id: e.id,
-    description: e.description,
-    amount: Number(e.amount),
-    category: e.category,
-    status: e.status,
-    expense_date: e.expense_date,
-    paid_by: e.paid_by,
-    receipt_url: e.receipt_url || null,
-    rejection_reason: (e as unknown as { rejection_reason: string | null }).rejection_reason || null,
-    paid_by_name: getDisplayName((e.profiles as unknown as { full_name: string | null } | null)?.full_name),
-    child_name: (e.children as unknown as { full_name: string } | null)?.full_name || null,
-  }));
+  // Sign receipt URLs server-side (post-migration 062, bucket is private).
+  const serializedExpenses = await Promise.all(
+    (expenses || []).map(async (e) => ({
+      id: e.id,
+      description: e.description,
+      amount: Number(e.amount),
+      category: e.category,
+      status: e.status,
+      expense_date: e.expense_date,
+      paid_by: e.paid_by,
+      receipt_url: e.receipt_url
+        ? (await getSignedFileUrl(supabase, "receipts", e.receipt_url)) || e.receipt_url
+        : null,
+      rejection_reason: (e as unknown as { rejection_reason: string | null }).rejection_reason || null,
+      paid_by_name: getDisplayName((e.profiles as unknown as { full_name: string | null } | null)?.full_name),
+      child_name: (e.children as unknown as { full_name: string } | null)?.full_name || null,
+    })),
+  );
 
   return (
     <ExpensesClient

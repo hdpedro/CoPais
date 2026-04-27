@@ -45,7 +45,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Parse multipart form
-    const formData = await request.formData();
+    const formData = (await request.formData()) as unknown as globalThis.FormData;
     const file = formData.get("file") as File | null;
 
     if (!file) {

@@ -3,16 +3,19 @@ import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
   Platform, ScrollView, ActivityIndicator, Linking,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/store/auth';
+import { useI18n } from '../../src/i18n';
 import { colors, spacing, radius, font } from '../../src/design-system/tokens';
 
-const PRIVACY_URL = 'https://kindar.com.br/privacidade';
-const TERMS_URL = 'https://kindar.com.br/termos';
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
+const PRIVACY_URL = `${WEB_URL}/privacidade`;
+const TERMS_URL = `${WEB_URL}/termos`;
 
 export default function SignupScreen() {
+  const { ref: refParam } = useLocalSearchParams<{ ref?: string }>();
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,6 +26,7 @@ export default function SignupScreen() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const { signUp } = useAuth();
+  const t = useI18n(s => s.t);
 
   async function handleSignup() {
     if (!fullName || !email || !password || !confirmPassword) {
@@ -30,22 +34,25 @@ export default function SignupScreen() {
       return;
     }
     if (password.length < 8) {
-      setError('A senha deve ter pelo menos 8 caracteres');
+      setError(t('auth.passwordTooShort'));
       return;
     }
     if (password !== confirmPassword) {
-      setError('As senhas nao coincidem');
+      setError(t('auth.passwordsMismatch'));
       return;
     }
     if (!lgpdConsent) {
-      setError('Voce precisa aceitar os termos de uso e politica de privacidade');
+      setError('Você precisa aceitar os Termos de Uso e a Política de Privacidade.');
       return;
     }
     setLoading(true);
     setError('');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
-    const result = await signUp(email, password, fullName);
+    // Forward referral code (mirrors PWA src/actions/auth.ts:signUp). The
+    // handle_new_user trigger validates the code; invalid codes are simply
+    // ignored, so it's safe to pass through verbatim.
+    const result = await signUp(email, password, fullName, refParam || null);
 
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -71,7 +78,10 @@ export default function SignupScreen() {
           Conta criada!
         </Text>
         <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md, lineHeight: 22 }}>
-          Verifique seu email para confirmar a conta. Depois, faca login.
+          Verifique seu email para confirmar a conta. Depois, faça login.
+        </Text>
+        <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm }}>
+          Não encontrou? Confira a caixa de spam.
         </Text>
         <TouchableOpacity
           onPress={() => router.replace('/auth/login')}
@@ -93,6 +103,7 @@ export default function SignupScreen() {
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1, backgroundColor: colors.bg }}
+      testID="signup-screen"
     >
       <ScrollView
         contentContainerStyle={{ flexGrow: 1, justifyContent: 'center', padding: spacing['3xl'] }}
@@ -101,7 +112,7 @@ export default function SignupScreen() {
         {/* Header */}
         <View style={{ alignItems: 'center', marginBottom: spacing['4xl'] }}>
           <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.text }}>
-            Criar conta
+            {t('auth.createAccount')}
           </Text>
           <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, marginTop: spacing.xs }}>
             Junte-se ao Kindar
@@ -121,7 +132,7 @@ export default function SignupScreen() {
 
         {/* Name */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textSecondary, marginBottom: spacing.xs }}>
-          Nome completo
+          {t('auth.fullNamePlaceholder')}
         </Text>
         <View style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -131,6 +142,8 @@ export default function SignupScreen() {
         }}>
           <Ionicons name="person-outline" size={18} color={colors.textMuted} />
           <TextInput
+            testID="signup-fullname-input"
+            accessibilityLabel="Nome completo"
             value={fullName}
             onChangeText={setFullName}
             placeholder="Seu nome"
@@ -146,7 +159,7 @@ export default function SignupScreen() {
 
         {/* Email */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textSecondary, marginBottom: spacing.xs }}>
-          Email
+          {t('auth.email')}
         </Text>
         <View style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -156,9 +169,11 @@ export default function SignupScreen() {
         }}>
           <Ionicons name="mail-outline" size={18} color={colors.textMuted} />
           <TextInput
+            testID="signup-email-input"
+            accessibilityLabel="Email"
             value={email}
             onChangeText={setEmail}
-            placeholder="seu@email.com"
+            placeholder={t('auth.emailPlaceholder')}
             placeholderTextColor={colors.textDim}
             keyboardType="email-address"
             autoCapitalize="none"
@@ -172,7 +187,7 @@ export default function SignupScreen() {
 
         {/* Password */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textSecondary, marginBottom: spacing.xs }}>
-          Senha
+          {t('auth.password')}
         </Text>
         <View style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -182,9 +197,11 @@ export default function SignupScreen() {
         }}>
           <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
           <TextInput
+            testID="signup-password-input"
+            accessibilityLabel="Senha"
             value={password}
             onChangeText={setPassword}
-            placeholder="Minimo 8 caracteres"
+            placeholder={t('auth.passwordMinLength')}
             placeholderTextColor={colors.textDim}
             secureTextEntry={!showPassword}
             autoComplete="new-password"
@@ -200,7 +217,7 @@ export default function SignupScreen() {
 
         {/* Confirm Password */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textSecondary, marginBottom: spacing.xs }}>
-          Confirmar senha
+          {t('auth.confirmPassword')}
         </Text>
         <View style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -212,7 +229,7 @@ export default function SignupScreen() {
           <TextInput
             value={confirmPassword}
             onChangeText={setConfirmPassword}
-            placeholder="Digite a senha novamente"
+            placeholder={t('auth.confirmPasswordPlaceholder')}
             placeholderTextColor={colors.textDim}
             secureTextEntry={!showPassword}
             autoComplete="new-password"
@@ -262,6 +279,8 @@ export default function SignupScreen() {
         {/* Signup Button */}
         <TouchableOpacity
           onPress={handleSignup}
+          testID="signup-submit"
+          accessibilityLabel="Criar conta"
           disabled={loading}
           activeOpacity={0.8}
           style={{
@@ -274,7 +293,7 @@ export default function SignupScreen() {
             <ActivityIndicator color="#fff" />
           ) : (
             <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-              Criar conta
+              {t('auth.createAccount')}
             </Text>
           )}
         </TouchableOpacity>
@@ -282,11 +301,11 @@ export default function SignupScreen() {
         {/* Back to Login */}
         <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing['3xl'], gap: spacing.xs }}>
           <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
-            Ja tem conta?
+            {t('auth.hasAccount')}
           </Text>
           <TouchableOpacity onPress={() => router.back()}>
             <Text style={{ color: colors.brand, fontSize: font.sizes.sm, fontWeight: font.weights.bold }}>
-              Entrar
+              {t('auth.login')}
             </Text>
           </TouchableOpacity>
         </View>

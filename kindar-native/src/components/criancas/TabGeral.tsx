@@ -46,7 +46,7 @@ export default function TabGeral({ child }: Props) {
       >
         <Row label="Nome completo" value={child.full_name} />
         <Row label="Data de nascimento" value={new Date(child.birth_date).toLocaleDateString('pt-BR')} />
-        <Row label="Sexo" value={child.gender === 'M' ? 'Masculino' : child.gender === 'F' ? 'Feminino' : null} />
+        <Row label="Sexo" value={child.sex === 'M' ? 'Masculino' : child.sex === 'F' ? 'Feminino' : null} />
         <Row label="CPF" value={child.cpf} />
         <Row label="RG" value={child.rg} />
         <Row label="Tipo sanguíneo" value={child.blood_type} />

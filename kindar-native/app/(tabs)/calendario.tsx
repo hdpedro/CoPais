@@ -13,6 +13,7 @@ import { DAY_NAMES, MONTH_NAMES } from '../../src/lib/constants';
 import { getHolidayMap } from '../../src/lib/brazilian-holidays';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 import { respondToSwap } from '../../src/services/swaps';
+import { respondToEventRequest, type EventRequest } from '../../src/services/event-requests';
 import WeekendPlanner from '../../src/components/calendar/WeekendPlanner';
 import SwapRequestModal from '../../src/components/calendar/SwapRequestModal';
 import SwapBalanceCard from '../../src/components/calendar/SwapBalanceCard';
@@ -33,7 +34,7 @@ function getFirstDayOfWeek(y: number, m: number): number { return new Date(y, m,
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
-  const { events, members, pendingSwaps, balanceOps, refresh } = useCalendar();
+  const { events, members, pendingSwaps, balanceOps, pendingEventRequests, refresh } = useCalendar();
   const { activeGroup, userId } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -41,6 +42,24 @@ export default function CalendarScreen() {
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [swapIsVisit, setSwapIsVisit] = useState(false);
   const [syncing, setSyncing] = useState(false);
+
+  const handleEventRequestDecision = useCallback(async (
+    request: EventRequest,
+    decision: 'approved' | 'rejected'
+  ) => {
+    if (!activeGroup || !userId) return;
+    setResponding(request.id);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const result = await respondToEventRequest(request.id, decision, userId, activeGroup.groupId);
+    if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await refresh();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', result.error || 'Falha ao responder solicitação');
+    }
+    setResponding(null);
+  }, [activeGroup, userId, refresh]);
 
   const handleSwapDecision = useCallback(async (
     swapId: string,
@@ -156,6 +175,8 @@ export default function CalendarScreen() {
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/novo'); }}
               hitSlop={6}
+              testID="calendar-fab-novo"
+              accessibilityLabel="Novo evento"
               style={{
                 width: 40, height: 40, borderRadius: 12,
                 backgroundColor: colors.brand, ...shadows.sm,
@@ -250,6 +271,92 @@ export default function CalendarScreen() {
           </Animated.View>
         ) : null}
 
+        {/* Pending Event-Action Requests (edit/cancel/reschedule/delete) */}
+        {pendingEventRequests.length > 0 ? (
+          <Animated.View entering={FadeInDown.duration(300)}>
+            <View style={{
+              marginHorizontal: spacing.lg, marginBottom: spacing.lg,
+              backgroundColor: `${colors.brand}10`, borderRadius: radius.xl,
+              borderWidth: 1, borderColor: `${colors.brand}30`,
+              padding: spacing.lg,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <Text style={{ fontSize: 18 }}>📝</Text>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
+                  {pendingEventRequests.length === 1
+                    ? '1 solicitação aguardando você'
+                    : `${pendingEventRequests.length} solicitações aguardando você`}
+                </Text>
+              </View>
+              {pendingEventRequests.map((r, i) => {
+                const actionLabel: Record<string, string> = {
+                  edit: 'editar',
+                  cancel: 'cancelar',
+                  reschedule: 'reagendar',
+                  delete: 'excluir',
+                };
+                const actionIcon: Record<string, string> = {
+                  edit: '✏️', cancel: '❌', reschedule: '📅', delete: '🗑️',
+                };
+                return (
+                  <View
+                    key={r.id}
+                    style={{
+                      paddingVertical: spacing.sm,
+                      borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                    }}
+                  >
+                    <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
+                      <Text style={{ fontSize: 14 }}>{actionIcon[r.action_type] || '•'}</Text>
+                      <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
+                        {r.requesterName || 'Coparente'} quer {actionLabel[r.action_type] || 'alterar'}{' '}
+                        <Text style={{ fontWeight: font.weights.semibold }}>
+                          &ldquo;{r.eventTitle || 'evento'}&rdquo;
+                        </Text>
+                      </Text>
+                    </View>
+                    {r.reason ? (
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2, marginLeft: 22, fontStyle: 'italic' }}>
+                        {`“${r.reason}”`}
+                      </Text>
+                    ) : null}
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                      <TouchableOpacity
+                        disabled={responding === r.id}
+                        onPress={() => handleEventRequestDecision(r, 'rejected')}
+                        testID={`event-req-reject-${r.id}`}
+                        style={{
+                          flex: 1, paddingVertical: 8, borderRadius: radius.md,
+                          borderWidth: 1, borderColor: colors.borderLight,
+                          alignItems: 'center', opacity: responding === r.id ? 0.5 : 1,
+                        }}
+                      >
+                        <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
+                          Rejeitar
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        disabled={responding === r.id}
+                        onPress={() => handleEventRequestDecision(r, 'approved')}
+                        testID={`event-req-approve-${r.id}`}
+                        style={{
+                          flex: 1, paddingVertical: 8, borderRadius: radius.md,
+                          backgroundColor: colors.brand,
+                          alignItems: 'center', opacity: responding === r.id ? 0.5 : 1,
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                          Aprovar
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
+            </View>
+          </Animated.View>
+        ) : null}
+
         {/* Calendar card: month header + grid + legend */}
         <View style={{
           marginHorizontal: spacing.lg, marginBottom: spacing.lg,
@@ -308,6 +415,8 @@ export default function CalendarScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setSelectedDay(dateKey);
                   }}
+                  testID={`calendar-day-${dateKey}`}
+                  accessibilityLabel={`Dia ${day} de ${MONTH_NAMES[viewMonth]}`}
                   style={{
                     width: '14.2857%', height: 72, padding: 2,
                   }}
@@ -531,7 +640,7 @@ export default function CalendarScreen() {
           ) : (
             <ScrollView style={{ maxHeight: 300 }}>
               {selectedEvents.map((e, i) => (
-                <View key={e.id + '-' + i} style={{
+                <View key={e.id + '-' + i} testID={`calendar-event-${e.id}`} style={{
                   flexDirection: 'row', alignItems: 'center', gap: spacing.md,
                   paddingVertical: spacing.md,
                   borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,

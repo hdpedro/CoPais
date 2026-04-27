@@ -275,12 +275,12 @@ export default function PricingScreen() {
             Apple ID &gt; Assinaturas. O pagamento sera cobrado na conta Apple ID na confirmacao da compra.
           </Text>
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.md, marginTop: spacing.sm }}>
-            <TouchableOpacity onPress={() => Linking.openURL('https://kindar.com.br/termos')}>
+            <TouchableOpacity onPress={() => Linking.openURL(`${WEB_URL}/termos`)}>
               <Text style={{ fontSize: 11, color: colors.brand, textDecorationLine: 'underline' }}>
                 Termos de Uso
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => Linking.openURL('https://kindar.com.br/privacidade')}>
+            <TouchableOpacity onPress={() => Linking.openURL(`${WEB_URL}/privacidade`)}>
               <Text style={{ fontSize: 11, color: colors.brand, textDecorationLine: 'underline' }}>
                 Privacidade
               </Text>

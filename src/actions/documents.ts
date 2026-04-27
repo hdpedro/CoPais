@@ -59,16 +59,14 @@ export async function createDocument(formData: FormData) {
 
   if (uploadError) redirect("/documentos?error=" + encodeURIComponent(uploadError.message));
 
-  const { data: urlData } = adminClient.storage
-    .from("documents")
-    .getPublicUrl(fileName);
-
+  // After migration 062: store the storage path only. Reads sign URLs at
+  // render time via getSignedFileUrl().
   const { error } = await supabase.from("documents").insert({
     group_id: groupId,
     child_id: childId || null,
     category,
     name,
-    file_url: urlData.publicUrl,
+    file_url: fileName,
     file_size: file.size,
     mime_type: file.type,
     uploaded_by: user.id,

@@ -21,9 +21,13 @@ export default function AceitarConviteScreen() {
   const [groupName, setGroupName] = useState<string>('');
 
   useEffect(() => {
-    // If not logged in, send to login with convite param (login redirects back)
+    // Mirror PWA `convite/[token]/page.tsx`: unauth users go to SIGNUP
+    // (not login). Most invite recipients don't have an account yet.
+    // The signup page reads `convite` and routes back here after creating
+    // the account. Existing users can still tap "Já tenho conta → Entrar"
+    // on the signup screen.
     if (!userId && token) {
-      router.replace({ pathname: '/auth/login', params: { convite: token } } as never);
+      router.replace({ pathname: '/auth/signup', params: { convite: token } } as never);
     }
   }, [userId, token]);
 

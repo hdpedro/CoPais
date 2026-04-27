@@ -10,6 +10,8 @@ import { supabase } from '../../src/lib/supabase';
 import { safeWrite } from '../../src/services/offline';
 import { useAuth } from '../../src/store/auth';
 import { getDisplayName } from '../../src/lib/constants';
+import { router } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from '../../src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
@@ -62,6 +64,34 @@ export default function VacinasScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title="Vacinas" rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => setShowForm(!showForm) }} />
+
+      {/* OCR carteirinha CTA — atalho para o flow Foto-de-carteirinha */}
+      {!showForm ? (
+        <TouchableOpacity
+          onPress={() => router.push('/saude/vacinas/carteirinha')}
+          activeOpacity={0.85}
+          style={{
+            margin: spacing.lg, marginBottom: 0,
+            backgroundColor: colors.brandLight,
+            borderRadius: radius.md,
+            paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+            flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+            borderWidth: 1, borderColor: colors.brand + '40',
+          }}
+        >
+          <Ionicons name="camera-outline" size={20} color={colors.brand} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
+              Importar da carteirinha
+            </Text>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
+              Tire foto da carteirinha — IA preenche tudo
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.brand} />
+        </TouchableOpacity>
+      ) : null}
+
       {showForm ? (
         <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
           {children.length > 1 ? (

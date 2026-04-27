@@ -43,13 +43,13 @@ const ALLOWED_MIME = [
 export default function UploadSheet({ visible, onClose, onUploaded, groupId, childId, uploadedBy }: Props) {
   const [file, setFile] = useState<PickedFile | null>(null);
   const [name, setName] = useState('');
-  const [category, setCategory] = useState<string>('outro');
+  const [category, setCategory] = useState<string>('other');
   const [uploading, setUploading] = useState(false);
 
   function reset() {
     setFile(null);
     setName('');
-    setCategory('outro');
+    setCategory('other');
     setUploading(false);
   }
 

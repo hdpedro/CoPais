@@ -12,7 +12,13 @@ import { colors, spacing, radius, font, shadows } from '../../src/design-system/
 import { ACTIVITY_CATEGORIES } from '../../src/lib/constants';
 import ActivityReportModal from '../../src/components/activities/ActivityReportModal';
 
-const GREETING_MAP = { morning: 'Bom dia', afternoon: 'Boa tarde', evening: 'Boa noite' };
+// i18n keys for greetings — same keys the PWA uses
+// (`dashboard.goodMorning` / `goodAfternoon` / `goodEvening`).
+const GREETING_I18N_KEYS = {
+  morning: 'dashboard.goodMorning',
+  afternoon: 'dashboard.goodAfternoon',
+  evening: 'dashboard.goodEvening',
+} as const;
 
 // Mirror of PWA decisionCatIcons / decisionCatColors — keep in sync.
 const DECISION_CAT_ICONS: Record<string, string> = {
@@ -52,7 +58,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
   const { data, loading, refresh } = useDashboard();
-  useI18n();
+  const t = useI18n(s => s.t);
   const [refreshing, setRefreshing] = useState(false);
   const [reportModal, setReportModal] = useState<{
     open: boolean; activityId: string; activityName: string; childId: string | null; occurrenceDate: string;
@@ -68,12 +74,12 @@ export default function DashboardScreen() {
   if (!data && loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: colors.textMuted, fontSize: font.sizes.md }}>Carregando...</Text>
+        <Text style={{ color: colors.textMuted, fontSize: font.sizes.md }}>{t('common.loading')}</Text>
       </View>
     );
   }
 
-  const greeting = data ? GREETING_MAP[data.greeting] : 'Ola';
+  const greeting = data ? t(GREETING_I18N_KEYS[data.greeting]) : t('common.hello');
   const firstName = data?.firstName || '';
   const firstCustody = data?.custodyChildren?.[0];
 
@@ -102,6 +108,7 @@ export default function DashboardScreen() {
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ai'); }}
                 hitSlop={6}
+                testID="home-ai"
                 accessibilityLabel="Abrir Kindar AI"
                 style={{
                   width: 36, height: 36, borderRadius: 18,
@@ -118,6 +125,7 @@ export default function DashboardScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/notificacoes'); }}
                 style={{ position: 'relative', padding: spacing.sm }}
                 hitSlop={6}
+                testID="home-bell"
                 accessibilityLabel="Abrir notificações"
               >
                 <Ionicons name="notifications-outline" size={22} color={colors.text} />
@@ -154,13 +162,13 @@ export default function DashboardScreen() {
                 }}>
                   <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: '#22c55e' }} />
                   <Text style={{ fontSize: 11, fontWeight: font.weights.semibold, color: '#fff' }}>
-                    Guarda ativa
+                    {t('dashboard.activeCustody')}
                   </Text>
                 </View>
                 {data.nextSwapLabel && data.nextSwapPerson ? (
                   <View style={{ alignItems: 'flex-end' }}>
                     <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', fontWeight: font.weights.medium, letterSpacing: 0.8, textTransform: 'uppercase' }}>
-                      Próxima troca
+                      {t('dashboard.nextSwap')}
                     </Text>
                     <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', fontWeight: font.weights.semibold }}>
                       {data.nextSwapLabel} · {data.nextSwapPerson}
@@ -183,7 +191,7 @@ export default function DashboardScreen() {
                 <View style={{ marginTop: spacing.md }}>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 6 }}>
                     <Text style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', letterSpacing: 1.2, textTransform: 'uppercase', fontWeight: font.weights.medium }}>
-                      Dia
+                      {t('dashboard.day')}
                     </Text>
                     <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', fontWeight: font.weights.medium }}>
                       {data.streakDays} de {data.streakTotal} consecutivos
@@ -219,6 +227,8 @@ export default function DashboardScreen() {
                   key={child.id}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/criancas/${child.id}`); }}
                   activeOpacity={0.85}
+                  testID={`home-card-kid-${child.id}`}
+                  accessibilityLabel={`Abrir perfil de ${child.firstName}`}
                   style={{
                     backgroundColor: colors.bgElevated, borderRadius: radius.xl,
                     padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
@@ -259,7 +269,7 @@ export default function DashboardScreen() {
                         backgroundColor: 'rgba(91,158,133,0.12)', paddingHorizontal: 8, paddingVertical: 2, borderRadius: radius.full,
                       }}>
                         <Text style={{ fontSize: 10, color: '#5B9E85', fontWeight: font.weights.semibold }}>
-                          Ativo
+                          {t('dashboard.active')}
                         </Text>
                       </View>
                     </View>
@@ -305,18 +315,18 @@ export default function DashboardScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="time-outline" size={12} color={colors.brand} />
                   <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                    Atividades
+                    {t('dashboard.activities')}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => router.push('/atividades')}>
-                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>ver todas</Text>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
                 </TouchableOpacity>
               </View>
 
               {(data?.todayActivities?.length || 0) > 0 ? (
                 <>
                   <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: '#5B9E85', textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: 6 }}>
-                    Hoje
+                    {t('dashboard.today')}
                   </Text>
                   {data!.todayActivities.map(act => {
                     const catIcon = ACTIVITY_CATEGORIES.find(c => c.value === act.category)?.icon || '📌';
@@ -351,7 +361,7 @@ export default function DashboardScreen() {
               {(data?.tomorrowActivities?.length || 0) > 0 ? (
                 <>
                   <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2, marginTop: 8, marginBottom: 6 }}>
-                    Amanhã
+                    {t('dashboard.tomorrowLabel')}
                   </Text>
                   {data!.tomorrowActivities.map(act => {
                     const catIcon = ACTIVITY_CATEGORIES.find(c => c.value === act.category)?.icon || '📌';
@@ -394,11 +404,11 @@ export default function DashboardScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="checkmark-done-outline" size={12} color={colors.brand} />
                   <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                    Decisões pendentes
+                    {t('dashboard.pendingDecisions')}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => router.push('/decisoes')}>
-                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>ver tudo</Text>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
               </View>
               {data!.pendingDecisionsList.slice(0, 3).map(d => {
@@ -434,7 +444,7 @@ export default function DashboardScreen() {
                         borderRadius: radius.full,
                       }}
                     >
-                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>Votar</Text>
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>{t('dashboard.voteNow')}</Text>
                     </TouchableOpacity>
                   </View>
                 );
@@ -451,11 +461,11 @@ export default function DashboardScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="clipboard-outline" size={12} color={colors.brand} />
                   <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                    Status pendentes
+                    {t('activityReport.pendingReports')}
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => router.push('/atividades')}>
-                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>ver tudo</Text>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
               </View>
               {data!.pendingReports.slice(0, 3).map(r => (
@@ -492,7 +502,7 @@ export default function DashboardScreen() {
                       borderRadius: radius.full,
                     }}
                   >
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>Atualizar</Text>
+                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>{t('activityReport.reportNow')}</Text>
                   </TouchableOpacity>
                 </View>
               ))}
@@ -512,7 +522,7 @@ export default function DashboardScreen() {
                   🔄 Trocas de guarda
                 </Text>
                 <TouchableOpacity onPress={() => router.push('/(tabs)/calendario')}>
-                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>Ver todas</Text>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
                 </TouchableOpacity>
               </View>
               {data!.pendingSwapsList.map((s, i) => {
@@ -562,7 +572,7 @@ export default function DashboardScreen() {
                   🧾 Despesas pra aprovar
                 </Text>
                 <TouchableOpacity onPress={() => router.push('/despesas')}>
-                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>Ver todas</Text>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
                 </TouchableOpacity>
               </View>
               {data!.pendingExpensesList.slice(0, 3).map((e, i) => (
@@ -614,7 +624,7 @@ export default function DashboardScreen() {
                   </Text>
                 </View>
                 <TouchableOpacity onPress={() => router.push('/(tabs)/saude')}>
-                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>Ver tudo</Text>
+                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
               </View>
               {data!.childHealthSummaries.map((h, i) => {
@@ -678,13 +688,15 @@ export default function DashboardScreen() {
         {/* === QUICK ACTIONS === */}
         <Animated.View entering={FadeInDown.delay(320).duration(400)}>
           <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: spacing.sm }}>
-            Ações rápidas
+            {t('dashboard.quickActions')}
           </Text>
 
           {/* Primary CTA — Nova despesa */}
           <TouchableOpacity
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas/nova'); }}
             activeOpacity={0.85}
+            testID="home-cta-nova-despesa"
+            accessibilityLabel={t('dashboard.newExpense')}
             style={{
               backgroundColor: colors.brand, borderRadius: radius.xl,
               padding: spacing.lg, marginBottom: spacing.sm,
@@ -696,10 +708,10 @@ export default function DashboardScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15, fontWeight: font.weights.bold, color: '#fff' }}>
-                Nova despesa
+                {t('dashboard.newExpense')}
               </Text>
               <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>
-                Registrar gasto compartilhado
+                {t('dashboard.registerSharedExpense')}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
@@ -708,12 +720,12 @@ export default function DashboardScreen() {
           {/* Secondary grid 3x2 — match PWA order */}
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
             {[
-              { icon: 'calendar-outline' as const, label: 'Agenda', route: '/(tabs)/calendario', color: '#5B9E85' },
-              { icon: 'stats-chart-outline' as const, label: 'Análise da última semana', route: '/semana', color: '#3B82F6' },
-              { icon: 'document-outline' as const, label: 'Documentos', route: '/documentos', color: '#F59E0B' },
-              { icon: 'cash-outline' as const, label: 'Financeiro', route: '/financeiro', color: '#5B9E85' },
-              { icon: 'reader-outline' as const, label: 'Acordos', route: '/acordos', color: '#F59E0B' },
-              { icon: 'heart-outline' as const, label: 'Saúde', route: '/(tabs)/saude', color: '#EF4444' },
+              { icon: 'calendar-outline' as const, label: 'Agenda', route: '/(tabs)/calendario', color: '#5B9E85', testID: 'home-card-calendar' },
+              { icon: 'stats-chart-outline' as const, label: 'Análise da última semana', route: '/semana', color: '#3B82F6', testID: 'home-card-semana' },
+              { icon: 'document-outline' as const, label: 'Documentos', route: '/documentos', color: '#F59E0B', testID: 'home-card-documentos' },
+              { icon: 'cash-outline' as const, label: 'Financeiro', route: '/financeiro', color: '#5B9E85', testID: 'home-card-finance' },
+              { icon: 'reader-outline' as const, label: 'Acordos', route: '/acordos', color: '#F59E0B', testID: 'home-card-acordos' },
+              { icon: 'heart-outline' as const, label: 'Saúde', route: '/(tabs)/saude', color: '#EF4444', testID: 'home-card-health' },
             ].map(action => (
               <TouchableOpacity
                 key={action.label}
@@ -722,6 +734,8 @@ export default function DashboardScreen() {
                   router.push(action.route as Parameters<typeof router.push>[0]);
                 }}
                 activeOpacity={0.75}
+                testID={action.testID}
+                accessibilityLabel={action.label}
                 style={{
                   width: '31.5%', backgroundColor: colors.bgElevated, borderRadius: radius.xl,
                   padding: spacing.md, alignItems: 'center', gap: spacing.xs, minHeight: 92, ...shadows.sm,

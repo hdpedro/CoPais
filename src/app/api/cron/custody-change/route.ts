@@ -36,10 +36,15 @@ export async function GET(request: NextRequest) {
     const tomorrowKey = formatDateKey(tomorrow);
 
     // Get all groups with custody enabled
-    const { data: groups } = await supabase
-      .from("groups")
+    const { data: groups, error: groupsErr } = await supabase
+      .from("coparenting_groups")
       .select("id")
       .eq("custody_enabled", true);
+
+    if (groupsErr) {
+      console.error("[cron/custody-change] groups query failed:", groupsErr);
+      return NextResponse.json({ ok: false, error: groupsErr.message }, { status: 500 });
+    }
 
     if (!groups || groups.length === 0) {
       return NextResponse.json({ ok: true, sent: 0, reason: "no groups" });
