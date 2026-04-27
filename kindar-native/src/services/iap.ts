@@ -3,22 +3,17 @@
  *
  * RevenueCat abstrai StoreKit (iOS) + Google Billing (Android) + retry +
  * offline + receipt validation. O backend /api/iap/verify continua sendo
- * chamado pro nosso lado ter a subscription na tabela `subscriptions`
- * (alem do status atualizado no RevenueCat webhook pra redundancia).
+ * chamado pro nosso lado ter a subscription na tabela `subscriptions`,
+ * e o /api/revenuecat/webhook reconcilia eventos server-side (renewals,
+ * cancelamentos, billing issues) pra redundancia.
  *
- * SKUs (definidos no ASC e no RevenueCat dashboard):
- *   com.kindar.premium.monthly  → plan_id=premium_monthly
- *   com.kindar.premium.annual   → plan_id=premium_annual
- *   com.kindar.elite.monthly    → plan_id=elite_monthly
- *   com.kindar.elite.annual     → plan_id=elite_annual
+ * SKUs (definidos em ASC/Play Console + RevenueCat dashboard).
+ *   Fase 4: nova tabela de IDs alinhada com Harmonia / Premium Juridico.
+ *   SKUs legados (premium_*, elite_*) ainda funcionam via /api/iap/verify
+ *   que consulta plans.apple_product_id, mas sao grandfathered — novos
+ *   compradores veem apenas os novos.
  *
- * Setup obrigatorio antes da primeira compra real:
- *   1. Criar produtos no ASC em status "Ready to Submit"
- *   2. Criar app no RevenueCat + configurar Apple App-Specific Shared Secret
- *   3. Cadastrar os 4 produtos como "Entitlements" em RevenueCat (entitlement
- *      id = 'premium' ou 'elite')
- *   4. Set EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY no eas.json / .env
- *   5. Enable In-App Purchase capability no Apple Developer Portal
+ * Setup: ver MANUAL_OPERACIONAL.md secoes 6, 7, 8.
  */
 
 import { Platform } from 'react-native';
@@ -33,7 +28,19 @@ import Purchases, {
 const APPLE_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY || '';
 const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY || '';
 
-// Apple product IDs — match migration 00051_apple_product_ids.sql + ASC products
+// Product IDs Fase 4 (novos) — mesmo ID no ASC e no Play Console.
+// Cada plan_id no banco de dados tem apple_product_id = google_product_id
+// para simplificar a resolucao no /api/iap/verify e no webhook.
+export const PRODUCT_IDS = {
+  harmonia_earlybird_monthly: 'com.kindar.harmonia.earlybird.monthly',
+  harmonia_earlybird_annual: 'com.kindar.harmonia.earlybird.annual',
+  harmonia_monthly: 'com.kindar.harmonia.monthly',
+  harmonia_annual: 'com.kindar.harmonia.annual',
+  premium_juridico_monthly: 'com.kindar.juridico.monthly',
+  premium_juridico_annual: 'com.kindar.juridico.annual',
+} as const;
+
+/** @deprecated use PRODUCT_IDS — kept for compat with pricing screen */
 export const APPLE_PRODUCT_IDS = {
   premium_monthly: 'com.kindar.premium.monthly',
   premium_annual: 'com.kindar.premium.annual',
