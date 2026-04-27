@@ -10,7 +10,7 @@
  */
 
 import { supabase } from '../lib/supabase';
-import { notifyAction } from './notify';
+import { apiFetch } from '../lib/api-fetch';
 
 export interface SwapRequestDetail {
   id: string;
@@ -25,12 +25,13 @@ export interface SwapRequestDetail {
   createdAt: string;
 }
 
-/** Load pending swap requests where current user is the target (i.e. needs to respond). */
+/** Load pending swap requests where current user is the target (i.e. needs to respond).
+ *  Read-only — direct supabase select is fine, RLS already gates by membership. */
 export async function loadMyPendingSwaps(groupId: string, userId: string): Promise<SwapRequestDetail[]> {
   const { data, error } = await supabase
     .from('swap_requests')
     .select(
-      'id, requester_id, target_user_id, original_date, proposed_date, reason, type, status, created_at, profiles!swap_requests_requester_id_fkey(full_name)'
+      'id, requester_id, target_user_id, original_date, proposed_date, reason, status, created_at, profiles!swap_requests_requester_id_fkey(full_name)'
     )
     .eq('group_id', groupId)
     .eq('status', 'pending')
@@ -47,7 +48,8 @@ export async function loadMyPendingSwaps(groupId: string, userId: string): Promi
     originalDate: s.original_date,
     proposedDate: s.proposed_date,
     reason: s.reason,
-    type: s.type || 'swap',
+    // swap_requests has no `type` column; derive from proposed_date / [DIVIDA] tag
+    type: !s.proposed_date ? 'giveaway' : 'swap',
     status: s.status,
     createdAt: s.created_at,
   }));
@@ -55,123 +57,31 @@ export async function loadMyPendingSwaps(groupId: string, userId: string): Promi
 }
 
 /**
- * Respond to a swap request ('approved' | 'rejected').
+ * Respond to a swap request via PWA route `/api/swaps`. The route does the
+ * idempotent status flip, the custody_events materialization (Angelino PR #3
+ * direction fix) and the push/chat side-effects — single source of truth.
  *
- * Mirrors the PWA server action `respondToSwapRequest` in src/actions/calendar.ts
- * — atomically updates status AND materializes the swap as custody_events so the
- * calendar reflects the change.
- *
- * Previously native only updated status → approved swaps were invisible in the
- * calendar. This full port fixes that, and also applies the direction fix from
- * Angelino PR #3:
- *   - If requester owned the original day, target gets it on approval
- *   - Otherwise requester gets it
- * (old naive code always assigned to requester, which broke cases where the
- * requester was offering HIS OWN day as a swap.)
+ * groupId/requesterId/originalDate kept in the signature for backwards
+ * compat; only swapId + decision are forwarded to the API.
  */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 export async function respondToSwap(
   swapId: string,
   decision: 'approved' | 'rejected',
-  groupId: string,
-  requesterId: string,
-  originalDate: string
+  _groupId: string,
+  _requesterId: string,
+  _originalDate: string
 ): Promise<{ success: boolean; error?: string }> {
-  // 1. Fetch full request record (need proposed_date, target, reason, type)
-  const { data: req } = await supabase
-    .from('swap_requests')
-    .select('id, requester_id, target_user_id, original_date, proposed_date, reason, type, status, group_id')
-    .eq('id', swapId)
-    .maybeSingle();
-  if (!req) return { success: false, error: 'Solicitacao nao encontrada' };
-  if (req.status !== 'pending') return { success: false, error: 'Solicitacao ja processada' };
-
-  // 2. Update status (idempotent via .eq('status', 'pending'))
-  const { data: updated, error: updateError } = await supabase
-    .from('swap_requests')
-    .update({ status: decision, responded_at: new Date().toISOString() })
-    .eq('id', swapId)
-    .eq('status', 'pending')
-    .select('id');
-  if (updateError) return { success: false, error: updateError.message };
-  if (!updated || updated.length === 0) return { success: false, error: 'Ja processada por outro usuario' };
-
-  // 3. If approved, materialize swap as custody_events rows
-  if (decision === 'approved') {
-    // Find current responsible for original_date
-    const { data: origEvents } = await supabase
-      .from('custody_events')
-      .select('child_id, responsible_user_id, start_date, end_date')
-      .eq('group_id', req.group_id)
-      .lte('start_date', req.original_date)
-      .gte('end_date', req.original_date)
-      .limit(1);
-
-    const swapEvents: Array<Record<string, unknown>> = [];
-
-    if (origEvents && origEvents[0]) {
-      // Direction fix (Angelino PR #3): day flips to whoever was NOT the
-      // original owner. Requester offering OWN day → target gets it;
-      // otherwise requester gets target's day as requested.
-      const currentOwner = origEvents[0].responsible_user_id;
-      const newOwner = currentOwner === req.requester_id
-        ? req.target_user_id
-        : req.requester_id;
-      swapEvents.push({
-        group_id: req.group_id,
-        child_id: origEvents[0].child_id,
-        responsible_user_id: newOwner,
-        start_date: req.original_date,
-        end_date: req.original_date,
-        custody_type: 'swap',
-        notes: req.proposed_date
-          ? `Troca aprovada: ${req.reason || 'sem motivo'}`
-          : `Divida de dia: ${req.reason || 'sem motivo'}`,
-        created_by: req.target_user_id,
-      });
-    }
-
-    if (req.proposed_date) {
-      const { data: propEvents } = await supabase
-        .from('custody_events')
-        .select('child_id, responsible_user_id, start_date, end_date')
-        .eq('group_id', req.group_id)
-        .lte('start_date', req.proposed_date)
-        .gte('end_date', req.proposed_date)
-        .limit(1);
-      if (propEvents && propEvents[0]) {
-        const currentOwner = propEvents[0].responsible_user_id;
-        const newOwner = currentOwner === req.requester_id
-          ? req.target_user_id
-          : req.requester_id;
-        swapEvents.push({
-          group_id: req.group_id,
-          child_id: propEvents[0].child_id,
-          responsible_user_id: newOwner,
-          start_date: req.proposed_date,
-          end_date: req.proposed_date,
-          custody_type: 'swap',
-          notes: `Troca aprovada: ${req.reason || 'sem motivo'}`,
-          created_by: req.target_user_id,
-        });
-      }
-    }
-
-    if (swapEvents.length > 0) {
-      const { error: insertError } = await supabase.from('custody_events').insert(swapEvents);
-      if (insertError) return { success: false, error: insertError.message };
-    }
-  }
-
-  // 4. Fire side-effects (push + chat message) via PWA's /api/native/notify
-  notifyAction(decision === 'approved' ? 'swap_approved' : 'swap_rejected', groupId, {
-    swapId,
-    requesterId,
-    originalDate,
+  const r = await apiFetch<{ success: true }>(`/api/swaps`, {
+    method: 'PATCH',
+    body: { swapId, decision },
   });
+  if (!r.ok) return { success: false, error: r.error || 'Falha ao responder solicitação' };
   return { success: true };
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
-/** Create a new swap request. type='swap' means trading dates; 'giveaway' means giving up own day. */
+/** Create a new swap request via PWA route `/api/swaps`. */
 export async function createSwap(params: {
   groupId: string;
   requesterId: string;
@@ -181,30 +91,20 @@ export async function createSwap(params: {
   reason: string | null;
   type?: 'swap' | 'giveaway';
 }): Promise<{ success: boolean; error?: string; id?: string }> {
-  const { data, error } = await supabase
-    .from('swap_requests')
-    .insert({
-      group_id: params.groupId,
-      requester_id: params.requesterId,
-      target_user_id: params.targetUserId,
-      original_date: params.originalDate,
-      proposed_date: params.proposedDate,
+  const r = await apiFetch<{ success: true; id?: string }>(`/api/swaps`, {
+    method: 'POST',
+    body: {
+      groupId: params.groupId,
+      targetUserId: params.targetUserId,
+      originalDate: params.originalDate,
+      proposedDate: params.proposedDate,
       reason: params.reason,
-      type: params.type || 'swap',
-      status: 'pending',
-    })
-    .select('id')
-    .single();
-
-  if (error || !data) return { success: false, error: error?.message || 'Erro ao criar troca' };
-
-  notifyAction('swap_request_created', params.groupId, {
-    swapId: data.id,
-    originalDate: params.originalDate,
-    proposedDate: params.proposedDate,
-    reason: params.reason,
-    type: params.type || 'swap',
-    targetUserId: params.targetUserId,
+      // PWA distinguishes 'swap' (trade) vs implicit debt (no proposedDate).
+      // 'giveaway' is sent as 'swap' — the route's isDebtSwap detector
+      // (proposedDate==null) handles the [DIVIDA] tagging same as PWA action.
+      type: params.type === 'giveaway' ? 'swap' : (params.type || 'swap'),
+    },
   });
-  return { success: true, id: data.id };
+  if (!r.ok || !r.data) return { success: false, error: r.error || 'Erro ao criar troca' };
+  return { success: true, id: r.data.id };
 }

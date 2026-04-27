@@ -9,6 +9,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api-fetch';
 
 export interface Document {
   id: string;
@@ -56,38 +57,13 @@ export async function fetchDocumentsByChild(childId: string, groupId: string): P
 }
 
 /**
- * Delete document + remove its file from storage. Mirrors the PWA's
- * `deleteChildDocument` action — same tables, same storage bucket.
+ * Delete document + remove its file from storage via PWA admin route
+ * (`/api/documents`). The route does the membership gate, RLS-bypass deletion
+ * and best-effort storage cleanup — same code path the PWA uses.
  */
 export async function deleteDocument(documentId: string): Promise<{ success: true } | { success: false; error: string }> {
-  // Look up the file_url so we can also remove it from storage.
-  const { data: doc, error: lookupErr } = await supabase
-    .from('documents')
-    .select('id, file_url')
-    .eq('id', documentId)
-    .maybeSingle();
-
-  if (lookupErr || !doc) return { success: false, error: lookupErr?.message || 'Documento não encontrado' };
-
-  // Remove from storage. After migration 062, file_url is path-only;
-  // pre-migration rows still have absolute URLs — handle both.
-  try {
-    const stored = doc.file_url || '';
-    let storagePath = stored;
-    if (stored.startsWith('http')) {
-      const url = new URL(stored);
-      const parts = url.pathname.split('/storage/v1/object/public/documents/');
-      if (parts[1]) storagePath = decodeURIComponent(parts[1]);
-    }
-    if (storagePath) {
-      await supabase.storage.from('documents').remove([storagePath]);
-    }
-  } catch {
-    // ignore — storage cleanup is best-effort
-  }
-
-  const { error: delErr } = await supabase.from('documents').delete().eq('id', documentId);
-  if (delErr) return { success: false, error: delErr.message };
+  const r = await apiFetch<{ success: true }>(`/api/documents?id=${encodeURIComponent(documentId)}`, { method: 'DELETE' });
+  if (!r.ok) return { success: false, error: r.error || 'Falha ao apagar documento' };
   return { success: true };
 }
 
@@ -151,17 +127,20 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<{ succ
 
     // After migration 062: store path-only. Reads sign URLs at render time
     // via getSignedFileUrl() from src/services/storage.ts.
-    const { error: insertErr } = await supabase.from('documents').insert({
-      group_id: input.groupId,
-      child_id: input.childId,
-      category: input.category,
-      name: input.displayName,
-      file_url: path,
-      file_size: input.size,
-      mime_type: input.mimeType,
-      uploaded_by: input.uploadedBy,
+    // Insert via PWA route so child-belongs-to-group gate runs once.
+    const r = await apiFetch<{ success: true }>(`/api/documents`, {
+      method: 'POST',
+      body: {
+        groupId: input.groupId,
+        childId: input.childId,
+        category: input.category,
+        name: input.displayName,
+        filePath: path,
+        fileSize: input.size,
+        mimeType: input.mimeType,
+      },
     });
-    if (insertErr) return { success: false, error: insertErr.message };
+    if (!r.ok) return { success: false, error: r.error || 'Falha ao registrar documento' };
 
     return { success: true };
   } catch (err: any) {

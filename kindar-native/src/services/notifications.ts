@@ -1,12 +1,14 @@
 /**
- * Notifications Service — All writes use safeWrite.
+ * Notifications Service — writes go through PWA admin routes
+ * (`/api/notifications/mark-read`, `/api/notifications/mark-all-read`) so
+ * ownership is enforced server-side and a single code path mutates the table.
  *
  * Mirrors PWA filtering: push_sub + system + raw JSON payloads are internal
  * logs and never shown to user.
  */
 
 import { supabase } from '../lib/supabase';
-import { safeWrite } from './offline';
+import { apiFetch } from '../lib/api-fetch';
 
 export interface AppNotification {
   id: string; type: string; title: string; message: string;
@@ -58,15 +60,23 @@ export async function fetchNotifications(userId: string): Promise<AppNotificatio
 }
 
 export async function markAsRead(notificationId: string) {
-  return safeWrite({ table: 'notifications', operation: 'update', payload: { id: notificationId, is_read: true } });
+  // Single-id flip via PWA route (admin client + ownership gate).
+  const r = await apiFetch<{ success: true }>(`/api/notifications/mark-read`, {
+    method: 'PATCH',
+    body: { id: notificationId },
+  });
+  return { success: r.ok, error: r.ok ? undefined : r.error };
 }
 
-export async function markAllAsRead(userId: string) {
-  // markAllAsRead needs a different pattern — can't use safeWrite with filter
-  // This one stays as direct call since it's a bulk update with compound filter
-  const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
-  return { success: !error, error: error?.message };
+/* eslint-disable @typescript-eslint/no-unused-vars */
+export async function markAllAsRead(_userId: string) {
+  // Bulk flip via PWA route (server resolves user from Bearer token).
+  const r = await apiFetch<{ success: true; updated: number }>(`/api/notifications/mark-all-read`, {
+    method: 'POST',
+  });
+  return { success: r.ok, error: r.ok ? undefined : r.error };
 }
+/* eslint-enable @typescript-eslint/no-unused-vars */
 
 /**
  * Subscribe to notification changes for a user via Supabase Realtime.
