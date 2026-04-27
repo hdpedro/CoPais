@@ -15,6 +15,8 @@ import {
 } from '../src/services/push-setup';
 import { initializeIAP, identifyUser, resetUser } from '../src/services/iap';
 import { colors } from '../src/design-system/tokens';
+import AIFab from '../src/components/ai/AIFab';
+import AIAssistantSheet from '../src/components/ai/AIAssistantSheet';
 
 export default function RootLayout() {
   const { isLoading, initialize, userId } = useAuth();
@@ -114,6 +116,11 @@ export default function RootLayout() {
             <Stack.Screen name="pricing" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="ai" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           </Stack>
+          {/* Global floating Kindar AI: FAB visible on most screens, modal slides
+              from bottom when opened. Both hidden on auth/onboarding/etc via
+              path-matching inside AIFab. */}
+          <AIFab />
+          <AIAssistantSheet />
         </View>
         <StatusBar style="dark" />
       </GestureHandlerRootView>

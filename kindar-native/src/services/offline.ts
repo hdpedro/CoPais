@@ -157,16 +157,84 @@ export async function syncQueue(): Promise<{ synced: number; failed: number }> {
 // ══════════════════════════════════════════
 
 /**
+ * Tables that may be written to via direct supabase access (RLS-covered, no
+ * admin gate, no cross-table validation). Anything NOT in this set should go
+ * via a Bearer-auth API route (settlements, family/members, invitations,
+ * decisions/vote, sensitive-notes, calendar/generate-schedule, etc.).
+ *
+ * Wave H architectural fix: previous safeWrite accepted ANY table arbitrarily,
+ * which bypassed every API gate we built. Whitelisting locks down the surface.
+ *
+ * Adding a new table here is a deliberate decision — confirm:
+ *   1. RLS policies cover the operation (member-scoped, child-scoped)
+ *   2. There is no "admin only" gate or cross-table validation needed
+ *   3. The PWA either does the same direct write, or there's no PWA equivalent
+ */
+type SafeTable =
+  | 'agreements'
+  | 'active_medications'
+  | 'chat_messages'
+  | 'chat_channel_reads'
+  | 'child_activities'
+  | 'child_allergies'
+  | 'children'
+  | 'daily_checkins'
+  | 'decisions'
+  | 'events'
+  | 'expenses'
+  | 'growth_records'
+  | 'illness_episodes'
+  | 'medical_appointments'
+  | 'medication_doses'
+  | 'notifications'
+  | 'profiles'
+  | 'symptom_entries'
+  | 'vaccination_records';
+
+const SAFE_TABLES: ReadonlySet<string> = new Set<SafeTable>([
+  'agreements',
+  'active_medications',
+  'chat_messages',
+  'chat_channel_reads',
+  'child_activities',
+  'child_allergies',
+  'children',
+  'daily_checkins',
+  'decisions',
+  'events',
+  'expenses',
+  'growth_records',
+  'illness_episodes',
+  'medical_appointments',
+  'medication_doses',
+  'notifications',
+  'profiles',
+  'symptom_entries',
+  'vaccination_records',
+]);
+
+/**
  * Wraps a Supabase write. If online, executes immediately and checks for error.
  * If offline, enqueues for later sync.
  *
  * Returns { success, error?, queued? }
  */
 export async function safeWrite(params: {
-  table: string;
+  table: SafeTable | string;
   operation: 'insert' | 'update' | 'delete';
   payload: Record<string, unknown>;
 }): Promise<{ success: boolean; error?: string; queued?: boolean }> {
+  if (!SAFE_TABLES.has(params.table)) {
+    const msg = `[safeWrite] Tabela "${params.table}" fora da whitelist. Use a rota Bearer-auth /api/* equivalente.`;
+    if (__DEV__) {
+      // Throw in dev so the caller sees it immediately during testing.
+      throw new Error(msg);
+    } else {
+      // In prod, warn-and-proceed to avoid hard breaks; remove this fallback
+      // once all callers are audited.
+      console.warn(msg);
+    }
+  }
   if (!isOnline()) {
     await enqueue(params);
     return { success: true, queued: true };
@@ -187,7 +255,7 @@ export async function safeWrite(params: {
       return { success: false, error: result.error.message };
     }
     return { success: true };
-  } catch (e: any) {
+  } catch {
     // Network error during write → enqueue
     await enqueue(params);
     return { success: true, queued: true };

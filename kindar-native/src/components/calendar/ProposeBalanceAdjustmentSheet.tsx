@@ -103,7 +103,11 @@ export default function ProposeBalanceAdjustmentSheet({
           </View>
 
           <ScrollView keyboardShouldPersistTaps="handled">
-            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.md }}>
+            <Text
+              testID={`balance-recipient-${targetUserId}`}
+              accessibilityLabel={`Destinatario ${targetName}`}
+              style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.md }}
+            >
               Proposta para <Text style={{ fontWeight: font.weights.semibold, color: colors.text }}>{targetName}</Text>. Seu saldo atual:{' '}
               <Text style={{ fontWeight: font.weights.semibold, color: currentBalance > 0 ? '#16a34a' : currentBalance < 0 ? '#E53935' : colors.text }}>
                 {currentBalance > 0 ? '+' : ''}{currentBalance} {Math.abs(currentBalance) === 1 ? 'dia' : 'dias'}
@@ -120,6 +124,10 @@ export default function ProposeBalanceAdjustmentSheet({
                   key={opt.type}
                   onPress={() => setOperationType(opt.type)}
                   activeOpacity={0.85}
+                  testID={`balance-direction-toggle-${opt.type}`}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: active }}
+                  accessibilityLabel={opt.label}
                   style={{
                     borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.sm,
                     borderWidth: 2, borderColor: active ? colors.brand : colors.borderLight,
@@ -151,6 +159,8 @@ export default function ProposeBalanceAdjustmentSheet({
                   onChangeText={v => setDays(v.replace(/\D/g, '').slice(0, 2))}
                   keyboardType="number-pad"
                   maxLength={2}
+                  testID="balance-amount"
+                  accessibilityLabel="Quantos dias abater"
                   style={{
                     backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
                     paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
@@ -203,6 +213,8 @@ export default function ProposeBalanceAdjustmentSheet({
               <TouchableOpacity
                 onPress={handleSubmit}
                 disabled={submitting}
+                testID="balance-propose-submit"
+                accessibilityLabel="Enviar proposta de ajuste de saldo"
                 style={{
                   flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                   backgroundColor: colors.brand, alignItems: 'center',

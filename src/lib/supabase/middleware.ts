@@ -80,6 +80,11 @@ export async function updateSession(request: NextRequest) {
     "/api/settlements",
     "/api/family",
     "/api/invitations",
+    // Wave H — second batch of single-source-of-truth routes
+    "/api/decisions",
+    "/api/activities",
+    "/api/sensitive-notes",
+    "/api/onboarding-quest",
   ];
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)

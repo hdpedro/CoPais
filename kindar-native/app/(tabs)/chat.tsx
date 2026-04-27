@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { supabase } from '../../src/lib/supabase';
+import { apiFetch } from '../../src/lib/api-fetch';
 import { useAuth } from '../../src/store/auth';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
@@ -56,37 +57,26 @@ export default function ChatScreen() {
 
       let channels: any[] = rawChannels || [];
 
-      // Auto-create channels: matches PWA logic (page.tsx:35-79).
+      // Auto-create channels via server (Wave H): RLS on chat_channels is
+      // member-only INSERT, but admin client gives consistent sort_order
+      // and matches PWA's first-load seed pattern. The endpoint is idempotent.
+      const childSlugs = new Set((kids || []).map((c: any) => `child-${c.id}`));
       const existingSlugs = new Set(channels.map((c: any) => c.slug));
-      const channelsToCreate: any[] = [];
-      if (channels.length === 0) {
-        channelsToCreate.push({
-          group_id: groupId, slug: 'geral', name: 'Geral',
-          icon: '💬', sort_order: 0, channel_type: 'topic',
+      const missingGeral = !existingSlugs.has('geral');
+      const missingChildSlugs = [...childSlugs].some((s) => !existingSlugs.has(s));
+      if (missingGeral || missingChildSlugs) {
+        const r = await apiFetch<{ success: boolean; created: number }>('/api/chat/seed-channels', {
+          method: 'POST',
+          body: { groupId },
         });
-      }
-      (kids || []).forEach((c: any, i: number) => {
-        const slug = `child-${c.id}`;
-        if (!existingSlugs.has(slug)) {
-          channelsToCreate.push({
-            group_id: groupId,
-            slug,
-            name: c.full_name?.split(' ')[0] || 'Filho',
-            channel_type: 'child',
-            child_id: c.id,
-            icon: '👶',
-            sort_order: 10 + i,
-          });
+        if (r.ok) {
+          const { data: refreshed } = await supabase
+            .from('chat_channels')
+            .select('id, slug, name, channel_type, icon, sort_order')
+            .eq('group_id', groupId)
+            .order('sort_order');
+          if (refreshed) channels = refreshed;
         }
-      });
-      if (channelsToCreate.length > 0) {
-        await supabase.from('chat_channels').insert(channelsToCreate);
-        const { data: refreshed } = await supabase
-          .from('chat_channels')
-          .select('id, slug, name, channel_type, icon, sort_order')
-          .eq('group_id', groupId)
-          .order('sort_order');
-        if (refreshed) channels = refreshed;
       }
 
       const channelData = channels;

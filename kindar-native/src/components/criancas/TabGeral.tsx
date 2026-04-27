@@ -31,8 +31,16 @@ function Row({ label, value }: { label: string; value: string | null }) {
 }
 
 export default function TabGeral({ child }: Props) {
+  // children.allergies is a TEXT[] column written by /criancas/nova. PWA shows
+  // these as red chips on the Geral tab so a parent who entered "amendoim"
+  // during cadastro actually sees it on the profile. Native was previously
+  // dropping this data on the floor — bug fix for parity with
+  // src/app/(app)/criancas/[id]/ChildDetailClient.tsx (TabGeral child.allergies block).
+  const inlineAllergies = (child.allergies ?? []).filter((a) => a && a.trim().length > 0);
+
   return (
     <ScrollView
+      testID="tab-geral-scroll"
       contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}
       showsVerticalScrollIndicator={false}
     >
@@ -52,8 +60,43 @@ export default function TabGeral({ child }: Props) {
         <Row label="Tipo sanguíneo" value={child.blood_type} />
       </View>
 
+      {inlineAllergies.length > 0 ? (
+        <View
+          testID="tab-geral-allergies"
+          style={{
+            backgroundColor: colors.bgElevated,
+            borderRadius: radius.lg,
+            padding: spacing.lg,
+            marginTop: spacing.lg,
+          }}
+        >
+          <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '700' }}>
+            Alergias
+          </Text>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }}>
+            {inlineAllergies.map((a, i) => (
+              <View
+                key={`${a}-${i}`}
+                testID={`tab-geral-allergy-${i}`}
+                style={{
+                  paddingHorizontal: spacing.md,
+                  paddingVertical: 4,
+                  backgroundColor: 'rgba(229,57,53,0.1)',
+                  borderRadius: radius.full,
+                }}
+              >
+                <Text style={{ fontSize: font.sizes.xs, color: colors.error, fontWeight: '600' }}>
+                  {a}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      ) : null}
+
       {child.notes ? (
         <View
+          testID="tab-geral-notes"
           style={{
             backgroundColor: colors.bgElevated,
             borderRadius: radius.lg,

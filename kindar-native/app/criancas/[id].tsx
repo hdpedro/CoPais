@@ -103,7 +103,7 @@ export default function ChildDetailScreen() {
   const { child, medicalInfo, latestGrowth, allergies, medications, vaccinations, documents, education } = data;
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.bg }}>
+    <View testID="child-detail-screen" style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title={child.full_name.split(' ')[0] || 'Criança'} />
       <ChildHeader child={child} medicalInfo={medicalInfo} />
       <TabBar active={tab} onChange={setTab} documentCount={documents.length} />
@@ -151,7 +151,11 @@ export default function ChildDetailScreen() {
           <TabEducacao
             education={education}
             onEditPress={() => {
-              router.push(`/criancas/${child.id}/escola` as never);
+              // /criancas/[id]/escola does NOT exist as a route — the schools
+              // editor is /escola (lists all children with per-child modals).
+              // Previously this navigation no-op'd silently, breaking the
+              // "Cadastrar escola" CTA on the empty-state.
+              router.push('/escola' as never);
             }}
           />
         </ScrollView>
