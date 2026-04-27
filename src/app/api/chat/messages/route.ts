@@ -64,7 +64,9 @@ export async function GET(req: NextRequest) {
     text: string | null;
     image_url: string | null;
     channel_id: string | null;
-    read_by: string[] | null;
+    // jsonb in DB — object map of `userId → ISO timestamp` (Wave H: was
+    // typed as `string[]` here but the DB and both clients use the map shape).
+    read_by: Record<string, string> | null;
     created_at: string;
   }
 

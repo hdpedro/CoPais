@@ -99,6 +99,8 @@ export default function SwapBalanceCard({ operations, members, currentUserId, gr
         <View style={{ flexDirection: 'row', gap: spacing.sm }}>
           <TouchableOpacity
             onPress={() => setHistoryOpen(true)}
+            testID="balance-history-open"
+            accessibilityLabel="Ver historico de operacoes de saldo"
             style={{
               flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md,
               borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
@@ -111,6 +113,8 @@ export default function SwapBalanceCard({ operations, members, currentUserId, gr
           {target ? (
             <TouchableOpacity
               onPress={() => setProposeOpen(true)}
+              testID="balance-propose-open"
+              accessibilityLabel="Propor ajuste de saldo"
               style={{
                 flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md,
                 backgroundColor: colors.brand, alignItems: 'center',

@@ -11,6 +11,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api-fetch';
 
 export type QuestStep =
   | 'add_child'
@@ -39,17 +40,15 @@ export async function markQuestStep(
   metadata?: Record<string, unknown>,
 ): Promise<void> {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-
-    await supabase.from('onboarding_quests').insert({
-      user_id: user.id,
-      step,
-      metadata: metadata ?? {},
+    // Wave H: server-side via API to keep analytics events + milestone
+    // detection unified between web and mobile. Idempotent on the server
+    // (UNIQUE(user_id, step) + 23505 swallowing).
+    await apiFetch('/api/onboarding-quest/mark-step', {
+      method: 'POST',
+      body: { step, metadata: metadata ?? {} },
     });
   } catch {
-    // 23505 (duplicate) is expected on second-mark; everything else is
-    // non-critical. Either way, we don't block the caller.
+    // Quest tracking is non-critical — never block caller.
   }
 }
 

@@ -182,9 +182,9 @@ export default function DecisoesScreen() {
         {/* Inline vote buttons */}
         {canVote ? (
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
-            <VoteButton label="Contra" color="#E53935" onPress={() => handleVote(d, 'nao')} disabled={voting === d.id} />
-            <VoteButton label="Abster" color={colors.textSecondary} onPress={() => handleVote(d, 'abster')} disabled={voting === d.id} />
-            <VoteButton label="A favor" color="#4CAF50" filled onPress={() => handleVote(d, 'sim')} disabled={voting === d.id} />
+            <VoteButton label="Contra" color="#E53935" onPress={() => handleVote(d, 'discordo')} disabled={voting === d.id} />
+            <VoteButton label="Abster" color={colors.textSecondary} onPress={() => handleVote(d, 'abstencao')} disabled={voting === d.id} />
+            <VoteButton label="A favor" color="#4CAF50" filled onPress={() => handleVote(d, 'concordo')} disabled={voting === d.id} />
           </View>
         ) : null}
 
@@ -193,7 +193,7 @@ export default function DecisoesScreen() {
           <View style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <Ionicons name="checkmark-circle" size={14} color={colors.success} />
             <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-              Você votou: {d.myVote === 'sim' ? 'A favor' : d.myVote === 'nao' ? 'Contra' : 'Abster'}
+              Você votou: {d.myVote === 'concordo' ? 'A favor' : d.myVote === 'discordo' ? 'Contra' : 'Abster'}
             </Text>
           </View>
         ) : null}

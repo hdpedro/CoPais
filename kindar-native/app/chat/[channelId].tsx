@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, jsx-a11y/alt-text */
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
+  View, Text, TextInput, TouchableOpacity, FlatList, ScrollView,
   KeyboardAvoidingView, Platform, ActivityIndicator, Image, Modal, Pressable, Alert,
   ActionSheetIOS,
 } from 'react-native';
@@ -9,6 +9,8 @@ import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../src/lib/supabase';
 import { safeWrite } from '../../src/services/offline';
@@ -16,6 +18,42 @@ import { notifyAction } from '../../src/services/notify';
 import { useAuth } from '../../src/store/auth';
 import { getDisplayName } from '../../src/lib/constants';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+
+// PT-BR month names (matches PWA `calendar.monthNames` translation source).
+const MONTH_NAMES_PT = [
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+];
+
+// 12 most recent months (current + 11 previous), matching PWA `ChatRoom.tsx:116-126`.
+function generateMonthOptions(): { value: string; label: string }[] {
+  const options: { value: string; label: string }[] = [];
+  const now = new Date();
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const label = `${MONTH_NAMES_PT[d.getMonth()]} ${d.getFullYear()}`;
+    options.push({ value, label });
+  }
+  return options;
+}
+
+// Minimal HTML escape — chat messages are user-provided and printed as text.
+function escapeHtml(s: string): string {
+  return s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function formatDateBR(iso: string): string {
+  return new Date(iso).toLocaleString('pt-BR', {
+    day: '2-digit', month: '2-digit', year: 'numeric',
+    hour: '2-digit', minute: '2-digit',
+  });
+}
 
 async function uploadChatImage(uri: string, mimeType: string, groupId: string): Promise<string | null> {
   try {
@@ -90,6 +128,15 @@ export default function ChatRoomScreen() {
   const toneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const membersRef = useRef<Record<string, string>>({});
+
+  // Export-to-PDF modal state (mirrors PWA `ChatRoom.tsx:768-816`).
+  // Empty `selectedMonth` means "all messages"; empty `selectedChannelId` means
+  // "all channels in this group". `exporting` disables the submit button while
+  // the PDF is being generated and shared.
+  const [showExportModal, setShowExportModal] = useState(false);
+  const [selectedMonth, setSelectedMonth] = useState<string>('');
+  const [selectedChannelId, setSelectedChannelId] = useState<string>('');
+  const [exporting, setExporting] = useState(false);
 
   // Cleanup tone timer on unmount
   useEffect(() => {
@@ -465,6 +512,181 @@ export default function ChatRoomScreen() {
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
   };
 
+  // Export-to-PDF (mirrors PWA `src/app/api/chat/export/route.ts`).
+  //
+  // Differences vs. PWA: the PWA generates a server-side PDF with `pdf-lib`
+  // and triggers a browser download. On native we cannot run pdf-lib reliably
+  // (heavy fontkit polyfills) and there's no download dialog — so we render
+  // an HTML representation, hand it to `expo-print` for OS-level PDF
+  // rasterization, then `expo-sharing` opens the native share sheet so the
+  // user can save to Files / AirDrop / mail it.
+  //
+  // Image attachments are inlined as `[imagem]` placeholders to match the
+  // PWA's "[Imagem anexada]" simple-text fallback (full image inlining would
+  // require fetching+base64 each blob — out of scope for first pass).
+  const handleExport = useCallback(async () => {
+    if (!activeGroup || exporting) return;
+    setExporting(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    try {
+      // 1. Group + channel labels for header
+      const [{ data: group }, { data: chRow }] = await Promise.all([
+        supabase
+          .from('coparenting_groups')
+          .select('name')
+          .eq('id', activeGroup.groupId)
+          .single(),
+        selectedChannelId
+          ? supabase
+              .from('chat_channels')
+              .select('name, slug')
+              .eq('id', selectedChannelId)
+              .single()
+          : Promise.resolve({ data: null as { name: string; slug: string } | null }),
+      ]);
+
+      // 2. Member name map (we already have one in `membersRef`, but this
+      //    runs in the modal flow which may run from a freshly-mounted
+      //    screen — re-fetch to be safe).
+      const { data: members } = await supabase
+        .from('group_members')
+        .select('user_id, profiles(full_name, display_name, email)')
+        .eq('group_id', activeGroup.groupId);
+      const memberMap: Record<string, string> = {};
+      const memberList: string[] = [];
+      (members || []).forEach((m: any) => {
+        const p = m.profiles || {};
+        const name =
+          p.display_name
+          || getDisplayName(p.full_name)
+          || (p.email ? p.email.split('@')[0].split('.')[0] : 'Usuário');
+        memberMap[m.user_id] = name;
+        memberList.push(name);
+      });
+
+      // 3. Build messages query — group + (optional) channel + (optional) month
+      let query = supabase
+        .from('chat_messages')
+        .select('id, sender_id, text, image_url, created_at')
+        .eq('group_id', activeGroup.groupId)
+        .order('created_at', { ascending: true });
+
+      if (selectedChannelId) {
+        // Geral channel includes legacy null channel_id rows (parity with PWA route).
+        if (chRow?.slug === 'geral') {
+          query = query.or(`channel_id.eq.${selectedChannelId},channel_id.is.null`);
+        } else {
+          query = query.eq('channel_id', selectedChannelId);
+        }
+      }
+
+      let dateRangeLabel = 'Todas as mensagens';
+      if (selectedMonth) {
+        const [y, mon] = selectedMonth.split('-').map(Number);
+        const startDate = new Date(y, mon - 1, 1);
+        const endDate = new Date(y, mon, 1);
+        query = query
+          .gte('created_at', startDate.toISOString())
+          .lt('created_at', endDate.toISOString());
+        dateRangeLabel = `${MONTH_NAMES_PT[mon - 1]} de ${y}`;
+      }
+
+      const { data: msgs, error: msgErr } = await query;
+      if (msgErr) {
+        Alert.alert('Erro', 'Não foi possível buscar as mensagens.');
+        setExporting(false);
+        return;
+      }
+
+      // 4. Build HTML (Kindar brand styling, monospace dates, bold senders,
+      //    muted system messages — matches PWA visual hierarchy).
+      const exportDate = new Date().toLocaleString('pt-BR', {
+        day: '2-digit', month: '2-digit', year: 'numeric',
+        hour: '2-digit', minute: '2-digit',
+      });
+      const channelLabel = chRow?.name || '';
+
+      const messagesHtml = (msgs || []).length === 0
+        ? `<p class="empty">Nenhuma mensagem neste período.</p>`
+        : (msgs || []).map((m: any) => {
+            const senderName = memberMap[m.sender_id] || 'Sistema';
+            const isSystem = !memberMap[m.sender_id];
+            let body = '';
+            if (m.image_url && m.text) body = `[imagem] ${m.text}`;
+            else if (m.image_url) body = '[imagem]';
+            else if (m.text) body = m.text.startsWith('[Audio') ? '[Áudio]' : m.text;
+            else body = '[Mensagem sem conteúdo]';
+            const ts = formatDateBR(m.created_at);
+            const cls = isSystem ? 'msg system' : 'msg';
+            return `<div class="${cls}">
+              <span class="ts">[${escapeHtml(ts)}]</span>
+              <span class="sender">${escapeHtml(senderName)}:</span>
+              <span class="body">${escapeHtml(body)}</span>
+            </div>`;
+          }).join('\n');
+
+      const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<title>Kindar — Registro de Conversas</title>
+<style>
+  @page { margin: 24mm 18mm; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #2c2c2c; font-size: 11pt; line-height: 1.5; }
+  .header { border-bottom: 1px solid #d4d4d4; padding-bottom: 12px; margin-bottom: 16px; }
+  .brand { font-size: 18pt; font-weight: 700; color: #5B9E85; margin: 0 0 6px; }
+  .meta { color: #555; font-size: 10pt; margin: 2px 0; }
+  .meta strong { color: #2c2c2c; }
+  .exported { color: #888; font-size: 9pt; margin-top: 6px; }
+  .msg { margin-bottom: 6px; page-break-inside: avoid; }
+  .msg .ts { font-family: 'Courier New', Courier, monospace; color: #777; font-size: 9pt; margin-right: 4px; }
+  .msg .sender { font-weight: 700; color: #2c2c2c; margin-right: 4px; }
+  .msg .body { color: #2c2c2c; }
+  .msg.system .sender, .msg.system .body { color: #888; font-style: italic; }
+  .empty { color: #888; font-style: italic; }
+</style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">Kindar — Registro de Conversas</div>
+    <div class="meta"><strong>Grupo:</strong> ${escapeHtml(group?.name || 'Grupo')}</div>
+    ${channelLabel ? `<div class="meta"><strong>Canal:</strong> ${escapeHtml(channelLabel)}</div>` : ''}
+    <div class="meta"><strong>Período:</strong> ${escapeHtml(dateRangeLabel)}</div>
+    <div class="meta"><strong>Membros:</strong> ${escapeHtml(memberList.join(', '))}</div>
+    <div class="exported">Exportado em: ${escapeHtml(exportDate)}</div>
+  </div>
+  ${messagesHtml}
+</body>
+</html>`;
+
+      // 5. Generate PDF + share
+      const { uri } = await Print.printToFileAsync({ html });
+
+      const canShare = await Sharing.isAvailableAsync();
+      if (!canShare) {
+        Alert.alert('Pronto', `PDF gerado em: ${uri}`);
+        setExporting(false);
+        return;
+      }
+      await Sharing.shareAsync(uri, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Exportar conversas',
+        UTI: 'com.adobe.pdf',
+      });
+
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setShowExportModal(false);
+      setSelectedMonth('');
+      setSelectedChannelId('');
+    } catch (err) {
+      console.error('[chat-export]', err);
+      Alert.alert('Erro', 'Não foi possível exportar as conversas.');
+    } finally {
+      setExporting(false);
+    }
+  }, [activeGroup, exporting, selectedChannelId, selectedMonth]);
+
   // Message list with date separators + system message cards
   // Note: `items` is the message list with `kind: 'date' | 'system' | 'message'` markers
   const messageItems = useCallback(() => {
@@ -688,6 +910,26 @@ export default function ChatRoomScreen() {
               </View>
             ) : null}
           </View>
+          {/* Export-to-PDF trigger — mirrors PWA `ChatRoom.tsx:769-779`. */}
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              // Default to current channel; user can switch to "Todos" or
+              // pick another channel inside the modal.
+              setSelectedChannelId(channelId || '');
+              setShowExportModal(true);
+            }}
+            hitSlop={8}
+            testID="chat-export-open"
+            accessibilityLabel="Exportar mensagens"
+            style={{
+              width: 36, height: 36, borderRadius: 18,
+              alignItems: 'center', justifyContent: 'center',
+              backgroundColor: colors.bgSurface,
+            }}
+          >
+            <Ionicons name="download-outline" size={18} color={colors.textSecondary} />
+          </TouchableOpacity>
         </View>
 
         {/* Channel tabs pills */}
@@ -965,6 +1207,167 @@ export default function ChatRoomScreen() {
               />}
         </TouchableOpacity>
       </View>
+
+      {/* Export-to-PDF modal — mirrors PWA `ChatRoom.tsx:780-816`.
+          Channel pick + month pick + Exportar. The modal slides in from the
+          bottom, matching the rest of the native app's modal language. */}
+      <Modal
+        visible={showExportModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => !exporting && setShowExportModal(false)}
+      >
+        <Pressable
+          onPress={() => !exporting && setShowExportModal(false)}
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
+        >
+          <Pressable
+            onPress={() => { /* swallow taps inside the sheet */ }}
+            style={{
+              backgroundColor: colors.bgElevated,
+              borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
+              paddingHorizontal: spacing.lg,
+              paddingTop: spacing.lg,
+              paddingBottom: insets.bottom + spacing.lg,
+              ...shadows.lg,
+            }}
+          >
+            <View style={{ alignItems: 'center', marginBottom: spacing.md }}>
+              <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight }} />
+            </View>
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: 4 }}>
+              Exportar conversas
+            </Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.lg }}>
+              Gera um PDF das mensagens do grupo. Você poderá salvar nos Arquivos ou compartilhar.
+            </Text>
+
+            {/* Channel picker — horizontal scroll of pills */}
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.sm }}>
+              Canal
+            </Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.md, paddingRight: spacing.lg }}
+            >
+              {[{ id: '', name: 'Todos os canais' } as { id: string; name: string }, ...channels].map((c) => {
+                const active = c.id === selectedChannelId;
+                return (
+                  <TouchableOpacity
+                    key={c.id || 'all'}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setSelectedChannelId(c.id);
+                    }}
+                    accessibilityLabel={`Canal ${c.name}`}
+                    style={{
+                      paddingHorizontal: spacing.md, paddingVertical: 8,
+                      borderRadius: radius.full,
+                      backgroundColor: active ? colors.brand : colors.bgSurface,
+                    }}
+                  >
+                    <Text style={{
+                      fontSize: 13,
+                      fontWeight: active ? font.weights.semibold : font.weights.medium,
+                      color: active ? '#fff' : colors.text,
+                    }}>
+                      {c.name}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Month picker — vertical scroll list of months (cap at ~200pt) */}
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.sm }}>
+              Período
+            </Text>
+            <ScrollView
+              style={{ maxHeight: 220, marginBottom: spacing.md }}
+              showsVerticalScrollIndicator={false}
+            >
+              {[{ value: '', label: 'Todas as mensagens' }, ...generateMonthOptions()].map((opt) => {
+                const active = opt.value === selectedMonth;
+                return (
+                  <TouchableOpacity
+                    key={opt.value || 'all-months'}
+                    onPress={() => {
+                      Haptics.selectionAsync();
+                      setSelectedMonth(opt.value);
+                    }}
+                    testID={opt.value ? `chat-export-month-${opt.value}` : 'chat-export-month-all'}
+                    accessibilityLabel={`Período ${opt.label}`}
+                    style={{
+                      flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+                      paddingHorizontal: spacing.md, paddingVertical: 12,
+                      borderRadius: radius.md,
+                      backgroundColor: active ? colors.brandLight : 'transparent',
+                      marginBottom: 2,
+                    }}
+                  >
+                    <Text style={{
+                      fontSize: font.sizes.md,
+                      color: active ? colors.brand : colors.text,
+                      fontWeight: active ? font.weights.semibold : font.weights.normal,
+                    }}>
+                      {opt.label}
+                    </Text>
+                    {active ? (
+                      <Ionicons name="checkmark" size={18} color={colors.brand} />
+                    ) : null}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+
+            {/* Action row */}
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              <TouchableOpacity
+                onPress={() => !exporting && setShowExportModal(false)}
+                disabled={exporting}
+                accessibilityLabel="Cancelar exportação"
+                style={{
+                  flex: 1,
+                  backgroundColor: colors.bgSurface,
+                  borderRadius: radius.lg,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  opacity: exporting ? 0.5 : 1,
+                }}
+              >
+                <Text style={{ color: colors.textSecondary, fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
+                  Cancelar
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={handleExport}
+                disabled={exporting}
+                testID="chat-export-submit"
+                accessibilityLabel="Exportar PDF"
+                style={{
+                  flex: 2,
+                  backgroundColor: colors.brand,
+                  borderRadius: radius.lg,
+                  paddingVertical: 14,
+                  alignItems: 'center',
+                  flexDirection: 'row', justifyContent: 'center', gap: spacing.sm,
+                  opacity: exporting ? 0.7 : 1,
+                }}
+              >
+                {exporting ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Ionicons name="download-outline" size={18} color="#fff" />
+                )}
+                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
+                  {exporting ? 'Gerando…' : 'Exportar PDF'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
 
       {/* Image preview modal (tap-to-zoom) */}
       <Modal visible={!!previewUrl} transparent animationType="fade" onRequestClose={() => setPreviewUrl(null)}>

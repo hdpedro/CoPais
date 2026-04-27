@@ -5,6 +5,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api-fetch';
 import { notifyAction } from './notify';
 
 export type SensitiveTopic =
@@ -68,16 +69,21 @@ export async function createSensitiveNote(params: {
   isUrgent?: boolean;
   createdBy: string;
 }) {
-  const { error } = await supabase.from('sensitive_notes').insert({
-    group_id: params.groupId,
-    child_id: params.childId || null,
-    topic: params.topic,
-    title: params.title.trim(),
-    content: params.content.trim(),
-    is_urgent: params.isUrgent ?? false,
-    created_by: params.createdBy,
+  // Wave H: server enforces child-belongs-to-group (LGPD scope) — native
+  // previously skipped this check and could store a sensitive note pointing
+  // at a child outside the user's own group.
+  const r = await apiFetch<{ success: boolean; id: string }>('/api/sensitive-notes', {
+    method: 'POST',
+    body: {
+      groupId: params.groupId,
+      childId: params.childId,
+      topic: params.topic,
+      title: params.title,
+      content: params.content,
+      isUrgent: params.isUrgent ?? false,
+    },
   });
-  if (error) return { success: false, error: error.message };
+  if (!r.ok) return { success: false, error: r.error };
 
   notifyAction('sensitive_note_created', params.groupId, {
     title: params.title, topic: params.topic,

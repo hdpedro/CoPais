@@ -200,9 +200,9 @@ export default function DecisionDetailScreen() {
           {/* Vote buttons */}
           {isOpen ? (
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
-              <VoteBtn active={decision.myVote === 'nao'} label="Contra" color="#E53935" onPress={() => handleVote('nao')} disabled={voting} />
-              <VoteBtn active={decision.myVote === 'abster'} label="Abster" color={colors.textSecondary} onPress={() => handleVote('abster')} disabled={voting} />
-              <VoteBtn active={decision.myVote === 'sim'} label="A favor" color="#4CAF50" onPress={() => handleVote('sim')} disabled={voting} />
+              <VoteBtn active={decision.myVote === 'discordo'} label="Contra" color="#E53935" onPress={() => handleVote('discordo')} disabled={voting} />
+              <VoteBtn active={decision.myVote === 'abstencao'} label="Abster" color={colors.textSecondary} onPress={() => handleVote('abstencao')} disabled={voting} />
+              <VoteBtn active={decision.myVote === 'concordo'} label="A favor" color="#4CAF50" onPress={() => handleVote('concordo')} disabled={voting} />
             </View>
           ) : null}
 
