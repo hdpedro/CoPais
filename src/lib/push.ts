@@ -353,11 +353,13 @@ export async function createNotificationWithPush(
     // Don't crash if insert fails
   }
 
-  // Send push
+  // Send push. Tag is unique per notification so the OS doesn't collapse
+  // multiple alerts of the same type (e.g. several swap requests in a row).
+  // (Angelino fix 2e263a5)
   await sendPushToUser(userId, {
     title,
     body: message,
     url: link || "/dashboard",
-    tag: type,
+    tag: `${type}-${Date.now()}`,
   });
 }

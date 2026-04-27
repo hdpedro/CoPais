@@ -306,12 +306,16 @@ export async function respondToSwapRequest(formData: FormData) {
 
     const swapEvents = [];
 
-    // Original date: requester gets this day from target
+    // Original date: day goes to whoever was NOT the original owner.
+    // (Angelino fix 2e263a5 — antes sempre mandava pro requester, errado
+    // quando o próprio requester já era o dono do dia.)
     if (origEvents && origEvents[0]) {
       swapEvents.push({
         group_id: req.group_id,
         child_id: origEvents[0].child_id,
-        responsible_user_id: req.requester_id, // requester takes this day
+        responsible_user_id: origEvents[0].responsible_user_id === req.requester_id
+            ? req.target_user_id   // requester owned the day → target gets it
+            : req.requester_id,    // target owned the day → requester gets it
         start_date: req.original_date,
         end_date: req.original_date,
         custody_type: "swap",
@@ -608,6 +612,11 @@ export async function generateSchedule(formData: FormData) {
     );
 
   captureServerEvent(user.id, "schedule_generated");
+
+  // Quest step: schedule is set up — one of the 5 premium-touching
+  // actions during trial.
+  const { markQuestStep } = await import("@/actions/onboarding-quest");
+  await markQuestStep("setup_calendar", { count: events.length });
 
   revalidatePath("/calendario");
   return { success: true, count: events.length };
