@@ -943,5 +943,1188 @@
     "action": "login",
     "durationMs": 9607,
     "timestamp": "2026-04-14T12:32:54.171Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 14894,
+    "timestamp": "2026-04-27T15:11:30.775Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_dashboard",
+    "durationMs": 2501,
+    "timestamp": "2026-04-27T15:12:02.667Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_calendar",
+    "durationMs": 2404,
+    "timestamp": "2026-04-27T15:12:08.673Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_chat",
+    "durationMs": 4642,
+    "timestamp": "2026-04-27T15:12:16.940Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_health",
+    "durationMs": 16196,
+    "timestamp": "2026-04-27T15:12:38.944Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_expenses",
+    "durationMs": 3049,
+    "timestamp": "2026-04-27T15:12:46.861Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_financial",
+    "durationMs": 3499,
+    "timestamp": "2026-04-27T15:12:55.367Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_activities",
+    "durationMs": 2755,
+    "timestamp": "2026-04-27T15:13:04.298Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_events",
+    "durationMs": 3285,
+    "timestamp": "2026-04-27T15:13:11.674Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_events",
+    "durationMs": 11441,
+    "timestamp": "2026-04-27T15:13:42.403Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_children",
+    "durationMs": 6829,
+    "timestamp": "2026-04-27T15:14:11.145Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_family",
+    "durationMs": 4409,
+    "timestamp": "2026-04-27T15:14:19.158Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_decisions",
+    "durationMs": 14114,
+    "timestamp": "2026-04-27T15:14:37.519Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_documents",
+    "durationMs": 2297,
+    "timestamp": "2026-04-27T15:14:43.313Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_notes",
+    "durationMs": 2041,
+    "timestamp": "2026-04-27T15:14:48.559Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_profile",
+    "durationMs": 2384,
+    "timestamp": "2026-04-27T15:14:54.130Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_notifications",
+    "durationMs": 2061,
+    "timestamp": "2026-04-27T15:14:59.219Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_agreements",
+    "durationMs": 2443,
+    "timestamp": "2026-04-27T15:15:04.842Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_checkin",
+    "durationMs": 3402,
+    "timestamp": "2026-04-27T15:15:12.957Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_school",
+    "durationMs": 2091,
+    "timestamp": "2026-04-27T15:15:18.570Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_week",
+    "durationMs": 3312,
+    "timestamp": "2026-04-27T15:15:25.005Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_dashboard",
+    "durationMs": 12,
+    "timestamp": "2026-04-27T15:17:39.484Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_dashboard",
+    "durationMs": 2298,
+    "timestamp": "2026-04-27T15:17:39.489Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_calendar",
+    "durationMs": 1,
+    "timestamp": "2026-04-27T15:17:44.149Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_calendar",
+    "durationMs": 1844,
+    "timestamp": "2026-04-27T15:17:44.152Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_chat",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T15:17:49.582Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_chat",
+    "durationMs": 2497,
+    "timestamp": "2026-04-27T15:17:49.583Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_health",
+    "durationMs": 1,
+    "timestamp": "2026-04-27T15:17:56.683Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_health",
+    "durationMs": 3681,
+    "timestamp": "2026-04-27T15:17:56.686Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_expenses",
+    "durationMs": 1,
+    "timestamp": "2026-04-27T15:18:01.547Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_expenses",
+    "durationMs": 2000,
+    "timestamp": "2026-04-27T15:18:01.548Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_financial",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T15:18:06.117Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_financial",
+    "durationMs": 1837,
+    "timestamp": "2026-04-27T15:18:06.118Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_children",
+    "durationMs": 1,
+    "timestamp": "2026-04-27T15:18:10.901Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_children",
+    "durationMs": 1963,
+    "timestamp": "2026-04-27T15:18:10.905Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_notifications",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T15:18:15.351Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_notifications",
+    "durationMs": 1694,
+    "timestamp": "2026-04-27T15:18:15.354Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 4000,
+    "timestamp": "2026-04-27T15:23:56.280Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_dashboard",
+    "durationMs": 10556,
+    "timestamp": "2026-04-27T15:24:55.684Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 4710,
+    "timestamp": "2026-04-27T15:25:53.730Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_chat",
+    "durationMs": 5686,
+    "timestamp": "2026-04-27T15:26:19.893Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_health",
+    "durationMs": 8017,
+    "timestamp": "2026-04-27T15:27:27.209Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_expenses",
+    "durationMs": 9906,
+    "timestamp": "2026-04-27T15:28:28.516Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_financial",
+    "durationMs": 11247,
+    "timestamp": "2026-04-27T15:29:27.973Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_activities",
+    "durationMs": 6676,
+    "timestamp": "2026-04-27T15:29:46.464Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_events",
+    "durationMs": 6623,
+    "timestamp": "2026-04-27T15:30:01.641Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_children",
+    "durationMs": 6437,
+    "timestamp": "2026-04-27T15:30:16.805Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_family",
+    "durationMs": 6245,
+    "timestamp": "2026-04-27T15:30:35.334Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_decisions",
+    "durationMs": 6064,
+    "timestamp": "2026-04-27T15:30:49.515Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_documents",
+    "durationMs": 7006,
+    "timestamp": "2026-04-27T15:31:04.669Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_notes",
+    "durationMs": 6086,
+    "timestamp": "2026-04-27T15:31:18.863Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_profile",
+    "durationMs": 7084,
+    "timestamp": "2026-04-27T15:31:36.290Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_notifications",
+    "durationMs": 6267,
+    "timestamp": "2026-04-27T15:31:50.935Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_agreements",
+    "durationMs": 6367,
+    "timestamp": "2026-04-27T15:32:04.914Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_checkin",
+    "durationMs": 5739,
+    "timestamp": "2026-04-27T15:32:19.241Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_school",
+    "durationMs": 5733,
+    "timestamp": "2026-04-27T15:32:34.545Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_week",
+    "durationMs": 5214,
+    "timestamp": "2026-04-27T15:32:48.932Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_week",
+    "durationMs": 5521,
+    "timestamp": "2026-04-27T15:33:14.805Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_dashboard",
+    "durationMs": 17,
+    "timestamp": "2026-04-27T15:36:15.454Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_dashboard",
+    "durationMs": 5721,
+    "timestamp": "2026-04-27T15:36:15.460Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_calendar",
+    "durationMs": 1,
+    "timestamp": "2026-04-27T15:36:31.357Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_calendar",
+    "durationMs": 8251,
+    "timestamp": "2026-04-27T15:36:31.359Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_chat",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T15:36:45.717Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_chat",
+    "durationMs": 6189,
+    "timestamp": "2026-04-27T15:36:45.719Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_health",
+    "durationMs": 1,
+    "timestamp": "2026-04-27T15:37:00.589Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_health",
+    "durationMs": 7145,
+    "timestamp": "2026-04-27T15:37:00.591Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_expenses",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T15:37:14.515Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_expenses",
+    "durationMs": 5992,
+    "timestamp": "2026-04-27T15:37:14.517Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_financial",
+    "durationMs": 1,
+    "timestamp": "2026-04-27T15:37:30.149Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_financial",
+    "durationMs": 7249,
+    "timestamp": "2026-04-27T15:37:30.151Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_children",
+    "durationMs": 1,
+    "timestamp": "2026-04-27T15:37:43.947Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_children",
+    "durationMs": 5678,
+    "timestamp": "2026-04-27T15:37:43.949Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_notifications",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T15:37:57.269Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_notifications",
+    "durationMs": 5852,
+    "timestamp": "2026-04-27T15:37:57.270Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 5882,
+    "timestamp": "2026-04-27T15:41:49.023Z"
+  },
+  {
+    "test": "auth",
+    "platform": "expo-web",
+    "action": "login",
+    "durationMs": 10410,
+    "timestamp": "2026-04-27T15:42:18.100Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_dashboard",
+    "durationMs": 5315,
+    "timestamp": "2026-04-27T15:43:45.627Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_calendar",
+    "durationMs": 2022,
+    "timestamp": "2026-04-27T15:43:51.323Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_chat",
+    "durationMs": 3095,
+    "timestamp": "2026-04-27T15:43:57.719Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_health",
+    "durationMs": 3688,
+    "timestamp": "2026-04-27T15:44:04.488Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_expenses",
+    "durationMs": 1973,
+    "timestamp": "2026-04-27T15:44:09.510Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_financial",
+    "durationMs": 1868,
+    "timestamp": "2026-04-27T15:44:14.564Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_activities",
+    "durationMs": 16292,
+    "timestamp": "2026-04-27T15:44:34.160Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_events",
+    "durationMs": 8919,
+    "timestamp": "2026-04-27T15:44:48.977Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_events",
+    "durationMs": 18141,
+    "timestamp": "2026-04-27T15:45:26.336Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_children",
+    "durationMs": 12997,
+    "timestamp": "2026-04-27T15:45:57.326Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_family",
+    "durationMs": 7881,
+    "timestamp": "2026-04-27T15:46:13.425Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_decisions",
+    "durationMs": 7256,
+    "timestamp": "2026-04-27T15:47:02.996Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_documents",
+    "durationMs": 9281,
+    "timestamp": "2026-04-27T15:47:56.891Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_notes",
+    "durationMs": 9741,
+    "timestamp": "2026-04-27T15:48:15.742Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_notifications",
+    "durationMs": 17014,
+    "timestamp": "2026-04-27T15:49:49.878Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_agreements",
+    "durationMs": 7257,
+    "timestamp": "2026-04-27T15:50:05.313Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_checkin",
+    "durationMs": 9872,
+    "timestamp": "2026-04-27T15:50:27.030Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_school",
+    "durationMs": 8985,
+    "timestamp": "2026-04-27T15:50:47.084Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_week",
+    "durationMs": 6659,
+    "timestamp": "2026-04-27T15:51:01.279Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_dashboard",
+    "durationMs": 10148,
+    "timestamp": "2026-04-27T15:53:08.609Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 10586,
+    "timestamp": "2026-04-27T15:54:11.393Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_chat",
+    "durationMs": 10000,
+    "timestamp": "2026-04-27T15:54:40.146Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_health",
+    "durationMs": 10539,
+    "timestamp": "2026-04-27T15:55:02.027Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_expenses",
+    "durationMs": 10293,
+    "timestamp": "2026-04-27T15:55:23.812Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_financial",
+    "durationMs": 10049,
+    "timestamp": "2026-04-27T15:55:46.482Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_activities",
+    "durationMs": 10580,
+    "timestamp": "2026-04-27T15:56:08.488Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_events",
+    "durationMs": 10208,
+    "timestamp": "2026-04-27T15:56:30.552Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_children",
+    "durationMs": 10021,
+    "timestamp": "2026-04-27T15:56:53.220Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_family",
+    "durationMs": 10214,
+    "timestamp": "2026-04-27T15:57:15.146Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_decisions",
+    "durationMs": 10240,
+    "timestamp": "2026-04-27T15:57:39.839Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_documents",
+    "durationMs": 10353,
+    "timestamp": "2026-04-27T15:58:02.804Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_notes",
+    "durationMs": 10641,
+    "timestamp": "2026-04-27T15:58:25.057Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_profile",
+    "durationMs": 10407,
+    "timestamp": "2026-04-27T15:58:48.050Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_dashboard",
+    "durationMs": 2851,
+    "timestamp": "2026-04-27T15:59:19.662Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_calendar",
+    "durationMs": 6795,
+    "timestamp": "2026-04-27T15:59:29.703Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_chat",
+    "durationMs": 5327,
+    "timestamp": "2026-04-27T15:59:40.210Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_health",
+    "durationMs": 4031,
+    "timestamp": "2026-04-27T15:59:47.296Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_expenses",
+    "durationMs": 2312,
+    "timestamp": "2026-04-27T15:59:52.707Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_financial",
+    "durationMs": 2240,
+    "timestamp": "2026-04-27T15:59:58.153Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_activities",
+    "durationMs": 2376,
+    "timestamp": "2026-04-27T16:00:03.993Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_events",
+    "durationMs": 3022,
+    "timestamp": "2026-04-27T16:00:11.161Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_events",
+    "durationMs": 5675,
+    "timestamp": "2026-04-27T16:00:39.310Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_children",
+    "durationMs": 2622,
+    "timestamp": "2026-04-27T16:00:59.228Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_family",
+    "durationMs": 4215,
+    "timestamp": "2026-04-27T16:01:06.870Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_decisions",
+    "durationMs": 2450,
+    "timestamp": "2026-04-27T16:01:13.041Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_documents",
+    "durationMs": 2114,
+    "timestamp": "2026-04-27T16:01:18.906Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_notes",
+    "durationMs": 9232,
+    "timestamp": "2026-04-27T16:01:39.298Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_profile",
+    "durationMs": 2269,
+    "timestamp": "2026-04-27T16:01:45.009Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_notifications",
+    "durationMs": 1920,
+    "timestamp": "2026-04-27T16:01:49.986Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_agreements",
+    "durationMs": 1730,
+    "timestamp": "2026-04-27T16:01:54.862Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_checkin",
+    "durationMs": 1838,
+    "timestamp": "2026-04-27T16:02:00.644Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_school",
+    "durationMs": 1874,
+    "timestamp": "2026-04-27T16:02:05.721Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "pwa",
+    "action": "load_week",
+    "durationMs": 2298,
+    "timestamp": "2026-04-27T16:02:11.434Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_dashboard",
+    "durationMs": 12260,
+    "timestamp": "2026-04-27T16:04:00.362Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_calendar",
+    "durationMs": 15310,
+    "timestamp": "2026-04-27T16:04:30.475Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_chat",
+    "durationMs": 12336,
+    "timestamp": "2026-04-27T16:04:57.967Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_health",
+    "durationMs": 12007,
+    "timestamp": "2026-04-27T16:05:23.500Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_expenses",
+    "durationMs": 11940,
+    "timestamp": "2026-04-27T16:05:49.991Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_financial",
+    "durationMs": 13016,
+    "timestamp": "2026-04-27T16:06:54.660Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_activities",
+    "durationMs": 13309,
+    "timestamp": "2026-04-27T16:08:00.119Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_events",
+    "durationMs": 14048,
+    "timestamp": "2026-04-27T16:08:32.146Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_children",
+    "durationMs": 13941,
+    "timestamp": "2026-04-27T16:09:01.382Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_family",
+    "durationMs": 14246,
+    "timestamp": "2026-04-27T16:09:31.285Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_decisions",
+    "durationMs": 13730,
+    "timestamp": "2026-04-27T16:10:00.866Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_documents",
+    "durationMs": 12520,
+    "timestamp": "2026-04-27T16:11:02.426Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_profile",
+    "durationMs": 13650,
+    "timestamp": "2026-04-27T16:12:43.517Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_profile",
+    "durationMs": 12804,
+    "timestamp": "2026-04-27T16:13:14.298Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_notifications",
+    "durationMs": 13655,
+    "timestamp": "2026-04-27T16:13:44.970Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_agreements",
+    "durationMs": 14010,
+    "timestamp": "2026-04-27T16:14:14.744Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_checkin",
+    "durationMs": 12827,
+    "timestamp": "2026-04-27T16:15:16.551Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_school",
+    "durationMs": 12567,
+    "timestamp": "2026-04-27T16:16:20.365Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_week",
+    "durationMs": 13952,
+    "timestamp": "2026-04-27T16:16:51.188Z"
+  },
+  {
+    "test": "navigation",
+    "platform": "expo-web",
+    "action": "load_week",
+    "durationMs": 12667,
+    "timestamp": "2026-04-27T16:17:22.548Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_dashboard",
+    "durationMs": 20,
+    "timestamp": "2026-04-27T16:29:51.551Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_dashboard",
+    "durationMs": 9454,
+    "timestamp": "2026-04-27T16:29:51.560Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_calendar",
+    "durationMs": 3,
+    "timestamp": "2026-04-27T16:29:57.317Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_calendar",
+    "durationMs": 2268,
+    "timestamp": "2026-04-27T16:29:57.320Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_chat",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T16:30:03.476Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_chat",
+    "durationMs": 2830,
+    "timestamp": "2026-04-27T16:30:03.478Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_health",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T16:30:10.854Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_health",
+    "durationMs": 4047,
+    "timestamp": "2026-04-27T16:30:10.857Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_expenses",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T16:30:16.943Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_expenses",
+    "durationMs": 2367,
+    "timestamp": "2026-04-27T16:30:16.945Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_financial",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T16:30:39.357Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_financial",
+    "durationMs": 17664,
+    "timestamp": "2026-04-27T16:30:39.360Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_financial",
+    "durationMs": 20,
+    "timestamp": "2026-04-27T16:30:53.072Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_financial",
+    "durationMs": 6874,
+    "timestamp": "2026-04-27T16:30:53.076Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_children",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T16:31:08.237Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_children",
+    "durationMs": 6008,
+    "timestamp": "2026-04-27T16:31:08.240Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_notifications",
+    "durationMs": 2,
+    "timestamp": "2026-04-27T16:31:32.926Z"
+  },
+  {
+    "test": "performance",
+    "platform": "pwa",
+    "action": "perf_notifications",
+    "durationMs": 14847,
+    "timestamp": "2026-04-27T16:31:32.928Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_notifications",
+    "durationMs": 18,
+    "timestamp": "2026-04-27T16:43:34.116Z"
+  },
+  {
+    "test": "performance",
+    "platform": "expo-web",
+    "action": "perf_notifications",
+    "durationMs": 15083,
+    "timestamp": "2026-04-27T16:43:34.121Z"
   }
 ]

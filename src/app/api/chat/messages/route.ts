@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getSignedFileUrl } from "@/lib/storage-signed-url";
 
 export async function GET(req: NextRequest) {
   const supabase = await createClient();
@@ -73,13 +74,20 @@ export async function GET(req: NextRequest) {
     if (p?.full_name) profileMap.set(m.user_id, p.full_name);
   });
 
-  const messagesWithProfiles = ((messages as ChatMessageRow[]) || [])
-    .filter((msg) => !!(msg.text?.trim() || msg.image_url))
-    .map((msg) => ({
-      ...msg,
-      profiles: { full_name: profileMap.get(msg.sender_id) || "User" },
-    }))
-    .reverse();
+  const baseRows = ((messages as ChatMessageRow[]) || [])
+    .filter((msg) => !!(msg.text?.trim() || msg.image_url));
 
-  return NextResponse.json({ messages: messagesWithProfiles });
+  // Sign image_urls in parallel — buckets are private after migration 062
+  // and the path is what's stored in the DB column.
+  const signedRows = await Promise.all(
+    baseRows.map(async (msg) => ({
+      ...msg,
+      image_url: msg.image_url
+        ? (await getSignedFileUrl(supabase, "documents", msg.image_url)) || msg.image_url
+        : null,
+      profiles: { full_name: profileMap.get(msg.sender_id) || "User" },
+    })),
+  );
+
+  return NextResponse.json({ messages: signedRows.reverse() });
 }

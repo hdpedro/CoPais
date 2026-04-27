@@ -136,13 +136,19 @@ export default async function ChatPage() {
 
   if (messagesError) console.error("Chat messages error:", messagesError);
 
-  // Filter empty messages and attach profiles
-  const messagesWithProfiles = (messages || [])
-    .filter(msg => !!(msg.text?.trim() || msg.image_url))
-    .map(msg => ({
+  // Filter empty messages and attach profiles. image_url is path-only after
+  // migration 062 — sign in parallel so the bubble image renders.
+  const { getSignedFileUrl } = await import("@/lib/storage-signed-url");
+  const baseRows = (messages || []).filter(msg => !!(msg.text?.trim() || msg.image_url));
+  const messagesWithProfiles = await Promise.all(
+    baseRows.map(async msg => ({
       ...msg,
+      image_url: msg.image_url
+        ? (await getSignedFileUrl(supabase, "documents", msg.image_url)) || msg.image_url
+        : null,
       profiles: { full_name: profileMap.get(msg.sender_id) || "Usuario" },
-    }));
+    })),
+  );
 
   // Compute unread counts
   const unreadCounts: Record<string, number> = {};

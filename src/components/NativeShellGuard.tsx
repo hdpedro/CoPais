@@ -28,15 +28,11 @@ export function WebOnly({ children }: { children: React.ReactNode }) {
 }
 
 /**
- * Initializes native Capacitor plugins on app start.
- * Renders nothing — side-effect only component.
+ * Stub kept for backwards-compat — no native shell to initialize anymore.
+ * The iOS app is now Expo (kindar-native/) which has its own bootstrap in
+ * `kindar-native/app/_layout.tsx`. Capacitor was removed in the 2026-04-27
+ * audit. Renders nothing.
  */
 export function NativeInit() {
-  useEffect(() => {
-    if (!isNativeApp()) return;
-
-    import("@/lib/native-init").then((mod) => mod.initNative()).catch(() => {});
-  }, []);
-
   return null;
 }

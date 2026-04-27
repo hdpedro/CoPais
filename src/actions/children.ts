@@ -151,16 +151,15 @@ export async function uploadChildDocument(formData: FormData) {
     redirect("/criancas/" + childId + "?tab=documentos&error=" + encodeURIComponent(uploadError.message));
   }
 
-  const { data: urlData } = adminClient.storage
-    .from("documents")
-    .getPublicUrl(fileName);
-
+  // After migration 062: store the storage path only. Reads sign URLs at
+  // render time via getSignedFileUrl(). getPublicUrl() would return a 404
+  // since buckets are private.
   const { error } = await supabase.from("documents").insert({
     group_id: groupId,
     child_id: childId,
     category,
     name,
-    file_url: urlData.publicUrl,
+    file_url: fileName,
     file_size: file.size,
     mime_type: file.type,
     uploaded_by: user.id,
@@ -203,12 +202,19 @@ export async function deleteChildDocument(documentId: string, childId: string) {
     process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 
-  // Delete file from storage
+  // Delete file from storage. After migration 062, file_url is path-only
+  // ("groupId/timestamp-name"). Pre-migration rows may still have absolute
+  // URLs — extract the path portion in that case.
   try {
-    const url = new URL(doc.file_url);
-    const pathParts = url.pathname.split("/storage/v1/object/public/documents/");
-    if (pathParts[1]) {
-      await adminClient.storage.from("documents").remove([decodeURIComponent(pathParts[1])]);
+    const stored = doc.file_url || "";
+    let storagePath = stored;
+    if (stored.startsWith("http")) {
+      const url = new URL(stored);
+      const parts = url.pathname.split("/storage/v1/object/public/documents/");
+      if (parts[1]) storagePath = decodeURIComponent(parts[1]);
+    }
+    if (storagePath) {
+      await adminClient.storage.from("documents").remove([storagePath]);
     }
   } catch {
     // Storage deletion failed — continue with DB deletion anyway

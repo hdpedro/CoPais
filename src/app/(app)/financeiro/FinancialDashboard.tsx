@@ -144,16 +144,29 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
       if (e.paid_by === m0.user_id) m0Spent += e.amount;
     });
 
-    // Account for confirmed settlements
+    // Account for confirmed settlements.
+    //
+    // The formula is `diff = (m0Spent + settlementAdjustment) - m0ShouldPay`,
+    // where `diff > 0` means m0 is owed money. Settlements push the diff
+    // toward zero (they reconcile previous imbalances).
+    //
+    // Worked example (audit 2026-04-27 caught this):
+    //   - m0 spent 200, m1 spent 0, 50/50 split → m0ShouldPay = 100, diff = 100
+    //   - m1 then pays m0 100 (s.paid_to === m0)
+    //   - new diff should be 0
+    //   - therefore settlementAdjustment must be -100 when m0 received money
+    //
+    // Previous code had the signs inverted, which made the dashboard show
+    // a higher imbalance after every confirmed settlement.
     const confirmedSettlements = settlements.filter((s) => s.status === "confirmed");
     let settlementAdjustment = 0;
     confirmedSettlements.forEach((s) => {
       if (s.paid_by === m0.user_id) {
-        // m0 paid m1, so m0's effective spend decreases (they're settling debt)
-        settlementAdjustment -= s.amount;
-      } else if (s.paid_to === m0.user_id) {
-        // m1 paid m0, so m0's effective spend increases (they received settlement)
+        // m0 paid m1 to settle a debt → reduces m0's deficit by adding to "spent" side
         settlementAdjustment += s.amount;
+      } else if (s.paid_to === m0.user_id) {
+        // m1 paid m0 → m0 already recovered this much; subtract from "spent" side
+        settlementAdjustment -= s.amount;
       }
     });
 

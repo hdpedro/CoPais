@@ -67,3 +67,39 @@ export async function markAllAsRead(userId: string) {
   const { error } = await supabase.from('notifications').update({ is_read: true }).eq('user_id', userId).eq('is_read', false);
   return { success: !error, error: error?.message };
 }
+
+/**
+ * Subscribe to notification changes for a user via Supabase Realtime.
+ * Mirrors PWA src/components/NotificationBadge.tsx — INSERT + UPDATE.
+ *
+ * Returns an unsubscribe function. Always returns a cleanup, even if userId
+ * is missing, so callers can unconditionally invoke it in useEffect cleanup.
+ */
+export function subscribeToNotifications(
+  userId: string | null | undefined,
+  onChange: () => void
+): () => void {
+  if (!userId) return () => {};
+
+  const channel = supabase
+    .channel(`notifications:${userId}`)
+    .on(
+      'postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+      onChange,
+    )
+    .on(
+      'postgres_changes',
+      { event: 'UPDATE', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },
+      onChange,
+    )
+    .subscribe();
+
+  return () => {
+    try {
+      supabase.removeChannel(channel);
+    } catch {
+      // non-fatal
+    }
+  };
+}

@@ -115,30 +115,45 @@ export default function EscalaScreen() {
     });
   }
 
-  function applyPreset(preset: '50-50-weekly' | '2-2-3' | '60-40' | 'weekends-a' | 'weekends-b' | 'clear') {
+  // Presets aligned with PWA src/app/(app)/calendario/escala/ScheduleBuilder.tsx
+  // (alternating-weeks, 5-2-2-5, 3-4-4-3, 2-3-weekend) so users see the
+  // same models on web and native. The pattern array is 14 cells starting
+  // with Sunday (index 0 = Dom).
+  function applyPreset(preset: 'alternating-weeks' | '5-2-2-5' | '3-4-4-3' | '2-3-weekend' | 'clear') {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const a = members[0]?.userId || null;
-    const b = members[1]?.userId || null;
-    if (!a && preset !== 'clear') return;
+    const m0 = members[0]?.userId || null;
+    const m1 = members[1]?.userId || m0;
+    if (!m0 && preset !== 'clear') return;
 
     let next: (string | null)[];
-    if (preset === '50-50-weekly') {
-      // Week 1 = parent A, Week 2 = parent B
-      next = [...Array(7).fill(a), ...Array(7).fill(b || a)];
-    } else if (preset === '2-2-3') {
-      // Common: Mon-Tue A, Wed-Thu B, Fri-Sun A (week 1); inverted week 2
-      next = [
-        a, a, a, b, b, a, a, // week1: sun a, mon-tue a, wed-thu b, fri-sat a
-        b, b, b, a, a, b, b,
-      ];
-    } else if (preset === '60-40') {
-      next = [a, a, a, a, b, b, a, a, a, a, a, b, b, a];
-    } else if (preset === 'weekends-a') {
-      next = [a, b, b, b, b, b, a, a, b, b, b, b, b, a];
-    } else if (preset === 'weekends-b') {
-      next = [b, a, a, a, a, a, b, b, a, a, a, a, a, b];
-    } else {
-      next = Array(14).fill(null);
+    switch (preset) {
+      case 'alternating-weeks':
+        next = [
+          m0, m0, m0, m0, m0, m0, m0,
+          m1, m1, m1, m1, m1, m1, m1,
+        ];
+        break;
+      case '5-2-2-5':
+        // Week 1: Mon-Fri A, Sat-Sun B; Week 2: Mon-Tue A, Wed-Sun B
+        next = [
+          m1, m0, m0, m0, m0, m0, m1,
+          m1, m0, m0, m1, m1, m1, m1,
+        ];
+        break;
+      case '3-4-4-3':
+        next = [
+          m1, m0, m0, m0, m1, m1, m1,
+          m1, m0, m0, m0, m0, m1, m1,
+        ];
+        break;
+      case '2-3-weekend':
+        next = [
+          m0, m0, m0, m0, m1, m1, m0,
+          m1, m1, m1, m1, m0, m0, m1,
+        ];
+        break;
+      default:
+        next = Array(14).fill(null);
     }
     setPattern(next);
   }
@@ -165,15 +180,27 @@ export default function EscalaScreen() {
   async function handleGenerate() {
     if (!activeGroup || !userId || !childId) return;
     if (pattern.every(p => p === null)) {
-      Alert.alert('Padrao vazio', 'Atribua ao menos alguns dias antes de gerar a escala');
+      Alert.alert('Padrão vazio', 'Atribua ao menos alguns dias antes de gerar a escala');
       return;
     }
     const iso = parseDate(startDateDisplay);
-    if (!iso) { Alert.alert('Data invalida', 'Use DD/MM/AAAA'); return; }
+    if (!iso) { Alert.alert('Data inválida', 'Use DD/MM/AAAA'); return; }
+
+    // Mirror PWA `ScheduleBuilder.tsx:148-153` — block users from picking
+    // a non-Monday start date, otherwise the bi-weekly cycle anchor (which
+    // the service silently shifts to Monday) doesn't match user expectation.
+    const startDay = new Date(iso + 'T12:00:00').getDay();
+    if (startDay !== 1) {
+      Alert.alert(
+        'Início precisa ser segunda-feira',
+        'A data de início deve ser uma segunda-feira para alinhar com a escala quinzenal. Escolha a segunda-feira mais próxima.',
+      );
+      return;
+    }
 
     Alert.alert(
       'Gerar escala',
-      `Isso vai gerar a escala para ${months} meses a partir de ${startDateDisplay}. Eventos anteriores (se existirem) nesse periodo serao substituidos. Continuar?`,
+      `Isso vai gerar a escala para ${months} meses a partir de ${startDateDisplay}. Eventos anteriores (se existirem) nesse período serão substituídos. Continuar?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -192,7 +219,7 @@ export default function EscalaScreen() {
             setGenerating(false);
             if (res.success) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('Escala gerada', `${res.inserted} evento(s) de guarda criados no calendario.`, [
+              Alert.alert('Escala gerada', `${res.inserted} evento(s) de guarda criados no calendário.`, [
                 { text: 'OK', onPress: () => router.back() },
               ]);
             } else {
@@ -288,11 +315,11 @@ export default function EscalaScreen() {
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: spacing.lg }}>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            <PresetBtn label="Semanal 50/50" onPress={() => applyPreset('50-50-weekly')} />
-            <PresetBtn label="2-2-3" onPress={() => applyPreset('2-2-3')} />
-            <PresetBtn label="60/40" onPress={() => applyPreset('60-40')} />
-            <PresetBtn label={`Fins com ${members[0].name}`} onPress={() => applyPreset('weekends-a')} />
-            <PresetBtn label={`Fins com ${members[1].name}`} onPress={() => applyPreset('weekends-b')} />
+            {/* Same preset library as PWA `ScheduleBuilder.tsx:81-118`. */}
+            <PresetBtn label="Semanas alternadas" onPress={() => applyPreset('alternating-weeks')} />
+            <PresetBtn label="5-2-2-5" onPress={() => applyPreset('5-2-2-5')} />
+            <PresetBtn label="3-4-4-3" onPress={() => applyPreset('3-4-4-3')} />
+            <PresetBtn label="2-3 com fins de semana" onPress={() => applyPreset('2-3-weekend')} />
             <PresetBtn label="Limpar" onPress={() => applyPreset('clear')} />
           </View>
         </ScrollView>

@@ -10,6 +10,7 @@ import { useAuth } from '../store/auth';
 import { PARENT_COLORS, getDisplayName } from '../lib/constants';
 import { loadMyPendingSwaps, type SwapRequestDetail } from '../services/swaps';
 import { listBalanceOperations, type BalanceOperation } from '../services/balance-operations';
+import { fetchMyPendingEventRequests, type EventRequest } from '../services/event-requests';
 
 export interface CalendarEvent {
   id: string;
@@ -37,6 +38,7 @@ export function useCalendar() {
   const [members, setMembers] = useState<MemberColor[]>([]);
   const [pendingSwaps, setPendingSwaps] = useState<SwapRequestDetail[]>([]);
   const [balanceOps, setBalanceOps] = useState<BalanceOperation[]>([]);
+  const [pendingEventRequests, setPendingEventRequests] = useState<EventRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
@@ -151,17 +153,20 @@ export function useCalendar() {
 
       setEvents(allEvents);
 
-      // Pending swap requests addressed to me (for the action banner)
+      // Pending swap requests + event-action requests addressed to me
       if (activeGroup.custodyEnabled) {
-        const [swaps, ops] = await Promise.all([
+        const [swaps, ops, eventReqs] = await Promise.all([
           loadMyPendingSwaps(groupId, userId),
           listBalanceOperations(groupId),
+          fetchMyPendingEventRequests(groupId, userId),
         ]);
         setPendingSwaps(swaps);
         setBalanceOps(ops);
+        setPendingEventRequests(eventReqs);
       } else {
         setPendingSwaps([]);
         setBalanceOps([]);
+        setPendingEventRequests(await fetchMyPendingEventRequests(groupId, userId));
       }
     } catch {
       // Silently fail
@@ -172,7 +177,7 @@ export function useCalendar() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  return { events, members, pendingSwaps, balanceOps, loading, refresh: loadData };
+  return { events, members, pendingSwaps, balanceOps, pendingEventRequests, loading, refresh: loadData };
 }
 
 // Re-export colors for use in the calendar

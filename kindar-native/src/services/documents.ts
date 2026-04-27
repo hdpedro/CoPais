@@ -69,13 +69,18 @@ export async function deleteDocument(documentId: string): Promise<{ success: tru
 
   if (lookupErr || !doc) return { success: false, error: lookupErr?.message || 'Documento não encontrado' };
 
-  // Try to remove from storage. If the file_url isn't a public Supabase URL
-  // (e.g. legacy data) we just skip — the row delete still succeeds.
+  // Remove from storage. After migration 062, file_url is path-only;
+  // pre-migration rows still have absolute URLs — handle both.
   try {
-    const url = new URL(doc.file_url);
-    const parts = url.pathname.split('/storage/v1/object/public/documents/');
-    if (parts[1]) {
-      await supabase.storage.from('documents').remove([decodeURIComponent(parts[1])]);
+    const stored = doc.file_url || '';
+    let storagePath = stored;
+    if (stored.startsWith('http')) {
+      const url = new URL(stored);
+      const parts = url.pathname.split('/storage/v1/object/public/documents/');
+      if (parts[1]) storagePath = decodeURIComponent(parts[1]);
+    }
+    if (storagePath) {
+      await supabase.storage.from('documents').remove([storagePath]);
     }
   } catch {
     // ignore — storage cleanup is best-effort
@@ -86,15 +91,18 @@ export async function deleteDocument(documentId: string): Promise<{ success: tru
   return { success: true };
 }
 
+// Categories match the DB enum `document_category` defined in migration
+// 00001_initial_schema.sql: ('personal', 'health', 'education', 'legal', 'other').
+// PWA uses the same values — DocumentList/DocumentsDashboard label them as
+// Pessoal, Saúde, Educação, Legal, Outro. Don't add new values here without
+// also extending the enum on the database side, or inserts will fail with
+// `invalid input value for enum document_category`.
 export const DOCUMENT_CATEGORIES = [
-  { value: 'rg', label: 'RG', icon: '🪪' },
-  { value: 'cpf', label: 'CPF', icon: '📄' },
-  { value: 'passaporte', label: 'Passaporte', icon: '🛂' },
-  { value: 'certidao', label: 'Certidão', icon: '📜' },
-  { value: 'plano_saude', label: 'Plano de Saúde', icon: '🏥' },
-  { value: 'escola', label: 'Escolar', icon: '🎒' },
-  { value: 'medico', label: 'Médico', icon: '💊' },
-  { value: 'outro', label: 'Outro', icon: '📁' },
+  { value: 'personal', label: 'Pessoal', icon: '🪪' },
+  { value: 'health', label: 'Saúde', icon: '🏥' },
+  { value: 'education', label: 'Escolar', icon: '🎓' },
+  { value: 'legal', label: 'Legal', icon: '📜' },
+  { value: 'other', label: 'Outro', icon: '📁' },
 ] as const;
 
 const ALLOWED_DOC_TYPES = [
@@ -141,14 +149,14 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<{ succ
       .upload(path, arrayBuffer, { contentType: input.mimeType, upsert: false });
     if (uploadErr) return { success: false, error: uploadErr.message };
 
-    const { data: urlData } = supabase.storage.from('documents').getPublicUrl(path);
-
+    // After migration 062: store path-only. Reads sign URLs at render time
+    // via getSignedFileUrl() from src/services/storage.ts.
     const { error: insertErr } = await supabase.from('documents').insert({
       group_id: input.groupId,
       child_id: input.childId,
       category: input.category,
       name: input.displayName,
-      file_url: urlData.publicUrl,
+      file_url: path,
       file_size: input.size,
       mime_type: input.mimeType,
       uploaded_by: input.uploadedBy,

@@ -18,15 +18,18 @@ export const COLORS = {
   violet: '#7C6FAE',
 } as const;
 
+// Labels mirror PWA i18n `expenses.categories.*` so users see the same
+// names on web and native — previously the native form rendered the raw
+// `value` ("food" / "transport") instead of the translated label.
 export const EXPENSE_CATEGORIES = [
-  { value: 'education', icon: '🎓' },
-  { value: 'health', icon: '🏥' },
-  { value: 'food', icon: '🍔' },
-  { value: 'clothing', icon: '👕' },
-  { value: 'transport', icon: '🚗' },
-  { value: 'leisure', icon: '⚽' },
-  { value: 'housing', icon: '🏠' },
-  { value: 'other', icon: '📦' },
+  { value: 'education', label: 'Educação', icon: '🎓' },
+  { value: 'health', label: 'Saúde', icon: '🏥' },
+  { value: 'food', label: 'Alimentação', icon: '🍔' },
+  { value: 'clothing', label: 'Vestuário', icon: '👕' },
+  { value: 'transport', label: 'Transporte', icon: '🚗' },
+  { value: 'leisure', label: 'Lazer', icon: '⚽' },
+  { value: 'housing', label: 'Moradia', icon: '🏠' },
+  { value: 'other', label: 'Outros', icon: '📦' },
 ] as const;
 
 export const USER_ROLES = [

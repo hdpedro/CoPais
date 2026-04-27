@@ -15,10 +15,12 @@ import { useAuth } from '../../src/store/auth';
 import { createChild } from '../../src/services/children';
 import { colors, spacing, radius, font } from '../../src/design-system/tokens';
 
-const GENDERS = [
-  { value: 'female', label: 'Feminino', icon: '👧' },
-  { value: 'male', label: 'Masculino', icon: '👦' },
-  { value: 'other', label: 'Outro / Prefiro nao dizer', icon: '🧒' },
+// Schema check (CHECK sex IN ('M','F')) lives on `children.sex`. Native must
+// store one of these two literals — values like 'female'/'male'/'other' are
+// rejected by Postgres and the entire add-child flow fails with HTTP 400.
+const SEX_OPTIONS: { value: 'M' | 'F'; label: string; icon: string }[] = [
+  { value: 'F', label: 'Feminino', icon: '👧' },
+  { value: 'M', label: 'Masculino', icon: '👦' },
 ];
 
 function parseDate(display: string): string | null {
@@ -37,7 +39,8 @@ export default function NovaCriancaScreen() {
   const { activeGroup } = useAuth();
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
-  const [gender, setGender] = useState<string>('');
+  const [sex, setSex] = useState<'M' | 'F' | ''>('');
+  const [allergiesText, setAllergiesText] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -53,18 +56,25 @@ export default function NovaCriancaScreen() {
 
   async function handleSave() {
     if (!activeGroup) return;
-    if (!fullName.trim()) { setError('Informe o nome da crianca'); return; }
+    if (!fullName.trim()) { setError('Informe o nome da criança'); return; }
     const iso = parseDate(birthDate);
-    if (!iso) { setError('Data de nascimento invalida (DD/MM/AAAA)'); return; }
+    if (!iso) { setError('Data de nascimento inválida (DD/MM/AAAA)'); return; }
 
     setError('');
     setSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // Allergies: comma- or newline-separated → text[] for the children.allergies column.
+    const allergies = allergiesText
+      .split(/[,\n;]/)
+      .map(s => s.trim())
+      .filter(Boolean);
+
     const result = await createChild({
       groupId: activeGroup.groupId,
       fullName,
       birthDate: iso,
-      gender: gender || undefined,
+      sex: sex || null,
+      allergies: allergies.length > 0 ? allergies : null,
       notes: notes.trim() || undefined,
     });
     setSaving(false);
@@ -74,7 +84,7 @@ export default function NovaCriancaScreen() {
       router.back();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', 'Nao foi possivel adicionar a crianca. Tente novamente.');
+      Alert.alert('Erro', 'Não foi possível adicionar a criança. Tente novamente.');
     }
   }
 
@@ -89,7 +99,7 @@ export default function NovaCriancaScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Nova crianca
+          Nova criança
         </Text>
       </View>
 
@@ -135,47 +145,71 @@ export default function NovaCriancaScreen() {
           }}
         />
 
-        {/* Gender */}
+        {/* Sex (matches DB CHECK constraint and PWA — M/F) */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>
-          Genero
+          Sexo
         </Text>
-        <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
-          {GENDERS.map(g => {
-            const active = gender === g.value;
+        <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: spacing.sm }}>
+          Usado para curvas de crescimento OMS. Opcional.
+        </Text>
+        <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
+          {SEX_OPTIONS.map(g => {
+            const active = sex === g.value;
             return (
               <TouchableOpacity
                 key={g.value}
                 onPress={() => {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setGender(active ? '' : g.value);
+                  setSex(active ? '' : g.value);
                 }}
                 activeOpacity={0.8}
                 style={{
+                  flex: 1,
                   backgroundColor: active ? `${colors.brand}15` : colors.bgElevated,
                   borderRadius: radius.md,
                   borderWidth: 1, borderColor: active ? colors.brand : colors.borderLight,
                   paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
-                  flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
                 }}
               >
                 <Text style={{ fontSize: 22 }}>{g.icon}</Text>
-                <Text style={{ fontSize: font.sizes.md, color: colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal, flex: 1 }}>
+                <Text style={{ fontSize: font.sizes.md, color: colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
                   {g.label}
                 </Text>
-                {active ? <Ionicons name="checkmark-circle" size={22} color={colors.brand} /> : null}
+                {active ? <Ionicons name="checkmark-circle" size={20} color={colors.brand} /> : null}
               </TouchableOpacity>
             );
           })}
         </View>
 
+        {/* Allergies */}
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
+          Alergias
+        </Text>
+        <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: spacing.sm }}>
+          Separe por vírgula. Ex: amendoim, leite, dipirona
+        </Text>
+        <TextInput
+          value={allergiesText}
+          onChangeText={setAllergiesText}
+          placeholder="Ex: amendoim, leite"
+          placeholderTextColor={colors.textMuted}
+          autoCapitalize="none"
+          style={{
+            backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
+            paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+            fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg,
+          }}
+        />
+
         {/* Notes */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
-          Observacoes
+          Observações
         </Text>
         <TextInput
           value={notes}
           onChangeText={setNotes}
-          placeholder="Alergias, condicoes medicas, preferencias..."
+          placeholder="Condições médicas, preferências, restrições..."
           placeholderTextColor={colors.textMuted}
           multiline
           style={{
@@ -199,7 +233,7 @@ export default function NovaCriancaScreen() {
         >
           {saving ? <ActivityIndicator color="#fff" /> : (
             <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Adicionar crianca
+              Adicionar criança
             </Text>
           )}
         </TouchableOpacity>

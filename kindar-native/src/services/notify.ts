@@ -40,7 +40,9 @@ type NotifyAction =
   | 'event_request_created'
   | 'event_request_approved'
   | 'event_request_rejected'
-  | 'event_request_cancelled';
+  | 'event_request_cancelled'
+  | 'settlement_created'
+  | 'settlement_confirmed';
 
 /**
  * Fire-and-forget notification to PWA backend.

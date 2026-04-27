@@ -18,11 +18,11 @@ import { colors, spacing, radius, font, shadows } from '../../src/design-system/
 
 const SYMPTOM_TYPES: { value: string; label: string; icon: string; color: string }[] = [
   { value: 'febre', label: 'Febre', icon: '🌡️', color: '#E53935' },
-  { value: 'vomito', label: 'Vomito', icon: '🤮', color: '#E8A228' },
+  { value: 'vomito', label: 'Vômito', icon: '🤮', color: '#E8A228' },
   { value: 'diarreia', label: 'Diarreia', icon: '💩', color: '#F59E0B' },
   { value: 'tosse', label: 'Tosse', icon: '😷', color: '#3B82F6' },
   { value: 'dor', label: 'Dor', icon: '🤕', color: '#9333EA' },
-  { value: 'cansaco', label: 'Cansaco', icon: '😴', color: '#6B7280' },
+  { value: 'cansaco', label: 'Cansaço', icon: '😴', color: '#6B7280' },
   { value: 'apetite', label: 'Sem apetite', icon: '🍽️', color: '#C0876D' },
   { value: 'coriza', label: 'Coriza', icon: '🤧', color: '#22C55E' },
   { value: 'outro', label: 'Outro', icon: '📝', color: '#8A8A8A' },
@@ -40,9 +40,9 @@ function formatRelative(iso: string): string {
   if (mins < 1) return 'agora';
   if (mins < 60) return `${mins} min`;
   const h = Math.floor(mins / 60);
-  if (h < 24) return `${h}h atras`;
+  if (h < 24) return `${h}h atrás`;
   const days = Math.floor(h / 24);
-  return `${days}d atras`;
+  return `${days}d atrás`;
 }
 
 function groupByDate(entries: SymptomEntry[]): { date: string; items: SymptomEntry[] }[] {
@@ -99,7 +99,7 @@ export default function SintomasScreen() {
     if (!activeGroup || !userId || !selectedChildId) return;
     const tempNum = temperature.trim() ? parseFloat(temperature.replace(',', '.')) : undefined;
     if (symptomType === 'febre' && tempNum !== undefined && (tempNum < 30 || tempNum > 45)) {
-      Alert.alert('Temperatura invalida', 'Informe um valor entre 30 e 45°C.');
+      Alert.alert('Temperatura inválida', 'Informe um valor entre 30 e 45°C.');
       return;
     }
     setSubmitting(true);
@@ -124,7 +124,7 @@ export default function SintomasScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', 'Nao foi possivel registrar o sintoma.');
+      Alert.alert('Erro', 'Não foi possível registrar o sintoma.');
     }
   }
 
@@ -138,7 +138,7 @@ export default function SintomasScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Diario de sintomas
+          Diário de sintomas
         </Text>
       </View>
 
@@ -184,7 +184,7 @@ export default function SintomasScreen() {
                 Nenhum sintoma registrado
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center' }}>
-                Registre sintomas para acompanhar a saude da crianca ao longo do tempo
+                Registre sintomas para acompanhar a saúde da criança ao longo do tempo
               </Text>
             </View>
           ) : (
@@ -340,10 +340,10 @@ export default function SintomasScreen() {
                 })}
               </View>
 
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Observacoes</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.xs }}>Observações</Text>
               <TextInput
                 value={notes} onChangeText={setNotes}
-                placeholder="Duracao, contexto, o que fez..."
+                placeholder="Duração, contexto, o que fez..."
                 placeholderTextColor={colors.textMuted}
                 multiline
                 style={{

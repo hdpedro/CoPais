@@ -8,6 +8,7 @@ export interface CronResult {
   processed: number;
   sent: number;
   errors?: string[];
+  metadata?: Record<string, unknown>;
 }
 
 export interface CronReport {
@@ -19,4 +20,15 @@ export interface CronReport {
   processed: number;
   sent: number;
   errors: string[];
+}
+
+export interface DailyReport {
+  date: string;
+  totalCrons: number;
+  successCount: number;
+  failureCount: number;
+  totalProcessed: number;
+  totalSent: number;
+  totalErrors: number;
+  details: CronReport[];
 }

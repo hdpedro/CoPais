@@ -24,7 +24,8 @@
     "error": "Fehler",
     "success": "Erfolg",
     "viewAll": "",
-    "confirmDelete": "Sind Sie sicher, dass Sie löschen möchten"
+    "confirmDelete": "Sind Sie sicher, dass Sie löschen möchten",
+    "hello": "Hallo"
   },
   "auth": {
     "login": "Anmelden",
@@ -607,7 +608,16 @@
     "improving": "Besserung",
     "worsening": "Verschlechterung",
     "diagnosis": "Diagnose",
-    "evolution": "Verlauf",
+    "evolution": {
+      "improved": "Verbessert",
+      "worsened": "Verschlechtert",
+      "notePlaceholder": "Was hat sich geändert? (optional)",
+      "confirm": "Bestätigen",
+      "cancel": "Abbrechen",
+      "saving": "Speichern...",
+      "savedImproving": "Verlauf erfasst — Verbesserung",
+      "savedWorsening": "Verlauf erfasst — Verschlechterung"
+    },
     "previousUpdates": "+{count} frühere Aktualisierungen",
     "noRecoveredEpisode": "Keine genesenen Episoden registriert.",
     "resolvedEpisodesAppear": "Abgeschlossene Episoden erscheinen hier.",
@@ -886,12 +896,12 @@
       "markRecovered": "Als genesen markieren"
     },
     "resolve": {
-      "confirmMessage": "Bestätigen Sie, dass das Kind von dieser Krankheit genesen ist?",
+      "markResolved": "Als geheilt markieren",
+      "confirmMessage": "Sind Sie sicher, dass die Krankheit geheilt ist?",
       "finishMedsQuestion": "Zugehörige Medikamente auch beenden?",
-      "saving": "Speichern...",
-      "yesResolved": "Ja, genesen",
+      "yesResolved": "Ja, geheilt",
       "cancel": "Abbrechen",
-      "markResolved": "Als genesen markieren"
+      "saving": "Speichern..."
     },
     "viewedBy": {
       "someone": "Jemand",
@@ -980,24 +990,6 @@
       "disclaimer": "Dieses Dokument wurde automatisch erstellt und ersetzt keine professionelle medizinische Beratung."
     },
     "recentActivity": "Letzte Aktivität",
-    "evolution": {
-      "improved": "Verbessert",
-      "worsened": "Verschlechtert",
-      "notePlaceholder": "Was hat sich geändert? (optional)",
-      "confirm": "Bestätigen",
-      "cancel": "Abbrechen",
-      "saving": "Speichern...",
-      "savedImproving": "Verlauf erfasst — Verbesserung",
-      "savedWorsening": "Verlauf erfasst — Verschlechterung"
-    },
-    "resolve": {
-      "markResolved": "Als geheilt markieren",
-      "confirmMessage": "Sind Sie sicher, dass die Krankheit geheilt ist?",
-      "finishMedsQuestion": "Zugehörige Medikamente auch beenden?",
-      "yesResolved": "Ja, geheilt",
-      "cancel": "Abbrechen",
-      "saving": "Speichern..."
-    },
     "wizard": {
       "title": "Kind ist krank",
       "subtitle": "Alles auf einmal erfassen — Krankheit, Medikament und Termin",

@@ -24,11 +24,11 @@ interface Doc {
 }
 
 export default function DocumentsDashboard({
-  children,
+  childrenWithDocs: children,
   generalDocs,
   isReadonly,
 }: {
-  children: ChildWithDocs[];
+  childrenWithDocs: ChildWithDocs[];
   generalDocs: Doc[];
   isReadonly: boolean;
 }) {

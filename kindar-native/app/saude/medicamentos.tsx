@@ -12,6 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../src/lib/supabase';
 import { safeWrite } from '../../src/services/offline';
 import { notifyAction } from '../../src/services/notify';
+import { logMedicationDose } from '../../src/services/health';
 import { useAuth } from '../../src/store/auth';
 import { getDisplayName, getBrazilToday } from '../../src/lib/constants';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
@@ -112,12 +113,17 @@ export default function MedicamentosScreen() {
   async function handleCreate() {
     if (!name.trim() || !selectedChild || !userId || !activeGroup) return;
     setSaving(true);
+    // Derive frequency_hours from the user's text so the dose-interval
+    // safety check has a numeric anchor. Mirrors PWA logMedicationDose
+    // expectations (active_medications.frequency_hours INT NULL).
+    const freqHours = parseFrequencyHours(frequency.trim());
     const result = await safeWrite({
       table: 'active_medications', operation: 'insert',
       payload: {
         group_id: activeGroup.groupId, child_id: selectedChild,
-        name: name.trim(), dosage: dosage.trim() || 'Conforme prescricao',
-        frequency: frequency.trim() || 'Conforme prescricao',
+        name: name.trim(), dosage: dosage.trim() || 'Conforme prescrição',
+        frequency: frequency.trim() || 'Conforme prescrição',
+        frequency_hours: freqHours,
         start_date: getBrazilToday(), status: 'active',
         reason: reason.trim() || null, created_by: userId,
       },
@@ -144,26 +150,32 @@ export default function MedicamentosScreen() {
     ]);
   }
 
+  /**
+   * Submit a dose via the canonical service `logMedicationDose`, which
+   * enforces the same 30-minute hard block as the PWA action and emits a
+   * `warning` for sub-half-interval doses. The previous implementation
+   * called `safeWrite` directly, bypassing the safety check entirely
+   * (P0 patient-safety regression flagged in the 2026-04-27 audit).
+   */
   async function submitDose(medId: string) {
     if (!userId) return;
     setConfirmingDose(medId);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const result = await safeWrite({
-      table: 'medication_doses', operation: 'insert',
-      payload: {
-        medication_id: medId,
-        administered_at: new Date().toISOString(),
-        administered_by: userId,
-      },
-    });
+    const result = await logMedicationDose({ medicationId: medId, administeredBy: userId });
     setConfirmingDose(null);
-    if (result.success) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await load();
-    } else {
+
+    if (!result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Nao foi possivel registrar a dose');
+      Alert.alert('Dose recusada', result.error);
+      return;
     }
+
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    if (result.warning) {
+      // Half-interval crossed but >30min — log and surface a soft warning.
+      Alert.alert('Dose registrada', result.warning);
+    }
+    await load();
   }
 
   function handleConfirmDose(med: Med) {
@@ -173,10 +185,10 @@ export default function MedicamentosScreen() {
 
     if (tooSoon) {
       Alert.alert(
-        'Ultima dose foi ha pouco',
+        'Última dose foi há pouco',
         freqH
-          ? `A ultima dose foi ha ${formatMinutes(minsAgo!)}. A prescricao sugere a cada ${freqH}h. Confirmar mesmo assim?`
-          : `A ultima dose foi ha ${formatMinutes(minsAgo!)}. Confirmar mesmo assim?`,
+          ? `A última dose foi há ${formatMinutes(minsAgo!)}. A prescrição sugere a cada ${freqH}h. Confirmar mesmo assim?`
+          : `A última dose foi há ${formatMinutes(minsAgo!)}. Confirmar mesmo assim?`,
         [
           { text: 'Cancelar', style: 'cancel' },
           { text: 'Confirmar', style: 'destructive', onPress: () => submitDose(med.id) },
@@ -282,7 +294,7 @@ export default function MedicamentosScreen() {
                     <Text style={{ fontSize: font.sizes.xs, color: isOverdue ? colors.warning : colors.textMuted, marginTop: 4 }}>
                       {minsAgo === null
                         ? 'Nenhuma dose registrada'
-                        : `Ultima dose ha ${formatMinutes(minsAgo)}${isOverdue ? ' · atrasada' : ''}`}
+                        : `Última dose há ${formatMinutes(minsAgo)}${isOverdue ? ' · atrasada' : ''}`}
                     </Text>
                   ) : null}
                 </View>
@@ -345,7 +357,7 @@ export default function MedicamentosScreen() {
               {historyMed?.name}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.md }}>
-              Ultimas doses registradas
+              Últimas doses registradas
             </Text>
             {historyLoading ? (
               <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.xl }} />

@@ -24,7 +24,8 @@
     "error": "Error",
     "success": "Success",
     "viewAll": "",
-    "confirmDelete": "Are you sure you want to delete"
+    "confirmDelete": "Are you sure you want to delete",
+    "hello": "Hello"
   },
   "auth": {
     "login": "Log in",
@@ -607,7 +608,16 @@
     "improving": "Improving",
     "worsening": "Worsening",
     "diagnosis": "Diagnosis",
-    "evolution": "Evolution",
+    "evolution": {
+      "improved": "Improved",
+      "worsened": "Worsened",
+      "notePlaceholder": "What changed? (optional)",
+      "confirm": "Confirm",
+      "cancel": "Cancel",
+      "saving": "Saving...",
+      "savedImproving": "Evolution recorded — improving",
+      "savedWorsening": "Evolution recorded — worsening"
+    },
     "previousUpdates": "+{count} previous updates",
     "noRecoveredEpisode": "No recovered episodes recorded.",
     "resolvedEpisodesAppear": "Resolved episodes will appear here.",
@@ -886,12 +896,12 @@
       "markRecovered": "Mark as recovered"
     },
     "resolve": {
-      "confirmMessage": "Confirm the child has recovered from this illness?",
+      "markResolved": "Mark as resolved",
+      "confirmMessage": "Are you sure the illness is resolved?",
       "finishMedsQuestion": "Also finish related medications?",
-      "saving": "Saving...",
-      "yesResolved": "Yes, recovered",
+      "yesResolved": "Yes, resolved",
       "cancel": "Cancel",
-      "markResolved": "Mark as resolved"
+      "saving": "Saving..."
     },
     "viewedBy": {
       "someone": "Someone",
@@ -980,24 +990,6 @@
       "disclaimer": "This document was automatically generated and does not replace professional medical advice."
     },
     "recentActivity": "Recent activity",
-    "evolution": {
-      "improved": "Improved",
-      "worsened": "Worsened",
-      "notePlaceholder": "What changed? (optional)",
-      "confirm": "Confirm",
-      "cancel": "Cancel",
-      "saving": "Saving...",
-      "savedImproving": "Evolution recorded — improving",
-      "savedWorsening": "Evolution recorded — worsening"
-    },
-    "resolve": {
-      "markResolved": "Mark as resolved",
-      "confirmMessage": "Are you sure the illness is resolved?",
-      "finishMedsQuestion": "Also finish related medications?",
-      "yesResolved": "Yes, resolved",
-      "cancel": "Cancel",
-      "saving": "Saving..."
-    },
     "wizard": {
       "title": "Child is sick",
       "subtitle": "Record everything at once — illness, medication and appointment",

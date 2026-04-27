@@ -59,7 +59,28 @@ export async function updateSession(request: NextRequest) {
   // bounce to /session-recovery, which uses different localStorage keys
   // (kindar-auth-persist, kindar-auth-backup) and can't see the native's
   // injected session → falls through to /login.
-  const publicRoutes = ["/login", "/signup", "/verify-email", "/forgot-password", "/reset-password", "/auth/callback", "/convite", "/session-recovery", "/native-bridge", "/api/calendar", "/api/setup-db", "/api/auth", "/pricing", "/suporte", "/privacidade", "/termos", "/api/stripe/webhook", "/api/whatsapp/webhook", "/api/discord", "/api/log-error"];
+  const publicRoutes = [
+    "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password",
+    "/auth/callback", "/convite", "/session-recovery", "/native-bridge",
+    "/api/calendar", "/api/setup-db", "/api/auth", "/pricing",
+    "/suporte", "/privacidade", "/termos",
+    "/api/stripe/webhook", "/api/whatsapp/webhook", "/api/discord", "/api/log-error",
+    // Native-callable routes that authenticate via Bearer header. Each
+    // route validates the Bearer token internally with the admin client.
+    "/api/create-group",
+    "/api/onboarding",
+    "/api/health/save-prescription",
+    "/api/iap/verify",
+    "/api/billing/status",
+    "/api/native",
+    "/api/push",
+    "/api/revenuecat",
+    "/api/chat",
+    // Wave G — native parity routes wrapping server actions
+    "/api/settlements",
+    "/api/family",
+    "/api/invitations",
+  ];
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
   );

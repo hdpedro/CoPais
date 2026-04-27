@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 2. Parse form data
-    const formData = await request.formData();
+    const formData = (await request.formData()) as unknown as globalThis.FormData;
     const file = formData.get("file") as File | null;
     const childId = formData.get("childId") as string;
 
@@ -103,11 +103,15 @@ export async function POST(request: NextRequest) {
     // 6. Upload original image to storage
     let sourceImageUrl: string | null = null;
     try {
-      const fileName = `prescriptions/${activeGroup.groupId}/${childId}/${crypto.randomUUID()}.jpg`;
+      // Path needs to start with the group_id at the first folder so the
+      // storage RLS policy (storage.foldername(name))[1] sees the right
+      // group. We prefix with `${groupId}/` and put the prescriptions
+      // namespace inside.
+      const fileName = `${activeGroup.groupId}/prescriptions/${childId}/${crypto.randomUUID()}.jpg`;
       const { error: uploadErr } = await supabase.storage.from("documents").upload(fileName, buffer);
       if (!uploadErr) {
-        const { data: urlData } = supabase.storage.from("documents").getPublicUrl(fileName);
-        sourceImageUrl = urlData.publicUrl;
+        // Store the path; reads sign URLs at render time.
+        sourceImageUrl = fileName;
       }
     } catch {
       // Upload failure is non-critical

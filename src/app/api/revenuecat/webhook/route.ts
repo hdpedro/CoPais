@@ -105,13 +105,16 @@ export async function POST(req: NextRequest) {
           .eq("payment_provider", "trial")
           .in("status", ["active", "trialing"]);
 
-        // Upsert by (user_id, payment_provider)
+        // Upsert by (user_id, payment_provider). Include 'pending' so we
+        // pick up the optimistic row written by /api/iap/verify and flip it
+        // to active here — that's the security model: pending rows do NOT
+        // grant access until this trusted webhook confirms the purchase.
         const { data: existing } = await admin
           .from("subscriptions")
           .select("id")
           .eq("user_id", event.app_user_id)
           .eq("payment_provider", providerTag)
-          .in("status", ["active", "trialing", "past_due", "canceled"])
+          .in("status", ["pending", "active", "trialing", "past_due", "canceled"])
           .maybeSingle();
 
         const subPayload = {

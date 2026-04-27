@@ -5,9 +5,16 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../src/store/auth';
-import { fetchNotifications, markAsRead, markAllAsRead, type AppNotification } from '../../src/services/notifications';
+import {
+  fetchNotifications,
+  markAsRead,
+  markAllAsRead,
+  subscribeToNotifications,
+  type AppNotification,
+} from '../../src/services/notifications';
 import { clearBadge } from '../../src/services/push-setup';
 import EmptyState from '../../src/components/ui/EmptyState';
+import { useI18n } from '../../src/i18n';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
 // Fallback routes por type quando notification.link é null. Ordem de precedencia:
@@ -56,6 +63,7 @@ export default function NotificacoesScreen() {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [markingAll, setMarkingAll] = useState(false);
+  const t = useI18n(s => s.t);
 
   const load = useCallback(async () => {
     if (!userId) return;
@@ -66,6 +74,9 @@ export default function NotificacoesScreen() {
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   useEffect(() => { clearBadge().catch(() => {}); }, []);
+
+  // Live update: refresh inbox when a notification arrives or changes.
+  useEffect(() => subscribeToNotifications(userId, load), [userId, load]);
 
   async function handleMarkAllRead() {
     if (!userId || markingAll) return;
@@ -163,7 +174,7 @@ export default function NotificacoesScreen() {
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text }}>
-            Notificações
+            {t('notifications.title')}
           </Text>
         </View>
         {hasUnread ? (
@@ -173,7 +184,7 @@ export default function NotificacoesScreen() {
               fontWeight: font.weights.semibold,
               opacity: markingAll ? 0.5 : 1,
             }}>
-              Marcar todas como lidas
+              {t('notifications.markAllRead')}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -185,7 +196,7 @@ export default function NotificacoesScreen() {
         renderItem={renderItem}
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-        ListEmptyComponent={loading ? null : <EmptyState icon="🔔" title="Nenhuma notificação" subtitle="Você está em dia" />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="🔔" title={t('notifications.empty')} subtitle={t('notifications.emptyDescription')} />}
       />
     </View>
   );

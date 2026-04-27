@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
+import { getSignedFileUrl } from "@/lib/storage-signed-url";
 import DocumentsDashboard from "./DocumentsDashboard";
 
 export default async function DocumentsPage() {
@@ -26,11 +27,27 @@ export default async function DocumentsPage() {
       .order("created_at", { ascending: false }),
   ]);
 
+  // Sign all file URLs server-side. After migration 062, file_url is path-only
+  // and the bucket is private — direct GETs return 404. We sign with a 1-hour
+  // TTL which covers a normal session; if the user hangs around longer, the
+  // page will be re-rendered (Next.js server components are not long-lived).
+  const signedDocs = await Promise.all(
+    (documents || []).map(async (doc) => ({
+      id: doc.id,
+      name: doc.name,
+      category: doc.category,
+      file_url: (await getSignedFileUrl(supabase, "documents", doc.file_url)) || doc.file_url,
+      mime_type: doc.mime_type,
+      created_at: doc.created_at,
+      child_id: doc.child_id,
+    })),
+  );
+
   // Group documents by child
   const childDocs: Record<string, Array<{ id: string; name: string; category: string; file_url: string; mime_type: string | null; created_at: string }>> = {};
   const generalDocs: Array<{ id: string; name: string; category: string; file_url: string; mime_type: string | null; created_at: string }> = [];
 
-  for (const doc of documents || []) {
+  for (const doc of signedDocs) {
     const d = { id: doc.id, name: doc.name, category: doc.category, file_url: doc.file_url, mime_type: doc.mime_type, created_at: doc.created_at };
     if (doc.child_id) {
       if (!childDocs[doc.child_id]) childDocs[doc.child_id] = [];
@@ -60,7 +77,7 @@ export default async function DocumentsPage() {
 
   return (
     <DocumentsDashboard
-      children={childrenWithDocs}
+      childrenWithDocs={childrenWithDocs}
       generalDocs={generalDocs}
       isReadonly={isReadonly}
     />

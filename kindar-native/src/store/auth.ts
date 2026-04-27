@@ -50,7 +50,7 @@ interface AuthState {
 
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (email: string, password: string, fullName: string) => Promise<{ success: boolean; error?: string }>;
+  signUp: (email: string, password: string, fullName: string, refCode?: string | null) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   loadProfile: () => Promise<void>;
   loadActiveGroup: () => Promise<void>;
@@ -123,17 +123,26 @@ export const useAuth = create<AuthState>((set, get) => ({
     }
   },
 
-  signUp: async (email, password, fullName) => {
+  signUp: async (email, password, fullName, refCode) => {
     try {
       const { error } = await supabase.auth.signUp({
         email: email.trim().toLowerCase(),
         password,
-        options: { data: { full_name: fullName } },
+        options: {
+          data: {
+            full_name: fullName,
+            // Mirror PWA action: pass `referred_by` so the
+            // `handle_new_user` trigger can persist the attribution.
+            // Optional — server validates the code exists before
+            // recording (invalid codes are simply ignored).
+            ...(refCode ? { referred_by: refCode.toUpperCase().trim() } : {}),
+          },
+        },
       });
       if (error) return { success: false, error: error.message };
       return { success: true };
     } catch {
-      return { success: false, error: 'Erro de conexao' };
+      return { success: false, error: 'Erro de conexão' };
     }
   },
 
@@ -169,7 +178,7 @@ export const useAuth = create<AuthState>((set, get) => ({
       return;
     }
 
-    const list: GroupMembership[] = raw.map((m: any) => {
+    const list: GroupMembership[] = raw.map((m: { role: string; coparenting_groups: unknown }) => {
       const g = m.coparenting_groups as unknown as { id: string; name: string; custody_enabled: boolean };
       return { groupId: g.id, groupName: g.name, role: m.role, custodyEnabled: g.custody_enabled };
     });

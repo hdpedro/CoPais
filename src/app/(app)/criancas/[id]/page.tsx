@@ -1,6 +1,7 @@
 import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
+import { getSignedFileUrl } from "@/lib/storage-signed-url";
 import dynamic from "next/dynamic";
 
 const ChildDetailClient = dynamic(() => import("./ChildDetailClient"), {
@@ -94,6 +95,18 @@ export default async function ChildDetailPage({
 
   if (!childRes.data) notFound();
 
+  // Sign document URLs server-side. Buckets are private after migration 062.
+  // We pass through any extra fields (profiles join etc.) by spreading.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const docRows = (documentsRes.data || []) as any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const signedDocs: any[] = await Promise.all(
+    docRows.map(async (d) => ({
+      ...d,
+      file_url: (await getSignedFileUrl(supabase, "documents", d.file_url)) || d.file_url,
+    })),
+  );
+
   return (
     <ChildDetailClient
       child={childRes.data}
@@ -102,7 +115,7 @@ export default async function ChildDetailPage({
       allergies={allergiesRes.data || []}
       medications={medicationsRes.data || []}
       vaccinations={vaccinationsRes.data || []}
-      documents={documentsRes.data || []}
+      documents={signedDocs}
       education={educationRes.data || null}
       groupId={groupId}
       isReadonly={isReadonly}

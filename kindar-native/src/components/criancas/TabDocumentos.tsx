@@ -50,9 +50,12 @@ export default function TabDocumentos({
 }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  function handleOpen(doc: ChildDocument) {
+  async function handleOpen(doc: ChildDocument) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Linking.openURL(doc.file_url).catch(() => {
+    const { getSignedFileUrl } = await import('../../services/storage');
+    const signed = await getSignedFileUrl('documents', doc.file_url, 3600);
+    const target = signed || doc.file_url;
+    Linking.openURL(target).catch(() => {
       Alert.alert('Erro', 'Não foi possível abrir o documento.');
     });
   }

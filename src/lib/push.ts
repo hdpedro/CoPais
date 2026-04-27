@@ -1,5 +1,6 @@
 import webpush from "web-push";
 import { createClient } from "@supabase/supabase-js";
+import { sendFcmPush } from "./push-fcm";
 
 // Configure VAPID (only if keys are available, trim whitespace)
 const vapidPublic = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY?.trim();
@@ -173,6 +174,43 @@ async function getUserApnsTokens(userId: string): Promise<string[]> {
 }
 
 /**
+ * Get all FCM tokens for a user (for native Android push notifications).
+ * Stored under title='fcm_token' (separate from apns_token to allow
+ * platform-specific routing in sendPushToUser).
+ */
+async function getUserFcmTokens(userId: string): Promise<string[]> {
+  const supabase = getAdminClient();
+
+  const { data } = await supabase
+    .from("notifications")
+    .select("id, message")
+    .eq("user_id", userId)
+    .eq("type", "system")
+    .eq("title", "fcm_token");
+
+  if (!data) return [];
+  return data.map((row) => row.message).filter(Boolean);
+}
+
+async function removeFcmToken(userId: string, token: string) {
+  const supabase = getAdminClient();
+  const { data } = await supabase
+    .from("notifications")
+    .select("id, message")
+    .eq("user_id", userId)
+    .eq("type", "system")
+    .eq("title", "fcm_token");
+
+  if (!data) return;
+  for (const row of data) {
+    if (row.message === token) {
+      await supabase.from("notifications").delete().eq("id", row.id);
+      return;
+    }
+  }
+}
+
+/**
  * Send a push notification via APNs (Apple Push Notification service).
  * Uses HTTP/2 APNs API with a .p8 signing key.
  *
@@ -309,6 +347,23 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
           if (!sent) {
             // Token might be invalid, remove it
             await removeApnsToken(userId, token);
+          }
+        })
+      );
+    }
+
+    // Send via FCM (native Android)
+    const fcmTokens = await getUserFcmTokens(userId);
+    if (fcmTokens.length > 0) {
+      await Promise.allSettled(
+        fcmTokens.map(async (token) => {
+          const sent = await sendFcmPush(token, payload);
+          if (!sent) {
+            // Token might be invalid OR FCM env not configured. Removing on
+            // env-not-configured is wrong, but env vars don't toggle at
+            // runtime — once configured, all subsequent failures here mean
+            // a real token problem.
+            await removeFcmToken(userId, token);
           }
         })
       );

@@ -166,3 +166,105 @@ export async function createActivity(params: {
     },
   });
 }
+
+// ── Single-occurrence overrides ─────────────────────────────────────────────
+//
+// Mirrors PWA `editActivityOccurrence` (src/actions/activities.ts:826-913).
+// Schema: `activity_reports.overrides` JSONB (migration 00029) — when a
+// row exists for (activity_id, occurrence_date), the calendar view applies
+// override fields on top of the master child_activities row for that day.
+//
+// Supported override keys: name, time_start, time_end, location,
+//   teacher_name, class_name, room, notes, responsible_id.
+// Pass `null` (explicit) to clear an override; omit to leave unchanged.
+
+export interface OccurrenceOverrides {
+  name?: string | null;
+  time_start?: string | null;
+  time_end?: string | null;
+  location?: string | null;
+  teacher_name?: string | null;
+  class_name?: string | null;
+  room?: string | null;
+  notes?: string | null;
+  responsible_id?: string | null;
+}
+
+export async function editActivityOccurrence(params: {
+  groupId: string;
+  activityId: string;
+  occurrenceDate: string;       // YYYY-MM-DD
+  overrides: OccurrenceOverrides;
+  reportedBy: string;
+}): Promise<{ success: boolean; error?: string }> {
+  // Sanity-check: only forward defined override fields. `null` is meaningful
+  // (clears the override); `undefined` means "leave unchanged".
+  const cleaned: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(params.overrides)) {
+    if (v !== undefined) cleaned[k] = v === '' ? null : v;
+  }
+  if (Object.keys(cleaned).length === 0) {
+    return { success: true }; // nothing to do
+  }
+
+  // Look up existing report row for this occurrence
+  const { data: existing } = await supabase
+    .from('activity_reports')
+    .select('id, overrides')
+    .eq('activity_id', params.activityId)
+    .eq('occurrence_date', params.occurrenceDate)
+    .maybeSingle();
+
+  if (existing) {
+    const merged = {
+      ...((existing.overrides as Record<string, unknown>) ?? {}),
+      ...cleaned,
+    };
+    const { error } = await supabase
+      .from('activity_reports')
+      .update({ overrides: merged })
+      .eq('id', existing.id);
+    if (error) return { success: false, error: error.message };
+    return { success: true };
+  }
+
+  // No report yet: create one. PWA seeds with status='completed' as a
+  // placeholder so the row passes its CHECK constraint; the actual report
+  // can still be filled later via the report modal.
+  const { error } = await supabase.from('activity_reports').insert({
+    group_id: params.groupId,
+    activity_id: params.activityId,
+    occurrence_date: params.occurrenceDate,
+    reported_by: params.reportedBy,
+    status: 'completed',
+    overrides: cleaned,
+  });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
+/**
+ * Clear (revert) all overrides for a specific occurrence. Returns the
+ * occurrence to the master activity's defaults.
+ */
+export async function clearOccurrenceOverrides(params: {
+  activityId: string;
+  occurrenceDate: string;
+}): Promise<{ success: boolean; error?: string }> {
+  const { data: existing } = await supabase
+    .from('activity_reports')
+    .select('id')
+    .eq('activity_id', params.activityId)
+    .eq('occurrence_date', params.occurrenceDate)
+    .maybeSingle();
+
+  if (!existing) return { success: true };
+
+  const { error } = await supabase
+    .from('activity_reports')
+    .update({ overrides: {} })
+    .eq('id', existing.id);
+
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}

@@ -3,11 +3,15 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
- * Register an APNs device token for native iOS push notifications.
- * Called by native-init.ts when the Capacitor app starts and gets an APNs token.
+ * Register a device token for native push notifications.
  *
- * Stores the token in the notifications table following the same pattern
- * as web-push subscriptions (title='apns_token', message=token).
+ * Endpoint name kept as `register-apns` for back-compat. Routes by `platform`:
+ *   - platform === 'ios'      → stored as title='apns_token', sent via APNs HTTP/2
+ *   - platform === 'android'  → stored as title='fcm_token',  sent via FCM HTTP v1
+ *   - missing platform        → defaults to 'apns_token' (legacy iOS clients)
+ *
+ * Stores under the same notifications table (no schema change needed) using
+ * the marker rows pattern. See `src/lib/push.ts` for sender wiring.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -19,7 +23,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { token } = await req.json();
+    const { token, platform } = (await req.json()) as {
+      token?: string;
+      platform?: string;
+    };
     if (!token || typeof token !== "string") {
       return NextResponse.json(
         { error: "Missing token" },
@@ -27,38 +34,54 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const tokenTitle =
+      platform === "android" ? "fcm_token"
+      : platform === "ios" ? "apns_token"
+      : "apns_token"; // legacy fallback
+
     const admin = createAdminClient();
 
-    // Check if this token already exists for this user
+    // Check if this exact token already exists under the target title
     const { data: existing } = await admin
       .from("notifications")
       .select("id, message")
       .eq("user_id", user.id)
       .eq("type", "system")
-      .eq("title", "apns_token");
+      .eq("title", tokenTitle);
 
     if (existing) {
       for (const row of existing) {
         if (row.message === token) {
-          // Token already registered
           return NextResponse.json({ success: true, existing: true });
         }
       }
     }
 
-    // Insert new APNs token
+    // If the same token was previously stored under the WRONG title (e.g. an
+    // Android FCM token misclassified as apns_token by the old client),
+    // remove the bad row so we don't have a stale duplicate.
+    const wrongTitle = tokenTitle === "fcm_token" ? "apns_token" : "fcm_token";
+    await admin
+      .from("notifications")
+      .delete()
+      .eq("user_id", user.id)
+      .eq("type", "system")
+      .eq("title", wrongTitle)
+      .eq("message", token);
+
+    // Insert new token under correct title
     await admin.from("notifications").insert({
       user_id: user.id,
       type: "system",
-      title: "apns_token",
+      title: tokenTitle,
       message: token,
       link: null,
       is_read: true, // Hidden from notification UI
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, platform: tokenTitle });
   } catch (error) {
-    console.error("[APNs] Register error:", error);
+    console.error("[push/register] Register error:", error);
     return NextResponse.json(
       { error: "Registration failed" },
       { status: 500 }

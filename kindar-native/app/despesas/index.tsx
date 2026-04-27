@@ -123,10 +123,13 @@ export default function DespesasScreen() {
     );
   }
 
-  function handleItemPress(expense: Expense) {
+  async function handleItemPress(expense: Expense) {
     if (expense.receipt_url) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setViewingReceipt(expense.receipt_url);
+      // Sign on demand: bucket is private, stored value is path-only.
+      const { getSignedFileUrl } = await import('../../src/services/storage');
+      const signed = await getSignedFileUrl('receipts', expense.receipt_url, 3600);
+      setViewingReceipt(signed || expense.receipt_url);
     }
   }
 

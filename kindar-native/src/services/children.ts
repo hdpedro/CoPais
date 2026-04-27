@@ -11,9 +11,17 @@ import { safeWrite } from './offline';
 import { notifyAction } from './notify';
 
 export interface Child {
-  id: string; full_name: string; birth_date: string; gender: string | null;
-  photo_url: string | null; blood_type: string | null; notes: string | null;
-  allergies: string[] | null; cpf: string | null; rg: string | null;
+  id: string;
+  full_name: string;
+  birth_date: string;
+  /** 'M' | 'F' | null — matches DB CHECK constraint (migration 00036). */
+  sex: 'M' | 'F' | null;
+  photo_url: string | null;
+  blood_type: string | null;
+  notes: string | null;
+  allergies: string[] | null;
+  cpf: string | null;
+  rg: string | null;
 }
 
 export interface MedicalInfo {
@@ -77,7 +85,7 @@ export interface ChildEducation {
 
 export async function fetchChildren(groupId: string): Promise<Child[]> {
   const { data } = await supabase.from('children')
-    .select('id, full_name, birth_date, gender, photo_url, blood_type, notes, allergies, cpf, rg')
+    .select('id, full_name, birth_date, sex, photo_url, blood_type, notes, allergies, cpf, rg')
     .eq('group_id', groupId).order('birth_date');
   return data || [];
 }
@@ -110,7 +118,7 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
   ] = await Promise.all([
     supabase
       .from('children')
-      .select('id, full_name, birth_date, gender, photo_url, blood_type, notes, allergies, cpf, rg')
+      .select('id, full_name, birth_date, sex, photo_url, blood_type, notes, allergies, cpf, rg')
       .eq('id', childId)
       .eq('group_id', groupId)
       .maybeSingle(),
@@ -211,10 +219,33 @@ export async function upsertChildEducation(params: {
   return { success: true };
 }
 
-export async function createChild(params: { groupId: string; fullName: string; birthDate: string; gender?: string; notes?: string }) {
+/**
+ * Create a child in the active group.
+ *
+ * Schema: migration 00036 added `sex TEXT CHECK (sex IN ('M','F'))`. Earlier
+ * versions of this service tried to write `gender` which does not exist as
+ * a column → all inserts failed with HTTP 400. Fixed 2026-04-27 by
+ * aligning with the actual column name and accepting an `allergies: string[]`.
+ */
+export async function createChild(params: {
+  groupId: string;
+  fullName: string;
+  birthDate: string;
+  sex?: 'M' | 'F' | null;
+  allergies?: string[] | null;
+  notes?: string;
+}) {
   const result = await safeWrite({
-    table: 'children', operation: 'insert',
-    payload: { group_id: params.groupId, full_name: params.fullName.trim(), birth_date: params.birthDate, gender: params.gender || null, notes: params.notes?.trim() || null },
+    table: 'children',
+    operation: 'insert',
+    payload: {
+      group_id: params.groupId,
+      full_name: params.fullName.trim(),
+      birth_date: params.birthDate,
+      sex: params.sex || null,
+      allergies: params.allergies && params.allergies.length > 0 ? params.allergies : null,
+      notes: params.notes?.trim() || null,
+    },
   });
   if (result.success && !result.queued) {
     notifyAction('child_created', params.groupId, { childName: params.fullName });
