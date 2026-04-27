@@ -4,6 +4,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api-fetch';
 import { safeWrite } from './offline';
 
 export interface Activity {
@@ -197,8 +198,11 @@ export async function editActivityOccurrence(params: {
   overrides: OccurrenceOverrides;
   reportedBy: string;
 }): Promise<{ success: boolean; error?: string }> {
+  // Wave I: server is the single source of truth — it validates allowed
+  // keys, group membership, responsible_id membership, fires the
+  // activity_cancelled push when applicable, and performs the jsonb merge.
   // Sanity-check: only forward defined override fields. `null` is meaningful
-  // (clears the override); `undefined` means "leave unchanged".
+  // (clears a single override key); `undefined` means "leave unchanged".
   const cleaned: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(params.overrides)) {
     if (v !== undefined) cleaned[k] = v === '' ? null : v;
@@ -207,39 +211,19 @@ export async function editActivityOccurrence(params: {
     return { success: true }; // nothing to do
   }
 
-  // Look up existing report row for this occurrence
-  const { data: existing } = await supabase
-    .from('activity_reports')
-    .select('id, overrides')
-    .eq('activity_id', params.activityId)
-    .eq('occurrence_date', params.occurrenceDate)
-    .maybeSingle();
-
-  if (existing) {
-    const merged = {
-      ...((existing.overrides as Record<string, unknown>) ?? {}),
-      ...cleaned,
-    };
-    const { error } = await supabase
-      .from('activity_reports')
-      .update({ overrides: merged })
-      .eq('id', existing.id);
-    if (error) return { success: false, error: error.message };
-    return { success: true };
-  }
-
-  // No report yet: create one. PWA seeds with status='completed' as a
-  // placeholder so the row passes its CHECK constraint; the actual report
-  // can still be filled later via the report modal.
-  const { error } = await supabase.from('activity_reports').insert({
-    group_id: params.groupId,
-    activity_id: params.activityId,
-    occurrence_date: params.occurrenceDate,
-    reported_by: params.reportedBy,
-    status: 'completed',
-    overrides: cleaned,
-  });
-  if (error) return { success: false, error: error.message };
+  const r = await apiFetch<{ success: boolean; overrides: Record<string, unknown> }>(
+    '/api/activities/overrides',
+    {
+      method: 'POST',
+      body: {
+        activityId: params.activityId,
+        occurrenceDate: params.occurrenceDate,
+        overrides: cleaned,
+        mode: 'merge',
+      },
+    },
+  );
+  if (!r.ok) return { success: false, error: r.error };
   return { success: true };
 }
 
@@ -251,20 +235,18 @@ export async function clearOccurrenceOverrides(params: {
   activityId: string;
   occurrenceDate: string;
 }): Promise<{ success: boolean; error?: string }> {
-  const { data: existing } = await supabase
-    .from('activity_reports')
-    .select('id')
-    .eq('activity_id', params.activityId)
-    .eq('occurrence_date', params.occurrenceDate)
-    .maybeSingle();
-
-  if (!existing) return { success: true };
-
-  const { error } = await supabase
-    .from('activity_reports')
-    .update({ overrides: {} })
-    .eq('id', existing.id);
-
-  if (error) return { success: false, error: error.message };
+  const r = await apiFetch<{ success: boolean; overrides: Record<string, unknown> }>(
+    '/api/activities/overrides',
+    {
+      method: 'POST',
+      body: {
+        activityId: params.activityId,
+        occurrenceDate: params.occurrenceDate,
+        overrides: {},
+        mode: 'clear',
+      },
+    },
+  );
+  if (!r.ok) return { success: false, error: r.error };
   return { success: true };
 }

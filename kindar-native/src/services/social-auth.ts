@@ -19,6 +19,16 @@ export async function signInWithApple(): Promise<{ success: boolean; error?: str
   try {
     const AppleAuth = await import('expo-apple-authentication');
 
+    // 1. Check device availability first — older simulators / family-sharing
+    // edge cases can fail silently on `signInAsync`.
+    const isAvailable = await AppleAuth.isAvailableAsync();
+    if (!isAvailable) {
+      return {
+        success: false,
+        error: 'Apple Sign-In indisponivel neste dispositivo. Verifique se o iCloud esta logado.',
+      };
+    }
+
     const credential = await AppleAuth.signInAsync({
       requestedScopes: [
         AppleAuth.AppleAuthenticationScope.FULL_NAME,
@@ -27,7 +37,10 @@ export async function signInWithApple(): Promise<{ success: boolean; error?: str
     });
 
     if (!credential.identityToken) {
-      return { success: false, error: 'Token Apple nao recebido' };
+      return {
+        success: false,
+        error: 'Token Apple nao recebido. Tente sair e entrar novamente no iCloud.',
+      };
     }
 
     const { error } = await supabase.auth.signInWithIdToken({
@@ -35,12 +48,38 @@ export async function signInWithApple(): Promise<{ success: boolean; error?: str
       token: credential.identityToken,
     });
 
-    if (error) return { success: false, error: error.message };
+    if (error) {
+      // Common Supabase errors mapped to actionable user messages. Most
+      // production failures are "provider disabled" — Apple needs to be
+      // enabled in Supabase Dashboard → Authentication → Providers → Apple,
+      // with Client ID = `com.kindar.app` (Bundle ID) and a JWT secret
+      // generated from the Apple .p8 key + Team ID + Key ID.
+      const msg = error.message || '';
+      if (/provider.*not.*enabled|provider.*disabled|provider.*configured|Unsupported.*provider/i.test(msg)) {
+        return {
+          success: false,
+          error: 'Login com Apple indisponivel no momento. Use email/senha.',
+        };
+      }
+      if (/audience|invalid.*token|invalid.*audience|aud/i.test(msg)) {
+        return {
+          success: false,
+          error: 'Configuracao Apple desalinhada (Bundle ID). Use email/senha por enquanto.',
+        };
+      }
+      return { success: false, error: msg };
+    }
     return { success: true };
   } catch (e: unknown) {
     const err = e as { code?: string; message?: string };
     if (err.code === 'ERR_REQUEST_CANCELED' || err.code === 'ERR_CANCELED') {
       return { success: false, error: 'Cancelado' };
+    }
+    if (err.code === 'ERR_REQUEST_NOT_HANDLED') {
+      return {
+        success: false,
+        error: 'Apple Sign-In nao configurado no app. Reinstale a versao mais recente.',
+      };
     }
     return { success: false, error: err.message || 'Erro no Apple Sign-In' };
   }

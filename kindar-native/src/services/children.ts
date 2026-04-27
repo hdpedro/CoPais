@@ -7,6 +7,7 @@
  */
 
 import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api-fetch';
 import { safeWrite } from './offline';
 import { notifyAction } from './notify';
 
@@ -193,6 +194,12 @@ export async function fetchChildEducation(childId: string): Promise<ChildEducati
   return data;
 }
 
+/**
+ * Wave I (SoT): writes go through `/api/children/education` so the
+ * group-membership + child-belongs-to-group gates run server-side.
+ * Native previously upserted directly on `child_education`, relying on
+ * RLS only.
+ */
 export async function upsertChildEducation(params: {
   childId: string;
   groupId: string;
@@ -207,16 +214,24 @@ export async function upsertChildEducation(params: {
   exit_time: string | null;
   extracurricular_activities: string[] | null;
 }): Promise<{ success: true } | { success: false; error: string }> {
-  const { childId, groupId, ...rest } = params;
-  const { data: existing } = await supabase.from('child_education').select('id').eq('child_id', childId).maybeSingle();
-  if (existing) {
-    const { error } = await supabase.from('child_education').update(rest).eq('id', existing.id);
-    if (error) return { success: false, error: error.message };
-  } else {
-    const { error } = await supabase.from('child_education').insert({ child_id: childId, group_id: groupId, ...rest });
-    if (error) return { success: false, error: error.message };
-  }
-  return { success: true };
+  const r = await apiFetch<{ success: boolean }>('/api/children/education', {
+    method: 'PUT',
+    body: {
+      groupId: params.groupId,
+      childId: params.childId,
+      school_name: params.school_name,
+      school_address: params.school_address,
+      school_phone: params.school_phone,
+      grade: params.grade,
+      class_name: params.class_name,
+      teacher_name: params.teacher_name,
+      coordinator_name: params.coordinator_name,
+      entry_time: params.entry_time,
+      exit_time: params.exit_time,
+      extracurricular_activities: params.extracurricular_activities,
+    },
+  });
+  return r.ok ? { success: true } : { success: false, error: r.error || 'Falha ao salvar' };
 }
 
 /**

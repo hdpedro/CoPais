@@ -85,6 +85,16 @@ export async function updateSession(request: NextRequest) {
     "/api/activities",
     "/api/sensitive-notes",
     "/api/onboarding-quest",
+    // Wave I — final P2 single-source-of-truth routes
+    "/api/event-requests",
+    "/api/documents",
+    "/api/swaps",
+    "/api/health/vaccines-bulk",
+    "/api/health/medication-doses",
+    "/api/health/allergies",
+    "/api/children/education",
+    "/api/notifications/mark-read",
+    "/api/notifications/mark-all-read",
   ];
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)

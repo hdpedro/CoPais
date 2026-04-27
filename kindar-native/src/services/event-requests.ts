@@ -2,11 +2,20 @@
  * Event Requests service — workflow 2/8: propor edicao/cancelamento/reagendamento
  * de evento que afeta outro responsavel, com aprovacao any/all.
  * Mirrors PWA src/actions/events.ts event request functions.
+ *
+ * Mutations (create/respond/cancel) go through `/api/event-requests` so the
+ * snapshot conflict-check, approval_mode 'all' aggregation, side-effects
+ * (event_history, push, chat notification) and tag revalidation are owned
+ * by the PWA — single source of truth (Wave I migration).
+ *
+ * Reads (`fetchMyPendingEventRequests`) still hit Supabase directly because
+ * RLS already gates them (only affected_user_ids see pending requests in
+ * their group) and there's no business logic on the read path.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../lib/supabase';
-import { notifyAction } from './notify';
+import { apiFetch } from '../lib/api-fetch';
 
 export type EventRequestAction = 'edit' | 'cancel' | 'reschedule' | 'delete';
 export type EventRequestStatus = 'pending' | 'approved' | 'rejected' | 'cancelled_by_system';
@@ -73,112 +82,62 @@ export async function createEventRequest(params: {
   reason?: string;
   approvalMode?: 'any' | 'all';
 }): Promise<{ success: boolean; error?: string; id?: string }> {
-  const { data, error } = await supabase
-    .from('event_requests')
-    .insert({
-      group_id: params.groupId,
-      event_id: params.eventId,
-      requester_id: params.requesterId,
-      affected_user_ids: params.affectedUserIds,
-      action_type: params.actionType,
-      proposed_changes: params.proposedChanges || null,
-      original_snapshot: params.originalSnapshot,
-      reason: params.reason || null,
-      status: 'pending',
-      approval_mode: params.approvalMode || 'any',
-    })
-    .select('id')
-    .single();
-
-  if (error || !data) return { success: false, error: error?.message || 'Erro ao criar pedido' };
-
-  notifyAction('event_request_created', params.groupId, {
-    requestId: data.id,
-    actionType: params.actionType,
-    reason: params.reason,
-  });
-  return { success: true, id: data.id };
+  const r = await apiFetch<{ success: boolean; id?: string; error?: string }>(
+    '/api/event-requests',
+    {
+      method: 'POST',
+      body: {
+        groupId: params.groupId,
+        eventId: params.eventId,
+        affectedUserIds: params.affectedUserIds,
+        actionType: params.actionType,
+        proposedChanges: params.proposedChanges ?? null,
+        originalSnapshot: params.originalSnapshot,
+        reason: params.reason ?? null,
+        approvalMode: params.approvalMode ?? 'any',
+      },
+    }
+  );
+  if (!r.ok) return { success: false, error: r.error || 'Erro ao criar pedido' };
+  return { success: true, id: r.data?.id };
 }
 
 /**
- * Respond to an event request. If approval_mode = 'any', single approval
- * closes it. If 'all', need all affected users to approve (this implementation
- * naively closes on first approval — refine for 'all' mode later).
+ * Respond to an event request. Server-side handles approval_mode aggregation
+ * (under 'all', returns `applied=false` and `status='pending'` until every
+ * affected user has approved) plus snapshot conflict-detection.
  */
 export async function respondToEventRequest(
   requestId: string,
   decision: 'approved' | 'rejected',
-  userId: string,
-  groupId: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _userId: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _groupId: string
 ): Promise<{ success: boolean; error?: string; applied?: boolean }> {
-  // Fetch request to get action_type + proposed_changes
-  const { data: req } = await supabase
-    .from('event_requests')
-    .select('id, event_id, action_type, proposed_changes, original_snapshot, approval_mode')
-    .eq('id', requestId)
-    .single();
-
-  if (!req) return { success: false, error: 'Pedido nao encontrado' };
-
-  const { error: updateErr } = await supabase
-    .from('event_requests')
-    .update({
-      status: decision,
-      responded_by: userId,
-      responded_at: new Date().toISOString(),
-    })
-    .eq('id', requestId);
-
-  if (updateErr) return { success: false, error: updateErr.message };
-
-  let applied = false;
-  if (decision === 'approved') {
-    // Apply the change to the actual event
-    const reqTyped = req as any;
-    if (reqTyped.action_type === 'delete' || reqTyped.action_type === 'cancel') {
-      const { error: delErr } = await supabase
-        .from('events')
-        .update({ status: 'cancelled' })
-        .eq('id', reqTyped.event_id);
-      if (!delErr) applied = true;
-    } else if ((reqTyped.action_type === 'edit' || reqTyped.action_type === 'reschedule') && reqTyped.proposed_changes) {
-      const { error: editErr } = await supabase
-        .from('events')
-        .update(reqTyped.proposed_changes)
-        .eq('id', reqTyped.event_id);
-      if (!editErr) applied = true;
+  const r = await apiFetch<{ success: boolean; applied?: boolean; status?: string; error?: string }>(
+    '/api/event-requests',
+    {
+      method: 'PATCH',
+      body: { requestId, decision },
     }
-
-    // Log in event_history (best effort)
-    try {
-      await supabase.from('event_history').insert({
-        group_id: groupId,
-        event_id: reqTyped.event_id,
-        changed_by: userId,
-        action: reqTyped.action_type,
-        changes: reqTyped.proposed_changes || null,
-        previous_state: reqTyped.original_snapshot || null,
-      });
-    } catch { /* non-fatal */ }
-  }
-
-  notifyAction(decision === 'approved' ? 'event_request_approved' : 'event_request_rejected', groupId, {
-    requestId,
-  });
-
-  return { success: true, applied };
+  );
+  if (!r.ok) return { success: false, error: r.error || 'Erro ao responder' };
+  return { success: true, applied: r.data?.applied ?? false };
 }
 
 export async function cancelEventRequest(
   requestId: string,
-  groupId: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _groupId: string
 ): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase
-    .from('event_requests')
-    .update({ status: 'cancelled_by_system' })
-    .eq('id', requestId);
-  if (error) return { success: false, error: error.message };
-
-  notifyAction('event_request_cancelled', groupId, { requestId });
+  const r = await apiFetch<{ success: boolean; error?: string }>(
+    '/api/event-requests',
+    {
+      method: 'DELETE',
+      query: { id: requestId },
+    }
+  );
+  if (!r.ok) return { success: false, error: r.error || 'Erro ao cancelar' };
   return { success: true };
 }

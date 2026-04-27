@@ -224,14 +224,17 @@ export default function ChatRoomScreen() {
       if (loadIdRef.current !== myLoadId) return; // stale signed-URL batch
       setMessages(signed);
 
-      // Mark unread messages as read (same pattern as PWA ChatRoom)
+      // Mark unread messages as read — single batched call to /api/chat/read
+      // (Wave I single-source-of-truth migration). Server merges read_by atomically
+      // per message and gates writes by group membership.
       if (userId && msgs && msgs.length > 0) {
-        const unread = msgs.filter((m: any) => m.sender_id !== userId && (!m.read_by || !(m.read_by as Record<string, unknown>)[userId]));
-        const now = new Date().toISOString();
-        for (const msg of unread.slice(-20)) {
-          supabase.from('chat_messages')
-            .update({ read_by: { ...(msg.read_by || {}), [userId]: now } })
-            .eq('id', msg.id)
+        const unreadIds = msgs
+          .filter((m: any) => m.sender_id !== userId && (!m.read_by || !(m.read_by as Record<string, unknown>)[userId]))
+          .slice(-20)
+          .map((m: any) => m.id as string);
+        if (unreadIds.length > 0) {
+          const { apiFetch } = await import('../../src/lib/api-fetch');
+          apiFetch('/api/chat/read', { method: 'POST', body: { messageIds: unreadIds } })
             .then(() => {}, () => {});
         }
       }
@@ -292,12 +295,11 @@ export default function ChatRoomScreen() {
             reply_to_id: msg.reply_to_id, read_by: msg.read_by || null,
           }];
         });
-        // Mark as read
+        // Mark as read — single-id call to /api/chat/read (Wave I).
         if (userId && msg.sender_id !== userId) {
-          const now = new Date().toISOString();
-          supabase.from('chat_messages')
-            .update({ read_by: { ...(msg.read_by || {}), [userId]: now } })
-            .eq('id', msg.id).then(() => {}, () => {});
+          const { apiFetch } = await import('../../src/lib/api-fetch');
+          apiFetch('/api/chat/read', { method: 'POST', body: { messageIds: [msg.id] } })
+            .then(() => {}, () => {});
         }
       })
       .on('postgres_changes', {

@@ -5,6 +5,7 @@
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { supabase } from '../lib/supabase';
+import { apiFetch } from '../lib/api-fetch';
 import { safeWrite } from './offline';
 import { notifyAction } from './notify';
 
@@ -339,46 +340,36 @@ export async function createMedication(params: MedicationInput) {
  * Confirm a medication dose. Mirrors PWA logMedicationDose with the
  * same hard 30-min block + half-interval warning. The "warning" path
  * still inserts but the caller can show the user a softer message.
+ *
+ * Wave I (SoT): writes go through `/api/health/medication-doses` so the
+ * group-membership + child-belongs-to-group gates and the dose-interval
+ * validation live in one place. Native previously inserted directly on
+ * `medication_doses`, relying on RLS only.
+ *
+ * The `administeredBy` parameter is kept in the signature for callers
+ * but the server uses the authenticated user — passing a different uid
+ * has no effect.
  */
 export async function logMedicationDose(params: {
   medicationId: string;
   administeredBy: string;
 }): Promise<{ success: true; warning?: string } | { success: false; error: string }> {
-  const { data: medication } = await supabase
-    .from('active_medications')
-    .select('frequency_hours')
-    .eq('id', params.medicationId)
-    .single();
+  void params.administeredBy;
+  const r = await apiFetch<{ success: boolean; warning?: string }>(
+    '/api/health/medication-doses',
+    { method: 'POST', body: { medicationId: params.medicationId } },
+  );
+  if (!r.ok) return { success: false, error: r.error || 'Falha ao registrar dose' };
+  return r.data?.warning ? { success: true, warning: r.data.warning } : { success: true };
+}
 
-  const { data: lastDose } = await supabase
-    .from('medication_doses')
-    .select('administered_at')
-    .eq('medication_id', params.medicationId)
-    .order('administered_at', { ascending: false })
-    .limit(1);
-
-  let warning: string | undefined;
-  if (lastDose && lastDose.length > 0) {
-    const lastTime = new Date(lastDose[0].administered_at).getTime();
-    const minutesSince = (Date.now() - lastTime) / (1000 * 60);
-    if (minutesSince < 30) {
-      return { success: false, error: 'Dose recusada: ultima dose foi ha menos de 30 minutos.' };
-    }
-    const freqHours = medication?.frequency_hours;
-    const halfMin = freqHours ? (freqHours * 60) / 2 : 0;
-    if (freqHours && halfMin > 0 && minutesSince < halfMin) {
-      warning = 'Dose confirmada (intervalo menor que o recomendado)';
-    }
-  }
-
-  const { error } = await supabase.from('medication_doses').insert({
-    medication_id: params.medicationId,
-    administered_at: new Date().toISOString(),
-    administered_by: params.administeredBy,
+/** Undo a previously logged dose. Native counterpart for `DELETE /api/health/medication-doses`. */
+export async function deleteMedicationDose(doseId: string) {
+  const r = await apiFetch<{ success: boolean }>('/api/health/medication-doses', {
+    method: 'DELETE',
+    query: { id: doseId },
   });
-  if (error) return { success: false, error: error.message };
-
-  return warning ? { success: true, warning } : { success: true };
+  return r.ok ? { success: true } : { success: false, error: r.error || 'Falha ao desfazer' };
 }
 
 // ── Vaccinations ───────────────────────────────────────────────────────────
@@ -465,31 +456,60 @@ export interface AllergyInput {
   reaction?: string;
 }
 
+/**
+ * Wave I (SoT): allergies now go through `/api/health/allergies` so the
+ * group-membership + child-belongs-to-group gates run server-side. Native
+ * previously inserted/deleted directly on `child_allergies`, relying on
+ * RLS only — letting a member touch records pointing to a child outside
+ * their own group when policies were permissive.
+ */
 export async function createAllergy(params: AllergyInput) {
   if (!params.name.trim()) return { success: false, error: 'Nome da alergia é obrigatório' };
 
-  const result = await safeWrite({
-    table: 'child_allergies',
-    operation: 'insert',
-    payload: {
-      group_id: params.groupId,
-      child_id: params.childId,
-      name: params.name.trim().slice(0, 200),
-      allergy_type: params.allergyType || null,
-      severity: params.severity || null,
-      reaction: params.reaction?.trim().slice(0, 500) || null,
+  const r = await apiFetch<{ success: boolean; id: string }>('/api/health/allergies', {
+    method: 'POST',
+    body: {
+      groupId: params.groupId,
+      childId: params.childId,
+      name: params.name.trim(),
+      allergyType: params.allergyType,
+      severity: params.severity,
+      reaction: params.reaction,
     },
   });
-  if (result.success && !result.queued) {
-    notifyAction('health_event_created', params.groupId, {
-      title: `Alergia: ${params.name} (${params.severity || 'leve'})`,
-      childName: '',
-    });
-  }
-  return result;
+  if (!r.ok) return { success: false, error: r.error || 'Falha ao registrar alergia' };
+
+  notifyAction('health_event_created', params.groupId, {
+    title: `Alergia: ${params.name} (${params.severity || 'leve'})`,
+    childName: '',
+  });
+  return { success: true };
+}
+
+export async function updateAllergy(params: {
+  allergyId: string;
+  name?: string;
+  allergyType?: 'food' | 'medication' | 'environmental' | 'other';
+  severity?: 'mild' | 'moderate' | 'severe';
+  reaction?: string;
+}) {
+  const r = await apiFetch<{ success: boolean }>('/api/health/allergies', {
+    method: 'PATCH',
+    body: {
+      allergyId: params.allergyId,
+      name: params.name,
+      allergyType: params.allergyType,
+      severity: params.severity,
+      reaction: params.reaction,
+    },
+  });
+  return r.ok ? { success: true } : { success: false, error: r.error || 'Falha ao atualizar' };
 }
 
 export async function deleteAllergy(allergyId: string) {
-  const { error } = await supabase.from('child_allergies').delete().eq('id', allergyId);
-  return error ? { success: false, error: error.message } : { success: true };
+  const r = await apiFetch<{ success: boolean }>('/api/health/allergies', {
+    method: 'DELETE',
+    query: { id: allergyId },
+  });
+  return r.ok ? { success: true } : { success: false, error: r.error || 'Falha ao remover' };
 }

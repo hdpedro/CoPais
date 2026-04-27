@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../../src/store/auth';
 import { supabase } from '../../../src/lib/supabase';
+import { apiFetch } from '../../../src/lib/api-fetch';
 import { fetchChildren, type Child } from '../../../src/services/children';
 import { colors, spacing, radius, font, shadows } from '../../../src/design-system/tokens';
 
@@ -137,22 +138,27 @@ export default function CarteirinhaScreen() {
     setSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const { data: { user } } = await supabase.auth.getUser();
+    // Send to PWA bulk endpoint — server applies group/child gates and
+    // enforces administered_date NOT NULL (DB constraint).
     const rows = toSave.map(v => ({
-      group_id: activeGroup.groupId,
-      child_id: selectedChildId,
       vaccine_name: v.vaccine_name.trim().slice(0, 200),
       dose_label: v.dose_label?.trim().slice(0, 100) || null,
       administered_date: v.administered_date || null,
       batch_number: v.batch_number?.trim().slice(0, 100) || null,
       location: v.location?.trim().slice(0, 200) || null,
-      created_by: user?.id ?? null,
     }));
-    const { error: insertErr } = await supabase.from('vaccination_records').insert(rows);
+    const r = await apiFetch<{ success: true; inserted: number }>(`/api/health/vaccines-bulk`, {
+      method: 'POST',
+      body: {
+        groupId: activeGroup.groupId,
+        childId: selectedChildId,
+        vaccines: rows,
+      },
+    });
     setSaving(false);
-    if (insertErr) {
+    if (!r.ok) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', insertErr.message);
+      Alert.alert('Erro', r.error || 'Falha ao salvar vacinas');
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
