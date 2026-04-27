@@ -43,7 +43,6 @@ interface Message {
   image_url: string | null;
   reply_to_id: string | null;
   read_by: Record<string, string> | null;
-  edited_at?: string | null;
 }
 
 interface ReplyTarget {
@@ -51,11 +50,6 @@ interface ReplyTarget {
   text: string;
   senderName: string;
 }
-
-// Edit window — own messages can be edited within this many ms of creation.
-// Note: the DB has a `prevent_chat_text_update` trigger; UPDATEs on `text`
-// will fail with a constraint error. We surface that error to the user.
-const EDIT_WINDOW_MS = 15 * 60 * 1000;
 
 interface ChannelSummary {
   id: string;
@@ -88,9 +82,8 @@ export default function ChatRoomScreen() {
   const [memberCount, setMemberCount] = useState(0);
   const [pendingImage, setPendingImage] = useState<{ uri: string; mime: string } | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  // Reply / edit state — drives the preview bar above the input + send button mode.
+  // Reply state — drives the preview bar above the input.
   const [replyTo, setReplyTo] = useState<ReplyTarget | null>(null);
-  const [editingId, setEditingId] = useState<string | null>(null);
   // Tone moderator — debounced inline (mirrors PWA `ChatRoom.tsx:504-522`)
   const [toneResult, setToneResult] = useState<{ isAggressive: boolean; suggestion: string | null } | null>(null);
   const [showSuggestion, setShowSuggestion] = useState(false);
@@ -275,7 +268,6 @@ export default function ChatRoomScreen() {
                 text: updated.text,
                 image_url: updated.image_url,
                 read_by: updated.read_by || null,
-                edited_at: updated.edited_at ?? m.edited_at ?? null,
               }
             : m
         ));
@@ -360,50 +352,19 @@ export default function ChatRoomScreen() {
     setToneResult(null);
   }
 
-  // ── Message long-press actions (reply / edit / delete) ──────────────────
+  // ── Message long-press actions (reply only) ────────────────────────────
   //
   // Reply: any message that is not your own and is not a system notification.
-  // Edit:  your own messages within EDIT_WINDOW_MS (15 min). Note the DB has
-  //        a `prevent_chat_text_update` trigger — UPDATEs on `text` are
-  //        rejected for legal-compliance. We attempt the update and surface
-  //        the error to the user.
-  // Delete: your own messages. Similarly blocked by `prevent_chat_delete`
-  //         trigger; we surface the error.
-  const cancelEdit = useCallback(() => {
-    Haptics.selectionAsync();
-    setEditingId(null);
-    setNewMessage('');
-  }, []);
-
+  // Edit / Delete: NOT exposed. The DB has `prevent_chat_text_update` and
+  // `prevent_chat_delete` triggers (legal compliance) so showing those
+  // options would always error out and confuse the user.
   const clearReply = useCallback(() => {
     Haptics.selectionAsync();
     setReplyTo(null);
   }, []);
 
-  const performDelete = useCallback(async (msgId: string) => {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    const { error } = await supabase.from('chat_messages').delete().eq('id', msgId);
-    if (error) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Não foi possível apagar', error.message || 'Mensagens do chat são preservadas por motivos legais.');
-      return;
-    }
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setMessages(prev => prev.filter(m => m.id !== msgId));
-  }, []);
-
-  const beginEdit = useCallback((m: Message) => {
-    Haptics.selectionAsync();
-    // Cancel any in-flight reply when entering edit mode
-    setReplyTo(null);
-    setEditingId(m.id);
-    setNewMessage(m.text || '');
-  }, []);
-
   const beginReply = useCallback((m: Message) => {
     Haptics.selectionAsync();
-    // Exit edit mode when starting a reply
-    setEditingId(null);
     setNewMessage('');
     const snippet = (m.text || '[imagem]').slice(0, 80);
     setReplyTo({ id: m.id, text: snippet, senderName: m.senderName });
@@ -412,66 +373,37 @@ export default function ChatRoomScreen() {
   const openMessageActions = useCallback((m: Message) => {
     if (isSystemMessage(m.text)) return; // system messages are not actionable
     const isOwn = m.sender_id === userId;
-    const createdMs = new Date(m.created_at).getTime();
-    const canEdit = isOwn && Date.now() - createdMs < EDIT_WINDOW_MS;
+
+    // Compliance: chat messages are preserved by DB triggers
+    // `prevent_chat_text_update` and `prevent_chat_delete`. We surface only
+    // `Responder` for non-own messages — edit/delete would always fail at
+    // the DB and confuse the user.
+    if (isOwn) return;
 
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Build option list dynamically based on permissions.
-    type Action = 'reply' | 'edit' | 'delete';
-    const options: { label: string; action: Action }[] = [];
-    if (!isOwn) options.push({ label: 'Responder', action: 'reply' });
-    if (canEdit) options.push({ label: 'Editar', action: 'edit' });
-    if (isOwn) options.push({ label: 'Apagar', action: 'delete' });
-    if (options.length === 0) return;
-
-    const dispatch = (action: Action | undefined) => {
-      if (!action) return;
-      if (action === 'reply') beginReply(m);
-      else if (action === 'edit') beginEdit(m);
-      else if (action === 'delete') {
-        Alert.alert(
-          'Apagar mensagem',
-          'Tem certeza? Esta ação não pode ser desfeita.',
-          [
-            { text: 'Cancelar', style: 'cancel', onPress: () => Haptics.selectionAsync() },
-            { text: 'Apagar', style: 'destructive', onPress: () => performDelete(m.id) },
-          ],
-        );
-      }
-    };
-
     if (Platform.OS === 'ios') {
-      const labels = [...options.map(o => o.label), 'Cancelar'];
-      const cancelButtonIndex = labels.length - 1;
-      const destructiveIndex = options.findIndex(o => o.action === 'delete');
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: labels,
-          cancelButtonIndex,
-          destructiveButtonIndex: destructiveIndex >= 0 ? destructiveIndex : undefined,
+          options: ['Responder', 'Cancelar'],
+          cancelButtonIndex: 1,
         },
         (idx) => {
-          if (idx === cancelButtonIndex) { Haptics.selectionAsync(); return; }
-          dispatch(options[idx]?.action);
+          if (idx === 0) beginReply(m);
+          else Haptics.selectionAsync();
         },
       );
     } else {
-      // Android: Alert.alert with action buttons.
       Alert.alert(
         'Mensagem',
         undefined,
         [
-          ...options.map(o => ({
-            text: o.label,
-            style: (o.action === 'delete' ? 'destructive' : 'default') as 'destructive' | 'default',
-            onPress: () => dispatch(o.action),
-          })),
-          { text: 'Cancelar', style: 'cancel' as const, onPress: () => Haptics.selectionAsync() },
+          { text: 'Responder', onPress: () => beginReply(m) },
+          { text: 'Cancelar', style: 'cancel', onPress: () => Haptics.selectionAsync() },
         ],
       );
     }
-  }, [userId, beginEdit, beginReply, performDelete]);
+  }, [userId, beginReply]);
 
   const sendMessage = useCallback(async () => {
     const hasText = newMessage.trim().length > 0;
@@ -485,31 +417,6 @@ export default function ChatRoomScreen() {
 
     setSending(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-    // ── EDIT path ────────────────────────────────────────────────────────
-    // When `editingId` is set, dispatch an UPDATE instead of an INSERT. The
-    // DB has a `prevent_chat_text_update` trigger that rejects text changes
-    // for legal-compliance — we surface that error to the user.
-    if (editingId) {
-      const msgId = editingId;
-      const updatePayload: Record<string, unknown> = { text: text || null };
-      // `edited_at` only attached if the column exists. We try optimistically;
-      // the DB will ignore unknown columns? No, it errors. Skip it.
-      const { error } = await supabase.from('chat_messages').update(updatePayload).eq('id', msgId);
-      if (error) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Não foi possível editar', error.message || 'Mensagens do chat não podem ser modificadas por motivos legais.');
-        setSending(false);
-        return;
-      }
-      // Optimistic local update
-      setMessages(prev => prev.map(m => m.id === msgId ? { ...m, text, edited_at: new Date().toISOString() } : m));
-      setEditingId(null);
-      setNewMessage('');
-      setSending(false);
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      return;
-    }
 
     const img = pendingImage;
     const reply = replyTo;
@@ -551,7 +458,7 @@ export default function ChatRoomScreen() {
     }
 
     setSending(false);
-  }, [newMessage, pendingImage, channelId, userId, activeGroup, sending, showSuggestion, toneResult, editingId, replyTo]);
+  }, [newMessage, pendingImage, channelId, userId, activeGroup, sending, showSuggestion, toneResult, replyTo]);
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);
@@ -635,7 +542,6 @@ export default function ChatRoomScreen() {
     // Read status — count how many OTHER members have read_by[their_id]
     const readersCount = m.read_by ? Object.keys(m.read_by).filter(u => u !== userId).length : 0;
     const wasRead = isMe && readersCount > 0;
-    const wasEdited = !!m.edited_at;
 
     // Resolve quoted reply (if this message is a reply, find the original).
     let quoted: Message | null = null;
@@ -732,16 +638,6 @@ export default function ChatRoomScreen() {
             marginRight: hasImage && !hasText ? 8 : 0,
             marginBottom: hasImage && !hasText ? 4 : 0,
           }}>
-            {wasEdited ? (
-              <Text style={{
-                fontSize: 9,
-                fontStyle: 'italic',
-                color: isMe ? 'rgba(255,255,255,0.6)' : colors.textDim,
-                marginRight: 2,
-              }}>
-                (editado)
-              </Text>
-            ) : null}
             <Text style={{ fontSize: 9, color: isMe ? 'rgba(255,255,255,0.6)' : colors.textDim }}>
               {formatTime(m.created_at)}
             </Text>
@@ -975,29 +871,6 @@ export default function ChatRoomScreen() {
         </View>
       ) : null}
 
-      {/* Edit-mode banner — shown when modifying an existing message */}
-      {editingId ? (
-        <View style={{
-          flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
-          paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
-          backgroundColor: colors.bgElevated,
-          borderTopWidth: 0.5, borderTopColor: colors.borderLight,
-        }}>
-          <Ionicons name="pencil" size={16} color={colors.brand} />
-          <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: 11, color: colors.brand, fontWeight: font.weights.semibold }} numberOfLines={1}>
-              Editando mensagem
-            </Text>
-            <Text style={{ fontSize: 11, color: colors.textMuted, marginTop: 1 }} numberOfLines={1}>
-              Confirme com o botão para salvar
-            </Text>
-          </View>
-          <TouchableOpacity onPress={cancelEdit} hitSlop={8} testID="chat-edit-cancel" accessibilityLabel="Cancelar edição">
-            <Ionicons name="close-circle" size={22} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-      ) : null}
-
       {/* Pending image preview */}
       {pendingImage ? (
         <View style={{
@@ -1071,7 +944,7 @@ export default function ChatRoomScreen() {
             || (showSuggestion && !!toneResult?.isAggressive)
           }
           testID="chat-send"
-          accessibilityLabel={editingId ? 'Salvar edição' : 'Enviar mensagem'}
+          accessibilityLabel="Enviar mensagem"
           style={{
             width: 40, height: 40, borderRadius: 20,
             backgroundColor: (newMessage.trim() || pendingImage) && !(showSuggestion && toneResult?.isAggressive)
@@ -1084,8 +957,8 @@ export default function ChatRoomScreen() {
           {sending
             ? <ActivityIndicator size="small" color="#fff" />
             : <Ionicons
-                name={editingId ? 'checkmark' : 'send'}
-                size={editingId ? 22 : 18}
+                name="send"
+                size={18}
                 color={(newMessage.trim() || pendingImage) && !(showSuggestion && toneResult?.isAggressive)
                   ? '#fff'
                   : colors.textDim}
