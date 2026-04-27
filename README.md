@@ -385,6 +385,19 @@ O app suporta **5 idiomas** completos:
 - **Sincronizacao de calendario** (iCal) via `CalendarExportButton`
 - **Seletor de grupo** (`GroupSelector`) para usuarios em multiplos grupos
 
+### 21. Assinatura / Billing (`/assinatura`)
+- **Modelo per-group**: 1 assinatura por `coparenting_group` cobre todos os membros. Apenas `profiles.role = 'parent'` pode pagar — avos, cuidadores, mediadores e advogados sempre gratis.
+- **3 planos no lançamento**: Gratis / Harmonia (R$24,90/mes) / Premium Juridico (R$39,90/mes). Anuais com 20% off.
+- **Early Bird eterno**: primeiras 1.000 familias pagam R$19,90/mes para sempre. Capacity enforcement via trigger Postgres + advisory lock (migration 00056).
+- **Degustação de 7 dias**: todo novo grupo recebe Premium Juridico automaticamente no signup, sem cartão. Uma trial por usuario, para sempre.
+- **Onboarding Quest**: widget no dashboard com 5 passos que tocam features premium (add_child, setup_calendar, invite_co, ocr_prescription, ai_agreement) — correlaciona com conversao.
+- **Fonte de verdade cross-platform**: `GET /api/billing/status?groupId=X` retorna tier, status, trial info, counters. PWA / iOS / Android consultam antes de mostrar features premium.
+- **Crons**: `/api/cron/trial-expiry` (03:00 UTC, marca expirados) + `/api/cron/trial-reminder` (17:00 UTC, email D-5 + push D-6).
+- **Mensagem central**: "Assine uma vez. Família toda acessa."
+- **Split automático** (Fase 2): botão "Dividir com co-responsavel" usa módulo Despesas existente para criar despesa recorrente 50/50.
+- **Stack**: `src/lib/billing/` (tiers, payer, group-subscription, early-bird, feature-gate, trial) + `src/actions/onboarding-quest.ts` + `src/components/billing/` (TrialBanner, OnboardingQuest, EarlyBirdBadge).
+- Documentacao completa: `MONETIZACAO.md`.
+
 ## Escala de Guarda (`/calendario/escala`)
 - **Escala opcional**: botao "Limpar escala" permite uso do app sem escala definida
 - **Dashboard adapta** quando nao ha escala (oculta card de guarda ativa)

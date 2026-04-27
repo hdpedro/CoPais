@@ -1676,6 +1676,17 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 
 ## 23. Decisoes Arquiteturais
 
+### Por que billing server-side authoritative?
+- 3 plataformas (PWA / iOS / Android) consomem o mesmo backend Supabase. Se cada client decidisse tier localmente, acabaria cobrando ou liberando a feature errada.
+- Fonte unica: `GET /api/billing/status?groupId=X` → consulta `v_group_active_subscription` + `canStartSubscription`.
+- Clientes nativos chamam isso antes de mostrar botao de compra; o Stripe webhook + RevenueCat webhook (a implementar) atualizam o mesmo `subscriptions` row.
+- Enforcement duplo: `payer.ts` (app-level: so `parent` paga) + trigger Postgres (DB-level: Early Bird capacity com advisory lock para prevenir oversell cross-platform).
+
+### Por que 1 assinatura por grupo e nao por usuario?
+- Para co-parentalidade funcionar, ambos os responsaveis precisam ter acesso ao mesmo calendar/saude/despesas. Per-user exigiria que cada pai tivesse sua propria sub — se um recusa pagar, o outro perde valor.
+- Per-group elimina a briga "quem paga" e permite split automatico via modulo Despesas existente.
+- Esquema: coluna `coparenting_group_id` em `subscriptions`, unique index parcial `(coparenting_group_id, payment_provider)` onde status ativo.
+
 ### Por que Next.js App Router e nao Pages Router?
 - Server Components reduzem JavaScript no client
 - Server Actions eliminam necessidade de API Routes

@@ -1814,6 +1814,39 @@
     "viewPlans": "Ver planos",
     "downgrade": "Fazer downgrade"
   },
+  "subscription": {
+    "pageTitle": "Assinatura da família",
+    "pageSubtitle": "Uma assinatura, família inteira acessa. Co-responsáveis, avós, babás, advogados e mediadores entram grátis.",
+    "nonPayerSubtitle": "Apenas responsáveis legais podem gerenciar a assinatura.",
+    "currentPlanLabel": "Plano atual",
+    "planHarmonia": "Harmonia",
+    "planJuridico": "Premium Jurídico",
+    "planFree": "Grátis",
+    "earlyBirdTitle": "Harmonia — Early Bird",
+    "earlyBirdSlotsRemaining": "Restam {remaining}/{max} vagas",
+    "earlyBirdSoldOut": "Early Bird esgotado",
+    "earlyBirdCta": "Garantir Early Bird",
+    "harmoniaCta": "Assinar Harmonia",
+    "juridicoCta": "Assinar Premium Jurídico",
+    "managedBy": "Pago por {name}",
+    "restorePurchase": "Restaurar compra"
+  },
+  "trial": {
+    "bannerTitle": "{plan} liberado",
+    "bannerUrgentTitle": "Sua degustação está acabando",
+    "statusDaysRemaining": "Degustação · {days} dias restantes",
+    "expiredTitle": "Sua degustação terminou"
+  },
+  "onboardingQuest": {
+    "title": "Veja o Kindar funcionando hoje",
+    "progress": "{done}/{total}",
+    "allDoneTitle": "Você viu tudo que o Kindar faz!",
+    "stepAddChild": "Adicionar uma criança",
+    "stepSetupCalendar": "Organizar o calendário",
+    "stepInviteCo": "Convidar o co-responsável",
+    "stepOcrPrescription": "Ler uma receita com IA",
+    "stepAiAgreement": "Pedir acordo para a IA"
+  },
   "whatsapp": {
     "title": "WhatsApp Assistente",
     "description": "Vincule seu WhatsApp para usar o Kindar por mensagem",

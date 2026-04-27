@@ -1,226 +1,246 @@
 # Kindar — Estratégia de Monetização
 
-> Documento corrigido e validado. Versão realista para tomada de decisão.
+> Documento alinhado com a implementação da Fase 1 (Abril/2026).
+> Substitui a versão anterior de Março/2026 (que trabalhava com Premium R$29,90 / Elite R$49,90).
 
 ---
 
-## 1. TAXAS DAS LOJAS (o "pedágio")
+## 1. POSICIONAMENTO
 
-| Loja | Taxa padrão | Taxa p/ startup (<US$1M/ano) | Assinatura após 1 ano |
-|------|------------|-------------------------------|----------------------|
-| **Apple** | 30% | **15%** (Small Business Program) | 15% |
-| **Google** | 30% | **15%** (baseline seguro) | 15% |
+**Kindar é um organizador universal de rotina familiar** — não só para pais separados.
 
-> ⚠️ Google 10% existe em casos específicos (parcerias, media). **Use 15% como base segura para projeções.**
-
----
-
-## 2. SOBRE O CADE / APPLE NO BRASIL
-
-### O que está acontecendo:
-- A Apple está sendo pressionada pelo CADE e por decisões globais
-- Flexibilizações estão em andamento
-- Acordo prevê possibilidade de pagamentos externos e lojas alternativas
-
-### ⚠️ O que NÃO assumir:
-- ❌ NÃO é totalmente livre colocar pagamento externo sem regras
-- ❌ Pode haver comissão residual (3% a 27%)
-- ❌ Restrições de UX podem ser impostas pela Apple
-- ❌ Necessidade de entitlement/aprovação da Apple
-
-### ✅ Como tratar no planejamento:
-> "Possibilidade emergente de pagamentos externos no iOS, sujeita a regras e aprovação da Apple. Considerar como oportunidade futura, não como garantia."
-
-**Na prática:** Planejar com IAP (15%) como cenário base. Se a abertura se confirmar, será um bônus de margem.
+- Slogan: "Organize a rotina de quem você cuida"
+- Flag `custody_enabled` (em `coparenting_groups`) ativa progressivamente as features de guarda compartilhada
+- Novos grupos começam com `custody_enabled = false` (experiência universal)
+- Atende: famílias nucleares, separadas, homoafetivas, monoparentais, avós guardiões, cuidadores profissionais
 
 ---
 
-## 3. PIX AUTOMÁTICO — Realidade vs Hype
+## 2. PRINCÍPIO DE COBRANÇA
 
-### ✅ O que é verdade:
-- Taxa baixa (~1-2%) ✅
-- Alta penetração no Brasil ✅
-- Sem chargeback ✅
-- Fit perfeito para app de famílias (rotina, previsibilidade) ✅
-- Atinge brasileiros sem cartão de crédito ✅
+**Uma assinatura por grupo familiar** — não por usuário, não por assento.
 
-### ⚠️ O que NÃO usar como projeção:
-- ❌ "Crescimento de 41% ao mês" — dado de early stage, não sustentável
-- ❌ Não usar como base de projeção financeira
+| Quem paga | Quem não paga |
+|-----------|----------------|
+| Responsáveis legais (`profiles.role = 'parent'`) | Avós (`grandparent`) |
+|  | Cuidadores (`caregiver`) |
+|  | Mediadores (`mediator`) |
+|  | Advogados (`lawyer`) |
 
-### ✅ Como usar:
-> PIX Automático é **arma competitiva real**, mas projetar receita com base em taxas de cartão/IAP (cenário conservador).
+Enforcement server-side em `src/lib/billing/payer.ts` (`canStartSubscription`) + `/api/billing/status`.
 
 ---
 
-## 4. CONVERSÃO DE TRIAL — Expectativas Realistas
+## 3. PLANOS
 
-### ❌ O que eu disse antes (otimista demais):
-- "Trial de 7 dias = 40% de conversão"
+| Plano | Preço | Quem pode pagar | Limites | Plan ID |
+|-------|-------|-----------------|---------|---------|
+| **Grátis** | R$ 0 | Qualquer | 1 criança, 30d histórico | `free` |
+| **Harmonia — Early Bird** 🎯 | **R$ 19,90/mês** para sempre | Só `parent` | Ilimitado, todas features de Harmonia | `harmonia_earlybird_monthly` |
+| **Harmonia** | R$ 24,90/mês | Só `parent` | Ilimitado, IA, OCR, saúde completa | `harmonia_monthly` |
+| **Premium Jurídico** | R$ 39,90/mês | Só `parent` | Tudo de Harmonia + export legal, audit trail | `premium_juridico_monthly` |
 
-### ✅ Realidade de mercado:
-| Faixa | Conversão |
-|-------|-----------|
-| Comum | 5% - 15% |
-| Excelente | 15% - 20% |
-| Excepcional | 20% - 30% |
-| Top 1% (produto muito validado) | 30%+ |
+Anuais com 20% off: R$191 Early Bird · R$239 Harmonia · R$383 Premium Jurídico.
 
-### ✅ Para o Kindar, esperar:
-> **10% - 20% no início.** Melhorar com iterações de produto e onboarding.
+**Early Bird**: capado em 1.000 assinaturas (enforcement via trigger Postgres em `00056_early_bird_counter.sql`). Advisory lock garante que não há oversell cross-platform.
 
-### Sobre "trial sem cartão":
-- ✅ Melhor para Brasil (muitos sem cartão)
-- ⚠️ iOS pode exigir método de pagamento via IAP
-- ⚠️ Conversão pode ser menor vs trial com cartão
-- 📌 **Precisa ser testado, não assumido**
+**Convidados ilimitados em todos os planos** (inclusive Grátis): avós, cuidadores, mediadores, advogados entram via `invitations` table e sempre têm acesso no plano do grupo.
 
 ---
 
-## 5. ESTRATÉGIA CORRIGIDA — 3 Fases
+## 4. DEGUSTAÇÃO DE 7 DIAS — "Show the ceiling"
 
-### 🔹 Fase 1 — Lançamento (validação de produto)
+Todo novo grupo ganha **7 dias de Premium Jurídico** automaticamente, sem cartão.
 
-**Apenas o essencial:**
-- Apple IAP
-- Google IAP
-- RevenueCat (grátis até US$ 2.500/mês)
+- Infra: coluna `subscriptions.trial_end` (migration 00039) + `payment_provider='trial'`
+- Cria: `src/lib/billing/trial.ts` (`grantTrialIfEligible`) no `createGroup`
+- Expiração: cron diário `/api/cron/trial-expiry` às 03:00 UTC
+- Reminders: cron `/api/cron/trial-reminder` às 17:00 UTC — email dia 5, push dia 6
 
-**Por que apenas isso:**
-- Menos fricção para aprovação nas lojas
-- Mais rápido para ir ao ar
-- Foco em validar o produto, não em otimizar margem
-- RevenueCat resolve cross-platform + analytics
+Uma trial por usuário, **para sempre** (não se repete em novos grupos).
 
-**Preço:** R$ 19,90/mês (entrada)
+### Onboarding Quest — 5 passos durante a degustação
 
----
+Widget no dashboard correlaciona "tocou nas features premium" com conversão:
 
-### 🔹 Fase 2 — Otimização (após PMF validado)
+1. `add_child` — adicionar criança
+2. `setup_calendar` — criar escala ou ativar sem escala
+3. `invite_co` — convidar co-responsável
+4. `ocr_prescription` — ler receita médica com IA
+5. `ai_agreement` — usar IA assistente
 
-**Adiciona:**
-- Stripe Brasil (web checkout)
-- PIX como opção de pagamento
-- Landing page externa com checkout
-
-**Estratégia:**
-- Usuário entra no app → vê valor → faz upgrade
-- Direciona para web para pagamento (Stripe/PIX = taxa menor)
-- Mantém IAP como opção de conveniência
-
-**Preço:** R$ 24,90/mês (ajuste após validação)
+Tabela `onboarding_quests` (migration 00057). Tracked via `src/actions/onboarding-quest.ts`.
 
 ---
 
-### 🔹 Fase 3 — Otimização agressiva de margem
+## 5. SINCRONIA MULTI-PLATAFORMA
 
-**Incentiva PIX:**
-- Desconto para quem paga via PIX (ex: R$ 24,90 → R$ 19,90)
-- Benefícios extras para assinantes PIX
-- PIX Automático para recorrência
+As 3 plataformas compartilham o mesmo backend Supabase. Lógica de billing é **server-side authoritative**.
 
-**Explora CADE (se confirmado):**
-- Botão de pagamento externo no iOS
-- Redução de dependência das lojas
+| Plataforma | Provider | Coluna primária | Webhook |
+|------------|----------|-----------------|---------|
+| PWA (Next.js) | Stripe + PIX | `stripe_subscription_id` | `/api/stripe/webhook` |
+| iOS Nativo | Apple IAP via RevenueCat | `apple_original_transaction_id` | RevenueCat webhook (a implementar) |
+| Android Nativo | Google Play via RevenueCat | `google_purchase_token` | RevenueCat webhook (a implementar) |
 
-**Preço:** R$ 24,90 - R$ 29,90/mês (segmentado)
+Fonte única de verdade: `GET /api/billing/status?groupId=X` — clients (PWA / iOS / Android) consultam antes de mostrar features premium.
 
-> 💡 **O jogo:** trocar margem por conversão inteligente. Desconto no PIX custa menos que a taxa da Apple.
-
----
-
-## 6. ARQUITETURA FINAL
-
-```
-App (UX)
-    ↓
-RevenueCat (gestão de assinaturas)
-    ↓
-─────────────────────────────────
-IAP (Apple/Google)  → conveniência (15%)
-Stripe (PIX/Web)    → margem (1-4%)
-─────────────────────────────────
-```
+View `v_group_active_subscription` resolve "qual sub está ativa para este grupo" priorizando `active > trialing > past_due`.
 
 ---
 
-## 7. PROJEÇÕES CONSERVADORAS
+## 6. SPLIT AUTOMÁTICO (mata a briga de "quem paga") — **Fase 2: implementado**
 
-### Com 1.000 famílias pagantes a R$ 19,90/mês:
+Quando o primeiro responsável assina, aparece um botão **"Dividir custo com co-responsável"** na página `/assinatura` que usa o módulo de Despesas existente:
 
-| Cenário | Mix | Receita bruta | Taxa média | Receita líquida |
-|---------|-----|--------------|-----------|-----------------|
-| Conservador | 100% IAP | R$ 19.900 | 15% | **R$ 16.915** |
-| Realista | 60% IAP + 40% PIX | R$ 19.900 | ~10% | **R$ 17.910** |
-| Otimista | 30% IAP + 70% PIX | R$ 19.900 | ~6% | **R$ 18.706** |
+- **Migração 00058** adiciona `auto_split`, `auto_split_co_user_id`, `auto_split_co_share` em `subscriptions`, + valor `subscription` no enum `expense_category`, + idempotência via `source_subscription_id` + `source_period_start` em `expenses`
+- **Server actions**: `enableSubscriptionSplit` e `disableSubscriptionSplit` em `src/actions/subscription-split.ts` — só o payer pode ativar
+- **Renovação automática**: Stripe webhook `invoice.payment_succeeded` com `billing_reason='subscription_cycle'` cria nova despesa split a cada renovação (idempotente)
+- **Biblioteca**: `src/lib/billing/split.ts` expõe `createSplitExpenseForPeriod`, `computeCoShareAmount`, `buildSplitRatio` — compartilhado entre action e webhook
+- **UI**: seletor de co-responsável + slider de percentual (10-90) + desativar inline
+- **Notificação**: push + chat system message ao co-responsável ("X está dividindo o Kindar com você — R$12,45/mês")
+- **Dashboard financeiro**: categoria `subscription` com label "Assinatura Kindar 💛" aparece automática em `EXPENSE_CATEGORIES`
 
-### Conversão de trial (cenário realista):
+Validação: Vitest cobre `getPlanAmountBrl`, `computeCoShareAmount`, `buildSplitRatio`.
+
+---
+
+## 6.5. PIX + OTIMIZAÇÃO DE MARGEM — **Fase 3: implementado**
+
+**Estratégia**: incentivar pagamento via PIX (taxa ~1-2%) vs cartão (~4%) ou IAP (~15%). Preservar card/IAP como opção para quem prefere comodidade.
+
+- **Migração 00059** adiciona `payment_method_hint` em `subscriptions` (`card | pix | apple_iap | google_iap | trial`) — backfill automático a partir de `payment_provider`
+- **Biblioteca**: `src/lib/billing/pix.ts` expõe `getPixPrice(planId)` (preço com e sem desconto de R$5) e `isPixSubscriptionEnabled()` (flag `NEXT_PUBLIC_PIX_ENABLED`)
+- **Stripe checkout** (`src/app/api/stripe/checkout/route.ts`):
+  - Aceita `paymentMethod: 'card' | 'pix' | 'auto'` no payload
+  - Para `pix`: `payment_method_types: ['pix']` + aplica cupom `STRIPE_PIX_COUPON_ID` (provisionado manualmente na Stripe)
+  - Para `auto`: mostra ambos, cliente decide
+  - Resolve `stripe_price_id` via tabela `plans` (server-side, não confia em client)
+- **Webhook** registra `payment_method_hint` vindo do metadata do checkout
+- **UI `/assinatura`**: toggle PIX vs Cartão acima dos cards; preços com strike-through ("R$24,90 → R$19,90 via PIX, economize R$5")
+- **PIX Automático (recorrência)**: depende da Stripe ter liberado para a conta. Enquanto não estiver: desconto vale para o primeiro mês, depois cobra preço cheio. Após liberação, altera `NEXT_PUBLIC_PIX_ENABLED=true` e PIX vira padrão
+
+**Economia de margem estimada** (1.000 assinantes Harmonia):
+- 100% cartão: R$24.900 brutos × ~4% = R$996 taxa → **R$23.904 líquidos**
+- 40% PIX + 60% cartão: receita R$22.900 (400 × R$19,90 + 600 × R$24,90), taxa média ~3% = R$687 → **R$22.213 líquidos**
+
+PIX reduz receita bruta em R$2k mas o efeito competitivo (mercado BR adora PIX, muitos sem cartão) deve compensar via volume. Medir via PostHog `payment_method_chosen` após 60 dias.
+
+---
+
+## 7. TAXAS DAS LOJAS
+
+| Loja | Taxa base | Small Business (<US$1M/ano) |
+|------|-----------|-----------------------------|
+| Apple | 30% | **15%** |
+| Google | 30% | **15%** |
+| Stripe Brasil | ~4% | 4% |
+| PIX via Stripe | ~1-2% | 1-2% |
+
+Estratégia de margem: incentivar PIX via web (ex.: desconto de R$5). App (iOS/Android) mantém IAP via RevenueCat por conveniência.
+
+---
+
+## 8. CONVERSÃO ESPERADA (metas realistas)
 
 | Métrica | Conservador | Realista | Otimista |
-|---------|------------|---------|----------|
-| Downloads/mês | 1.000 | 1.000 | 1.000 |
-| Ativam trial | 30% = 300 | 40% = 400 | 50% = 500 |
-| Convertem p/ pago | 10% = 30 | 15% = 60 | 20% = 100 |
-| **Novos pagantes/mês** | **30** | **60** | **100** |
+|---------|-------------|----------|----------|
+| Trial → pago | 10% | 15% | 25% |
+| Free → pago (sem trial) | 5% | 10% | 15% |
+| Split ativado (grupos 2+ pais) | 30% | 40% | 60% |
+| Early Bird esgotar em | 12 meses | 6 meses | 3 meses |
 
-> Para chegar a 1.000 pagantes no cenário realista: ~17 meses.
-
----
-
-## 8. PREÇO RECOMENDADO
-
-| Faixa | Valor | Quando |
-|-------|-------|--------|
-| Entrada | **R$ 19,90/mês** | Lançamento |
-| Padrão | **R$ 24,90/mês** | Após validação |
-| Premium | **R$ 29,90/mês** | Com features diferenciadas |
-
-> 👉 **Começa em R$ 19,90. Sobe depois.** Prioridade é base de usuários.
-
-### Anual com desconto:
-- R$ 19,90/mês → R$ 189,90/ano (equivale a R$ 15,83/mês — 20% off)
-- Incentiva retenção e previsibilidade de receita
+Hipóteses a testar pós-launch via PostHog:
+- Usuários que completam ≥3 passos da onboarding quest convertem 3× mais
+- Early Bird drive ≥20% a mais sign-ups vs. preço único R$24,90
 
 ---
 
-## 9. VISÃO DE FUTURO — Por que o Kindar pode ser grande
+## 9. PROJEÇÕES
 
-### A vantagem absurda do Kindar:
-> **Problema recorrente + emocional + obrigatório**
+### Cenário realista com 1.000 famílias pagantes
 
-Pais separados PRECISAM se comunicar sobre os filhos. Não é opcional. Isso gera:
-- Retenção altíssima (churn baixo)
-- Uso diário/semanal garantido
-- Disposição a pagar por algo que reduz conflito
+| Mix | Receita bruta/mês | Taxa média | Receita líquida/mês |
+|-----|-------------------|------------|---------------------|
+| 500 Early Bird + 500 Harmonia | R$ 22.400 | ~12% | **R$ 19.700** |
+| 300 Early Bird + 600 Harmonia + 100 P.Jurídico | R$ 24.960 | ~12% | **R$ 21.960** |
 
-### Evolução possível:
-
-| Fase | Modelo | Receita adicional |
-|------|--------|------------------|
-| Atual | SaaS (assinatura) | Core business |
-| Futura | Marketplace de serviços (advogados, mediadores) | Comissão por conexão |
-| Futura | Fintech leve (split de despesas, pensão) | Taxa sobre transações |
-| Futura | Jurídico (acordos digitais com validade legal) | Parceria com escritórios |
-
-> 💰 **SaaS + Fintech leve** é onde está o dinheiro de verdade.
+"Custo" do desconto Early Bird: 1.000 × R$5 = R$5.000/mês "investidos" em acquisition para sempre. Compensa se Early Bird drive ≥20% de volume extra.
 
 ---
 
-## 10. RESUMO EXECUTIVO
+## 10. IMPLEMENTAÇÃO — arquivos críticos
+
+### Schema
+- `supabase/migrations/00054_subscriptions_per_group.sql` — coluna `coparenting_group_id`, RLS, view `v_group_active_subscription`
+- `supabase/migrations/00055_plans_reprice_and_rename.sql` — novos plan IDs (Harmonia, Premium Jurídico, Early Bird)
+- `supabase/migrations/00056_early_bird_counter.sql` — trigger de capacity + advisory lock + view pública
+- `supabase/migrations/00057_onboarding_quest.sql` — tabela `onboarding_quests`
+- `supabase/migrations/00058_subscription_split.sql` — auto_split fields + enum `subscription` + idempotência
+- `supabase/migrations/00059_pix_payment_method_hint.sql` — coluna `payment_method_hint`
+
+### Backend
+- `src/lib/billing/` — tiers, group-subscription, payer, early-bird, feature-gate, trial, **split, pix** (módulo completo)
+- `src/app/api/billing/status/route.ts` — fonte de verdade cross-platform
+- `src/app/api/cron/trial-expiry/route.ts` — marca trials expirados
+- `src/app/api/cron/trial-reminder/route.ts` — email D-5 + push D-6
+- `src/app/api/stripe/webhook/route.ts` — renovações criam despesas split automaticamente + rastreia `payment_method_hint`
+- `src/app/api/stripe/checkout/route.ts` — aceita `paymentMethod: card|pix|auto` + aplica cupom PIX
+- `src/actions/group.ts` — `createGroup` agora concede trial automático
+- `src/actions/onboarding-quest.ts` — `markQuestStep`, `getQuestProgress`
+- `src/actions/subscription-split.ts` — `enableSubscriptionSplit`, `disableSubscriptionSplit`
+
+### UI (PWA)
+- `src/app/(app)/assinatura/page.tsx` + `AssinaturaClient.tsx` — página de assinatura com detecção de payer
+- `src/components/billing/TrialBanner.tsx` — banner no dashboard durante trial
+- `src/components/billing/OnboardingQuest.tsx` — widget quest no dashboard
+- `src/components/billing/EarlyBirdBadge.tsx` — badge live counter (variants: hero, inline, pill)
+- `src/app/page.tsx` — landing com counter Early Bird (revalidate 30s)
+- `src/app/pricing/page.tsx` + `PricingClient.tsx` — pricing page com Early Bird highlight
+
+### UI (Nativo) — a implementar na Fase 1.1
+- `kindar-native/src/app/configuracoes/assinatura.tsx` — página com RevenueCat `purchasePackage`
+- Tela "Restaurar compra" (requisito Apple)
+
+### i18n
+- `src/i18n/locales/{pt,en,es,fr,de}.json` — seções `subscription`, `trial`, `onboardingQuest`
+- `kindar-native/src/i18n/locales/{pt,en,es,fr,de}.json` — mesmas chaves espelhadas (subset)
+
+### Crons (registrados em `vercel.json`)
+- `/api/cron/trial-expiry` — diário 03:00 UTC
+- `/api/cron/trial-reminder` — diário 17:00 UTC
+
+---
+
+## 11. RESUMO EXECUTIVO
 
 | Item | Decisão |
 |------|---------|
-| **Preço inicial** | R$ 19,90/mês |
-| **Modelo** | Freemium + Trial 7 dias |
-| **Pagamento Fase 1** | IAP (Apple/Google) via RevenueCat |
-| **Pagamento Fase 2** | + Stripe/PIX (web) |
-| **Pagamento Fase 3** | + PIX Automático + incentivos |
-| **Conversão esperada** | 10-20% (realista) |
-| **Meta 1.000 pagantes** | 12-18 meses |
-| **Custo infra até lá** | R$ 0 - R$ 250/mês |
-| **Taxa média sobre receita** | 10-15% |
+| **Modelo** | 1 assinatura por grupo — só responsáveis legais pagam |
+| **Free tier** | Permanente: 1 criança, 30d histórico, sem IA |
+| **Trial** | 7 dias de Premium Jurídico automático, sem cartão |
+| **Early Bird** | R$19,90 para sempre, primeiras 1.000 famílias |
+| **Preço base (pós Early Bird)** | Harmonia R$24,90 / Premium Jurídico R$39,90 |
+| **Mensagem central** | "Assine uma vez. Família toda acessa." |
+| **Split** | 50/50 automático via módulo Despesas |
+| **Meta** | 1.000 pagantes em 12-18 meses |
 
 ---
 
-*Documento atualizado em: Março/2026*
-*Validado com análise de mercado real*
+---
+
+## 12. STATUS DE IMPLEMENTAÇÃO
+
+| Fase | Escopo | Status |
+|------|--------|--------|
+| **Fase 1** | Per-group, Early Bird, Trial 7d, Onboarding Quest, UI PWA | ✅ Completa |
+| **Fase 2** | Split automático via Despesas + webhook de renovação | ✅ Completa |
+| **Fase 3** | PIX (checkout, desconto, UI toggle, hint tracking) | ✅ Completa |
+| **Fase 4** | RevenueCat webhook + UI nativa iOS/Android + Restore + Email welcome + Portal | ✅ Completa |
+| **Fase 5** | Dashboard admin de métricas + notificação de renovação + cupons customizados | ✅ Completa |
+
+**Passos manuais pós-merge**: ver `MANUAL_OPERACIONAL.md` (Stripe config, migrations, env vars, Apple/Google product IDs, RevenueCat, PIX Automático, validação end-to-end).
+
+---
+
+*Documento atualizado em: Abril/2026 · alinhado com migrations 00054–00059 (Fases 1-3 completas)*

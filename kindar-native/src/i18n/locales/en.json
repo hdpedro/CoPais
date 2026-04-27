@@ -1833,6 +1833,39 @@
     "viewPlans": "View plans",
     "downgrade": "Downgrade"
   },
+  "subscription": {
+    "pageTitle": "Family subscription",
+    "pageSubtitle": "One subscription, the whole family gets access. Co-parents, grandparents, nannies, lawyers and mediators join for free.",
+    "nonPayerSubtitle": "Only legal guardians can manage the subscription.",
+    "currentPlanLabel": "Current plan",
+    "planHarmonia": "Harmonia",
+    "planJuridico": "Legal Premium",
+    "planFree": "Free",
+    "earlyBirdTitle": "Harmonia — Early Bird",
+    "earlyBirdSlotsRemaining": "{remaining}/{max} seats left",
+    "earlyBirdSoldOut": "Early Bird sold out",
+    "earlyBirdCta": "Claim Early Bird",
+    "harmoniaCta": "Subscribe to Harmonia",
+    "juridicoCta": "Subscribe to Legal Premium",
+    "managedBy": "Paid by {name}",
+    "restorePurchase": "Restore purchase"
+  },
+  "trial": {
+    "bannerTitle": "{plan} unlocked",
+    "bannerUrgentTitle": "Your trial is ending",
+    "statusDaysRemaining": "Trial · {days} days left",
+    "expiredTitle": "Your trial ended"
+  },
+  "onboardingQuest": {
+    "title": "See Kindar working today",
+    "progress": "{done}/{total}",
+    "allDoneTitle": "You saw everything Kindar can do!",
+    "stepAddChild": "Add a child",
+    "stepSetupCalendar": "Set up the calendar",
+    "stepInviteCo": "Invite your co-responsible",
+    "stepOcrPrescription": "Read a prescription with AI",
+    "stepAiAgreement": "Ask AI for an agreement"
+  },
   "whatsapp": {
     "title": "WhatsApp Assistant",
     "description": "Link your WhatsApp to use Kindar via messages",
