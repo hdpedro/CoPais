@@ -73,6 +73,14 @@
       },
       "router": {}
     },
-    "owner": "henriquedepedros-organization"
+    "owner": "henriquedepedros-organization",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/a0390045-42f5-4a37-8264-659fa09c1e0a",
+      "fallbackToCacheTimeout": 0,
+      "checkAutomatically": "ON_LOAD"
+    }
   }
 }

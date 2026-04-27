@@ -14,7 +14,8 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://jquaysfeeuwvoydsgssi.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxdWF5c2ZlZXV3dm95ZHNnc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTkwNzMsImV4cCI6MjA4OTMzNTA3M30.k6tqIi4mygYgimhaI-EhFCdUyoEKSPREaed2Bbc_gxY",
         "EXPO_PUBLIC_WEB_URL": "https://kindar.com.br"
-      }
+      },
+      "channel": "development"
     },
     "preview": {
       "distribution": "internal",
@@ -25,7 +26,8 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://jquaysfeeuwvoydsgssi.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxdWF5c2ZlZXV3dm95ZHNnc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTkwNzMsImV4cCI6MjA4OTMzNTA3M30.k6tqIi4mygYgimhaI-EhFCdUyoEKSPREaed2Bbc_gxY",
         "EXPO_PUBLIC_WEB_URL": "https://kindar.com.br"
-      }
+      },
+      "channel": "preview"
     },
     "production": {
       "node": "20.18.0",
@@ -42,7 +44,8 @@
         "EXPO_PUBLIC_SUPABASE_URL": "https://jquaysfeeuwvoydsgssi.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxdWF5c2ZlZXV3dm95ZHNnc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTkwNzMsImV4cCI6MjA4OTMzNTA3M30.k6tqIi4mygYgimhaI-EhFCdUyoEKSPREaed2Bbc_gxY",
         "EXPO_PUBLIC_WEB_URL": "https://kindar.com.br"
-      }
+      },
+      "channel": "production"
     }
   },
   "submit": {
