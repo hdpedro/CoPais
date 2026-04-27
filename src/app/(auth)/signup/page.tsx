@@ -1,11 +1,12 @@
 "use client";
 
-import { useState, Suspense } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/actions/auth";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import KindarLogo from "@/components/KindarLogo";
+import { trackEvent, EVENTS } from "@/lib/analytics";
 
 export default function SignUpPage() {
   return (
@@ -20,6 +21,18 @@ function SignUpForm() {
   const [loading, setLoading] = useState(false);
   const searchParams = useSearchParams();
   const conviteToken = searchParams.get("convite");
+  const refCode = searchParams.get("ref");
+
+  // Fire signup_started exactly once per page load. Conversion (signup_completed)
+  // is captured server-side in actions/auth.ts after successful auth.signUp().
+  useEffect(() => {
+    trackEvent(EVENTS.SIGNUP_STARTED, {
+      has_invite: !!conviteToken,
+      has_referral: !!refCode,
+      ref_code: refCode || null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
@@ -37,6 +50,10 @@ function SignUpForm() {
       setLoading(false);
       return;
     }
+
+    // Pass referral code into the form payload so the server action
+    // picks it up alongside the cookie (defence in depth).
+    if (refCode) formData.set("ref", refCode);
 
     const result = await signUp(formData);
     if (result?.error) {

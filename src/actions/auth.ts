@@ -30,6 +30,14 @@ export async function signUp(formData: FormData) {
   const fullName = formData.get("fullName") as string;
   const convite = formData.get("convite") as string | null;
 
+  // Referral code — either passed via form (`?ref=XXX` on signup URL) or
+  // read from the kindar_ref cookie dropped by /r/[code]. The handle_new_user
+  // trigger validates the code exists before saving referred_by.
+  const refFromForm = (formData.get("ref") as string | null)?.toUpperCase().trim() || null;
+  const cookieStore = await cookies();
+  const refFromCookie = cookieStore.get("kindar_ref")?.value?.toUpperCase().trim() || null;
+  const refCode = refFromForm || refFromCookie;
+
   // If user has an invite token, include it in the callback URL
   const callbackUrl = new URL("/auth/callback", process.env.NEXT_PUBLIC_APP_URL);
   if (convite) {
@@ -42,6 +50,7 @@ export async function signUp(formData: FormData) {
     options: {
       data: {
         full_name: fullName,
+        ...(refCode ? { referred_by: refCode } : {}),
       },
       emailRedirectTo: callbackUrl.toString(),
     },
@@ -52,6 +61,12 @@ export async function signUp(formData: FormData) {
   }
 
   captureServerEvent(email, "user_signup", { has_invite: !!convite });
+  // Standardized funnel event — same data, name aligned with EVENTS.SIGNUP_COMPLETED
+  captureServerEvent(email, "signup_completed", {
+    has_invite: !!convite,
+    has_referral: !!refCode,
+    ref_code: refCode,
+  });
 
   // Fire-and-forget welcome email
   void sendWelcomeEmail(email, fullName);
@@ -120,7 +135,10 @@ export async function signOut() {
   cookieStore.set("remember_me", "", { maxAge: 0, path: "/" });
   cookieStore.set("kindar-has-session", "", { maxAge: 0, path: "/" });
 
-  redirect("/login");
+  // Append ?logout=1 so PostHogAnonymousInit on /login resets the
+  // analytics identity — prevents the next visitor on this browser
+  // from inheriting the previous user's bucket and feature flags.
+  redirect("/login?logout=1");
 }
 
 export async function resetPassword(formData: FormData) {

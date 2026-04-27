@@ -3,6 +3,10 @@ import { getSessionUser } from "@/lib/supabase/auth-helper";
 import { getCachedProfileByUser, getCachedMembers, getCachedChildren } from "@/lib/cached-queries";
 import { getActiveGroup } from "@/lib/group-utils";
 import { autoAcceptPendingInvitations } from "@/actions/invitation";
+import { getGroupSubscription, trialDaysRemaining } from "@/lib/billing";
+import { getQuestProgress } from "@/actions/onboarding-quest";
+import TrialBanner from "@/components/billing/TrialBanner";
+import OnboardingQuest from "@/components/billing/OnboardingQuest";
 import { formatDateKey, computeSwapBalance, getBrazilNow, getBrazilToday, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
 // getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
 import { PARENT_COLORS, DAY_NAMES, MONTH_NAMES, getDisplayName } from "@/lib/constants";
@@ -840,5 +844,27 @@ export default async function DashboardPage() {
     }),
   };
 
-  return <DashboardClient {...clientProps} />;
+  // Billing/trial widgets — only fetched after the group is resolved so
+  // we don't pay the cost on onboarding redirects.
+  const [subscription, questProgress] = await Promise.all([
+    getGroupSubscription(supabase, groupId),
+    getQuestProgress(),
+  ]);
+  const trialDays = trialDaysRemaining(subscription.trialEnd);
+  const showTrialWidgets = subscription.isTrial && trialDays >= 0;
+
+  return (
+    <>
+      {showTrialWidgets && (
+        <div className="space-y-0">
+          <TrialBanner daysRemaining={trialDays} />
+          <OnboardingQuest
+            completed={questProgress.completed}
+            totalSteps={questProgress.totalSteps}
+          />
+        </div>
+      )}
+      <DashboardClient {...clientProps} />
+    </>
+  );
 }

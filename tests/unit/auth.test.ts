@@ -185,7 +185,7 @@ describe("signIn", () => {
 // ---- signOut ---------------------------------------------------------------
 
 describe("signOut", () => {
-  it("signs out, clears cookie, and redirects to /login", async () => {
+  it("signs out, clears cookie, and redirects to /login?logout=1", async () => {
     mockSupabase.auth.signOut.mockResolvedValue({ error: null });
 
     await expect(signOut()).rejects.toThrow("NEXT_REDIRECT");
@@ -196,7 +196,8 @@ describe("signOut", () => {
       "",
       expect.objectContaining({ maxAge: 0 })
     );
-    expect(mockRedirect).toHaveBeenCalledWith("/login");
+    // Includes ?logout=1 so PostHogAnonymousInit knows to reset analytics identity
+    expect(mockRedirect).toHaveBeenCalledWith("/login?logout=1");
   });
 });
 

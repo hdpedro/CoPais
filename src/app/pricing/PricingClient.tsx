@@ -16,37 +16,54 @@ interface Plan {
   features: string[];
 }
 
+interface EarlyBirdView {
+  planId: string;
+  slotsRemaining: number;
+  maxSubscribers: number;
+  isSoldOut: boolean;
+}
+
 interface PricingClientProps {
   plans: Plan[];
   currentPlanId: string;
   isLoggedIn: boolean;
+  earlyBird?: EarlyBirdView[];
 }
 
-// Group plans by tier (free / premium / elite), each with monthly + annual variants
+// Group plans by tier (free / harmonia / premium_juridico). Falls back to
+// legacy IDs so grandfathered subs keep rendering while the rollout is in
+// progress.
 type Tier = { name: string; tagline: string; monthly: Plan | null; annual: Plan | null };
 
 function groupByTier(plans: Plan[]): Tier[] {
   const free = plans.find((p) => p.id === "free");
-  const premiumM = plans.find((p) => p.id === "premium_monthly");
-  const premiumA = plans.find((p) => p.id === "premium_annual");
-  const eliteM = plans.find((p) => p.id === "elite_monthly");
-  const eliteA = plans.find((p) => p.id === "elite_annual");
+  const harmoniaM = plans.find((p) => p.id === "harmonia_monthly") ?? plans.find((p) => p.id === "premium_monthly");
+  const harmoniaA = plans.find((p) => p.id === "harmonia_annual") ?? plans.find((p) => p.id === "premium_annual");
+  const juridicoM = plans.find((p) => p.id === "premium_juridico_monthly") ?? plans.find((p) => p.id === "elite_monthly");
+  const juridicoA = plans.find((p) => p.id === "premium_juridico_annual") ?? plans.find((p) => p.id === "elite_annual");
 
   return [
-    { name: "Free", tagline: "Degustacao Solo", monthly: free || null, annual: null },
-    { name: "Premium", tagline: "Rede de Apoio e Colaboracao", monthly: premiumM || null, annual: premiumA || null },
-    { name: "Elite", tagline: "Suporte VIP e Backup Juridico", monthly: eliteM || null, annual: eliteA || null },
+    { name: "Gratis", tagline: "Organizacao basica para comecar", monthly: free || null, annual: null },
+    { name: "Harmonia", tagline: "Uma assinatura, familia inteira acessa", monthly: harmoniaM || null, annual: harmoniaA || null },
+    { name: "Premium Juridico", tagline: "Para quem precisa de audit trail e export legal", monthly: juridicoM || null, annual: juridicoA || null },
   ];
 }
 
-export default function PricingClient({ plans, currentPlanId, isLoggedIn }: PricingClientProps) {
+export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyBird = [] }: PricingClientProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("annual");
   const router = useRouter();
   const platform = getPaymentPlatform();
   const tiers = groupByTier(plans);
 
-  const isPaidUser = currentPlanId.startsWith("premium") || currentPlanId.startsWith("elite");
+  const earlyBirdMonthly = earlyBird.find((e) => e.planId === "harmonia_earlybird_monthly");
+  const earlyBirdPlan = plans.find((p) => p.id === "harmonia_earlybird_monthly");
+  const showEarlyBird = earlyBirdMonthly && !earlyBirdMonthly.isSoldOut && earlyBirdPlan;
+
+  const isPaidUser =
+    currentPlanId.startsWith("premium") ||
+    currentPlanId.startsWith("elite") ||
+    currentPlanId.startsWith("harmonia");
 
   async function handleSubscribe(plan: Plan) {
     if (!isLoggedIn) {
@@ -206,6 +223,53 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
         </button>
       </div>
 
+      {/* Early Bird highlight — only visible while slots remain */}
+      {showEarlyBird && earlyBirdPlan && earlyBirdMonthly && (
+        <div className="max-w-5xl mx-auto px-4 mb-8">
+          <div className="relative bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl overflow-hidden">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-16 translate-x-16" />
+            <div className="relative">
+              <div className="inline-block bg-white/25 backdrop-blur text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3">
+                Preco de lancamento
+              </div>
+              <h2 className="text-3xl sm:text-4xl font-extrabold mb-2">Harmonia Early Bird</h2>
+              <p className="text-white/90 text-sm sm:text-base mb-4 max-w-xl">
+                R$ 19,90/mes <strong>para sempre</strong> — apenas para as primeiras {earlyBirdMonthly.maxSubscribers} familias.
+                Depois, o plano Harmonia volta a R$ 24,90/mes.
+              </p>
+
+              <div className="bg-white/20 backdrop-blur rounded-full h-2 overflow-hidden mb-2">
+                <div
+                  className="bg-white h-full transition-all"
+                  style={{
+                    width: `${Math.round(
+                      ((earlyBirdMonthly.maxSubscribers - earlyBirdMonthly.slotsRemaining) /
+                        earlyBirdMonthly.maxSubscribers) *
+                        100,
+                    )}%`,
+                  }}
+                />
+              </div>
+              <p className="text-xs sm:text-sm font-medium text-white/90 mb-5">
+                Restam <strong className="text-white">{earlyBirdMonthly.slotsRemaining}</strong> de{" "}
+                {earlyBirdMonthly.maxSubscribers} vagas
+              </p>
+
+              <button
+                onClick={() => handleSubscribe(earlyBirdPlan)}
+                disabled={loading === earlyBirdPlan.id}
+                className="inline-flex items-center justify-center bg-white text-emerald-700 font-bold px-6 py-3 rounded-xl hover:bg-stone-50 transition shadow-lg disabled:opacity-70"
+              >
+                {loading === earlyBirdPlan.id ? "Abrindo…" : "Garantir R$19,90 para sempre"}
+                <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Plans Grid */}
       <div className="max-w-5xl mx-auto px-4 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -218,11 +282,16 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
 
             if (!activePlan) return null;
 
-            const isFree = tier.name === "Free";
-            const isPremium = tier.name === "Premium";
-            const isElite = tier.name === "Elite";
+            const isFree = tier.name === "Gratis";
+            const isPremium = tier.name === "Harmonia";
+            const isElite = tier.name === "Premium Juridico";
             // Match current plan by tier (not exact ID) so toggling billing cycle still shows "Plano atual"
-            const currentTier = currentPlanId.startsWith("elite") ? "Elite" : currentPlanId.startsWith("premium") ? "Premium" : "Free";
+            const currentTier =
+              currentPlanId.startsWith("premium_juridico") || currentPlanId.startsWith("elite")
+                ? "Premium Juridico"
+                : currentPlanId.startsWith("harmonia") || currentPlanId.startsWith("premium")
+                  ? "Harmonia"
+                  : "Gratis";
             const isCurrent = tier.name === currentTier;
 
             const priceDisplay = isFree
@@ -236,19 +305,19 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn }: Pric
               ? `R$ ${(activePlan.priceBrl / 100 / 12).toFixed(2).replace(".", ",")}/mes`
               : null;
 
-            // Savings text
+            // Savings text (annual plans save 20% vs. 12× monthly)
             const savingsText = billingCycle === "annual" && isPremium
-              ? "Economize R$ 61,80"
+              ? "Economize R$ 59,80"
               : billingCycle === "annual" && isElite
-                ? "Economize R$ 101,80"
+                ? "Economize R$ 95,80"
                 : null;
 
             // Feature list for display (curated, not raw)
             const displayFeatures = isFree
-              ? ["1 usuario", "1 crianca", "Calendario basico", "Despesas basicas", "Guarda basica"]
+              ? ["1 crianca", "30 dias de historico", "Calendario basico", "Despesas basicas", "Guarda basica"]
               : isPremium
-                ? ["Usuarios ilimitados", "Criancas ilimitadas", "Calendario completo", "Despesas ilimitadas", "Chat da familia", "Guarda completa + trocas", "Assistente IA Kindar", "Saude completa", "Suporte prioritario"]
-                : ["Tudo do Premium, mais:", "Suporte VIP dedicado", "Backup juridico", "Relatorios detalhados", "Exportacao PDF", "Backup de dados"];
+                ? ["Criancas ilimitadas", "Convidados ilimitados gratis (avos, babas, advogados)", "Calendario completo", "Despesas ilimitadas", "Chat da familia", "Guarda completa + trocas", "Assistente IA Kindar", "Saude + OCR de receitas", "Suporte prioritario"]
+                : ["Tudo do Harmonia, mais:", "Export legal (PDF audit trail)", "Backup juridico automatico", "Relatorios detalhados", "Alertas de receita", "Suporte VIP"];
 
             return (
               <div

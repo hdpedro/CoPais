@@ -2,6 +2,18 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { getEarlyBirdStatus, EARLY_BIRD_MONTHLY_PLAN } from "@/lib/billing/early-bird";
+import { getLandingStats } from "@/lib/landing-stats";
+import { EVENTS } from "@/lib/analytics";
+import ExperimentHeadline from "@/components/landing/ExperimentHeadline";
+import LandingPricingPreview from "@/components/landing/LandingPricingPreview";
+import LandingFaq from "@/components/landing/LandingFaq";
+import LandingSocialProof from "@/components/landing/LandingSocialProof";
+import PageViewTracker from "@/components/analytics/PageViewTracker";
+
+// Revalidate every 30s to keep the Early Bird counter fresh without
+// hammering Postgres on every anon page view.
+export const revalidate = 30;
 
 export default async function Home() {
   const cookieStore = await cookies();
@@ -15,8 +27,21 @@ export default async function Home() {
     }
   }
 
+  const [earlyBird, landingStats] = await Promise.all([
+    getEarlyBirdStatus(),
+    getLandingStats(),
+  ]);
+  const earlyBirdMonthly = earlyBird.find((e) => e.planId === EARLY_BIRD_MONTHLY_PLAN);
+
   return (
     <div className="min-h-screen bg-[#FAFAF8] text-[#0E0C0A]">
+      <PageViewTracker
+        event={EVENTS.LANDING_VIEWED}
+        properties={{
+          early_bird_remaining: earlyBirdMonthly?.slotsRemaining ?? 0,
+          active_families: landingStats.activeFamilies,
+        }}
+      />
       {/* ═══ NAVBAR ═══ */}
       <header className="fixed top-0 left-0 right-0 z-50 bg-[#FAFAF8]/80 backdrop-blur-xl border-b border-black/[0.04]">
         <nav className="max-w-6xl mx-auto px-5 sm:px-8 h-16 flex items-center justify-between">
@@ -40,17 +65,18 @@ export default async function Home() {
         {/* ═══ HERO ═══ */}
         <section className="pt-32 pb-20 sm:pt-44 sm:pb-32 px-5 sm:px-8">
           <div className="max-w-4xl mx-auto text-center">
-            <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 bg-[#2E7268]/8 text-[#2E7268] text-sm font-semibold rounded-full border border-[#2E7268]/10">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#2E7268] animate-pulse" />
-              Beta aberto — teste gratis
-            </div>
-            <h1 className="text-[2.5rem] sm:text-[3.5rem] lg:text-[4rem] font-extrabold leading-[1.1] tracking-tight">
-              A rotina da crianca,{" "}
-              <span className="text-[#C07055]">organizada em um so lugar</span>
-            </h1>
-            <p className="mt-6 text-lg sm:text-xl text-[#6B6560] max-w-2xl mx-auto leading-relaxed">
-              Calendario, saude, escola, atividades, guarda compartilhada e comunicacao entre responsaveis — tudo centralizado para quem cuida.
-            </p>
+            {earlyBirdMonthly && !earlyBirdMonthly.isSoldOut ? (
+              <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 bg-[#2E7268]/8 text-[#2E7268] text-sm font-semibold rounded-full border border-[#2E7268]/10">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7268] animate-pulse" />
+                Early Bird · Restam {earlyBirdMonthly.slotsRemaining}/{earlyBirdMonthly.maxSubscribers} vagas a R$19,90/mês para sempre
+              </div>
+            ) : (
+              <div className="inline-flex items-center gap-2 mb-8 px-4 py-2 bg-[#2E7268]/8 text-[#2E7268] text-sm font-semibold rounded-full border border-[#2E7268]/10">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#2E7268] animate-pulse" />
+                Beta aberto — teste gratis
+              </div>
+            )}
+            <ExperimentHeadline earlyBirdRemaining={earlyBirdMonthly?.slotsRemaining} />
             <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
               <Link
                 href="/signup"
@@ -375,6 +401,21 @@ export default async function Home() {
             </div>
           </div>
         </section>
+
+        {/* ═══ PRICING PREVIEW (Fase 5 growth) ═══ */}
+        <LandingPricingPreview
+          earlyBirdRemaining={earlyBirdMonthly?.slotsRemaining}
+          earlyBirdMax={earlyBirdMonthly?.maxSubscribers}
+        />
+
+        {/* ═══ SOCIAL PROOF ═══ */}
+        <LandingSocialProof
+          activeFamilies={landingStats.activeFamilies}
+          childrenOrganized={landingStats.childrenOrganized}
+        />
+
+        {/* ═══ FAQ ═══ */}
+        <LandingFaq />
 
         {/* ═══ CTA FINAL ═══ */}
         <section className="py-20 sm:py-28 px-5 sm:px-8 bg-gradient-to-br from-[#C07055] to-[#A85D47]">
