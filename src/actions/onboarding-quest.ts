@@ -1,28 +1,12 @@
 "use server";
 
+// Types + constants live in @/lib/quest-types so Client Components and
+// other server files can import them without violating the "use server"
+// rule (only async functions allowed as exports).
+
 import { createClient } from "@/lib/supabase/server";
 import { captureServerEvent } from "@/lib/posthog-server";
-
-export type QuestStep =
-  | "add_child"
-  | "setup_calendar"
-  | "invite_co"
-  | "ocr_prescription"
-  | "ai_agreement";
-
-export const QUEST_STEPS: QuestStep[] = [
-  "add_child",
-  "setup_calendar",
-  "invite_co",
-  "ocr_prescription",
-  "ai_agreement",
-];
-
-export interface QuestProgress {
-  completed: Set<QuestStep>;
-  totalSteps: number;
-  completedCount: number;
-}
+import { QUEST_STEPS, type QuestStep, type QuestProgress } from "@/lib/quest-types";
 
 /**
  * Idempotently marks a quest step as completed. Safe to call from

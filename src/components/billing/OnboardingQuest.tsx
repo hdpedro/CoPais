@@ -1,5 +1,5 @@
 import Link from "next/link";
-import type { QuestStep } from "@/actions/onboarding-quest";
+import type { QuestStep } from "@/lib/quest-types";
 
 interface Props {
   completed: Set<QuestStep>;
