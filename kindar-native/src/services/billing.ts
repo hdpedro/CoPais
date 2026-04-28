@@ -35,6 +35,12 @@ export interface BillingStatus {
     slotsRemaining: number;
     isSoldOut: boolean;
   }>;
+  /** Whether auto-split is enabled on the active subscription. */
+  autoSplit?: boolean;
+  /** UUID of the co-user receiving the split expense (when on). */
+  autoSplitCoUserId?: string | null;
+  /** Co-user's percentage share (1–99) of the bill. */
+  autoSplitCoShare?: number | null;
 }
 
 export const FREE_BILLING: BillingStatus = {
@@ -70,5 +76,75 @@ export async function getBillingStatus(groupId?: string): Promise<BillingStatus>
   } catch (err) {
     console.warn('[billing] getBillingStatus failed:', err);
     return FREE_BILLING;
+  }
+}
+
+/**
+ * Enable auto-split on the active subscription. Mirror of PWA action
+ * `enableSubscriptionSplit` (src/actions/subscription-split.ts:26),
+ * routed through the Bearer-auth `POST /api/subscription/split` so the
+ * server enforces "only the payer" + "co-user is parent role" gates.
+ *
+ * Side effects on success: first split expense created, push + chat ping
+ * sent to coUser, posthog event captured.
+ */
+export async function enableSubscriptionSplit(params: {
+  groupId: string;
+  coUserId: string;
+  coSharePercent?: number;
+}): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (!token) return { success: false, error: 'Sessão expirada' };
+
+    const res = await fetch(`${WEB_URL}/api/subscription/split`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        groupId: params.groupId,
+        coUserId: params.coUserId,
+        coSharePercent: params.coSharePercent ?? 50,
+      }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { success: false, error: body.error || `Erro ${res.status}` };
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message || 'Falha de rede' };
+  }
+}
+
+/**
+ * Disable auto-split. Mirror of PWA `disableSubscriptionSplit`.
+ */
+export async function disableSubscriptionSplit(
+  groupId: string,
+): Promise<{ success: true } | { success: false; error: string }> {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    const token = session?.session?.access_token;
+    if (!token) return { success: false, error: 'Sessão expirada' };
+
+    const res = await fetch(`${WEB_URL}/api/subscription/split`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ groupId }),
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      return { success: false, error: body.error || `Erro ${res.status}` };
+    }
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: (err as Error).message || 'Falha de rede' };
   }
 }

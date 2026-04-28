@@ -176,6 +176,13 @@ export async function createSwapRequest(formData: FormData) {
   const requestType = (formData.get("requestType") as string) || "swap";
 
   if (!targetUserId) return { error: "Responsavel nao encontrado para este dia." };
+  // Self-swap protection — without this, tapping "Solicitar troca" no próprio
+  // dia inserts uma swap_requests row com requester_id === target_user_id, e
+  // a aprovação faz um custody_event de troca consigo mesmo (no-op + push de
+  // troca para o próprio usuário). API /api/swaps já bloqueia (route.ts:57).
+  if (targetUserId === user.id) {
+    return { error: "Voce ja e responsavel por este dia." };
+  }
 
   // Validate target user is a member of the same group
   const targetMembership = await verifyGroupMembership(supabase, groupId, targetUserId);

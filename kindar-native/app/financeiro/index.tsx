@@ -80,8 +80,12 @@ export default function FinanceiroScreen() {
       fetchMonthlySpending(groupId, selectedMonth, selectedYear),
       supabase
         .from('group_members')
-        .select('user_id, profiles(full_name)')
-        .eq('group_id', groupId),
+        .select('user_id, role, profiles(full_name)')
+        .eq('group_id', groupId)
+        // Balance math assumes the list is the responsibles (members[0]/[1]
+        // = pai/mãe). Avô/babá/advogado/mediador são `role !== 'parent'` e
+        // não devem entrar na lista de saldo (paridade com PWA page.tsx).
+        .eq('role', 'parent'),
     ]);
 
     setSummary(summaryData);

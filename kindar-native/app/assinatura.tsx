@@ -32,10 +32,23 @@ import {
   restore,
   PRODUCT_IDS,
 } from '../src/services/iap';
-import { getBillingStatus, type BillingStatus, FREE_BILLING } from '../src/services/billing';
+import {
+  getBillingStatus,
+  enableSubscriptionSplit,
+  disableSubscriptionSplit,
+  type BillingStatus,
+  FREE_BILLING,
+} from '../src/services/billing';
+import { useAuth } from '../src/store/auth';
 import { supabase } from '../src/lib/supabase';
 import ScreenHeader from '../src/components/ui/ScreenHeader';
 import { colors, spacing, radius, font, shadows } from '../src/design-system/tokens';
+
+interface SplitMember {
+  user_id: string;
+  full_name: string;
+  short_name: string;
+}
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
@@ -80,18 +93,87 @@ function classifyPackage(pkg: PurchasesPackage): PackageView {
 }
 
 export default function AssinaturaScreen() {
+  const { userId, activeGroup } = useAuth();
   const [billing, setBilling] = useState<BillingStatus>(FREE_BILLING);
   const [packages, setPackages] = useState<PackageView[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [purchasingId, setPurchasingId] = useState<string | null>(null);
   const [restoring, setRestoring] = useState(false);
+  const [splitMembers, setSplitMembers] = useState<SplitMember[]>([]);
+  const [splitBusy, setSplitBusy] = useState(false);
 
   const loadAll = useCallback(async () => {
     const [status, pkgs] = await Promise.all([getBillingStatus(), getAvailablePackages()]);
     setBilling(status);
     setPackages(pkgs.map(classifyPackage));
-  }, []);
+
+    // Load eligible co-payers (parent role, not self) for the split picker.
+    if (status.canPay && status.isActive && !status.isTrial && activeGroup?.groupId && userId) {
+      const { data } = await supabase
+        .from('group_members')
+        .select('user_id, profiles!group_members_user_id_fkey(full_name, role)')
+        .eq('group_id', activeGroup.groupId)
+        .neq('user_id', userId);
+      const members: SplitMember[] = (data || [])
+        .map((m) => {
+          const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+          if (!p || p.role !== 'parent') return null;
+          const full = p.full_name || 'Membro';
+          return {
+            user_id: m.user_id as string,
+            full_name: full,
+            short_name: full.split(' ')[0],
+          };
+        })
+        .filter((m): m is SplitMember => m !== null);
+      setSplitMembers(members);
+    } else {
+      setSplitMembers([]);
+    }
+  }, [activeGroup?.groupId, userId]);
+
+  async function handleEnableSplit(coUserId: string) {
+    if (!activeGroup?.groupId) return;
+    setSplitBusy(true);
+    const r = await enableSubscriptionSplit({
+      groupId: activeGroup.groupId,
+      coUserId,
+      coSharePercent: 50,
+    });
+    setSplitBusy(false);
+    if (r.success) {
+      await loadAll();
+      Alert.alert('Divisão ativa', 'O co-responsável vai ver a despesa em /financeiro.');
+    } else {
+      Alert.alert('Erro', r.error);
+    }
+  }
+
+  async function handleDisableSplit() {
+    if (!activeGroup?.groupId) return;
+    Alert.alert(
+      'Desativar divisão?',
+      'Você volta a pagar a assinatura sozinho a partir da próxima cobrança.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Desativar',
+          style: 'destructive',
+          onPress: async () => {
+            setSplitBusy(true);
+            const r = await disableSubscriptionSplit(activeGroup.groupId);
+            setSplitBusy(false);
+            if (r.success) {
+              await loadAll();
+            } else {
+              Alert.alert('Erro', r.error);
+            }
+          },
+        },
+      ],
+    );
+  }
 
   useEffect(() => {
     (async () => {
@@ -451,6 +533,90 @@ export default function AssinaturaScreen() {
             </View>
           );
         })}
+
+        {/* Auto-split toggle (only for the active payer on a paid sub) */}
+        {billing.canPay && billing.isActive && !billing.isTrial && billing.payerUserId === userId && (
+          <View style={{
+            marginTop: spacing.xl,
+            backgroundColor: colors.bgElevated,
+            borderRadius: radius.lg,
+            padding: spacing.xl,
+            ...shadows.sm,
+          }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
+              <Ionicons name="people-outline" size={20} color={colors.brand} />
+              <Text style={{ fontSize: font.sizes.md, fontWeight: '700', color: colors.text }}>
+                Dividir assinatura
+              </Text>
+            </View>
+
+            {billing.autoSplit ? (
+              <>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 20 }}>
+                  {billing.autoSplitCoShare
+                    ? `Dividindo ${billing.autoSplitCoShare}% com o(a) co-responsável. A despesa correspondente aparece em /financeiro a cada renovação.`
+                    : 'Divisão ativa. A despesa correspondente aparece em /financeiro a cada renovação.'}
+                </Text>
+                <TouchableOpacity
+                  disabled={splitBusy}
+                  onPress={handleDisableSplit}
+                  style={{
+                    marginTop: spacing.md,
+                    backgroundColor: colors.bgSurface,
+                    borderRadius: radius.md,
+                    paddingVertical: spacing.md,
+                    alignItems: 'center',
+                    borderWidth: 1,
+                    borderColor: colors.borderLight,
+                    opacity: splitBusy ? 0.5 : 1,
+                  }}
+                >
+                  {splitBusy ? <ActivityIndicator color={colors.text} /> : (
+                    <Text style={{ color: colors.text, fontWeight: '600', fontSize: font.sizes.sm }}>
+                      Desativar divisão
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </>
+            ) : (
+              <>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 20 }}>
+                  Você está pagando sozinho. Ative para rachar 50/50 com o(a) outro(a) responsável — uma despesa será criada automaticamente em /financeiro.
+                </Text>
+                {splitMembers.length === 0 ? (
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm, fontStyle: 'italic' }}>
+                    Nenhum co-responsável elegível neste grupo. Convide outro(a) responsável legal e tente de novo.
+                  </Text>
+                ) : (
+                  <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
+                    {splitMembers.map((m) => (
+                      <TouchableOpacity
+                        key={m.user_id}
+                        disabled={splitBusy}
+                        onPress={() => handleEnableSplit(m.user_id)}
+                        style={{
+                          backgroundColor: colors.brand,
+                          borderRadius: radius.md,
+                          paddingVertical: spacing.md,
+                          paddingHorizontal: spacing.lg,
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          opacity: splitBusy ? 0.5 : 1,
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontWeight: '600', fontSize: font.sizes.sm }}>
+                          Dividir 50/50 com {m.short_name}
+                        </Text>
+                        {splitBusy ? <ActivityIndicator color="#fff" /> : <Ionicons name="arrow-forward" size={16} color="#fff" />}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+        )}
 
         {/* Restore + legal (Apple requires both) */}
         <View style={{ marginTop: spacing.md, alignItems: 'center', gap: spacing.md }}>

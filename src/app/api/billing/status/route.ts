@@ -54,6 +54,25 @@ export async function GET(req: NextRequest) {
     canStartSubscription(supabase, user.id, groupId),
   ]);
 
+  // Pull auto-split fields directly from `subscriptions` — the
+  // v_group_active_subscription view doesn't expose them. Best-effort: if
+  // there's no active subscription this is a no-op.
+  let autoSplit = false;
+  let autoSplitCoUserId: string | null = null;
+  let autoSplitCoShare: number | null = null;
+  if (subscription.subscriptionId) {
+    const { data: splitRow } = await supabase
+      .from("subscriptions")
+      .select("auto_split, auto_split_co_user_id, auto_split_co_share")
+      .eq("id", subscription.subscriptionId)
+      .maybeSingle();
+    if (splitRow) {
+      autoSplit = Boolean(splitRow.auto_split);
+      autoSplitCoUserId = splitRow.auto_split_co_user_id ?? null;
+      autoSplitCoShare = splitRow.auto_split_co_share ?? null;
+    }
+  }
+
   return NextResponse.json({
     groupId,
     tier: subscription.tier,
@@ -73,5 +92,10 @@ export async function GET(req: NextRequest) {
     canPay: payerCheck.allowed,
     payerReason: payerCheck.reason,
     earlyBird: await getEarlyBirdStatus(),
+    // Auto-split (PWA-only feature historically; native consumes via
+    // /api/subscription/split). Only meaningful when isActive && !isTrial.
+    autoSplit,
+    autoSplitCoUserId,
+    autoSplitCoShare,
   });
 }

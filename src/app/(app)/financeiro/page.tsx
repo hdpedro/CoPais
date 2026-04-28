@@ -41,14 +41,21 @@ export default async function FinanceiroPage({ searchParams }: { searchParams: P
   ]);
 
   const colors = [PARENT_COLORS.primary, PARENT_COLORS.secondary];
-  const memberList = (members || []).map((m, i) => {
-    const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-    return {
-      user_id: m.user_id,
-      full_name: getDisplayName(p?.full_name),
-      color: colors[i] || colors[1],
-    };
-  });
+  // Balance math assumes members[0] and members[1] are the two responsibles
+  // (FinancialDashboard.tsx:103 does m0 = members[0], m1 = members[1]). If the
+  // group has avô/babá/advogado/mediador (role !== 'parent') and they joined
+  // first, members[0] would be the wrong person and the balance card would
+  // show "Avô deve R$ X" instead of the correct parent. Filter to parents only.
+  const memberList = (members || [])
+    .filter((m) => m.role === 'parent')
+    .map((m, i) => {
+      const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
+      return {
+        user_id: m.user_id,
+        full_name: getDisplayName(p?.full_name),
+        color: colors[i] || colors[1],
+      };
+    });
 
   const serializedExpenses = (expenses || []).map((e) => ({
     id: e.id,

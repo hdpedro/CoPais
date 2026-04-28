@@ -513,3 +513,55 @@ export async function deleteAllergy(allergyId: string) {
   });
   return r.ok ? { success: true } : { success: false, error: r.error || 'Falha ao remover' };
 }
+
+/**
+ * Mirror of PWA `upsertMedicalInfo` (src/actions/health.ts:853).
+ * RLS on `child_medical_info` blocks non-creator updates, so we go
+ * through the Bearer-auth API which uses the service-role admin client
+ * after enforcing membership + child-in-group.
+ */
+export async function upsertMedicalInfo(params: {
+  groupId: string;
+  childId: string;
+  bloodType?: string | null;
+  insuranceName?: string | null;
+  insuranceNumber?: string | null;
+  susNumber?: string | null;
+  primaryPediatricianId?: string | null;
+}) {
+  const r = await apiFetch<{ success: boolean }>('/api/health/medical-info', {
+    method: 'PUT',
+    body: {
+      groupId: params.groupId,
+      childId: params.childId,
+      blood_type: params.bloodType ?? null,
+      insurance_name: params.insuranceName ?? null,
+      insurance_number: params.insuranceNumber ?? null,
+      sus_number: params.susNumber ?? null,
+      primary_pediatrician_id: params.primaryPediatricianId ?? null,
+    },
+  });
+  return r.ok ? { success: true } : { success: false, error: r.error || 'Falha ao salvar' };
+}
+
+/**
+ * Mirror of PWA `regenerateEmergencyToken` (src/actions/health.ts:1160).
+ * Rotates `children.emergency_token` so a new QR code is required to access
+ * the public emergency page. Used when sharing the QR more broadly than
+ * intended and we need to revoke it.
+ */
+export async function regenerateEmergencyToken(params: {
+  groupId: string;
+  childId: string;
+}) {
+  const r = await apiFetch<{ success: boolean; emergency_token: string }>(
+    `/api/health/emergency/${params.childId}/regenerate`,
+    {
+      method: 'POST',
+      body: { groupId: params.groupId },
+    },
+  );
+  return r.ok && r.data
+    ? { success: true as const, emergency_token: r.data.emergency_token }
+    : { success: false as const, error: r.error || 'Falha ao regenerar' };
+}

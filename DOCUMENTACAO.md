@@ -504,6 +504,9 @@ Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`
 **47. daily_checkins, children, child_allergies, child_medical_info, child_education** — ja existiam, mas sao totalmente expostas no native:
 - `child_education` exposto em `kindar-native/app/escola/index.tsx` com CRUD (tabs Info/Saude/Educacao do perfil)
 - `daily_checkins` exposto em `kindar-native/app/checkin/index.tsx` (CRUD com seletor de categoria)
+- `child_medical_info` (write) — endpoint `PUT /api/health/medical-info` (Bearer-auth) consumido pelo native via `services/health.ts:upsertMedicalInfo` (2026-04-27).
+- `school_logs` (CRUD) — `kindar-native/src/services/school.ts` + aba "Registros" em `app/escola/index.tsx`. Antes era PWA-only (2026-04-27).
+- `children.emergency_token` (rotate) — endpoint `POST /api/health/emergency/[childId]/regenerate` consumido por `services/health.ts:regenerateEmergencyToken` + botao em `/saude/emergencia` (2026-04-27).
 
 ### Storage Buckets usados no native
 

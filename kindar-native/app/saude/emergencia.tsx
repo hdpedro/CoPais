@@ -14,6 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/store/auth';
 import { fetchChildren, type Child } from '../../src/services/children';
+import { regenerateEmergencyToken } from '../../src/services/health';
 import { supabase } from '../../src/lib/supabase';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
@@ -43,6 +44,7 @@ export default function EmergenciaScreen() {
   const [summary, setSummary] = useState<HealthSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [rotating, setRotating] = useState(false);
 
   useEffect(() => {
     async function loadChildren() {
@@ -117,6 +119,35 @@ export default function EmergenciaScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await loadSummary();
     setRefreshing(false);
+  }
+
+  async function handleRegenerate() {
+    const child = children.find(c => c.id === selectedChildId);
+    if (!child || !activeGroup) return;
+    Alert.alert(
+      'Regenerar token?',
+      'O link atual deixara de funcionar. Compartilhe o novo link com quem precisar.',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Regenerar',
+          style: 'destructive',
+          onPress: async () => {
+            setRotating(true);
+            const r = await regenerateEmergencyToken({ groupId: activeGroup.groupId, childId: child.id });
+            setRotating(false);
+            if (r.success) {
+              setChildren(prev => prev.map(c => c.id === child.id ? { ...c, emergency_token: r.emergency_token } : c));
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert('Token regenerado', 'O link antigo nao funciona mais.');
+            } else {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              Alert.alert('Erro', r.error || 'Nao consegui regenerar.');
+            }
+          },
+        },
+      ],
+    );
   }
 
   async function handleShare() {
@@ -294,6 +325,30 @@ export default function EmergenciaScreen() {
               <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
                 Compartilhar ficha
               </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={handleRegenerate}
+              activeOpacity={0.85}
+              disabled={rotating}
+              style={{
+                backgroundColor: colors.bgElevated, borderRadius: radius.md,
+                paddingVertical: spacing.md, flexDirection: 'row',
+                alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+                borderWidth: 1, borderColor: colors.borderLight,
+                opacity: rotating ? 0.5 : 1,
+              }}
+            >
+              {rotating ? (
+                <ActivityIndicator color={colors.text} />
+              ) : (
+                <>
+                  <Ionicons name="refresh-outline" size={18} color={colors.text} />
+                  <Text style={{ color: colors.text, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
+                    Regenerar token (revogar link atual)
+                  </Text>
+                </>
+              )}
             </TouchableOpacity>
             <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs }}>
               O link funciona sem login. Compartilhe apenas com quem cuida da crianca.

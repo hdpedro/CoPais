@@ -177,6 +177,7 @@ type SafeTable =
   | 'chat_channel_reads'
   | 'child_activities'
   | 'child_allergies'
+  | 'child_education'
   | 'children'
   | 'daily_checkins'
   | 'decisions'
@@ -185,9 +186,13 @@ type SafeTable =
   | 'growth_records'
   | 'illness_episodes'
   | 'medical_appointments'
+  | 'medical_info'
   | 'medication_doses'
   | 'notifications'
+  | 'private_notes'
+  | 'professionals'
   | 'profiles'
+  | 'school_logs'
   | 'symptom_entries'
   | 'vaccination_records';
 
@@ -198,6 +203,7 @@ const SAFE_TABLES: ReadonlySet<string> = new Set<SafeTable>([
   'chat_channel_reads',
   'child_activities',
   'child_allergies',
+  'child_education',
   'children',
   'daily_checkins',
   'decisions',
@@ -206,9 +212,13 @@ const SAFE_TABLES: ReadonlySet<string> = new Set<SafeTable>([
   'growth_records',
   'illness_episodes',
   'medical_appointments',
+  'medical_info',
   'medication_doses',
   'notifications',
+  'private_notes',
+  'professionals',
   'profiles',
+  'school_logs',
   'symptom_entries',
   'vaccination_records',
 ]);
