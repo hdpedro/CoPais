@@ -211,20 +211,63 @@ async function removeFcmToken(userId: string, token: string) {
 }
 
 /**
+ * Result of a single device push attempt. Caller deletes the stored token
+ * ONLY when `removeToken: true` — never on transient or env-missing errors.
+ *
+ * The previous boolean-only contract caused token wipes whenever:
+ *   - APNS_* / FCM_* env vars were missing (e.g. preview deploy, env rotation)
+ *   - Apple/Google returned 5xx
+ *   - Network blip during fetch
+ * After a single transient failure all push subscriptions for the user
+ * disappeared, requiring them to reopen the app to re-register. Now we
+ * only delete on confirmed-invalid (410, 400 BadDeviceToken, FCM UNREGISTERED).
+ */
+export type PushSendResult =
+  | { delivered: true }
+  | { delivered: false; removeToken: boolean; reason: string };
+
+/**
+ * Best-effort fetch of the user's unread notification count for the
+ * iOS badge. Excludes the internal "push_sub" / "apns_token" / "fcm_token"
+ * rows so the badge shows what the inbox actually shows. Returns 0 on
+ * any error — never blocks the push.
+ */
+async function getUnreadBadgeCount(userId: string): Promise<number> {
+  try {
+    const supabase = getAdminClient();
+    const { count } = await supabase
+      .from("notifications")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", userId)
+      .eq("is_read", false)
+      .neq("title", "push_sub")
+      .neq("title", "apns_token")
+      .neq("title", "fcm_token");
+    return count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
  * Send a push notification via APNs (Apple Push Notification service).
  * Uses HTTP/2 APNs API with a .p8 signing key.
  *
  * Requires env vars: APNS_KEY_ID, APNS_TEAM_ID, APNS_KEY_P8, APNS_BUNDLE_ID
  */
-async function sendApnsPush(token: string, payload: PushPayload): Promise<boolean> {
+async function sendApnsPush(
+  token: string,
+  payload: PushPayload,
+  badge: number,
+): Promise<PushSendResult> {
   const keyId = process.env.APNS_KEY_ID;
   const teamId = process.env.APNS_TEAM_ID;
   const keyP8 = process.env.APNS_KEY_P8;
   const bundleId = process.env.APNS_BUNDLE_ID || "com.kindar.app";
 
   if (!keyId || !teamId || !keyP8) {
-    // APNs not configured — skip silently
-    return false;
+    // APNs not configured — keep tokens for when env is restored.
+    return { delivered: false, removeToken: false, reason: "env_missing" };
   }
 
   try {
@@ -260,7 +303,12 @@ async function sendApnsPush(token: string, payload: PushPayload): Promise<boolea
       aps: {
         alert: { title: payload.title, body: payload.body },
         sound: "default",
-        badge: 1,
+        // Real unread count instead of a hardcoded 1. Apple resets the badge
+        // to whatever the latest push specifies — so once user opens the
+        // inbox and rows flip is_read=true, the next push (with badge=0
+        // when there's no other unread) clears the dot. Hardcoded 1 made
+        // the badge stick at 1 forever after the first push of a session.
+        badge,
         ...(payload.tag ? { "thread-id": payload.tag } : {}),
       },
       url: payload.url || "/dashboard",
@@ -278,10 +326,31 @@ async function sendApnsPush(token: string, payload: PushPayload): Promise<boolea
       body: JSON.stringify(apnsPayload),
     });
 
-    return res.ok;
+    if (res.ok) return { delivered: true };
+
+    // Apple's permanent-failure signals — see
+    // https://developer.apple.com/documentation/usernotifications/sending_notification_requests_to_apns
+    //   410 Gone           → device unregistered the app
+    //   400 BadDeviceToken → token is bogus
+    // 5xx + everything else = transient → keep token for next attempt.
+    if (res.status === 410) {
+      return { delivered: false, removeToken: true, reason: "unregistered" };
+    }
+    if (res.status === 400) {
+      try {
+        const body = (await res.json()) as { reason?: string };
+        if (body?.reason === "BadDeviceToken") {
+          return { delivered: false, removeToken: true, reason: "bad_token" };
+        }
+      } catch {
+        // body parse failed — treat as transient.
+      }
+    }
+    return { delivered: false, removeToken: false, reason: `http_${res.status}` };
   } catch (err) {
     console.warn("[APNs] Failed to send:", err);
-    return false;
+    // Network/crypto error — never delete; will retry on next push.
+    return { delivered: false, removeToken: false, reason: "network_error" };
   }
 }
 
@@ -338,31 +407,34 @@ export async function sendPushToUser(userId: string, payload: PushPayload) {
       );
     }
 
-    // Send via APNs (native iOS)
+    // Send via APNs (native iOS) — only delete tokens flagged as permanently
+    // invalid (410 Unregistered / 400 BadDeviceToken). Transient errors and
+    // env-not-configured keep the token alive for the next attempt.
     const apnsTokens = await getUserApnsTokens(userId);
     if (apnsTokens.length > 0) {
+      // One unread count per push fanout — same value across all of the
+      // user's iOS devices so the badge stays consistent after multi-device
+      // sync. Cheap query (head:true count, indexed user_id + is_read).
+      const badge = await getUnreadBadgeCount(userId);
       await Promise.allSettled(
         apnsTokens.map(async (token) => {
-          const sent = await sendApnsPush(token, payload);
-          if (!sent) {
-            // Token might be invalid, remove it
+          const r = await sendApnsPush(token, payload, badge);
+          if (!r.delivered && r.removeToken) {
             await removeApnsToken(userId, token);
           }
         })
       );
     }
 
-    // Send via FCM (native Android)
+    // Send via FCM (native Android) — same delete-only-on-permanent-invalid
+    // policy. UNREGISTERED + INVALID_ARGUMENT (token-shaped) are removable;
+    // every other failure (env-missing, oauth, 5xx, network) is transient.
     const fcmTokens = await getUserFcmTokens(userId);
     if (fcmTokens.length > 0) {
       await Promise.allSettled(
         fcmTokens.map(async (token) => {
-          const sent = await sendFcmPush(token, payload);
-          if (!sent) {
-            // Token might be invalid OR FCM env not configured. Removing on
-            // env-not-configured is wrong, but env vars don't toggle at
-            // runtime — once configured, all subsequent failures here mean
-            // a real token problem.
+          const r = await sendFcmPush(token, payload);
+          if (!r.delivered && r.removeToken) {
             await removeFcmToken(userId, token);
           }
         })

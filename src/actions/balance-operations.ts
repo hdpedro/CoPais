@@ -105,7 +105,7 @@ export async function createBalanceOperation(formData: FormData) {
 
     await createNotificationWithPush(
       targetUserId,
-      "system",
+      "balance_proposal",
       "Proposta de Saldo",
       `${proposerName} propôs: ${label}${days > 1 ? ` (${days} dias)` : ""}`,
       "/calendario"
@@ -179,7 +179,7 @@ export async function respondToBalanceOperation(formData: FormData) {
 
     await createNotificationWithPush(
       op.proposed_by,
-      "system",
+      "balance_response",
       response === "approved" ? "Proposta Aceita" : "Proposta Recusada",
       `${responderName} ${statusText}: ${label}`,
       "/calendario"

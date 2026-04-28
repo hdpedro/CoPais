@@ -280,7 +280,7 @@ export async function createAppointment(formData: FormData) {
     const childName = child?.full_name?.split(" ")[0] || "crianca";
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Consulta agendada", `📅 ${title} — ${childName} (${appointmentDate})`, "/saude/consultas")));
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_appointment_created", "Consulta agendada", `📅 ${title} — ${childName} (${appointmentDate})`, "/saude/consultas")));
     }
   } catch {
     // Push failure should not break the action
@@ -752,7 +752,7 @@ export async function createAllergy(formData: FormData) {
     const childName = child?.full_name?.split(" ")[0] || "crianca";
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Nova alergia registrada", `⚠️ ${name} (${severity || "leve"}) — ${childName}`, "/saude/alergias")));
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_allergy_created", "Nova alergia registrada", `⚠️ ${name} (${severity || "leve"}) — ${childName}`, "/saude/alergias")));
     }
   } catch {
     // Push failure should not break the action
@@ -928,7 +928,7 @@ export async function createVaccinationRecord(formData: FormData) {
     const childName = child?.full_name?.split(" ")[0] || "crianca";
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Vacina registrada", `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`, "/saude/vacinas")));
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_vaccine_created", "Vacina registrada", `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`, "/saude/vacinas")));
     }
   } catch {
     // Push failure should not break the action
@@ -979,7 +979,7 @@ export async function createVaccinationRecordBatch(formData: FormData): Promise<
     const childName = child?.full_name?.split(" ")[0] || "crianca";
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Vacina registrada", `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`, "/saude/vacinas")));
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_vaccine_created", "Vacina registrada", `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`, "/saude/vacinas")));
     }
   } catch {
     // Push failure should not break the action
@@ -1035,7 +1035,7 @@ export async function createVaccinationRecordsBulk(
     const childName = child?.full_name?.split(" ")[0] || "crianca";
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Vacinas registradas", `💉 ${rows.length} vacina(s) importada(s) — ${childName}`, "/saude/vacinas")));
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_vaccine_created", "Vacinas registradas", `💉 ${rows.length} vacina(s) importada(s) — ${childName}`, "/saude/vacinas")));
     }
   } catch {
     // Push failure should not break the action
@@ -1143,7 +1143,7 @@ export async function createGrowthRecord(formData: FormData) {
       const parts: string[] = [];
       if (weightKg) parts.push(`${weightKg}kg`);
       if (heightCm) parts.push(`${heightCm}cm`);
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", "Medida registrada", `📏 ${childName}: ${parts.join(", ") || "nova medida"}`, "/saude/crescimento")));
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_growth_created", "Medida registrada", `📏 ${childName}: ${parts.join(", ") || "nova medida"}`, "/saude/crescimento")));
     }
   } catch {
     // Push failure should not break the action
@@ -1251,7 +1251,7 @@ export async function createSymptomEntry(
       user.id,
     );
     if (otherMembers.length > 0) {
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", `Sintoma registrado — ${childName}`, `${label}${tempSuffix}${intensity ? ` (${intensity})` : ""}`, "/saude/sintomas")));
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_symptom_created", `Sintoma registrado — ${childName}`, `${label}${tempSuffix}${intensity ? ` (${intensity})` : ""}`, "/saude/sintomas")));
     }
   } catch {
     // Push failure should not break the action
@@ -1424,7 +1424,7 @@ export async function createIllnessWithMedicationAndAppointment(
 
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "system", `${childName} esta doente`, `${title} (${severity || "leve"})${medName ? ` + ${medName}` : ""}`, "/saude")));
+      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_illness_created", `${childName} esta doente`, `${title} (${severity || "leve"})${medName ? ` + ${medName}` : ""}`, "/saude")));
     }
   } catch {
     // Notification failure should not break the action
@@ -1723,7 +1723,7 @@ export async function savePrescriptionToHealth(
     const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
     if (otherMembers.length > 0) {
       await Promise.allSettled(otherMembers.map((uid) =>
-        createNotificationWithPush(uid, "system", "Receita registrada",
+        createNotificationWithPush(uid, "health_prescription_created", "Receita registrada",
           `${medCount} medicamento(s) de ${childName} adicionado(s) via receita`, "/saude/medicamentos")
       ));
     }

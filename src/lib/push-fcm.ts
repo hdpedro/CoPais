@@ -22,6 +22,15 @@ interface FcmPayload {
   tag?: string;
 }
 
+/**
+ * Same shape as APNs's PushSendResult so callers can drop both into the
+ * "removeToken-only-on-permanent-invalid" branch. Don't import the type
+ * across files to keep this module self-contained.
+ */
+export type FcmSendResult =
+  | { delivered: true }
+  | { delivered: false; removeToken: boolean; reason: string };
+
 let cachedAccessToken: { token: string; expiresAt: number } | null = null;
 
 async function getFcmAccessToken(): Promise<string | null> {
@@ -90,23 +99,29 @@ async function getFcmAccessToken(): Promise<string | null> {
 
 /**
  * Send a push notification to a single FCM registration token.
- * Returns true on success, false on failure (or env not configured).
+ * Returns a discriminated result. Caller deletes the stored token ONLY
+ * when `removeToken: true`. Env-missing and transient failures preserve
+ * the token so a working state isn't wiped by a temporary outage.
  *
- * Caller should remove the token from storage when this returns false AND
- * the failure cause is permanent (e.g. UNREGISTERED). For transient errors
- * (5xx, network) callers should NOT delete tokens — but distinguishing here
- * adds complexity; for now we mirror the APNs handler's "delete on any
- * failure" heuristic. Acceptable while we migrate to a proper queue.
+ * Permanent FCM failures we delete on (per Google's docs):
+ *   404 with errorCode=UNREGISTERED  → app uninstalled / token rotated
+ *   400 with errorCode=INVALID_ARGUMENT — only when the message is malformed
+ *     specifically because of the token (cannot reliably distinguish; we
+ *     err on the side of NOT deleting and let the caller observe).
  */
 export async function sendFcmPush(
   token: string,
   payload: FcmPayload
-): Promise<boolean> {
+): Promise<FcmSendResult> {
   const projectId = process.env.FCM_PROJECT_ID;
-  if (!projectId) return false;
+  if (!projectId) {
+    return { delivered: false, removeToken: false, reason: "env_missing" };
+  }
 
   const accessToken = await getFcmAccessToken();
-  if (!accessToken) return false;
+  if (!accessToken) {
+    return { delivered: false, removeToken: false, reason: "oauth_failed" };
+  }
 
   try {
     const fcmUrl = `https://fcm.googleapis.com/v1/projects/${projectId}/messages:send`;
@@ -142,9 +157,25 @@ export async function sendFcmPush(
       body: JSON.stringify({ message }),
     });
 
-    return res.ok;
+    if (res.ok) return { delivered: true };
+
+    // Try to parse the error payload to distinguish permanent vs transient.
+    if (res.status === 404) {
+      try {
+        const body = (await res.json()) as {
+          error?: { details?: Array<{ errorCode?: string }> };
+        };
+        const code = body?.error?.details?.[0]?.errorCode;
+        if (code === "UNREGISTERED") {
+          return { delivered: false, removeToken: true, reason: "unregistered" };
+        }
+      } catch {
+        // fall through
+      }
+    }
+    return { delivered: false, removeToken: false, reason: `http_${res.status}` };
   } catch (err) {
     console.warn("[FCM] Send failed:", err);
-    return false;
+    return { delivered: false, removeToken: false, reason: "network_error" };
   }
 }
