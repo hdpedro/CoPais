@@ -109,8 +109,20 @@ export function useCalendar() {
 
       const allEvents: CalendarEvent[] = [];
 
-      // Custody events — expand date ranges into individual days
-      (custodyData || []).forEach((ce: any) => {
+      // Custody events — expand date ranges into individual days.
+      // Tie-break: when a multi-day `regular` range and a single-day `swap`
+      // row cover the same date, the consumer (`dayEvents.find(e => e.type === 'custody')`)
+      // returns first-match. To make the swap win — and keep parity with
+      // PWA `buildCustodyMap` — push swap rows BEFORE regular rows. Without
+      // this the calendar still renders the old responsible after the
+      // co-parent accepts the swap (Angelino bug 2026-04-27).
+      const stable = (custodyData || []) as any[];
+      const orderedCustody = [
+        ...stable.filter((ce) => ce.custody_type === 'swap'),
+        ...stable.filter((ce) => ce.custody_type === 'exception'),
+        ...stable.filter((ce) => ce.custody_type !== 'swap' && ce.custody_type !== 'exception'),
+      ];
+      orderedCustody.forEach((ce: any) => {
         const start = new Date(ce.start_date + 'T12:00:00');
         const end = new Date(ce.end_date + 'T12:00:00');
         const member = memberList.find(m => m.userId === ce.responsible_user_id);

@@ -207,18 +207,19 @@ export function useDashboard() {
               .gte('end_date', today)
               .then(r => r, () => ({ data: [] as never[] }))
           : Promise.resolve({ data: [] as never[] }),
+        // calendar_occurrences has NO status column (migration 00038); filtering
+        // .eq('status','active') silently returned 0 rows and hid the day card.
+        // Same query shape as line 354 below — kept consistent on purpose.
         supabase.from('calendar_occurrences')
           .select('id, activity_id, occurrence_date, child_activities(id, name, category, time_start, time_end, location, children(full_name))')
           .eq('group_id', groupId)
           .eq('occurrence_date', today)
-          .eq('status', 'active')
           .limit(20)
           .then(r => r, () => ({ data: [] as never[] })),
         supabase.from('calendar_occurrences')
           .select('id, activity_id, occurrence_date, child_activities(id, name, category, time_start, time_end, location, children(full_name))')
           .eq('group_id', groupId)
           .eq('occurrence_date', tomorrowStr)
-          .eq('status', 'active')
           .limit(20)
           .then(r => r, () => ({ data: [] as never[] })),
         supabase.from('notifications')
@@ -284,8 +285,26 @@ export function useDashboard() {
         color: i === 0 ? PARENT_COLORS.primary : PARENT_COLORS.secondary,
       }));
 
+      // Resolve duplicate today-coverage (regular range + swap single-day).
+      // When both rows are returned for the same child + date, the swap row
+      // is the source of truth. Reduce to one entry per child where swap
+      // wins over regular (matches PWA `buildCustodyMap` precedence rule).
+      const customSorted = ((custodyEvents || []) as any[]).slice().sort((a, b) => {
+        const aSwap = a.custody_type === 'swap' ? 1 : 0;
+        const bSwap = b.custody_type === 'swap' ? 1 : 0;
+        return bSwap - aSwap; // swap first
+      });
+      const seenChild = new Set<string>();
+      const dedupedToday: any[] = [];
+      for (const ev of customSorted) {
+        const cid = ev.child_id || '__no_child__';
+        if (seenChild.has(cid)) continue;
+        seenChild.add(cid);
+        dedupedToday.push(ev);
+      }
+
       // Build custody children
-      const custodyChildren: CustodyChild[] = (custodyEvents || []).map((e: any) => {
+      const custodyChildren: CustodyChild[] = dedupedToday.map((e: any) => {
         const member = memberList.find((m: any) => m.user_id === e.responsible_user_id);
         return {
           childFirstName: getDisplayName(e.children?.full_name),
@@ -301,8 +320,8 @@ export function useDashboard() {
       let streakDays = 0;
       let streakTotal = 0;
       let endDateLabel: string | null = null;
-      if (custodyEvents && custodyEvents.length > 0) {
-        const ce = (custodyEvents as any[])[0];
+      if (dedupedToday.length > 0) {
+        const ce = dedupedToday[0];
         const startDate = new Date(ce.start_date + 'T12:00:00');
         const endDate = new Date(ce.end_date + 'T12:00:00');
         const todayDate = new Date(today + 'T12:00:00');

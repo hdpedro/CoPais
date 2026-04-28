@@ -85,14 +85,33 @@ export function getMonthGrid(year: number, month: number): (string | null)[][] {
   return grid;
 }
 
-/** Build a map of date -> custody info from events array */
+/** Build a map of date -> custody info from events array.
+ *
+ * Tie-break: when two events cover the same date (e.g., a multi-day
+ * `regular` range and a single-day `swap` row for one day inside it,
+ * or two single-day rows with the same start_date), `custody_type='swap'`
+ * MUST override `regular`. Without this guarantee `respondToSwapRequest`
+ * inserts the new swap row but the calendar can still render the old
+ * owner depending on row insertion order, leaving the day visually
+ * unchanged after approval. Fix is order-independent: process regular
+ * rows first, then swap rows so the latter's `map.set` wins.
+ */
 export function buildCustodyMap(
   events: CustodyEvent[],
   parentColors: ParentColorMap
 ): Map<string, CustodyDayInfo> {
   const map = new Map<string, CustodyDayInfo>();
 
-  for (const event of events) {
+  // Stable partition — regular first, swap last. Other custody_type values
+  // (e.g. future "exception") sit between the two so they neither override
+  // swaps nor are overridden by regulars.
+  const ordered = [
+    ...events.filter((e) => e.custody_type !== "swap" && e.custody_type !== "exception"),
+    ...events.filter((e) => e.custody_type === "exception"),
+    ...events.filter((e) => e.custody_type === "swap"),
+  ];
+
+  for (const event of ordered) {
     const start = parseDateKey(event.start_date);
     const end = parseDateKey(event.end_date);
     const parentInfo = parentColors[event.responsible_user_id];
