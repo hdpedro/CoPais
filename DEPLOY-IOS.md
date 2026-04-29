@@ -362,3 +362,62 @@ gh workflow run ios-release.yml --ref v1.1.X
 | v1.1.19 | (fila) | Dashboard health heuristica invertida + remove saldo + nextAction |
 
 **Status: repo publico → CI ilimitada. Proximos builds entram sem quota.**
+
+---
+
+## Recuperação ASC (chave revogada / Beta Review travada)
+
+**Cenário:** chave ASC API revogada / build trava em "Pronta para envio" / testers externos não recebem builds novos.
+
+**Causa típica:** Beta App Review não submetido OU App Privacy + Pricing pendentes. Sem esses dois, Apple não aprova Beta Review e externals (`role !== internal`) ficam sem build.
+
+**Script:** `scripts/asc-recovery.mjs` — faz tudo via API, idempotente:
+
+1. Auth sanity (testa chave; falha rápido se inválida)
+2. App Privacy declarations (12 categorias) + publish
+3. Pricing schedule (Free, todos os países, base USA)
+4. Beta App Localization (description, feedbackEmail, privacyPolicyUrl, marketingUrl)
+5. Anexa último build VALID ao grupo externo `Teste` + auto-notify + "What to Test" pt-BR
+6. Submit Beta App Review (`/betaAppReviewSubmissions`)
+7. Status report
+
+**Como rodar:**
+
+```bash
+# 1. Gerar chave em https://appstoreconnect.apple.com/access/integrations/api
+#    Role = Admin (App Manager não consegue Beta Review)
+# 2. Salvar AuthKey_<KEY_ID>.p8 em C:\Users\henri\OneDrive\Área de Trabalho\APP CoPais\
+# 3. Rodar:
+ASC_KEY_ID=ABC123XYZ4 node scripts/asc-recovery.mjs
+# Ou:
+node scripts/asc-recovery.mjs --keyId ABC123XYZ4 [--issuerId <UUID>]
+```
+
+**Endpoints ASC API usados:**
+
+| Step | Método | Endpoint | Notas |
+|------|--------|----------|-------|
+| 0 | GET | `/v1/users?limit=1` | sanity |
+| 1 | GET / POST | `/apps/{id}/dataUsages` | (category, purpose, linkage, dataProtection) |
+| 1 | PATCH | `/apps/{id}/dataUsagesPublishState` | published=true |
+| 2 | GET | `/apps/{id}/appPricePoints?filter[territory]=USA` | acha tier FREE |
+| 2 | POST | `/appPriceSchedules` | manualPrices em `included` |
+| 3 | GET / POST / PATCH | `/apps/{id}/betaAppLocalizations` | locale=pt-BR |
+| 4 | GET | `/builds?filter[app]&filter[processingState]=VALID` | latest non-expired |
+| 4 | GET | `/apps/{id}/betaGroups` | acha grupo Teste |
+| 5 | POST | `/betaGroups/{id}/relationships/builds` | anexa |
+| 5 | PATCH | `/buildBetaDetails/{id}` | autoNotifyEnabled |
+| 5 | POST / PATCH | `/betaBuildLocalizations` | "What to Test" |
+| 6 | GET / POST | `/betaAppReviewSubmissions` | submit |
+
+**Limitações:**
+
+- App Privacy declarations cobrem o questionário básico. Apple às vezes requer follow-up manual se categorias novas foram lançadas. O script tolera 409 e segue.
+- Pricing usa `appPriceSchedules` v1 com `manualPrices` nested em `included` (não existe `appPrices` standalone).
+- Beta Review approval (~24h) é com Apple. Script submete; aprovação é deles.
+
+**Quando rodar:**
+
+- Sempre que substituir chave ASC (rotação anual ou revogação)
+- Após primeira submissão de uma versão nova (1.0.2+) — primeira build dessa versão precisa de review fresca
+- Quando builds da mesma versão começam a falhar Beta Review
