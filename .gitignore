@@ -62,3 +62,8 @@ COnvite_Joaquim.jpeg
 # Apple ASC API keys (NEVER commit)
 AuthKey_*.p8
 *.p8
+
+# script artifacts (generated/log)
+scripts/*-output.log
+scripts/subscription-review.png
+scripts/app-screenshot-iphone65.png

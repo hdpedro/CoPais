@@ -715,3 +715,89 @@ Sem isso, `expo-auth-session` não consegue retornar pro app após o user logar 
 ---
 
 *Atualizado em 2026-04-29 às 23:00 BRT após sessão de configuração total via API: Apple IAPs, RevenueCat, Stripe, Vercel envs, login social GripFlow-style.*
+
+---
+
+## DEEP API SETUP 2026-04-29 (sessão 2)
+
+Depois de testes exaustivos descobri o que mais é automatizável via Apple ASC API.
+Os scripts ficam em `scripts/asc-*.mjs` e são idempotentes (re-rodáveis).
+
+### O que ficou 100% via API (zero painel)
+
+1. **Apple Server-to-Server Notification URL** (`PATCH /apps/{id}`)
+   ```
+   subscriptionStatusUrl              = https://api.revenuecat.com/v1/incoming/apple_server_to_server_notification (V2)
+   subscriptionStatusUrlForSandbox    = mesma URL (V2)
+   ```
+   Esse era o item "ASC → App Information → Notificações do servidor" que eu pensei que era manual.
+   Script: `scripts/asc-autonomous-setup.mjs`
+
+2. **`usesIdfa = false` em appStoreVersion** (`PATCH /appStoreVersions/{id}`)
+   Evita o questionário "Does your app use the IDFA?" no painel para cada nova versão.
+   Apenas estados editáveis: `PREPARE_FOR_SUBMISSION`, `METADATA_REJECTED`, `DEVELOPER_REJECTED`.
+
+3. **Subscription Review Screenshots** (asset upload via S3)
+   Fluxo: `POST /subscriptionAppStoreReviewScreenshots` → `PUT` no URL S3 retornado → `PATCH commit` com checksum MD5.
+   PNG **DEVE** ter dimensão de iPhone (1290×2796 ou similar) — Apple rejeita 1024×1024 com `IMAGE_INCORRECT_DIMENSIONS`.
+   Os 6 IAPs receberam screenshot placeholder — pode trocar pela tela real do paywall depois.
+
+4. **Subscription Localizations pt-BR + en-US** (`POST /subscriptionLocalizations`)
+   Apple exige `name` ≤ 30 chars, `description` ≤ 45 chars (HARD limits, retornam `ATTRIBUTE.INVALID.TOO_LONG` se exceder).
+   Como o subscription group tem pt-BR + en-US, cada IAP precisa das duas localizações pra avançar.
+
+5. **Subscription Availability** (`POST /subscriptionAvailabilities`)
+   PRECISA vir ANTES de `subscriptionPrices` — sem availability, prices retorna `ENTITY_ERROR.RELATIONSHIP.INVALID` com pointer enganoso pra `subscriptionPricePoint/id`.
+   Era a peça que faltava pra autonomização total de pricing.
+
+6. **Subscription Prices em BRA** (`POST /subscriptionPrices`)
+   Shape mínimo: só subscription + subscriptionPricePoint. Territory vai embedado no pricePoint id (base64 JSON `{s, t, p}`).
+   Apple aceita re-POST do mesmo subscription pra "atualizar" o price (substitui in-place).
+
+### O que tentei mas Apple bloqueou via API
+
+| Item | Endpoint tentado | Erro | Workaround |
+|---|---|---|---|
+| App Privacy questionário | `/v1/appDataUsages` | 404 PATH_ERROR (endpoint removido) | Manual: ASC → Distribuição → Privacidade |
+| DSA / Trader Status | `/marketplaceWebhookConfiguration`, `/eulas` | 404 — relationship não existe | Manual: ASC → Distribuição → Trader Status |
+| Encryption declaration full | `/appEncryptionDeclarations` | 404 | `usesIdfa=false` cobre IDFA; ITSAppUsesNonExemptEncryption já no Info.plist |
+| Equalização de pricing pra todos territórios | painel ASC web "Equalize" | sem endpoint API (só POST 1 por 1) | Script `scripts/asc-iap-equalize.mjs` itera 175+ territórios |
+| `subscriptionAvailabilities` UPDATE | `PATCH /subscriptionAvailabilities/{id}` | 403 (só CREATE, GET, GET_INSTANCES) | Tem que CREATE de novo (mas Apple não deixa criar duas) — efetivamente imutável |
+
+### Comando para rodar setup autônomo Apple (idempotente)
+
+```bash
+cd DEV
+node scripts/asc-iap-metadata.mjs       # localizations + availability + price BRA pra 6 IAPs
+node scripts/asc-iap-equalize.mjs       # propaga pricing pra todos os ~175 territórios
+node scripts/asc-autonomous-setup.mjs   # S2S URL + usesIdfa + review screenshots
+```
+
+Os 3 scripts são idempotentes e detectam state existente — re-rodar é seguro.
+
+### Limites finais — só resta 1 item manual
+
+Depois desse setup, o ÚNICO bloqueante manual no ASC é:
+
+1. **App Privacy** (Distribuição → Privacidade do App): preencher questionário de coleta de dados
+
+   Apple removeu o endpoint público `/v1/appDataUsages` e isso não é mais automatizável.
+   O script `asc-recovery.mjs` lista as 12 categorias a marcar (15 minutos no painel web).
+
+DSA (Trader Status) só fica obrigatório quando você quer disponibilizar pra UE — pra TestFlight não bloqueia.
+A submissão de IAPs via `subscriptionSubmissions` retorna `FIRST_SUBSCRIPTION_MUST_BE_SUBMITTED_ON_VERSION` — então a primeira vez precisa ser feita junto com a app version (Apple anexa automaticamente). Depois disso, IAPs futuros podem ser submetidos isoladamente via API.
+
+### Scripts autônomos disponíveis
+
+| Script | O que faz |
+|---|---|
+| `asc-recovery.mjs` | Setup inicial: privacidade (lista), pricing app, beta loc, attach build, submit Beta Review |
+| `asc-iap-metadata.mjs` | IAPs: localizações pt-BR + en-US, availability BRA, price base BRA |
+| `asc-iap-equalize.mjs` | Equaliza pricing dos 6 IAPs em todos os 175 territórios (sequencial, c/ retry 429) |
+| `asc-autonomous-setup.mjs` | App: S2S URL, usesIdfa, screenshots dos 6 IAPs |
+| `asc-app-screenshots.mjs` | App version: cria appScreenshotSets + uploads iPhone 6.5" PNG por locale |
+| `asc-iap-submit.mjs` | Tenta `subscriptionSubmissions` para os 6 IAPs (precisa app version submetida primeiro) |
+| `asc-deep-probe.mjs` | Probe de descoberta — testa endpoints "in dúvida" e reporta status |
+| `asc-diagnose-testers.mjs` | Diagnóstico: por que tester X não recebe build Y |
+
+Todos idempotentes — re-rodar é seguro.
