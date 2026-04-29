@@ -6,14 +6,24 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 
 const REMEMBER_KEY = '@kindar_remember_email';
 import { useAuth } from '../../src/store/auth';
-import { signInWithApple, signInWithGoogle } from '../../src/services/social-auth';
+import {
+  signInWithApple,
+  signInWithGoogleToken,
+  GOOGLE_IOS_CLIENT_ID_EXPORTED,
+} from '../../src/services/social-auth';
 import { supabase } from '../../src/lib/supabase';
 import { useI18n } from '../../src/i18n';
 import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+
+// Required by expo-auth-session: completes the in-app browser session
+// once Google's redirect lands back in the app (kindar:// scheme).
+WebBrowser.maybeCompleteAuthSession();
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
@@ -46,6 +56,49 @@ export default function LoginScreen() {
   const [error, setError] = useState('');
   const { signIn } = useAuth();
   const t = useI18n(s => s.t);
+
+  // Native Google sign-in via expo-auth-session.
+  // Mirrors GripFlow's working setup (gripflow-native/app/auth/login.tsx):
+  //   - iosClientId is the iOS OAuth Client ID configured in Google Cloud
+  //   - reversed scheme is registered in app.json → CFBundleURLTypes
+  //   - the resulting id_token is POSTed to /api/auth/google-native
+  const [, googleResponse, promptGoogle] = Google.useIdTokenAuthRequest({
+    iosClientId: GOOGLE_IOS_CLIENT_ID_EXPORTED,
+  });
+
+  // Defined BEFORE the useEffect that calls it so the lint rule
+  // react-hooks/immutability stays happy (no hoisted access). Handles
+  // both success and the no-token edge case so the effect itself
+  // never calls setState directly (react-hooks/set-state-in-effect).
+  async function completeGoogleLogin(idToken: string | undefined) {
+    if (!idToken) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError('Google nao retornou token. Tente novamente.');
+      return;
+    }
+    setLoading(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    const result = await signInWithGoogleToken(idToken);
+    if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await useAuth.getState().initialize();
+      const accepted = await tryAutoAcceptInvitation();
+      if (accepted) await useAuth.getState().loadActiveGroup();
+      const state = useAuth.getState();
+      router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setError(result.error || 'Erro no Google Sign-In');
+    }
+    setLoading(false);
+  }
+
+  useEffect(() => {
+    if (googleResponse?.type !== 'success') return;
+    // Defer to next tick so setState calls inside completeGoogleLogin
+    // don't fire synchronously inside the effect (react-hooks/set-state-in-effect).
+    queueMicrotask(() => void completeGoogleLogin(googleResponse.params?.id_token));
+  }, [googleResponse]);
 
   // Hydrate persisted email on mount (rememberMe). Improves UX for users
   // who log in/out repeatedly — Mobile autofill is less reliable than
@@ -182,38 +235,37 @@ export default function LoginScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {/* Platform rule: Google only on Android. iOS uses Apple only (above). */}
-        {Platform.OS === 'android' ? (
-          <TouchableOpacity
-            onPress={async () => {
-              setLoading(true);
-              const result = await signInWithGoogle();
-              if (result.success) {
-                Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                await useAuth.getState().initialize();
-                const accepted = await tryAutoAcceptInvitation();
-                if (accepted) await useAuth.getState().loadActiveGroup();
-                const state = useAuth.getState();
-                router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
-              } else if (result.error !== 'Login cancelado') {
-                setError(result.error || 'Erro');
-              }
-              setLoading(false);
-            }}
-            style={{
-              backgroundColor: colors.bgElevated, borderRadius: radius.md,
-              borderWidth: 1, borderColor: colors.authBorder,
-              paddingVertical: spacing.md + 2, flexDirection: 'row',
-              alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-              marginBottom: spacing.lg,
-            }}
-          >
-            <Ionicons name="logo-google" size={16} color="#4285F4" />
-            <Text style={{ color: colors.authText, fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Entrar com Google
-            </Text>
-          </TouchableOpacity>
-        ) : null}
+        {/* Google Sign-In: now native on both iOS + Android via
+            expo-auth-session (no browser detour). Apple still preferred on
+            iOS but Google works as alternative for users without iCloud.
+            promptGoogle() opens the in-app Google sheet → id_token → backend. */}
+        <TouchableOpacity
+          onPress={async () => {
+            try {
+              setError('');
+              Haptics.selectionAsync();
+              await promptGoogle();
+              // Result is handled by the useEffect on googleResponse above.
+            } catch {
+              setError('Nao foi possivel iniciar o login com Google');
+            }
+          }}
+          disabled={loading}
+          activeOpacity={0.85}
+          style={{
+            backgroundColor: colors.bgElevated, borderRadius: radius.md,
+            borderWidth: 1, borderColor: colors.authBorder,
+            paddingVertical: spacing.md + 2, flexDirection: 'row',
+            alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+            marginBottom: spacing.lg,
+            opacity: loading ? 0.6 : 1,
+          }}
+        >
+          <Ionicons name="logo-google" size={16} color="#4285F4" />
+          <Text style={{ color: colors.authText, fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
+            Entrar com Google
+          </Text>
+        </TouchableOpacity>
 
         {/* Divider — shown only when a social button is above (iOS/Android native) */}
         {(Platform.OS === 'ios' || Platform.OS === 'android') ? (

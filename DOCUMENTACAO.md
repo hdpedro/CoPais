@@ -288,7 +288,7 @@ common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, ch
 | health_log_type | fever, medication, mood, screen_time, food, sleep, weight, height, vaccine, other |
 | document_category | personal, health, education, legal, other |
 | swap_status | pending, approved, rejected, cancelled |
-| notification_type | expense_new, expense_approved, expense_rejected, swap_request, swap_response, chat_message, document_uploaded, custody_change, invitation, system, activity, activity_reminder |
+| notification_type | expense_new, expense_approved, expense_rejected, swap_request, swap_response, chat_message, document_uploaded, custody_change, invitation, system, activity, activity_reminder, event_request, event_response, event_changed, birthday_reminder |
 | invitation_status | pending, accepted, expired, revoked |
 
 ### Tabelas (35+ total)
@@ -620,6 +620,7 @@ Politicas garantem que:
 | `00050_clinical_context_inferences.sql` | Inferencias de contexto clinico |
 | `00051_apple_product_ids.sql` | **Apple IAP**: seta `apple_product_id` nos planos + indices para lookup por product_id e transaction_id |
 | `00052_cron_logs.sql` | **Observabilidade de CRONs**: tabela `cron_logs` (name, success, processed, sent, errors JSONB, started_at, finished_at, duration_ms) + indices |
+| `00064_birthday_notification_type.sql` | **Lembrete de aniversario**: adiciona valor `birthday_reminder` ao enum `notification_type` (consumido por `/api/cron/birthday-reminders`, dispara D-7) |
 
 ---
 
@@ -1125,6 +1126,7 @@ Sistema para ajustes consensuais de saldo entre coparentes, alem da divida autom
 | deleteActivity | activities.ts | Remove atividade |
 | toggleChecklistItem | activities.ts | Marca/desmarca checklist |
 | sendActivityReminders | activities.ts | Push 24h antes (cron) |
+| sendBirthdayReminders | birthdays.ts | Push + in-app 7 dias antes do aniversario das criancas (cron) |
 | submitActivityReport | activities.ts | Submete relatorio de atividade |
 | getPendingReports | activities.ts | Busca relatorios pendentes |
 | getReportsForDate | activities.ts | Relatorios por data |
@@ -1173,6 +1175,7 @@ Sistema para ajustes consensuais de saldo entre coparentes, alem da divida autom
 | `/api/cron/retention` | GET | Cron: notificacoes de retencao D+1/3/7/14 (via `runCronWithReport`) |
 | `/api/cron/daily-report` | GET | Cron: agrega logs do dia e envia relatorio por email |
 | `/api/cron/monthly-report` | GET | Cron: relatorio mensal da crianca enviado por email aos pais (dia 1 de cada mes) |
+| `/api/cron/birthday-reminders` | GET | Cron: lembrete push + in-app 7 dias antes do aniversario de cada crianca (todos os membros do grupo). Resolve 29/02 → 28/02 em anos nao-bissextos. Schedule `0 11 * * *` (~08:00 BRT). Action: `sendBirthdayReminders` em `actions/birthdays.ts` |
 | `/api/push/chat` | POST | Push notification para nova mensagem |
 | `/api/push/subscribe` | POST | Registro de push subscription (VAPID) |
 | `/api/whatsapp/webhook` | GET/POST | WhatsApp webhook: GET verificacao Meta, POST receber mensagens. Pipeline: identity → session → parser → tools → confirmacao via botoes |

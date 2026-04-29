@@ -182,6 +182,7 @@ O app suporta **5 idiomas** completos:
 - Planejador de fins de semana (mostra disponibilidade dos proximos weekends)
 - Exportacao iCal para sincronizar com celular (Google Calendar, Apple Calendar)
 - **Feriados nacionais brasileiros** automaticos (fixos + moveis: Carnaval, Pascoa, Corpus Christi) com destaque visual vermelho
+- **Aniversarios das criancas**: pill magenta automatico em cada aniversario derivado de `children.birth_date` (sem nova tabela). Para nascidos em 29/02, em anos nao-bissextos cai em 28/02. Lembrete push + in-app **7 dias antes** via cron `/api/cron/birthday-reminders`
 - Solicitacao de troca entre pais (requer aprovacao)
 - Solicitacao de visita por avos/cuidadores (requer aprovacao do responsavel do dia)
 - **Sistema de aprovacao de eventos**: criador edita direto + notifica; outro usuario cria request de aprovacao. Troca de guarda sempre requer aprovacao. Badge visual "pendente" bloqueia acoes duplicadas. Diff visual (antes/depois) na lista de requests. Audit trail completo via `event_history`. Validacao de snapshot previne conflitos de edicao simultanea

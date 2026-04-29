@@ -24,7 +24,14 @@
         "NSCameraUsageDescription": "Kindar precisa da camera para tirar fotos de comprovantes e documentos.",
         "NSPhotoLibraryAddUsageDescription": "Kindar precisa salvar imagens na sua galeria.",
         "NSCalendarsUsageDescription": "Kindar precisa acessar seu calendario para sincronizar eventos de guarda e atividades.",
-        "NSCalendarsFullAccessUsageDescription": "Kindar precisa acessar seu calendario para sincronizar eventos de guarda e atividades."
+        "NSCalendarsFullAccessUsageDescription": "Kindar precisa acessar seu calendario para sincronizar eventos de guarda e atividades.",
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.855915326367-eiinspdtmmf3u63sfj4kj8ghn2d6p7ie"
+            ]
+          }
+        ]
       }
     },
     "android": {

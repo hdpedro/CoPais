@@ -45,7 +45,7 @@ interface ActivityInfo {
   responsible_id?: string | null;
   responsible_name?: string | null;
   checklistItems?: ChecklistItemInfo[];
-  source?: "activity" | "event" | "appointment";
+  source?: "activity" | "event" | "appointment" | "birthday";
 }
 
 interface DayDetailSheetProps {
@@ -96,7 +96,7 @@ export default memo(function DayDetailSheet({
   const [responsibleMode, setResponsibleMode] = useState<"pick" | "confirm">("pick");
   const [selectedNewResponsible, setSelectedNewResponsible] = useState<{ id: string; name: string } | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [editingSource, setEditingSource] = useState<"activity" | "event" | "appointment" | undefined>(undefined);
+  const [editingSource, setEditingSource] = useState<"activity" | "event" | "appointment" | "birthday" | undefined>(undefined);
   const [editScope, setEditScope] = useState<"this" | "all" | null>(null);
   const [editScopePickerId, setEditScopePickerId] = useState<string | null>(null);
   const [editSaving, setEditSaving] = useState(false);
@@ -129,7 +129,7 @@ export default memo(function DayDetailSheet({
   const isRecurring = (act: ActivityInfo) =>
     act.recurrence_type && act.recurrence_type !== "never";
 
-  const handleDeleteAll = useCallback(async (activityId: string, source?: "activity" | "event" | "appointment") => {
+  const handleDeleteAll = useCallback(async (activityId: string, source?: "activity" | "event" | "appointment" | "birthday") => {
     setDeleting(true);
     try {
       if (source === "event") {

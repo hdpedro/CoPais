@@ -15,6 +15,7 @@ import {
   type CustodyEvent,
 } from "@/lib/calendar-utils";
 // getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
+import { getBirthdayOccurrences, computeAgeOnDate } from "@/lib/birthday-utils";
 import dynamic from "next/dynamic";
 import CalendarHeader from "./CalendarHeader";
 
@@ -54,6 +55,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     { data: activityReports },
     { data: rawChecklistCompletions },
     { data: balanceOperations },
+    { data: birthdayChildren },
   ] = await Promise.all([
     getCachedMembers(groupId),
     custodyEnabled
@@ -129,6 +131,11 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       .eq("group_id", groupId)
       .order("created_at", { ascending: false })
       .limit(50)
+      .then(r => r, () => ({ data: [] as never[] })),
+    supabase
+      .from("children")
+      .select("id, full_name, birth_date")
+      .eq("group_id", groupId)
       .then(r => r, () => ({ data: [] as never[] })),
   ]);
 
@@ -292,7 +299,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
 
   // Build activity occurrences map from pre-computed calendar_occurrences table
   // No more runtime recurrence expansion — dates come straight from the DB
-  type ActivityEntry = { id: string; name: string; category: string; time_start: string | null; time_end?: string | null; location: string | null; childName: string; checklistCount: number; description?: string | null; all_day?: boolean; assigned_to_name?: string | null; report?: { status: string; notes: string | null; child_mood: string | null; responsible_override?: string | null; responsible_override_id?: string | null } | null; recurrence_type?: string; teacher_name?: string | null; class_name?: string | null; room?: string | null; responsible_id?: string | null; responsible_name?: string | null; checklistItems?: { id: string; name: string; completed: boolean }[]; source?: "activity" | "event" | "appointment" };
+  type ActivityEntry = { id: string; name: string; category: string; time_start: string | null; time_end?: string | null; location: string | null; childName: string; checklistCount: number; description?: string | null; all_day?: boolean; assigned_to_name?: string | null; report?: { status: string; notes: string | null; child_mood: string | null; responsible_override?: string | null; responsible_override_id?: string | null } | null; recurrence_type?: string; teacher_name?: string | null; class_name?: string | null; room?: string | null; responsible_id?: string | null; responsible_name?: string | null; checklistItems?: { id: string; name: string; completed: boolean }[]; source?: "activity" | "event" | "appointment" | "birthday" };
   const activityDateMap: Record<string, ActivityEntry[]> = {};
   if (rawActivities) {
     for (const occ of rawActivities) {
@@ -381,6 +388,32 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         checklistCount: 0,
         source: "appointment" as const,
       });
+    }
+  }
+
+  // Children's birthdays — derived from children.birth_date.
+  // Render as all-day pills on every birthday occurrence within the visible range.
+  if (birthdayChildren) {
+    for (const child of birthdayChildren as { id: string; full_name: string | null; birth_date: string | null }[]) {
+      if (!child.birth_date) continue;
+      const firstName = (child.full_name || "").split(" ")[0] || "criança";
+      const occurrences = getBirthdayOccurrences(child.birth_date, rangeStart, rangeEnd);
+      for (const dateKey of occurrences) {
+        if (!activityDateMap[dateKey]) activityDateMap[dateKey] = [];
+        const age = computeAgeOnDate(child.birth_date, dateKey);
+        activityDateMap[dateKey].push({
+          id: `birthday-${child.id}-${dateKey.slice(0, 4)}`,
+          name: `🎂 Aniversário de ${firstName}`,
+          category: "birthday",
+          time_start: null,
+          location: null,
+          childName: firstName,
+          checklistCount: 0,
+          all_day: true,
+          description: age >= 0 ? `${age} ${age === 1 ? "ano" : "anos"}` : null,
+          source: "birthday" as const,
+        });
+      }
     }
   }
 

@@ -50,6 +50,7 @@ const CATEGORY_COLORS: Record<string, string> = {
   evento: "#E17055",   // soft red (distinct from terracota)
   viagem: "#6C5CE7",   // deep purple
   guarda: "#636E72",   // neutral gray (not used in pills, but just in case)
+  birthday: "#D946EF", // magenta — festive, distinct from custody (terracota/sage) and other categories
   other: "#636E72",    // neutral gray
 };
 
