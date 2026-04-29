@@ -624,3 +624,94 @@ Abre em `/admin/metrics`. Sem setup — lê direto do Supabase via `getAdminMetr
 ---
 
 *Criado em Abril/2026 após Fases 1-3 implementadas. Atualizado em Abril/2026 com Fase 4 (nativo iOS/Android). Atualize este arquivo sempre que adicionar configuração manual nova.*
+
+---
+
+## ESTADO REAL CONFIGURADO 2026-04-29
+
+Setup feito autonomamente via API (Apple ASC + RevenueCat V2 + Stripe + Vercel CLI). Os valores abaixo são os reais em produção, capturados durante a configuração.
+
+### Apple App Store Connect
+- **App ID:** 6762701916 (`com.kindar.app`)
+- **Subscription Group:** `Kindar Premium` (id `22043850`)
+- **6 IAPs criados** (`MISSING_METADATA` aguardando preenchimento manual no painel):
+  - `com.kindar.harmonia.monthly` (id `6764693892`) — Harmonia Mensal
+  - `com.kindar.harmonia.annual` (id `6764693944`) — Harmonia Anual
+  - `com.kindar.harmonia.earlybird.monthly` (id `6764693945`) — Harmonia Mensal Early Bird
+  - `com.kindar.harmonia.earlybird.annual` (id `6764693916`) — Harmonia Anual Early Bird
+  - `com.kindar.juridico.monthly` (id `6764694011`) — Premium Juridico Mensal
+  - `com.kindar.juridico.annual` (id `6764693946`) — Premium Juridico Anual
+- **App-Specific Shared Secret:** gerado em ASC → App Information → cola no RC + Vercel.
+- **In-App Purchase Key (.p8):** 3HX2NW8698 — uploaded no RC.
+- **App Store Connect API Key (.p8):** 736GBBC4YY (mesmo issuer `52e31db4-ca31-4a2c-b99d-86b8b599b29e`) — usado tanto pelo CI (`kindar-asc.mjs`) quanto pelo RevenueCat.
+- **Pricing Schedule:** Free (tier 0) em todos os países, base USA. Configurado via `POST /v1/appPriceSchedules` com placeholder `${price1}` (formato novo Apple 2026).
+
+### RevenueCat
+- **Project:** `projf45716c3` (Kindar)
+- **iOS App:** `appa941929a86` (type=`app_store`, bundle=`com.kindar.app`)
+- **Android App:** `app4904159955` (type=`play_store`, package=`com.kindar.app`)
+- **Entitlement:** `entl3727af8851` (lookup_key `Kindar Pro`) — vinculado aos 6 products iOS
+- **Offering:** `ofrng956af1b391` (lookup_key `default`, is_current=true) com 2 packages: `$rc_monthly` + `$rc_annual`
+- **Webhook:** `whintgrc84a974a74` → `https://kindar.com.br/api/revenuecat/webhook`
+- **Apple Server Notification URL:** copiada do RC e colada em ASC → App Information → Notificações do servidor (produção + sandbox)
+
+### Stripe
+- **Account:** `acct_1TIgIBPn762kMKC9` (kindar, BRL)
+- **Webhook:** `we_1TRgfgPn762kMKC9z6Liz65F` → `https://kindar.com.br/api/stripe/webhook`
+- **6 products + prices** (lookup_key = `plan_id` do código):
+
+| Product | Price ID | Lookup Key | Valor BRL |
+|---|---|---|---|
+| Harmonia Mensal | `price_1TRgfNPn762kMKC9YhOEWtA0` | `harmonia_monthly` | R$ 19,90/mês |
+| Harmonia Anual | `price_1TRgfPPn762kMKC9bJ3W0XLj` | `harmonia_annual` | R$ 199,90/ano |
+| Harmonia EB Mensal | `price_1TRgfRPn762kMKC9qNOODcCJ` | `harmonia_earlybird_monthly` | R$ 14,90/mês |
+| Harmonia EB Anual | `price_1TRgfTPn762kMKC93nYLZkkt` | `harmonia_earlybird_annual` | R$ 149,90/ano |
+| Juridico Mensal | `price_1TRgfVPn762kMKC9GfNJ3Giw` | `premium_juridico_monthly` | R$ 39,90/mês |
+| Juridico Anual | `price_1TRgfYPn762kMKC99QamCn6R` | `premium_juridico_annual` | R$ 399,90/ano |
+
+Para criar checkout session no código, use o `lookup_key` (sobrevive a mudanças de price_id):
+
+```ts
+const session = await stripe.checkout.sessions.create({
+  line_items: [{ price: undefined, quantity: 1 }],
+  // ...
+  // OU lookup
+  lookup_keys: ['harmonia_monthly'],
+});
+```
+
+### Vercel env vars (production)
+
+```bash
+# Valores reais NÃO são commitados — capturados em vercel env ls production.
+# Estão setados em produção. Os tipos:
+
+STRIPE_SECRET_KEY=<sk_live_*>            # Stripe API restricted/secret (kindar live mode)
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=<pk_live_*>  # Stripe public key (client-safe)
+STRIPE_WEBHOOK_SECRET=<whsec_*>          # validar signature do webhook em /api/stripe/webhook
+APPLE_SHARED_SECRET=<32-char hex>        # ASC App Information → Shared Secret. Validar receipts StoreKit 1.
+GOOGLE_OAUTH_IOS_CLIENT_ID=<num-id>.apps.googleusercontent.com  # iOS OAuth (Google Cloud Console)
+APNS_BUNDLE_ID=com.kindar.app            # bundle id, não-secret
+```
+
+Setado via `vercel env add NAME production` (CLI). Cada `vercel deploy --prod` ou push no main pega automaticamente. **Nunca commite os valores reais** — GitHub Push Protection bloqueia.
+
+### Login social Google nativo iOS — config
+
+`kindar-native/app.json` → `ios.infoPlist.CFBundleURLTypes` tem o reversed Google OAuth Client ID:
+
+```json
+"CFBundleURLTypes": [
+  {
+    "CFBundleURLSchemes": [
+      "com.googleusercontent.apps.<reversed-ios-oauth-client-id>"
+    ]
+  }
+]
+```
+
+Sem isso, `expo-auth-session` não consegue retornar pro app após o user logar com Google. Precisa rebuild binário (não OTA).
+
+---
+
+*Atualizado em 2026-04-29 às 23:00 BRT após sessão de configuração total via API: Apple IAPs, RevenueCat, Stripe, Vercel envs, login social GripFlow-style.*
