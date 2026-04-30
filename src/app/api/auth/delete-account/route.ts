@@ -24,6 +24,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { stripe } from "@/lib/stripe";
+import { revokeAppleToken } from "@/lib/apple-siwa-revoke";
 
 export async function POST(req: NextRequest) {
   try {
@@ -77,6 +78,27 @@ export async function POST(req: NextRequest) {
         // Nao bloqueia a delecao — loga e segue
         console.warn(`[delete-account] Failed to cancel Stripe sub ${s.stripe_subscription_id}:`, err);
       }
+    }
+
+    // Apple Guideline 5.1.1(v): revogar refresh_token Apple Sign-In
+    // se o usuario logou com Apple e a gente tem o token. Best-effort —
+    // se nao tiver token (ex: usuario logou via email ou Google), pulamos.
+    try {
+      const { data: u } = await admin.auth.admin.getUserById(userId);
+      const meta = (u?.user?.user_metadata as Record<string, unknown>) || {};
+      const appleRefresh = typeof meta.apple_refresh_token === "string"
+        ? meta.apple_refresh_token
+        : null;
+      if (appleRefresh) {
+        const revoke = await revokeAppleToken(appleRefresh, "refresh_token");
+        if (!revoke.ok) {
+          console.warn(`[delete-account] Apple revoke failed for ${userId}:`, revoke.reason);
+        } else {
+          console.log(`[delete-account] Apple token revoked for ${userId}`);
+        }
+      }
+    } catch (err) {
+      console.warn(`[delete-account] Apple revoke error (non-fatal):`, err);
     }
 
     // Delete auth.users — cascateia via ON DELETE CASCADE por todas as

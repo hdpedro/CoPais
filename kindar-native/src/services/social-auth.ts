@@ -106,6 +106,10 @@ export async function signInWithApple(): Promise<{ success: boolean; error?: str
         idToken: credential.identityToken,
         email: credential.email || undefined,
         name: fullName || undefined,
+        // authorizationCode is single-use; backend exchanges it for a
+        // refresh_token so we can revoke server-side later (Apple
+        // Guideline 5.1.1(v)).
+        authorizationCode: credential.authorizationCode || undefined,
       });
     } catch (err) {
       const msg = (err as Error).message || '';
