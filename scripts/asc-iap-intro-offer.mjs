@@ -110,6 +110,8 @@ async function getCurrentOffers(subId) {
 
 async function postOffer(subId, territoryId) {
   // FREE_TRIAL · TWO_MONTHS, no end date (active until manually expired).
+  // Apple requires `numberOfPeriods` even for FREE_TRIAL (the docs claim
+  // it's optional but the API rejects without it). 1 × TWO_MONTHS = 60d.
   // startDate=null tells Apple "starts when offer becomes valid" (which is
   // when the subscription is approved + offer is approved by review).
   return api('POST', '/subscriptionIntroductoryOffers', {
@@ -118,6 +120,7 @@ async function postOffer(subId, territoryId) {
       attributes: {
         offerMode: 'FREE_TRIAL',
         duration: 'TWO_MONTHS',
+        numberOfPeriods: 1,
         startDate: null,
         endDate: null,
       },
