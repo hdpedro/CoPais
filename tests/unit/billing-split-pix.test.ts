@@ -8,11 +8,12 @@ import { getPixPrice, PIX_DISCOUNT_BRL } from "@/lib/billing/pix";
 
 describe("getPlanAmountBrl", () => {
   it("returns correct amount for each plan", () => {
-    expect(getPlanAmountBrl("harmonia_earlybird_monthly")).toBe(19.9);
-    expect(getPlanAmountBrl("harmonia_monthly")).toBe(24.9);
+    // Reconciled with live Stripe + Apple ASC pricing (migration 00060).
+    expect(getPlanAmountBrl("harmonia_earlybird_monthly")).toBe(14.9);
+    expect(getPlanAmountBrl("harmonia_monthly")).toBe(19.9);
     expect(getPlanAmountBrl("premium_juridico_monthly")).toBe(39.9);
-    expect(getPlanAmountBrl("harmonia_annual")).toBe(239.0);
-    expect(getPlanAmountBrl("premium_juridico_annual")).toBe(383.0);
+    expect(getPlanAmountBrl("harmonia_annual")).toBe(199.9);
+    expect(getPlanAmountBrl("premium_juridico_annual")).toBe(399.9);
   });
 
   it("returns legacy amounts for grandfathered plans", () => {
@@ -28,13 +29,13 @@ describe("getPlanAmountBrl", () => {
 
 describe("computeCoShareAmount", () => {
   it("computes 50/50 split", () => {
-    expect(computeCoShareAmount("harmonia_monthly", 50)).toBe(12.45);
+    expect(computeCoShareAmount("harmonia_monthly", 50)).toBe(9.95);
     expect(computeCoShareAmount("premium_juridico_monthly", 50)).toBe(19.95);
   });
 
   it("computes non-50 splits", () => {
-    expect(computeCoShareAmount("harmonia_monthly", 30)).toBe(7.47);
-    expect(computeCoShareAmount("harmonia_monthly", 70)).toBe(17.43);
+    expect(computeCoShareAmount("harmonia_monthly", 30)).toBe(5.97);
+    expect(computeCoShareAmount("harmonia_monthly", 70)).toBe(13.93);
   });
 
   it("returns null for unknown plan", () => {
@@ -61,8 +62,8 @@ describe("getPixPrice", () => {
   it("returns discounted price for monthly plans", () => {
     const price = getPixPrice("harmonia_monthly");
     expect(price).not.toBeNull();
-    expect(price!.cardPriceBrl).toBe(24.9);
-    expect(price!.pixPriceBrl).toBe(24.9 - PIX_DISCOUNT_BRL);
+    expect(price!.cardPriceBrl).toBe(19.9);
+    expect(price!.pixPriceBrl).toBe(19.9 - PIX_DISCOUNT_BRL);
     expect(price!.discountBrl).toBe(PIX_DISCOUNT_BRL);
   });
 
