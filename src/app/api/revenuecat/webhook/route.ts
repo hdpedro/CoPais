@@ -45,10 +45,19 @@ interface RevenueCatEvent {
 }
 
 export async function POST(req: NextRequest) {
-  // 1. Verify shared secret
+  // 1. Verify shared secret. RC's webhook UI lets you paste any string
+  // as the Authorization header value — so the operator may have pasted
+  // the raw secret without a "Bearer " prefix. Accept both forms so we
+  // don't 401 over a UX detail.
   const authHeader = req.headers.get("authorization") || "";
   const expected = process.env.REVENUECAT_WEBHOOK_SECRET;
-  if (!expected || authHeader !== `Bearer ${expected}`) {
+  if (!expected) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const valid =
+    authHeader === expected || // raw token (what RC sends if you paste hex only)
+    authHeader === `Bearer ${expected}`; // standard Bearer form
+  if (!valid) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
