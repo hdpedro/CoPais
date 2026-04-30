@@ -84,12 +84,23 @@ SUPABASE_SERVICE_ROLE_KEY=<service-role>
 # NOVAS — Fase 3:
 STRIPE_PIX_COUPON_ID=                   # preencher após §5.2
 NEXT_PUBLIC_PIX_ENABLED=false           # mudar para true após §5.1 liberar PIX Automatico
+
+# Promo "2 meses grátis" (lançamento — desligar quando saturar):
+PROMO_2M_FREE=true                      # estende trial in-app + Stripe checkout pra 60d
+NEXT_PUBLIC_PROMO_2M_FREE=true          # exibe banner "🎁 2 meses grátis" no UI
 ```
 
 **Onde cada uma é lida**:
 - `STRIPE_PIX_COUPON_ID` → `src/app/api/stripe/checkout/route.ts` (aplica desconto)
 - `NEXT_PUBLIC_PIX_ENABLED` → `src/app/(app)/assinatura/AssinaturaClient.tsx` (mostra toggle PIX vs Card) + `src/lib/billing/pix.ts` (`isPixSubscriptionEnabled()`)
 - `CRON_SECRET` → `src/app/api/cron/trial-expiry/route.ts` e `trial-reminder/route.ts`
+- `PROMO_2M_FREE` → `src/lib/billing/promo.ts` (helpers `trialDaysInApp()` + `trialDaysStripeCheckout()`) usados em `lib/billing/trial.ts:grantTrialIfEligible()` e `app/api/stripe/checkout/route.ts`
+- `NEXT_PUBLIC_PROMO_2M_FREE` → `assinatura/AssinaturaClient.tsx` (banner) + `landing/LandingFaq.tsx` + `landing/LandingPricingPreview.tsx`
+
+**Como ligar/desligar a promo:**
+- **Ligar**: setar ambos pra `true` no Vercel + criar intro offers Apple via `node scripts/asc-iap-intro-offer.mjs`
+- **Desligar**: setar pra `false` ambos no Vercel + remover intro offers Apple via `node scripts/asc-iap-intro-offer.mjs --delete`
+- Subscriptions Stripe já criadas mantêm seu trial original; só novos checkouts sentem a mudança.
 
 ---
 

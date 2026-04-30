@@ -6,6 +6,7 @@ import { enableSubscriptionSplit, disableSubscriptionSplit } from "@/actions/sub
 import { trackEvent, EVENTS } from "@/lib/analytics";
 
 const PIX_ENABLED = process.env.NEXT_PUBLIC_PIX_ENABLED === "true";
+const PROMO_2M_FREE = process.env.NEXT_PUBLIC_PROMO_2M_FREE === "true";
 
 interface SubscriptionView {
   subscriptionId: string;
@@ -233,6 +234,21 @@ export default function AssinaturaClient({
         Uma assinatura, família inteira acessa. Co-responsáveis, avós, babás, advogados
         e mediadores entram grátis.
       </p>
+
+      {PROMO_2M_FREE && !subscription.isActive && (
+        <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl">
+          <div className="flex items-start gap-3">
+            <div className="text-2xl shrink-0">🎁</div>
+            <div>
+              <p className="text-sm font-bold text-amber-900">Promoção de lançamento</p>
+              <p className="text-xs text-amber-800 mt-1">
+                <strong>2 meses grátis</strong> em qualquer plano pago. Sem fidelidade,
+                sem cartão durante o período de teste. Cancele quando quiser.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {subscription.isActive && (
         <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl">

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";
 import { stripe } from "@/lib/stripe";
+import { trialDaysStripeCheckout } from "@/lib/billing/promo";
 
 type PaymentMethod = "card" | "pix" | "auto";
 
@@ -215,7 +216,10 @@ export async function POST(req: NextRequest) {
         ...(couponCode ? { coupon_code: couponCode } : {}),
       },
       subscription_data: {
-        trial_period_days: isFirstSubscription ? 14 : undefined,
+        // Dynamic trial: 60 days during the "2 meses grátis" promo
+        // (PROMO_2M_FREE=true), 14 days otherwise. Returning users
+        // (pastSubCount > 0) never get a Stripe trial.
+        trial_period_days: isFirstSubscription ? trialDaysStripeCheckout() : undefined,
         metadata: {
           supabase_user_id: user.id,
           plan_id: planId,

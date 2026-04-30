@@ -6,12 +6,15 @@ interface Props {
 }
 
 /**
- * Shown on the dashboard during the 7-day Premium Jurídico trial.
- * Disappears when the trial ends (status flips to 'expired') because the
+ * Shown on the dashboard during the Premium Jurídico trial. Duration is
+ * 7 days normally or 60 days during the "2 meses grátis" promo. Banner
+ * disappears when the trial ends (status flips to 'expired') because the
  * parent page only renders this when subscription.isTrial is true.
  */
 export default function TrialBanner({ daysRemaining, planLabel = "Premium Jurídico" }: Props) {
-  const urgent = daysRemaining <= 2;
+  // Urgency threshold scales with trial length: 2 days is "urgent" for
+  // 7-day trial; for 60-day trial, 7 days remaining is the new "urgent".
+  const urgent = daysRemaining <= (daysRemaining > 30 ? 7 : 2);
   const dayLabel = daysRemaining === 1 ? "dia" : "dias";
 
   return (

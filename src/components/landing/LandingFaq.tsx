@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { trackEvent, EVENTS } from "@/lib/analytics";
 
+const PROMO_2M = process.env.NEXT_PUBLIC_PROMO_2M_FREE === "true";
+const TRIAL_LABEL = PROMO_2M ? "2 meses" : "7 dias";
+
 interface FaqItem {
   q: string;
   a: React.ReactNode;
@@ -22,8 +25,10 @@ const FAQS: FaqItem[] = [
     a: "Sim. As primeiras 1.000 famílias pagam R$ 14,90/mês para sempre — mesmo quando o preço padrão subir para R$ 19,90. Uma vez assinado, seu preço nunca muda. O contador na página mostra quantas vagas ainda restam.",
   },
   {
-    q: "Como funciona a degustação de 7 dias?",
-    a: "Quando você cria sua conta, automaticamente recebe 7 dias do plano Premium Jurídico — o maior — sem pagar e sem cadastrar cartão. Ao fim dos 7 dias, você escolhe um plano ou cai para o Grátis (com limites). Ninguém é cobrado sem avisar.",
+    q: `Como funciona a degustação de ${TRIAL_LABEL}?`,
+    a: PROMO_2M
+      ? "Promoção de lançamento: ao criar sua conta, você ganha 2 meses do plano Premium Jurídico — o maior — sem pagar e sem cadastrar cartão. Ao fim dos 60 dias, você escolhe um plano ou cai para o Grátis (com limites). Ninguém é cobrado sem avisar."
+      : "Quando você cria sua conta, automaticamente recebe 7 dias do plano Premium Jurídico — o maior — sem pagar e sem cadastrar cartão. Ao fim dos 7 dias, você escolhe um plano ou cai para o Grátis (com limites). Ninguém é cobrado sem avisar.",
   },
   {
     q: "Posso dividir o custo com meu co-responsável?",

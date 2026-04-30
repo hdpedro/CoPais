@@ -70,6 +70,13 @@ function buildEndingSoonHtml(firstName: string, days: number): string {
       <p style="font-size:13px;color:#6B6560;margin:4px 0 0">Últimas vagas do preço de lançamento — depois sobe para R$19,90.</p>
     </div>
 
+    ${process.env.PROMO_2M_FREE === "true" ? `
+    <div style="background:#FFF4E5;border-left:3px solid #C07055;padding:14px 16px;margin-bottom:20px;border-radius:8px">
+      <p style="font-size:13px;font-weight:600;color:#9A6830;margin:0">🎁 Promoção de lançamento ativa</p>
+      <p style="font-size:13px;color:#6B6560;margin:4px 0 0">Escolha qualquer plano pago e ganhe <strong>+2 meses grátis</strong>. Total: 60 dias sem cobrança.</p>
+    </div>
+    ` : ""}
+
     <a href="${APP_URL}/configuracoes/assinatura" style="display:block;text-align:center;background:#C07055;color:white;font-size:15px;font-weight:600;padding:14px 24px;border-radius:12px;text-decoration:none;margin-top:8px">
       Escolher plano →
     </a>

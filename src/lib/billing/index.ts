@@ -46,3 +46,12 @@ export {
   PIX_DISCOUNT_BRL,
 } from "./pix";
 export type { PixPriceView } from "./pix";
+
+export {
+  isPromoActiveServer,
+  trialDaysInApp,
+  trialDaysStripeCheckout,
+  PROMO_TRIAL_DAYS,
+  TRIAL_DURATION_DAYS_DEFAULT,
+  STRIPE_TRIAL_DAYS_DEFAULT,
+} from "./promo";

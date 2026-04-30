@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { trialDaysInApp } from "./promo";
 
 export const TRIAL_PLAN_ID = "premium_juridico_monthly";
+/**
+ * Default trial duration kept for legacy callers (cron, UI). Live
+ * duration is dynamic — `trialDaysInApp()` returns 60 during the
+ * "2 meses grátis" promo, 7 otherwise.
+ */
 export const TRIAL_DURATION_DAYS = 7;
 
 /**
@@ -37,7 +43,10 @@ export async function grantTrialIfEligible(
   }
 
   const now = new Date();
-  const trialEnd = new Date(now.getTime() + TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000);
+  // Use the dynamic helper so the "2 meses grátis" promo (60 days)
+  // overrides the 7-day default when PROMO_2M_FREE=true.
+  const days = trialDaysInApp();
+  const trialEnd = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 
   const { error } = await supabase.from("subscriptions").insert({
     user_id: userId,

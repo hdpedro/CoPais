@@ -79,7 +79,9 @@ export default function LandingPricingPreview({
                   "Saúde completa + inferência clínica",
                   "Despesas, split e acertos",
                   "Convidados ilimitados (avós, babá, advogado)",
-                  "7 dias de Premium Jurídico no signup",
+                  process.env.NEXT_PUBLIC_PROMO_2M_FREE === "true"
+                    ? "🎁 2 meses de Premium Jurídico grátis no signup"
+                    : "7 dias de Premium Jurídico no signup",
                 ].map((item) => (
                   <li key={item} className="flex items-start gap-2">
                     <svg className="w-5 h-5 text-white mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
