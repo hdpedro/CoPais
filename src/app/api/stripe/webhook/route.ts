@@ -4,6 +4,7 @@ import { stripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createSplitExpenseForPeriod } from "@/lib/billing/split";
 import { sendSubscriptionWelcomeEmail } from "@/lib/emails/subscription-welcome";
+import { sendTrialEndingSoonEmail } from "@/lib/emails/trial";
 import { claimReferralReward } from "@/lib/referral-claim";
 import type Stripe from "stripe";
 
@@ -28,6 +29,24 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createAdminClient();
+
+  // Idempotency guard — Stripe retries failed deliveries up to 3 days.
+  // INSERT-then-process pattern: if we've already seen this event_id we
+  // short-circuit with 200 so Stripe stops retrying.
+  const dedup = await supabase
+    .from("webhook_events")
+    .insert({ provider: "stripe", event_id: event.id, event_type: event.type })
+    .select("id")
+    .single();
+  if (dedup.error) {
+    // 23505 = unique violation = already processed. Idempotent success.
+    if (dedup.error.code === "23505") {
+      console.log(`[stripe/webhook] Duplicate event ${event.id} (${event.type}) — skipping`);
+      return NextResponse.json({ received: true, duplicate: true });
+    }
+    // Any other error: log + continue (don't block real processing).
+    console.warn("[stripe/webhook] webhook_events insert failed:", dedup.error.message);
+  }
 
   try {
     switch (event.type) {
@@ -93,15 +112,25 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        // Welcome email (non-fatal — swallows its own errors)
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("email, full_name")
-          .eq("id", userId)
-          .maybeSingle();
-        if (profile?.email) {
-          await sendSubscriptionWelcomeEmail(profile.email, profile.full_name, planId);
-        }
+        // Welcome email — fire and forget. Stripe gives us only ~10s
+        // before it considers the webhook timed out and retries; an
+        // email round-trip can easily exceed that during provider
+        // hiccups. We detach it from the response path so a slow SMTP
+        // never causes a duplicate webhook delivery.
+        void (async () => {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", userId)
+            .maybeSingle();
+          if (profile?.email) {
+            try {
+              await sendSubscriptionWelcomeEmail(profile.email, profile.full_name, planId);
+            } catch (err) {
+              console.warn("[stripe/webhook] welcome email failed (non-fatal):", err);
+            }
+          }
+        })();
 
         // Referral reward — if this user was referred and this is their
         // first paid sub, credit 1 month free to both parties. Runs after
@@ -225,10 +254,57 @@ export async function POST(req: NextRequest) {
         console.log(`[stripe/webhook] Payment failed for subscription ${subscriptionId}`);
         break;
       }
+
+      case "customer.subscription.trial_will_end": {
+        // Fired by Stripe ~3 days before the 14-day Stripe trial ends.
+        // Email the user so they're not surprised by the first charge.
+        const sub = event.data.object as Stripe.Subscription;
+        const userId = sub.metadata?.supabase_user_id;
+        if (!userId) break;
+
+        const trialEnd = sub.trial_end
+          ? new Date(sub.trial_end * 1000)
+          : null;
+        const daysRemaining = trialEnd
+          ? Math.max(1, Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24)))
+          : 3;
+
+        // Detached — same reasoning as the welcome email above.
+        void (async () => {
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", userId)
+            .maybeSingle();
+          if (profile?.email) {
+            try {
+              await sendTrialEndingSoonEmail(profile.email, profile.full_name ?? undefined, daysRemaining);
+            } catch (err) {
+              console.warn("[stripe/webhook] trial-ending email failed (non-fatal):", err);
+            }
+          }
+        })();
+
+        console.log(`[stripe/webhook] Trial ending soon for user ${userId} (${daysRemaining}d)`);
+        break;
+      }
     }
+    // Mark event as successfully processed for visibility / debugging.
+    await supabase
+      .from("webhook_events")
+      .update({ processed_at: new Date().toISOString() })
+      .eq("provider", "stripe")
+      .eq("event_id", event.id);
   } catch (error) {
     console.error(`[stripe/webhook] Error handling ${event.type}:`, error);
     reportServerError(error, { filePath: "src/app/api/stripe/webhook/route.ts", severity: "critical" });
+    // Record the error for forensics. We DELETE the dedup row so Stripe
+    // can retry — the alternative (keep + return 500) leaves us stuck.
+    await supabase
+      .from("webhook_events")
+      .delete()
+      .eq("provider", "stripe")
+      .eq("event_id", event.id);
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 

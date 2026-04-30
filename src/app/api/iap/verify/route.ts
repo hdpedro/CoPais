@@ -194,7 +194,7 @@ export async function POST(req: NextRequest) {
         // Early Bird sold out, duplicate, or any other trigger/constraint
         if (insertErr.message?.includes("sold out") || insertErr.code === "check_violation") {
           return NextResponse.json(
-            { error: "Early Bird esgotou — escolha o plano Harmonia (R$ 24,90/mês)." },
+            { error: "Early Bird esgotou — escolha o plano Harmonia (R$ 19,90/mês)." },
             { status: 409 }
           );
         }

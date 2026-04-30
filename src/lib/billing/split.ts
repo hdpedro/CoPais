@@ -8,14 +8,22 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *
  * Amounts are in BRL, whole units (not cents), matching expenses.amount
  * NUMERIC(10,2) column.
+ *
+ * IMPORTANT: these MUST match the unit_amount configured in Stripe
+ * Products (price_1TRgf*) and the customerPrice in Apple ASC for the
+ * BRA territory. Drift = co-responsible billed for amount the payer
+ * was never charged.
+ *
+ * Reconciled 2026-04-30 to match production Stripe/Apple (was using
+ * stale 00055 migration values which never reached production providers).
  */
 const PLAN_AMOUNTS: Record<string, number> = {
-  harmonia_earlybird_monthly: 19.9,
-  harmonia_earlybird_annual: 191.0,
-  harmonia_monthly: 24.9,
-  harmonia_annual: 239.0,
+  harmonia_earlybird_monthly: 14.9,
+  harmonia_earlybird_annual: 149.9,
+  harmonia_monthly: 19.9,
+  harmonia_annual: 199.9,
   premium_juridico_monthly: 39.9,
-  premium_juridico_annual: 383.0,
+  premium_juridico_annual: 399.9,
   // Legacy — grandfathered subs keep splitting at their original amount.
   premium_monthly: 29.9,
   premium_annual: 297.0,

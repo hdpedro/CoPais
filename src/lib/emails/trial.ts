@@ -66,8 +66,8 @@ function buildEndingSoonHtml(firstName: string, days: number): string {
 
     <div style="background:#F7F2EC;border-radius:12px;padding:16px;margin-bottom:20px">
       <p style="font-size:13px;color:#9A8878;margin:0 0 4px;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Harmonia Early Bird</p>
-      <p style="font-size:22px;font-weight:700;color:#0E0C0A;margin:0">R$ 19,90 <span style="font-size:14px;font-weight:400;color:#6B6560">/mês para sempre</span></p>
-      <p style="font-size:13px;color:#6B6560;margin:4px 0 0">Últimas vagas do preço de lançamento — depois sobe para R$24,90.</p>
+      <p style="font-size:22px;font-weight:700;color:#0E0C0A;margin:0">R$ 14,90 <span style="font-size:14px;font-weight:400;color:#6B6560">/mês para sempre</span></p>
+      <p style="font-size:13px;color:#6B6560;margin:4px 0 0">Últimas vagas do preço de lançamento — depois sobe para R$19,90.</p>
     </div>
 
     <a href="${APP_URL}/configuracoes/assinatura" style="display:block;text-align:center;background:#C07055;color:white;font-size:15px;font-weight:600;padding:14px 24px;border-radius:12px;text-decoration:none;margin-top:8px">
@@ -106,7 +106,7 @@ function buildExpiredHtml(firstName: string): string {
     </p>
 
     <div style="border:1px solid #EDE6DC;border-radius:12px;padding:16px;margin-bottom:12px">
-      <p style="font-size:15px;font-weight:700;color:#0E0C0A;margin:0">Harmonia — R$24,90/mês</p>
+      <p style="font-size:15px;font-weight:700;color:#0E0C0A;margin:0">Harmonia — R$19,90/mês</p>
       <p style="font-size:13px;color:#6B6560;margin:4px 0 0">IA, saúde completa, agenda ilimitada — tudo que você usou nos últimos 7 dias.</p>
     </div>
     <div style="border:1px solid #EDE6DC;border-radius:12px;padding:16px;margin-bottom:12px">

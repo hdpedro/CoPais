@@ -7,7 +7,7 @@ interface Props {
 
 /**
  * Pricing preview on the landing — not the full pricing page, just
- * enough to lock in the Early Bird offer and anchor the "R$24,90/mês
+ * enough to lock in the Early Bird offer and anchor the "R$19,90/mês
  * pela família inteira" value prop. Direct CTA to /signup (with the
  * Early Bird plan pre-selected via ?plan= param).
  */
@@ -43,12 +43,12 @@ export default function LandingPricingPreview({
                   🎯 Preço de lançamento · para sempre
                 </div>
                 <h3 className="text-3xl sm:text-4xl font-extrabold leading-tight mb-2">
-                  R$ 19,90
+                  R$ 14,90
                   <span className="text-lg font-medium opacity-90"> /mês para sempre</span>
                 </h3>
                 <p className="text-white/90 mb-5">
                   Apenas para as primeiras {earlyBirdMax.toLocaleString("pt-BR")} famílias.
-                  Depois, o Harmonia volta a R$ 24,90.
+                  Depois, o Harmonia volta a R$ 19,90.
                 </p>
 
                 <div className="bg-white/20 rounded-full h-2 overflow-hidden mb-2">
@@ -66,7 +66,7 @@ export default function LandingPricingPreview({
                   href="/signup"
                   className="inline-flex items-center bg-white text-[#2E7268] font-bold px-6 py-3.5 rounded-xl hover:bg-stone-50 transition shadow-lg"
                 >
-                  Garantir R$ 19,90/mês →
+                  Garantir R$ 14,90/mês →
                 </Link>
               </div>
 
@@ -99,9 +99,9 @@ export default function LandingPricingPreview({
             <h3 className="text-lg font-bold text-[#0E0C0A]">Harmonia</h3>
             <p className="text-sm text-[#6B6560] mt-1">Organização completa para toda a família</p>
             <p className="mt-4 text-3xl font-extrabold text-[#0E0C0A]">
-              R$ 24,90<span className="text-sm font-medium text-[#9A8878]">/mês</span>
+              R$ 19,90<span className="text-sm font-medium text-[#9A8878]">/mês</span>
             </p>
-            <p className="text-xs text-[#9A8878] mt-1">ou R$ 239/ano (20% off)</p>
+            <p className="text-xs text-[#9A8878] mt-1">ou R$ 199,90/ano (~16% off)</p>
             <p className="text-[13px] text-[#6B6560] mt-4 mb-5">
               Mesma lista do Early Bird, mas preço padrão — ideal para quem entrou depois das primeiras 1.000 vagas.
             </p>

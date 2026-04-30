@@ -59,7 +59,7 @@ function buildHtml(firstName: string, planName: string, planId: string): string 
     ${
       isEarlyBird
         ? `<div style="display:inline-block;background:#E8F4ED;color:#2F7D52;font-size:12px;font-weight:600;padding:6px 12px;border-radius:20px;margin-bottom:16px">
-            Early Bird · R$19,90/mês para sempre
+            Early Bird · R$14,90/mês para sempre
           </div>`
         : ""
     }

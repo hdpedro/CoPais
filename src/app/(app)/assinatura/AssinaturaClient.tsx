@@ -389,14 +389,14 @@ export default function AssinaturaClient({
           {paymentMethod === "pix" && PIX_ENABLED ? (
             <>
               <p className="text-3xl font-bold text-stone-900 mb-0.5">
-                R$ 19,90
+                R$ 14,90
                 <span className="text-base font-normal text-stone-500"> /mês via PIX</span>
               </p>
-              <p className="text-xs text-stone-500 line-through mb-1">R$ 24,90 /mês no cartão</p>
+              <p className="text-xs text-stone-500 line-through mb-1">R$ 19,90 /mês no cartão</p>
             </>
           ) : (
             <p className="text-3xl font-bold text-stone-900 mb-1">
-              R$ 24,90
+              R$ 19,90
               <span className="text-base font-normal text-stone-500"> /mês</span>
             </p>
           )}

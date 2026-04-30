@@ -214,8 +214,8 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
               </div>
               <h2 className="text-3xl sm:text-4xl font-extrabold mb-2">Harmonia Early Bird</h2>
               <p className="text-white/90 text-sm sm:text-base mb-4 max-w-xl">
-                R$ 19,90/mes <strong>para sempre</strong> — apenas para as primeiras {earlyBirdMonthly.maxSubscribers} familias.
-                Depois, o plano Harmonia volta a R$ 24,90/mes.
+                R$ 14,90/mes <strong>para sempre</strong> — apenas para as primeiras {earlyBirdMonthly.maxSubscribers} familias.
+                Depois, o plano Harmonia volta a R$ 19,90/mes.
               </p>
 
               <div className="bg-white/20 backdrop-blur rounded-full h-2 overflow-hidden mb-2">

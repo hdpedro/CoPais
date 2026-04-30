@@ -21,7 +21,7 @@ const FAQS = [
   },
   {
     q: "O que acontece quando as 1.000 vagas acabarem?",
-    a: "Quem já entrou: preço travado. Novos assinantes: começam em R$24,90/mês. O contador na página mostra ao vivo quantas vagas restam.",
+    a: "Quem já entrou: preço travado. Novos assinantes: começam em R$19,90/mês. O contador na página mostra ao vivo quantas vagas restam.",
   },
   {
     q: "Posso trocar de plano depois?",

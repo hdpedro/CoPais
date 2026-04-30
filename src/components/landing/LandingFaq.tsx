@@ -19,7 +19,7 @@ const FAQS: FaqItem[] = [
   },
   {
     q: "O que é o Early Bird? O preço sobe mesmo?",
-    a: "Sim. As primeiras 1.000 famílias pagam R$ 19,90/mês para sempre — mesmo quando o preço padrão subir para R$ 24,90. Uma vez assinado, seu preço nunca muda. O contador na página mostra quantas vagas ainda restam.",
+    a: "Sim. As primeiras 1.000 famílias pagam R$ 14,90/mês para sempre — mesmo quando o preço padrão subir para R$ 19,90. Uma vez assinado, seu preço nunca muda. O contador na página mostra quantas vagas ainda restam.",
   },
   {
     q: "Como funciona a degustação de 7 dias?",

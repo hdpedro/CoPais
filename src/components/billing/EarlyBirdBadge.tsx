@@ -73,12 +73,12 @@ export default function EarlyBirdBadge({
       }`}
     >
       <p className="text-sm font-semibold text-stone-900">
-        {soldOut ? "Early Bird esgotou" : `Early Bird · R$19,90/mês para sempre`}
+        {soldOut ? "Early Bird esgotou" : `Early Bird · R$14,90/mês para sempre`}
       </p>
       <p className="text-xs text-stone-600 mt-0.5">
         {soldOut
           ? `As ${maxSubscribers} vagas foram preenchidas.`
-          : `Restam ${slotsRemaining} de ${maxSubscribers} vagas — depois sobe para R$24,90.`}
+          : `Restam ${slotsRemaining} de ${maxSubscribers} vagas — depois sobe para R$19,90.`}
       </p>
     </div>
   );

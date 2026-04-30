@@ -60,6 +60,23 @@ export async function POST(req: NextRequest) {
 
   const admin = createAdminClient();
 
+  // Idempotency guard — RC retries with the same event.id on failure.
+  // Without this, a re-delivery of INITIAL_PURCHASE creates duplicate
+  // active subscription rows; RENEWAL re-delivery creates a duplicate
+  // split expense (the expenses dedup catches it but we waste round-trips).
+  const dedup = await admin
+    .from("webhook_events")
+    .insert({ provider: "revenuecat", event_id: event.id, event_type: event.type })
+    .select("id")
+    .single();
+  if (dedup.error) {
+    if (dedup.error.code === "23505") {
+      console.log(`[revenuecat/webhook] Duplicate event ${event.id} (${event.type}) — skipping`);
+      return NextResponse.json({ ok: true, duplicate: true });
+    }
+    console.warn("[revenuecat/webhook] webhook_events insert failed:", dedup.error.message);
+  }
+
   try {
     // 2. Resolve provider + plan from product_id
     const providerTag = event.store === "PLAY_STORE" ? "google" : "apple";
@@ -144,15 +161,22 @@ export async function POST(req: NextRequest) {
 
         // Welcome email on first purchase only. UNCANCELLATION doesn't
         // qualify — that's someone resuming auto-renew after canceling.
+        // Detached: see comment in stripe/webhook for why we don't await.
         if (event.type === "INITIAL_PURCHASE") {
-          const { data: profile } = await admin
-            .from("profiles")
-            .select("email, full_name")
-            .eq("id", event.app_user_id)
-            .maybeSingle();
-          if (profile?.email) {
-            await sendSubscriptionWelcomeEmail(profile.email, profile.full_name, plan.id);
-          }
+          void (async () => {
+            const { data: profile } = await admin
+              .from("profiles")
+              .select("email, full_name")
+              .eq("id", event.app_user_id)
+              .maybeSingle();
+            if (profile?.email) {
+              try {
+                await sendSubscriptionWelcomeEmail(profile.email, profile.full_name, plan.id);
+              } catch (err) {
+                console.warn("[revenuecat/webhook] welcome email failed (non-fatal):", err);
+              }
+            }
+          })();
         }
         break;
       }
@@ -263,6 +287,11 @@ export async function POST(req: NextRequest) {
         console.log(`[revenuecat/webhook] Ignoring event type: ${event.type}`);
     }
 
+    await admin
+      .from("webhook_events")
+      .update({ processed_at: new Date().toISOString() })
+      .eq("provider", "revenuecat")
+      .eq("event_id", event.id);
     console.log(`[revenuecat/webhook] OK: ${event.type} for user ${event.app_user_id}`);
     return NextResponse.json({ ok: true });
   } catch (err) {
@@ -271,6 +300,12 @@ export async function POST(req: NextRequest) {
       filePath: "src/app/api/revenuecat/webhook/route.ts",
       severity: "critical",
     });
+    // Delete dedup row so RC can retry. Otherwise we'd be stuck.
+    await admin
+      .from("webhook_events")
+      .delete()
+      .eq("provider", "revenuecat")
+      .eq("event_id", event.id);
     // Return 500 so RevenueCat retries.
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
