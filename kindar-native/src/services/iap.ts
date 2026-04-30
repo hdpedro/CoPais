@@ -137,6 +137,7 @@ export async function purchasePackage(
     // espelho local. Em producao, RevenueCat webhooks tambem batem
     // /api/iap/webhook (se configurado) pra redundancia.
     const originalTxn = customerInfo.originalAppUserId || null;
+    const platform = Platform.OS === 'android' ? 'google' : 'apple';
     try {
       await fetch(`${webUrl}/api/iap/verify`, {
         method: 'POST',
@@ -148,6 +149,7 @@ export async function purchasePackage(
           productId: productIdentifier,
           originalTransactionId: originalTxn,
           isRestore: false,
+          platform,
         }),
       });
     } catch (verifyErr) {
@@ -187,6 +189,7 @@ export async function restore(accessToken: string, webUrl: string): Promise<{
     if (hasActive) {
       // Encontra o productId ativo e sincroniza com backend
       const active = Object.values(customerInfo.entitlements.active)[0];
+      const platform = Platform.OS === 'android' ? 'google' : 'apple';
       try {
         await fetch(`${webUrl}/api/iap/verify`, {
           method: 'POST',
@@ -198,6 +201,7 @@ export async function restore(accessToken: string, webUrl: string): Promise<{
             productId: active.productIdentifier,
             originalTransactionId: customerInfo.originalAppUserId,
             isRestore: true,
+            platform,
           }),
         });
       } catch {

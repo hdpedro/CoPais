@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
     const planId: string | undefined = body.planId;
     const paymentMethod: PaymentMethod = body.paymentMethod || "card";
     const couponCode: string | undefined = body.couponCode?.trim().toUpperCase();
+    const groupIdFromClient: string | undefined = body.groupId;
     let priceId: string | undefined = body.priceId;
 
     if (!planId) {
@@ -159,6 +160,41 @@ export async function POST(req: NextRequest) {
       discounts = [{ coupon: pixCoupon }];
     }
 
+    // Resolve the user's primary group so the webhook can persist
+    // coparenting_group_id on the subscription row. Without this, the
+    // group-scoped view v_group_active_subscription excludes the row
+    // and the app shows the user as Free despite paying.
+    let resolvedGroupId: string | null = null;
+    if (groupIdFromClient) {
+      // Trust-but-verify: the client says they want this group, but we
+      // must confirm membership server-side. Otherwise a user could
+      // attach their paid sub to someone else's group.
+      const { data: membership } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", user.id)
+        .eq("group_id", groupIdFromClient)
+        .maybeSingle();
+      if (membership) {
+        resolvedGroupId = membership.group_id;
+      } else {
+        return NextResponse.json(
+          { error: `Você não é membro do grupo ${groupIdFromClient}.` },
+          { status: 403 }
+        );
+      }
+    }
+    if (!resolvedGroupId) {
+      const { data: gm } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", user.id)
+        .order("joined_at", { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      resolvedGroupId = gm?.group_id ?? null;
+    }
+
     // Legacy Stripe-level trial kept as a guard for anyone who somehow
     // reaches checkout without our app-level trial. isFirstSubscription
     // counts all sub rows (including payment_provider='trial'), so a user
@@ -175,6 +211,7 @@ export async function POST(req: NextRequest) {
         supabase_user_id: user.id,
         plan_id: planId,
         payment_method_hint: paymentMethod,
+        ...(resolvedGroupId ? { group_id: resolvedGroupId } : {}),
         ...(couponCode ? { coupon_code: couponCode } : {}),
       },
       subscription_data: {
@@ -183,6 +220,7 @@ export async function POST(req: NextRequest) {
           supabase_user_id: user.id,
           plan_id: planId,
           payment_method_hint: paymentMethod,
+          ...(resolvedGroupId ? { group_id: resolvedGroupId } : {}),
           ...(couponCode ? { coupon_code: couponCode } : {}),
         },
       },

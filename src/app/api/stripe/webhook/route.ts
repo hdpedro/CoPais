@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createSplitExpenseForPeriod } from "@/lib/billing/split";
 import { sendSubscriptionWelcomeEmail } from "@/lib/emails/subscription-welcome";
 import { sendTrialEndingSoonEmail } from "@/lib/emails/trial";
+import { sendPaymentFailedEmail } from "@/lib/emails/payment-failed";
 import { claimReferralReward } from "@/lib/referral-claim";
 import type Stripe from "stripe";
 
@@ -64,6 +65,19 @@ export async function POST(req: NextRequest) {
         const periodStart = (sub as unknown as { current_period_start: number }).current_period_start;
         const periodEnd = (sub as unknown as { current_period_end: number }).current_period_end;
 
+        // Resolve the user's primary group. CRITICAL: without this the new
+        // sub row has coparenting_group_id=NULL and v_group_active_subscription
+        // (which filters by group_id) won't find it — the user pays but
+        // the app shows them on Free. Discovered 2026-04-30 audit.
+        const { data: primaryGroup } = await supabase
+          .from("group_members")
+          .select("group_id")
+          .eq("user_id", userId)
+          .order("joined_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        const groupId = session.metadata?.group_id || primaryGroup?.group_id || null;
+
         // Expire only existing Stripe-provider subs for this user. CRITICAL:
         // scope by payment_provider="stripe" so an active Apple IAP sub is
         // NOT overwritten when the user starts/renews a subscription on web.
@@ -75,15 +89,29 @@ export async function POST(req: NextRequest) {
           .eq("payment_provider", "stripe")
           .in("status", ["active", "trialing", "past_due"]);
 
+        // Also expire the in-app trial (payment_provider='trial') if still
+        // active — symmetric with /api/iap/verify so both flows behave the
+        // same way when the user upgrades from the 7-day trial.
+        await supabase
+          .from("subscriptions")
+          .update({ status: "expired", updated_at: new Date().toISOString() })
+          .eq("user_id", userId)
+          .eq("payment_provider", "trial")
+          .in("status", ["active", "trialing"]);
+
         // Insert the new subscription. payment_method_hint comes from
         // our checkout metadata so we can display "you're on PIX — saving R$5"
         // on the assinatura page without another Stripe round-trip.
         const paymentMethodHint = session.metadata?.payment_method_hint || "card";
         const couponCode = session.metadata?.coupon_code || null;
+        // Map Stripe statuses correctly. "incomplete" / "past_due" must NOT
+        // grant access — the previous logic ("active" ? "active" : "trialing")
+        // gave full access to users mid-3DS-confirmation or with declined cards.
         await supabase.from("subscriptions").insert({
           user_id: userId,
+          coparenting_group_id: groupId,
           plan_id: planId,
-          status: sub.status === "active" ? "active" : "trialing",
+          status: mapStripeStatus(sub.status),
           payment_provider: "stripe",
           payment_method_hint: paymentMethodHint,
           coupon_code: couponCode,
@@ -156,20 +184,35 @@ export async function POST(req: NextRequest) {
         const userId = sub.metadata?.supabase_user_id;
         if (!userId) break;
 
-        const planId = sub.metadata?.plan_id || "harmonia_monthly";
         const periodStart = (sub as unknown as { current_period_start: number }).current_period_start;
         const periodEnd = (sub as unknown as { current_period_end: number }).current_period_end;
 
+        // Build update payload conditionally — never fall back to a hardcoded
+        // plan_id ("harmonia_monthly") because doing so silently downgrades
+        // legitimate Premium Jurídico users when an upstream metadata bug
+        // strips the field. Only update plan_id if Stripe gives us one.
+        type SubUpdate = {
+          status: string;
+          current_period_start: string;
+          current_period_end: string;
+          cancel_at_period_end: boolean;
+          updated_at: string;
+          plan_id?: string;
+        };
+        const updatePayload: SubUpdate = {
+          status: mapStripeStatus(sub.status),
+          current_period_start: new Date(periodStart * 1000).toISOString(),
+          current_period_end: new Date(periodEnd * 1000).toISOString(),
+          cancel_at_period_end: sub.cancel_at_period_end,
+          updated_at: new Date().toISOString(),
+        };
+        if (sub.metadata?.plan_id) {
+          updatePayload.plan_id = sub.metadata.plan_id;
+        }
+
         await supabase
           .from("subscriptions")
-          .update({
-            plan_id: planId,
-            status: mapStripeStatus(sub.status),
-            current_period_start: new Date(periodStart * 1000).toISOString(),
-            current_period_end: new Date(periodEnd * 1000).toISOString(),
-            cancel_at_period_end: sub.cancel_at_period_end,
-            updated_at: new Date().toISOString(),
-          })
+          .update(updatePayload)
           .eq("stripe_subscription_id", sub.id);
 
         console.log(`[stripe/webhook] Subscription updated for user ${userId}: ${sub.status}`);
@@ -251,6 +294,34 @@ export async function POST(req: NextRequest) {
           })
           .eq("stripe_subscription_id", subscriptionId);
 
+        // Email the user so they can update payment before Stripe gives up.
+        // Detached + best-effort.
+        const nextRetry = (invoice as unknown as { next_payment_attempt: number | null })
+          .next_payment_attempt;
+        void (async () => {
+          const { data: dbSub } = await supabase
+            .from("subscriptions")
+            .select("user_id, plan_id")
+            .eq("stripe_subscription_id", subscriptionId)
+            .maybeSingle();
+          if (!dbSub) return;
+          const { data: profile } = await supabase
+            .from("profiles")
+            .select("email, full_name")
+            .eq("id", dbSub.user_id)
+            .maybeSingle();
+          if (!profile?.email) return;
+          const planName = dbSub.plan_id?.startsWith("premium_juridico")
+            ? "Premium Jurídico"
+            : "Harmonia";
+          const retryIso = nextRetry ? new Date(nextRetry * 1000).toISOString() : null;
+          try {
+            await sendPaymentFailedEmail(profile.email, profile.full_name, planName, retryIso);
+          } catch (err) {
+            console.warn("[stripe/webhook] payment-failed email failed (non-fatal):", err);
+          }
+        })();
+
         console.log(`[stripe/webhook] Payment failed for subscription ${subscriptionId}`);
         break;
       }
@@ -312,12 +383,20 @@ export async function POST(req: NextRequest) {
 }
 
 function mapStripeStatus(status: string): string {
+  // Stripe → our internal status. The view v_group_active_subscription
+  // includes ('active','trialing','past_due') as access-granting; anything
+  // else is treated as no-access. We map conservatively: only sub.status
+  // values that Stripe explicitly considers paid/access-granting flow into
+  // the access-granting buckets.
   switch (status) {
     case "active": return "active";
     case "trialing": return "trialing";
-    case "past_due": return "past_due";
-    case "canceled":
-    case "unpaid": return "canceled";
+    case "past_due": return "past_due"; // grace period during retry
+    case "canceled": return "canceled";
+    case "unpaid": return "canceled"; // Stripe gave up on retries
+    case "incomplete": return "pending"; // 3DS/SCA in progress, no access yet
+    case "incomplete_expired": return "expired"; // 3DS confirmation timed out
+    case "paused": return "expired";
     default: return "expired";
   }
 }
