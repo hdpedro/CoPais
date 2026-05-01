@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kindar",
     "slug": "kindar",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -20,11 +20,11 @@
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
-        "NSPhotoLibraryUsageDescription": "Kindar precisa acessar suas fotos para enviar imagens no chat e anexar comprovantes.",
-        "NSCameraUsageDescription": "Kindar precisa da camera para tirar fotos de comprovantes e documentos.",
-        "NSPhotoLibraryAddUsageDescription": "Kindar precisa salvar imagens na sua galeria.",
-        "NSCalendarsUsageDescription": "Kindar precisa acessar seu calendario para sincronizar eventos de guarda e atividades.",
-        "NSCalendarsFullAccessUsageDescription": "Kindar precisa acessar seu calendario para sincronizar eventos de guarda e atividades.",
+        "NSPhotoLibraryUsageDescription": "O Kindar acessa sua biblioteca de fotos para você anexar imagens ao chat com o co-responsável (por exemplo: foto da rotina escolar do dia), comprovantes de despesas no módulo Despesas (recibo de farmácia, nota fiscal da escola), e documentos médicos (receita, carteira de vacinação). As imagens só são enviadas quando você toca explicitamente em Anexar.",
+        "NSCameraUsageDescription": "O Kindar usa a câmera para você fotografar comprovantes na hora (por exemplo: nota fiscal da farmácia para registrar uma despesa, receita médica para o nosso OCR processar dosagem e horários, carteira de vacinação para alimentar o módulo de Saúde). As fotos só são salvas e compartilhadas quando você confirma.",
+        "NSPhotoLibraryAddUsageDescription": "O Kindar salva imagens geradas pelo app na sua biblioteca de fotos quando você toca em Salvar — por exemplo, o resumo semanal da família em PDF, o comprovante consolidado de despesas do mês ou um relatório de saúde. Assim você mantém um backup local independente do app.",
+        "NSCalendarsUsageDescription": "O Kindar sincroniza seus eventos de guarda compartilhada (ex: sextas no Lar A, dias de revezamento) e as atividades das crianças (ex: consulta dentista terça às 15h, aula de natação quinta às 17h) com o app Calendário do iPhone, para você visualizá-los junto com seus outros compromissos.",
+        "NSCalendarsFullAccessUsageDescription": "O Kindar sincroniza seus eventos de guarda compartilhada (ex: sextas no Lar A, dias de revezamento) e as atividades das crianças (ex: consulta dentista terça às 15h, aula de natação quinta às 17h) com o app Calendário do iPhone, para você visualizá-los junto com seus outros compromissos.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -55,8 +55,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Kindar precisa acessar suas fotos para enviar imagens.",
-          "cameraPermission": "Kindar precisa da camera para tirar fotos."
+          "photosPermission": "O Kindar acessa sua biblioteca para você anexar imagens ao chat com o co-responsável (foto da rotina escolar), comprovantes de despesas (recibo de farmácia, nota da escola) e documentos médicos (receita, carteira de vacinação). As imagens só são enviadas quando você toca em Anexar.",
+          "cameraPermission": "O Kindar usa a câmera para você fotografar comprovantes na hora — por exemplo, nota fiscal da farmácia para registrar uma despesa, receita médica para o OCR processar dosagem e horários, carteira de vacinação para alimentar o módulo de Saúde. As fotos só são salvas e compartilhadas quando você confirma."
         }
       ],
       [
@@ -70,7 +70,7 @@
       [
         "expo-calendar",
         {
-          "calendarPermission": "Kindar precisa acessar seu calendario para sincronizar eventos de guarda e atividades."
+          "calendarPermission": "O Kindar sincroniza seus eventos de guarda compartilhada (ex: sextas no Lar A) e atividades das crianças (ex: consulta dentista terça 15h, natação quinta 17h) com o app Calendário do iPhone, para você visualizá-los junto com seus outros compromissos."
         }
       ]
     ],
