@@ -333,7 +333,13 @@ export async function respondToSwapRequest(formData: FormData) {
       });
     }
 
-    // If there's a proposed date, the target gets that day back (balanced swap)
+    // Proposed date: same flip-from-current-owner logic as original date.
+    // The day goes to whoever was NOT the current owner. In a balanced swap
+    // where requester offered "I'll cover your day in exchange", the target
+    // currently owns proposed_date and the requester takes it on. The old
+    // hardcoded `target_user_id` here flipped the day BACK to its original
+    // owner — leaving Amanda's color on dates Angelino was supposed to have
+    // taken. (Bug surfaced 2026-05-01 when a real swap landed asymmetric.)
     if (req.proposed_date) {
       const { data: propEvents } = await supabase
         .from("custody_events")
@@ -347,7 +353,10 @@ export async function respondToSwapRequest(formData: FormData) {
         swapEvents.push({
           group_id: req.group_id,
           child_id: propEvents[0].child_id,
-          responsible_user_id: req.target_user_id, // target gets this day back
+          responsible_user_id:
+            propEvents[0].responsible_user_id === req.requester_id
+              ? req.target_user_id // requester owned the proposed date → target takes it
+              : req.requester_id,  // target owned the proposed date → requester takes it
           start_date: req.proposed_date,
           end_date: req.proposed_date,
           custody_type: "swap",

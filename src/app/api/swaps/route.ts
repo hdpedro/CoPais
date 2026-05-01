@@ -266,11 +266,18 @@ export async function PATCH(request: Request) {
         .gte("end_date", req.proposed_date)
         .limit(1);
       if (propEvents && propEvents[0]) {
-        // Mirror PWA: target gets the proposed_date back (balanced swap).
+        // Same flip-from-current-owner logic as original date — the day
+        // goes to whoever was NOT the current owner. The previous
+        // hardcoded `target_user_id` flipped the day BACK to the original
+        // owner (Amanda), leaving Angelino's view showing Amanda's color
+        // on dates he was supposed to have taken. (Bug 2026-05-01.)
         swapEvents.push({
           group_id: req.group_id,
           child_id: propEvents[0].child_id,
-          responsible_user_id: req.target_user_id,
+          responsible_user_id:
+            propEvents[0].responsible_user_id === req.requester_id
+              ? req.target_user_id
+              : req.requester_id,
           start_date: req.proposed_date,
           end_date: req.proposed_date,
           custody_type: "swap",
