@@ -1,0 +1,36 @@
+# EAS Build ignore — exclude what doesn't need to be shipped to the build worker.
+# Without this, the local node_modules is uploaded and conflicts with npm ci on
+# the worker (EACCES because the upload-restored permissions block writes).
+
+# dependencies — let the worker `npm ci` from package-lock
+node_modules/
+
+# build outputs
+dist/
+.expo/
+ios/build/
+android/build/
+android/app/build/
+
+# local credentials (provisioned via scripts/asc-provision-credentials.mjs;
+# we DO need credentials.json + .credentials/ on the worker for local-cred
+# builds, so they're NOT excluded here — only commit-blocked via .gitignore)
+
+# logs
+*.log
+expo-web.log
+expo-web.err.log
+
+# env files (worker uses eas.json env block + EAS Secrets)
+.env
+.env.production
+.env.test
+
+# misc
+.DS_Store
+Thumbs.db
+
+# tests
+test-results-*/
+playwright-report/
+playwright.config.ts

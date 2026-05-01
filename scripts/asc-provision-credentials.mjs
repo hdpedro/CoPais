@@ -83,7 +83,11 @@ async function main() {
     console.log('  ↻ key + CSR already exist');
   }
 
-  // 2. Check for existing IOS_DISTRIBUTION certificate via ASC API
+  // 2. Apple limits IOS_DISTRIBUTION certs to ~2 active per team. If we
+  //    already have certs but no local .cer, we must DELETE all existing
+  //    ones (we can't reuse them — their private keys live on the original
+  //    machines that signed the CSRs). Then create a fresh one with our
+  //    new local CSR.
   const certsList = await api('GET', '/certificates?filter[certificateType]=IOS_DISTRIBUTION&limit=20');
   const existingCerts = (certsList.json?.data || []).filter(
     (c) => c.attributes?.certificateType === 'IOS_DISTRIBUTION',
@@ -93,11 +97,15 @@ async function main() {
   let certificateId = null;
   let cerBase64 = null;
 
-  // Reuse the most recently issued cert that matches our private key, OR
-  // create a fresh one if there's no match.
-  // For simplicity, always create a new cert if we don't have one matching
-  // our local CSR. (Apple allows multiple distribution certs per team.)
   if (!fs.existsSync(cerPath)) {
+    // Revoke ALL existing distribution certs since we can't reuse them
+    // (we don't have their private keys). This is the standard "rotate
+    // certs" path Apple supports and is what `eas credentials` does too.
+    for (const cert of existingCerts) {
+      const del = await api('DELETE', `/certificates/${cert.id}`);
+      console.log(`  🗑 revoked old cert ${cert.id} (status=${del.status})`);
+    }
+
     console.log('Creating new IOS_DISTRIBUTION cert via ASC API...');
     const csrContent = fs.readFileSync(csrPath, 'utf8')
       .replace(/-----BEGIN CERTIFICATE REQUEST-----/g, '')
@@ -118,7 +126,6 @@ async function main() {
     fs.writeFileSync(cerPath, Buffer.from(cerBase64, 'base64'));
     console.log(`  ✓ certificate created (id=${certificateId})`);
   } else {
-    // Find by SHA256 fingerprint match — overkill; just reuse the most recent
     certificateId = existingCerts[0]?.id;
     console.log(`  ↻ using existing cert ${certificateId}`);
   }
@@ -154,21 +161,41 @@ async function main() {
     console.log(`  ↻ using existing bundleId ${bundleIdResource.id}`);
   }
 
-  // 5. Find or create IOS_APP_STORE profile
-  const profilesList = await api('GET', '/profiles?limit=200&include=bundleId');
+  // 5. Find existing IOS_APP_STORE profile that uses OUR certificate.
+  //    Apple's API: include=certificates returns the cert IDs the profile is
+  //    bound to. We reuse a profile only if it includes our new certificateId;
+  //    otherwise we create a fresh one (the build worker will reject mismatches
+  //    with "Provisioning profile and distribution certificate don't match").
+  const profilesList = await api(
+    'GET',
+    '/profiles?limit=200&include=bundleId,certificates',
+  );
   const existingProfile = (profilesList.json?.data || []).find((p) => {
     const profileBundleId = p.relationships?.bundleId?.data?.id;
+    const certIds = (p.relationships?.certificates?.data || []).map((c) => c.id);
     return p.attributes?.profileType === 'IOS_APP_STORE' &&
       profileBundleId === bundleIdResource.id &&
-      p.attributes?.profileState === 'ACTIVE';
+      p.attributes?.profileState === 'ACTIVE' &&
+      certIds.includes(certificateId);
   });
 
   let profileBase64 = null;
   if (existingProfile) {
-    console.log(`  ↻ using existing profile ${existingProfile.id}`);
+    console.log(`  ↻ using existing profile ${existingProfile.id} (matches cert ${certificateId})`);
     profileBase64 = existingProfile.attributes?.profileContent;
   } else {
-    console.log('Creating IOS_APP_STORE profile...');
+    // Optionally delete old profiles for the same bundle that don't match —
+    // Apple lets you have many active profiles, but stale ones add noise.
+    const stale = (profilesList.json?.data || []).filter((p) => {
+      const pb = p.relationships?.bundleId?.data?.id;
+      return p.attributes?.profileType === 'IOS_APP_STORE' &&
+        pb === bundleIdResource.id;
+    });
+    for (const old of stale) {
+      const del = await api('DELETE', `/profiles/${old.id}`);
+      console.log(`  🗑 deleted stale profile ${old.id} (status=${del.status})`);
+    }
+    console.log('Creating new IOS_APP_STORE profile bound to current cert...');
     const r = await api('POST', '/profiles', {
       data: {
         type: 'profiles',
