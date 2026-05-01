@@ -55,3 +55,9 @@ test-results-*/
 
 # logs
 *.log
+
+# EAS local credentials (NEVER commit)
+.credentials/
+credentials.json
+*.p12
+*.mobileprovision
