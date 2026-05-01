@@ -30,7 +30,7 @@
       "channel": "preview"
     },
     "production": {
-      "node": "20.18.0",
+      "node": "22.13.0",
       "credentialsSource": "local",
       "ios": {
         "buildConfiguration": "Release",
