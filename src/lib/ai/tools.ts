@@ -10,6 +10,8 @@ import {
   listPendingSwapsForUser,
 } from "@/lib/services/swap";
 import { createExpense as createExpenseService } from "@/lib/services/expenses";
+import { createNote as createNoteService } from "@/lib/services/notes";
+import { createCheckin as createCheckinService } from "@/lib/services/checkin";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -648,60 +650,47 @@ async function execCreateAppointment(p: Record<string, unknown>, ctx: ToolContex
 
 async function execCreateCheckin(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const child = resolveChild(String(p.child_name || ""), ctx.children);
+  const childId = child?.id || (ctx.children[0]?.id ?? null);
   const title = String(p.title || "Check-in");
-  const category = String(p.category || "other");
+  const description = p.notes ? String(p.notes).slice(0, 2000) : null;
 
-  const insertCheckin = {
-    group_id: ctx.groupId,
-    child_id: child?.id || (ctx.children[0]?.id ?? null),
-    logged_by: ctx.userId,
-    category,
-    title: title.slice(0, 200),
-    description: p.notes ? String(p.notes).slice(0, 2000) : null,
-    checkin_date: todayISO(),
-  };
+  const result = await createCheckinService(ctx.supabase, {
+    userId: ctx.userId,
+    groupId: ctx.groupId,
+    childId,
+    category: String(p.category || "other"),
+    title,
+    description,
+  });
 
-  console.log("[TOOL] create_checkin INSERT:", JSON.stringify(insertCheckin));
-
-  const { error } = await ctx.supabase.from("daily_checkins").insert(insertCheckin);
-
-  if (error) {
-    console.error("[TOOL] create_checkin ERROR:", error.code, error.message, error.details);
-    return { success: false, message: `Erro: ${error.message}` };
-  }
-
-  console.log("[TOOL] create_checkin SUCCESS");
+  if (!result.ok) return { success: false, message: result.error };
 
   const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
   return {
     success: true,
     message: `Check-in registrado${childLabel}: ${title}`,
+    data: { id: result.data.id },
   };
 }
 
 async function execCreateNote(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const title = String(p.title || "Nota");
-  const content = String(p.content || "");
+  const content = String(p.content || "").slice(0, 5000);
 
-  const insertNote = {
-    user_id: ctx.userId,
-    group_id: ctx.groupId,
-    title: title.slice(0, 200),
-    content: content.slice(0, 5000),
-    category: p.category || "lembrete",
+  const result = await createNoteService(ctx.supabase, {
+    userId: ctx.userId,
+    groupId: ctx.groupId,
+    title,
+    content,
+    category: String(p.category || "lembrete"),
+  });
+
+  if (!result.ok) return { success: false, message: result.error };
+  return {
+    success: true,
+    message: `Nota criada: "${title}"`,
+    data: { id: result.data.id },
   };
-
-  console.log("[TOOL] create_note INSERT:", JSON.stringify(insertNote));
-
-  const { error } = await ctx.supabase.from("private_notes").insert(insertNote);
-
-  if (error) {
-    console.error("[TOOL] create_note ERROR:", error.code, error.message, error.details);
-    return { success: false, message: `Erro: ${error.message}` };
-  }
-
-  console.log("[TOOL] create_note SUCCESS");
-  return { success: true, message: `Nota criada: "${title}"` };
 }
 
 /* Map Portuguese day abbreviations to standard DB format */

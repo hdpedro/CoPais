@@ -97,10 +97,11 @@ describe("checkin actions", () => {
 
   describe("createCheckin", () => {
     it("success - returns { success: true }", async () => {
-      // child verification + child name lookup
-      mockChain.single
-        .mockResolvedValueOnce({ data: { id: "c1" }, error: null })
-        .mockResolvedValueOnce({ data: { full_name: "Alice" }, error: null });
+      // Service uses maybeSingle for: membership lookup, child lookup.
+      mockChain.maybeSingle
+        .mockResolvedValueOnce({ data: { user_id: "test-user-id" }, error: null }) // membership
+        .mockResolvedValueOnce({ data: { id: "c1", full_name: "Alice" }, error: null }); // child + name
+      mockChain.single.mockResolvedValue({ data: { id: "checkin-1" }, error: null });
       const result = await createCheckin(fd({ groupId: "g1", childId: "c1", category: "mood", title: "Happy", description: "Great day" }));
       expect(result).toEqual({ success: true });
     });
@@ -112,14 +113,13 @@ describe("checkin actions", () => {
     });
 
     it("no membership - returns error", async () => {
-      mockVerify.mockResolvedValueOnce(null);
+      // Service queries group_members via maybeSingle directly (no helper).
+      mockChain.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
       const result = await createCheckin(fd({ groupId: "g1", childId: "c1", category: "mood", title: "Happy", description: "" }));
       expect(result).toEqual({ error: "Sem permissao para este grupo." });
     });
 
     it("empty title - returns error", async () => {
-      // child verification must pass first
-      mockChain.single.mockResolvedValueOnce({ data: { id: "c1" }, error: null });
       const result = await createCheckin(fd({ groupId: "g1", childId: "c1", category: "mood", title: "", description: "" }));
       expect(result).toEqual({ error: "Titulo obrigatorio" });
     });
