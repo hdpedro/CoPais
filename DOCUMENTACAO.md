@@ -93,15 +93,23 @@ src/
 │   │   ├── assistant-shared.ts # Logica compartilhada entre AI assistant in-app e WhatsApp
 │   │   ├── ai-actions.ts, ai-cache.ts, ai-context.ts, ai-local-parser.ts, ai-rate-limit.ts, ai-tools.ts
 │   │   └── parser/        # Invite Parser modular (types, interface, ocr, groq-event-parser, pilot-parser, index)
+│   ├── services/          # Camada canonica de regra de negocio (chamada por actions, api e tools)
+│   │   ├── swap.ts        # createSwapRequest, respondToSwapRequest, listPendingSwapsForUser
+│   │   ├── expenses.ts    # createExpense, updateExpenseStatus, deleteExpense + notifications
+│   │   ├── notes.ts       # createNote, updateNote, deleteNote
+│   │   ├── checkin.ts     # createCheckin com chat broadcast
+│   │   └── decisions.ts   # createDecision, castVote, addArgument + auto-resolution
 │   ├── whatsapp/          # Modulo WhatsApp IA (Kindar Assistente)
-│   │   ├── types.ts       # Tipos do payload Meta Cloud API
+│   │   ├── types.ts       # Tipos do payload Meta Cloud API + WASessionState (incl. receipt_step para G4)
 │   │   ├── client.ts      # Cliente Meta API (enviar texto, botoes, templates, download midia)
 │   │   ├── signature.ts   # Verificacao HMAC-SHA256 do webhook
 │   │   ├── identity.ts    # Resolucao phone → profile + selecao de grupo
-│   │   ├── session.ts     # Gerenciamento de estado da conversa (confirmacoes pendentes)
-│   │   ├── processor.ts   # Pipeline central (identity → session → parser → tools → response)
+│   │   ├── session.ts     # Estado da conversa (confirmacoes pendentes + receipt multi-step)
+│   │   ├── processor.ts   # Pipeline central (identity → session → approvals → receipt → parser → tools)
+│   │   ├── approvals.ts   # Codec do protocolo approve:swap:<uuid> | reject:swap:<uuid>
+│   │   ├── notify.ts      # notifyGroupViaWhatsApp + notifyApprovalRequest (botoes aprovar/recusar)
 │   │   ├── formatter.ts   # Formatacao de resposta (markdown → WhatsApp, limite 4096 chars)
-│   │   └── media.ts       # Download de midia + OCR de recibos via vision AI
+│   │   └── media.ts       # Download de midia + OCR de recibos/receitas via vision AI
 │   ├── constants.ts  # Constantes do app (cores, categorias, checklist items)
 │   ├── calendar-utils.ts  # Utilidades de data/calendario + computeSwapBalance()
 │   ├── recurrence-utils.ts # Motor de recorrencia (diario, semanal, etc.)
@@ -525,9 +533,10 @@ Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`
 
 **40. whatsapp_sessions** — Estado da conversa WhatsApp (confirmacoes pendentes, grupo ativo).
 - `id`, `phone_number` (UNIQUE), `user_id` (FK profiles), `group_id` (FK coparenting_groups)
-- `state` (JSONB — pending_action, pending_params, pending_at, etc.)
+- `state` (JSONB — pending_action, pending_params, pending_at, awaiting_group_selection, group_options, **receipt_step**, **receipt_draft**)
 - `last_message_at`, `message_count`
 - RLS: apenas service role (webhook usa admin client)
+- O campo `state` carrega tres maquinas de estado: confirmacao de acao (`pending_action`), selecao de grupo (`awaiting_group_selection`) e fluxo multi-step de recibo (`receipt_step` ∈ `category` | `child`).
 
 **41. whatsapp_message_logs** — Log de todas as mensagens WhatsApp (entrada e saida).
 - `id`, `phone_number`, `user_id` (FK profiles), `direction` (inbound/outbound)
@@ -539,6 +548,47 @@ Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`
 - `id`, `user_id` (FK profiles, UNIQUE), `daily_summary`, `event_reminders`
 - `expense_notifications`, `custody_alerts`, `quiet_hours_start`, `quiet_hours_end`
 - RLS: usuarios podem CRUD seus proprios registros
+- O modulo `lib/whatsapp/notify.ts` mapeia o tipo da notificacao (`expense | event | custody | approval | daily_summary`) para a coluna correspondente — opt-out por tipo (G3).
+
+#### WhatsApp Tools (AI function-calling)
+
+Lista exposta em `src/lib/ai/tools.ts` e roteada pelo assistente in-app + WhatsApp:
+
+**Acoes (create*)**:
+- `create_expense` — registra despesa (chama `services/expenses.ts:createExpense`)
+- `create_event` — cria evento no calendario
+- `create_appointment` — agenda consulta medica
+- `create_checkin` — check-in diario (chama `services/checkin.ts`)
+- `create_note` — nota privada (chama `services/notes.ts`)
+- `create_activity` — atividade recorrente
+- `create_decision` — decisao colaborativa (chama `services/decisions.ts`)
+- `create_swap_request` — solicita troca de dia (chama `services/swap.ts`; dispara card de aprovacao no WhatsApp do alvo)
+- `respond_swap_request` — aprova/recusa troca
+
+**Consultas (get*)**:
+- `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`
+- `get_pending_approvals` — inbox de pendencias (swap_requests aguardando o usuario)
+- `get_child_status` — snapshot de saude por crianca (view `child_current_status`)
+- `get_balance` — saldo de despesas pendentes entre coparentes (view `expense_balance_per_user`)
+- `get_child_history` — timeline (consultas + episodios + medicacoes + eventos) dos ultimos N dias
+
+**Comunicacao**:
+- `draft_message` — ajuda a redigir mensagem ao coparente
+
+#### WhatsApp pipeline (processor.ts)
+
+Ordem de processamento de uma mensagem inbound:
+1. **Audio** → transcribe via Whisper/Groq → reescreve como texto
+2. **Identidade** → `whatsapp_phone_links` (vinculo + verificacao + grupo ativo)
+3. **Sessao** → carrega `whatsapp_sessions.state`
+4. **Selecao de grupo** (multi-grupo)
+4.4. **Receipt multi-step** (G4) → list_replies de categoria/crianca
+4.5. **Aprovacao** (G2) → `approve:swap:<uuid>` ou `reject:swap:<uuid>`
+5. **Confirmacao pendente** → button confirm/cancel ou texto de confirmacao
+6. **Imagem com caption** (G6) → caption router (`/receita`, `/atestado`, `/vacina`, `/exame`, default = recibo)
+7. **Texto** → parser local PT-BR (12 patterns) → se confidence ≥ 0.7 chama tool diretamente; senao AI router (Groq → OpenAI fallback) com tools
+
+Logs em `whatsapp_message_logs` (inbound + outbound). Historico recente filtrado por TTL de 30min e excluindo mensagens-ruido (G5).
 
 ### Seguranca (Row Level Security)
 
@@ -621,6 +671,7 @@ Politicas garantem que:
 | `00051_apple_product_ids.sql` | **Apple IAP**: seta `apple_product_id` nos planos + indices para lookup por product_id e transaction_id |
 | `00052_cron_logs.sql` | **Observabilidade de CRONs**: tabela `cron_logs` (name, success, processed, sent, errors JSONB, started_at, finished_at, duration_ms) + indices |
 | `00064_birthday_notification_type.sql` | **Lembrete de aniversario**: adiciona valor `birthday_reminder` ao enum `notification_type` (consumido por `/api/cron/birthday-reminders`, dispara D-7) |
+| `00065_whatsapp_v2_views.sql` | **WhatsApp v2**: views read-only `child_current_status` (snapshot de saude por crianca derivado de illness_episodes + active_medications + child_allergies) e `expense_balance_per_user` (saldo pendente derivado de expenses.split_ratio). Usadas pelas tools `get_child_status` e `get_balance`. |
 
 ---
 
