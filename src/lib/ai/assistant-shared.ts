@@ -287,6 +287,34 @@ export function mapLocalActionToTool(
         },
       };
 
+    case "createSwapRequest": {
+      const originalDate = p.date || "";
+      if (!originalDate) return null;
+      return {
+        toolName: "create_swap_request",
+        toolParams: {
+          target_member_name: p.targetMember || "",
+          original_date: originalDate,
+          proposed_date: p.proposedDate || "",
+          reason: p.reason || "",
+          type: "swap",
+        },
+      };
+    }
+
+    case "createDecision": {
+      const title = (p.title || "").trim();
+      if (!title) return null;
+      return {
+        toolName: "create_decision",
+        toolParams: {
+          title,
+          description: p.description || "",
+          category: p.category || "outro",
+        },
+      };
+    }
+
     default:
       return null;
   }

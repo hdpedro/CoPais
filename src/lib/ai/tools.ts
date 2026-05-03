@@ -4,6 +4,15 @@
 /* ------------------------------------------------------------------ */
 
 import { SupabaseClient } from "@supabase/supabase-js";
+import {
+  createSwapRequest as createSwapRequestService,
+  respondToSwapRequest as respondToSwapRequestService,
+  listPendingSwapsForUser,
+} from "@/lib/services/swap";
+import { createExpense as createExpenseService } from "@/lib/services/expenses";
+import { createNote as createNoteService } from "@/lib/services/notes";
+import { createCheckin as createCheckinService } from "@/lib/services/checkin";
+import { createDecision as createDecisionService } from "@/lib/services/decisions";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -42,15 +51,6 @@ function resolveChild(
     if (n.includes(first) || first.includes(n)) return c;
   }
   return null;
-}
-
-function buildSplitRatio(members: ToolContext["members"]): Record<string, number> {
-  const r: Record<string, number> = {};
-  const share = Math.floor(100 / members.length);
-  members.forEach((m, i) => {
-    r[m.id] = i === members.length - 1 ? 100 - share * (members.length - 1) : share;
-  });
-  return r;
 }
 
 function todayISO(): string {
@@ -353,6 +353,154 @@ export const AI_TOOLS = [
     },
   },
 
+  {
+    type: "function" as const,
+    function: {
+      name: "create_decision",
+      description:
+        "Criar uma decisao colaborativa com o coparente para votacao (concordo/discordo). Usar quando o usuario disser 'precisamos decidir', 'vamos decidir', 'criar decisao'.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          title: { type: "string", description: "Titulo curto da decisao" },
+          description: {
+            type: "string",
+            description: "Contexto adicional para a discussao (opcional)",
+          },
+          category: {
+            type: "string",
+            description: "Categoria (escola, saude, financeiro, rotina, outro)",
+          },
+          deadline: {
+            type: "string",
+            description: "Data limite YYYY-MM-DD (opcional)",
+          },
+        },
+        required: ["title"],
+      },
+    },
+  },
+
+  /* ---------- TWO-PARTY ACTION TOOLS (require approval) ---------- */
+  {
+    type: "function" as const,
+    function: {
+      name: "create_swap_request",
+      description:
+        "Solicitar troca de dia (ou pedir um dia em divida) com o coparente. Usar quando o usuario disser 'trocar dia X', 'quero o dia X', 'trocar X por Y'.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          target_member_name: {
+            type: "string",
+            description: "Nome do coparente que precisa aprovar a troca.",
+          },
+          original_date: {
+            type: "string",
+            description: "Data que o usuario quer pegar / trocar (YYYY-MM-DD).",
+          },
+          proposed_date: {
+            type: "string",
+            description:
+              "Data que o usuario oferece em troca (YYYY-MM-DD). Omita para pedir o dia como divida.",
+          },
+          reason: {
+            type: "string",
+            description: "Motivo curto (opcional).",
+          },
+          type: {
+            type: "string",
+            enum: ["swap", "visit"],
+            description: "swap = troca / divida; visit = visita pontual.",
+          },
+        },
+        required: ["target_member_name", "original_date"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "respond_swap_request",
+      description:
+        "Aprovar ou recusar uma solicitacao de troca pendente direcionada ao usuario.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          swap_id: { type: "string", description: "UUID da swap_request." },
+          decision: {
+            type: "string",
+            enum: ["approved", "rejected"],
+            description: "approved aceita; rejected recusa.",
+          },
+        },
+        required: ["swap_id", "decision"],
+      },
+    },
+  },
+
+  /* ---------- INBOX QUERY ---------- */
+  {
+    type: "function" as const,
+    function: {
+      name: "get_pending_approvals",
+      description:
+        "Listar solicitacoes pendentes que aguardam aprovacao do usuario (trocas de dia, etc).",
+      parameters: {
+        type: "object" as const,
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_child_status",
+      description:
+        "Status atual de uma crianca (doente? medicacoes ativas? alergias). Usar para 'como esta o Joaquim?', 'a Maria esta doente?'.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          child_name: {
+            type: "string",
+            description: "Nome da crianca (omita para retornar todas).",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_balance",
+      description:
+        "Saldo de despesas pendentes entre os coparentes (quem deve quanto a quem). Usar para 'como esta o saldo?', 'quanto a gente esta devendo?'.",
+      parameters: {
+        type: "object" as const,
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_child_history",
+      description:
+        "Linha do tempo recente de uma crianca: consultas, medicacoes, episodios de doenca, eventos. Usar para 'historico do Joaquim', 'o que aconteceu com a Maria nas ultimas semanas?'.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          child_name: { type: "string", description: "Nome da crianca." },
+          days: {
+            type: "string",
+            description: "Quantos dias para tras (default 30). Envie como string.",
+          },
+        },
+        required: ["child_name"],
+      },
+    },
+  },
+
   /* ---------- COMMUNICATION TOOLS ---------- */
   {
     type: "function" as const,
@@ -389,11 +537,18 @@ export async function executeTool(
       case "create_checkin":       return await execCreateCheckin(params, ctx);
       case "create_note":          return await execCreateNote(params, ctx);
       case "create_activity":      return await execCreateActivity(params, ctx);
+      case "create_decision":      return await execCreateDecision(params, ctx);
       case "get_custody_info":     return await execGetCustody(params, ctx);
       case "get_expenses_summary": return await execGetExpenses(params, ctx);
       case "get_upcoming_events":  return await execGetUpcoming(params, ctx);
       case "get_children_info":    return await execGetChildren(ctx);
       case "get_health_summary":   return await execGetHealth(params, ctx);
+      case "create_swap_request":  return await execCreateSwapRequest(params, ctx);
+      case "respond_swap_request": return await execRespondSwapRequest(params, ctx);
+      case "get_pending_approvals":return await execGetPendingApprovals(ctx);
+      case "get_child_status":     return await execGetChildStatus(params, ctx);
+      case "get_balance":          return await execGetBalance(ctx);
+      case "get_child_history":    return await execGetChildHistory(params, ctx);
       case "draft_message":        return { success: true, message: "DRAFT_MESSAGE_HANDLED_BY_LLM" };
       default:
         return { success: false, message: `Ferramenta desconhecida: ${name}` };
@@ -411,39 +566,35 @@ export async function executeTool(
 
 async function execCreateExpense(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const amount = parseAmount(p.amount);
-  if (amount <= 0) return { success: false, message: "Valor da despesa deve ser maior que zero." };
+  if (amount <= 0) {
+    return { success: false, message: "Valor da despesa deve ser maior que zero." };
+  }
   const desc = String(p.description || "Despesa");
   const child = resolveChild(String(p.child_name || ""), ctx.children);
   const date = parseDate(p.date, todayISO());
 
-  const insertData = {
-    group_id: ctx.groupId,
-    description: desc.slice(0, 200),
+  const result = await createExpenseService(ctx.supabase, {
+    groupId: ctx.groupId,
+    paidBy: ctx.userId,
+    description: desc,
     amount,
-    category: p.category || "other",
-    child_id: child?.id || null,
-    paid_by: ctx.userId,
-    expense_date: date,
-    split_ratio: buildSplitRatio(ctx.members),
-    status: "pending",
-  };
+    category: String(p.category || "other"),
+    expenseDate: date,
+    childId: child?.id || null,
+    splitRatio: null, // service builds default ratio from group members
+    receiptUrl: (p.receipt_url as string) || null,
+    origin: "whatsapp",
+  });
 
-  console.log("[TOOL] create_expense INSERT:", JSON.stringify(insertData));
-
-  const { error } = await ctx.supabase.from("expenses").insert(insertData);
-
-  if (error) {
-    console.error("[TOOL] create_expense ERROR:", error.code, error.message, error.details);
-    return { success: false, message: `Erro ao registrar: ${error.message}` };
+  if (!result.ok) {
+    return { success: false, message: result.error };
   }
-
-  console.log("[TOOL] create_expense SUCCESS");
 
   const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
   return {
     success: true,
     message: `Despesa registrada: ${formatBRL(amount)} — ${desc}${childLabel}`,
-    data: { amount, description: desc, child: child?.name },
+    data: { id: result.data.id, amount, description: desc, child: child?.name },
   };
 }
 
@@ -529,60 +680,68 @@ async function execCreateAppointment(p: Record<string, unknown>, ctx: ToolContex
 
 async function execCreateCheckin(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const child = resolveChild(String(p.child_name || ""), ctx.children);
+  const childId = child?.id || (ctx.children[0]?.id ?? null);
   const title = String(p.title || "Check-in");
-  const category = String(p.category || "other");
+  const description = p.notes ? String(p.notes).slice(0, 2000) : null;
 
-  const insertCheckin = {
-    group_id: ctx.groupId,
-    child_id: child?.id || (ctx.children[0]?.id ?? null),
-    logged_by: ctx.userId,
-    category,
-    title: title.slice(0, 200),
-    description: p.notes ? String(p.notes).slice(0, 2000) : null,
-    checkin_date: todayISO(),
-  };
+  const result = await createCheckinService(ctx.supabase, {
+    userId: ctx.userId,
+    groupId: ctx.groupId,
+    childId,
+    category: String(p.category || "other"),
+    title,
+    description,
+  });
 
-  console.log("[TOOL] create_checkin INSERT:", JSON.stringify(insertCheckin));
-
-  const { error } = await ctx.supabase.from("daily_checkins").insert(insertCheckin);
-
-  if (error) {
-    console.error("[TOOL] create_checkin ERROR:", error.code, error.message, error.details);
-    return { success: false, message: `Erro: ${error.message}` };
-  }
-
-  console.log("[TOOL] create_checkin SUCCESS");
+  if (!result.ok) return { success: false, message: result.error };
 
   const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
   return {
     success: true,
     message: `Check-in registrado${childLabel}: ${title}`,
+    data: { id: result.data.id },
+  };
+}
+
+async function execCreateDecision(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const title = String(p.title || "").trim();
+  if (!title) return { success: false, message: "Qual e o titulo da decisao?" };
+
+  const result = await createDecisionService(ctx.supabase, {
+    groupId: ctx.groupId,
+    createdBy: ctx.userId,
+    title,
+    description: (p.description as string) || null,
+    category: (p.category as string) || undefined,
+    deadline: (p.deadline as string) || null,
+  });
+
+  if (!result.ok) return { success: false, message: result.error };
+  return {
+    success: true,
+    message: `Decisao criada: "${title}". Coparente foi notificado para votar.`,
+    data: { id: result.data.id },
   };
 }
 
 async function execCreateNote(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const title = String(p.title || "Nota");
-  const content = String(p.content || "");
+  const content = String(p.content || "").slice(0, 5000);
 
-  const insertNote = {
-    user_id: ctx.userId,
-    group_id: ctx.groupId,
-    title: title.slice(0, 200),
-    content: content.slice(0, 5000),
-    category: p.category || "lembrete",
+  const result = await createNoteService(ctx.supabase, {
+    userId: ctx.userId,
+    groupId: ctx.groupId,
+    title,
+    content,
+    category: String(p.category || "lembrete"),
+  });
+
+  if (!result.ok) return { success: false, message: result.error };
+  return {
+    success: true,
+    message: `Nota criada: "${title}"`,
+    data: { id: result.data.id },
   };
-
-  console.log("[TOOL] create_note INSERT:", JSON.stringify(insertNote));
-
-  const { error } = await ctx.supabase.from("private_notes").insert(insertNote);
-
-  if (error) {
-    console.error("[TOOL] create_note ERROR:", error.code, error.message, error.details);
-    return { success: false, message: `Erro: ${error.message}` };
-  }
-
-  console.log("[TOOL] create_note SUCCESS");
-  return { success: true, message: `Nota criada: "${title}"` };
 }
 
 /* Map Portuguese day abbreviations to standard DB format */
@@ -823,52 +982,62 @@ async function execGetHealth(p: Record<string, unknown>, ctx: ToolContext): Prom
   const child = resolveChild(String(p.child_name || ""), ctx.children);
   if (!child) return { success: false, message: "Nao encontrei essa crianca. Qual o nome?" };
 
-  // Recent health logs
-  const { data: logs } = await ctx.supabase
-    .from("health_logs")
-    .select("log_type, value, notes, logged_at")
-    .eq("child_id", child.id)
-    .order("logged_at", { ascending: false })
-    .limit(5);
-
-  // Upcoming appointments
-  const { data: appts } = await ctx.supabase
-    .from("medical_appointments")
-    .select("title, appointment_date, appointment_type")
-    .eq("child_id", child.id)
-    .gte("appointment_date", `${todayISO()}T00:00:00`)
-    .order("appointment_date")
-    .limit(3);
-
-  // Allergies
-  const { data: allergies } = await ctx.supabase
-    .from("health_logs")
-    .select("value, notes")
-    .eq("child_id", child.id)
-    .eq("log_type", "allergy");
-
-  // Active medications
-  const { data: meds } = await ctx.supabase
-    .from("health_logs")
-    .select("value, notes, logged_at")
-    .eq("child_id", child.id)
-    .eq("log_type", "medication")
-    .order("logged_at", { ascending: false })
-    .limit(3);
+  // Schema: real tables are `child_allergies`, `active_medications`,
+  // `medical_appointments`, `illness_episodes`. The legacy `health_logs`
+  // referenced by previous code does not exist.
+  const [
+    { data: allergies },
+    { data: meds },
+    { data: appts },
+    { data: illnesses },
+  ] = await Promise.all([
+    ctx.supabase
+      .from("child_allergies")
+      .select("name, severity, notes")
+      .eq("child_id", child.id)
+      .limit(10),
+    ctx.supabase
+      .from("active_medications")
+      .select("name, dosage, frequency, status, end_date, created_at")
+      .eq("child_id", child.id)
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(5),
+    ctx.supabase
+      .from("medical_appointments")
+      .select("title, appointment_date")
+      .eq("child_id", child.id)
+      .gte("appointment_date", `${todayISO()}T00:00:00`)
+      .order("appointment_date")
+      .limit(3),
+    ctx.supabase
+      .from("illness_episodes")
+      .select("title, start_date, end_date, status")
+      .eq("child_id", child.id)
+      .eq("status", "active")
+      .order("start_date", { ascending: false })
+      .limit(3),
+  ]);
 
   const parts: string[] = [`Saude de ${child.name.split(" ")[0]}:`];
 
+  if (illnesses && illnesses.length > 0) {
+    const titles = illnesses.map((i) => i.title).filter(Boolean).join(", ");
+    parts.push(`Em curso: ${titles || "episodio ativo"}`);
+  }
+
   if (allergies && allergies.length > 0) {
-    parts.push(`Alergias: ${allergies.map((a) => a.value).join(", ")}`);
+    parts.push(`Alergias: ${allergies.map((a) => a.name).join(", ")}`);
   }
 
-  if (meds && meds.length > 0) {
-    parts.push(`Medicamentos recentes: ${meds.map((m) => m.value).join(", ")}`);
-  }
-
-  if (logs && logs.length > 0) {
-    const recent = logs.map((l) => `${l.log_type}: ${l.value}`).join("; ");
-    parts.push(`Registros recentes: ${recent}`);
+  const today = todayISO();
+  const activeMeds = (meds || []).filter(
+    (m) => !m.end_date || (m.end_date as string) >= today,
+  );
+  if (activeMeds.length > 0) {
+    parts.push(
+      `Medicamentos ativos: ${activeMeds.map((m) => `${m.name}${m.dosage ? ` (${m.dosage})` : ""}`).join(", ")}`,
+    );
   }
 
   if (appts && appts.length > 0) {
@@ -882,4 +1051,295 @@ async function execGetHealth(p: Record<string, unknown>, ctx: ToolContext): Prom
   }
 
   return { success: true, message: parts.join("\n") };
+}
+
+/* ------------------------------------------------------------------ */
+/* G7: Status atual da criança (view child_current_status)             */
+/* ------------------------------------------------------------------ */
+
+async function execGetChildStatus(
+  p: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const requestedName = String(p.child_name || "").trim();
+  let query = ctx.supabase
+    .from("child_current_status")
+    .select(
+      "child_id, full_name, is_sick, active_illness_titles, active_medications_count, active_medication_names, allergies_count",
+    )
+    .eq("group_id", ctx.groupId);
+
+  if (requestedName) {
+    const child = resolveChild(requestedName, ctx.children);
+    if (!child) {
+      return { success: false, message: "Nao encontrei essa crianca. Qual o nome?" };
+    }
+    query = query.eq("child_id", child.id);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    return { success: false, message: `Erro ao consultar status: ${error.message}` };
+  }
+  if (!data || data.length === 0) {
+    return { success: true, message: "Nenhuma informacao de status disponivel." };
+  }
+
+  const lines = data.map((row) => {
+    const first = String(row.full_name || "").split(" ")[0] || "Crianca";
+    const sick = row.is_sick ? "🤒 Doente" : "✅ Saudavel";
+    const illnessText =
+      row.is_sick && Array.isArray(row.active_illness_titles) && row.active_illness_titles.length > 0
+        ? ` (${row.active_illness_titles.join(", ")})`
+        : "";
+    const medsText =
+      row.active_medications_count > 0
+        ? ` · ${row.active_medications_count} medicacao(oes) ativas`
+        : "";
+    const allergiesText =
+      row.allergies_count > 0 ? ` · ${row.allergies_count} alergia(s)` : "";
+    return `${first}: ${sick}${illnessText}${medsText}${allergiesText}`;
+  });
+
+  return { success: true, message: lines.join("\n"), data: { rows: data } };
+}
+
+/* ------------------------------------------------------------------ */
+/* G8: Saldo de despesas pendentes entre coparentes                    */
+/* ------------------------------------------------------------------ */
+
+async function execGetBalance(ctx: ToolContext): Promise<ToolResult> {
+  const { data, error } = await ctx.supabase
+    .from("expense_balance_per_user")
+    .select("user_id, paid_pending, owes_pending")
+    .eq("group_id", ctx.groupId);
+
+  if (error) {
+    return { success: false, message: `Erro ao consultar saldo: ${error.message}` };
+  }
+  if (!data || data.length === 0) {
+    return { success: true, message: "Nenhuma despesa pendente. Tudo em dia ✨" };
+  }
+
+  const memberById = new Map(ctx.members.map((m) => [m.id, m.name.split(" ")[0]]));
+  const lines = data.map((row) => {
+    const name = memberById.get(row.user_id as string) || "Membro";
+    const paid = Number(row.paid_pending) || 0;
+    const owes = Number(row.owes_pending) || 0;
+    const net = paid - owes;
+    const arrow = net > 0 ? "→ recebe" : net < 0 ? "→ deve" : "→ neutro";
+    return `${name}: pagou ${formatBRL(paid)}, deve ${formatBRL(owes)} ${arrow} ${formatBRL(Math.abs(net))}`;
+  });
+
+  return {
+    success: true,
+    message: `Saldo (despesas pendentes):\n${lines.join("\n")}`,
+    data: { rows: data },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* G8: Histórico recente de uma criança (timeline)                     */
+/* ------------------------------------------------------------------ */
+
+async function execGetChildHistory(
+  p: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const child = resolveChild(String(p.child_name || ""), ctx.children);
+  if (!child) return { success: false, message: "Nao encontrei essa crianca. Qual o nome?" };
+
+  const days = Math.max(1, Math.min(180, Number(p.days) || 30));
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceISO = since.toISOString().split("T")[0];
+
+  const [
+    { data: appointments },
+    { data: illnesses },
+    { data: meds },
+    { data: events },
+  ] = await Promise.all([
+    ctx.supabase
+      .from("medical_appointments")
+      .select("title, appointment_date")
+      .eq("child_id", child.id)
+      .gte("appointment_date", `${sinceISO}T00:00:00`)
+      .order("appointment_date", { ascending: false })
+      .limit(10),
+    ctx.supabase
+      .from("illness_episodes")
+      .select("title, start_date, end_date, status")
+      .eq("child_id", child.id)
+      .gte("start_date", sinceISO)
+      .order("start_date", { ascending: false })
+      .limit(10),
+    ctx.supabase
+      .from("active_medications")
+      .select("name, dosage, created_at")
+      .eq("child_id", child.id)
+      .gte("created_at", `${sinceISO}T00:00:00`)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    ctx.supabase
+      .from("events")
+      .select("title, event_date")
+      .eq("group_id", ctx.groupId)
+      .eq("child_id", child.id)
+      .gte("event_date", sinceISO)
+      .order("event_date", { ascending: false })
+      .limit(10),
+  ]);
+
+  type Entry = { date: string; line: string };
+  const entries: Entry[] = [];
+  const fmtBR = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+
+  (appointments || []).forEach((a) =>
+    entries.push({
+      date: String(a.appointment_date).slice(0, 10),
+      line: `🩺 ${fmtBR(String(a.appointment_date))} — Consulta: ${a.title}`,
+    }),
+  );
+  (illnesses || []).forEach((i) =>
+    entries.push({
+      date: i.start_date as string,
+      line: `🤒 ${fmtBR(i.start_date as string)} — ${i.title}${i.status === "active" ? " (ativo)" : ""}`,
+    }),
+  );
+  (meds || []).forEach((m) =>
+    entries.push({
+      date: String(m.created_at).slice(0, 10),
+      line: `💊 ${fmtBR(String(m.created_at))} — ${m.name}${m.dosage ? ` (${m.dosage})` : ""}`,
+    }),
+  );
+  (events || []).forEach((e) =>
+    entries.push({
+      date: e.event_date as string,
+      line: `📅 ${fmtBR(e.event_date as string)} — ${e.title}`,
+    }),
+  );
+
+  if (entries.length === 0) {
+    return {
+      success: true,
+      message: `Sem registros de ${child.name.split(" ")[0]} nos ultimos ${days} dias.`,
+    };
+  }
+
+  entries.sort((a, b) => (a.date > b.date ? -1 : 1));
+  const top = entries.slice(0, 15);
+
+  return {
+    success: true,
+    message: `Historico de ${child.name.split(" ")[0]} (ultimos ${days} dias):\n${top.map((e) => e.line).join("\n")}`,
+    data: { count: entries.length },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* TWO-PARTY EXECUTORS (delegate to services for paridade PWA/Native)  */
+/* ------------------------------------------------------------------ */
+
+function resolveMember(
+  name: string,
+  members: ToolContext["members"],
+  selfId: string,
+): ToolContext["members"][number] | null {
+  if (!name) return null;
+  const n = norm(name);
+  for (const m of members) {
+    if (m.id === selfId) continue;
+    const first = norm(m.name.split(" ")[0]);
+    if (n.includes(first) || first.includes(n)) return m;
+  }
+  // Fallback: if only one other member exists, pick them.
+  const others = members.filter((m) => m.id !== selfId);
+  if (others.length === 1) return others[0];
+  return null;
+}
+
+async function execCreateSwapRequest(
+  p: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const targetName = String(p.target_member_name || "");
+  const target = resolveMember(targetName, ctx.members, ctx.userId);
+  if (!target) {
+    return {
+      success: false,
+      message: "Nao identifiquei com qual coparente voce quer trocar. Diga o nome.",
+    };
+  }
+
+  const originalDate = String(p.original_date || "");
+  if (!originalDate) {
+    return { success: false, message: "Qual data voce quer trocar?" };
+  }
+
+  const result = await createSwapRequestService(ctx.supabase, {
+    groupId: ctx.groupId,
+    requesterId: ctx.userId,
+    targetUserId: target.id,
+    originalDate,
+    proposedDate: (p.proposed_date as string) || null,
+    reason: (p.reason as string) || null,
+    type: p.type === "visit" ? "visit" : "swap",
+  });
+
+  if (!result.ok) return { success: false, message: result.error };
+
+  const dateBR = originalDate.split("-").reverse().join("/");
+  const targetFirst = target.name.split(" ")[0];
+  return {
+    success: true,
+    message: `Solicitacao de troca enviada para ${targetFirst} (${dateBR}). Voce sera avisado quando responder.`,
+    data: { id: result.data.id, target_user_id: target.id },
+  };
+}
+
+async function execRespondSwapRequest(
+  p: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const swapId = String(p.swap_id || "");
+  const decision = p.decision === "approved" ? "approved" : "rejected";
+
+  const result = await respondToSwapRequestService(ctx.supabase, {
+    swapId,
+    responderId: ctx.userId,
+    decision,
+  });
+
+  if (!result.ok) return { success: false, message: result.error };
+
+  return {
+    success: true,
+    message:
+      decision === "approved"
+        ? "Troca aprovada. Calendario atualizado."
+        : "Troca recusada.",
+  };
+}
+
+async function execGetPendingApprovals(ctx: ToolContext): Promise<ToolResult> {
+  const swaps = await listPendingSwapsForUser(ctx.supabase, ctx.userId, ctx.groupId);
+
+  if (swaps.length === 0) {
+    return { success: true, message: "Nenhuma aprovacao pendente. ✨" };
+  }
+
+  const lines = swaps.map((s) => {
+    const d = s.original_date.split("-").reverse().join("/");
+    const prop = s.proposed_date
+      ? ` ↔ ${s.proposed_date.split("-").reverse().join("/")}`
+      : " (divida)";
+    return `• ${s.requester_name}: ${d}${prop}${s.reason ? ` — ${s.reason}` : ""}`;
+  });
+
+  return {
+    success: true,
+    message: `Voce tem ${swaps.length} aprovacao(oes) pendente(s):\n${lines.join("\n")}\n\nResponda com 'aprovar <numero>' ou 'recusar <numero>' (use os botoes quando aparecerem).`,
+    data: { swaps },
+  };
 }

@@ -317,13 +317,15 @@ describe("BLOCO B — Calendário (35)", () => {
     expect(buildCustodyMap(events, COLORS_2).get("2026-07-28")?.userId).toBe("user-mae");
   });
 
-  it("B40 · troca de guarda recusada: status='rejected' não cria custody_event swap (asserta na ação)", () => {
+  it("B40 · troca de guarda recusada: status='rejected' não cria custody_event swap (asserta no service)", () => {
+    // Logic lives in services/swap.ts (single source of truth, called by
+    // PWA action, Native API route, and WhatsApp tools).
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../src/actions/calendar.ts"),
+      path.resolve(__dirname, "../../src/lib/services/swap.ts"),
       "utf8",
     );
-    // Approval branch is gated by response === "approved"
-    expect(file).toMatch(/response\s*===\s*['"]approved['"]/);
+    // Approval branch is gated by decision === "approved"
+    expect(file).toMatch(/decision\s*===\s*['"]approved['"]/);
   });
 
   it("B41 · troca cancelada pelo solicitante: status pending pode virar 'cancelled'", () => {
@@ -341,10 +343,10 @@ describe("BLOCO B — Calendário (35)", () => {
 
   it("B43 · dois pedidos simultâneos: approve flip é idempotente (.eq pending check)", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../src/actions/calendar.ts"),
+      path.resolve(__dirname, "../../src/lib/services/swap.ts"),
       "utf8",
     );
-    expect(file).toMatch(/ja foi processada|already processed/i);
+    expect(file).toMatch(/já foi processada|ja foi processada|already processed/i);
   });
 
   it("B44 · conflito de agenda: respondToSwap NÃO faz hard-check, mas calendar UI mostra ambos via custody_type='swap'", () => {
@@ -412,11 +414,11 @@ describe("BLOCO B — Calendário (35)", () => {
 
   it("B52 · dois usuários editando perto do mesmo tempo: idempotent UPDATE com .eq pending", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../src/actions/calendar.ts"),
+      path.resolve(__dirname, "../../src/lib/services/swap.ts"),
       "utf8",
     );
-    // Two parents accepting same swap → second sees "already processed"
-    expect(file).toMatch(/Solicitacao ja foi processada por outro/i);
+    // Two parents accepting same swap → second sees "Já processada por outro"
+    expect(file).toMatch(/processada por outro/i);
   });
 
   it("B53 · mudança refletida no dashboard: useDashboard agora dedup swap > regular (fix Angelino)", () => {
@@ -663,8 +665,12 @@ describe("BLOCO C — Saúde (25)", () => {
 // =============================================================================
 describe("BLOCO D — Financeiro (20)", () => {
   it("D91 · criar despesa simples: createExpense valida amount > 0 && <= 999999.99", () => {
-    const file = fs.readFileSync(path.resolve(__dirname, "../../src/actions/expenses.ts"), "utf8");
-    expect(file).toMatch(/amount\s*<=?\s*0|amount\s*>\s*999999\.99/);
+    // Validation lives in services/expenses.ts (shared between PWA action and WhatsApp tool).
+    const file = fs.readFileSync(
+      path.resolve(__dirname, "../../src/lib/services/expenses.ts"),
+      "utf8",
+    );
+    expect(file).toMatch(/amount\s*<=?\s*0|amount\s*>\s*MAX_AMOUNT|999_?999\.99/);
   });
 
   it("D92 · criar despesa com foto: storage bucket usado por expenses", () => {
@@ -766,7 +772,11 @@ describe("BLOCO D — Financeiro (20)", () => {
   });
 
   it("D109 · push de despesa: createNotificationWithPush em updateExpenseStatus", () => {
-    const file = fs.readFileSync(path.resolve(__dirname, "../../src/actions/expenses.ts"), "utf8");
+    // Push side-effect for status changes lives in services/expenses.ts.
+    const file = fs.readFileSync(
+      path.resolve(__dirname, "../../src/lib/services/expenses.ts"),
+      "utf8",
+    );
     expect(file).toMatch(/createNotificationWithPush[\s\S]{0,500}expense_(approved|rejected)/);
   });
 
@@ -857,11 +867,12 @@ describe("BLOCO E — Chat / Notificações (20)", () => {
   });
 
   it("E120 · push abre calendário certo: createNotificationWithPush passa '/calendario'", () => {
+    // Push side-effect lives in services/swap.ts (called by all swap entry points).
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../src/actions/calendar.ts"),
+      path.resolve(__dirname, "../../src/lib/services/swap.ts"),
       "utf8",
     );
-    expect(file).toMatch(/createNotificationWithPush[\s\S]{0,400}\/calendario/);
+    expect(file).toMatch(/createNotificationWithPush[\s\S]{0,800}\/calendario/);
   });
 
   it("E121 · push abre saúde certo: notif body com /saude (em algum action)", () => {
@@ -878,12 +889,17 @@ describe("BLOCO E — Chat / Notificações (20)", () => {
   });
 
   it("E123 · push duplicado não ocorre: sender é excluído da audiência (notif só pra outro)", () => {
-    const file = fs.readFileSync(path.resolve(__dirname, "../../src/actions/expenses.ts"), "utf8");
-    expect(file).toMatch(/expense\.paid_by\s*!==\s*user\.id/);
+    // Now in services/expenses.ts: members query excludes paid_by via .neq().
+    const file = fs.readFileSync(
+      path.resolve(__dirname, "../../src/lib/services/expenses.ts"),
+      "utf8",
+    );
+    expect(file).toMatch(/\.neq\(["']user_id["']\s*,\s*args\.paidBy\)|paid_by\s*!==\s*reviewerId/);
   });
 
   it("E124 · push atrasado não ocorre: notify wrap em try/catch (não bloqueia ação)", () => {
-    const file = fs.readFileSync(path.resolve(__dirname, "../../src/actions/calendar.ts"), "utf8");
+    // Push side-effect lives in services/swap.ts and stays guarded by try/catch.
+    const file = fs.readFileSync(path.resolve(__dirname, "../../src/lib/services/swap.ts"), "utf8");
     expect(file).toMatch(/try\s*\{[\s\S]{0,800}createNotificationWithPush/);
   });
 

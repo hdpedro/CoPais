@@ -2,9 +2,9 @@
 
 ## Kindar v2.0 — "Ponte"
 
-> Ultima atualizacao: Março 2026
+> Ultima atualizacao: Maio 2026
 > Release target: Q3 2026
-> Status: Em planejamento
+> Status: M1 (WhatsApp) em entrega — branch `feat/whatsapp-v2-full`
 
 ---
 
@@ -29,35 +29,67 @@ O Kindar v1.0 estabeleceu a fundacao da plataforma de coparentalidade com calend
 
 ## MUST HAVE — Essencial para v2.0
 
-### M1: Integracao WhatsApp para Notificacoes
+### M1: Kindar Assistente — WhatsApp como canal de entrada e saida
 
-**Descricao**: Enviar notificacoes criticas do Kindar via WhatsApp Business API, garantindo que pais recebam alertas importantes mesmo quando nao estao com o app aberto. O WhatsApp e o canal dominante no Brasil (99% de penetracao) e resolve o problema numero 1 dos usuarios: "nao vi a notificacao push".
+> **Status: M1.1 entregue (branch `feat/whatsapp-v2-full`, 7 commits, 524/524 testes verdes). M1.2 (events/activities/health domain extractions) pendente em sessoes futuras.**
 
-**User Story**: Como pai/mae, quero receber notificacoes criticas do Kindar pelo WhatsApp para que eu nunca perca uma informacao importante sobre meu filho, mesmo que esteja com as notificacoes do app desativadas.
+**Descricao**: O escopo original de "notificacoes via WhatsApp" evoluiu para um **assistente bidirectional** (Kindar Assistente) sobre **Meta Cloud API**: o usuario nao so RECEBE alertas, ele tambem REGISTRA acoes pelo proprio chat (despesas, eventos, consultas, decisoes, trocas de dia, check-ins) usando texto livre, audio (transcrito via Whisper/Groq) ou foto (OCR de recibo / receita medica). O canal e dominante no Brasil (99% penetracao) e remove a friccao de abrir o app para qualquer microacao.
 
-**Criterios de Aceitacao**:
+**User Story (atualizada)**: Como pai/mae, quero conversar com o Kindar pelo WhatsApp em linguagem natural — "paguei 120 da escola do Joaquim", "trocar dia 15 com a Maria", "o Pedro esta com febre" — e ter cada acao validada, registrada e refletida no app, com aprovacao do coparente quando necessario.
 
-| # | Criterio | Validacao |
-|---|---------|-----------|
-| 1 | Notificacoes de saude urgente (doenca registrada, medicamento dado) enviadas via WhatsApp em < 1 min | Teste end-to-end |
-| 2 | Swap requests enviados como mensagem interativa com botoes "Aceitar" / "Recusar" | WhatsApp template aprovado |
-| 3 | Decisoes com deadline proximo (< 24h) notificadas via WhatsApp | Cron job + WhatsApp API |
-| 4 | Check-in summary diario (opt-in): "Hoje no Kindar: Pedro dormiu bem, Luisa comeu pouco" | Template dinâmico |
-| 5 | Usuario pode configurar quais notificacoes recebe por WhatsApp vs push vs nenhum | Settings page |
-| 6 | Fallback: se WhatsApp falhar, envia por push. Se push falhar, registra como pendente. | Circuit breaker |
-| 7 | Mensagens seguem o tom neutro do Kindar (sem urgencia excessiva, sem acusacao) | Review de copy |
+**Criterios de Aceitacao (M1.1 entregue)**:
 
-**Consideracoes Tecnicas**:
+| # | Criterio | Status | Onde |
+|---|---------|--------|------|
+| 1 | Webhook Meta Cloud com verificacao HMAC SHA-256 | ✅ | `src/app/api/whatsapp/webhook/route.ts` |
+| 2 | Vinculacao de telefone com 2-step (link + codigo de verificacao) | ✅ | `src/actions/whatsapp.ts` + `whatsapp_phone_links` |
+| 3 | Multi-grupo: usuario com >1 grupo escolhe via list message | ✅ | `whatsapp/identity.ts` |
+| 4 | Texto livre PT-BR informal interpretado por parser local (12 patterns) com fallback Groq → OpenAI | ✅ | `src/lib/ai/local-parser.ts` + `ai/router.ts` |
+| 5 | Audio transcrito e reprocessado como texto | ✅ | `whatsapp/audio.ts` |
+| 6 | Imagem com caption-router: `/receita`, `/atestado`, `/vacina`, `/exame`, default = recibo | ✅ | `whatsapp/processor.ts:classifyImageIntent` |
+| 7 | Recibo OCR em fluxo multi-step: categoria → crianca → confirma | ✅ | `whatsapp/processor.ts:handleReceiptStepReply` |
+| 8 | Confirmacao interativa (botoes Sim/Nao) antes de toda acao `create*` | ✅ | `whatsapp/client.ts:sendConfirmation` |
+| 9 | Aprovacao two-party: solicitacao de troca chega ao coparente como card com botoes Aprovar/Recusar; resposta atualiza custody automaticamente | ✅ | `whatsapp/approvals.ts` + `services/swap.ts` (protocolo `approve:swap:<uuid>`) |
+| 10 | Tools de consulta: agenda, despesas, saldo entre coparentes, status da crianca, historico, inbox de aprovacoes | ✅ | `src/lib/ai/tools.ts` (12 tools, 4 novas em M1.1) |
+| 11 | Preferencias por tipo (`expense_notifications`, `event_reminders`, `custody_alerts`, `daily_summary`) respeitadas por broadcast outbound | ✅ | `whatsapp/notify.ts` |
+| 12 | Janela de contexto LLM filtrada (TTL 30min + filtro de ruido sintetico) | ✅ | `whatsapp/processor.ts:isHistoricallyMeaningful` |
+| 13 | Fluxos two-party para `event_request` e `expense` aprovaveis via WhatsApp | ⏸️ M1.2 | framework codec ja em `whatsapp/approvals.ts` |
+| 14 | Cron daily_summary 7h00 com pendencias do dia | ⏸️ M1.2 | tabela ja tem `daily_summary` flag |
+| 15 | Templates Meta-aprovados para outbound proativo fora da janela 24h | ⏸️ Backlog | precisa submissao Meta |
 
-- **API**: WhatsApp Business API via provedor (Twilio / 360dialog / Meta Cloud API direta)
-- **Templates**: Precisam de pre-aprovacao da Meta. Criar 8-10 templates para cenarios principais.
-- **Rate limits**: WhatsApp permite ~80 mensagens/segundo por numero. Suficiente ate 100k MAU.
-- **Custo**: ~R$ 0,15-0,30 por mensagem (template). Incluir no custo do plano premium ou limitar free a 10/mes.
-- **Privacidade**: Mensagens nao devem conter dados medicos detalhados. Link para o app para detalhes.
-- **Integracao**: Novo servico `whatsapp-notify.ts` que consome a fila de notificacoes existente em `src/lib/push.ts`.
-- **Verificacao de numero**: Coletar numero verificado durante onboarding ou settings.
+**Tools expostas no WhatsApp (entregues M1.1)**:
 
-**Esforco estimado**: 4-5 semanas (1 dev backend + 1 dev integracao)
+- **Acoes**: `create_expense`, `create_event`, `create_appointment`, `create_checkin`, `create_note`, `create_activity`, `create_decision`, `create_swap_request`, `respond_swap_request`
+- **Consultas**: `get_custody_info`, `get_expenses_summary`, `get_upcoming_events`, `get_children_info`, `get_health_summary`, `get_pending_approvals`, `get_child_status`, `get_balance`, `get_child_history`
+- **Comunicacao**: `draft_message` (ajuda a redigir mensagem ao coparente)
+
+**Arquitetura**:
+
+- **API**: Meta Cloud API direta (sem provedor intermediario). Sem custo por mensagem dentro da janela de 24h.
+- **Camada de servicos** (`src/lib/services/`): regra de negocio canonica chamada por PWA action + Native API + WhatsApp tool — fim da divergencia que causou o bug 2026-05-01 (swap proposed_date direction).
+- **Schema** (migration `00043` + `00065`):
+  - `whatsapp_phone_links` (vinculo + verificacao + grupo ativo)
+  - `whatsapp_sessions` (3 maquinas de estado: confirmacao, selecao de grupo, recibo multi-step)
+  - `whatsapp_message_logs` (log inbound/outbound)
+  - `whatsapp_notification_preferences` (opt-out por kind)
+  - Views `child_current_status` e `expense_balance_per_user` (reads do assistente)
+- **Idempotencia**: dedup por `wa_message_id`; rate limit 30 msg/min por telefone
+- **Privacidade**: numero E.164 hash-armazenado (`phone_hash`); LGPD `lgpd_consent_at` registrado no linking
+- **Custo**: dentro da janela 24h, Meta cobra zero. Templates fora da janela ficam para M1.2.
+
+**Pipeline de processamento** (em ordem):
+
+1. Audio → transcribe → reescreve como texto
+2. Identidade (vinculo + verificacao + grupo)
+3. Carrega sessao
+4. Selecao de grupo (multi-grupo)
+4.4. Receipt multi-step (G4) — list_replies de categoria/crianca
+4.5. Aprovacao (`approve:*`/`reject:*`)
+5. Confirmacao pendente (button confirm/cancel)
+6. Imagem com caption-router
+7. Texto → parser local PT-BR; se confidence ≥ 0.7 chama tool; senao AI router (Groq → OpenAI)
+
+**Esforco realizado vs estimado**: M1.1 entregue em 7 commits (paridade swap + expenses + notes + checkin + decisions + WhatsApp internals). M1.2 (events 956 LoC, activities 1063 LoC, health 1742 LoC, event-requests, e2e webhook tests, i18n, cron daily) estimado em 2-3 semanas adicionais.
 
 ---
 

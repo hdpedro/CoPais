@@ -21,6 +21,8 @@ import {
 } from "@/lib/ai/assistant-shared";
 
 import { resolveIdentity, setActiveGroup } from "./identity";
+import { decodeApproval, ApprovalPayload } from "./approvals";
+import { respondToSwapRequest } from "@/lib/services/swap";
 import {
   loadSession,
   hasPendingConfirmation,
@@ -28,7 +30,9 @@ import {
   clearPendingAction,
   setSessionGroup,
   setGroupSelectionState,
+  setReceiptStep,
 } from "./session";
+import { createExpense as createExpenseService } from "@/lib/services/expenses";
 import {
   sendTextMessage,
   sendConfirmation,
@@ -227,6 +231,46 @@ export async function processWhatsAppMessage(
   }
 
   /* ================================================================ */
+  /* Step 4.4: Handle receipt multi-step flow (G4)                     */
+  /* List replies routed by current session step.                      */
+  /* ================================================================ */
+
+  if (session.state.receipt_step && message.listReplyId) {
+    const handled = await handleReceiptStepReply(
+      supabase,
+      session.id,
+      session.state,
+      message.listReplyId,
+      phone,
+      userId,
+      groupId,
+      start,
+    );
+    if (handled) return;
+  }
+
+  /* ================================================================ */
+  /* Step 4.5: Handle approval/reject buttons (two-party actions)      */
+  /* ================================================================ */
+
+  if (message.buttonReplyId) {
+    const approval = decodeApproval(message.buttonReplyId);
+    if (approval) {
+      const result = await dispatchApproval(supabase, userId, approval);
+      await sendAndLog(supabase, phone, result.message, userId);
+      await logAIRequest({
+        userId,
+        groupId,
+        provider: "local",
+        feature: "assistant_tool",
+        success: result.ok,
+        responseTimeMs: Date.now() - start,
+      });
+      return;
+    }
+  }
+
+  /* ================================================================ */
   /* Step 5: Handle pending confirmation                               */
   /* ================================================================ */
 
@@ -280,15 +324,13 @@ export async function processWhatsAppMessage(
   }
 
   /* ================================================================ */
-  /* Step 6: Handle image (receipt OCR)                                */
+  /* Step 6: Handle image (caption-routed: receipt | prescription | …) */
   /* ================================================================ */
 
   if (message.type === "image" && message.mediaId) {
-    // Check if caption suggests a prescription
-    const isPrescription = message.caption &&
-      /receita|prescri[cç][aã]o|medicamento|rem[eé]dio/i.test(message.caption);
+    const intent = classifyImageIntent(message.caption);
 
-    if (isPrescription) {
+    if (intent === "prescription") {
       // Fetch first child for this group (simplification for WhatsApp)
       const { data: children } = await supabase
         .from("children")
@@ -328,6 +370,21 @@ export async function processWhatsAppMessage(
       }
     }
 
+    if (intent === "vaccine" || intent === "attestation" || intent === "exam") {
+      // These categories aren't auto-extracted yet \u2014 store as document and
+      // direct the user to the app for proper categorization.
+      const labels: Record<typeof intent, string> = {
+        vaccine: "comprovante de vacina",
+        attestation: "atestado",
+        exam: "exame",
+      };
+      await sendTextMessage(
+        phone,
+        `Recebi sua foto de ${labels[intent]}. Por enquanto preciso que voce anexe pelo app Kindar (Saude > Documentos) para extrair os dados corretamente. \uD83D\uDCC4`,
+      );
+      return;
+    }
+
     await sendTextMessage(phone, "Analisando a imagem... \uD83D\uDD0D");
 
     const receipt = await processReceiptImage(
@@ -337,16 +394,30 @@ export async function processWhatsAppMessage(
     );
 
     if (receipt) {
-      const confirmText = `Registrar despesa:\n*${receipt.description}*\nValor: *R$ ${receipt.amount.toFixed(2).replace(".", ",")}*${receipt.date ? `\nData: ${receipt.date.split("-").reverse().join("/")}` : ""}\n\nConfirma?`;
+      // G4: enter the multi-step flow — category → child → confirm.
+      const expenseDate = receipt.date && /^\d{4}-\d{2}-\d{2}$/.test(receipt.date)
+        ? receipt.date
+        : new Date().toISOString().split("T")[0];
 
-      await setPendingAction(supabase, session.id, "createExpense", {
+      await setReceiptStep(supabase, session.id, "category", {
         description: receipt.description,
-        amount: String(receipt.amount),
-        childName: "",
-      }, confirmText, "foto de recibo");
+        amount: receipt.amount,
+        expense_date: expenseDate,
+      });
 
-      await sendConfirmation(phone, confirmText);
-      await logMessage(supabase, phone, "outbound", "interactive", confirmText, undefined, userId);
+      const summary = `Recibo lido: *${receipt.description}* — R$ ${receipt.amount.toFixed(2).replace(".", ",")}${expenseDate ? ` (${expenseDate.split("-").reverse().join("/")})` : ""}.\nQual a categoria?`;
+
+      await sendListMessage(phone, summary, "Categorias", [
+        { id: "rcat:health",     title: "Saúde" },
+        { id: "rcat:education",  title: "Educação" },
+        { id: "rcat:food",       title: "Alimentação" },
+        { id: "rcat:clothing",   title: "Vestuário" },
+        { id: "rcat:leisure",    title: "Lazer" },
+        { id: "rcat:transport",  title: "Transporte" },
+        { id: "rcat:housing",    title: "Moradia" },
+        { id: "rcat:other",      title: "Outros" },
+      ]);
+      await logMessage(supabase, phone, "outbound", "interactive", summary, undefined, userId);
 
       await logAIRequest({
         userId,
@@ -442,18 +513,25 @@ export async function processWhatsAppMessage(
     content: buildSystemPrompt(contextStr, custodyEnabled),
   };
 
-  // Load recent conversation history from message logs
+  // Load recent conversation history from message logs.
+  // Window: last 30 minutes AND last 10 turns (whichever is shorter), and
+  // skip synthetic system messages (errors, "Acao cancelada" prompts) so
+  // the LLM context isn't polluted with noise.
+  const HISTORY_WINDOW_MS = 30 * 60 * 1000;
+  const sinceISO = new Date(Date.now() - HISTORY_WINDOW_MS).toISOString();
+
   const { data: recentLogs } = await supabase
     .from("whatsapp_message_logs")
-    .select("direction, content, message_type")
+    .select("direction, content, message_type, created_at")
     .eq("phone_number", phone)
     .eq("message_type", "text")
+    .gte("created_at", sinceISO)
     .order("created_at", { ascending: false })
     .limit(10);
 
   const historyMessages: AIChatMessage[] = (recentLogs || [])
     .reverse()
-    .filter((l) => l.content)
+    .filter((l) => isHistoricallyMeaningful(l.content))
     .map((l) => ({
       role: l.direction === "inbound" ? "user" as const : "assistant" as const,
       content: l.content || "",
@@ -574,5 +652,262 @@ export async function processWhatsAppMessage(
       phone,
       "Desculpe, ocorreu um erro. Tente novamente ou use o app Kindar. \uD83D\uDE4F"
     );
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Receipt multi-step flow (G4)                                       */
+/*                                                                     */
+/* After OCR, the user picks: 1) category, 2) child (auto-skipped if   */
+/* group has 0 or 1 children). On final selection the expense is       */
+/* created via the canonical `services/expenses.ts:createExpense`.     */
+/* ------------------------------------------------------------------ */
+
+import { WASessionState } from "./types";
+
+const CATEGORY_LABEL: Record<string, string> = {
+  health: "Saúde",
+  education: "Educação",
+  food: "Alimentação",
+  clothing: "Vestuário",
+  leisure: "Lazer",
+  transport: "Transporte",
+  housing: "Moradia",
+  other: "Outros",
+};
+
+async function handleReceiptStepReply(
+  supabase: SupabaseClient,
+  sessionId: string,
+  state: WASessionState,
+  listReplyId: string,
+  phone: string,
+  userId: string,
+  groupId: string,
+  start: number,
+): Promise<boolean> {
+  const draft = state.receipt_draft;
+  if (!draft) return false;
+
+  if (state.receipt_step === "category" && listReplyId.startsWith("rcat:")) {
+    const category = listReplyId.slice("rcat:".length);
+    if (!CATEGORY_LABEL[category]) return false;
+
+    // Fetch children for the group to decide next step.
+    const { data: children } = await supabase
+      .from("children")
+      .select("id, full_name")
+      .eq("group_id", groupId);
+
+    const kids = children || [];
+
+    // 0 or 1 child → skip the child step.
+    if (kids.length <= 1) {
+      const childId = kids[0]?.id ?? null;
+      await finalizeReceiptExpense(
+        supabase,
+        sessionId,
+        { ...draft, category, child_id: childId },
+        phone,
+        userId,
+        groupId,
+        start,
+      );
+      return true;
+    }
+
+    // Multi-child → ask which one.
+    await setReceiptStep(supabase, sessionId, "child", {
+      ...draft,
+      category,
+    });
+
+    const rows = [
+      ...kids.slice(0, 9).map((c) => ({
+        id: `rchild:${c.id}`,
+        title: (c.full_name as string)?.split(" ")[0] || "Crianca",
+      })),
+      { id: "rchild:none", title: "Geral" },
+    ];
+
+    await sendListMessage(
+      phone,
+      `Categoria: ${CATEGORY_LABEL[category]}.\nPara qual criança?`,
+      "Crianças",
+      rows,
+    );
+    await logMessage(
+      supabase,
+      phone,
+      "outbound",
+      "interactive",
+      `receipt-child-step (${kids.length})`,
+      undefined,
+      userId,
+    );
+    return true;
+  }
+
+  if (state.receipt_step === "child" && listReplyId.startsWith("rchild:")) {
+    const raw = listReplyId.slice("rchild:".length);
+    const childId = raw === "none" ? null : raw;
+    await finalizeReceiptExpense(
+      supabase,
+      sessionId,
+      { ...draft, child_id: childId },
+      phone,
+      userId,
+      groupId,
+      start,
+    );
+    return true;
+  }
+
+  return false;
+}
+
+async function finalizeReceiptExpense(
+  supabase: SupabaseClient,
+  sessionId: string,
+  draft: NonNullable<WASessionState["receipt_draft"]>,
+  phone: string,
+  userId: string,
+  groupId: string,
+  start: number,
+): Promise<void> {
+  const result = await createExpenseService(supabase, {
+    groupId,
+    paidBy: userId,
+    description: draft.description,
+    amount: draft.amount,
+    category: draft.category || "other",
+    expenseDate: draft.expense_date,
+    childId: draft.child_id || null,
+    splitRatio: null,
+    receiptUrl: null,
+    origin: "whatsapp",
+  });
+
+  // Always clear the receipt step before returning to keep state clean.
+  await clearPendingAction(supabase, sessionId);
+
+  if (!result.ok) {
+    await sendTextMessage(phone, `⚠️ ${result.error}`);
+    await logAIRequest({
+      userId,
+      groupId,
+      provider: "vision",
+      feature: "assistant_tool",
+      success: false,
+      responseTimeMs: Date.now() - start,
+      errorMessage: result.error,
+    });
+    return;
+  }
+
+  const dateBR = draft.expense_date.split("-").reverse().join("/");
+  const catLabel = CATEGORY_LABEL[draft.category || "other"] || "Outros";
+  await sendTextMessage(
+    phone,
+    `✅ Despesa registrada: *${draft.description}* — R$ ${draft.amount.toFixed(2).replace(".", ",")} (${catLabel}, ${dateBR}).`,
+  );
+
+  await logAIRequest({
+    userId,
+    groupId,
+    provider: "vision",
+    feature: "assistant_tool",
+    success: true,
+    responseTimeMs: Date.now() - start,
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Image caption intent router (G6)                                   */
+/*                                                                     */
+/* Captions can carry slash-commands or natural keywords that pick     */
+/* the right OCR pipeline. Order matters: more-specific intents win.  */
+/* ------------------------------------------------------------------ */
+
+type ImageIntent = "prescription" | "vaccine" | "attestation" | "exam" | "receipt";
+
+function classifyImageIntent(caption: string | undefined): ImageIntent {
+  const c = (caption || "").toLowerCase().trim();
+  if (!c) return "receipt";
+
+  // Slash-commands take priority — explicit user intent.
+  if (/^\/?(receita|prescri[cç][aã]o)\b/.test(c)) return "prescription";
+  if (/^\/?vacina\b/.test(c)) return "vaccine";
+  if (/^\/?atestado\b/.test(c)) return "attestation";
+  if (/^\/?exame\b/.test(c)) return "exam";
+
+  // Natural keywords (legacy compatibility).
+  if (/receita|prescri[cç][aã]o|medicamento|rem[eé]dio/.test(c)) return "prescription";
+  if (/vacina(\b|s)/.test(c)) return "vaccine";
+  if (/atestado/.test(c)) return "attestation";
+  if (/exame|laudo|raio-x|ressonancia|ressonância/.test(c)) return "exam";
+
+  return "receipt";
+}
+
+/* ------------------------------------------------------------------ */
+/* History noise filter (G5)                                          */
+/*                                                                     */
+/* Skip synthetic system replies that pollute the LLM context — error */
+/* prompts, single-glyph confirmations, link-instruction templates.   */
+/* ------------------------------------------------------------------ */
+
+const NOISE_PATTERNS: RegExp[] = [
+  /^Acao cancelada/i,
+  /^Pronto! Acao realizada/i,
+  /^Muitas mensagens\. Aguarde/i,
+  /^Desculpe, ocorreu um erro/i,
+  /^Nao entendi\. Pode/i,
+  /^Nao consegui ler/i,
+  /Para comecar, vincule seu WhatsApp/i,
+  /^Erro ao identificar sua conta/i,
+];
+
+function isHistoricallyMeaningful(content: string | null | undefined): boolean {
+  if (!content) return false;
+  const trimmed = content.trim();
+  if (trimmed.length < 3) return false;
+  return !NOISE_PATTERNS.some((re) => re.test(trimmed));
+}
+
+/* ------------------------------------------------------------------ */
+/* Approval dispatcher: maps decoded button payload to service call    */
+/* ------------------------------------------------------------------ */
+
+async function dispatchApproval(
+  supabase: SupabaseClient,
+  responderId: string,
+  payload: ApprovalPayload,
+): Promise<{ ok: boolean; message: string }> {
+  const decision = payload.verb === "approve" ? "approved" : "rejected";
+
+  switch (payload.entity) {
+    case "swap": {
+      const result = await respondToSwapRequest(supabase, {
+        swapId: payload.id,
+        responderId,
+        decision,
+      });
+      if (!result.ok) return { ok: false, message: result.error };
+      return {
+        ok: true,
+        message:
+          decision === "approved"
+            ? "\u2705 Troca aprovada. Calendario atualizado."
+            : "\u274C Troca recusada.",
+      };
+    }
+    case "event_request":
+    case "expense":
+      return {
+        ok: false,
+        message:
+          "Aprovacao para esse tipo ainda nao esta disponivel pelo WhatsApp.",
+      };
   }
 }

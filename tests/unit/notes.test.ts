@@ -65,6 +65,8 @@ describe("notes actions", () => {
 
   describe("createNote", () => {
     it("success - redirects with success", async () => {
+      // Service does insert(...).select("id").single() — needs an id row.
+      mockChain.single.mockResolvedValueOnce({ data: { id: "note-1" }, error: null });
       await expect(createNote(fd({ groupId: "g1", childId: "c1", category: "lembrete", title: "Note", content: "text", noteDate: "2026-03-29" }))).rejects.toThrow("NEXT_REDIRECT");
       expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining("/notas?success="));
     });

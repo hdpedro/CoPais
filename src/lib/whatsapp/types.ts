@@ -216,6 +216,16 @@ export interface WASessionState {
   original_text?: string;
   awaiting_group_selection?: boolean;
   group_options?: Array<{ id: string; name: string }>;
+  /** Receipt multi-step flow (G4) — set after OCR succeeds and user
+   * needs to pick category and child before the expense is created. */
+  receipt_step?: "category" | "child";
+  receipt_draft?: {
+    description: string;
+    amount: number;
+    expense_date: string;
+    category?: string;
+    child_id?: string | null;
+  };
 }
 
 /** Phone link record from whatsapp_phone_links */

@@ -5,10 +5,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { verifyGroupMembership } from "@/lib/auth-utils";
-import { createNotificationWithPush } from "@/lib/push";
 import { captureServerEvent } from "@/lib/posthog-server";
-import { postChatNotification } from "@/lib/chat-notify";
 import { reportServerError } from "@/lib/error-tracking/report-server";
+import {
+  createSwapRequest as createSwapRequestService,
+  respondToSwapRequest as respondToSwapRequestService,
+} from "@/lib/services/swap";
 
 export async function createCustodyEvent(formData: FormData) {
   const supabase = await createClient();
@@ -162,99 +164,28 @@ export async function createSwapRequest(formData: FormData) {
   if (!user) return { error: "Nao autenticado" };
 
   const groupId = formData.get("groupId") as string;
-
-  // Verify user belongs to this group
-  const membership = await verifyGroupMembership(supabase, groupId, user.id);
-  if (!membership) {
-    return { error: "Sem permissao para este grupo." };
-  }
-
   const originalDate = formData.get("originalDate") as string;
-  const proposedDate = formData.get("proposedDate") as string;
-  const reason = formData.get("reason") as string;
+  const proposedDate = (formData.get("proposedDate") as string) || null;
+  const reason = (formData.get("reason") as string) || null;
   const targetUserId = formData.get("targetUserId") as string;
-  const requestType = (formData.get("requestType") as string) || "swap";
+  const requestType =
+    ((formData.get("requestType") as string) || "swap") === "visit"
+      ? "visit"
+      : "swap";
 
   if (!targetUserId) return { error: "Responsavel nao encontrado para este dia." };
-  // Self-swap protection — without this, tapping "Solicitar troca" no próprio
-  // dia inserts uma swap_requests row com requester_id === target_user_id, e
-  // a aprovação faz um custody_event de troca consigo mesmo (no-op + push de
-  // troca para o próprio usuário). API /api/swaps já bloqueia (route.ts:57).
-  if (targetUserId === user.id) {
-    return { error: "Voce ja e responsavel por este dia." };
-  }
 
-  // Validate target user is a member of the same group
-  const targetMembership = await verifyGroupMembership(supabase, groupId, targetUserId);
-  if (!targetMembership) {
-    return { error: "Usuario alvo nao pertence a este grupo." };
-  }
-
-  const isVisit = requestType === "visit";
-  const isDebtSwap = requestType === "swap" && !proposedDate;
-
-  const { error } = await supabase.from("swap_requests").insert({
-    group_id: groupId,
-    requester_id: user.id,
-    target_user_id: targetUserId,
-    original_date: originalDate,
-    proposed_date: proposedDate || null,
-    reason: isDebtSwap
-      ? `[DIVIDA] ${reason || ""}`.trim()
-      : reason || null,
-    status: "pending",
+  const result = await createSwapRequestService(supabase, {
+    groupId,
+    requesterId: user.id,
+    targetUserId,
+    originalDate,
+    proposedDate,
+    reason,
+    type: requestType,
   });
 
-  if (error) return { error: error.message };
-
-  // Send push notification to target user
-  try {
-    const { data: requesterProfile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.id)
-      .single();
-
-    const requesterName = requesterProfile?.full_name?.split(" ")[0] || "Alguem";
-    const dateFormatted = new Date(originalDate + "T12:00:00").toLocaleDateString("pt-BR", {
-      day: "numeric",
-      month: "short",
-    });
-
-    const notifTitle = isVisit
-      ? "Solicitacao de Visita"
-      : isDebtSwap
-        ? "Solicitacao de Dia (divida)"
-        : "Solicitacao de Troca";
-    const notifBody = isVisit
-      ? `${requesterName} quer visitar em ${dateFormatted}`
-      : isDebtSwap
-        ? `${requesterName} quer pegar o dia ${dateFormatted} (ficara devendo)`
-        : `${requesterName} quer trocar o dia ${dateFormatted}`;
-
-    await createNotificationWithPush(
-      targetUserId,
-      "swap_request",
-      notifTitle,
-      notifBody,
-      "/calendario"
-    );
-  } catch {
-    // Push failure shouldn't block the swap request
-  }
-
-  // Post to group chat
-  const chatIcon = isVisit ? "👀" : isDebtSwap ? "📅" : "🔄";
-  const chatMsg = isVisit
-    ? `${chatIcon} Solicitou visita para ${new Date(originalDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short", weekday: "short" })}`
-    : isDebtSwap
-      ? `${chatIcon} Solicitou o dia ${new Date(originalDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short", weekday: "short" })} (divida de dia)`
-      : `${chatIcon} Solicitou troca: ${new Date(originalDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" })} ↔ ${new Date(proposedDate + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" })}`;
-  try {
-    await postChatNotification(supabase, groupId, user.id, chatMsg);
-  } catch {
-    // Notification failure should not break the action
-  }
+  if (!result.ok) return { error: result.error };
 
   revalidatePath("/calendario");
   revalidatePath("/chat");
@@ -269,146 +200,13 @@ export async function respondToSwapRequest(formData: FormData) {
   const requestId = formData.get("requestId") as string;
   const response = formData.get("response") as "approved" | "rejected";
 
-  // Fetch the swap request
-  const { data: req } = await supabase
-    .from("swap_requests")
-    .select("*")
-    .eq("id", requestId)
-    .single();
+  const result = await respondToSwapRequestService(supabase, {
+    swapId: requestId,
+    responderId: user.id,
+    decision: response,
+  });
 
-  if (!req || req.target_user_id !== user.id) {
-    return { error: "Solicitacao nao encontrada" };
-  }
-
-  if (req.status !== "pending") {
-    return { error: "Esta solicitacao ja foi processada." };
-  }
-
-  // Update status — only if still pending (idempotent)
-  const { data: updated, error: updateError } = await supabase
-    .from("swap_requests")
-    .update({ status: response, responded_at: new Date().toISOString() })
-    .eq("id", requestId)
-    .eq("status", "pending")
-    .select("id");
-
-  if (updateError) {
-    return { error: updateError.message };
-  }
-
-  if (!updated || updated.length === 0) {
-    return { error: "Solicitacao ja foi processada por outro usuario." };
-  }
-
-  // If approved, swap custody for those dates
-  if (response === "approved") {
-    // Find event that covers the original date
-    const { data: origEvents } = await supabase
-      .from("custody_events")
-      .select("*")
-      .eq("group_id", req.group_id)
-      .lte("start_date", req.original_date)
-      .gte("end_date", req.original_date)
-      .limit(1);
-
-    const swapEvents = [];
-
-    // Original date: day goes to whoever was NOT the original owner.
-    // (Angelino fix 2e263a5 — antes sempre mandava pro requester, errado
-    // quando o próprio requester já era o dono do dia.)
-    if (origEvents && origEvents[0]) {
-      swapEvents.push({
-        group_id: req.group_id,
-        child_id: origEvents[0].child_id,
-        responsible_user_id: origEvents[0].responsible_user_id === req.requester_id
-            ? req.target_user_id   // requester owned the day → target gets it
-            : req.requester_id,    // target owned the day → requester gets it
-        start_date: req.original_date,
-        end_date: req.original_date,
-        custody_type: "swap",
-        notes: req.proposed_date
-          ? `Troca aprovada: ${req.reason || "sem motivo"}`
-          : `Divida de dia: ${req.reason || "sem motivo"}`,
-        created_by: user.id,
-      });
-    }
-
-    // Proposed date: same flip-from-current-owner logic as original date.
-    // The day goes to whoever was NOT the current owner. In a balanced swap
-    // where requester offered "I'll cover your day in exchange", the target
-    // currently owns proposed_date and the requester takes it on. The old
-    // hardcoded `target_user_id` here flipped the day BACK to its original
-    // owner — leaving Amanda's color on dates Angelino was supposed to have
-    // taken. (Bug surfaced 2026-05-01 when a real swap landed asymmetric.)
-    if (req.proposed_date) {
-      const { data: propEvents } = await supabase
-        .from("custody_events")
-        .select("*")
-        .eq("group_id", req.group_id)
-        .lte("start_date", req.proposed_date)
-        .gte("end_date", req.proposed_date)
-        .limit(1);
-
-      if (propEvents && propEvents[0]) {
-        swapEvents.push({
-          group_id: req.group_id,
-          child_id: propEvents[0].child_id,
-          responsible_user_id:
-            propEvents[0].responsible_user_id === req.requester_id
-              ? req.target_user_id // requester owned the proposed date → target takes it
-              : req.requester_id,  // target owned the proposed date → requester takes it
-          start_date: req.proposed_date,
-          end_date: req.proposed_date,
-          custody_type: "swap",
-          notes: `Troca aprovada: ${req.reason || "sem motivo"}`,
-          created_by: user.id,
-        });
-      }
-    }
-    // If no proposed_date, only one swap event is created
-    // This means the requester gains +1 day (debt) and the swap balance reflects it
-
-    if (swapEvents.length > 0) {
-      const { error: insertError } = await supabase.from("custody_events").insert(swapEvents);
-      if (insertError) {
-        return { error: insertError.message };
-      }
-    }
-  }
-
-  // Send push notification to requester about the response
-  try {
-    const { data: responderProfile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", user.id)
-      .single();
-
-    const responderName = responderProfile?.full_name?.split(" ")[0] || "Alguem";
-
-    await createNotificationWithPush(
-      req.requester_id,
-      "swap_response",
-      response === "approved" ? "Troca Aceita!" : "Troca Recusada",
-      response === "approved"
-        ? `${responderName} aceitou sua solicitacao de troca`
-        : `${responderName} recusou sua solicitacao de troca`,
-      "/calendario"
-    );
-  } catch {
-    // Push failure shouldn't block the response
-  }
-
-  // Post to group chat
-  const dateStr = new Date(req.original_date + "T12:00:00").toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
-  const chatMsg = response === "approved"
-    ? `✅ Troca aceita para ${dateStr}`
-    : `❌ Troca recusada para ${dateStr}`;
-  try {
-    await postChatNotification(supabase, req.group_id, user.id, chatMsg);
-  } catch {
-    // Notification failure should not break the action
-  }
+  if (!result.ok) return { error: result.error };
 
   revalidatePath("/calendario");
   revalidatePath("/chat");
