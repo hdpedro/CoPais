@@ -303,15 +303,13 @@ export async function processWhatsAppMessage(
   }
 
   /* ================================================================ */
-  /* Step 6: Handle image (receipt OCR)                                */
+  /* Step 6: Handle image (caption-routed: receipt | prescription | …) */
   /* ================================================================ */
 
   if (message.type === "image" && message.mediaId) {
-    // Check if caption suggests a prescription
-    const isPrescription = message.caption &&
-      /receita|prescri[cç][aã]o|medicamento|rem[eé]dio/i.test(message.caption);
+    const intent = classifyImageIntent(message.caption);
 
-    if (isPrescription) {
+    if (intent === "prescription") {
       // Fetch first child for this group (simplification for WhatsApp)
       const { data: children } = await supabase
         .from("children")
@@ -349,6 +347,21 @@ export async function processWhatsAppMessage(
         await sendTextMessage(phone, "Nao consegui ler a receita. Tente com uma foto mais nitida ou envie pelo app.");
         return;
       }
+    }
+
+    if (intent === "vaccine" || intent === "attestation" || intent === "exam") {
+      // These categories aren't auto-extracted yet \u2014 store as document and
+      // direct the user to the app for proper categorization.
+      const labels: Record<typeof intent, string> = {
+        vaccine: "comprovante de vacina",
+        attestation: "atestado",
+        exam: "exame",
+      };
+      await sendTextMessage(
+        phone,
+        `Recebi sua foto de ${labels[intent]}. Por enquanto preciso que voce anexe pelo app Kindar (Saude > Documentos) para extrair os dados corretamente. \uD83D\uDCC4`,
+      );
+      return;
     }
 
     await sendTextMessage(phone, "Analisando a imagem... \uD83D\uDD0D");
@@ -465,18 +478,25 @@ export async function processWhatsAppMessage(
     content: buildSystemPrompt(contextStr, custodyEnabled),
   };
 
-  // Load recent conversation history from message logs
+  // Load recent conversation history from message logs.
+  // Window: last 30 minutes AND last 10 turns (whichever is shorter), and
+  // skip synthetic system messages (errors, "Acao cancelada" prompts) so
+  // the LLM context isn't polluted with noise.
+  const HISTORY_WINDOW_MS = 30 * 60 * 1000;
+  const sinceISO = new Date(Date.now() - HISTORY_WINDOW_MS).toISOString();
+
   const { data: recentLogs } = await supabase
     .from("whatsapp_message_logs")
-    .select("direction, content, message_type")
+    .select("direction, content, message_type, created_at")
     .eq("phone_number", phone)
     .eq("message_type", "text")
+    .gte("created_at", sinceISO)
     .order("created_at", { ascending: false })
     .limit(10);
 
   const historyMessages: AIChatMessage[] = (recentLogs || [])
     .reverse()
-    .filter((l) => l.content)
+    .filter((l) => isHistoricallyMeaningful(l.content))
     .map((l) => ({
       role: l.direction === "inbound" ? "user" as const : "assistant" as const,
       content: l.content || "",
@@ -598,6 +618,59 @@ export async function processWhatsAppMessage(
       "Desculpe, ocorreu um erro. Tente novamente ou use o app Kindar. \uD83D\uDE4F"
     );
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Image caption intent router (G6)                                   */
+/*                                                                     */
+/* Captions can carry slash-commands or natural keywords that pick     */
+/* the right OCR pipeline. Order matters: more-specific intents win.  */
+/* ------------------------------------------------------------------ */
+
+type ImageIntent = "prescription" | "vaccine" | "attestation" | "exam" | "receipt";
+
+function classifyImageIntent(caption: string | undefined): ImageIntent {
+  const c = (caption || "").toLowerCase().trim();
+  if (!c) return "receipt";
+
+  // Slash-commands take priority — explicit user intent.
+  if (/^\/?(receita|prescri[cç][aã]o)\b/.test(c)) return "prescription";
+  if (/^\/?vacina\b/.test(c)) return "vaccine";
+  if (/^\/?atestado\b/.test(c)) return "attestation";
+  if (/^\/?exame\b/.test(c)) return "exam";
+
+  // Natural keywords (legacy compatibility).
+  if (/receita|prescri[cç][aã]o|medicamento|rem[eé]dio/.test(c)) return "prescription";
+  if (/vacina(\b|s)/.test(c)) return "vaccine";
+  if (/atestado/.test(c)) return "attestation";
+  if (/exame|laudo|raio-x|ressonancia|ressonância/.test(c)) return "exam";
+
+  return "receipt";
+}
+
+/* ------------------------------------------------------------------ */
+/* History noise filter (G5)                                          */
+/*                                                                     */
+/* Skip synthetic system replies that pollute the LLM context — error */
+/* prompts, single-glyph confirmations, link-instruction templates.   */
+/* ------------------------------------------------------------------ */
+
+const NOISE_PATTERNS: RegExp[] = [
+  /^Acao cancelada/i,
+  /^Pronto! Acao realizada/i,
+  /^Muitas mensagens\. Aguarde/i,
+  /^Desculpe, ocorreu um erro/i,
+  /^Nao entendi\. Pode/i,
+  /^Nao consegui ler/i,
+  /Para comecar, vincule seu WhatsApp/i,
+  /^Erro ao identificar sua conta/i,
+];
+
+function isHistoricallyMeaningful(content: string | null | undefined): boolean {
+  if (!content) return false;
+  const trimmed = content.trim();
+  if (trimmed.length < 3) return false;
+  return !NOISE_PATTERNS.some((re) => re.test(trimmed));
 }
 
 /* ------------------------------------------------------------------ */

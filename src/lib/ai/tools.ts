@@ -421,6 +421,54 @@ export const AI_TOOLS = [
       },
     },
   },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_child_status",
+      description:
+        "Status atual de uma crianca (doente? medicacoes ativas? alergias). Usar para 'como esta o Joaquim?', 'a Maria esta doente?'.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          child_name: {
+            type: "string",
+            description: "Nome da crianca (omita para retornar todas).",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_balance",
+      description:
+        "Saldo de despesas pendentes entre os coparentes (quem deve quanto a quem). Usar para 'como esta o saldo?', 'quanto a gente esta devendo?'.",
+      parameters: {
+        type: "object" as const,
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_child_history",
+      description:
+        "Linha do tempo recente de uma crianca: consultas, medicacoes, episodios de doenca, eventos. Usar para 'historico do Joaquim', 'o que aconteceu com a Maria nas ultimas semanas?'.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          child_name: { type: "string", description: "Nome da crianca." },
+          days: {
+            type: "string",
+            description: "Quantos dias para tras (default 30). Envie como string.",
+          },
+        },
+        required: ["child_name"],
+      },
+    },
+  },
 
   /* ---------- COMMUNICATION TOOLS ---------- */
   {
@@ -466,6 +514,9 @@ export async function executeTool(
       case "create_swap_request":  return await execCreateSwapRequest(params, ctx);
       case "respond_swap_request": return await execRespondSwapRequest(params, ctx);
       case "get_pending_approvals":return await execGetPendingApprovals(ctx);
+      case "get_child_status":     return await execGetChildStatus(params, ctx);
+      case "get_balance":          return await execGetBalance(ctx);
+      case "get_child_history":    return await execGetChildHistory(params, ctx);
       case "draft_message":        return { success: true, message: "DRAFT_MESSAGE_HANDLED_BY_LLM" };
       default:
         return { success: false, message: `Ferramenta desconhecida: ${name}` };
@@ -891,52 +942,58 @@ async function execGetHealth(p: Record<string, unknown>, ctx: ToolContext): Prom
   const child = resolveChild(String(p.child_name || ""), ctx.children);
   if (!child) return { success: false, message: "Nao encontrei essa crianca. Qual o nome?" };
 
-  // Recent health logs
-  const { data: logs } = await ctx.supabase
-    .from("health_logs")
-    .select("log_type, value, notes, logged_at")
-    .eq("child_id", child.id)
-    .order("logged_at", { ascending: false })
-    .limit(5);
-
-  // Upcoming appointments
-  const { data: appts } = await ctx.supabase
-    .from("medical_appointments")
-    .select("title, appointment_date, appointment_type")
-    .eq("child_id", child.id)
-    .gte("appointment_date", `${todayISO()}T00:00:00`)
-    .order("appointment_date")
-    .limit(3);
-
-  // Allergies
-  const { data: allergies } = await ctx.supabase
-    .from("health_logs")
-    .select("value, notes")
-    .eq("child_id", child.id)
-    .eq("log_type", "allergy");
-
-  // Active medications
-  const { data: meds } = await ctx.supabase
-    .from("health_logs")
-    .select("value, notes, logged_at")
-    .eq("child_id", child.id)
-    .eq("log_type", "medication")
-    .order("logged_at", { ascending: false })
-    .limit(3);
+  // Schema: real tables are `child_allergies`, `active_medications`,
+  // `medical_appointments`, `illness_episodes`. The legacy `health_logs`
+  // referenced by previous code does not exist.
+  const [
+    { data: allergies },
+    { data: meds },
+    { data: appts },
+    { data: illnesses },
+  ] = await Promise.all([
+    ctx.supabase
+      .from("child_allergies")
+      .select("name, severity, notes")
+      .eq("child_id", child.id)
+      .limit(10),
+    ctx.supabase
+      .from("active_medications")
+      .select("name, dosage, frequency, is_active, created_at")
+      .eq("child_id", child.id)
+      .order("created_at", { ascending: false })
+      .limit(5),
+    ctx.supabase
+      .from("medical_appointments")
+      .select("title, appointment_date")
+      .eq("child_id", child.id)
+      .gte("appointment_date", `${todayISO()}T00:00:00`)
+      .order("appointment_date")
+      .limit(3),
+    ctx.supabase
+      .from("illness_episodes")
+      .select("title, start_date, end_date, status")
+      .eq("child_id", child.id)
+      .eq("status", "active")
+      .order("start_date", { ascending: false })
+      .limit(3),
+  ]);
 
   const parts: string[] = [`Saude de ${child.name.split(" ")[0]}:`];
 
+  if (illnesses && illnesses.length > 0) {
+    const titles = illnesses.map((i) => i.title).filter(Boolean).join(", ");
+    parts.push(`Em curso: ${titles || "episodio ativo"}`);
+  }
+
   if (allergies && allergies.length > 0) {
-    parts.push(`Alergias: ${allergies.map((a) => a.value).join(", ")}`);
+    parts.push(`Alergias: ${allergies.map((a) => a.name).join(", ")}`);
   }
 
-  if (meds && meds.length > 0) {
-    parts.push(`Medicamentos recentes: ${meds.map((m) => m.value).join(", ")}`);
-  }
-
-  if (logs && logs.length > 0) {
-    const recent = logs.map((l) => `${l.log_type}: ${l.value}`).join("; ");
-    parts.push(`Registros recentes: ${recent}`);
+  const activeMeds = (meds || []).filter((m) => m.is_active !== false);
+  if (activeMeds.length > 0) {
+    parts.push(
+      `Medicamentos ativos: ${activeMeds.map((m) => `${m.name}${m.dosage ? ` (${m.dosage})` : ""}`).join(", ")}`,
+    );
   }
 
   if (appts && appts.length > 0) {
@@ -950,6 +1007,190 @@ async function execGetHealth(p: Record<string, unknown>, ctx: ToolContext): Prom
   }
 
   return { success: true, message: parts.join("\n") };
+}
+
+/* ------------------------------------------------------------------ */
+/* G7: Status atual da criança (view child_current_status)             */
+/* ------------------------------------------------------------------ */
+
+async function execGetChildStatus(
+  p: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const requestedName = String(p.child_name || "").trim();
+  let query = ctx.supabase
+    .from("child_current_status")
+    .select(
+      "child_id, full_name, is_sick, active_illness_titles, active_medications_count, active_medication_names, allergies_count",
+    )
+    .eq("group_id", ctx.groupId);
+
+  if (requestedName) {
+    const child = resolveChild(requestedName, ctx.children);
+    if (!child) {
+      return { success: false, message: "Nao encontrei essa crianca. Qual o nome?" };
+    }
+    query = query.eq("child_id", child.id);
+  }
+
+  const { data, error } = await query;
+  if (error) {
+    return { success: false, message: `Erro ao consultar status: ${error.message}` };
+  }
+  if (!data || data.length === 0) {
+    return { success: true, message: "Nenhuma informacao de status disponivel." };
+  }
+
+  const lines = data.map((row) => {
+    const first = String(row.full_name || "").split(" ")[0] || "Crianca";
+    const sick = row.is_sick ? "🤒 Doente" : "✅ Saudavel";
+    const illnessText =
+      row.is_sick && Array.isArray(row.active_illness_titles) && row.active_illness_titles.length > 0
+        ? ` (${row.active_illness_titles.join(", ")})`
+        : "";
+    const medsText =
+      row.active_medications_count > 0
+        ? ` · ${row.active_medications_count} medicacao(oes) ativas`
+        : "";
+    const allergiesText =
+      row.allergies_count > 0 ? ` · ${row.allergies_count} alergia(s)` : "";
+    return `${first}: ${sick}${illnessText}${medsText}${allergiesText}`;
+  });
+
+  return { success: true, message: lines.join("\n"), data: { rows: data } };
+}
+
+/* ------------------------------------------------------------------ */
+/* G8: Saldo de despesas pendentes entre coparentes                    */
+/* ------------------------------------------------------------------ */
+
+async function execGetBalance(ctx: ToolContext): Promise<ToolResult> {
+  const { data, error } = await ctx.supabase
+    .from("expense_balance_per_user")
+    .select("user_id, paid_pending, owes_pending")
+    .eq("group_id", ctx.groupId);
+
+  if (error) {
+    return { success: false, message: `Erro ao consultar saldo: ${error.message}` };
+  }
+  if (!data || data.length === 0) {
+    return { success: true, message: "Nenhuma despesa pendente. Tudo em dia ✨" };
+  }
+
+  const memberById = new Map(ctx.members.map((m) => [m.id, m.name.split(" ")[0]]));
+  const lines = data.map((row) => {
+    const name = memberById.get(row.user_id as string) || "Membro";
+    const paid = Number(row.paid_pending) || 0;
+    const owes = Number(row.owes_pending) || 0;
+    const net = paid - owes;
+    const arrow = net > 0 ? "→ recebe" : net < 0 ? "→ deve" : "→ neutro";
+    return `${name}: pagou ${formatBRL(paid)}, deve ${formatBRL(owes)} ${arrow} ${formatBRL(Math.abs(net))}`;
+  });
+
+  return {
+    success: true,
+    message: `Saldo (despesas pendentes):\n${lines.join("\n")}`,
+    data: { rows: data },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* G8: Histórico recente de uma criança (timeline)                     */
+/* ------------------------------------------------------------------ */
+
+async function execGetChildHistory(
+  p: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const child = resolveChild(String(p.child_name || ""), ctx.children);
+  if (!child) return { success: false, message: "Nao encontrei essa crianca. Qual o nome?" };
+
+  const days = Math.max(1, Math.min(180, Number(p.days) || 30));
+  const since = new Date();
+  since.setDate(since.getDate() - days);
+  const sinceISO = since.toISOString().split("T")[0];
+
+  const [
+    { data: appointments },
+    { data: illnesses },
+    { data: meds },
+    { data: events },
+  ] = await Promise.all([
+    ctx.supabase
+      .from("medical_appointments")
+      .select("title, appointment_date")
+      .eq("child_id", child.id)
+      .gte("appointment_date", `${sinceISO}T00:00:00`)
+      .order("appointment_date", { ascending: false })
+      .limit(10),
+    ctx.supabase
+      .from("illness_episodes")
+      .select("title, start_date, end_date, status")
+      .eq("child_id", child.id)
+      .gte("start_date", sinceISO)
+      .order("start_date", { ascending: false })
+      .limit(10),
+    ctx.supabase
+      .from("active_medications")
+      .select("name, dosage, created_at")
+      .eq("child_id", child.id)
+      .gte("created_at", `${sinceISO}T00:00:00`)
+      .order("created_at", { ascending: false })
+      .limit(10),
+    ctx.supabase
+      .from("events")
+      .select("title, event_date")
+      .eq("group_id", ctx.groupId)
+      .eq("child_id", child.id)
+      .gte("event_date", sinceISO)
+      .order("event_date", { ascending: false })
+      .limit(10),
+  ]);
+
+  type Entry = { date: string; line: string };
+  const entries: Entry[] = [];
+  const fmtBR = (iso: string) => iso.slice(0, 10).split("-").reverse().join("/");
+
+  (appointments || []).forEach((a) =>
+    entries.push({
+      date: String(a.appointment_date).slice(0, 10),
+      line: `🩺 ${fmtBR(String(a.appointment_date))} — Consulta: ${a.title}`,
+    }),
+  );
+  (illnesses || []).forEach((i) =>
+    entries.push({
+      date: i.start_date as string,
+      line: `🤒 ${fmtBR(i.start_date as string)} — ${i.title}${i.status === "active" ? " (ativo)" : ""}`,
+    }),
+  );
+  (meds || []).forEach((m) =>
+    entries.push({
+      date: String(m.created_at).slice(0, 10),
+      line: `💊 ${fmtBR(String(m.created_at))} — ${m.name}${m.dosage ? ` (${m.dosage})` : ""}`,
+    }),
+  );
+  (events || []).forEach((e) =>
+    entries.push({
+      date: e.event_date as string,
+      line: `📅 ${fmtBR(e.event_date as string)} — ${e.title}`,
+    }),
+  );
+
+  if (entries.length === 0) {
+    return {
+      success: true,
+      message: `Sem registros de ${child.name.split(" ")[0]} nos ultimos ${days} dias.`,
+    };
+  }
+
+  entries.sort((a, b) => (a.date > b.date ? -1 : 1));
+  const top = entries.slice(0, 15);
+
+  return {
+    success: true,
+    message: `Historico de ${child.name.split(" ")[0]} (ultimos ${days} dias):\n${top.map((e) => e.line).join("\n")}`,
+    data: { count: entries.length },
+  };
 }
 
 /* ------------------------------------------------------------------ */
