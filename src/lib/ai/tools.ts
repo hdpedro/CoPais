@@ -12,6 +12,7 @@ import {
 import { createExpense as createExpenseService } from "@/lib/services/expenses";
 import { createNote as createNoteService } from "@/lib/services/notes";
 import { createCheckin as createCheckinService } from "@/lib/services/checkin";
+import { createDecision as createDecisionService } from "@/lib/services/decisions";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -352,6 +353,34 @@ export const AI_TOOLS = [
     },
   },
 
+  {
+    type: "function" as const,
+    function: {
+      name: "create_decision",
+      description:
+        "Criar uma decisao colaborativa com o coparente para votacao (concordo/discordo). Usar quando o usuario disser 'precisamos decidir', 'vamos decidir', 'criar decisao'.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          title: { type: "string", description: "Titulo curto da decisao" },
+          description: {
+            type: "string",
+            description: "Contexto adicional para a discussao (opcional)",
+          },
+          category: {
+            type: "string",
+            description: "Categoria (escola, saude, financeiro, rotina, outro)",
+          },
+          deadline: {
+            type: "string",
+            description: "Data limite YYYY-MM-DD (opcional)",
+          },
+        },
+        required: ["title"],
+      },
+    },
+  },
+
   /* ---------- TWO-PARTY ACTION TOOLS (require approval) ---------- */
   {
     type: "function" as const,
@@ -508,6 +537,7 @@ export async function executeTool(
       case "create_checkin":       return await execCreateCheckin(params, ctx);
       case "create_note":          return await execCreateNote(params, ctx);
       case "create_activity":      return await execCreateActivity(params, ctx);
+      case "create_decision":      return await execCreateDecision(params, ctx);
       case "get_custody_info":     return await execGetCustody(params, ctx);
       case "get_expenses_summary": return await execGetExpenses(params, ctx);
       case "get_upcoming_events":  return await execGetUpcoming(params, ctx);
@@ -669,6 +699,27 @@ async function execCreateCheckin(p: Record<string, unknown>, ctx: ToolContext): 
   return {
     success: true,
     message: `Check-in registrado${childLabel}: ${title}`,
+    data: { id: result.data.id },
+  };
+}
+
+async function execCreateDecision(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const title = String(p.title || "").trim();
+  if (!title) return { success: false, message: "Qual e o titulo da decisao?" };
+
+  const result = await createDecisionService(ctx.supabase, {
+    groupId: ctx.groupId,
+    createdBy: ctx.userId,
+    title,
+    description: (p.description as string) || null,
+    category: (p.category as string) || undefined,
+    deadline: (p.deadline as string) || null,
+  });
+
+  if (!result.ok) return { success: false, message: result.error };
+  return {
+    success: true,
+    message: `Decisao criada: "${title}". Coparente foi notificado para votar.`,
     data: { id: result.data.id },
   };
 }

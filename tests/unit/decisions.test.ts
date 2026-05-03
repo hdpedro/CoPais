@@ -60,6 +60,9 @@ describe("decisions actions", () => {
 
   describe("createDecision", () => {
     it("success - redirects to /decisoes", async () => {
+      // Service: verifyMembership (maybeSingle) → INSERT...select.single
+      mockChain.maybeSingle.mockResolvedValueOnce({ data: { user_id: "test-user-id" }, error: null });
+      mockChain.single.mockResolvedValueOnce({ data: { id: "d1" }, error: null });
       const form = fd({ groupId: "g1", title: "Test", description: "desc", category: "education", deadline: "2026-04-01" });
       await expect(createDecision(form)).rejects.toThrow("NEXT_REDIRECT");
       expect(mockRedirect).toHaveBeenCalledWith("/decisoes");
@@ -77,7 +80,8 @@ describe("decisions actions", () => {
     });
 
     it("no group membership - redirects to /dashboard with error", async () => {
-      mockVerify.mockResolvedValueOnce(null);
+      // Service queries group_members via maybeSingle directly (no helper).
+      mockChain.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
       await expect(createDecision(fd({ groupId: "g1", title: "T", description: "", category: "", deadline: "" }))).rejects.toThrow("NEXT_REDIRECT");
       expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining("/dashboard?error="));
     });
@@ -87,10 +91,13 @@ describe("decisions actions", () => {
 
   describe("castVote", () => {
     it("success - redirects to /decisoes", async () => {
-      mockChain.single.mockResolvedValueOnce({
-        data: { id: "d1", group_id: "g1", title: "T", status: "aberta", created_by: "other" },
-        error: null,
-      });
+      // Service: decision lookup (maybeSingle) → membership (maybeSingle) → upsert.
+      mockChain.maybeSingle
+        .mockResolvedValueOnce({
+          data: { id: "d1", group_id: "g1", title: "T", status: "aberta", created_by: "other" },
+          error: null,
+        })
+        .mockResolvedValueOnce({ data: { user_id: "test-user-id" }, error: null });
       await expect(castVote(fd({ decisionId: "d1", vote: "concordo" }))).rejects.toThrow("NEXT_REDIRECT");
       expect(mockRedirect).toHaveBeenCalledWith("/decisoes");
     });
@@ -116,7 +123,10 @@ describe("decisions actions", () => {
 
   describe("addArgument", () => {
     it("success - redirects to /decisoes", async () => {
-      mockChain.single.mockResolvedValueOnce({ data: { group_id: "g1" }, error: null });
+      // Service: decision lookup (maybeSingle) → membership (maybeSingle).
+      mockChain.maybeSingle
+        .mockResolvedValueOnce({ data: { group_id: "g1" }, error: null })
+        .mockResolvedValueOnce({ data: { user_id: "test-user-id" }, error: null });
       await expect(addArgument(fd({ decisionId: "d1", argumentType: "pro", text: "Good idea" }))).rejects.toThrow("NEXT_REDIRECT");
       expect(mockRedirect).toHaveBeenCalledWith("/decisoes");
     });

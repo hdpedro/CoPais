@@ -302,6 +302,19 @@ export function mapLocalActionToTool(
       };
     }
 
+    case "createDecision": {
+      const title = (p.title || "").trim();
+      if (!title) return null;
+      return {
+        toolName: "create_decision",
+        toolParams: {
+          title,
+          description: p.description || "",
+          category: p.category || "outro",
+        },
+      };
+    }
+
     default:
       return null;
   }
