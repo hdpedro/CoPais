@@ -8,22 +8,23 @@
 - `docs/` — se algum documento específico foi afetado
 - Arquivos de tradução (`src/i18n/locales/*.json`) — todas as novas strings em 5 idiomas
 
-## Regra crítica: paridade PWA ↔ Nativo
+## Regra crítica: paridade PWA ↔ Nativo ↔ WhatsApp
 
-**Sempre que mudar lógica server-side, corrigir EM AMBOS:**
-- `src/actions/*.ts` (PWA — server actions com FormData usadas no web)
-- `src/app/api/*/route.ts` (Native — endpoints REST com Bearer auth usados pelo iOS/Android)
+**Padrão preferido**: extrair regra de negócio para `src/lib/services/<dominio>.ts` (função pura que recebe `SupabaseClient` + payload + retorna `ServiceResult`). Os três callers viram wrappers finos:
+- `src/actions/*.ts` (PWA — server actions com FormData)
+- `src/app/api/*/route.ts` (Native — endpoints REST com Bearer auth)
+- `src/lib/ai/tools.ts` (Assistente in-app + WhatsApp)
 
-Os dois têm a mesma lógica de negócio mas vivem em arquivos separados. Se mudar
-em um só, o outro fica divergente e o bug aparece só no fluxo que não foi tocado.
+Cada caller só faz: auth + parsing + adaptação do retorno (NextResponse vs redirect vs ToolResult). Lógica de negócio e side-effects (push, chat, notify) ficam **somente** no service.
 
-Pares conhecidos:
-- `actions/calendar.ts:respondToSwapRequest` ↔ `api/swaps/route.ts:PATCH`
-- `actions/calendar.ts:requestSwap` ↔ `api/swaps/route.ts:POST`
+Pares já consolidados via service:
+- `services/swap.ts` ← `actions/calendar.ts:{createSwapRequest,respondToSwapRequest}` + `api/swaps/route.ts:{POST,PATCH}` + tools `create_swap_request`/`respond_swap_request`/`get_pending_approvals`
+
+Pares ainda em paridade direta (a migrar para services):
 - `actions/subscription-split.ts:enableSubscriptionSplit` ↔ `api/subscription/split/route.ts:POST`
 - `actions/subscription-split.ts:disableSubscriptionSplit` ↔ `api/subscription/split/route.ts:DELETE`
 
-Quando descobrir um par novo, adicione aqui.
+Quando descobrir um par novo, adicione aqui. Quando extrair um service, mova-o da seção "em paridade direta" para "consolidados".
 
 Bugs anteriores causados por esquecer essa regra:
-- `2026-05-01` swap proposed_date direction: corrigido no PWA mas não no native, depois descoberto e corrigido no commit 6b273c0.
+- `2026-05-01` swap proposed_date direction: corrigido no PWA mas não no native, depois descoberto e corrigido no commit 6b273c0. Solução estrutural: a partir de hoje a lógica vive em `services/swap.ts` única.

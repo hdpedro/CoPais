@@ -4,6 +4,11 @@
 /* ------------------------------------------------------------------ */
 
 import { SupabaseClient } from "@supabase/supabase-js";
+import {
+  createSwapRequest as createSwapRequestService,
+  respondToSwapRequest as respondToSwapRequestService,
+  listPendingSwapsForUser,
+} from "@/lib/services/swap";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -353,6 +358,78 @@ export const AI_TOOLS = [
     },
   },
 
+  /* ---------- TWO-PARTY ACTION TOOLS (require approval) ---------- */
+  {
+    type: "function" as const,
+    function: {
+      name: "create_swap_request",
+      description:
+        "Solicitar troca de dia (ou pedir um dia em divida) com o coparente. Usar quando o usuario disser 'trocar dia X', 'quero o dia X', 'trocar X por Y'.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          target_member_name: {
+            type: "string",
+            description: "Nome do coparente que precisa aprovar a troca.",
+          },
+          original_date: {
+            type: "string",
+            description: "Data que o usuario quer pegar / trocar (YYYY-MM-DD).",
+          },
+          proposed_date: {
+            type: "string",
+            description:
+              "Data que o usuario oferece em troca (YYYY-MM-DD). Omita para pedir o dia como divida.",
+          },
+          reason: {
+            type: "string",
+            description: "Motivo curto (opcional).",
+          },
+          type: {
+            type: "string",
+            enum: ["swap", "visit"],
+            description: "swap = troca / divida; visit = visita pontual.",
+          },
+        },
+        required: ["target_member_name", "original_date"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "respond_swap_request",
+      description:
+        "Aprovar ou recusar uma solicitacao de troca pendente direcionada ao usuario.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          swap_id: { type: "string", description: "UUID da swap_request." },
+          decision: {
+            type: "string",
+            enum: ["approved", "rejected"],
+            description: "approved aceita; rejected recusa.",
+          },
+        },
+        required: ["swap_id", "decision"],
+      },
+    },
+  },
+
+  /* ---------- INBOX QUERY ---------- */
+  {
+    type: "function" as const,
+    function: {
+      name: "get_pending_approvals",
+      description:
+        "Listar solicitacoes pendentes que aguardam aprovacao do usuario (trocas de dia, etc).",
+      parameters: {
+        type: "object" as const,
+        properties: {},
+      },
+    },
+  },
+
   /* ---------- COMMUNICATION TOOLS ---------- */
   {
     type: "function" as const,
@@ -394,6 +471,9 @@ export async function executeTool(
       case "get_upcoming_events":  return await execGetUpcoming(params, ctx);
       case "get_children_info":    return await execGetChildren(ctx);
       case "get_health_summary":   return await execGetHealth(params, ctx);
+      case "create_swap_request":  return await execCreateSwapRequest(params, ctx);
+      case "respond_swap_request": return await execRespondSwapRequest(params, ctx);
+      case "get_pending_approvals":return await execGetPendingApprovals(ctx);
       case "draft_message":        return { success: true, message: "DRAFT_MESSAGE_HANDLED_BY_LLM" };
       default:
         return { success: false, message: `Ferramenta desconhecida: ${name}` };
@@ -882,4 +962,111 @@ async function execGetHealth(p: Record<string, unknown>, ctx: ToolContext): Prom
   }
 
   return { success: true, message: parts.join("\n") };
+}
+
+/* ------------------------------------------------------------------ */
+/* TWO-PARTY EXECUTORS (delegate to services for paridade PWA/Native)  */
+/* ------------------------------------------------------------------ */
+
+function resolveMember(
+  name: string,
+  members: ToolContext["members"],
+  selfId: string,
+): ToolContext["members"][number] | null {
+  if (!name) return null;
+  const n = norm(name);
+  for (const m of members) {
+    if (m.id === selfId) continue;
+    const first = norm(m.name.split(" ")[0]);
+    if (n.includes(first) || first.includes(n)) return m;
+  }
+  // Fallback: if only one other member exists, pick them.
+  const others = members.filter((m) => m.id !== selfId);
+  if (others.length === 1) return others[0];
+  return null;
+}
+
+async function execCreateSwapRequest(
+  p: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const targetName = String(p.target_member_name || "");
+  const target = resolveMember(targetName, ctx.members, ctx.userId);
+  if (!target) {
+    return {
+      success: false,
+      message: "Nao identifiquei com qual coparente voce quer trocar. Diga o nome.",
+    };
+  }
+
+  const originalDate = String(p.original_date || "");
+  if (!originalDate) {
+    return { success: false, message: "Qual data voce quer trocar?" };
+  }
+
+  const result = await createSwapRequestService(ctx.supabase, {
+    groupId: ctx.groupId,
+    requesterId: ctx.userId,
+    targetUserId: target.id,
+    originalDate,
+    proposedDate: (p.proposed_date as string) || null,
+    reason: (p.reason as string) || null,
+    type: p.type === "visit" ? "visit" : "swap",
+  });
+
+  if (!result.ok) return { success: false, message: result.error };
+
+  const dateBR = originalDate.split("-").reverse().join("/");
+  const targetFirst = target.name.split(" ")[0];
+  return {
+    success: true,
+    message: `Solicitacao de troca enviada para ${targetFirst} (${dateBR}). Voce sera avisado quando responder.`,
+    data: { id: result.data.id, target_user_id: target.id },
+  };
+}
+
+async function execRespondSwapRequest(
+  p: Record<string, unknown>,
+  ctx: ToolContext,
+): Promise<ToolResult> {
+  const swapId = String(p.swap_id || "");
+  const decision = p.decision === "approved" ? "approved" : "rejected";
+
+  const result = await respondToSwapRequestService(ctx.supabase, {
+    swapId,
+    responderId: ctx.userId,
+    decision,
+  });
+
+  if (!result.ok) return { success: false, message: result.error };
+
+  return {
+    success: true,
+    message:
+      decision === "approved"
+        ? "Troca aprovada. Calendario atualizado."
+        : "Troca recusada.",
+  };
+}
+
+async function execGetPendingApprovals(ctx: ToolContext): Promise<ToolResult> {
+  const swaps = await listPendingSwapsForUser(ctx.supabase, ctx.userId, ctx.groupId);
+
+  if (swaps.length === 0) {
+    return { success: true, message: "Nenhuma aprovacao pendente. ✨" };
+  }
+
+  const lines = swaps.map((s) => {
+    const d = s.original_date.split("-").reverse().join("/");
+    const prop = s.proposed_date
+      ? ` ↔ ${s.proposed_date.split("-").reverse().join("/")}`
+      : " (divida)";
+    return `• ${s.requester_name}: ${d}${prop}${s.reason ? ` — ${s.reason}` : ""}`;
+  });
+
+  return {
+    success: true,
+    message: `Voce tem ${swaps.length} aprovacao(oes) pendente(s):\n${lines.join("\n")}\n\nResponda com 'aprovar <numero>' ou 'recusar <numero>' (use os botoes quando aparecerem).`,
+    data: { swaps },
+  };
 }

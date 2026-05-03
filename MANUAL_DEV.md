@@ -363,11 +363,12 @@ Browser
 1. **Server/Client Split**: Pagina `page.tsx` (Server) busca dados, componente `*Client.tsx` (Client) renderiza com `useI18n()`
 2. **35+ Client Components** seguem este padrao (DashboardClient, SaudeClient, ProfileContent, etc.)
 3. **Server Actions** (`"use server"`): Para mutacoes. Ficam em `src/actions/`. Todos usam `getUser()` para auth
-4. **Sem API Routes tradicionais**: Exceto iCal feed, chat API e cron jobs
-5. **Sem ORM**: Queries diretas com `supabase.from("tabela").select/insert/update`
-6. **Sem FK Joins**: PostgREST FK joins removidos, substituidos por queries separadas + joins manuais em JS
-7. **Sem state management global**: Cada page busca seus proprios dados. Revalidacao via `revalidatePath()`
-8. **i18n via useI18n()**: Todas as strings de UI traduzidas em 5 idiomas
+4. **API Routes** em `src/app/api/`: usadas para clientes nativos (Bearer auth), webhooks (Stripe, Meta WhatsApp), iCal feed e cron jobs
+5. **Services Layer** (`src/lib/services/<dominio>.ts`): regra de negocio canonica para dominios chamados de mais de um caller (PWA action + Native API + WhatsApp tools). Function pura `(supabase, payload) → ServiceResult<T>`. Os callers sao wrappers finos (auth + parsing + adapter de retorno). Side-effects (push, chat, notify WhatsApp) ficam **somente** no service. Exemplo canonico: `services/swap.ts`. Quando voce extrair um novo service, atualize tambem `.claude/CLAUDE.md`.
+6. **Sem ORM**: Queries diretas com `supabase.from("tabela").select/insert/update`
+7. **Sem FK Joins**: PostgREST FK joins removidos, substituidos por queries separadas + joins manuais em JS
+8. **Sem state management global**: Cada page busca seus proprios dados. Revalidacao via `revalidatePath()`
+9. **i18n via useI18n()**: Todas as strings de UI traduzidas em 5 idiomas
 
 ### Fluxo de Dados Tipico
 

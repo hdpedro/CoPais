@@ -287,6 +287,21 @@ export function mapLocalActionToTool(
         },
       };
 
+    case "createSwapRequest": {
+      const originalDate = p.date || "";
+      if (!originalDate) return null;
+      return {
+        toolName: "create_swap_request",
+        toolParams: {
+          target_member_name: p.targetMember || "",
+          original_date: originalDate,
+          proposed_date: p.proposedDate || "",
+          reason: p.reason || "",
+          type: "swap",
+        },
+      };
+    }
+
     default:
       return null;
   }

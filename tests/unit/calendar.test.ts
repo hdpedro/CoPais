@@ -152,7 +152,20 @@ describe("calendar actions", () => {
       reason: "Viagem", targetUserId: "user-b", requestType: "swap",
     };
 
+    /** Service queries group_members for both requester+target. Make the
+     *  thenable resolve with both memberships so the service passes the
+     *  permission gate. */
+    function mockBothMembersPresent() {
+      mockChain.then = (resolve: (v: unknown) => unknown) =>
+        resolve({
+          data: [{ user_id: "test-user-id" }, { user_id: "user-b" }],
+          error: null,
+        });
+      mockChain.single.mockResolvedValue({ data: { id: "rec-1" }, error: null });
+    }
+
     it("creates a swap request and returns success", async () => {
+      mockBothMembersPresent();
       const result = await createSwapRequest(fd(base));
       expect(result).toEqual({ success: true });
     });
@@ -164,7 +177,10 @@ describe("calendar actions", () => {
     });
 
     it("returns error when no membership", async () => {
-      mockVerifyGroupMembership.mockResolvedValueOnce(null);
+      // Service does its own group_members lookup; default mock then returns
+      // {data: null}, which fails the permission gate.
+      mockChain.then = (resolve: (v: unknown) => unknown) =>
+        resolve({ data: [], error: null });
       const result = await createSwapRequest(fd(base));
       expect(result).toEqual({ error: "Sem permissao para este grupo." });
     });

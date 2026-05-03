@@ -21,6 +21,8 @@ import {
 } from "@/lib/ai/assistant-shared";
 
 import { resolveIdentity, setActiveGroup } from "./identity";
+import { decodeApproval, ApprovalPayload } from "./approvals";
+import { respondToSwapRequest } from "@/lib/services/swap";
 import {
   loadSession,
   hasPendingConfirmation,
@@ -224,6 +226,27 @@ export async function processWhatsAppMessage(
     await setActiveGroup(supabase, phone, "");
     await sendTextMessage(phone, "Grupo desvinculado. Envie qualquer mensagem para selecionar outro grupo.");
     return;
+  }
+
+  /* ================================================================ */
+  /* Step 4.5: Handle approval/reject buttons (two-party actions)      */
+  /* ================================================================ */
+
+  if (message.buttonReplyId) {
+    const approval = decodeApproval(message.buttonReplyId);
+    if (approval) {
+      const result = await dispatchApproval(supabase, userId, approval);
+      await sendAndLog(supabase, phone, result.message, userId);
+      await logAIRequest({
+        userId,
+        groupId,
+        provider: "local",
+        feature: "assistant_tool",
+        success: result.ok,
+        responseTimeMs: Date.now() - start,
+      });
+      return;
+    }
   }
 
   /* ================================================================ */
@@ -574,5 +597,42 @@ export async function processWhatsAppMessage(
       phone,
       "Desculpe, ocorreu um erro. Tente novamente ou use o app Kindar. \uD83D\uDE4F"
     );
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Approval dispatcher: maps decoded button payload to service call    */
+/* ------------------------------------------------------------------ */
+
+async function dispatchApproval(
+  supabase: SupabaseClient,
+  responderId: string,
+  payload: ApprovalPayload,
+): Promise<{ ok: boolean; message: string }> {
+  const decision = payload.verb === "approve" ? "approved" : "rejected";
+
+  switch (payload.entity) {
+    case "swap": {
+      const result = await respondToSwapRequest(supabase, {
+        swapId: payload.id,
+        responderId,
+        decision,
+      });
+      if (!result.ok) return { ok: false, message: result.error };
+      return {
+        ok: true,
+        message:
+          decision === "approved"
+            ? "\u2705 Troca aprovada. Calendario atualizado."
+            : "\u274C Troca recusada.",
+      };
+    }
+    case "event_request":
+    case "expense":
+      return {
+        ok: false,
+        message:
+          "Aprovacao para esse tipo ainda nao esta disponivel pelo WhatsApp.",
+      };
   }
 }
