@@ -19,6 +19,7 @@ Cada caller só faz: auth + parsing + adaptação do retorno (NextResponse vs re
 
 Pares já consolidados via service:
 - `services/swap.ts` ← `actions/calendar.ts:{createSwapRequest,respondToSwapRequest}` + `api/swaps/route.ts:{POST,PATCH}` + tools `create_swap_request`/`respond_swap_request`/`get_pending_approvals`
+- `services/expenses.ts` ← `actions/expenses.ts:{createExpense,updateExpenseStatus,deleteExpense}` + tool `create_expense`. Native (`kindar-native/src/services/expenses.ts`) ainda escreve direto via `safeWrite` para suporte offline — divergência conhecida que requer refactor offline-first separado para fechar.
 
 Pares ainda em paridade direta (a migrar para services):
 - `actions/subscription-split.ts:enableSubscriptionSplit` ↔ `api/subscription/split/route.ts:POST`

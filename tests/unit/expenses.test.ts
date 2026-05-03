@@ -82,7 +82,13 @@ function setupChain() {
     }
   }
   mockChain.then = (r: any) => r({ data: null, error: null });
+  // Service uses maybeSingle for membership/child/expense lookups; default
+  // to a row that satisfies "user is a member" so flow proceeds.
   mockChain.single.mockResolvedValue({ data: { id: "child-1" }, error: null });
+  mockChain.maybeSingle.mockResolvedValue({
+    data: { user_id: "test-user-id", id: "child-1" },
+    error: null,
+  });
 }
 
 function expectRedirectContains(text: string) {
@@ -148,7 +154,8 @@ describe("expenses actions", () => {
     });
 
     it("redirects with error when user has no membership", async () => {
-      mockVerifyGroupMembership.mockResolvedValueOnce(null);
+      // Service queries group_members via maybeSingle.
+      mockChain.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
       await expect(createExpense(fd(base))).rejects.toThrow("NEXT_REDIRECT");
       expectRedirectContains("Sem permissao");
     });
@@ -169,7 +176,7 @@ describe("expenses actions", () => {
 
   describe("updateExpenseStatus", () => {
     it("approves an expense from another user", async () => {
-      mockChain.single.mockResolvedValueOnce({
+      mockChain.maybeSingle.mockResolvedValueOnce({
         data: { group_id: "group-1", paid_by: "other-user-id", description: "Consulta", amount: 250, status: "pending" },
         error: null,
       });
@@ -180,7 +187,7 @@ describe("expenses actions", () => {
     });
 
     it("rejects an expense", async () => {
-      mockChain.single.mockResolvedValueOnce({
+      mockChain.maybeSingle.mockResolvedValueOnce({
         data: { group_id: "group-1", paid_by: "other-user-id", description: "Consulta", amount: 250, status: "pending" },
         error: null,
       });
@@ -191,7 +198,7 @@ describe("expenses actions", () => {
     });
 
     it("blocks self-approval", async () => {
-      mockChain.single.mockResolvedValueOnce({
+      mockChain.maybeSingle.mockResolvedValueOnce({
         data: { group_id: "group-1", paid_by: "test-user-id", description: "Minha", amount: 100, status: "pending" },
         error: null,
       });
@@ -210,7 +217,7 @@ describe("expenses actions", () => {
     });
 
     it("blocks status regression from approved to pending", async () => {
-      mockChain.single.mockResolvedValueOnce({
+      mockChain.maybeSingle.mockResolvedValueOnce({
         data: { group_id: "group-1", paid_by: "other-user-id", description: "Consulta", amount: 250, status: "approved" },
         error: null,
       });
@@ -227,7 +234,7 @@ describe("expenses actions", () => {
 
   describe("deleteExpense", () => {
     it("deletes a pending expense created by the user", async () => {
-      mockChain.single.mockResolvedValueOnce({
+      mockChain.maybeSingle.mockResolvedValueOnce({
         data: { group_id: "group-1", paid_by: "test-user-id", status: "pending" },
         error: null,
       });
@@ -236,7 +243,7 @@ describe("expenses actions", () => {
     });
 
     it("blocks deletion by non-creator", async () => {
-      mockChain.single.mockResolvedValueOnce({
+      mockChain.maybeSingle.mockResolvedValueOnce({
         data: { group_id: "group-1", paid_by: "other-user-id", status: "pending" },
         error: null,
       });
@@ -245,7 +252,7 @@ describe("expenses actions", () => {
     });
 
     it("blocks deletion of already-approved expense", async () => {
-      mockChain.single.mockResolvedValueOnce({
+      mockChain.maybeSingle.mockResolvedValueOnce({
         data: { group_id: "group-1", paid_by: "test-user-id", status: "approved" },
         error: null,
       });

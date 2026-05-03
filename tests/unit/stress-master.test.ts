@@ -665,8 +665,12 @@ describe("BLOCO C — Saúde (25)", () => {
 // =============================================================================
 describe("BLOCO D — Financeiro (20)", () => {
   it("D91 · criar despesa simples: createExpense valida amount > 0 && <= 999999.99", () => {
-    const file = fs.readFileSync(path.resolve(__dirname, "../../src/actions/expenses.ts"), "utf8");
-    expect(file).toMatch(/amount\s*<=?\s*0|amount\s*>\s*999999\.99/);
+    // Validation lives in services/expenses.ts (shared between PWA action and WhatsApp tool).
+    const file = fs.readFileSync(
+      path.resolve(__dirname, "../../src/lib/services/expenses.ts"),
+      "utf8",
+    );
+    expect(file).toMatch(/amount\s*<=?\s*0|amount\s*>\s*MAX_AMOUNT|999_?999\.99/);
   });
 
   it("D92 · criar despesa com foto: storage bucket usado por expenses", () => {
@@ -768,7 +772,11 @@ describe("BLOCO D — Financeiro (20)", () => {
   });
 
   it("D109 · push de despesa: createNotificationWithPush em updateExpenseStatus", () => {
-    const file = fs.readFileSync(path.resolve(__dirname, "../../src/actions/expenses.ts"), "utf8");
+    // Push side-effect for status changes lives in services/expenses.ts.
+    const file = fs.readFileSync(
+      path.resolve(__dirname, "../../src/lib/services/expenses.ts"),
+      "utf8",
+    );
     expect(file).toMatch(/createNotificationWithPush[\s\S]{0,500}expense_(approved|rejected)/);
   });
 
@@ -881,8 +889,12 @@ describe("BLOCO E — Chat / Notificações (20)", () => {
   });
 
   it("E123 · push duplicado não ocorre: sender é excluído da audiência (notif só pra outro)", () => {
-    const file = fs.readFileSync(path.resolve(__dirname, "../../src/actions/expenses.ts"), "utf8");
-    expect(file).toMatch(/expense\.paid_by\s*!==\s*user\.id/);
+    // Now in services/expenses.ts: members query excludes paid_by via .neq().
+    const file = fs.readFileSync(
+      path.resolve(__dirname, "../../src/lib/services/expenses.ts"),
+      "utf8",
+    );
+    expect(file).toMatch(/\.neq\(["']user_id["']\s*,\s*args\.paidBy\)|paid_by\s*!==\s*reviewerId/);
   });
 
   it("E124 · push atrasado não ocorre: notify wrap em try/catch (não bloqueia ação)", () => {

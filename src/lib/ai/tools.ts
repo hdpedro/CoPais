@@ -9,6 +9,7 @@ import {
   respondToSwapRequest as respondToSwapRequestService,
   listPendingSwapsForUser,
 } from "@/lib/services/swap";
+import { createExpense as createExpenseService } from "@/lib/services/expenses";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -47,15 +48,6 @@ function resolveChild(
     if (n.includes(first) || first.includes(n)) return c;
   }
   return null;
-}
-
-function buildSplitRatio(members: ToolContext["members"]): Record<string, number> {
-  const r: Record<string, number> = {};
-  const share = Math.floor(100 / members.length);
-  members.forEach((m, i) => {
-    r[m.id] = i === members.length - 1 ? 100 - share * (members.length - 1) : share;
-  });
-  return r;
 }
 
 function todayISO(): string {
@@ -491,39 +483,35 @@ export async function executeTool(
 
 async function execCreateExpense(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
   const amount = parseAmount(p.amount);
-  if (amount <= 0) return { success: false, message: "Valor da despesa deve ser maior que zero." };
+  if (amount <= 0) {
+    return { success: false, message: "Valor da despesa deve ser maior que zero." };
+  }
   const desc = String(p.description || "Despesa");
   const child = resolveChild(String(p.child_name || ""), ctx.children);
   const date = parseDate(p.date, todayISO());
 
-  const insertData = {
-    group_id: ctx.groupId,
-    description: desc.slice(0, 200),
+  const result = await createExpenseService(ctx.supabase, {
+    groupId: ctx.groupId,
+    paidBy: ctx.userId,
+    description: desc,
     amount,
-    category: p.category || "other",
-    child_id: child?.id || null,
-    paid_by: ctx.userId,
-    expense_date: date,
-    split_ratio: buildSplitRatio(ctx.members),
-    status: "pending",
-  };
+    category: String(p.category || "other"),
+    expenseDate: date,
+    childId: child?.id || null,
+    splitRatio: null, // service builds default ratio from group members
+    receiptUrl: (p.receipt_url as string) || null,
+    origin: "whatsapp",
+  });
 
-  console.log("[TOOL] create_expense INSERT:", JSON.stringify(insertData));
-
-  const { error } = await ctx.supabase.from("expenses").insert(insertData);
-
-  if (error) {
-    console.error("[TOOL] create_expense ERROR:", error.code, error.message, error.details);
-    return { success: false, message: `Erro ao registrar: ${error.message}` };
+  if (!result.ok) {
+    return { success: false, message: result.error };
   }
-
-  console.log("[TOOL] create_expense SUCCESS");
 
   const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
   return {
     success: true,
     message: `Despesa registrada: ${formatBRL(amount)} — ${desc}${childLabel}`,
-    data: { amount, description: desc, child: child?.name },
+    data: { id: result.data.id, amount, description: desc, child: child?.name },
   };
 }
 
