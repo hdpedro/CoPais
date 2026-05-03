@@ -998,8 +998,9 @@ async function execGetHealth(p: Record<string, unknown>, ctx: ToolContext): Prom
       .limit(10),
     ctx.supabase
       .from("active_medications")
-      .select("name, dosage, frequency, is_active, created_at")
+      .select("name, dosage, frequency, status, end_date, created_at")
       .eq("child_id", child.id)
+      .eq("status", "active")
       .order("created_at", { ascending: false })
       .limit(5),
     ctx.supabase
@@ -1029,7 +1030,10 @@ async function execGetHealth(p: Record<string, unknown>, ctx: ToolContext): Prom
     parts.push(`Alergias: ${allergies.map((a) => a.name).join(", ")}`);
   }
 
-  const activeMeds = (meds || []).filter((m) => m.is_active !== false);
+  const today = todayISO();
+  const activeMeds = (meds || []).filter(
+    (m) => !m.end_date || (m.end_date as string) >= today,
+  );
   if (activeMeds.length > 0) {
     parts.push(
       `Medicamentos ativos: ${activeMeds.map((m) => `${m.name}${m.dosage ? ` (${m.dosage})` : ""}`).join(", ")}`,

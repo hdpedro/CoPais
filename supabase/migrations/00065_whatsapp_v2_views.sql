@@ -49,7 +49,8 @@ SELECT
       SELECT COUNT(*)
       FROM public.active_medications am
       WHERE am.child_id = c.id
-        AND COALESCE(am.is_active, true) = true
+        AND am.status = 'active'
+        AND (am.end_date IS NULL OR am.end_date >= CURRENT_DATE)
     ),
     0
   ) AS active_medications_count,
@@ -58,7 +59,8 @@ SELECT
       SELECT array_agg(am.name ORDER BY am.created_at DESC)
       FROM public.active_medications am
       WHERE am.child_id = c.id
-        AND COALESCE(am.is_active, true) = true
+        AND am.status = 'active'
+        AND (am.end_date IS NULL OR am.end_date >= CURRENT_DATE)
     ),
     ARRAY[]::TEXT[]
   ) AS active_medication_names,
