@@ -158,3 +158,30 @@ export async function setGroupSelectionState(
     .update({ state })
     .eq("id", sessionId);
 }
+
+/**
+ * Start the multi-step receipt flow (category → child → confirm).
+ * Persists the OCR draft and the next step the user is being asked.
+ */
+export async function setReceiptStep(
+  supabase: SupabaseClient,
+  sessionId: string,
+  step: "category" | "child",
+  draft: {
+    description: string;
+    amount: number;
+    expense_date: string;
+    category?: string;
+    child_id?: string | null;
+  },
+): Promise<void> {
+  const state: WASessionState = {
+    receipt_step: step,
+    receipt_draft: draft,
+    pending_at: new Date().toISOString(),
+  };
+  await supabase
+    .from("whatsapp_sessions")
+    .update({ state })
+    .eq("id", sessionId);
+}

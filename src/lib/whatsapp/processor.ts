@@ -30,7 +30,9 @@ import {
   clearPendingAction,
   setSessionGroup,
   setGroupSelectionState,
+  setReceiptStep,
 } from "./session";
+import { createExpense as createExpenseService } from "@/lib/services/expenses";
 import {
   sendTextMessage,
   sendConfirmation,
@@ -229,6 +231,25 @@ export async function processWhatsAppMessage(
   }
 
   /* ================================================================ */
+  /* Step 4.4: Handle receipt multi-step flow (G4)                     */
+  /* List replies routed by current session step.                      */
+  /* ================================================================ */
+
+  if (session.state.receipt_step && message.listReplyId) {
+    const handled = await handleReceiptStepReply(
+      supabase,
+      session.id,
+      session.state,
+      message.listReplyId,
+      phone,
+      userId,
+      groupId,
+      start,
+    );
+    if (handled) return;
+  }
+
+  /* ================================================================ */
   /* Step 4.5: Handle approval/reject buttons (two-party actions)      */
   /* ================================================================ */
 
@@ -373,16 +394,30 @@ export async function processWhatsAppMessage(
     );
 
     if (receipt) {
-      const confirmText = `Registrar despesa:\n*${receipt.description}*\nValor: *R$ ${receipt.amount.toFixed(2).replace(".", ",")}*${receipt.date ? `\nData: ${receipt.date.split("-").reverse().join("/")}` : ""}\n\nConfirma?`;
+      // G4: enter the multi-step flow — category → child → confirm.
+      const expenseDate = receipt.date && /^\d{4}-\d{2}-\d{2}$/.test(receipt.date)
+        ? receipt.date
+        : new Date().toISOString().split("T")[0];
 
-      await setPendingAction(supabase, session.id, "createExpense", {
+      await setReceiptStep(supabase, session.id, "category", {
         description: receipt.description,
-        amount: String(receipt.amount),
-        childName: "",
-      }, confirmText, "foto de recibo");
+        amount: receipt.amount,
+        expense_date: expenseDate,
+      });
 
-      await sendConfirmation(phone, confirmText);
-      await logMessage(supabase, phone, "outbound", "interactive", confirmText, undefined, userId);
+      const summary = `Recibo lido: *${receipt.description}* — R$ ${receipt.amount.toFixed(2).replace(".", ",")}${expenseDate ? ` (${expenseDate.split("-").reverse().join("/")})` : ""}.\nQual a categoria?`;
+
+      await sendListMessage(phone, summary, "Categorias", [
+        { id: "rcat:health",     title: "Saúde" },
+        { id: "rcat:education",  title: "Educação" },
+        { id: "rcat:food",       title: "Alimentação" },
+        { id: "rcat:clothing",   title: "Vestuário" },
+        { id: "rcat:leisure",    title: "Lazer" },
+        { id: "rcat:transport",  title: "Transporte" },
+        { id: "rcat:housing",    title: "Moradia" },
+        { id: "rcat:other",      title: "Outros" },
+      ]);
+      await logMessage(supabase, phone, "outbound", "interactive", summary, undefined, userId);
 
       await logAIRequest({
         userId,
@@ -618,6 +653,173 @@ export async function processWhatsAppMessage(
       "Desculpe, ocorreu um erro. Tente novamente ou use o app Kindar. \uD83D\uDE4F"
     );
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Receipt multi-step flow (G4)                                       */
+/*                                                                     */
+/* After OCR, the user picks: 1) category, 2) child (auto-skipped if   */
+/* group has 0 or 1 children). On final selection the expense is       */
+/* created via the canonical `services/expenses.ts:createExpense`.     */
+/* ------------------------------------------------------------------ */
+
+import { WASessionState } from "./types";
+
+const CATEGORY_LABEL: Record<string, string> = {
+  health: "Saúde",
+  education: "Educação",
+  food: "Alimentação",
+  clothing: "Vestuário",
+  leisure: "Lazer",
+  transport: "Transporte",
+  housing: "Moradia",
+  other: "Outros",
+};
+
+async function handleReceiptStepReply(
+  supabase: SupabaseClient,
+  sessionId: string,
+  state: WASessionState,
+  listReplyId: string,
+  phone: string,
+  userId: string,
+  groupId: string,
+  start: number,
+): Promise<boolean> {
+  const draft = state.receipt_draft;
+  if (!draft) return false;
+
+  if (state.receipt_step === "category" && listReplyId.startsWith("rcat:")) {
+    const category = listReplyId.slice("rcat:".length);
+    if (!CATEGORY_LABEL[category]) return false;
+
+    // Fetch children for the group to decide next step.
+    const { data: children } = await supabase
+      .from("children")
+      .select("id, full_name")
+      .eq("group_id", groupId);
+
+    const kids = children || [];
+
+    // 0 or 1 child → skip the child step.
+    if (kids.length <= 1) {
+      const childId = kids[0]?.id ?? null;
+      await finalizeReceiptExpense(
+        supabase,
+        sessionId,
+        { ...draft, category, child_id: childId },
+        phone,
+        userId,
+        groupId,
+        start,
+      );
+      return true;
+    }
+
+    // Multi-child → ask which one.
+    await setReceiptStep(supabase, sessionId, "child", {
+      ...draft,
+      category,
+    });
+
+    const rows = [
+      ...kids.slice(0, 9).map((c) => ({
+        id: `rchild:${c.id}`,
+        title: (c.full_name as string)?.split(" ")[0] || "Crianca",
+      })),
+      { id: "rchild:none", title: "Geral" },
+    ];
+
+    await sendListMessage(
+      phone,
+      `Categoria: ${CATEGORY_LABEL[category]}.\nPara qual criança?`,
+      "Crianças",
+      rows,
+    );
+    await logMessage(
+      supabase,
+      phone,
+      "outbound",
+      "interactive",
+      `receipt-child-step (${kids.length})`,
+      undefined,
+      userId,
+    );
+    return true;
+  }
+
+  if (state.receipt_step === "child" && listReplyId.startsWith("rchild:")) {
+    const raw = listReplyId.slice("rchild:".length);
+    const childId = raw === "none" ? null : raw;
+    await finalizeReceiptExpense(
+      supabase,
+      sessionId,
+      { ...draft, child_id: childId },
+      phone,
+      userId,
+      groupId,
+      start,
+    );
+    return true;
+  }
+
+  return false;
+}
+
+async function finalizeReceiptExpense(
+  supabase: SupabaseClient,
+  sessionId: string,
+  draft: NonNullable<WASessionState["receipt_draft"]>,
+  phone: string,
+  userId: string,
+  groupId: string,
+  start: number,
+): Promise<void> {
+  const result = await createExpenseService(supabase, {
+    groupId,
+    paidBy: userId,
+    description: draft.description,
+    amount: draft.amount,
+    category: draft.category || "other",
+    expenseDate: draft.expense_date,
+    childId: draft.child_id || null,
+    splitRatio: null,
+    receiptUrl: null,
+    origin: "whatsapp",
+  });
+
+  // Always clear the receipt step before returning to keep state clean.
+  await clearPendingAction(supabase, sessionId);
+
+  if (!result.ok) {
+    await sendTextMessage(phone, `⚠️ ${result.error}`);
+    await logAIRequest({
+      userId,
+      groupId,
+      provider: "vision",
+      feature: "assistant_tool",
+      success: false,
+      responseTimeMs: Date.now() - start,
+      errorMessage: result.error,
+    });
+    return;
+  }
+
+  const dateBR = draft.expense_date.split("-").reverse().join("/");
+  const catLabel = CATEGORY_LABEL[draft.category || "other"] || "Outros";
+  await sendTextMessage(
+    phone,
+    `✅ Despesa registrada: *${draft.description}* — R$ ${draft.amount.toFixed(2).replace(".", ",")} (${catLabel}, ${dateBR}).`,
+  );
+
+  await logAIRequest({
+    userId,
+    groupId,
+    provider: "vision",
+    feature: "assistant_tool",
+    success: true,
+    responseTimeMs: Date.now() - start,
+  });
 }
 
 /* ------------------------------------------------------------------ */
