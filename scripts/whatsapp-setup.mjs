@@ -57,23 +57,10 @@ async function vercelApi(path, opts = {}) {
 }
 
 async function ensureVerifyToken() {
-  const env = await vercelApi(`/v9/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`);
-  const existing = (env.envs || []).find((e) => e.key === 'WHATSAPP_VERIFY_TOKEN' && e.target?.includes('production'));
-  if (existing) {
-    console.log(`  ℹ WHATSAPP_VERIFY_TOKEN ja existe em prod (${existing.id})`);
-    return existing.id;
-  }
-  console.log(`  + criando WHATSAPP_VERIFY_TOKEN`);
-  const r = await vercelApi(`/v9/projects/${PROJECT_ID}/env?teamId=${TEAM_ID}`, {
-    method: 'POST',
-    body: JSON.stringify({
-      key: 'WHATSAPP_VERIFY_TOKEN',
-      value: VERIFY_TOKEN_NEW,
-      type: 'encrypted',
-      target: ['production'],
-    }),
-  });
-  return r.id;
+  // Sempre sobrescreve — caso contrário um valor antigo da integração
+  // anterior fica em prod e o subscribe novo da Meta com VERIFY_TOKEN_NEW
+  // bate em 403 (Vercel devolve invalid token).
+  await upsertEnv('WHATSAPP_VERIFY_TOKEN', VERIFY_TOKEN_NEW);
 }
 
 async function upsertEnv(key, value) {
