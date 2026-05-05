@@ -84,6 +84,12 @@ export async function markAllAsRead(_userId: string) {
  *
  * Returns an unsubscribe function. Always returns a cleanup, even if userId
  * is missing, so callers can unconditionally invoke it in useEffect cleanup.
+ *
+ * The channel name embeds a per-call instance suffix so multiple callers
+ * (e.g. Dashboard + NotificacoesScreen mounted simultaneously, or fast
+ * remounts before `removeChannel` settles) never share a channel — the
+ * supabase-js client throws `cannot add postgres_changes callbacks ... after
+ * subscribe()` when two subscribers race on the same channel name.
  */
 export function subscribeToNotifications(
   userId: string | null | undefined,
@@ -91,8 +97,9 @@ export function subscribeToNotifications(
 ): () => void {
   if (!userId) return () => {};
 
+  const instanceId = Math.random().toString(36).slice(2, 10);
   const channel = supabase
-    .channel(`notifications:${userId}`)
+    .channel(`notifications:${userId}:${instanceId}`)
     .on(
       'postgres_changes',
       { event: 'INSERT', schema: 'public', table: 'notifications', filter: `user_id=eq.${userId}` },

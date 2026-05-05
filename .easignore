@@ -1,0 +1,32 @@
+# Files NOT needed for the mobile build — also avoids OneDrive perm issues
+# during tar extraction on EAS workers.
+node_modules/
+.next/
+.expo/
+dist/
+build/
+.claude/
+.github/
+.husky/
+docs/
+playwright-report/
+test-results-*/
+tests/
+scripts/
+coverage/
+public/
+supabase/
+src/
+.env
+.env.local
+.env.production
+.env.test
+*.log
+*.docx
+*.xlsx
+*.pdf
+*.zip
+*.tar.gz
+
+# DON'T ignore kindar-native — that's the actual mobile project
+!kindar-native/

@@ -67,3 +67,7 @@ AuthKey_*.p8
 scripts/*-output.log
 scripts/subscription-review.png
 scripts/app-screenshot-iphone65.png
+
+# Google Play service account (NEVER commit)
+google-service-account.json
+**/google-service-account.json

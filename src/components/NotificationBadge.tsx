@@ -24,9 +24,15 @@ export default function NotificationBadge({ userId }: { userId: string }) {
 
     fetchCount();
 
-    // Realtime subscription for new notifications
+    // Realtime subscription for new notifications.
+    // Channel name includes a per-mount instance suffix so two badges (or a
+    // fast remount before removeChannel settles) never collide on the same
+    // channel — supabase-js throws `cannot add postgres_changes callbacks ...
+    // after subscribe()` in that case. Mirrors the native fix in
+    // kindar-native/src/services/notifications.ts.
+    const instanceId = Math.random().toString(36).slice(2, 10);
     const channel = supabase
-      .channel("notifications-badge")
+      .channel(`notifications-badge:${userId}:${instanceId}`)
       .on(
         "postgres_changes",
         {

@@ -13,7 +13,9 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://jquaysfeeuwvoydsgssi.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxdWF5c2ZlZXV3dm95ZHNnc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTkwNzMsImV4cCI6MjA4OTMzNTA3M30.k6tqIi4mygYgimhaI-EhFCdUyoEKSPREaed2Bbc_gxY",
-        "EXPO_PUBLIC_WEB_URL": "https://kindar.com.br"
+        "EXPO_PUBLIC_WEB_URL": "https://kindar.com.br",
+        "EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY": "appl_KnbatiIWuIsGLdMShDjqMlDDkvG",
+        "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_DzwShzDFFdSgINGkNoANKzVkUZD"
       },
       "channel": "development"
     },
@@ -25,25 +27,30 @@
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://jquaysfeeuwvoydsgssi.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxdWF5c2ZlZXV3dm95ZHNnc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTkwNzMsImV4cCI6MjA4OTMzNTA3M30.k6tqIi4mygYgimhaI-EhFCdUyoEKSPREaed2Bbc_gxY",
-        "EXPO_PUBLIC_WEB_URL": "https://kindar.com.br"
+        "EXPO_PUBLIC_WEB_URL": "https://kindar.com.br",
+        "EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY": "appl_KnbatiIWuIsGLdMShDjqMlDDkvG",
+        "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_DzwShzDFFdSgINGkNoANKzVkUZD"
       },
       "channel": "preview"
     },
     "production": {
       "node": "22.13.0",
-      "credentialsSource": "local",
       "ios": {
+        "credentialsSource": "local",
         "buildConfiguration": "Release",
         "autoIncrement": true
       },
       "android": {
+        "credentialsSource": "remote",
         "buildType": "app-bundle",
         "autoIncrement": true
       },
       "env": {
         "EXPO_PUBLIC_SUPABASE_URL": "https://jquaysfeeuwvoydsgssi.supabase.co",
         "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxdWF5c2ZlZXV3dm95ZHNnc3NpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM3NTkwNzMsImV4cCI6MjA4OTMzNTA3M30.k6tqIi4mygYgimhaI-EhFCdUyoEKSPREaed2Bbc_gxY",
-        "EXPO_PUBLIC_WEB_URL": "https://kindar.com.br"
+        "EXPO_PUBLIC_WEB_URL": "https://kindar.com.br",
+        "EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY": "appl_KnbatiIWuIsGLdMShDjqMlDDkvG",
+        "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_DzwShzDFFdSgINGkNoANKzVkUZD"
       },
       "channel": "production"
     }
@@ -56,6 +63,12 @@
         "ascApiKeyId": "736GBBC4YY",
         "ascApiKeyIssuerId": "52e31db4-ca31-4a2c-b99d-86b8b599b29e",
         "appleTeamId": "ZQ83W8MYUZ"
+      },
+      "android": {
+        "serviceAccountKeyPath": "../google-service-account.json",
+        "track": "internal",
+        "releaseStatus": "draft",
+        "changesNotSentForReview": false
       }
     }
   }

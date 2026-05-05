@@ -16,6 +16,8 @@ import {
   signInWithApple,
   signInWithGoogleToken,
   GOOGLE_IOS_CLIENT_ID_EXPORTED,
+  GOOGLE_ANDROID_CLIENT_ID_EXPORTED,
+  GOOGLE_SIGN_IN_CONFIGURED,
 } from '../../src/services/social-auth';
 import { supabase } from '../../src/lib/supabase';
 import { useI18n } from '../../src/i18n';
@@ -59,11 +61,19 @@ export default function LoginScreen() {
 
   // Native Google sign-in via expo-auth-session.
   // Mirrors GripFlow's working setup (gripflow-native/app/auth/login.tsx):
-  //   - iosClientId is the iOS OAuth Client ID configured in Google Cloud
-  //   - reversed scheme is registered in app.json → CFBundleURLTypes
+  //   - iosClientId / androidClientId are the platform OAuth Client IDs
+  //     configured in Google Cloud (the Android one is keystore-bound, so it
+  //     comes from EAS env `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`)
+  //   - reversed scheme is registered in app.json → ios.CFBundleURLTypes
   //   - the resulting id_token is POSTed to /api/auth/google-native
+  // Both ids are passed unconditionally because `useIdTokenAuthRequest`'s
+  // invariant only checks the platform-relevant one; the constants in
+  // `social-auth.ts` carry safe non-empty placeholders so the hook never
+  // crashes on mount when the env var is missing. The button is gated by
+  // `GOOGLE_SIGN_IN_CONFIGURED` so unconfigured platforms can't tap it.
   const [, googleResponse, promptGoogle] = Google.useIdTokenAuthRequest({
     iosClientId: GOOGLE_IOS_CLIENT_ID_EXPORTED,
+    androidClientId: GOOGLE_ANDROID_CLIENT_ID_EXPORTED,
   });
 
   // Defined BEFORE the useEffect that calls it so the lint rule
@@ -235,40 +245,44 @@ export default function LoginScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {/* Google Sign-In: now native on both iOS + Android via
-            expo-auth-session (no browser detour). Apple still preferred on
-            iOS but Google works as alternative for users without iCloud.
-            promptGoogle() opens the in-app Google sheet → id_token → backend. */}
-        <TouchableOpacity
-          onPress={async () => {
-            try {
-              setError('');
-              Haptics.selectionAsync();
-              await promptGoogle();
-              // Result is handled by the useEffect on googleResponse above.
-            } catch {
-              setError('Nao foi possivel iniciar o login com Google');
-            }
-          }}
-          disabled={loading}
-          activeOpacity={0.85}
-          style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.md,
-            borderWidth: 1, borderColor: colors.authBorder,
-            paddingVertical: spacing.md + 2, flexDirection: 'row',
-            alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
-            marginBottom: spacing.lg,
-            opacity: loading ? 0.6 : 1,
-          }}
-        >
-          <Ionicons name="logo-google" size={16} color="#4285F4" />
-          <Text style={{ color: colors.authText, fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-            Entrar com Google
-          </Text>
-        </TouchableOpacity>
+        {/* Google Sign-In: native on both iOS + Android via expo-auth-session
+            (no browser detour). Apple still preferred on iOS but Google works
+            as alternative for users without iCloud. promptGoogle() opens the
+            in-app Google sheet → id_token → backend. Hidden when the platform
+            client ID isn't configured (e.g. Android build before
+            EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID is set in EAS). */}
+        {GOOGLE_SIGN_IN_CONFIGURED ? (
+          <TouchableOpacity
+            onPress={async () => {
+              try {
+                setError('');
+                Haptics.selectionAsync();
+                await promptGoogle();
+                // Result is handled by the useEffect on googleResponse above.
+              } catch {
+                setError('Nao foi possivel iniciar o login com Google');
+              }
+            }}
+            disabled={loading}
+            activeOpacity={0.85}
+            style={{
+              backgroundColor: colors.bgElevated, borderRadius: radius.md,
+              borderWidth: 1, borderColor: colors.authBorder,
+              paddingVertical: spacing.md + 2, flexDirection: 'row',
+              alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+              marginBottom: spacing.lg,
+              opacity: loading ? 0.6 : 1,
+            }}
+          >
+            <Ionicons name="logo-google" size={16} color="#4285F4" />
+            <Text style={{ color: colors.authText, fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
+              Entrar com Google
+            </Text>
+          </TouchableOpacity>
+        ) : null}
 
-        {/* Divider — shown only when a social button is above (iOS/Android native) */}
-        {(Platform.OS === 'ios' || Platform.OS === 'android') ? (
+        {/* Divider — shown only when a social button is above */}
+        {(Platform.OS === 'ios' || (Platform.OS === 'android' && GOOGLE_SIGN_IN_CONFIGURED)) ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: spacing.xl }}>
             <View style={{ flex: 1, height: 1, backgroundColor: colors.authBorder }} />
             <Text style={{ paddingHorizontal: spacing.lg, fontSize: font.sizes.sm, color: colors.authMuted }}>

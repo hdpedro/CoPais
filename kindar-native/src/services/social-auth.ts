@@ -32,6 +32,16 @@ const GOOGLE_IOS_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
   || '855915326367-eiinspdtmmf3u63sfj4kj8ghn2d6p7ie.apps.googleusercontent.com';
 
+// Android Google OAuth Client ID. No hardcoded fallback because the Android
+// SHA-1 binds the client ID to the keystore — the value is environment-
+// specific and must come from EAS env (`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`).
+// The placeholder below is non-empty so `useIdTokenAuthRequest`'s invariant
+// doesn't crash on mount when the var is unset; the login screen hides the
+// Google button on Android in that case (see `app/auth/login.tsx`).
+const GOOGLE_ANDROID_CLIENT_ID =
+  process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID
+  || 'kindar-android-client-id-not-configured.apps.googleusercontent.com';
+
 interface BackendSession {
   access_token: string;
   refresh_token: string;
@@ -155,6 +165,17 @@ export async function signInWithApple(): Promise<{ success: boolean; error?: str
 //   <Button onPress={() => prompt()} ... />
 
 export const GOOGLE_IOS_CLIENT_ID_EXPORTED = GOOGLE_IOS_CLIENT_ID;
+export const GOOGLE_ANDROID_CLIENT_ID_EXPORTED = GOOGLE_ANDROID_CLIENT_ID;
+
+/** True when Google sign-in is configured for the current platform. The
+ *  login screen uses this to gate rendering of the Google button so users
+ *  can't tap into a misconfigured OAuth flow. */
+export const GOOGLE_SIGN_IN_CONFIGURED =
+  Platform.OS === 'ios'
+    ? !!GOOGLE_IOS_CLIENT_ID
+    : Platform.OS === 'android'
+      ? !!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID
+      : false;
 
 /**
  * Exchange a Google id_token (obtained via expo-auth-session in the UI

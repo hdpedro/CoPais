@@ -34,3 +34,11 @@ Thumbs.db
 test-results-*/
 playwright-report/
 playwright.config.ts
+
+
+# All test result directories (variations across versions)
+test-results/
+test-results-*/
+tests/
+playwright-report/
+playwright-report-*/

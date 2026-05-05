@@ -99,20 +99,76 @@ export async function resetUser(): Promise<void> {
 }
 
 /**
- * Lista os packages ofertados (lidos do Offering "default" no RevenueCat).
- * Usa `listAllPackages` pra compatibilidade com Offerings simples.
+ * Lista os packages ofertados.
+ *
+ * Estratégia híbrida:
+ *   1. Tenta o Offering "default" do RevenueCat (caminho preferencial — permite
+ *      controle remoto via dashboard sem rebuild).
+ *   2. Se o offering tem menos packages que PRODUCT_IDS, complementa buscando
+ *      os produtos faltantes direto no StoreKit via `Purchases.getProducts()`.
+ *      Esses são embrulhados como "synthetic packages" pra manter a interface
+ *      consumida pelos screens de pricing/assinatura inalterada.
+ *   3. Synthetic packages são identificados pelo prefix `_synth_` em
+ *      `identifier`. `purchasePackage()` detecta e roteia pra
+ *      `purchaseStoreProduct()` em vez de `purchasePackage()`.
+ *
+ * Isso garante que o paywall mostre os 6 produtos mesmo se o RevenueCat
+ * Offering só tiver 2 (cenário comum — V2 API não permite anexar product
+ * a package via REST, só via dashboard).
  */
 export async function getAvailablePackages(): Promise<PurchasesPackage[]> {
   if (!initialized) return [];
+
+  const result: PurchasesPackage[] = [];
+  const coveredProductIds = new Set<string>();
+
+  // 1. Real packages from offering
   try {
     const offerings = await Purchases.getOfferings();
     const current = offerings.current;
-    if (!current) return [];
-    return current.availablePackages;
+    if (current) {
+      for (const pkg of current.availablePackages) {
+        result.push(pkg);
+        coveredProductIds.add(pkg.product.identifier);
+      }
+    }
   } catch (err) {
     console.warn('[iap] getOfferings failed:', err);
-    return [];
   }
+
+  // 2. Fill gaps with synthetic packages from StoreKit products
+  const missingIds = Object.values(PRODUCT_IDS).filter((id) => !coveredProductIds.has(id));
+  if (missingIds.length > 0) {
+    try {
+      const products = await Purchases.getProducts(missingIds);
+      for (const product of products) {
+        const isAnnual = product.identifier.includes('annual');
+        const synthetic: PurchasesPackage = {
+          identifier: `_synth_${product.identifier}`,
+          packageType: (isAnnual ? 'ANNUAL' : 'MONTHLY') as PurchasesPackage['packageType'],
+          product,
+          presentedOfferingIdentifier: 'default',
+          // RC SDK adicionou `presentedOfferingContext` em versões mais novas;
+          // pra cross-version compat, casteamos via unknown.
+          presentedOfferingContext: {
+            offeringIdentifier: 'default',
+            placementIdentifier: null,
+            targetingContext: null,
+          },
+          offeringIdentifier: 'default',
+        } as unknown as PurchasesPackage;
+        result.push(synthetic);
+      }
+    } catch (err) {
+      console.warn('[iap] getProducts (synthetic fallback) failed:', err);
+    }
+  }
+
+  return result;
+}
+
+function isSyntheticPackage(pkg: PurchasesPackage): boolean {
+  return pkg.identifier.startsWith('_synth_');
 }
 
 /**
@@ -130,7 +186,12 @@ export async function purchasePackage(
     return { success: false, error: 'IAP nao inicializado' };
   }
   try {
-    const { customerInfo, productIdentifier } = await Purchases.purchasePackage(pkg);
+    // Synthetic packages (criados pra cobrir gaps do offering) precisam ser
+    // comprados via purchaseStoreProduct, não purchasePackage — Apple/RC
+    // valida que o package existe no offering remoto.
+    const { customerInfo, productIdentifier } = isSyntheticPackage(pkg)
+      ? await Purchases.purchaseStoreProduct(pkg.product)
+      : await Purchases.purchasePackage(pkg);
 
     // Notifica o backend pra criar/atualizar a linha em subscriptions.
     // O RevenueCat ja validou com a Apple — o verify no backend e um
