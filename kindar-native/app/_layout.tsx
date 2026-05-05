@@ -15,7 +15,7 @@ import {
 } from '../src/services/push-setup';
 import { initializeIAP, identifyUser, resetUser } from '../src/services/iap';
 import { colors } from '../src/design-system/tokens';
-import AIFab from '../src/components/ai/AIFab';
+// AIFab removed 2026-05-05 — was overlapping buttons on other screens.
 import AIAssistantSheet from '../src/components/ai/AIAssistantSheet';
 
 export default function RootLayout() {
@@ -116,10 +116,10 @@ export default function RootLayout() {
             <Stack.Screen name="pricing" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
             <Stack.Screen name="ai" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
           </Stack>
-          {/* Global floating Kindar AI: FAB visible on most screens, modal slides
-              from bottom when opened. Both hidden on auth/onboarding/etc via
-              path-matching inside AIFab. */}
-          <AIFab />
+          {/* Kindar AI assistant — FAB removido em 2026-05-05 a pedido do
+              usuário (estava sobrepondo botões de outras telas em iOS+Android).
+              Sheet permanece montado pra ser aberto via outros gatilhos
+              (header sparkle button do dashboard, deep link /ai, etc.). */}
           <AIAssistantSheet />
         </View>
         <StatusBar style="dark" />

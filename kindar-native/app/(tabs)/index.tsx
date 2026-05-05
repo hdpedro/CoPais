@@ -11,6 +11,7 @@ import { useI18n } from '../../src/i18n';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 import { ACTIVITY_CATEGORIES } from '../../src/lib/constants';
 import ActivityReportModal from '../../src/components/activities/ActivityReportModal';
+import ActivityChecklistModal from '../../src/components/activities/ActivityChecklistModal';
 
 // i18n keys for greetings — same keys the PWA uses
 // (`dashboard.goodMorning` / `goodAfternoon` / `goodEvening`).
@@ -63,6 +64,20 @@ export default function DashboardScreen() {
   const [reportModal, setReportModal] = useState<{
     open: boolean; activityId: string; activityName: string; childId: string | null; occurrenceDate: string;
   } | null>(null);
+  // Tap on a Hoje/Amanhã activity card opens the checklist for that
+  // specific occurrence (what to bring/prepare). User asked for context
+  // over the all-activities list — paridade com PWA dashboard.
+  const [checklistModal, setChecklistModal] = useState<{
+    activityId: string; activityName: string; occurrenceDate: string;
+  } | null>(null);
+
+  // Reused for activity card → checklist modal (occurrenceDate).
+  const todayIso = new Date().toISOString().split('T')[0];
+  const tomorrowIso = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().split('T')[0];
+  })();
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -334,7 +349,14 @@ export default function DashboardScreen() {
                       <TouchableOpacity
                         key={`today-${act.id}`}
                         activeOpacity={0.75}
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/atividades'); }}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setChecklistModal({
+                            activityId: act.id,
+                            activityName: act.name,
+                            occurrenceDate: todayIso,
+                          });
+                        }}
                         style={{
                           backgroundColor: colors.bgElevated, borderRadius: radius.md,
                           padding: spacing.md, marginBottom: 6,
@@ -372,7 +394,14 @@ export default function DashboardScreen() {
                       <TouchableOpacity
                         key={`tmw-${act.id}`}
                         activeOpacity={0.75}
-                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/atividades'); }}
+                        onPress={() => {
+                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                          setChecklistModal({
+                            activityId: act.id,
+                            activityName: act.name,
+                            occurrenceDate: tomorrowIso,
+                          });
+                        }}
                         style={{
                           backgroundColor: colors.bgElevated, borderRadius: radius.md,
                           padding: spacing.md, marginBottom: 6,
@@ -780,6 +809,20 @@ export default function DashboardScreen() {
           reporterId={userId}
           occurrenceDate={reportModal.occurrenceDate}
           onSubmitted={refresh}
+        />
+      ) : null}
+
+      {/* Activity Checklist Modal — opens when user taps a Hoje/Amanhã
+          card. Mostra o que precisa preparar/levar pra essa atividade
+          específica em vez de mandar pra lista de todas as atividades. */}
+      {checklistModal && userId ? (
+        <ActivityChecklistModal
+          visible={!!checklistModal}
+          onClose={() => setChecklistModal(null)}
+          activityId={checklistModal.activityId}
+          activityName={checklistModal.activityName}
+          occurrenceDate={checklistModal.occurrenceDate}
+          completedBy={userId}
         />
       ) : null}
     </>
