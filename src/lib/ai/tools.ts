@@ -889,58 +889,97 @@ async function execGetExpenses(p: Record<string, unknown>, ctx: ToolContext): Pr
 }
 
 async function execGetUpcoming(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
-  const days = Number(p.days) || 7;
+  // Default raised from 7 → 30 days. Users frequently ask "Quando é a
+  // anamnese / consulta / reunião?" referring to an event slightly more
+  // than a week out — 7-day default returned empty and the AI errored.
+  const days = Number(p.days) || 30;
   const today = todayISO();
   const future = new Date();
   future.setDate(future.getDate() + days);
   const futureISO = future.toISOString().split("T")[0];
 
-  // Events
-  const { data: events } = await ctx.supabase
-    .from("events")
-    .select("title, event_date, event_time, location, status")
-    .eq("group_id", ctx.groupId)
-    .eq("status", "active")
-    .gte("event_date", today)
-    .lte("event_date", futureISO)
-    .order("event_date")
-    .limit(10);
-
-  // Appointments
-  const { data: appointments } = await ctx.supabase
-    .from("medical_appointments")
-    .select("title, appointment_date, child_id, location")
-    .eq("group_id", ctx.groupId)
-    .gte("appointment_date", `${today}T00:00:00`)
-    .lte("appointment_date", `${futureISO}T23:59:59`)
-    .order("appointment_date")
-    .limit(10);
+  // Parallel fetch — events, medical appointments, AND activity occurrences.
+  // Activities live in `child_activities` with daily occurrences expanded
+  // into `calendar_occurrences` (mirrors the calendar grid query). The
+  // earlier version skipped these entirely, so anamnese-as-activity (or
+  // any recurring activity) was invisible to the assistant.
+  const [eventsRes, apptsRes, occsRes] = await Promise.all([
+    ctx.supabase
+      .from("events")
+      .select("title, event_date, event_time, location, status")
+      .eq("group_id", ctx.groupId)
+      .eq("status", "active")
+      .gte("event_date", today)
+      .lte("event_date", futureISO)
+      .order("event_date")
+      .limit(15),
+    ctx.supabase
+      .from("medical_appointments")
+      .select("title, appointment_date, child_id, location")
+      .eq("group_id", ctx.groupId)
+      .eq("status", "scheduled")
+      .gte("appointment_date", `${today}T00:00:00`)
+      .lte("appointment_date", `${futureISO}T23:59:59`)
+      .order("appointment_date")
+      .limit(15),
+    ctx.supabase
+      .from("calendar_occurrences")
+      .select("occurrence_date, child_id, child_activities!inner(name, time_start, location)")
+      .eq("group_id", ctx.groupId)
+      .gte("occurrence_date", today)
+      .lte("occurrence_date", futureISO)
+      .order("occurrence_date")
+      .limit(30),
+  ]);
 
   const items: string[] = [];
 
-  events?.forEach((e) => {
+  (eventsRes.data || []).forEach((e) => {
     const d = e.event_date.split("-").reverse().join("/");
     const t = e.event_time ? ` as ${e.event_time.slice(0, 5)}` : "";
     items.push(`${d}${t} — ${e.title}${e.location ? ` (${e.location})` : ""}`);
   });
 
-  appointments?.forEach((a) => {
+  (apptsRes.data || []).forEach((a) => {
     const dt = new Date(a.appointment_date);
     const d = `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}`;
     const t = `${String(dt.getHours()).padStart(2, "0")}:${String(dt.getMinutes()).padStart(2, "0")}`;
     const child = ctx.children.find((c) => c.id === a.child_id);
     const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
-    items.push(`${d} as ${t} — ${a.title}${childLabel}`);
+    items.push(`${d} as ${t} — 🏥 ${a.title}${childLabel}${a.location ? ` (${a.location})` : ""}`);
+  });
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (occsRes.data || []).forEach((o: any) => {
+    const act = Array.isArray(o.child_activities) ? o.child_activities[0] : o.child_activities;
+    if (!act) return;
+    const d = String(o.occurrence_date).split("-").reverse().join("/");
+    const t = act.time_start ? ` as ${String(act.time_start).slice(0, 5)}` : "";
+    const child = ctx.children.find((c) => c.id === o.child_id);
+    const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
+    items.push(`${d}${t} — ${act.name}${childLabel}${act.location ? ` (${act.location})` : ""}`);
   });
 
   if (items.length === 0) {
     return { success: true, message: `Nenhum compromisso nos proximos ${days} dias.` };
   }
 
+  // Sort chronologically by parsing the leading "DD/MM" prefix
+  items.sort((a, b) => {
+    const pa = a.match(/^(\d{2})\/(\d{2})/);
+    const pb = b.match(/^(\d{2})\/(\d{2})/);
+    if (!pa || !pb) return 0;
+    return pa[2].localeCompare(pb[2]) || pa[1].localeCompare(pb[1]);
+  });
+
   return {
     success: true,
     message: `Proximos ${days} dias:\n${items.join("\n")}`,
-    data: { events: events?.length || 0, appointments: appointments?.length || 0 },
+    data: {
+      events: eventsRes.data?.length || 0,
+      appointments: apptsRes.data?.length || 0,
+      activities: occsRes.data?.length || 0,
+    },
   };
 }
 
