@@ -1,3 +1,21 @@
+/**
+ * Financeiro — refactor 2026-05-05 pra suportar 2 modos:
+ *
+ *   isShared = false  (usuario sozinho no grupo)
+ *     - Sem saldo, sem "a pagar / a receber"
+ *     - Sem aba Acertar nem aba Histórico
+ *     - Sem botão Registrar pagamento
+ *     - Mostra "Seus gastos" + CTA pra convidar coparente
+ *
+ *   isShared = true   (existe pelo menos 1 co-responsavel)
+ *     - Saldo, settlements, abas completas — comportamento original
+ *
+ * `isShared` é derivado em runtime de `members.length > 0` onde members
+ * exclui o proprio usuario e filtra `role='parent'` (paridade com PWA).
+ *
+ * Mantemos Alert removido — toda prevenção é via UI (não renderizar
+ * botão de ação inválida em vez de bloquear no clique).
+ */
 import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, RefreshControl, Modal,
@@ -36,7 +54,6 @@ const MONTH_NAMES = [
 
 type ViewMode = 'dashboard' | 'settlements' | 'history';
 
-// Per-member palette — same hues as PWA FinancialDashboard
 const MEMBER_COLORS = ['#5B9E85', '#D4735A', '#F4A261', '#8E6E95', '#3B82F6', '#E76F51'];
 
 export default function FinanceiroScreen() {
@@ -48,10 +65,8 @@ export default function FinanceiroScreen() {
   const [allMembers, setAllMembers] = useState<{ user_id: string; name: string; color: string }[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
-  // View mode toggle (Wave G — mirrors PWA FinancialDashboard.tsx)
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
 
-  // Month navigation for the dashboard view
   const today = useMemo(() => new Date(), []);
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
@@ -61,7 +76,7 @@ export default function FinanceiroScreen() {
     expensesCount: number;
   }>({ totalMonth: 0, memberSpending: {}, expensesCount: 0 });
 
-  // Settlement modal state
+  // Settlement modal
   const [modalOpen, setModalOpen] = useState(false);
   const [paidTo, setPaidTo] = useState<string | null>(null);
   const [amount, setAmount] = useState('');
@@ -69,6 +84,10 @@ export default function FinanceiroScreen() {
   const [refNote, setRefNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [balanceForCounter, setBalanceForCounter] = useState<number | null>(null);
+
+  // ── Derived state ───────────────────────────────────────────────
+  // Single source of truth for the entire module's behavior.
+  const isShared = members.length > 0;
 
   const load = useCallback(async () => {
     if (!activeGroup || !userId) return;
@@ -82,9 +101,6 @@ export default function FinanceiroScreen() {
         .from('group_members')
         .select('user_id, role, profiles(full_name)')
         .eq('group_id', groupId)
-        // Balance math assumes the list is the responsibles (members[0]/[1]
-        // = pai/mãe). Avô/babá/advogado/mediador são `role !== 'parent'` e
-        // não devem entrar na lista de saldo (paridade com PWA page.tsx).
         .eq('role', 'parent'),
     ]);
 
@@ -92,8 +108,6 @@ export default function FinanceiroScreen() {
     setSettlements(settlementsData);
     setMonthlySpending(monthlyData);
 
-    // Members list — both for the modal recipient picker (excludes self)
-    // and for the per-parent dashboard breakdown (includes self).
     type MemberRow = { user_id: string; profiles: { full_name: string | null } | null };
     const allRows = ((memberRows as MemberRow[] | null) || []).map((m, idx) => ({
       user_id: m.user_id,
@@ -118,11 +132,11 @@ export default function FinanceiroScreen() {
     setSelectedYear(y);
   }
 
-  // History view — group settlements by YYYY-MM
+  // History view — only relevant in shared mode (no settlements when alone).
   const historyByMonth = useMemo(() => {
     const groups: Record<string, Settlement[]> = {};
     settlements.forEach((s) => {
-      const key = (s.settlement_date || '').slice(0, 7); // YYYY-MM
+      const key = (s.settlement_date || '').slice(0, 7);
       if (!key) return;
       if (!groups[key]) groups[key] = [];
       groups[key].push(s);
@@ -152,11 +166,10 @@ export default function FinanceiroScreen() {
     [settlements],
   );
 
+  // Settlement modal — only callable when isShared. UI never renders the
+  // button otherwise, but we keep a defensive no-op in case of stale state.
   async function openSettlementModal() {
-    if (members.length === 0) {
-      Alert.alert('Sem co-responsáveis', 'Adicione um co-responsável ao grupo primeiro.');
-      return;
-    }
+    if (!isShared) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const target = members[0].user_id;
     setPaidTo(target);
@@ -228,6 +241,21 @@ export default function FinanceiroScreen() {
     );
   }
 
+  // ── Tabs ────────────────────────────────────────────────────────
+  // Single mode: only "Resumo" (no Acertar/Histórico). Shared mode:
+  // all 3 tabs as before.
+  const visibleTabs = isShared
+    ? ([
+        { value: 'dashboard' as const, label: 'Resumo' },
+        { value: 'settlements' as const, label: 'Acertar' },
+        { value: 'history' as const, label: 'Histórico' },
+      ])
+    : ([{ value: 'dashboard' as const, label: 'Resumo' }]);
+
+  // Force back to Resumo if the user lands on a tab that no longer applies
+  // (e.g. coparent removed mid-session). Defensive.
+  const safeViewMode: ViewMode = visibleTabs.some((t) => t.value === viewMode) ? viewMode : 'dashboard';
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title="Financeiro" />
@@ -235,52 +263,48 @@ export default function FinanceiroScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 + insets.bottom }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
       >
-        {/* View toggle — mirrors PWA FinancialDashboard.tsx:282-310 */}
-        <View
-          style={{
-            flexDirection: 'row',
-            backgroundColor: colors.bgSurface,
-            borderRadius: radius.lg,
-            padding: 4,
-            marginBottom: spacing.lg,
-          }}
-        >
-          {(
-            [
-              { value: 'dashboard', label: 'Resumo' },
-              { value: 'settlements', label: 'Acertar' },
-              { value: 'history', label: 'Histórico' },
-            ] as { value: ViewMode; label: string }[]
-          ).map((opt) => {
-            const active = viewMode === opt.value;
-            return (
-              <TouchableOpacity
-                key={opt.value}
-                onPress={() => { Haptics.selectionAsync(); setViewMode(opt.value); }}
-                testID={`finance-view-${opt.value}`}
-                style={{
-                  flex: 1,
-                  paddingVertical: spacing.sm,
-                  borderRadius: radius.md,
-                  backgroundColor: active ? colors.bgElevated : 'transparent',
-                  ...(active ? shadows.sm : {}),
-                  alignItems: 'center',
-                }}
-              >
-                <Text style={{
-                  fontSize: font.sizes.sm,
-                  fontWeight: active ? font.weights.semibold : font.weights.medium,
-                  color: active ? colors.text : colors.textMuted,
-                }}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        {/* View toggle — só aparece se houver mais de 1 aba */}
+        {visibleTabs.length > 1 ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              backgroundColor: colors.bgSurface,
+              borderRadius: radius.lg,
+              padding: 4,
+              marginBottom: spacing.lg,
+            }}
+          >
+            {visibleTabs.map((opt) => {
+              const active = safeViewMode === opt.value;
+              return (
+                <TouchableOpacity
+                  key={opt.value}
+                  onPress={() => { Haptics.selectionAsync(); setViewMode(opt.value); }}
+                  testID={`finance-view-${opt.value}`}
+                  style={{
+                    flex: 1,
+                    paddingVertical: spacing.sm,
+                    borderRadius: radius.md,
+                    backgroundColor: active ? colors.bgElevated : 'transparent',
+                    ...(active ? shadows.sm : {}),
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text style={{
+                    fontSize: font.sizes.sm,
+                    fontWeight: active ? font.weights.semibold : font.weights.medium,
+                    color: active ? colors.text : colors.textMuted,
+                  }}>
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        ) : null}
 
-        {/* Balance card — visible on Resumo and Acertar */}
-        {viewMode !== 'history' ? (
+        {/* Balance card — Resumo + Acertar (apenas em modo shared) */}
+        {isShared && safeViewMode !== 'history' ? (
           <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.md }}>
             <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
               Saldo
@@ -294,8 +318,57 @@ export default function FinanceiroScreen() {
           </View>
         ) : null}
 
-        {/* Per-parent monthly breakdown — only on Resumo (PWA dashboard view) */}
-        {viewMode === 'dashboard' ? (
+        {/* Solo card — substitui o Saldo quando isShared=false */}
+        {!isShared && safeViewMode === 'dashboard' ? (
+          <View
+            testID="finance-solo-empty-state"
+            style={{
+              backgroundColor: `${colors.brand}10`,
+              borderWidth: 1,
+              borderColor: `${colors.brand}30`,
+              borderRadius: radius.xl,
+              padding: spacing.xl,
+              marginBottom: spacing.lg,
+            }}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md }}>
+              <View
+                style={{
+                  width: 44, height: 44, borderRadius: 22,
+                  backgroundColor: `${colors.brand}20`,
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="people-outline" size={22} color={colors.brand} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
+                  Divida despesas com outra pessoa
+                </Text>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
+                  Adicione um co-responsável para dividir gastos automaticamente.
+                </Text>
+              </View>
+            </View>
+            <TouchableOpacity
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/convite/enviar'); }}
+              testID="finance-add-coparent"
+              style={{
+                backgroundColor: colors.brand,
+                borderRadius: radius.md,
+                paddingVertical: spacing.md,
+                alignItems: 'center',
+              }}
+            >
+              <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                Adicionar co-responsável
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
+
+        {/* Per-parent monthly breakdown — só Resumo */}
+        {safeViewMode === 'dashboard' ? (
           <>
             <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.lg, ...shadows.sm }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -310,7 +383,7 @@ export default function FinanceiroScreen() {
                 </TouchableOpacity>
               </View>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textAlign: 'center' }}>
-                Total no mês
+                {isShared ? 'Total no mês' : 'Seus gastos no mês'}
               </Text>
               <Text style={{ fontSize: font.sizes['3xl'], fontWeight: font.weights.extrabold, color: colors.text, textAlign: 'center', marginTop: 2 }}>
                 R$ {monthlySpending.totalMonth.toFixed(2)}
@@ -320,7 +393,8 @@ export default function FinanceiroScreen() {
               </Text>
             </View>
 
-            {allMembers.length > 0 ? (
+            {/* Per-parent breakdown — só faz sentido em shared */}
+            {isShared && allMembers.length > 0 ? (
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.xl, flexWrap: 'wrap' }}>
                 {allMembers.map((m) => {
                   const spent = monthlySpending.memberSpending[m.user_id] || 0;
@@ -360,8 +434,8 @@ export default function FinanceiroScreen() {
           </>
         ) : null}
 
-        {/* Summary row — only on Resumo */}
-        {viewMode === 'dashboard' ? (
+        {/* Você pagou / Outro pagou — só shared */}
+        {isShared && safeViewMode === 'dashboard' ? (
           <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl }}>
             <View style={{ flex: 1, backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm }}>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Você pagou (total)</Text>
@@ -378,8 +452,8 @@ export default function FinanceiroScreen() {
           </View>
         ) : null}
 
-        {/* Pending settlements awaiting MY confirmation — Resumo + Acertar */}
-        {viewMode !== 'history' && pendingForMe.length > 0 ? (
+        {/* Pending settlements — só shared */}
+        {isShared && safeViewMode !== 'history' && pendingForMe.length > 0 ? (
           <View style={{ marginBottom: spacing.xl }}>
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
               Aguardando sua confirmação
@@ -408,8 +482,8 @@ export default function FinanceiroScreen() {
           </View>
         ) : null}
 
-        {/* Action: register payment — Resumo + Acertar */}
-        {viewMode !== 'history' ? (
+        {/* Action: register payment — só shared */}
+        {isShared && safeViewMode !== 'history' ? (
           <TouchableOpacity
             onPress={openSettlementModal}
             testID="finance-settlement-cta"
@@ -422,8 +496,8 @@ export default function FinanceiroScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {/* Action: ver despesas — Resumo only */}
-        {viewMode === 'dashboard' ? (
+        {/* Action: ver despesas — Resumo (sempre visível) */}
+        {safeViewMode === 'dashboard' ? (
           <TouchableOpacity
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
             testID="finance-nova-despesa"
@@ -436,8 +510,8 @@ export default function FinanceiroScreen() {
           </TouchableOpacity>
         ) : null}
 
-        {/* Recent confirmed history — Resumo only */}
-        {viewMode === 'dashboard' && recentConfirmed.length > 0 ? (
+        {/* Recent confirmed history — só shared */}
+        {isShared && safeViewMode === 'dashboard' && recentConfirmed.length > 0 ? (
           <View>
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
               Histórico recente
@@ -470,8 +544,8 @@ export default function FinanceiroScreen() {
           </View>
         ) : null}
 
-        {/* Full history view — settlements grouped by month */}
-        {viewMode === 'history' ? (
+        {/* Full history view — só shared (ainda assim a aba só aparece em shared) */}
+        {isShared && safeViewMode === 'history' ? (
           historyByMonth.length === 0 ? (
             <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing['2xl'], alignItems: 'center', ...shadows.sm }}>
               <Ionicons name="archive-outline" size={32} color={colors.textMuted} />
@@ -535,8 +609,8 @@ export default function FinanceiroScreen() {
         ) : null}
       </ScrollView>
 
-      {/* Settlement modal */}
-      <Modal visible={modalOpen} transparent animationType="slide" onRequestClose={() => setModalOpen(false)}>
+      {/* Settlement modal — só renderiza se isShared (e mesmo assim modalOpen tem que ser true) */}
+      <Modal visible={modalOpen && isShared} transparent animationType="slide" onRequestClose={() => setModalOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <View style={{ flex: 1, backgroundColor: '#00000080' }} />
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, paddingBottom: spacing.xl + insets.bottom }}>
@@ -547,7 +621,6 @@ export default function FinanceiroScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Recipient */}
             <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>Para quem</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               {members.map((m) => (
@@ -580,7 +653,6 @@ export default function FinanceiroScreen() {
               </Text>
             ) : null}
 
-            {/* Amount */}
             <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>Valor (R$)</Text>
             <TextInput
               value={amount}
@@ -591,7 +663,6 @@ export default function FinanceiroScreen() {
               style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.lg, fontSize: font.sizes.lg, color: colors.text, marginBottom: spacing.lg }}
             />
 
-            {/* Payment method */}
             <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>Forma de pagamento</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               {PAYMENT_METHODS.map((pm) => (
@@ -612,7 +683,6 @@ export default function FinanceiroScreen() {
               ))}
             </View>
 
-            {/* Reference */}
             <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>Referência (opcional)</Text>
             <TextInput
               value={refNote}

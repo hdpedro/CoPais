@@ -277,39 +277,72 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
   const userOwes = overallBalance && overallBalance.owes.user_id === currentUserId;
   const otherMember = members.find((m) => m.user_id !== currentUserId);
 
+  // ── Single source of truth for the entire module ─────────────────────
+  // `isShared` controls whether to show balance/settlements/history-tab
+  // and gates the "Registrar pagamento" CTA. UI-level prevention only —
+  // never validate-after-click ("Sem co-responsáveis" alert was removed).
+  const isShared = members.length > 1;
+  // Defensive: bounce out of tabs that no longer apply when isShared flips
+  // (e.g., coparent removed mid-session via Família).
+  const safeViewMode = !isShared && viewMode !== "dashboard" ? "dashboard" : viewMode;
+
   return (
     <div className="space-y-4">
-      {/* View toggle */}
-      <div className="flex bg-gray-100 rounded-lg p-1">
-        <button
-          onClick={() => setViewMode("dashboard")}
-          className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-            viewMode === "dashboard" ? "bg-white text-dark shadow-sm" : "text-muted"
-          }`}
-        >
-          {t("financial.summary")}
-        </button>
-        {(custodyEnabled || members.length > 1) && (
+      {/* View toggle — Acertar e Histórico só fazem sentido em modo compartilhado */}
+      {isShared ? (
+        <div className="flex bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setViewMode("dashboard")}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              safeViewMode === "dashboard" ? "bg-white text-dark shadow-sm" : "text-muted"
+            }`}
+          >
+            {t("financial.summary")}
+          </button>
           <button
             onClick={() => setViewMode("settlements")}
             className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-              viewMode === "settlements" ? "bg-white text-dark shadow-sm" : "text-muted"
+              safeViewMode === "settlements" ? "bg-white text-dark shadow-sm" : "text-muted"
             }`}
           >
             {t("financial.settleUp")}
           </button>
-        )}
-        <button
-          onClick={() => setViewMode("history")}
-          className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
-            viewMode === "history" ? "bg-white text-dark shadow-sm" : "text-muted"
-          }`}
-        >
-          {t("financial.history")}
-        </button>
-      </div>
+          <button
+            onClick={() => setViewMode("history")}
+            className={`flex-1 py-2 text-sm font-medium rounded-md transition-colors ${
+              safeViewMode === "history" ? "bg-white text-dark shadow-sm" : "text-muted"
+            }`}
+          >
+            {t("financial.history")}
+          </button>
+        </div>
+      ) : null}
 
-      {viewMode === "dashboard" ? (
+      {/* Solo mode CTA — substitui o Saldo "A pagar / A receber" quando o
+          usuário está sozinho. Adiciona valor: convida pra trazer o coparente. */}
+      {!isShared && safeViewMode === "dashboard" ? (
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-5">
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-11 h-11 rounded-full bg-primary/15 flex items-center justify-center text-xl shrink-0">
+              👥
+            </div>
+            <div className="flex-1">
+              <h3 className="text-base font-bold text-dark">Divida despesas com outra pessoa</h3>
+              <p className="text-sm text-muted mt-0.5">
+                Adicione um co-responsável para dividir gastos automaticamente.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/familia"
+            className="block w-full py-2.5 bg-primary text-white text-sm font-semibold rounded-lg hover:bg-primary-dark transition-colors text-center"
+          >
+            Adicionar co-responsável
+          </Link>
+        </div>
+      ) : null}
+
+      {safeViewMode === "dashboard" ? (
         <>
           {/* Month navigation */}
           <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -332,14 +365,15 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
 
           {/* Total do mes */}
           <div className="bg-white rounded-xl p-5 shadow-sm text-center">
-            <p className="text-xs text-muted mb-1">{t("financial.monthTotal")}</p>
+            <p className="text-xs text-muted mb-1">{isShared ? t("financial.monthTotal") : "Seus gastos no mês"}</p>
             <p className="text-3xl font-bold text-dark">
               R$ {totalMonth.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
             </p>
             <p className="text-xs text-muted mt-1">{countableExpenses.length} {t("financial.expenseCount")}</p>
           </div>
 
-          {/* Per-parent cards */}
+          {/* Per-parent cards — só faz sentido em modo compartilhado */}
+          {isShared ? (
           <div className="grid grid-cols-2 gap-3">
             {members.map((m) => {
               const spent = memberSpending[m.user_id] || 0;
@@ -367,6 +401,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
               );
             })}
           </div>
+          ) : null}
 
           {/* Balance — hide "who owes whom" for single-member families without custody */}
           {balance && balance.amount > 0.01 && (custodyEnabled || members.length > 1) && (
@@ -482,7 +517,7 @@ export default function FinancialDashboard({ expenses, members, currentUserId, g
             {t("financial.newExpense")}
           </Link>
         </>
-      ) : viewMode === "settlements" ? (
+      ) : safeViewMode === "settlements" ? (
         /* Settlements view */
         <div className="space-y-4">
           {/* Overall balance card */}
