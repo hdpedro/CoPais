@@ -108,17 +108,30 @@ const DAY_INITIALS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']; // dom..sab
 const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
 
 /* ─── Date helpers ─── */
-function getCurrentWeek(): { start: Date; end: Date } {
+/**
+ * Returns the PREVIOUS full Monday→Sunday week (paridade PWA
+ * `src/app/(app)/semana/page.tsx`). The dashboard card is labeled
+ * "Análise da última semana" — user expects last week's data.
+ *
+ * Algorithm:
+ *   weekEnd   = most recent Sunday (today if today is Sunday)
+ *   weekStart = weekEnd - 6 days (that Monday)
+ *
+ * Examples (todayDow):
+ *   Sun (0)  → range = Mon..Sun = this past week ending today
+ *   Mon (1)  → range = previous Mon..Sun (week that ended yesterday)
+ *   Wed (3)  → range = previous Mon..Sun (most recent finished week)
+ *   Sat (6)  → range = previous Mon..Sun (most recent finished week)
+ */
+function getLastWeek(): { start: Date; end: Date } {
   const todayStr = getBrazilToday();
   const [y, m, d] = todayStr.split('-').map(Number);
   const today = new Date(y, m - 1, d, 12, 0, 0);
   const dow = today.getDay(); // 0 Sun..6 Sat
-  // Monday = start of week (BR convention)
-  const offset = dow === 0 ? -6 : 1 - dow;
-  const start = new Date(today);
-  start.setDate(start.getDate() + offset);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 6);
+  const end = new Date(today);
+  end.setDate(end.getDate() - (dow === 0 ? 0 : dow));
+  const start = new Date(end);
+  start.setDate(start.getDate() - 6);
   return { start, end };
 }
 
@@ -159,7 +172,7 @@ export default function SemanaScreen() {
   const load = useCallback(async () => {
     if (!activeGroup) return;
     const groupId = activeGroup.groupId;
-    const { start, end } = getCurrentWeek();
+    const { start, end } = getLastWeek();
     const weekStartKey = formatDateKey(start);
     const weekEndKey = formatDateKey(end);
     const todayStr = getBrazilToday();
