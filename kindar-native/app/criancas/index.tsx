@@ -45,7 +45,6 @@ export default function CriancasScreen() {
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
             {age} anos · {item.birth_date.split('-').reverse().join('/')}
           </Text>
-          {item.blood_type ? <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Tipo sanguíneo: {item.blood_type}</Text> : null}
           {allergies && allergies.length > 0 ? (
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4, marginTop: spacing.xs }}>
               {allergies.slice(0, 3).map((a, i) => (

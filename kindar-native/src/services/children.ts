@@ -18,7 +18,6 @@ export interface Child {
   /** 'M' | 'F' | null — matches DB CHECK constraint (migration 00036). */
   sex: 'M' | 'F' | null;
   photo_url: string | null;
-  blood_type: string | null;
   notes: string | null;
   allergies: string[] | null;
   cpf: string | null;
@@ -85,8 +84,11 @@ export interface ChildEducation {
 }
 
 export async function fetchChildren(groupId: string): Promise<Child[]> {
+  // NB: `blood_type` lives on `child_medical_info`, not `children`. Listing
+  // it here used to make PostgREST 400 the whole query and the Crianças list
+  // came up empty / the detail page rendered "Criança não encontrada".
   const { data } = await supabase.from('children')
-    .select('id, full_name, birth_date, sex, photo_url, blood_type, notes, allergies, cpf, rg')
+    .select('id, full_name, birth_date, sex, photo_url, notes, allergies, cpf, rg')
     .eq('group_id', groupId).order('birth_date');
   return data || [];
 }
@@ -119,7 +121,7 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
   ] = await Promise.all([
     supabase
       .from('children')
-      .select('id, full_name, birth_date, sex, photo_url, blood_type, notes, allergies, cpf, rg')
+      .select('id, full_name, birth_date, sex, photo_url, notes, allergies, cpf, rg')
       .eq('id', childId)
       .eq('group_id', groupId)
       .maybeSingle(),

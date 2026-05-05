@@ -1,9 +1,10 @@
 import { View, Text, ScrollView } from 'react-native';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
-import type { Child } from '../../services/children';
+import type { Child, MedicalInfo } from '../../services/children';
 
 interface Props {
   child: Child;
+  medicalInfo?: MedicalInfo | null;
 }
 
 function Row({ label, value }: { label: string; value: string | null }) {
@@ -30,7 +31,7 @@ function Row({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-export default function TabGeral({ child }: Props) {
+export default function TabGeral({ child, medicalInfo }: Props) {
   // children.allergies is a TEXT[] column written by /criancas/nova. PWA shows
   // these as red chips on the Geral tab so a parent who entered "amendoim"
   // during cadastro actually sees it on the profile. Native was previously
@@ -57,7 +58,7 @@ export default function TabGeral({ child }: Props) {
         <Row label="Sexo" value={child.sex === 'M' ? 'Masculino' : child.sex === 'F' ? 'Feminino' : null} />
         <Row label="CPF" value={child.cpf} />
         <Row label="RG" value={child.rg} />
-        <Row label="Tipo sanguíneo" value={child.blood_type} />
+        <Row label="Tipo sanguíneo" value={medicalInfo?.blood_type ?? null} />
       </View>
 
       {inlineAllergies.length > 0 ? (

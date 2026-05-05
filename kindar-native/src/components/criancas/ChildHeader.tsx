@@ -33,7 +33,7 @@ export default function ChildHeader({ child, medicalInfo }: Props) {
     .slice(0, 2)
     .map((n) => n[0]?.toUpperCase() ?? '')
     .join('');
-  const bloodType = medicalInfo?.blood_type ?? child.blood_type;
+  const bloodType = medicalInfo?.blood_type ?? null;
 
   return (
     <View
