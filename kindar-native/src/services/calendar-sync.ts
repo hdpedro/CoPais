@@ -96,8 +96,22 @@ export async function syncEventsToDeviceCalendar(
     const custodyByRange = new Map<string, { start: string; end: string; title: string }>();
     let created = 0;
 
-    // Custody events: hook emits one per day — compact contiguous runs
-    const custodyEvents = events.filter(e => e.type === 'custody').sort((a, b) => a.date.localeCompare(b.date));
+    // Custody events: hook emits one per day, in priority order
+    // (swap > exception > regular). When a date has both a swap and a
+    // regular row, both used to be synced to the iPhone calendar — two
+    // conflicting all-day events on the same day. Dedup per date here
+    // keeping the FIRST occurrence (highest priority), then sort by date.
+    // Array.prototype.sort is stable so this preserves the priority
+    // ordering useCalendar gave us. Mirrors the WeekendPlanner fix.
+    const seen = new Set<string>();
+    const custodyEvents = events
+      .filter(e => e.type === 'custody')
+      .filter(e => {
+        if (seen.has(e.date)) return false;
+        seen.add(e.date);
+        return true;
+      })
+      .sort((a, b) => a.date.localeCompare(b.date));
     for (let i = 0; i < custodyEvents.length; i++) {
       const e = custodyEvents[i];
       const who = e.responsibleId ? (memberNames[e.responsibleId] || 'Outro') : '?';
