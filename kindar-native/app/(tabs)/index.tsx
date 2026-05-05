@@ -331,8 +331,10 @@ export default function DashboardScreen() {
                   {data!.todayActivities.map(act => {
                     const catIcon = ACTIVITY_CATEGORIES.find(c => c.value === act.category)?.icon || '📌';
                     return (
-                      <View
+                      <TouchableOpacity
                         key={`today-${act.id}`}
+                        activeOpacity={0.75}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/atividades'); }}
                         style={{
                           backgroundColor: colors.bgElevated, borderRadius: radius.md,
                           padding: spacing.md, marginBottom: 6,
@@ -352,7 +354,8 @@ export default function DashboardScreen() {
                             {act.location ? ` · ${act.location}` : ''}
                           </Text>
                         </View>
-                      </View>
+                        <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+                      </TouchableOpacity>
                     );
                   })}
                 </>
@@ -366,8 +369,10 @@ export default function DashboardScreen() {
                   {data!.tomorrowActivities.map(act => {
                     const catIcon = ACTIVITY_CATEGORIES.find(c => c.value === act.category)?.icon || '📌';
                     return (
-                      <View
+                      <TouchableOpacity
                         key={`tmw-${act.id}`}
+                        activeOpacity={0.75}
+                        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/atividades'); }}
                         style={{
                           backgroundColor: colors.bgElevated, borderRadius: radius.md,
                           padding: spacing.md, marginBottom: 6,
@@ -387,7 +392,8 @@ export default function DashboardScreen() {
                             {act.location ? ` · ${act.location}` : ''}
                           </Text>
                         </View>
-                      </View>
+                        <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+                      </TouchableOpacity>
                     );
                   })}
                 </>
@@ -416,8 +422,10 @@ export default function DashboardScreen() {
                 const color = DECISION_CAT_COLORS[d.category] || colors.brand;
                 const deadlineInfo = formatDeadline(d.deadline);
                 return (
-                  <View
+                  <TouchableOpacity
                     key={d.id}
+                    activeOpacity={0.75}
+                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/decisoes/${d.id}`); }}
                     style={{
                       backgroundColor: 'rgba(232,162,40,0.08)',
                       borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
@@ -437,16 +445,15 @@ export default function DashboardScreen() {
                         </Text>
                       ) : null}
                     </View>
-                    <TouchableOpacity
-                      onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/decisoes/${d.id}`); }}
+                    <View
                       style={{
                         backgroundColor: colors.brand, paddingHorizontal: spacing.md, paddingVertical: 6,
                         borderRadius: radius.full,
                       }}
                     >
                       <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>{t('dashboard.voteNow')}</Text>
-                    </TouchableOpacity>
-                  </View>
+                    </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -468,44 +475,48 @@ export default function DashboardScreen() {
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
               </View>
-              {data!.pendingReports.slice(0, 3).map(r => (
-                <View
-                  key={`${r.activityId}-${r.occurrenceDate}`}
-                  style={{
-                    backgroundColor: 'rgba(232,162,40,0.08)',
-                    borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
-                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                  }}
-                >
-                  <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(232,162,40,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-                    <Ionicons name="clipboard-outline" size={16} color="#E8A228" />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
-                      {r.activityName}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                      {r.childName} · {formatShortDate(r.occurrenceDate)}
-                      {r.daysAgo > 0 ? ` (há ${r.daysAgo}d)` : ''}
-                    </Text>
-                  </View>
+              {data!.pendingReports.slice(0, 3).map(r => {
+                const openReport = () => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setReportModal({
+                    open: true, activityId: r.activityId, activityName: r.activityName,
+                    childId: r.childId, occurrenceDate: r.occurrenceDate,
+                  });
+                };
+                return (
                   <TouchableOpacity
-                    onPress={() => {
-                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setReportModal({
-                        open: true, activityId: r.activityId, activityName: r.activityName,
-                        childId: r.childId, occurrenceDate: r.occurrenceDate,
-                      });
-                    }}
+                    key={`${r.activityId}-${r.occurrenceDate}`}
+                    activeOpacity={0.75}
+                    onPress={openReport}
                     style={{
-                      backgroundColor: '#E8A228', paddingHorizontal: spacing.md, paddingVertical: 6,
-                      borderRadius: radius.full,
+                      backgroundColor: 'rgba(232,162,40,0.08)',
+                      borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
+                      flexDirection: 'row', alignItems: 'center', gap: spacing.md,
                     }}
                   >
-                    <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>{t('activityReport.reportNow')}</Text>
+                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(232,162,40,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                      <Ionicons name="clipboard-outline" size={16} color="#E8A228" />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
+                        {r.activityName}
+                      </Text>
+                      <Text style={{ fontSize: 11, color: colors.textSecondary }}>
+                        {r.childName} · {formatShortDate(r.occurrenceDate)}
+                        {r.daysAgo > 0 ? ` (há ${r.daysAgo}d)` : ''}
+                      </Text>
+                    </View>
+                    <View
+                      style={{
+                        backgroundColor: '#E8A228', paddingHorizontal: spacing.md, paddingVertical: 6,
+                        borderRadius: radius.full,
+                      }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>{t('activityReport.reportNow')}</Text>
+                    </View>
                   </TouchableOpacity>
-                </View>
-              ))}
+                );
+              })}
             </View>
           </Animated.View>
         ) : null}

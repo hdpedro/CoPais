@@ -24,6 +24,34 @@ function normalizeTime(t: string | null | undefined): string | null {
   return t.length >= 5 ? t.slice(0, 5) : t;
 }
 
+const DAY_SHORT = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+/**
+ * Format the day(s) on which an activity occurs:
+ *   - weekly + days_of_week "[1,3]"  → "Seg, Qua"
+ *   - daily                          → "Todos os dias"
+ *   - monthly                        → "Mensal"
+ *   - never (one-time) + start_date  → "23/03"
+ */
+function formatActivityDay(item: { recurrence_type: string; days_of_week: string | null; start_date: string }): string {
+  if (item.recurrence_type === 'weekly' && item.days_of_week) {
+    try {
+      const arr: number[] = JSON.parse(item.days_of_week);
+      return arr.map(n => DAY_SHORT[n] || '').filter(Boolean).join(', ');
+    } catch {
+      // legacy "1,3,5" plain CSV — best-effort fallback
+      return item.days_of_week.split(',').map(s => DAY_SHORT[parseInt(s.trim(), 10)] || '').filter(Boolean).join(', ');
+    }
+  }
+  if (item.recurrence_type === 'daily') return 'Todos os dias';
+  if (item.recurrence_type === 'monthly') return 'Mensal';
+  if (item.recurrence_type === 'never' && item.start_date) {
+    const [, m, d] = item.start_date.split('-');
+    return d && m ? `${d}/${m}` : '';
+  }
+  return '';
+}
+
 export default function AtividadesScreen() {
   const { activeGroup, userId } = useAuth();
   const [activities, setActivities] = useState<Activity[]>([]);
@@ -112,6 +140,7 @@ export default function AtividadesScreen() {
 
   const renderItem = ({ item }: { item: Activity }) => {
     const cat = ACTIVITY_CATEGORIES.find(c => c.value === item.category);
+    const dayLabel = formatActivityDay(item);
     return (
       <View
         style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm }}
@@ -126,14 +155,9 @@ export default function AtividadesScreen() {
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.name}</Text>
             <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-              {[item.childName, item.time_start?.slice(0, 5), item.location].filter(Boolean).join(' · ')}
+              {[item.childName, dayLabel, item.time_start?.slice(0, 5), item.location].filter(Boolean).join(' · ')}
             </Text>
           </View>
-          {item.recurrence_type !== 'never' ? (
-            <View style={{ backgroundColor: `${colors.brand}15`, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 }}>
-              <Text style={{ fontSize: font.sizes.xs, color: colors.brand }}>{item.recurrence_type}</Text>
-            </View>
-          ) : null}
         </TouchableOpacity>
 
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
