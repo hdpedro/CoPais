@@ -811,6 +811,7 @@ export default async function DashboardPage() {
     otherName,
     upcomingEvents: upcomingEventsProps,
     isReadonly,
+    quickActionsConfig: (profile as unknown as { quick_actions: { primary: string; secondary: string[] } | null })?.quick_actions ?? null,
     childCards,
     mySwapDays,
     memberCount: members?.length || 0,

@@ -8,8 +8,10 @@ import { EXPENSE_CATEGORIES, ACTIVITY_CATEGORIES } from "@/lib/constants";
 import type { ParentColorMap } from "@/lib/calendar-utils";
 
 const ActivityReportModal = dynamic(() => import("@/app/(app)/atividades/ActivityReportModal"), { ssr: false });
+const QuickActionsModal = dynamic(() => import("@/components/QuickActionsModal"), { ssr: false });
 // ShareActivityButton removed — activities section simplified
 import CustodyActivationCard from "@/components/CustodyActivationCard";
+import { QUICK_ACTIONS_CATALOG, DEFAULT_QUICK_ACTIONS, type QuickActionDef } from "@/lib/constants";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 
 /* ------------------------------------------------------------------ */
@@ -221,6 +223,7 @@ export interface DashboardClientProps {
 
   // Quick actions
   isReadonly: boolean;
+  quickActionsConfig: { primary: string; secondary: string[] } | null;
 
   // Children
   childCards: ChildCard[];
@@ -300,7 +303,19 @@ export default function DashboardClient(props: DashboardClientProps) {
     todayDate,
     tomorrowDate,
     visibleSections,
+    quickActionsConfig,
   } = props;
+
+  // Resolve quick actions from user config or defaults
+  const qaConfig = quickActionsConfig ?? { primary: DEFAULT_QUICK_ACTIONS.primary, secondary: [...DEFAULT_QUICK_ACTIONS.secondary] };
+  const catalogMap: Record<string, QuickActionDef> = Object.fromEntries(QUICK_ACTIONS_CATALOG.map((a) => [a.id, a]));
+  const primaryAction = catalogMap[qaConfig.primary] ?? catalogMap[DEFAULT_QUICK_ACTIONS.primary];
+  const secondaryActions = qaConfig.secondary
+    .filter((id) => id !== qaConfig.primary && catalogMap[id])
+    .map((id) => catalogMap[id])
+    .slice(0, 6);
+
+  const [showQAModal, setShowQAModal] = useState(false);
 
   // Activity report modal state
   const [reportModal, setReportModal] = useState<{
@@ -879,21 +894,39 @@ export default function DashboardClient(props: DashboardClientProps) {
       {/* === QUICK ACTIONS === */}
       {show("quickActions") && !isReadonly && (
       <div>
-        <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider mb-3">
-          {t("dashboard.quickActions")}
-        </p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-[10px] font-semibold text-[#9CA3AF] uppercase tracking-wider">
+            {t("dashboard.quickActions")}
+          </p>
+          <button
+            onClick={() => setShowQAModal(true)}
+            className="flex items-center gap-1 text-[10px] font-semibold text-[#D4735A] hover:opacity-75 transition-opacity"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+            {t("dashboard.editActionsHint")}
+          </button>
+        </div>
 
-        {/* Primary action - New expense */}
-        <Link href="/despesas/nova" prefetch={false} className="block mb-3">
-          <div className="bg-[#D4735A] rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:bg-[#D4623E] transition-colors active:scale-[0.99]">
+        {/* Primary action — dynamic */}
+        <Link href={primaryAction.href} prefetch={false} className="block mb-3">
+          <div
+            className="rounded-2xl p-4 flex items-center gap-3 shadow-sm hover:opacity-90 transition-opacity active:scale-[0.99]"
+            style={{ backgroundColor: primaryAction.color }}
+          >
             <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center flex-shrink-0">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
+              <svg
+                width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"
+                dangerouslySetInnerHTML={{ __html: primaryAction.svgInner }}
+              />
             </div>
             <div className="flex-1">
-              <p className="text-[15px] font-bold text-white">{t("dashboard.newExpense")}</p>
-              <p className="text-[11px] text-white/70">{t("dashboard.registerSharedExpense")}</p>
+              <p className="text-[15px] font-bold text-white">{primaryAction.defaultLabel}</p>
+              {primaryAction.id === "nova-despesa" && (
+                <p className="text-[11px] text-white/70">{t("dashboard.registerSharedExpense")}</p>
+              )}
             </div>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="opacity-50">
               <polyline points="9 18 15 12 9 6" />
@@ -901,29 +934,24 @@ export default function DashboardClient(props: DashboardClientProps) {
           </div>
         </Link>
 
-        {/* Secondary actions */}
-        <div className="grid grid-cols-3 gap-2.5">
-          <QuickAction label={t("dashboard.agenda")} href="/calendario" color="#5B9E85"
-            icon={<><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></>}
-          />
-          <QuickAction label={t("dashboard.weeklyAnalysis")} href="/semana" color="#3B82F6"
-            icon={<><path d="M21 15V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10"/><path d="M3 21h18"/><path d="M7 17l3-3 2 2 5-5"/></>}
-          />
-          <QuickAction label={t("nav.documents")} href="/documentos" color="#F59E0B"
-            icon={<><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"/><polyline points="13 2 13 9 20 9"/></>}
-          />
-          <QuickAction label={t("nav.sectionFinancial")} href="/financeiro" color="#5B9E85"
-            icon={<><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></>}
-          />
-          <QuickAction label={t("nav.agreements")} href="/acordos" color="#F59E0B"
-            icon={<><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></>}
-          />
-          <QuickAction label={t("nav.health")} href="/saude" color="#EF4444"
-            icon={<path d="M22 12h-4l-3 9L9 3l-3 9H2"/>}
-          />
-        </div>
+        {/* Secondary actions — dynamic grid */}
+        {secondaryActions.length > 0 && (
+          <div className="grid grid-cols-3 gap-2.5">
+            {secondaryActions.map((action) => (
+              <QuickActionButton key={action.id} action={action} />
+            ))}
+          </div>
+        )}
       </div>
       )}
+
+      {/* Quick Actions customization modal */}
+      <QuickActionsModal
+        isOpen={showQAModal}
+        onClose={() => setShowQAModal(false)}
+        initialPrimary={qaConfig.primary}
+        initialSecondary={qaConfig.secondary}
+      />
 
       {/* === SHOW MORE === */}
       {hasHiddenSections && !showAll && (
@@ -965,22 +993,24 @@ export default function DashboardClient(props: DashboardClientProps) {
 }
 
 /* ------------------------------------------------------------------ */
-/*  QuickAction helper                                                 */
+/*  QuickActionButton — renders a catalog action as a grid tile       */
 /* ------------------------------------------------------------------ */
 
-function QuickAction({ label, href, color, icon }: { label: string; href: string; color: string; icon: React.ReactNode }) {
+function QuickActionButton({ action }: { action: QuickActionDef }) {
   return (
     <Link
-      href={href}
+      href={action.href}
       prefetch={false}
       className="flex flex-col items-center justify-center gap-2 bg-white rounded-2xl p-3 border border-gray-100/80 hover:shadow-sm transition-all active:scale-95 min-h-[76px]"
     >
-      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: color + "10" }}>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
-          {icon}
-        </svg>
+      <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ backgroundColor: action.color + "10" }}>
+        <svg
+          width="18" height="18" viewBox="0 0 24 24" fill="none"
+          stroke={action.color} strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"
+          dangerouslySetInnerHTML={{ __html: action.svgInner }}
+        />
       </div>
-      <span className="text-[11px] font-medium text-[#2C2C2C] text-center leading-tight">{label}</span>
+      <span className="text-[11px] font-medium text-[#2C2C2C] text-center leading-tight">{action.defaultLabel}</span>
     </Link>
   );
 }

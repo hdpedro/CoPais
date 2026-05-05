@@ -304,6 +304,7 @@ common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, ch
 #### 1. profiles
 Extensao da tabela `auth.users` do Supabase. Criado automaticamente via trigger no signup.
 - `id`, `full_name`, `display_name`, `email`, `phone`, `role` (user_role), `avatar_url`, `locale`, `lgpd_consent_at`
+- `quick_actions` (jsonb, nullable) — preferencia de botoes de acao rapida do usuario. Formato: `{ "primary": "<action_id>", "secondary": ["<id>", ...] }`. `NULL` = usar padroes do app. Atualizado via `updateQuickActions` em `src/actions/profile.ts`.
 
 #### 2. coparenting_groups
 Grupo familiar que conecta os responsaveis.
