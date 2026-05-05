@@ -183,12 +183,12 @@ export default function TabSaude({ medicalInfo, latestGrowth, allergies, medicat
         )}
       </Section>
 
-      {medicalInfo?.health_insurance ? (
+      {medicalInfo?.insurance_name ? (
         <Section title="Plano de saúde">
-          <Text style={{ fontSize: font.sizes.md, color: colors.text }}>{medicalInfo.health_insurance}</Text>
-          {medicalInfo.insurance_card_number ? (
+          <Text style={{ fontSize: font.sizes.md, color: colors.text }}>{medicalInfo.insurance_name}</Text>
+          {medicalInfo.insurance_number ? (
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 4 }}>
-              Carteirinha: {medicalInfo.insurance_card_number}
+              Carteirinha: {medicalInfo.insurance_number}
             </Text>
           ) : null}
         </Section>

@@ -9,6 +9,7 @@ import EditChildSheet from './EditChildSheet';
 interface Props {
   child: Child;
   medicalInfo?: MedicalInfo | null;
+  groupId: string;
   onSaved?: () => void | Promise<void>;
 }
 
@@ -36,7 +37,7 @@ function Row({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-export default function TabGeral({ child, medicalInfo, onSaved }: Props) {
+export default function TabGeral({ child, medicalInfo, groupId, onSaved }: Props) {
   const [editOpen, setEditOpen] = useState(false);
   // children.allergies is a TEXT[] column written by /criancas/nova. PWA shows
   // these as red chips on the Geral tab so a parent who entered "amendoim"
@@ -162,6 +163,8 @@ export default function TabGeral({ child, medicalInfo, onSaved }: Props) {
       <EditChildSheet
         visible={editOpen}
         child={child}
+        medicalInfo={medicalInfo ?? null}
+        groupId={groupId}
         onClose={() => setEditOpen(false)}
         onSaved={async () => { if (onSaved) await onSaved(); }}
       />

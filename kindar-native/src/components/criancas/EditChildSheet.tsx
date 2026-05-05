@@ -3,29 +3,36 @@
  *
  * Native UX upgrades over the PWA inline form (src/app/(app)/criancas/[id]/
  * ChildDetailClient.tsx TabGeral):
- *   - CPF / RG inline masks (vs placeholder-only on web)
- *   - Allergy chip editor with × per chip + add field
- *     (vs single comma-joined string textbox)
- *   - Sex segmented control (web form omits sex entirely)
- *   - Native date wheel via DatePickerField (vs HTML <input type="date">)
- *   - Keyboard-aware bottom sheet with haptics on save
+ *   - Avatar tap → camera or library upload (PWA has no avatar picker)
+ *   - CPF mask + on-blur digit-verifier validation (PWA: placeholder only)
+ *   - RG mask inline (PWA: placeholder only)
+ *   - Allergy chip editor with × per chip + add field (PWA: comma string)
+ *   - Sex segmented control (PWA omits sex from the form)
+ *   - Blood type chips writing to child_medical_info (PWA: separate health
+ *     screen, never on the child profile form)
+ *   - Native date wheel via DatePickerField (PWA: <input type="date">)
+ *   - Keyboard-aware bottom sheet with haptics on every meaningful action
  *
- * Writes go through the existing children.updateChild service which uses
- * safeWrite (offline queue) → Supabase RLS enforces group membership, same
- * guarantee as the PWA's updateChild server action.
+ * Writes:
+ *   - children fields → updateChild service (safeWrite, RLS)
+ *   - child_medical_info.blood_type → upsertChildMedicalInfo (idempotent)
+ *   - children.photo_url → uploadChildAvatar (Storage path, signed at read)
  */
 
 import { useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Modal, Pressable, ScrollView,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Alert, Image, ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import type { Child } from '../../services/children';
-import { updateChild } from '../../services/children';
+import * as ImagePicker from 'expo-image-picker';
+import type { Child, MedicalInfo } from '../../services/children';
+import { updateChild, upsertChildMedicalInfo, uploadChildAvatar, signChildAvatar } from '../../services/children';
 import { DatePickerField, isoDateToDisplay } from '../ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
+
+// ── Masks & validation ───────────────────────────────────────────────────
 
 export function formatCpf(raw: string): string {
   const digits = raw.replace(/\D/g, '').slice(0, 11);
@@ -41,8 +48,6 @@ export function formatCpf(raw: string): string {
 }
 
 export function formatRg(raw: string): string {
-  // No single canonical RG format in BR; we apply the SP-style 00.000.000-0
-  // when it fits, otherwise pass-through (capped at 12 chars).
   const cleaned = raw.replace(/[^0-9Xx]/g, '').toUpperCase().slice(0, 9);
   if (cleaned.length <= 2) return cleaned;
   if (cleaned.length <= 5) return cleaned.slice(0, 2) + '.' + cleaned.slice(2);
@@ -50,9 +55,41 @@ export function formatRg(raw: string): string {
   return cleaned.slice(0, 2) + '.' + cleaned.slice(2, 5) + '.' + cleaned.slice(5, 8) + '-' + cleaned.slice(8);
 }
 
+/**
+ * Validate a Brazilian CPF using the official two-digit verifier algorithm.
+ * Reject 11-digit-equal sequences (000.000.000-00 etc.) which pass the
+ * checksum but are well-known invalid inputs.
+ */
+export function isValidCpf(formatted: string): boolean {
+  const digits = formatted.replace(/\D/g, '');
+  if (digits.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(digits)) return false;
+
+  const calcDigit = (slice: string, startWeight: number): number => {
+    let sum = 0;
+    for (let i = 0; i < slice.length; i++) {
+      sum += parseInt(slice[i], 10) * (startWeight - i);
+    }
+    const mod = sum % 11;
+    return mod < 2 ? 0 : 11 - mod;
+  };
+
+  const d10 = calcDigit(digits.slice(0, 9), 10);
+  if (d10 !== parseInt(digits[9], 10)) return false;
+  const d11 = calcDigit(digits.slice(0, 10), 11);
+  if (d11 !== parseInt(digits[10], 10)) return false;
+  return true;
+}
+
+const BLOOD_TYPES = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const;
+
+// ── Component ─────────────────────────────────────────────────────────────
+
 interface Props {
   visible: boolean;
   child: Child;
+  medicalInfo: MedicalInfo | null;
+  groupId: string;
   onClose: () => void;
   onSaved: () => void | Promise<void>;
 }
@@ -68,7 +105,7 @@ export default function EditChildSheet(props: Props) {
   );
 }
 
-function SheetBody({ child, onClose, onSaved }: Props) {
+function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
   const [fullName, setFullName] = useState(child.full_name);
   const [birthDate, setBirthDate] = useState<string>(child.birth_date);
   const [sex, setSex] = useState<'M' | 'F' | null>(child.sex);
@@ -77,9 +114,16 @@ function SheetBody({ child, onClose, onSaved }: Props) {
   const [allergies, setAllergies] = useState<string[]>(child.allergies || []);
   const [allergyDraft, setAllergyDraft] = useState('');
   const [notes, setNotes] = useState<string>(child.notes || '');
+  const [bloodType, setBloodType] = useState<string | null>(medicalInfo?.blood_type ?? null);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(child.photo_url);
+  const [uploadingPhoto, setUploadingPhoto] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  const canSave = useMemo(() => fullName.trim().length > 0 && !!birthDate && !saving, [fullName, birthDate, saving]);
+  const cpfValid = useMemo(() => cpf.trim().length === 0 || isValidCpf(cpf), [cpf]);
+  const canSave = useMemo(
+    () => fullName.trim().length > 0 && !!birthDate && cpfValid && !saving && !uploadingPhoto,
+    [fullName, birthDate, cpfValid, saving, uploadingPhoto]
+  );
 
   function addAllergy() {
     const next = allergyDraft.trim();
@@ -98,11 +142,86 @@ function SheetBody({ child, onClose, onSaved }: Props) {
     Haptics.selectionAsync();
   }
 
+  function toggleBloodType(t: string) {
+    Haptics.selectionAsync();
+    setBloodType(prev => (prev === t ? null : t));
+  }
+
+  async function pickAvatarFromCamera() {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Câmera bloqueada', 'Habilite o acesso à câmera nas configurações do app.');
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || !result.assets[0]) return;
+    await doUpload(result.assets[0]);
+  }
+
+  async function pickAvatarFromLibrary() {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) {
+      Alert.alert('Galeria bloqueada', 'Habilite acesso à galeria nas configurações.');
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.85,
+      allowsEditing: true,
+      aspect: [1, 1],
+    });
+    if (result.canceled || !result.assets[0]) return;
+    await doUpload(result.assets[0]);
+  }
+
+  async function doUpload(asset: ImagePicker.ImagePickerAsset) {
+    setUploadingPhoto(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const res = await uploadChildAvatar({
+      childId: child.id,
+      groupId,
+      uri: asset.uri,
+      mimeType: asset.mimeType,
+    });
+    if (!res.success) {
+      setUploadingPhoto(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', res.error);
+      return;
+    }
+    // Sign the freshly-uploaded path so the preview shows the new image.
+    const signed = await signChildAvatar(res.path);
+    setPhotoUrl(signed);
+    setUploadingPhoto(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }
+
+  function openAvatarPicker() {
+    if (uploadingPhoto) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    Alert.alert(
+      'Foto da criança',
+      'De onde você quer pegar a foto?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Galeria', onPress: pickAvatarFromLibrary },
+        { text: 'Câmera', onPress: pickAvatarFromCamera },
+      ],
+      { cancelable: true }
+    );
+  }
+
   async function handleSave() {
     if (!canSave) return;
     setSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const result = await updateChild(child.id, {
+
+    const childResult = await updateChild(child.id, {
       full_name: fullName.trim(),
       birth_date: birthDate,
       sex,
@@ -111,245 +230,366 @@ function SheetBody({ child, onClose, onSaved }: Props) {
       allergies: allergies.length > 0 ? allergies : null,
       notes: notes.trim() || null,
     });
-    setSaving(false);
-    if (result.success) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await onSaved();
-      onClose();
-    } else {
+    if (!childResult.success) {
+      setSaving(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Falha ao salvar');
+      Alert.alert('Erro', childResult.error || 'Falha ao salvar');
+      return;
     }
+
+    // Only touch child_medical_info when blood type actually changed —
+    // the upsert sets group_id which we don't want to overwrite needlessly.
+    const initialBlood = medicalInfo?.blood_type ?? null;
+    if (bloodType !== initialBlood) {
+      const medResult = await upsertChildMedicalInfo({
+        childId: child.id,
+        groupId,
+        blood_type: bloodType,
+      });
+      if (!medResult.success) {
+        setSaving(false);
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+        Alert.alert(
+          'Salvo parcialmente',
+          'Dados gerais foram salvos, mas houve erro ao salvar tipo sanguíneo: ' + medResult.error
+        );
+        await onSaved();
+        return;
+      }
+    }
+
+    setSaving(false);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    await onSaved();
+    onClose();
   }
 
   return (
     <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1, justifyContent: 'flex-end' }}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      style={{ flex: 1, justifyContent: 'flex-end' }}
+    >
+      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: '#00000080' }} />
+      <View
+        style={{
+          backgroundColor: colors.bgElevated,
+          borderTopLeftRadius: radius['2xl'],
+          borderTopRightRadius: radius['2xl'],
+          paddingTop: spacing.md,
+          paddingBottom: 40,
+          maxHeight: '94%',
+        }}
       >
-        <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: '#00000080' }} />
         <View
           style={{
-            backgroundColor: colors.bgElevated,
-            borderTopLeftRadius: radius['2xl'],
-            borderTopRightRadius: radius['2xl'],
-            paddingTop: spacing.md,
-            paddingBottom: 40,
-            maxHeight: '92%',
+            width: 36, height: 4, borderRadius: 2,
+            backgroundColor: colors.borderLight,
+            alignSelf: 'center', marginBottom: spacing.md,
+          }}
+        />
+
+        <View
+          style={{
+            flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+            paddingHorizontal: spacing.xl, marginBottom: spacing.md,
           }}
         >
-          {/* Drag handle */}
-          <View
-            style={{
-              width: 36, height: 4, borderRadius: 2,
-              backgroundColor: colors.borderLight,
-              alignSelf: 'center', marginBottom: spacing.md,
-            }}
+          <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
+            Editar informações
+          </Text>
+          <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <Ionicons name="close" size={24} color={colors.textSecondary} />
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.xl }}
+        >
+          {/* Avatar — tap to upload */}
+          <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
+            <TouchableOpacity
+              onPress={openAvatarPicker}
+              activeOpacity={0.85}
+              testID="edit-child-avatar"
+              disabled={uploadingPhoto}
+              style={{ position: 'relative' }}
+            >
+              {photoUrl ? (
+                // eslint-disable-next-line jsx-a11y/alt-text
+                <Image
+                  source={{ uri: photoUrl }}
+                  accessibilityLabel="Foto da criança"
+                  style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: colors.bgSurface }}
+                />
+              ) : (
+                <View
+                  style={{
+                    width: 96, height: 96, borderRadius: 48,
+                    backgroundColor: colors.brand,
+                    alignItems: 'center', justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontSize: font.sizes['2xl'], fontWeight: '700' }}>
+                    {(fullName || child.full_name).split(' ').filter(Boolean).slice(0, 2).map(n => n[0]?.toUpperCase()).join('')}
+                  </Text>
+                </View>
+              )}
+              <View
+                style={{
+                  position: 'absolute', right: -2, bottom: -2,
+                  width: 32, height: 32, borderRadius: 16,
+                  backgroundColor: colors.brand,
+                  borderWidth: 3, borderColor: colors.bgElevated,
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                {uploadingPhoto ? (
+                  <ActivityIndicator color="#fff" size="small" />
+                ) : (
+                  <Ionicons name="camera" size={16} color="#fff" />
+                )}
+              </View>
+            </TouchableOpacity>
+            <Text style={{ marginTop: 6, fontSize: font.sizes.xs, color: colors.textSecondary }}>
+              {uploadingPhoto ? 'Enviando foto…' : 'Toque para alterar a foto'}
+            </Text>
+          </View>
+
+          {/* Nome completo */}
+          <Label>Nome completo</Label>
+          <TextInput
+            testID="edit-child-name"
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="Nome completo"
+            placeholderTextColor={colors.textDim}
+            style={inputStyle}
           />
 
-          {/* Header */}
-          <View
-            style={{
-              flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-              paddingHorizontal: spacing.xl, marginBottom: spacing.md,
-            }}
-          >
-            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-              Editar informações
+          {/* Data de nascimento */}
+          <Label>Data de nascimento</Label>
+          <DatePickerField
+            value={birthDate || null}
+            onChange={(iso) => setBirthDate(iso || '')}
+            placeholder="DD/MM/AAAA"
+          />
+          {birthDate ? (
+            <Text style={hintStyle}>
+              {ageHint(birthDate)} · {isoDateToDisplay(birthDate)}
             </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
-              <Ionicons name="close" size={24} color={colors.textSecondary} />
+          ) : null}
+
+          {/* Sexo */}
+          <Label>Sexo</Label>
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            {(
+              [
+                { v: 'M' as const, label: 'Masculino' },
+                { v: 'F' as const, label: 'Feminino' },
+                { v: null as 'M' | 'F' | null, label: 'Não informar' },
+              ]
+            ).map((opt) => {
+              const active = sex === opt.v;
+              return (
+                <TouchableOpacity
+                  key={String(opt.v)}
+                  onPress={() => { Haptics.selectionAsync(); setSex(opt.v); }}
+                  style={{
+                    flex: 1,
+                    paddingVertical: 10,
+                    borderRadius: radius.md,
+                    borderWidth: 1,
+                    borderColor: active ? colors.brand : colors.borderLight,
+                    backgroundColor: active ? `${colors.brand}10` : colors.bg,
+                    alignItems: 'center',
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontSize: font.sizes.sm,
+                      fontWeight: active ? font.weights.semibold : font.weights.medium,
+                      color: active ? colors.brand : colors.textSecondary,
+                    }}
+                  >
+                    {opt.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          {/* CPF / RG */}
+          <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
+            <View style={{ flex: 1 }}>
+              <Label>CPF</Label>
+              <TextInput
+                testID="edit-child-cpf"
+                value={cpf}
+                onChangeText={(t) => setCpf(formatCpf(t))}
+                placeholder="000.000.000-00"
+                placeholderTextColor={colors.textDim}
+                keyboardType="number-pad"
+                maxLength={14}
+                style={[
+                  inputStyle,
+                  !cpfValid ? { borderColor: colors.error } : null,
+                ]}
+              />
+              {!cpfValid ? (
+                <Text style={{ fontSize: font.sizes.xs, color: colors.error, marginTop: 4 }}>
+                  CPF inválido
+                </Text>
+              ) : null}
+            </View>
+            <View style={{ flex: 1 }}>
+              <Label>RG</Label>
+              <TextInput
+                testID="edit-child-rg"
+                value={rg}
+                onChangeText={(t) => setRg(formatRg(t))}
+                placeholder="00.000.000-0"
+                placeholderTextColor={colors.textDim}
+                maxLength={12}
+                style={inputStyle}
+              />
+            </View>
+          </View>
+
+          {/* Tipo sanguíneo */}
+          <Label>Tipo sanguíneo</Label>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
+            {BLOOD_TYPES.map((t) => {
+              const active = bloodType === t;
+              return (
+                <TouchableOpacity
+                  key={t}
+                  onPress={() => toggleBloodType(t)}
+                  testID={`edit-child-blood-${t}`}
+                  style={{
+                    paddingHorizontal: spacing.md,
+                    paddingVertical: 8,
+                    borderRadius: radius.full,
+                    borderWidth: 1,
+                    borderColor: active ? '#C62828' : colors.borderLight,
+                    backgroundColor: active ? '#FFE4E1' : colors.bg,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                  }}
+                >
+                  <Ionicons name="water" size={12} color={active ? '#C62828' : colors.textMuted} />
+                  <Text
+                    style={{
+                      fontSize: font.sizes.sm,
+                      fontWeight: active ? font.weights.bold : font.weights.medium,
+                      color: active ? '#C62828' : colors.textSecondary,
+                    }}
+                  >
+                    {t}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          {bloodType ? (
+            <TouchableOpacity onPress={() => toggleBloodType(bloodType)} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Limpar seleção</Text>
+            </TouchableOpacity>
+          ) : null}
+
+          {/* Alergias */}
+          <Label>Alergias</Label>
+          {allergies.length > 0 ? (
+            <View
+              style={{
+                flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs,
+                marginBottom: spacing.sm,
+              }}
+            >
+              {allergies.map((a, i) => (
+                <TouchableOpacity
+                  key={`${a}-${i}`}
+                  onPress={() => removeAllergy(i)}
+                  activeOpacity={0.7}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    paddingHorizontal: spacing.sm,
+                    paddingVertical: 6,
+                    backgroundColor: 'rgba(229,57,53,0.1)',
+                    borderRadius: radius.full,
+                  }}
+                >
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.error, fontWeight: font.weights.semibold }}>
+                    {a}
+                  </Text>
+                  <Ionicons name="close-circle" size={14} color={colors.error} />
+                </TouchableOpacity>
+              ))}
+            </View>
+          ) : null}
+          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+            <TextInput
+              testID="edit-child-allergy-draft"
+              value={allergyDraft}
+              onChangeText={setAllergyDraft}
+              onSubmitEditing={addAllergy}
+              placeholder="Ex: Amendoim"
+              placeholderTextColor={colors.textDim}
+              returnKeyType="done"
+              style={[inputStyle, { flex: 1, marginBottom: 0 }]}
+            />
+            <TouchableOpacity
+              onPress={addAllergy}
+              disabled={allergyDraft.trim().length === 0}
+              style={{
+                paddingHorizontal: spacing.lg,
+                borderRadius: radius.md,
+                backgroundColor: colors.brand,
+                justifyContent: 'center',
+                opacity: allergyDraft.trim().length === 0 ? 0.4 : 1,
+              }}
+            >
+              <Ionicons name="add" size={22} color="#fff" />
             </TouchableOpacity>
           </View>
 
-          <ScrollView
-            keyboardShouldPersistTaps="handled"
-            contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.xl }}
+          {/* Anotações */}
+          <Label>Anotações</Label>
+          <TextInput
+            testID="edit-child-notes"
+            value={notes}
+            onChangeText={setNotes}
+            placeholder="Informações adicionais..."
+            placeholderTextColor={colors.textDim}
+            multiline
+            style={[inputStyle, { minHeight: 88, textAlignVertical: 'top' }]}
+          />
+
+          {/* Save button */}
+          <TouchableOpacity
+            testID="edit-child-save"
+            onPress={handleSave}
+            disabled={!canSave}
+            style={{
+              marginTop: spacing.xl,
+              backgroundColor: colors.brand,
+              borderRadius: radius.md,
+              paddingVertical: spacing.md + 2,
+              alignItems: 'center',
+              opacity: canSave ? 1 : 0.5,
+              ...shadows.sm,
+            }}
           >
-            {/* Nome completo */}
-            <Label>Nome completo</Label>
-            <TextInput
-              testID="edit-child-name"
-              value={fullName}
-              onChangeText={setFullName}
-              placeholder="Nome completo"
-              placeholderTextColor={colors.textDim}
-              style={inputStyle}
-            />
-
-            {/* Data de nascimento */}
-            <Label>Data de nascimento</Label>
-            <DatePickerField
-              value={birthDate || null}
-              onChange={(iso) => setBirthDate(iso || '')}
-              placeholder="DD/MM/AAAA"
-            />
-            {birthDate ? (
-              <Text style={hintStyle}>
-                {ageHint(birthDate)} · {isoDateToDisplay(birthDate)}
-              </Text>
-            ) : null}
-
-            {/* Sexo */}
-            <Label>Sexo</Label>
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              {(
-                [
-                  { v: 'M' as const, label: 'Masculino' },
-                  { v: 'F' as const, label: 'Feminino' },
-                  { v: null as 'M' | 'F' | null, label: 'Não informar' },
-                ]
-              ).map((opt) => {
-                const active = sex === opt.v;
-                return (
-                  <TouchableOpacity
-                    key={String(opt.v)}
-                    onPress={() => { Haptics.selectionAsync(); setSex(opt.v); }}
-                    style={{
-                      flex: 1,
-                      paddingVertical: 10,
-                      borderRadius: radius.md,
-                      borderWidth: 1,
-                      borderColor: active ? colors.brand : colors.borderLight,
-                      backgroundColor: active ? `${colors.brand}10` : colors.bg,
-                      alignItems: 'center',
-                    }}
-                  >
-                    <Text
-                      style={{
-                        fontSize: font.sizes.sm,
-                        fontWeight: active ? font.weights.semibold : font.weights.medium,
-                        color: active ? colors.brand : colors.textSecondary,
-                      }}
-                    >
-                      {opt.label}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-
-            {/* CPF / RG */}
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
-              <View style={{ flex: 1 }}>
-                <Label>CPF</Label>
-                <TextInput
-                  testID="edit-child-cpf"
-                  value={cpf}
-                  onChangeText={(t) => setCpf(formatCpf(t))}
-                  placeholder="000.000.000-00"
-                  placeholderTextColor={colors.textDim}
-                  keyboardType="number-pad"
-                  maxLength={14}
-                  style={inputStyle}
-                />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Label>RG</Label>
-                <TextInput
-                  testID="edit-child-rg"
-                  value={rg}
-                  onChangeText={(t) => setRg(formatRg(t))}
-                  placeholder="00.000.000-0"
-                  placeholderTextColor={colors.textDim}
-                  maxLength={12}
-                  style={inputStyle}
-                />
-              </View>
-            </View>
-
-            {/* Alergias */}
-            <Label>Alergias</Label>
-            {allergies.length > 0 ? (
-              <View
-                style={{
-                  flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs,
-                  marginBottom: spacing.sm,
-                }}
-              >
-                {allergies.map((a, i) => (
-                  <TouchableOpacity
-                    key={`${a}-${i}`}
-                    onPress={() => removeAllergy(i)}
-                    activeOpacity={0.7}
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 4,
-                      paddingHorizontal: spacing.sm,
-                      paddingVertical: 6,
-                      backgroundColor: 'rgba(229,57,53,0.1)',
-                      borderRadius: radius.full,
-                    }}
-                  >
-                    <Text style={{ fontSize: font.sizes.xs, color: colors.error, fontWeight: font.weights.semibold }}>
-                      {a}
-                    </Text>
-                    <Ionicons name="close-circle" size={14} color={colors.error} />
-                  </TouchableOpacity>
-                ))}
-              </View>
-            ) : null}
-            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <TextInput
-                testID="edit-child-allergy-draft"
-                value={allergyDraft}
-                onChangeText={setAllergyDraft}
-                onSubmitEditing={addAllergy}
-                placeholder="Ex: Amendoim"
-                placeholderTextColor={colors.textDim}
-                returnKeyType="done"
-                style={[inputStyle, { flex: 1, marginBottom: 0 }]}
-              />
-              <TouchableOpacity
-                onPress={addAllergy}
-                disabled={allergyDraft.trim().length === 0}
-                style={{
-                  paddingHorizontal: spacing.lg,
-                  borderRadius: radius.md,
-                  backgroundColor: colors.brand,
-                  justifyContent: 'center',
-                  opacity: allergyDraft.trim().length === 0 ? 0.4 : 1,
-                }}
-              >
-                <Ionicons name="add" size={22} color="#fff" />
-              </TouchableOpacity>
-            </View>
-
-            {/* Anotações */}
-            <Label>Anotações</Label>
-            <TextInput
-              testID="edit-child-notes"
-              value={notes}
-              onChangeText={setNotes}
-              placeholder="Informações adicionais..."
-              placeholderTextColor={colors.textDim}
-              multiline
-              style={[inputStyle, { minHeight: 88, textAlignVertical: 'top' }]}
-            />
-
-            {/* Save button */}
-            <TouchableOpacity
-              testID="edit-child-save"
-              onPress={handleSave}
-              disabled={!canSave}
-              style={{
-                marginTop: spacing.xl,
-                backgroundColor: colors.brand,
-                borderRadius: radius.md,
-                paddingVertical: spacing.md + 2,
-                alignItems: 'center',
-                opacity: canSave ? 1 : 0.5,
-                ...shadows.sm,
-              }}
-            >
-              <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-                {saving ? 'Salvando…' : 'Salvar alterações'}
-              </Text>
-            </TouchableOpacity>
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
+            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
+              {saving ? 'Salvando…' : 'Salvar alterações'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

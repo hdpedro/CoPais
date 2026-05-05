@@ -28,8 +28,10 @@ export interface MedicalInfo {
   id: string;
   child_id: string;
   blood_type: string | null;
-  health_insurance: string | null;
-  insurance_card_number: string | null;
+  /** DB column is `insurance_name` (migration history). */
+  insurance_name: string | null;
+  /** DB column is `insurance_number`. */
+  insurance_number: string | null;
 }
 
 export interface GrowthRecord {
@@ -127,7 +129,7 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
       .maybeSingle(),
     supabase
       .from('child_medical_info')
-      .select('id, child_id, blood_type, health_insurance, insurance_card_number')
+      .select('id, child_id, blood_type, insurance_name, insurance_number')
       .eq('child_id', childId)
       .maybeSingle(),
     supabase
@@ -177,8 +179,17 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
     } as ChildDocument;
   });
 
+  // Sign avatar URL just-in-time. We store the storage path (no host) in
+  // children.photo_url for new uploads. Legacy rows may already contain a
+  // full URL — pass those through unchanged.
+  const childRow = childRes.data as Child;
+  if (childRow.photo_url && !/^https?:\/\//i.test(childRow.photo_url)) {
+    const signed = await signChildAvatar(childRow.photo_url);
+    if (signed) childRow.photo_url = signed;
+  }
+
   return {
-    child: childRes.data as Child,
+    child: childRow,
     medicalInfo: (medicalRes.data as MedicalInfo | null) ?? null,
     latestGrowth: (growthRes.data?.[0] as GrowthRecord | undefined) ?? null,
     allergies: (allergiesRes.data ?? []) as Allergy[],
@@ -187,6 +198,91 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
     documents,
     education: (educationRes.data as ChildEducation | null) ?? null,
   };
+}
+
+/**
+ * Sign a child avatar storage path via the `documents` bucket. Avatars share
+ * the bucket because its RLS already restricts access to group members
+ * (folder[0] = group_id). Path convention: `{groupId}/_avatars/{childId}.jpg`.
+ */
+export async function signChildAvatar(path: string): Promise<string | null> {
+  const { data, error } = await supabase.storage
+    .from('documents')
+    .createSignedUrl(path, 60 * 60); // 1h is enough for a screen view
+  if (error || !data?.signedUrl) return null;
+  return data.signedUrl;
+}
+
+/**
+ * Upload a new avatar for a child. Overwrites the prior file at the same
+ * path (`{groupId}/_avatars/{childId}.jpg`) so we never accumulate orphans.
+ * Stores only the storage path in `children.photo_url`; the URL is signed
+ * on read by `fetchChildDetail`.
+ *
+ * The asset must be a local file URI from expo-image-picker.
+ */
+export async function uploadChildAvatar(params: {
+  childId: string;
+  groupId: string;
+  uri: string;
+  mimeType?: string | null;
+}): Promise<{ success: true; path: string } | { success: false; error: string }> {
+  const ext = (() => {
+    const m = (params.mimeType || '').match(/^image\/(\w+)/i);
+    if (m) return m[1].toLowerCase().replace('jpeg', 'jpg');
+    const u = params.uri.split('?')[0];
+    const e = u.split('.').pop()?.toLowerCase();
+    return e && /^[a-z0-9]+$/.test(e) ? e.replace('jpeg', 'jpg') : 'jpg';
+  })();
+  const path = `${params.groupId}/_avatars/${params.childId}.${ext}`;
+
+  // RN file→Blob via fetch — the standard supabase-js + expo pattern.
+  let body: Blob;
+  try {
+    const res = await fetch(params.uri);
+    body = await res.blob();
+  } catch (e) {
+    return { success: false, error: e instanceof Error ? e.message : 'Falha ao ler imagem' };
+  }
+
+  const { error: uploadErr } = await supabase.storage
+    .from('documents')
+    .upload(path, body, {
+      contentType: params.mimeType || `image/${ext}`,
+      upsert: true,
+    });
+  if (uploadErr) return { success: false, error: uploadErr.message };
+
+  const writeRes = await safeWrite({
+    table: 'children',
+    operation: 'update',
+    payload: { id: params.childId, photo_url: path },
+  });
+  if (!writeRes.success) return { success: false, error: writeRes.error || 'Falha ao salvar foto' };
+  return { success: true, path };
+}
+
+/**
+ * Upsert blood type (and other future fields) on `child_medical_info`.
+ * RLS enforces group membership.
+ */
+export async function upsertChildMedicalInfo(params: {
+  childId: string;
+  groupId: string;
+  blood_type?: string | null;
+}): Promise<{ success: true } | { success: false; error: string }> {
+  const { error } = await supabase
+    .from('child_medical_info')
+    .upsert(
+      {
+        child_id: params.childId,
+        group_id: params.groupId,
+        blood_type: params.blood_type ?? null,
+      },
+      { onConflict: 'child_id' }
+    );
+  if (error) return { success: false, error: error.message };
+  return { success: true };
 }
 
 export async function fetchChildEducation(childId: string): Promise<ChildEducation | null> {
