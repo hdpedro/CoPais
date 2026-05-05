@@ -9,9 +9,10 @@ import { useAuth } from '../../src/store/auth';
 import { useDashboard } from '../../src/hooks/useDashboard';
 import { useI18n } from '../../src/i18n';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
-import { ACTIVITY_CATEGORIES } from '../../src/lib/constants';
+import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from '../../src/lib/constants';
 import ActivityReportModal from '../../src/components/activities/ActivityReportModal';
-import ActivityChecklistModal from '../../src/components/activities/ActivityChecklistModal';
+import ActivityDetailSheet from '../../src/components/activities/ActivityDetailSheet';
+import QuickActionsModal from '../../src/components/QuickActionsModal';
 
 // i18n keys for greetings — same keys the PWA uses
 // (`dashboard.goodMorning` / `goodAfternoon` / `goodEvening`).
@@ -57,18 +58,19 @@ function formatDeadline(deadline: string | null): { label: string; urgent: boole
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
-  const { activeGroup, userId } = useAuth();
+  const { activeGroup, userId, profile } = useAuth();
   const { data, loading, refresh } = useDashboard();
   const t = useI18n(s => s.t);
   const [refreshing, setRefreshing] = useState(false);
+  const [showQAModal, setShowQAModal] = useState(false);
   const [reportModal, setReportModal] = useState<{
     open: boolean; activityId: string; activityName: string; childId: string | null; occurrenceDate: string;
   } | null>(null);
-  // Tap on a Hoje/Amanhã activity card opens the checklist for that
-  // specific occurrence (what to bring/prepare). User asked for context
-  // over the all-activities list — paridade com PWA dashboard.
-  const [checklistModal, setChecklistModal] = useState<{
-    activityId: string; activityName: string; occurrenceDate: string;
+  // Tap on a Hoje/Amanhã activity card opens a rich detail sheet for that
+  // specific occurrence — paridade com PWA DayDetailSheet (horário, local,
+  // responsável, criança, checklist, ações share/edit/delete/relatar).
+  const [activityDetail, setActivityDetail] = useState<{
+    activityId: string; activityName: string; childId: string | null; occurrenceDate: string;
   } | null>(null);
 
   // Reused for activity card → checklist modal (occurrenceDate).
@@ -351,9 +353,10 @@ export default function DashboardScreen() {
                         activeOpacity={0.75}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setChecklistModal({
+                          setActivityDetail({
                             activityId: act.id,
                             activityName: act.name,
+                            childId: null,
                             occurrenceDate: todayIso,
                           });
                         }}
@@ -396,9 +399,10 @@ export default function DashboardScreen() {
                         activeOpacity={0.75}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setChecklistModal({
+                          setActivityDetail({
                             activityId: act.id,
                             activityName: act.name,
+                            childId: null,
                             occurrenceDate: tomorrowIso,
                           });
                         }}
@@ -726,75 +730,96 @@ export default function DashboardScreen() {
         ) : null}
 
         {/* === QUICK ACTIONS === */}
-        <Animated.View entering={FadeInDown.delay(320).duration(400)}>
-          <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2, marginBottom: spacing.sm }}>
-            {t('dashboard.quickActions')}
-          </Text>
+        {(() => {
+          const catalogMap = Object.fromEntries(QUICK_ACTIONS_CATALOG_NATIVE.map(a => [a.id, a]));
+          const qaConfig = profile?.quick_actions ?? null;
+          const primaryId = qaConfig?.primary ?? DEFAULT_QUICK_ACTIONS_NATIVE.primary;
+          const secondaryIds = qaConfig?.secondary ?? [...DEFAULT_QUICK_ACTIONS_NATIVE.secondary];
+          const primaryAction = catalogMap[primaryId] ?? QUICK_ACTIONS_CATALOG_NATIVE[0];
+          const secondaryActions = secondaryIds
+            .map(id => catalogMap[id])
+            .filter(Boolean)
+            .slice(0, 6);
 
-          {/* Primary CTA — Nova despesa */}
-          <TouchableOpacity
-            onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas/nova'); }}
-            activeOpacity={0.85}
-            testID="home-cta-nova-despesa"
-            accessibilityLabel={t('dashboard.newExpense')}
-            style={{
-              backgroundColor: colors.brand, borderRadius: radius.xl,
-              padding: spacing.lg, marginBottom: spacing.sm,
-              flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.sm,
-            }}
-          >
-            <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-              <Ionicons name="add" size={24} color="#fff" />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: 15, fontWeight: font.weights.bold, color: '#fff' }}>
-                {t('dashboard.newExpense')}
-              </Text>
-              <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>
-                {t('dashboard.registerSharedExpense')}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
-          </TouchableOpacity>
+          return (
+            <Animated.View entering={FadeInDown.delay(320).duration(400)}>
+              {/* Section header with edit button */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+                <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2 }}>
+                  {t('dashboard.quickActions')}
+                </Text>
+                <TouchableOpacity
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowQAModal(true); }}
+                  style={{
+                    flexDirection: 'row', alignItems: 'center', gap: 4,
+                    paddingHorizontal: spacing.sm, paddingVertical: 4,
+                    borderRadius: radius.full, backgroundColor: colors.bgSurface,
+                  }}
+                  accessibilityLabel={t('dashboard.editActionsHint')}
+                >
+                  <Ionicons name="pencil-outline" size={11} color={colors.textMuted} />
+                  <Text style={{ fontSize: 10, fontWeight: font.weights.medium, color: colors.textMuted }}>
+                    {t('dashboard.editActionsHint')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
-          {/* Secondary grid 3x2 — match PWA order */}
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-            {[
-              { icon: 'calendar-outline' as const, label: 'Agenda', route: '/(tabs)/calendario', color: '#5B9E85', testID: 'home-card-calendar' },
-              { icon: 'stats-chart-outline' as const, label: 'Análise da última semana', route: '/semana', color: '#3B82F6', testID: 'home-card-semana' },
-              { icon: 'document-outline' as const, label: 'Documentos', route: '/documentos', color: '#F59E0B', testID: 'home-card-documentos' },
-              { icon: 'cash-outline' as const, label: 'Financeiro', route: '/financeiro', color: '#5B9E85', testID: 'home-card-finance' },
-              { icon: 'reader-outline' as const, label: 'Acordos', route: '/acordos', color: '#F59E0B', testID: 'home-card-acordos' },
-              { icon: 'heart-outline' as const, label: 'Saúde', route: '/(tabs)/saude', color: '#EF4444', testID: 'home-card-health' },
-            ].map(action => (
+              {/* Primary CTA */}
               <TouchableOpacity
-                key={action.label}
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  router.push(action.route as Parameters<typeof router.push>[0]);
-                }}
-                activeOpacity={0.75}
-                testID={action.testID}
-                accessibilityLabel={action.label}
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(primaryAction.href as Parameters<typeof router.push>[0]); }}
+                activeOpacity={0.85}
+                testID="home-cta-primary"
+                accessibilityLabel={primaryAction.defaultLabel}
                 style={{
-                  width: '31.5%', backgroundColor: colors.bgElevated, borderRadius: radius.xl,
-                  padding: spacing.md, alignItems: 'center', gap: spacing.xs, minHeight: 92, ...shadows.sm,
+                  backgroundColor: primaryAction.color, borderRadius: radius.xl,
+                  padding: spacing.lg, marginBottom: spacing.sm,
+                  flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.sm,
                 }}
               >
-                <View style={{
-                  width: 36, height: 36, borderRadius: 12,
-                  backgroundColor: `${action.color}15`,
-                  alignItems: 'center', justifyContent: 'center',
-                }}>
-                  <Ionicons name={action.icon} size={18} color={action.color} />
+                <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.2)', alignItems: 'center', justifyContent: 'center' }}>
+                  <Ionicons name={primaryAction.icon as keyof typeof Ionicons.glyphMap} size={24} color="#fff" />
                 </View>
-                <Text style={{ fontSize: 11, fontWeight: font.weights.medium, color: colors.text, textAlign: 'center' }} numberOfLines={2}>
-                  {action.label}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: 15, fontWeight: font.weights.bold, color: '#fff' }}>
+                    {primaryAction.defaultLabel}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
               </TouchableOpacity>
-            ))}
-          </View>
-        </Animated.View>
+
+              {/* Secondary grid 3x2 */}
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+                {secondaryActions.map(action => (
+                  <TouchableOpacity
+                    key={action.id}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      router.push(action.href as Parameters<typeof router.push>[0]);
+                    }}
+                    activeOpacity={0.75}
+                    testID={`home-card-${action.id}`}
+                    accessibilityLabel={action.defaultLabel}
+                    style={{
+                      width: '31.5%', backgroundColor: colors.bgElevated, borderRadius: radius.xl,
+                      padding: spacing.md, alignItems: 'center', gap: spacing.xs, minHeight: 92, ...shadows.sm,
+                    }}
+                  >
+                    <View style={{
+                      width: 36, height: 36, borderRadius: 12,
+                      backgroundColor: `${action.color}15`,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}>
+                      <Ionicons name={action.icon as keyof typeof Ionicons.glyphMap} size={18} color={action.color} />
+                    </View>
+                    <Text style={{ fontSize: 11, fontWeight: font.weights.medium, color: colors.text, textAlign: 'center' }} numberOfLines={2}>
+                      {action.defaultLabel}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </Animated.View>
+          );
+        })()}
       </ScrollView>
 
       {/* Activity Report Modal */}
@@ -812,19 +837,33 @@ export default function DashboardScreen() {
         />
       ) : null}
 
-      {/* Activity Checklist Modal — opens when user taps a Hoje/Amanhã
-          card. Mostra o que precisa preparar/levar pra essa atividade
-          específica em vez de mandar pra lista de todas as atividades. */}
-      {checklistModal && userId ? (
-        <ActivityChecklistModal
-          visible={!!checklistModal}
-          onClose={() => setChecklistModal(null)}
-          activityId={checklistModal.activityId}
-          activityName={checklistModal.activityName}
-          occurrenceDate={checklistModal.occurrenceDate}
+      {/* Activity Detail Sheet — rich bottom-sheet for the tapped Hoje/
+          Amanhã card. Substitui o ChecklistModal simples (paridade PWA
+          DayDetailSheet: horário, local, responsável, criança, checklist
+          + ações share/edit/delete/relatar). */}
+      {activityDetail && userId ? (
+        <ActivityDetailSheet
+          visible={!!activityDetail}
+          onClose={() => setActivityDetail(null)}
+          activityId={activityDetail.activityId}
+          occurrenceDate={activityDetail.occurrenceDate}
           completedBy={userId}
+          onReport={() => {
+            setReportModal({
+              open: true,
+              activityId: activityDetail.activityId,
+              activityName: activityDetail.activityName,
+              childId: activityDetail.childId,
+              occurrenceDate: activityDetail.occurrenceDate,
+            });
+          }}
         />
       ) : null}
+
+      <QuickActionsModal
+        visible={showQAModal}
+        onClose={() => setShowQAModal(false)}
+      />
     </>
   );
 }
