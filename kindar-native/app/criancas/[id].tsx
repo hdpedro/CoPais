@@ -113,7 +113,7 @@ export default function ChildDetailScreen() {
           style={{ flex: 1 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
         >
-          <TabGeral child={child} medicalInfo={medicalInfo} />
+          <TabGeral child={child} medicalInfo={medicalInfo} onSaved={load} />
         </ScrollView>
       )}
       {tab === 'saude' && (

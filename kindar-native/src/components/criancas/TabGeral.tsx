@@ -1,10 +1,15 @@
-import { View, Text, ScrollView } from 'react-native';
-import { colors, spacing, radius, font } from '../../design-system/tokens';
+import { useState } from 'react';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 import type { Child, MedicalInfo } from '../../services/children';
+import EditChildSheet from './EditChildSheet';
 
 interface Props {
   child: Child;
   medicalInfo?: MedicalInfo | null;
+  onSaved?: () => void | Promise<void>;
 }
 
 function Row({ label, value }: { label: string; value: string | null }) {
@@ -31,7 +36,8 @@ function Row({ label, value }: { label: string; value: string | null }) {
   );
 }
 
-export default function TabGeral({ child, medicalInfo }: Props) {
+export default function TabGeral({ child, medicalInfo, onSaved }: Props) {
+  const [editOpen, setEditOpen] = useState(false);
   // children.allergies is a TEXT[] column written by /criancas/nova. PWA shows
   // these as red chips on the Geral tab so a parent who entered "amendoim"
   // during cadastro actually sees it on the profile. Native was previously
@@ -113,6 +119,52 @@ export default function TabGeral({ child, medicalInfo }: Props) {
           </Text>
         </View>
       ) : null}
+
+      {/* Edit CTA — opens bottom-sheet form. Parity with PWA's
+          <details>Editar informações</details> block but with native
+          chips/masks/date wheel and haptics. */}
+      <TouchableOpacity
+        testID="tab-geral-edit"
+        onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setEditOpen(true); }}
+        activeOpacity={0.85}
+        style={{
+          marginTop: spacing.lg,
+          backgroundColor: colors.bgElevated,
+          borderRadius: radius.lg,
+          paddingVertical: spacing.md,
+          paddingHorizontal: spacing.lg,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.md,
+          ...shadows.sm,
+        }}
+      >
+        <View
+          style={{
+            width: 36, height: 36, borderRadius: 18,
+            backgroundColor: `${colors.brand}15`,
+            alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <Ionicons name="create-outline" size={18} color={colors.brand} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
+            Editar informações
+          </Text>
+          <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
+            Nome, nascimento, CPF, RG, alergias e anotações
+          </Text>
+        </View>
+        <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+      </TouchableOpacity>
+
+      <EditChildSheet
+        visible={editOpen}
+        child={child}
+        onClose={() => setEditOpen(false)}
+        onSaved={async () => { if (onSaved) await onSaved(); }}
+      />
     </ScrollView>
   );
 }
