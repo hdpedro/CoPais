@@ -20,6 +20,8 @@ export interface CalendarEvent {
   color: string;
   responsibleId?: string;
   time?: string;
+  /** When set, this is a calendar mirror of a school_logs row; tap → /escola */
+  schoolLogId?: string | null;
 }
 
 export interface MemberColor {
@@ -87,7 +89,7 @@ export function useCalendar() {
           .limit(500)
           .then(r => r, () => ({ data: [] as never[] })),
         supabase.from('events')
-          .select('id, title, event_date, end_date, status')
+          .select('id, title, event_date, event_time, end_date, status, school_log_id')
           .eq('group_id', groupId)
           .neq('status', 'cancelled')
           .gte('event_date', startKey)
@@ -168,7 +170,7 @@ export function useCalendar() {
         });
       });
 
-      // Social events
+      // Social events (includes school events mirrored via events.school_log_id)
       (socialEvents || []).forEach((e: any) => {
         allEvents.push({
           id: e.id,
@@ -176,6 +178,8 @@ export function useCalendar() {
           type: 'event',
           title: e.title,
           color: colors.secondary,
+          time: e.event_time?.slice(0, 5) || undefined,
+          schoolLogId: e.school_log_id || null,
         });
       });
 

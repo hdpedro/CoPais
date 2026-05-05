@@ -640,27 +640,49 @@ export default function CalendarScreen() {
             </Text>
           ) : (
             <ScrollView style={{ maxHeight: 300 }}>
-              {selectedEvents.map((e, i) => (
-                <View key={e.id + '-' + i} testID={`calendar-event-${e.id}`} style={{
-                  flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                  paddingVertical: spacing.md,
-                  borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
-                }}>
-                  <View style={{ width: 4, height: 28, borderRadius: 2, backgroundColor: e.color }} />
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
-                      {e.title}
-                    </Text>
-                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                      {e.type === 'custody' ? 'Guarda'
-                        : e.type === 'activity' ? 'Atividade'
-                        : e.type === 'appointment' ? 'Consulta'
-                        : 'Evento'}
-                      {e.time ? ` · ${e.time}` : ''}
-                    </Text>
+              {selectedEvents.map((e, i) => {
+                const isSchool = !!e.schoolLogId;
+                const Body = (
+                  <View testID={`calendar-event-${e.id}`} style={{
+                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                    paddingVertical: spacing.md,
+                    borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                  }}>
+                    <View style={{ width: 4, height: 28, borderRadius: 2, backgroundColor: e.color }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
+                        {e.title}
+                      </Text>
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
+                        {e.type === 'custody' ? 'Guarda'
+                          : e.type === 'activity' ? 'Atividade'
+                          : e.type === 'appointment' ? 'Consulta'
+                          : isSchool ? 'Escola'
+                          : 'Evento'}
+                        {e.time ? ` · ${e.time}` : ''}
+                      </Text>
+                    </View>
+                    {isSchool ? (
+                      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+                    ) : null}
                   </View>
-                </View>
-              ))}
+                );
+                return isSchool ? (
+                  <TouchableOpacity
+                    key={e.id + '-' + i}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      setSelectedDay(null);
+                      router.push({ pathname: '/escola', params: { highlight: e.schoolLogId! } } as never);
+                    }}
+                  >
+                    {Body}
+                  </TouchableOpacity>
+                ) : (
+                  <View key={e.id + '-' + i}>{Body}</View>
+                );
+              })}
             </ScrollView>
           )}
 

@@ -13,14 +13,15 @@ import {
   View, Text, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../src/store/auth';
 import { fetchChildren, fetchChildEducation, upsertChildEducation, type ChildEducation } from '../../src/services/children';
 import {
   fetchSchoolLogs, createSchoolLog, updateSchoolLog, deleteSchoolLog, toggleSchoolLogCompleted,
-  SCHOOL_LOG_TYPES, type SchoolLog, type SchoolLogType,
+  EVENT_SUBTYPES, NOTE_SUBTYPES, SUBTYPE_LABEL, SUBTYPE_ICON, SUBTYPE_HINT, getKind,
+  type SchoolLog, type SchoolLogType, type SchoolKind,
 } from '../../src/services/school';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
 import EmptyState from '../../src/components/ui/EmptyState';
@@ -42,29 +43,16 @@ interface ChildOption {
 
 type Tab = 'info' | 'logs';
 
-const TYPE_LABELS: Record<SchoolLogType, string> = {
-  grade: 'Nota / boletim',
-  meeting: 'Reuniao',
-  behavior: 'Comportamento',
-  homework: 'Tarefa de casa',
-  event: 'Evento',
-  absence: 'Falta',
-  achievement: 'Conquista',
-  concern: 'Atencao',
-  other: 'Outro',
-};
+// Use SUBTYPE_LABEL / SUBTYPE_ICON from services/school.ts so PWA + native
+// share a single source of truth (icons, copy, kind grouping).
+const TYPE_LABELS = SUBTYPE_LABEL;
+const TYPE_ICONS = SUBTYPE_ICON;
 
-const TYPE_ICONS: Record<SchoolLogType, string> = {
-  grade: '📊',
-  meeting: '👥',
-  behavior: '📝',
-  homework: '📚',
-  event: '🎉',
-  absence: '🚫',
-  achievement: '🏆',
-  concern: '⚠️',
-  other: '📌',
-};
+type ComposerStage =
+  | { stage: 'closed' }
+  | { stage: 'pick-kind' }
+  | { stage: 'pick-subtype'; kind: SchoolKind }
+  | { stage: 'form'; subtype: SchoolLogType };
 
 function displayTime(t: string | null): string {
   if (!t) return '';
@@ -85,7 +73,10 @@ export default function EscolaScreen() {
   const { activeGroup, userId } = useAuth();
   const groupId = activeGroup?.groupId ?? null;
 
-  const [tab, setTab] = useState<Tab>('info');
+  // Deep link from calendar: tap on event with school_log_id sets ?highlight=<id>
+  // → land directly on Registros tab.
+  const { highlight } = useLocalSearchParams<{ highlight?: string }>();
+  const [tab, setTab] = useState<Tab>(highlight ? 'logs' : 'info');
 
   // Info tab state
   const [schools, setSchools] = useState<ChildSchool[]>([]);
@@ -107,14 +98,18 @@ export default function EscolaScreen() {
   const [logs, setLogs] = useState<SchoolLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [childOptions, setChildOptions] = useState<ChildOption[]>([]);
-  const [creatingLog, setCreatingLog] = useState(false);
+  const [composer, setComposer] = useState<ComposerStage>({ stage: 'closed' });
   const [editingLog, setEditingLog] = useState<SchoolLog | null>(null);
   const [savingLog, setSavingLog] = useState(false);
   const [logChildId, setLogChildId] = useState<string | null>(null);
-  const [logType, setLogType] = useState<SchoolLogType>('grade');
+  const [logSubtype, setLogSubtype] = useState<SchoolLogType>('exam');
   const [logTitle, setLogTitle] = useState('');
   const [logDescription, setLogDescription] = useState('');
   const [logDate, setLogDate] = useState<string>(todayIso());
+  const [logEventTime, setLogEventTime] = useState<string>('');
+  const [logSubject, setLogSubject] = useState<string>('');
+  const [logScore, setLogScore] = useState<string>('');
+  const [filterKind, setFilterKind] = useState<'all' | SchoolKind>('all');
 
   const load = useCallback(async () => {
     if (!groupId) return;
@@ -202,22 +197,34 @@ export default function EscolaScreen() {
     }
   }
 
-  function resetLogForm() {
+  function resetLogForm(initialSubtype: SchoolLogType) {
     setLogChildId(childOptions[0]?.id ?? null);
-    setLogType('grade');
+    setLogSubtype(initialSubtype);
     setLogTitle('');
     setLogDescription('');
     setLogDate(todayIso());
+    setLogEventTime('');
+    setLogSubject('');
+    setLogScore('');
   }
 
   function openCreateLog() {
     if (childOptions.length === 0) {
-      Alert.alert('Cadastre uma crianca primeiro', 'Voce precisa adicionar uma crianca antes de registrar eventos escolares.');
+      Alert.alert('Cadastre uma criança primeiro', 'Você precisa adicionar uma criança antes de registrar eventos escolares.');
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    resetLogForm();
-    setCreatingLog(true);
+    setComposer({ stage: 'pick-kind' });
+  }
+
+  function pickSubtype(subtype: SchoolLogType) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    resetLogForm(subtype);
+    setComposer({ stage: 'form', subtype });
+  }
+
+  function closeComposer() {
+    setComposer({ stage: 'closed' });
   }
 
   function openEditLog(log: SchoolLog) {
@@ -230,11 +237,15 @@ export default function EscolaScreen() {
   async function handleSaveNewLog() {
     if (!groupId || !userId) return;
     if (!logTitle.trim()) {
-      Alert.alert('Titulo obrigatorio', 'Da um nome ao registro.');
+      Alert.alert('Título obrigatório', 'Dê um nome ao registro.');
       return;
     }
     if (!logChildId) {
-      Alert.alert('Crianca obrigatoria', 'Escolha pra qual crianca o registro vale.');
+      Alert.alert('Criança obrigatória', 'Escolha pra qual criança o registro vale.');
+      return;
+    }
+    if (logSubtype === 'exam' && !logSubject.trim()) {
+      Alert.alert('Matéria obrigatória', 'Para uma prova, informe a matéria.');
       return;
     }
     setSavingLog(true);
@@ -242,20 +253,22 @@ export default function EscolaScreen() {
     const res = await createSchoolLog({
       groupId,
       childId: logChildId,
-      loggedBy: userId,
-      logType,
+      subtype: logSubtype,
       title: logTitle,
       description: logDescription,
       logDate,
+      eventTime: logEventTime || null,
+      subject: logSubject || null,
+      score: logScore || null,
     });
     setSavingLog(false);
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setCreatingLog(false);
+      closeComposer();
       await loadLogs();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error || 'Nao consegui salvar.');
+      Alert.alert('Erro', res.error || 'Não consegui salvar.');
     }
   }
 
@@ -361,17 +374,28 @@ export default function EscolaScreen() {
         <View style={{ flex: 1 }}>
           <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 140 }}
             refreshControl={<RefreshControl refreshing={false} onRefresh={loadLogs} tintColor={colors.brand} />}>
+            {/* Filter chips */}
+            {logs.length > 0 ? (
+              <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md }}>
+                <Chip label="Tudo" active={filterKind === 'all'} onPress={() => setFilterKind('all')} />
+                <Chip label="📅 Eventos" active={filterKind === 'event'} onPress={() => setFilterKind('event')} />
+                <Chip label="📝 Registros" active={filterKind === 'note'} onPress={() => setFilterKind('note')} />
+              </View>
+            ) : null}
+
             {logsLoading && logs.length === 0 ? (
               <ActivityIndicator color={colors.brand} style={{ marginTop: spacing['3xl'] }} />
             ) : logs.length === 0 ? (
               <EmptyState
                 icon="📚"
                 title="Nenhum registro escolar"
-                subtitle="Toque em + abaixo para registrar uma nota, reuniao ou lembrete."
+                subtitle="Toque em + abaixo para registrar uma prova, reunião, nota ou conquista."
               />
             ) : (
-              logs.map((log) => {
+              logs.filter(l => filterKind === 'all' || getKind(l.log_type) === filterKind).map((log) => {
                 const isHomework = log.log_type === 'homework';
+                const isEvent = getKind(log.log_type) === 'event';
+                const isHighlighted = highlight && log.id === highlight;
                 return (
                   <View
                     key={log.id}
@@ -381,6 +405,8 @@ export default function EscolaScreen() {
                       padding: spacing.lg,
                       marginBottom: spacing.sm,
                       opacity: log.completed ? 0.6 : 1,
+                      borderWidth: isHighlighted ? 2 : 0,
+                      borderColor: isHighlighted ? colors.brand : 'transparent',
                       ...shadows.sm,
                     }}
                   >
@@ -423,8 +449,15 @@ export default function EscolaScreen() {
                         </View>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
                           {TYPE_LABELS[log.log_type]}
-                          {log.child_full_name ? ` • ${log.child_full_name}` : ''}
+                          {log.subject ? ` · ${log.subject}` : ''}
+                          {log.child_full_name ? ` · ${log.child_full_name}` : ''}
+                          {isEvent ? ' · 📅' : ''}
                         </Text>
+                        {log.score ? (
+                          <Text style={{ fontSize: font.sizes.sm, color: colors.brand, fontWeight: font.weights.semibold, marginTop: 4 }}>
+                            Nota: {log.score}
+                          </Text>
+                        ) : null}
                         {log.description ? (
                           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.xs }}>
                             {log.description}
@@ -544,65 +577,163 @@ export default function EscolaScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Criar registro escolar */}
-      <Modal visible={creatingLog} animationType="slide" transparent onRequestClose={() => setCreatingLog(false)}>
+      {/* Composer 3-stage: pick-kind → pick-subtype → form */}
+      <Modal
+        visible={composer.stage !== 'closed'}
+        animationType="slide"
+        transparent
+        onRequestClose={closeComposer}
+      >
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setCreatingLog(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
-          <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
+          <TouchableOpacity activeOpacity={1} onPress={closeComposer} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+          <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
-            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
-              Novo registro
-            </Text>
-            <ScrollView>
-              <Label>Crianca</Label>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
-                {childOptions.map((c) => (
-                  <Chip key={c.id} label={c.short_name} active={logChildId === c.id} onPress={() => setLogChildId(c.id)} />
-                ))}
-              </View>
 
-              <Label>Tipo</Label>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
-                {SCHOOL_LOG_TYPES.map((t) => (
-                  <Chip
-                    key={t}
-                    label={`${TYPE_ICONS[t]} ${TYPE_LABELS[t]}`}
-                    active={logType === t}
-                    onPress={() => setLogType(t)}
-                  />
-                ))}
-              </View>
+            {composer.stage === 'pick-kind' ? (
+              <>
+                <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.lg }}>
+                  O que você quer registrar?
+                </Text>
+                <KindCard
+                  emoji="📅"
+                  title="Evento"
+                  description="Algo que acontece em uma data"
+                  example="Ex: prova, reunião, tarefa, evento"
+                  accentBg={`${colors.secondary}10`}
+                  accentBorder={`${colors.secondary}40`}
+                  onPress={() => setComposer({ stage: 'pick-subtype', kind: 'event' })}
+                />
+                <View style={{ height: spacing.sm }} />
+                <KindCard
+                  emoji="📝"
+                  title="Registro"
+                  description="Uma informação sobre a escola"
+                  example="Ex: nota, comportamento, conquista"
+                  accentBg={`${colors.brand}10`}
+                  accentBorder={`${colors.brand}40`}
+                  onPress={() => setComposer({ stage: 'pick-subtype', kind: 'note' })}
+                />
+              </>
+            ) : null}
 
-              <Label>Titulo</Label>
-              <Input value={logTitle} onChangeText={setLogTitle} placeholder="Ex: Reuniao de pais" />
-
-              <Label>Descricao (opcional)</Label>
-              <Input
-                value={logDescription}
-                onChangeText={setLogDescription}
-                placeholder="Detalhes do registro"
-                multiline
-              />
-
-              <Label>Data</Label>
-              <DatePickerField value={logDate} onChange={(d) => setLogDate(d || todayIso())} />
-
-              <TouchableOpacity
-                disabled={savingLog}
-                onPress={handleSaveNewLog}
-                style={{
-                  backgroundColor: colors.brand, borderRadius: radius.md,
-                  paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.md,
-                  opacity: savingLog ? 0.5 : 1,
-                }}
-              >
-                {savingLog ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                    Registrar
+            {composer.stage === 'pick-subtype' ? (
+              <>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+                  <TouchableOpacity onPress={() => setComposer({ stage: 'pick-kind' })} hitSlop={8}>
+                    <Text style={{ fontSize: font.sizes.sm, color: colors.secondary, fontWeight: font.weights.medium }}>‹ Voltar</Text>
+                  </TouchableOpacity>
+                  <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
+                    {composer.kind === 'event' ? '📅 Evento' : '📝 Registro'}
                   </Text>
-                )}
-              </TouchableOpacity>
-            </ScrollView>
+                  <View style={{ width: 60 }} />
+                </View>
+                <ScrollView style={{ maxHeight: 460 }}>
+                  {(composer.kind === 'event' ? EVENT_SUBTYPES : NOTE_SUBTYPES).map((s) => (
+                    <SubtypeRow
+                      key={s}
+                      icon={SUBTYPE_ICON[s]}
+                      label={SUBTYPE_LABEL[s]}
+                      hint={SUBTYPE_HINT[s]}
+                      onPress={() => pickSubtype(s)}
+                    />
+                  ))}
+                  {composer.kind === 'event' ? (
+                    <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.secondary}08`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.secondary}30` }}>
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
+                        📅 Eventos vão automaticamente para o calendário da família.
+                      </Text>
+                    </View>
+                  ) : null}
+                </ScrollView>
+              </>
+            ) : null}
+
+            {composer.stage === 'form' ? (
+              <ScrollView keyboardShouldPersistTaps="handled">
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
+                  <TouchableOpacity
+                    onPress={() => setComposer({ stage: 'pick-subtype', kind: getKind(composer.subtype) })}
+                    hitSlop={8}
+                  >
+                    <Text style={{ fontSize: font.sizes.sm, color: colors.secondary, fontWeight: font.weights.medium }}>‹ Voltar</Text>
+                  </TouchableOpacity>
+                  <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
+                    {SUBTYPE_ICON[composer.subtype]} {SUBTYPE_LABEL[composer.subtype]}
+                  </Text>
+                  <View style={{ width: 60 }} />
+                </View>
+
+                <Label>Criança</Label>
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
+                  {childOptions.map((c) => (
+                    <Chip key={c.id} label={c.short_name} active={logChildId === c.id} onPress={() => setLogChildId(c.id)} />
+                  ))}
+                </View>
+
+                {composer.subtype === 'exam' ? (
+                  <>
+                    <Label>Matéria</Label>
+                    <Input value={logSubject} onChangeText={setLogSubject} placeholder="Ex: Matemática" />
+                  </>
+                ) : null}
+
+                <Label>{composer.subtype === 'exam' ? 'Conteúdo / Tópico' : 'Título'}</Label>
+                <Input
+                  value={logTitle}
+                  onChangeText={setLogTitle}
+                  placeholder={composer.subtype === 'exam' ? 'Ex: Trigonometria + funções' : `Ex: ${SUBTYPE_LABEL[composer.subtype]}`}
+                />
+
+                <Label>Data</Label>
+                <DatePickerField value={logDate} onChange={(d) => setLogDate(d || todayIso())} />
+
+                {getKind(composer.subtype) === 'event' ? (
+                  <>
+                    <Label>Horário (opcional)</Label>
+                    <TimePickerField value={logEventTime || null} onChange={(t) => setLogEventTime(t || '')} />
+                  </>
+                ) : null}
+
+                {composer.subtype === 'exam' ? (
+                  <>
+                    <Label>Nota (opcional — preencha após a prova)</Label>
+                    <Input value={logScore} onChangeText={setLogScore} placeholder='Ex: "8,5" ou "B+"' />
+                  </>
+                ) : null}
+
+                <Label>Observação (opcional)</Label>
+                <Input
+                  value={logDescription}
+                  onChangeText={setLogDescription}
+                  placeholder="Detalhes adicionais"
+                  multiline
+                />
+
+                {getKind(composer.subtype) === 'event' ? (
+                  <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.secondary}08`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.secondary}30` }}>
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
+                      📅 Este item será adicionado ao calendário automaticamente.
+                    </Text>
+                  </View>
+                ) : null}
+
+                <TouchableOpacity
+                  disabled={savingLog}
+                  onPress={handleSaveNewLog}
+                  style={{
+                    backgroundColor: colors.brand, borderRadius: radius.md,
+                    paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.lg,
+                    opacity: savingLog ? 0.5 : 1,
+                  }}
+                >
+                  {savingLog ? <ActivityIndicator color="#fff" /> : (
+                    <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
+                      Registrar
+                    </Text>
+                  )}
+                </TouchableOpacity>
+              </ScrollView>
+            ) : null}
           </View>
         </KeyboardAvoidingView>
       </Modal>
@@ -712,6 +843,66 @@ function Row({ icon, label, value }: { icon: string; label: string; value: strin
 
 function Label({ children }: { children: React.ReactNode }) {
   return <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4, marginTop: spacing.sm, fontWeight: font.weights.medium }}>{children}</Text>;
+}
+
+function KindCard({
+  emoji, title, description, example, accentBg, accentBorder, onPress,
+}: {
+  emoji: string; title: string; description: string; example: string;
+  accentBg: string; accentBorder: string; onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={{
+        backgroundColor: accentBg,
+        borderColor: accentBorder,
+        borderWidth: 1.5,
+        borderRadius: radius.lg,
+        padding: spacing.lg,
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+      }}
+    >
+      <Text style={{ fontSize: 36 }}>{emoji}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>{title}</Text>
+        <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 2 }}>{description}</Text>
+        <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontStyle: 'italic', marginTop: 4 }}>{example}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+    </TouchableOpacity>
+  );
+}
+
+function SubtypeRow({
+  icon, label, hint, onPress,
+}: { icon: string; label: string; hint?: string; onPress: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={{
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: spacing.md,
+        paddingVertical: spacing.md,
+        paddingHorizontal: spacing.md,
+        backgroundColor: colors.bgSurface,
+        borderRadius: radius.md,
+        marginBottom: spacing.xs,
+      }}
+    >
+      <Text style={{ fontSize: 26 }}>{icon}</Text>
+      <View style={{ flex: 1 }}>
+        <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>{label}</Text>
+        {hint ? <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>{hint}</Text> : null}
+      </View>
+      <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
+    </TouchableOpacity>
+  );
 }
 
 function Input(props: React.ComponentProps<typeof TextInput>) {

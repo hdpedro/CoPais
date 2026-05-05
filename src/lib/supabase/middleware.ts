@@ -95,6 +95,7 @@ export async function updateSession(request: NextRequest) {
     "/api/children/education",
     "/api/notifications/mark-read",
     "/api/notifications/mark-all-read",
+    "/api/school",
     // AI endpoints — native uploads (image OCR, assistant chat) carry
     // Bearer auth instead of cookies. Each /api/ai/* handler validates
     // the token via admin client. Without this prefix the middleware

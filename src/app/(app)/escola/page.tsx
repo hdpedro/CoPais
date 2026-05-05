@@ -21,10 +21,10 @@ export default async function EscolaPage() {
       .eq("group_id", groupId),
     supabase
       .from("school_logs")
-      .select("*, completed, children(full_name), profiles!school_logs_logged_by_fkey(full_name)")
+      .select("id, title, description, log_type, log_date, completed, logged_by, subject, score, children(full_name), profiles!school_logs_logged_by_fkey(full_name)")
       .eq("group_id", groupId)
       .order("log_date", { ascending: false })
-      .limit(30),
+      .limit(50),
   ]);
 
   const today = getBrazilToday();
@@ -37,6 +37,8 @@ export default async function EscolaPage() {
     log_date: log.log_date,
     completed: log.completed ?? false,
     logged_by: log.logged_by,
+    subject: log.subject ?? null,
+    score: log.score ?? null,
     children: (Array.isArray(log.children) ? log.children[0] : log.children) as { full_name?: string } | null,
     profiles: (Array.isArray(log.profiles) ? log.profiles[0] : log.profiles) as { full_name?: string } | null,
   }));
