@@ -35,10 +35,15 @@ function parseDateKey(key: string): Date {
 
 /** Compute next N weekends with custody status for the current user. */
 function computeWeekends(events: CalendarEvent[], currentUserId: string, count: number): WeekendInfo[] {
-  // Build a per-day lookup from custody events
+  // Build a per-day lookup from custody events. useCalendar pushes events in
+  // priority order (swap → exception → regular), so the FIRST entry per day
+  // wins — matches the calendar grid's `dayEvents.find(...)` behavior. Using
+  // .set unconditionally would overwrite swaps with the regular schedule,
+  // reverting the weekend strip to the pre-swap state (Angelino bug
+  // 2026-05-05).
   const custodyByDay = new Map<string, { userId: string; color: string }>();
   for (const e of events) {
-    if (e.type === 'custody' && e.responsibleId) {
+    if (e.type === 'custody' && e.responsibleId && !custodyByDay.has(e.date)) {
       custodyByDay.set(e.date, { userId: e.responsibleId, color: e.color });
     }
   }
