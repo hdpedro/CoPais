@@ -155,7 +155,12 @@ export default function CarteirinhaScreen() {
       batch_number: v.batch_number?.trim().slice(0, 100) || null,
       location: v.location?.trim().slice(0, 200) || null,
     }));
-    const r = await apiFetch<{ success: true; inserted: number }>(`/api/health/vaccines-bulk`, {
+    const r = await apiFetch<{
+      success: true;
+      inserted: number;
+      skipped?: number;
+      skippedDetails?: Array<{ name: string; reason: string; rawDate: string }>;
+    }>(`/api/health/vaccines-bulk`, {
       method: 'POST',
       body: {
         groupId: activeGroup.groupId,
@@ -170,6 +175,25 @@ export default function CarteirinhaScreen() {
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    const skipped = r.data?.skipped ?? 0;
+    const inserted = r.data?.inserted ?? 0;
+    if (skipped > 0) {
+      const list = (r.data?.skippedDetails || [])
+        .slice(0, 5)
+        .map(d => `· ${d.name} — ${d.reason}${d.rawDate ? ` ("${d.rawDate}")` : ''}`)
+        .join('\n');
+      const more = (r.data?.skippedDetails?.length || 0) > 5
+        ? `\n... e mais ${(r.data?.skippedDetails?.length || 0) - 5}`
+        : '';
+      Alert.alert(
+        `${inserted} vacinas salvas`,
+        `${skipped} ${skipped === 1 ? 'pulada' : 'puladas'} por data inválida:\n\n${list}${more}\n\nEdite a foto ou as datas e tente de novo.`,
+        [{ text: 'OK', onPress: () => router.back() }],
+      );
+      return;
+    }
+
     router.back();
   }
 
