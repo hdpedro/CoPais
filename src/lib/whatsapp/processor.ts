@@ -530,7 +530,53 @@ export async function processWhatsAppMessage(
   /* ================================================================ */
 
   if (isBareNoise(userText)) {
-    console.log(`[WA-PROCESSOR] noise filter: skipping reply for "${userText.slice(0, 30)}"`);
+    // Anti-loop logic: if the bot replied to this phone in the last 10 min,
+    // we are likely in a ping-pong with an external auto-responder. Stay
+    // silent. Otherwise, treat as a real human greeting and respond with a
+    // short, non-conversational suggestion (avoids LLM chatty replies that
+    // would re-trigger the auto-responder loop).
+    const NOISE_COOLDOWN_MS = 10 * 60 * 1000;
+    const cooldownSince = new Date(Date.now() - NOISE_COOLDOWN_MS).toISOString();
+    const { count: recentBotReplies } = await supabase
+      .from("whatsapp_message_logs")
+      .select("id", { count: "exact", head: true })
+      .eq("phone_number", phone)
+      .eq("direction", "outbound")
+      .eq("message_type", "text")
+      .gte("created_at", cooldownSince);
+
+    if ((recentBotReplies ?? 0) > 0) {
+      console.log(
+        `[WA-PROCESSOR] noise+cooldown: skip "${userText.slice(0, 30)}" (${recentBotReplies} bot replies in last 10min)`,
+      );
+      await logAIRequest({
+        userId,
+        groupId,
+        provider: "local",
+        feature: "assistant_chat",
+        success: true,
+        responseTimeMs: Date.now() - start,
+        errorMessage: "noise_cooldown_skipped",
+      });
+      return;
+    }
+
+    console.log(
+      `[WA-PROCESSOR] noise greet: short suggestion reply for "${userText.slice(0, 30)}"`,
+    );
+    const childFirst = toolCtx.children[0]?.name?.split(" ")[0];
+    const example = childFirst
+      ? `*paguei 50 da escola do ${childFirst}*`
+      : `*paguei 50 da escola*`;
+    const greetingReply =
+      `👋 Oi! Sou o Kindar, seu assistente de coparentalidade.\n\n` +
+      `Pode mandar texto, áudio ou foto que eu organizo:\n` +
+      `• ${example}\n` +
+      `• *agendar pediatra dia 20 às 14h*\n` +
+      `• *como tá o saldo?*\n` +
+      `• *aprovações pendentes*\n\n` +
+      `Manual completo em kindar.com.br.`;
+    await sendAndLog(supabase, phone, greetingReply, userId);
     await logAIRequest({
       userId,
       groupId,
@@ -538,7 +584,6 @@ export async function processWhatsAppMessage(
       feature: "assistant_chat",
       success: true,
       responseTimeMs: Date.now() - start,
-      errorMessage: "noise_filter_skipped",
     });
     return;
   }
