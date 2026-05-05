@@ -74,17 +74,22 @@ export function useCalendar() {
               .limit(500)
               .then(r => r, () => ({ data: [] as never[] }))
           : Promise.resolve({ data: [] as never[] }),
+        // calendar_occurrences has NO `status` column — that filter used to
+        // make PostgREST silently 400 the whole query, so activities never
+        // appeared on the native calendar. Mirrors PWA src/app/(app)/
+        // calendario/page.tsx — `child_activities!inner` ensures we only
+        // return rows where the parent activity still exists.
         supabase.from('calendar_occurrences')
-          .select('id, occurrence_date, child_activities(name, category, time_start)')
+          .select('id, occurrence_date, child_activities!inner(name, category, time_start)')
           .eq('group_id', groupId)
           .gte('occurrence_date', startKey)
           .lte('occurrence_date', endKey)
-          .eq('status', 'active')
           .limit(500)
           .then(r => r, () => ({ data: [] as never[] })),
         supabase.from('events')
-          .select('id, title, event_date, end_date')
+          .select('id, title, event_date, end_date, status')
           .eq('group_id', groupId)
+          .neq('status', 'cancelled')
           .gte('event_date', startKey)
           .lte('event_date', endKey)
           .limit(200)
