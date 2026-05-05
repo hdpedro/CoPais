@@ -36,7 +36,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Inicio',
+          title: 'Início',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'home' : 'home-outline'} size={22} color={color} />
           ),
@@ -45,7 +45,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="calendario"
         options={{
-          title: 'Calendario',
+          title: 'Calendário',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'calendar' : 'calendar-outline'} size={22} color={color} />
           ),
@@ -63,7 +63,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="saude"
         options={{
-          title: 'Saude',
+          title: 'Saúde',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons name={focused ? 'pulse' : 'pulse-outline'} size={22} color={color} />
           ),

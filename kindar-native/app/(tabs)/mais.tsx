@@ -12,23 +12,23 @@ interface ModuleItem {
   color: string;
 }
 
-// All routes now point to NATIVE screens (no more /web/)
+// All routes now point to NATIVE screens (no more /web/).
+// Despesas removida — agora vive dentro de Financeiro ("Ver despesas").
 const MODULES: ModuleItem[] = [
   { icon: '💰', label: 'Financeiro', route: '/financeiro', color: '#E8A228' },
-  { icon: '🧾', label: 'Despesas', route: '/despesas', color: '#D4735A' },
-  { icon: '❤️', label: 'Saude', route: '/(tabs)/saude', color: '#E53935' },
+  { icon: '❤️', label: 'Saúde', route: '/(tabs)/saude', color: '#E53935' },
   { icon: '📄', label: 'Documentos', route: '/documentos', color: '#3b82f6' },
   { icon: '🎯', label: 'Eventos', route: '/eventos', color: '#D4735A' },
   { icon: '📋', label: 'Atividades', route: '/atividades', color: '#5B9E85' },
   { icon: '🤝', label: 'Acordos', route: '/acordos', color: '#7C6FAE' },
-  { icon: '🗳️', label: 'Decisoes', route: '/decisoes', color: '#3b82f6' },
-  { icon: '👶', label: 'Criancas', route: '/criancas', color: '#E8A228' },
+  { icon: '🗳️', label: 'Decisões', route: '/decisoes', color: '#3b82f6' },
+  { icon: '👶', label: 'Crianças', route: '/criancas', color: '#E8A228' },
   { icon: '🏫', label: 'Escola', route: '/escola', color: '#5B9E85' },
-  { icon: '🔒', label: 'Temas Sensiveis', route: '/temas-sensiveis', color: '#8A8A8A' },
+  { icon: '🔒', label: 'Temas Sensíveis', route: '/temas-sensiveis', color: '#8A8A8A' },
   { icon: '📝', label: 'Notas', route: '/notas', color: '#E8A228' },
   { icon: '✅', label: 'Check-in', route: '/checkin', color: '#4CAF50' },
   { icon: '📅', label: 'Semana', route: '/semana', color: '#3b82f6' },
-  { icon: '👨‍👩‍👧', label: 'Familia', route: '/familia', color: '#7C6FAE' },
+  { icon: '👨‍👩‍👧', label: 'Família', route: '/familia', color: '#7C6FAE' },
   { icon: '👤', label: 'Perfil', route: '/perfil', color: '#2C2C2C' },
 ];
 
@@ -55,7 +55,7 @@ export default function MaisScreen() {
             <TouchableOpacity
               onPress={() => {
                 Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                router.push(mod.route as any);
+                router.push(mod.route as Parameters<typeof router.push>[0]);
               }}
               activeOpacity={0.7}
               style={{
