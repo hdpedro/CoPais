@@ -108,6 +108,24 @@ export async function processWhatsAppMessage(
   const supabase = createAdminClient();
   const phone = message.from;
 
+  // Idempotency: if we've already logged this exact wa_message_id as
+  // inbound, Meta is retrying a delivery we already handled. Skip
+  // entirely to avoid duplicate replies + duplicate side-effects.
+  if (message.messageId) {
+    const { data: dup } = await supabase
+      .from("whatsapp_message_logs")
+      .select("id")
+      .eq("wa_message_id", message.messageId)
+      .eq("direction", "inbound")
+      .limit(1);
+    if (dup && dup.length > 0) {
+      console.log(
+        `[WA-PROCESSOR] dedupe: ${message.messageId} already processed, skip`
+      );
+      return;
+    }
+  }
+
   // Log inbound message
   await logMessage(
     supabase,
@@ -503,6 +521,29 @@ export async function processWhatsAppMessage(
   }
 
   /* ================================================================ */
+  /* Step 7a-noise: bare greetings without context                     */
+  /*                                                                    */
+  /* Quando o parser local nao casa, nao tem confirmacao pendente, e o */
+  /* texto e um cumprimento curto / bare ack ("oi", "ola", "teste",    */
+  /* "sim", "nao", "ok"), o bot LOGA mas NAO responde. Evita loops com */
+  /* auto-responders externos no lado do usuario e economiza LLM.      */
+  /* ================================================================ */
+
+  if (isBareNoise(userText)) {
+    console.log(`[WA-PROCESSOR] noise filter: skipping reply for "${userText.slice(0, 30)}"`);
+    await logAIRequest({
+      userId,
+      groupId,
+      provider: "local",
+      feature: "assistant_chat",
+      success: true,
+      responseTimeMs: Date.now() - start,
+      errorMessage: "noise_filter_skipped",
+    });
+    return;
+  }
+
+  /* ================================================================ */
   /* Step 7b: AI Router fallback                                       */
   /* ================================================================ */
 
@@ -873,6 +914,31 @@ function isHistoricallyMeaningful(content: string | null | undefined): boolean {
   const trimmed = content.trim();
   if (trimmed.length < 3) return false;
   return !NOISE_PATTERNS.some((re) => re.test(trimmed));
+}
+
+/* ------------------------------------------------------------------ */
+/* Bare-greeting noise filter (anti-loop with external auto-responders)*/
+/*                                                                     */
+/* When the LLM router would otherwise reply with a chatty acknowledgment*/
+/* to a pure greeting / monosyllabic ack ("oi", "ola", "oie", "teste",  */
+/* "sim", "nao", "ok"), the bot LOGS but does NOT reply. This is the    */
+/* defensive layer for the case where the user's number is being        */
+/* hammered by an auto-replier that ping-pongs greetings indefinitely.  */
+/*                                                                     */
+/* Important: only triggers when there is NO pending confirmation       */
+/* (handled higher up in the pipeline). With pending confirmation,      */
+/* "sim"/"nao" carry meaning and reach this branch only after the       */
+/* pending logic clears it.                                             */
+/* ------------------------------------------------------------------ */
+
+const BARE_NOISE_PATTERN =
+  /^(oi+e?|ol[aá]+|ola+|hello+|hi+|opa+|teste*|test+|hey+|sim+|n[aã]o+|nao\??|ok+|tá|to+|tô|salve|tchau|bye+|valeu+|obrigad[oa]?|kkk+)[\s!?.…]*$/i;
+
+function isBareNoise(content: string): boolean {
+  const trimmed = (content || "").trim();
+  if (!trimmed) return true; // empty also noise
+  if (trimmed.length > 24) return false; // anything substantive enough
+  return BARE_NOISE_PATTERN.test(trimmed);
 }
 
 /* ------------------------------------------------------------------ */
