@@ -236,11 +236,14 @@ export async function uploadChildAvatar(params: {
   })();
   const path = `${params.groupId}/_avatars/${params.childId}.${ext}`;
 
-  // RN file→Blob via fetch — the standard supabase-js + expo pattern.
-  let body: Blob;
+  // RN file → ArrayBuffer via fetch — supabase-js handles ArrayBuffer
+  // natively in RN. `.blob()` returns a polyfill that supabase-js uploads
+  // as 0 bytes (silent failure), causing the "photo not saving" bug.
+  // Mirrors uploadDocument in services/documents.ts (proven pattern).
+  let body: ArrayBuffer;
   try {
     const res = await fetch(params.uri);
-    body = await res.blob();
+    body = await res.arrayBuffer();
   } catch (e) {
     return { success: false, error: e instanceof Error ? e.message : 'Falha ao ler imagem' };
   }

@@ -71,6 +71,7 @@ export default function DocumentosScreen() {
   // e Supabase (que só pode rodar client-side, depois do mount).
   useEffect(() => {
     if (!groupId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     load().finally(() => setLoading(false));
   }, [groupId, load]);
@@ -139,7 +140,7 @@ export default function DocumentosScreen() {
   if (!groupId || !userId) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <ScreenHeader title="Documentos" showBack={false} />
+        <ScreenHeader title="Documentos" />
         <EmptyState icon="folder-outline" title="Sem grupo ativo" />
       </View>
     );
@@ -149,7 +150,6 @@ export default function DocumentosScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader
         title="Documentos"
-        showBack={false}
         rightAction={{ icon: 'add-circle', onPress: () => setUploadOpen(true) }}
       />
 

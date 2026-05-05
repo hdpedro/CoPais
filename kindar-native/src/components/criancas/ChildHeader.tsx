@@ -9,16 +9,27 @@ import { colors, spacing, radius, font } from '../../design-system/tokens';
 import type { Child, MedicalInfo } from '../../services/children';
 
 function calcAge(birthDate: string): string {
-  const birth = new Date(birthDate);
+  // Parse YYYY-MM-DD manually — `new Date("YYYY-MM-DD")` is interpreted as
+  // UTC midnight, which in BR (UTC-3) shifts to the previous day for
+  // localized display and edge-case age calculations.
+  const [y, m, d] = birthDate.split('-').map(Number);
+  if (!y || !m || !d) return '';
+  const birth = new Date(y, m - 1, d);
   const now = new Date();
   let years = now.getFullYear() - birth.getFullYear();
-  const m = now.getMonth() - birth.getMonth();
-  if (m < 0 || (m === 0 && now.getDate() < birth.getDate())) years--;
+  const dm = now.getMonth() - birth.getMonth();
+  if (dm < 0 || (dm === 0 && now.getDate() < birth.getDate())) years--;
   if (years === 0) {
-    const months = (now.getFullYear() - birth.getFullYear()) * 12 + m;
+    const months = (now.getFullYear() - birth.getFullYear()) * 12 + dm;
     return `${Math.max(months, 0)} ${months === 1 ? 'mês' : 'meses'}`;
   }
   return `${years} ${years === 1 ? 'ano' : 'anos'}`;
+}
+
+function formatBirthDate(birthDate: string): string {
+  const [y, m, d] = birthDate.split('-');
+  if (!y || !m || !d) return '';
+  return `${d}/${m}/${y}`;
 }
 
 interface Props {
@@ -104,7 +115,7 @@ export default function ChildHeader({ child, medicalInfo }: Props) {
           )}
         </View>
         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-          {new Date(child.birth_date).toLocaleDateString('pt-BR')}
+          {formatBirthDate(child.birth_date)}
         </Text>
       </View>
     </View>

@@ -61,7 +61,10 @@ export default function TabGeral({ child, medicalInfo, groupId, onSaved }: Props
         }}
       >
         <Row label="Nome completo" value={child.full_name} />
-        <Row label="Data de nascimento" value={new Date(child.birth_date).toLocaleDateString('pt-BR')} />
+        <Row label="Data de nascimento" value={(() => {
+          const [y, m, d] = child.birth_date.split('-');
+          return y && m && d ? `${d}/${m}/${y}` : '—';
+        })()} />
         <Row label="Sexo" value={child.sex === 'M' ? 'Masculino' : child.sex === 'F' ? 'Feminino' : null} />
         <Row label="CPF" value={child.cpf} />
         <Row label="RG" value={child.rg} />
