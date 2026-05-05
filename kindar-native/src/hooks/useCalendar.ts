@@ -15,7 +15,7 @@ import { fetchMyPendingEventRequests, type EventRequest } from '../services/even
 export interface CalendarEvent {
   id: string;
   date: string; // YYYY-MM-DD
-  type: 'custody' | 'activity' | 'event';
+  type: 'custody' | 'activity' | 'event' | 'appointment';
   title: string;
   color: string;
   responsibleId?: string;
@@ -58,6 +58,7 @@ export function useCalendar() {
         { data: custodyData },
         { data: occurrences },
         { data: socialEvents },
+        { data: appointments },
       ] = await Promise.all([
         supabase.from('group_members')
           .select('user_id, profiles(full_name, display_name, email)')
@@ -86,6 +87,16 @@ export function useCalendar() {
           .eq('group_id', groupId)
           .gte('event_date', startKey)
           .lte('event_date', endKey)
+          .limit(200)
+          .then(r => r, () => ({ data: [] as never[] })),
+        // Mirrors PWA src/app/(app)/calendario/page.tsx — scheduled medical
+        // appointments rendered as health pills on the calendar.
+        supabase.from('medical_appointments')
+          .select('id, title, appointment_date')
+          .eq('group_id', groupId)
+          .eq('status', 'scheduled')
+          .gte('appointment_date', startKey + 'T00:00:00')
+          .lte('appointment_date', endKey + 'T23:59:59')
           .limit(200)
           .then(r => r, () => ({ data: [] as never[] })),
       ]);
@@ -163,6 +174,21 @@ export function useCalendar() {
         });
       });
 
+      // Medical appointments — health pill (mirrors PWA calendario/page.tsx).
+      (appointments || []).forEach((apt: any) => {
+        const dateKey = apt.appointment_date?.split('T')[0];
+        if (!dateKey) return;
+        const time = apt.appointment_date?.split('T')[1]?.slice(0, 5) || undefined;
+        allEvents.push({
+          id: apt.id,
+          date: dateKey,
+          type: 'appointment',
+          title: apt.title || 'Consulta',
+          color: colors.health,
+          time,
+        });
+      });
+
       setEvents(allEvents);
 
       // Pending swap requests + event-action requests addressed to me
@@ -196,4 +222,5 @@ export function useCalendar() {
 const colors = {
   accent: '#E8A228',
   secondary: '#D4735A',
+  health: '#E53935',
 };

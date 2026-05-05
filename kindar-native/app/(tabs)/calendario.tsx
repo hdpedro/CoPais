@@ -401,9 +401,10 @@ export default function CalendarScreen() {
               const custody = dayEvents.find(e => e.type === 'custody');
               const activities = dayEvents.filter(e => e.type === 'activity');
               const socials = dayEvents.filter(e => e.type === 'event');
+              const appointments = dayEvents.filter(e => e.type === 'appointment');
               const holiday = holidays[dateKey];
               // Up to 2 visible pills; rest → +N
-              const pills = [...activities, ...socials];
+              const pills = [...appointments, ...activities, ...socials];
               const visible = pills.slice(0, 2);
               const extra = pills.length - visible.length;
 
@@ -651,7 +652,10 @@ export default function CalendarScreen() {
                       {e.title}
                     </Text>
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                      {e.type === 'custody' ? 'Guarda' : e.type === 'activity' ? 'Atividade' : 'Evento'}
+                      {e.type === 'custody' ? 'Guarda'
+                        : e.type === 'activity' ? 'Atividade'
+                        : e.type === 'appointment' ? 'Consulta'
+                        : 'Evento'}
                       {e.time ? ` · ${e.time}` : ''}
                     </Text>
                   </View>
