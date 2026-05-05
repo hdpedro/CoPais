@@ -105,24 +105,42 @@ export default function WhatsAppLinkSection({
         <div className="mb-3 p-3 bg-success/10 text-success text-sm rounded-lg">{success}</div>
       )}
 
-      {/* Unlinked — show phone input */}
+      {/* Unlinked — show phone input with locked +55 prefix */}
       {status === "unlinked" && (
         <form onSubmit={handleRequestLink} className="space-y-3">
           <div>
             <label className="block text-xs text-muted mb-1">{t("whatsapp.phoneLabel")}</label>
-            <input
-              type="tel"
-              value={phoneInput}
-              onChange={(e) => setPhoneInput(e.target.value)}
-              placeholder="+5511999998888"
-              className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-              required
-            />
+            <div className="flex w-full overflow-hidden rounded-lg border border-gray-200 focus-within:ring-2 focus-within:ring-primary/30 focus-within:border-primary/40">
+              <span className="flex items-center gap-1 px-3 py-2.5 bg-gray-50 text-sm font-medium text-dark border-r border-gray-200 select-none">
+                <span aria-hidden="true">🇧🇷</span>
+                <span className="tabular-nums">+55</span>
+              </span>
+              <input
+                type="tel"
+                inputMode="numeric"
+                value={phoneInput}
+                onChange={(e) => {
+                  // Strip non-digits + cap at 11 chars (DDD + 9 digits).
+                  // Also drop a leading "55" if user pasted it (we already
+                  // prefix +55 visually).
+                  let digits = e.target.value.replace(/\D/g, "");
+                  if (digits.length === 13 && digits.startsWith("55")) {
+                    digits = digits.slice(2);
+                  }
+                  setPhoneInput(digits.slice(0, 11));
+                }}
+                placeholder="DDDNNNNNNNNN"
+                maxLength={11}
+                className="flex-1 px-3 py-2.5 text-sm focus:outline-none tabular-nums"
+                aria-label={t("whatsapp.phoneLabel") + " (sem codigo do pais, somente DDD e numero)"}
+                required
+              />
+            </div>
             <p className="text-xs text-muted mt-1">{t("whatsapp.phoneHint")}</p>
           </div>
           <button
             type="submit"
-            disabled={loading || !phoneInput.trim()}
+            disabled={loading || phoneInput.trim().length < 10}
             className="w-full py-2.5 bg-[#25D366] text-white font-semibold rounded-lg hover:bg-[#20BD5A] transition-colors disabled:opacity-50"
           >
             {loading ? t("common.loading") : t("whatsapp.sendCode")}
