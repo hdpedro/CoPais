@@ -111,8 +111,12 @@ export default function ReceitaScreen() {
       });
 
       if (!resp.ok) {
-        const txt = await resp.text();
-        throw new Error(txt || `Erro ${resp.status}`);
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const j = await resp.json().catch(() => null);
+          throw new Error((j && j.error) || `Erro ${resp.status}`);
+        }
+        throw new Error(`Erro ao processar a foto (${resp.status}). Tente novamente em instantes.`);
       }
       const data = await resp.json();
 
@@ -185,8 +189,12 @@ export default function ReceitaScreen() {
         }),
       });
       if (!resp.ok) {
-        const txt = await resp.text();
-        throw new Error(txt || `Erro ${resp.status}`);
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const j = await resp.json().catch(() => null);
+          throw new Error((j && j.error) || `Erro ${resp.status}`);
+        }
+        throw new Error(`Erro ao salvar (${resp.status}). Tente novamente.`);
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();

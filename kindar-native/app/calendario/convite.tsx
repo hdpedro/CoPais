@@ -111,8 +111,12 @@ export default function InviteParserScreen() {
       });
 
       if (!resp.ok) {
-        const txt = await resp.text();
-        throw new Error(txt || `Erro ${resp.status}`);
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const j = await resp.json().catch(() => null);
+          throw new Error((j && j.error) || `Erro ${resp.status}`);
+        }
+        throw new Error(`Erro ao processar o convite (${resp.status}). Tente novamente.`);
       }
       const data = await resp.json();
 

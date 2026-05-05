@@ -6,7 +6,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { getActiveGroup } from "@/lib/group-utils";
 import { compressImageForVision } from "@/lib/ai/image-utils";
 import { routeVisionRequest } from "@/lib/ai/router";
@@ -58,21 +59,21 @@ Exemplo de resposta:
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Auth
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    // 1. Auth — accepts Bearer (native) or cookie (PWA) via the shared helper
+    const auth = await resolveAuthenticatedUser(request);
+    if (!auth) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    // Admin client for server-trusted operations (logs, group lookup).
+    // Bypassing RLS is safe here because we just authenticated the user.
+    const supabase = createAdminClient();
 
-    const rl = parseVaccinesRateLimiter.check(user.id);
+    const rl = parseVaccinesRateLimiter.check(auth.id);
     if (!rl.allowed) {
       return NextResponse.json({ error: "Too many requests" }, { status: 429 });
     }
 
-    const activeGroup = await getActiveGroup(supabase, user.id);
+    const activeGroup = await getActiveGroup(supabase, auth.id);
     if (!activeGroup) {
       return NextResponse.json({ error: "Sem grupo ativo" }, { status: 403 });
     }
@@ -149,7 +150,7 @@ export async function POST(request: NextRequest) {
 
     // 5. Log to database
     await supabase.from("ai_event_logs").insert({
-      user_id: user.id,
+      user_id: auth.id,
       group_id: activeGroup.groupId,
       raw_text: result.text.substring(0, 5000),
       parsed_json: vaccines,

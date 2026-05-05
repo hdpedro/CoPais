@@ -5,7 +5,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { AI_TOOLS, executeTool } from "@/lib/ai/tools";
 import { aiRateLimiter } from "@/lib/ai/rate-limit";
 import { parseIntent } from "@/lib/ai/local-parser";
@@ -40,14 +41,15 @@ export async function POST(req: NextRequest) {
   const start = Date.now();
 
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-
-    if (!user) {
+    // Auth — Bearer (native) or cookie (PWA) via shared helper. Native
+    // (AIAssistantSheet) sends Authorization: Bearer; without this the
+    // middleware bounces it to /session-recovery and the chat dies.
+    const auth = await resolveAuthenticatedUser(req);
+    if (!auth) {
       return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
     }
+    const user = { id: auth.id };
+    const supabase = createAdminClient();
 
     // Rate limit check
     const rateCheck = aiRateLimiter.check(user.id);

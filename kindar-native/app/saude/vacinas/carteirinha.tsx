@@ -96,9 +96,17 @@ export default function CarteirinhaScreen() {
         headers: { Authorization: `Bearer ${session.access_token}` },
         body: form,
       });
+      // Server may return HTML (Next.js 500/redirect page) when the route
+      // throws before its own try/catch. Don't dump the raw HTML into the
+      // error banner — show a friendly message and surface a snippet only
+      // if it looks like JSON.
       if (!resp.ok) {
-        const txt = await resp.text();
-        throw new Error(txt || `Erro ${resp.status}`);
+        const ct = resp.headers.get('content-type') || '';
+        if (ct.includes('application/json')) {
+          const j = await resp.json().catch(() => null);
+          throw new Error((j && j.error) || `Erro ${resp.status}`);
+        }
+        throw new Error(`Erro ao processar a foto (${resp.status}). Tente novamente em instantes.`);
       }
       const data = await resp.json();
       const parsed: ParsedVaccine[] = (data.vaccines || []).map((v: any) => ({

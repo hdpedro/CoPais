@@ -5,7 +5,8 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { getActiveGroup } from "@/lib/group-utils";
 import { getEventParser } from "@/lib/ai/parser";
 import { parseInviteRateLimiter } from "@/lib/rate-limit";
@@ -25,14 +26,13 @@ const ALLOWED_TYPES = [
 
 export async function POST(request: NextRequest) {
   try {
-    // 1. Auth
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    if (!user) {
+    // 1. Auth — Bearer (native) or cookie (PWA) via shared helper.
+    const auth = await resolveAuthenticatedUser(request);
+    if (!auth) {
       return NextResponse.json({ error: "Não autenticado" }, { status: 401 });
     }
+    const user = { id: auth.id };
+    const supabase = createAdminClient();
 
     const rl = parseInviteRateLimiter.check(user.id);
     if (!rl.allowed) {

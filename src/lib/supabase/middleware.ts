@@ -95,6 +95,12 @@ export async function updateSession(request: NextRequest) {
     "/api/children/education",
     "/api/notifications/mark-read",
     "/api/notifications/mark-all-read",
+    // AI endpoints — native uploads (image OCR, assistant chat) carry
+    // Bearer auth instead of cookies. Each /api/ai/* handler validates
+    // the token via admin client. Without this prefix the middleware
+    // bounces the multipart POST to /session-recovery and the native
+    // client renders the 500 HTML in the error banner.
+    "/api/ai",
   ];
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)
