@@ -1,7 +1,15 @@
 import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform } from 'react-native';
-import { colors } from '../../src/design-system/tokens';
+
+// Brand colors inlined to bypass an EAS-side eager-bundle resolver bug
+// that fails to resolve "../../src/design-system/tokens" from this file
+// even though the file exists in the upload (local bundle works fine).
+// Keep in sync with src/design-system/tokens.ts.
+const colors = {
+  brand: '#5B9E85',
+  textMuted: 'rgba(44,44,44,0.5)',
+};
 
 export default function TabLayout() {
   return (
