@@ -1,6 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, RefreshControl,
+  View, Text, ScrollView, TouchableOpacity, Pressable, RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -49,15 +49,14 @@ export default function SaudeScreen() {
     setRefreshing(false);
   }, [refresh]);
 
-  // Filter data by selected child
+  // Cards SEMPRE mostram todos os filhos (porta de entrada do modulo).
+  // O filtro de chips Todos/Nome aplica APENAS na timeline (historico) —
+  // separa "panorama por crianca" de "filtro temporal", reduzindo a
+  // redundancia cognitiva reportada anteriormente.
   const childStates = data?.childStates || [];
-  const timeline = (data?.timeline || []).filter(
-    e => !selectedChildId || e.childId === selectedChildId
-  ).slice(0, 20);
-
-  const selectedState = selectedChildId
-    ? childStates.find(c => c.childId === selectedChildId)
-    : null;
+  const timeline = useMemo(() => (
+    (data?.timeline || []).filter(e => !selectedChildId || e.childId === selectedChildId).slice(0, 20)
+  ), [data?.timeline, selectedChildId]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -137,21 +136,33 @@ export default function SaudeScreen() {
           </Animated.View>
         ) : null}
 
-        {/* Status Cards */}
-        {(selectedChildId ? [selectedState!].filter(Boolean) : childStates).map((child, i) => {
+        {/* Status Cards — sempre mostram todos os filhos. Tap leva ao
+            perfil de saude consolidado em /criancas/[id]?tab=saude
+            (TabSaude ja existente: peso, altura, alergias, medicamentos,
+            vacinas, etc). Card inteiro responde com Pressable + scale. */}
+        {childStates.map((child, i) => {
           const cfg = STATUS_CONFIG[child.status];
           return (
             <Animated.View key={child.childId} entering={FadeInDown.delay(100 + i * 50).duration(400)}>
-              <View style={{
-                backgroundColor: colors.bgElevated, borderRadius: radius.xl,
-                padding: spacing.xl, marginBottom: spacing.md,
-                borderLeftWidth: 4, borderLeftColor: cfg.color,
-                ...shadows.sm,
-              }}>
+              <Pressable
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  router.push(`/criancas/${child.childId}?tab=saude` as Parameters<typeof router.push>[0]);
+                }}
+                accessibilityLabel={`Ver perfil de saude de ${child.childName}`}
+                style={({ pressed }) => ({
+                  backgroundColor: pressed ? cfg.bg : colors.bgElevated,
+                  borderRadius: radius.xl,
+                  padding: spacing.xl, marginBottom: spacing.md,
+                  borderLeftWidth: 4, borderLeftColor: cfg.color,
+                  transform: [{ scale: pressed ? 0.98 : 1 }],
+                  ...shadows.sm,
+                })}
+              >
                 <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, flex: 1 }}>
                     <Text style={{ fontSize: 20 }}>{cfg.icon}</Text>
-                    <View>
+                    <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
                         {child.childName}
                       </Text>
@@ -160,40 +171,44 @@ export default function SaudeScreen() {
                       </Text>
                     </View>
                   </View>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </View>
 
                 <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.md }}>
                   {child.detail}
                 </Text>
 
-                {/* Quick stats */}
-                <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md }}>
-                  {child.activeIllnessCount > 0 ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                      <Text style={{ fontSize: 12 }}>🤒</Text>
-                      <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                        {child.activeIllnessCount} doenca{child.activeIllnessCount > 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {child.activeMedCount > 0 ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                      <Text style={{ fontSize: 12 }}>💊</Text>
-                      <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                        {child.activeMedCount} med{child.activeMedCount > 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                  ) : null}
-                  {child.allergyCount > 0 ? (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
-                      <Text style={{ fontSize: 12 }}>⚠️</Text>
-                      <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                        {child.allergyCount} alergia{child.allergyCount > 1 ? 's' : ''}
-                      </Text>
-                    </View>
-                  ) : null}
-                </View>
-              </View>
+                {/* Quick stats — chips de contadores. Quando saudavel + sem
+                    chips, mostramos um CTA enxuto pra reduzir tela morta. */}
+                {(child.activeIllnessCount + child.activeMedCount + child.allergyCount) > 0 ? (
+                  <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.md, flexWrap: 'wrap' }}>
+                    {child.activeIllnessCount > 0 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                        <Text style={{ fontSize: 12 }}>🤒</Text>
+                        <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
+                          {child.activeIllnessCount} doenca{child.activeIllnessCount > 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {child.activeMedCount > 0 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                        <Text style={{ fontSize: 12 }}>💊</Text>
+                        <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
+                          {child.activeMedCount} med{child.activeMedCount > 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                    ) : null}
+                    {child.allergyCount > 0 ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+                        <Text style={{ fontSize: 12 }}>⚠️</Text>
+                        <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
+                          {child.allergyCount} alergia{child.allergyCount > 1 ? 's' : ''}
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+              </Pressable>
             </Animated.View>
           );
         })}
@@ -247,21 +262,81 @@ export default function SaudeScreen() {
 
         {/* Timeline Events */}
         {loading && !data ? (
-          <Text style={{ color: colors.textMuted, textAlign: 'center', paddingVertical: spacing['4xl'] }}>
-            Carregando...
-          </Text>
+          // Skeleton em vez de "Carregando..." — sem flicker.
+          <View style={{ gap: spacing.sm }}>
+            {[0, 1, 2].map((k) => (
+              <View
+                key={k}
+                style={{
+                  height: 72,
+                  backgroundColor: colors.bgElevated,
+                  borderRadius: radius.lg,
+                  opacity: 0.55,
+                }}
+              />
+            ))}
+          </View>
         ) : timeline.length === 0 ? (
+          // Estado vazio acionavel — nunca tela morta.
           <View style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.xl,
-            padding: spacing['3xl'], alignItems: 'center', ...shadows.sm,
+            padding: spacing['2xl'], ...shadows.sm,
           }}>
-            <Text style={{ fontSize: 32, marginBottom: spacing.md }}>🩺</Text>
-            <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text, textAlign: 'center' }}>
-              Nenhum registro de saude
-            </Text>
-            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs }}>
-              Toque em {'\u201C'}Registrar{'\u201D'} para adicionar o primeiro evento
-            </Text>
+            <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
+              <Text style={{ fontSize: 32, marginBottom: spacing.sm }}>🩺</Text>
+              <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, textAlign: 'center' }}>
+                Sem registros recentes
+              </Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs }}>
+                Comece registrando o que mais usa no dia a dia.
+              </Text>
+            </View>
+            <View style={{ gap: spacing.sm }}>
+              <TouchableOpacity
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/registrar'); }}
+                activeOpacity={0.85}
+                style={{
+                  backgroundColor: colors.brand, borderRadius: radius.md,
+                  paddingVertical: spacing.md, flexDirection: 'row',
+                  alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+                }}
+              >
+                <Ionicons name="add-circle" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.bold }}>
+                  Registrar evento de saude
+                </Text>
+              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <TouchableOpacity
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/consultas'); }}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
+                    paddingVertical: spacing.md, flexDirection: 'row',
+                    alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  <Ionicons name="medkit-outline" size={14} color={colors.text} />
+                  <Text style={{ color: colors.text, fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>
+                    Consulta
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/crescimento'); }}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
+                    paddingVertical: spacing.md, flexDirection: 'row',
+                    alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  <Ionicons name="fitness-outline" size={14} color={colors.text} />
+                  <Text style={{ color: colors.text, fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>
+                    Crescimento
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           </View>
         ) : (
           timeline.map((event, i) => {

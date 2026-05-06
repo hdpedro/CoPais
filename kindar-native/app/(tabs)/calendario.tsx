@@ -711,23 +711,26 @@ export default function CalendarScreen() {
               </View>
             </View>
           ) : (
-            <ScrollView style={{ maxHeight: 300 }}>
+            <ScrollView style={{ maxHeight: 320 }}>
               {selectedEvents.map((e, i) => {
                 const isSchool = !!e.schoolLogId;
                 const isCustody = e.type === 'custody';
                 const isClickable = !isCustody; // custody usa as quick actions abaixo
-                const Body = (
+                const renderBody = (pressed: boolean) => (
                   <View testID={`calendar-event-${e.id}`} style={{
                     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                    paddingVertical: spacing.md,
+                    paddingVertical: spacing.md, paddingHorizontal: spacing.sm,
                     borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                    backgroundColor: pressed ? colors.bgSurface : 'transparent',
+                    borderRadius: pressed ? radius.sm : 0,
+                    transform: [{ scale: pressed ? 0.99 : 1 }],
                   }}>
-                    <View style={{ width: 4, height: 28, borderRadius: 2, backgroundColor: e.color }} />
+                    <View style={{ width: 4, height: 32, borderRadius: 2, backgroundColor: e.color }} />
                     <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
+                      <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
                         {e.title}
                       </Text>
-                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
                         {e.type === 'custody' ? 'Guarda'
                           : e.type === 'activity' ? 'Atividade'
                           : e.type === 'appointment' ? 'Consulta'
@@ -742,23 +745,28 @@ export default function CalendarScreen() {
                   </View>
                 );
                 if (!isClickable) {
-                  return <View key={e.id + '-' + i}>{Body}</View>;
+                  return <View key={e.id + '-' + i}>{renderBody(false)}</View>;
                 }
                 return (
-                  <TouchableOpacity
+                  <Pressable
                     key={e.id + '-' + i}
-                    activeOpacity={0.6}
+                    accessibilityLabel={`Abrir ${e.title}`}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       const day = selectedDay;
+                      // Fechar Day Sheet ANTES de abrir qualquer outro Modal
+                      // ou rota — RN nao stacka <Modal> sobrepostos limpa.
+                      // Bug reportado: atividades pareciam nao responder.
                       if (isSchool && e.schoolLogId) {
                         setSelectedDay(null);
                         router.push({ pathname: '/escola', params: { highlight: e.schoolLogId } } as never);
                         return;
                       }
                       if (e.type === 'activity' && day) {
-                        // Detail sheet rico com checklist + acoes — paridade com a home.
-                        setActivityDetail({ activityId: e.id, occurrenceDate: day });
+                        setSelectedDay(null);
+                        // Pequeno delay deixa o Modal anterior fechar limpo
+                        // antes do ActivityDetailSheet abrir (transicao suave).
+                        setTimeout(() => setActivityDetail({ activityId: e.id, occurrenceDate: day }), 220);
                         return;
                       }
                       if (e.type === 'appointment') {
@@ -773,12 +781,73 @@ export default function CalendarScreen() {
                       }
                     }}
                   >
-                    {Body}
-                  </TouchableOpacity>
+                    {({ pressed }) => renderBody(pressed)}
+                  </Pressable>
                 );
               })}
             </ScrollView>
           )}
+
+          {/* CTA fixo: SEMPRE permite adicionar evento ao dia, mesmo
+              quando ja existem outros. "Hub operacional" — eventos nunca
+              bloqueiam novas acoes. Esconde quando o dia e vazio (que ja
+              tem CTAs grandes la em cima). */}
+          {selectedEvents.length > 0 ? (
+            <View style={{
+              flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg,
+              paddingTop: spacing.md, borderTopWidth: 0.5, borderTopColor: colors.borderLight,
+            }}>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  const day = selectedDay;
+                  setSelectedDay(null);
+                  router.push({ pathname: '/calendario/novo', params: { date: day || '' } } as never);
+                }}
+                activeOpacity={0.85}
+                style={{
+                  flex: 1, backgroundColor: colors.brand, borderRadius: radius.md,
+                  paddingVertical: spacing.md, flexDirection: 'row',
+                  alignItems: 'center', justifyContent: 'center', gap: 6,
+                }}
+              >
+                <Ionicons name="add" size={18} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.bold }}>
+                  Adicionar evento
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedDay(null);
+                  router.push('/atividades/nova' as never);
+                }}
+                activeOpacity={0.8}
+                style={{
+                  width: 50, backgroundColor: colors.bgSurface, borderRadius: radius.md,
+                  paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center',
+                }}
+                accessibilityLabel="Nova atividade recorrente"
+              >
+                <Ionicons name="repeat" size={18} color={colors.text} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedDay(null);
+                  router.push('/saude/registrar' as never);
+                }}
+                activeOpacity={0.8}
+                style={{
+                  width: 50, backgroundColor: colors.bgSurface, borderRadius: radius.md,
+                  paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center',
+                }}
+                accessibilityLabel="Registrar evento de saude"
+              >
+                <Ionicons name="medkit-outline" size={18} color={colors.text} />
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {/* Quick actions for custody days — both own and other-parent days.
               Mirrors PWA PR #1 (allow swap request on own custody days). */}

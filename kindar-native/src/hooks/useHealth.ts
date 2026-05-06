@@ -2,6 +2,7 @@
  * useHealth — Central hook for health module data.
  * Fetches illnesses, medications, appointments, allergies, and builds timeline.
  */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- supabase row shapes resolvidos dinamicamente; refactor pra tipagem estrita pendente */
 
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from 'expo-router';
@@ -210,11 +211,14 @@ export function useHealth(selectedChildId?: string) {
             : status === 'monitoring' ? 'Em observacao'
               : 'Saudavel';
 
+        // Detail = a frase descritiva do "estado atual" (1 linha). Nao
+        // duplicar com os chips embaixo: se for healthy, deixa "Tudo bem"
+        // e a contagem de alergias fica nas chips (evita "2 alergias"
+        // aparecer duas vezes — bug visual reportado pelo Henrique).
         const detail =
           cIllnesses.length > 0 ? cIllnesses[0].title
             : cMeds.length > 0 ? `${cMeds.length} medicamento${cMeds.length > 1 ? 's' : ''} ativo${cMeds.length > 1 ? 's' : ''}`
-              : cAllergies.length > 0 ? `${cAllergies.length} alergia${cAllergies.length > 1 ? 's' : ''}`
-                : 'Nenhum registro recente';
+              : 'Sem registros recentes';
 
         return {
           childId: c.id,
