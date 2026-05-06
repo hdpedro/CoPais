@@ -12,7 +12,7 @@ import { useAuth } from '../../src/store/auth';
 import { DAY_NAMES, MONTH_NAMES } from '../../src/lib/constants';
 import { getHolidayMap } from '../../src/lib/brazilian-holidays';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
-import { respondToSwap } from '../../src/services/swaps';
+import { respondToSwap, cancelMySwap } from '../../src/services/swaps';
 import { respondToEventRequest, type EventRequest } from '../../src/services/event-requests';
 import WeekendPlanner from '../../src/components/calendar/WeekendPlanner';
 import SwapRequestModal from '../../src/components/calendar/SwapRequestModal';
@@ -34,7 +34,7 @@ function getFirstDayOfWeek(y: number, m: number): number { return new Date(y, m,
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
-  const { events, members, pendingSwaps, balanceOps, pendingEventRequests, refresh } = useCalendar();
+  const { events, members, pendingSwaps, mySentSwaps, balanceOps, pendingEventRequests, refresh } = useCalendar();
   const { activeGroup, userId } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -90,6 +90,33 @@ export default function CalendarScreen() {
     }
     setResponding(null);
   }, [activeGroup, refresh]);
+
+  const handleCancelMySwap = useCallback((swapId: string, originalDate: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    Alert.alert(
+      'Cancelar pedido?',
+      `Voce vai retirar a solicitacao de troca para ${formatSwapDate(originalDate)}. O outro responsavel sera avisado.`,
+      [
+        { text: 'Manter pedido', style: 'cancel' },
+        {
+          text: 'Cancelar pedido',
+          style: 'destructive',
+          onPress: async () => {
+            setResponding(swapId);
+            const r = await cancelMySwap(swapId);
+            setResponding(null);
+            if (r.success) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await refresh();
+            } else {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              Alert.alert('Erro', r.error || 'Falha ao cancelar.');
+            }
+          },
+        },
+      ],
+    );
+  }, [refresh]);
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -279,6 +306,72 @@ export default function CalendarScreen() {
                   </View>
                 </View>
               ))}
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* Meus pedidos de troca enviados — pode cancelar enquanto pending */}
+        {mySentSwaps.length > 0 ? (
+          <Animated.View entering={FadeInDown.duration(300)}>
+            <View style={{
+              marginHorizontal: spacing.lg, marginBottom: spacing.lg,
+              backgroundColor: `${colors.brand}08`, borderRadius: radius.xl,
+              borderWidth: 1, borderColor: `${colors.brand}25`,
+              padding: spacing.lg,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <Text style={{ fontSize: 18 }}>📤</Text>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
+                  {mySentSwaps.length === 1 ? '1 pedido aguardando resposta' : `${mySentSwaps.length} pedidos aguardando resposta`}
+                </Text>
+              </View>
+              {mySentSwaps.map((s, i) => {
+                const targetMember = members.find(m => m.userId === s.targetUserId);
+                const targetName = targetMember?.name || 'Co-responsavel';
+                const isVisit = s.type === 'visit' || (!s.proposedDate && s.reason?.toLowerCase().includes('visit'));
+                const isDebt = !s.proposedDate && !isVisit;
+                const summary = isVisit
+                  ? `Pediu visita em ${formatSwapDate(s.originalDate)}`
+                  : isDebt
+                    ? `Pediu o dia ${formatSwapDate(s.originalDate)} (ficara devendo)`
+                    : `Quer trocar ${formatSwapDate(s.originalDate)}${s.proposedDate ? ` por ${formatSwapDate(s.proposedDate)}` : ''}`;
+                return (
+                  <View
+                    key={s.id}
+                    style={{
+                      paddingVertical: spacing.sm,
+                      borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                    }}
+                  >
+                    <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
+                      {summary}
+                    </Text>
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
+                      Aguardando {targetName}
+                    </Text>
+                    {s.reason ? (
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2, fontStyle: 'italic' }}>
+                        {`“${s.reason}”`}
+                      </Text>
+                    ) : null}
+                    <TouchableOpacity
+                      disabled={responding === s.id}
+                      onPress={() => handleCancelMySwap(s.id, s.originalDate)}
+                      style={{
+                        marginTop: spacing.sm,
+                        paddingVertical: 8, borderRadius: radius.md,
+                        borderWidth: 1, borderColor: colors.borderLight,
+                        alignItems: 'center',
+                        opacity: responding === s.id ? 0.5 : 1,
+                      }}
+                    >
+                      <Text style={{ color: colors.error, fontSize: font.sizes.xs, fontWeight: font.weights.medium }}>
+                        Cancelar pedido
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                );
+              })}
             </View>
           </Animated.View>
         ) : null}

@@ -17,7 +17,7 @@
  */
 import { useEffect } from 'react';
 import { View } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useAuth } from '../../src/store/auth';
 import ActivityDetailSheet from '../../src/components/activities/ActivityDetailSheet';
 import { colors } from '../../src/design-system/tokens';
@@ -41,6 +41,7 @@ export default function ActivityDetailScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
+      <Stack.Screen options={{ headerShown: false }} />
       <ActivityDetailSheet
         visible
         fullscreen

@@ -23,6 +23,7 @@ import {
   View, Text, TouchableOpacity, Modal, ScrollView, ActivityIndicator, Alert, Share,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
@@ -89,6 +90,7 @@ function formatTime(t: string | null): string {
 export default function ActivityDetailSheet({
   visible, onClose, activityId, occurrenceDate, completedBy, onReport, fullscreen = false,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const [activity, setActivity] = useState<ActivityFull | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
@@ -306,7 +308,7 @@ export default function ActivityDetailSheet({
   // ou renderizado fullscreen (quando usado na rota dedicada).
   const Body = (
     <View style={fullscreen ? {
-      flex: 1, backgroundColor: colors.bgElevated, paddingTop: spacing.md, paddingBottom: 24,
+      flex: 1, backgroundColor: colors.bg,
     } : {
       backgroundColor: colors.bgElevated,
       borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'],
@@ -316,22 +318,38 @@ export default function ActivityDetailSheet({
         <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
       ) : null}
 
-      {/* Header: data + back/close */}
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: spacing.xl, marginBottom: spacing.md }}>
-        {fullscreen ? (
-          <TouchableOpacity onPress={onClose} hitSlop={8} style={{ marginRight: spacing.md, paddingTop: 2 }}>
-            <Ionicons name="chevron-back" size={26} color={colors.text} />
+      {/* Header */}
+      {fullscreen ? (
+        <View style={{
+          paddingTop: insets.top + 10, paddingHorizontal: spacing.lg, paddingBottom: spacing.md,
+          flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+          backgroundColor: colors.bgElevated,
+          borderBottomWidth: 0.5,
+          borderBottomColor: colors.borderLight,
+        }}>
+          <TouchableOpacity onPress={onClose} hitSlop={12}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="chevron-back" size={28} color={colors.brand} />
+              <Text style={{ fontSize: font.sizes.md, color: colors.brand, marginLeft: -2, fontWeight: font.weights.medium }}>
+                Voltar
+              </Text>
+            </View>
           </TouchableOpacity>
-        ) : null}
-        <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, flex: 1 }}>
-          {formatDate(occurrenceDate)}
-        </Text>
-        {!fullscreen ? (
+          <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }} numberOfLines={1}>
+            {formatDate(occurrenceDate)}
+          </Text>
+          <View style={{ width: 60 }} />
+        </View>
+      ) : (
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: spacing.xl, marginBottom: spacing.md }}>
+          <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, flex: 1 }}>
+            {formatDate(occurrenceDate)}
+          </Text>
           <TouchableOpacity onPress={onClose} hitSlop={8}>
             <Ionicons name="close" size={24} color={colors.textMuted} />
           </TouchableOpacity>
-        ) : null}
-      </View>
+        </View>
+      )}
 
           {loading || !activity ? (
             <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing['3xl'] }} />

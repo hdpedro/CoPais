@@ -81,6 +81,49 @@ export async function respondToSwap(
 }
 /* eslint-enable @typescript-eslint/no-unused-vars */
 
+/** Load swap requests SENT by current user (requester). Pending only —
+ *  os ja aceitos/rejeitados ja viraram custody_events ou sao historico.
+ *  Permite ao solicitante ver o que enviou e cancelar se necessario. */
+export async function loadMySentSwaps(groupId: string, userId: string): Promise<SwapRequestDetail[]> {
+  const { data, error } = await supabase
+    .from('swap_requests')
+    .select(
+      'id, requester_id, target_user_id, original_date, proposed_date, reason, status, created_at, profiles!swap_requests_target_user_id_fkey(full_name)'
+    )
+    .eq('group_id', groupId)
+    .eq('status', 'pending')
+    .eq('requester_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error || !data) return [];
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  return data.map((s: any) => ({
+    id: s.id,
+    requesterId: s.requester_id,
+    requesterName: s.profiles?.full_name || 'Co-responsavel',
+    targetUserId: s.target_user_id,
+    originalDate: s.original_date,
+    proposedDate: s.proposed_date,
+    reason: s.reason,
+    type: !s.proposed_date ? 'giveaway' : 'swap',
+    status: s.status,
+    createdAt: s.created_at,
+  }));
+  /* eslint-enable */
+}
+
+/** Cancela uma swap_request enviada pelo proprio user (so pending).
+ *  RLS: Requester can cancel own pending swap (migration 00071). */
+export async function cancelMySwap(swapId: string): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase
+    .from('swap_requests')
+    .update({ status: 'cancelled' })
+    .eq('id', swapId)
+    .eq('status', 'pending');
+  if (error) return { success: false, error: error.message };
+  return { success: true };
+}
+
 /** Create a new swap request via PWA route `/api/swaps`. */
 export async function createSwap(params: {
   groupId: string;

@@ -8,7 +8,7 @@ import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
 import { PARENT_COLORS, getDisplayName } from '../lib/constants';
-import { loadMyPendingSwaps, type SwapRequestDetail } from '../services/swaps';
+import { loadMyPendingSwaps, loadMySentSwaps, type SwapRequestDetail } from '../services/swaps';
 import { listBalanceOperations, type BalanceOperation } from '../services/balance-operations';
 import { fetchMyPendingEventRequests, type EventRequest } from '../services/event-requests';
 
@@ -39,6 +39,7 @@ export function useCalendar() {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [members, setMembers] = useState<MemberColor[]>([]);
   const [pendingSwaps, setPendingSwaps] = useState<SwapRequestDetail[]>([]);
+  const [mySentSwaps, setMySentSwaps] = useState<SwapRequestDetail[]>([]);
   const [balanceOps, setBalanceOps] = useState<BalanceOperation[]>([]);
   const [pendingEventRequests, setPendingEventRequests] = useState<EventRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -206,16 +207,19 @@ export function useCalendar() {
 
       // Pending swap requests + event-action requests addressed to me
       if (activeGroup.custodyEnabled) {
-        const [swaps, ops, eventReqs] = await Promise.all([
+        const [swaps, sentSwaps, ops, eventReqs] = await Promise.all([
           loadMyPendingSwaps(groupId, userId),
+          loadMySentSwaps(groupId, userId),
           listBalanceOperations(groupId),
           fetchMyPendingEventRequests(groupId, userId),
         ]);
         setPendingSwaps(swaps);
+        setMySentSwaps(sentSwaps);
         setBalanceOps(ops);
         setPendingEventRequests(eventReqs);
       } else {
         setPendingSwaps([]);
+        setMySentSwaps([]);
         setBalanceOps([]);
         setPendingEventRequests(await fetchMyPendingEventRequests(groupId, userId));
       }
@@ -228,7 +232,7 @@ export function useCalendar() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  return { events, members, pendingSwaps, balanceOps, pendingEventRequests, loading, refresh: loadData };
+  return { events, members, pendingSwaps, mySentSwaps, balanceOps, pendingEventRequests, loading, refresh: loadData };
 }
 
 // Re-export colors for use in the calendar
