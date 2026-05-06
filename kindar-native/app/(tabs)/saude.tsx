@@ -8,7 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useHealth } from '../../src/hooks/useHealth';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { colors, spacing, radius, font, shadows } from './_tokens';
 
 const STATUS_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
   healthy: { icon: '🟢', color: '#4CAF50', bg: 'rgba(76,175,80,0.08)' },

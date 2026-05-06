@@ -8,7 +8,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from '../../src/store/auth';
 import { useDashboard } from '../../src/hooks/useDashboard';
 import { useI18n } from '../../src/i18n';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { colors, spacing, radius, font, shadows } from './_tokens';
 import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from '../../src/lib/constants';
 import ActivityReportModal from '../../src/components/activities/ActivityReportModal';
 import ActivityDetailSheet from '../../src/components/activities/ActivityDetailSheet';
