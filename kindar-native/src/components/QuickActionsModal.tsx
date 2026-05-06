@@ -30,23 +30,35 @@ export default function QuickActionsModal({ visible, onClose }: Props) {
   const [primary, setPrimary] = useState<string>(DEFAULT_QUICK_ACTIONS_NATIVE.primary);
   const [secondary, setSecondary] = useState<string[]>([...DEFAULT_QUICK_ACTIONS_NATIVE.secondary]);
   const [saving, setSaving] = useState(false);
-  // skipNextAutoSave: evita auto-save disparar quando o useEffect de sync
-  // inicial popula primary/secondary a partir do profile (reseta na abertura).
+  // Profile snapshot capturado quando o modal abre. Nao re-sincronizamos
+  // depois — senao o auto-save dispararia o useEffect que sobrescrevia
+  // a edicao em andamento, causando "atualiza sozinho alguns".
+  const wasVisible = useRef(false);
   const skipNextAutoSave = useRef(true);
 
   useEffect(() => {
-    if (!visible) return;
-    skipNextAutoSave.current = true;
-    const saved = profile?.quick_actions;
-    // Reset estado quando o modal reabre, sincronizando com o profile salvo
-    // (padrao "controlled reset on prop change" — set-state-in-effect intencional).
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setPrimary(saved?.primary ?? DEFAULT_QUICK_ACTIONS_NATIVE.primary);
-    setSecondary(saved?.secondary?.length ? [...saved.secondary] : [...DEFAULT_QUICK_ACTIONS_NATIVE.secondary]);
+    // Sincroniza state com profile APENAS quando o modal abre (visible
+    // false → true). Mudancas de profile depois (vindas do auto-save)
+    // NAO devem resetar o que o usuario esta editando.
+    if (visible && !wasVisible.current) {
+      wasVisible.current = true;
+      skipNextAutoSave.current = true;
+      const saved = profile?.quick_actions;
+      setPrimary(saved?.primary ?? DEFAULT_QUICK_ACTIONS_NATIVE.primary);
+      // Respeita lista vazia (usuario apagou tudo) — antes voltava pro
+      // DEFAULT, parecendo "regenerar sozinho".
+      setSecondary(
+        saved?.secondary !== undefined
+          ? [...saved.secondary]
+          : [...DEFAULT_QUICK_ACTIONS_NATIVE.secondary],
+      );
+    } else if (!visible) {
+      wasVisible.current = false;
+    }
   }, [visible, profile]);
 
   // Auto-save com debounce sempre que o usuario muda primary ou secondary.
-  // Evita o bug de "fechar via X sem salvar" — UX moderna: persiste imediato.
+  // Evita o bug de "fechar via X sem salvar".
   useEffect(() => {
     if (!visible) return;
     if (skipNextAutoSave.current) {
@@ -55,7 +67,7 @@ export default function QuickActionsModal({ visible, onClose }: Props) {
     }
     const handle = setTimeout(() => {
       updateQuickActions(primary, secondary.filter(s => s !== primary));
-    }, 250);
+    }, 600);
     return () => clearTimeout(handle);
   }, [primary, secondary, visible, updateQuickActions]);
 

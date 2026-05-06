@@ -20,11 +20,10 @@ export default function QuickActionsModal({ isOpen, onClose, initialPrimary, ini
     initialSecondary.length > 0 ? initialSecondary : [...DEFAULT_QUICK_ACTIONS.secondary]
   );
   const [isPending, startTransition] = useTransition();
-  // skipNextAutoSave: evita auto-save disparar no sync inicial quando o modal abre.
   const skipNextAutoSave = useRef(true);
 
-  // Auto-save com debounce — paridade com native QuickActionsModal:
-  // fechar via X, backdrop ou ESC nao perde mudancas.
+  // Auto-save com debounce. 600ms dá tempo pro usuario apagar 6 e adicionar 6
+  // sem cada toque triggar save. Persiste mesmo se o usuario fecha pelo X.
   useEffect(() => {
     if (!isOpen) {
       skipNextAutoSave.current = true;
@@ -37,7 +36,7 @@ export default function QuickActionsModal({ isOpen, onClose, initialPrimary, ini
     const handle = setTimeout(() => {
       const filtered = secondary.filter((s) => s !== primary);
       void updateQuickActions(primary, filtered);
-    }, 250);
+    }, 600);
     return () => clearTimeout(handle);
   }, [primary, secondary, isOpen]);
 
