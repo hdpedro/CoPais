@@ -13,6 +13,7 @@ import { revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { notifyCoparents } from "@/lib/services/notify-coparents";
 
 const VALID_ROLES = ["admin", "member", "readonly"];
 
@@ -42,7 +43,8 @@ export async function PATCH(request: Request) {
 
   const admin = createAdminClient();
 
-  // Requester must be admin of the group
+  // Pai e mae (admin ou member) podem alterar permissoes — co-pais
+  // responsaveis em pe de igualdade. Readonly bloqueado.
   const { data: requesterMembership } = await admin
     .from("group_members")
     .select("role")
@@ -50,9 +52,9 @@ export async function PATCH(request: Request) {
     .eq("user_id", user.id)
     .single();
 
-  if (!requesterMembership || requesterMembership.role !== "admin") {
+  if (!requesterMembership || (requesterMembership.role !== "admin" && requesterMembership.role !== "member")) {
     return NextResponse.json(
-      { error: "Apenas administradores podem alterar permissões." },
+      { error: "Apenas pais responsáveis podem alterar permissões." },
       { status: 403 },
     );
   }
@@ -68,6 +70,17 @@ export async function PATCH(request: Request) {
   }
 
   captureServerEvent(user.id, "member_role_changed", { newRole });
+
+  // Transparencia: avisa o outro co-pai sobre alteracao de permissao.
+  await notifyCoparents({
+    groupId,
+    actorUserId: user.id,
+    type: "member_role_changed",
+    title: "Permissão alterada",
+    message: `O papel de um membro foi alterado para ${newRole}.`,
+    link: "/familia",
+  });
+
   revalidateTag(`members-${groupId}`, "max");
   return NextResponse.json({ success: true });
 }
@@ -140,7 +153,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ success: true, left: true });
   }
 
-  // Mode 2: removing another member — admin only
+  // Mode 2: removing another member — pai e mae (admin ou member) podem.
   const { data: requesterMembership } = await admin
     .from("group_members")
     .select("role")
@@ -148,9 +161,9 @@ export async function DELETE(request: Request) {
     .eq("user_id", user.id)
     .single();
 
-  if (!requesterMembership || requesterMembership.role !== "admin") {
+  if (!requesterMembership || (requesterMembership.role !== "admin" && requesterMembership.role !== "member")) {
     return NextResponse.json(
-      { error: "Apenas administradores podem remover membros." },
+      { error: "Apenas pais responsáveis podem remover membros." },
       { status: 403 },
     );
   }
@@ -166,6 +179,17 @@ export async function DELETE(request: Request) {
   }
 
   captureServerEvent(user.id, "member_removed");
+
+  // Transparencia: avisa o outro co-pai sobre remocao de membro.
+  await notifyCoparents({
+    groupId,
+    actorUserId: user.id,
+    type: "member_removed",
+    title: "Membro removido",
+    message: "Um membro foi removido do grupo.",
+    link: "/familia",
+  });
+
   revalidateTag(`members-${groupId}`, "max");
   return NextResponse.json({ success: true });
 }

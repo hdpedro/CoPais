@@ -13,6 +13,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { markQuestStep } from "@/actions/onboarding-quest";
+import { notifyCoparents } from "@/lib/services/notify-coparents";
 
 const ALLOWED_ROLES = ["parent", "mediator", "lawyer"];
 
@@ -36,7 +37,8 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // Admin gate (the native direct-insert path skipped this entirely)
+  // Pai e mae (admin ou member) podem convidar membros — co-pais
+  // responsaveis em pe de igualdade. Readonly bloqueado.
   const { data: membership } = await admin
     .from("group_members")
     .select("role")
@@ -44,9 +46,9 @@ export async function POST(request: Request) {
     .eq("user_id", user.id)
     .single();
 
-  if (!membership || membership.role !== "admin") {
+  if (!membership || (membership.role !== "admin" && membership.role !== "member")) {
     return NextResponse.json(
-      { error: "Apenas administradores podem convidar membros." },
+      { error: "Apenas pais responsáveis podem convidar membros." },
       { status: 403 },
     );
   }
@@ -73,6 +75,16 @@ export async function POST(request: Request) {
   captureServerEvent(user.id, "invitation_sent", {
     group_id: groupId,
     role,
+  });
+
+  // Transparencia: avisa o outro co-pai que um convite foi enviado.
+  await notifyCoparents({
+    groupId,
+    actorUserId: user.id,
+    type: "invitation_sent",
+    title: "Convite enviado",
+    message: `Um novo convite (${role}) foi enviado para ${email}.`,
+    link: "/familia",
   });
 
   // Quest step: inviting a co-responsible unlocks the 'invite_co' step

@@ -169,8 +169,8 @@ describe("members actions", () => {
       expect(mockRedirect).toHaveBeenCalledWith("/login");
     });
 
-    it("not admin - redirects with error", async () => {
-      mockChain.single.mockResolvedValueOnce({ data: { role: "member" }, error: null });
+    it("readonly - redirects with error (only admin/member allowed)", async () => {
+      mockChain.single.mockResolvedValueOnce({ data: { role: "readonly" }, error: null });
       await expect(changeMemberRole(fd({ memberId: "other", groupId: "g1", newRole: "admin" }))).rejects.toThrow("NEXT_REDIRECT");
       expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining("/familia?error="));
     });
@@ -189,8 +189,8 @@ describe("members actions", () => {
       expect(mockRedirect).toHaveBeenCalledWith("/login");
     });
 
-    it("not admin - redirects with error", async () => {
-      mockChain.single.mockResolvedValueOnce({ data: { role: "member" }, error: null });
+    it("readonly - redirects with error (only admin/member allowed)", async () => {
+      mockChain.single.mockResolvedValueOnce({ data: { role: "readonly" }, error: null });
       await expect(removeMember(fd({ memberId: "other", groupId: "g1" }))).rejects.toThrow("NEXT_REDIRECT");
       expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining("/familia?error="));
     });
@@ -220,8 +220,8 @@ describe("invitation actions", () => {
       expect(mockRedirect).toHaveBeenCalledWith("/login");
     });
 
-    it("not admin - redirects with error", async () => {
-      mockChain.single.mockResolvedValueOnce({ data: { role: "member" }, error: null });
+    it("readonly - redirects with error (only admin/member allowed)", async () => {
+      mockChain.single.mockResolvedValueOnce({ data: { role: "readonly" }, error: null });
       await expect(createInvitation(fd({ groupId: "g1", email: "a@b.com", role: "parent" }))).rejects.toThrow("NEXT_REDIRECT");
       expect(mockRedirect).toHaveBeenCalledWith(expect.stringContaining("error="));
     });

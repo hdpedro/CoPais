@@ -11,6 +11,7 @@ import {
   createSwapRequest as createSwapRequestService,
   respondToSwapRequest as respondToSwapRequestService,
 } from "@/lib/services/swap";
+import { notifyCoparents } from "@/lib/services/notify-coparents";
 
 export async function createCustodyEvent(formData: FormData) {
   const supabase = await createClient();
@@ -429,6 +430,16 @@ export async function generateSchedule(formData: FormData) {
 
   captureServerEvent(user.id, "schedule_generated");
 
+  // Transparencia: avisa o outro co-pai sobre nova escala / regeracao.
+  await notifyCoparents({
+    groupId,
+    actorUserId: user.id,
+    type: "schedule_generated",
+    title: "Nova escala de guarda",
+    message: `Uma escala de ${events.length} eventos foi gerada. Confira no calendário.`,
+    link: "/calendario",
+  });
+
   // Quest step: schedule is set up — one of the 5 premium-touching
   // actions during trial.
   const { markQuestStep } = await import("@/actions/onboarding-quest");
@@ -486,6 +497,16 @@ export async function clearCustodySchedule(groupId: string) {
 
   captureServerEvent(user.id, "schedule_cleared", {
     group_id: groupId,
+  });
+
+  // Transparencia: avisa o outro co-pai que a escala foi limpa.
+  await notifyCoparents({
+    groupId,
+    actorUserId: user.id,
+    type: "schedule_cleared",
+    title: "Escala de guarda removida",
+    message: "A escala de guarda foi limpa. Eventos futuros foram apagados.",
+    link: "/calendario",
   });
 
   revalidatePath("/calendario");

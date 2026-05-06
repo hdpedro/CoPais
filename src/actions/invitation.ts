@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { markQuestStep } from "@/actions/onboarding-quest";
+import { notifyCoparents } from "@/lib/services/notify-coparents";
 
 export async function createInvitation(formData: FormData) {
   const supabase = await createClient();
@@ -19,7 +20,9 @@ export async function createInvitation(formData: FormData) {
   const role = (formData.get("role") as string) || "parent";
   const returnTo = (formData.get("returnTo") as string) || "/convite/enviar";
 
-  // Check if user is admin of the group
+  // Pai e mae (admin ou member) podem convidar membros — sao co-pais
+  // responsaveis em pe de igualdade. Apenas readonly (mediator/lawyer/
+  // grandparent/caregiver) e bloqueado.
   const { data: membership } = await supabase
     .from("group_members")
     .select("role")
@@ -27,8 +30,8 @@ export async function createInvitation(formData: FormData) {
     .eq("user_id", user.id)
     .single();
 
-  if (!membership || membership.role !== "admin") {
-    redirect(returnTo + "?error=" + encodeURIComponent("Apenas administradores podem convidar membros"));
+  if (!membership || (membership.role !== "admin" && membership.role !== "member")) {
+    redirect(returnTo + "?error=" + encodeURIComponent("Apenas pais responsaveis podem convidar membros"));
   }
 
   const { data: invitation, error } = await supabase
@@ -50,6 +53,16 @@ export async function createInvitation(formData: FormData) {
   captureServerEvent(user.id, "invitation_sent", {
     group_id: groupId,
     role,
+  });
+
+  // Transparencia: avisa o outro co-pai que um convite foi enviado.
+  await notifyCoparents({
+    groupId,
+    actorUserId: user.id,
+    type: "invitation_sent",
+    title: "Convite enviado",
+    message: `Um novo convite (${role}) foi enviado para ${email}.`,
+    link: "/familia",
   });
 
   // Quest step: inviting a co-responsible unlocks the 'invite_co' step

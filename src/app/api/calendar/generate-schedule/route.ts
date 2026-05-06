@@ -13,6 +13,7 @@ import { revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { notifyCoparents } from "@/lib/services/notify-coparents";
 
 interface RequestBody {
   groupId?: string;
@@ -225,6 +226,17 @@ export async function POST(request: Request) {
     );
 
   captureServerEvent(user.id, "schedule_generated");
+
+  // Transparencia: avisa o outro co-pai sobre nova escala / regeracao.
+  await notifyCoparents({
+    groupId,
+    actorUserId: user.id,
+    type: "schedule_generated",
+    title: "Nova escala de guarda",
+    message: `Uma escala de ${events.length} eventos foi gerada. Confira no calendário.`,
+    link: "/calendario",
+  });
+
   revalidateTag(`calendar-${groupId}`, "max");
   return NextResponse.json({ success: true, events: events.length });
 }

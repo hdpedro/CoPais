@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { notifyCoparents } from "@/lib/services/notify-coparents";
 
 export async function changeMemberRole(formData: FormData) {
   const supabase = await createClient();
@@ -15,7 +16,8 @@ export async function changeMemberRole(formData: FormData) {
   const groupId = formData.get("groupId") as string;
   const newRole = formData.get("newRole") as string;
 
-  // Verify requester is admin
+  // Pai e mae (admin ou member) podem alterar permissoes — co-pais
+  // responsaveis em pe de igualdade. Readonly bloqueado.
   const { data: requesterMembership } = await supabase
     .from("group_members")
     .select("role")
@@ -23,8 +25,8 @@ export async function changeMemberRole(formData: FormData) {
     .eq("user_id", user.id)
     .single();
 
-  if (!requesterMembership || requesterMembership.role !== "admin") {
-    redirect("/familia?error=" + encodeURIComponent("Apenas administradores podem alterar permissoes"));
+  if (!requesterMembership || (requesterMembership.role !== "admin" && requesterMembership.role !== "member")) {
+    redirect("/familia?error=" + encodeURIComponent("Apenas pais responsaveis podem alterar permissoes"));
   }
 
   // Cannot change own role
@@ -56,6 +58,16 @@ export async function changeMemberRole(formData: FormData) {
 
   captureServerEvent(user.id, "member_role_changed", { newRole });
 
+  // Transparencia: avisa o outro co-pai sobre alteracao de permissao.
+  await notifyCoparents({
+    groupId,
+    actorUserId: user.id,
+    type: "member_role_changed",
+    title: "Permissão alterada",
+    message: `O papel de um membro foi alterado para ${newRole}.`,
+    link: "/familia",
+  });
+
   revalidatePath("/familia");
   redirect("/familia?success=" + encodeURIComponent("Papel atualizado com sucesso"));
 }
@@ -68,7 +80,8 @@ export async function removeMember(formData: FormData) {
   const memberId = formData.get("memberId") as string;
   const groupId = formData.get("groupId") as string;
 
-  // Verify requester is admin
+  // Pai e mae (admin ou member) podem remover membros — co-pais
+  // responsaveis em pe de igualdade. Readonly bloqueado.
   const { data: requesterMembership } = await supabase
     .from("group_members")
     .select("role")
@@ -76,8 +89,8 @@ export async function removeMember(formData: FormData) {
     .eq("user_id", user.id)
     .single();
 
-  if (!requesterMembership || requesterMembership.role !== "admin") {
-    redirect("/familia?error=" + encodeURIComponent("Apenas administradores podem remover membros"));
+  if (!requesterMembership || (requesterMembership.role !== "admin" && requesterMembership.role !== "member")) {
+    redirect("/familia?error=" + encodeURIComponent("Apenas pais responsaveis podem remover membros"));
   }
 
   // Cannot remove self
@@ -102,6 +115,16 @@ export async function removeMember(formData: FormData) {
   }
 
   captureServerEvent(user.id, "member_removed");
+
+  // Transparencia: avisa o outro co-pai sobre remocao de membro.
+  await notifyCoparents({
+    groupId,
+    actorUserId: user.id,
+    type: "member_removed",
+    title: "Membro removido",
+    message: "Um membro foi removido do grupo.",
+    link: "/familia",
+  });
 
   revalidatePath("/familia");
   redirect("/familia?success=" + encodeURIComponent("Membro removido com sucesso"));
@@ -187,7 +210,7 @@ export async function cancelInvitation(formData: FormData) {
     redirect("/familia?error=" + encodeURIComponent("Convite nao encontrado"));
   }
 
-  // Verify requester is admin of the group
+  // Pai e mae (admin ou member) podem cancelar convites do grupo deles.
   const { data: membership } = await supabase
     .from("group_members")
     .select("role")
@@ -195,8 +218,8 @@ export async function cancelInvitation(formData: FormData) {
     .eq("user_id", user.id)
     .single();
 
-  if (!membership || membership.role !== "admin") {
-    redirect("/familia?error=" + encodeURIComponent("Apenas administradores podem cancelar convites"));
+  if (!membership || (membership.role !== "admin" && membership.role !== "member")) {
+    redirect("/familia?error=" + encodeURIComponent("Apenas pais responsaveis podem cancelar convites"));
   }
 
   const { error } = await supabase
@@ -207,6 +230,16 @@ export async function cancelInvitation(formData: FormData) {
   if (error) {
     redirect("/familia?error=" + encodeURIComponent(error.message));
   }
+
+  // Transparencia: avisa o outro co-pai que um convite foi cancelado.
+  await notifyCoparents({
+    groupId: invitation.group_id,
+    actorUserId: user.id,
+    type: "invitation_cancelled",
+    title: "Convite cancelado",
+    message: "Um convite pendente foi cancelado.",
+    link: "/familia",
+  });
 
   revalidatePath("/familia");
   redirect("/familia?success=" + encodeURIComponent("Convite cancelado"));
@@ -236,7 +269,7 @@ export async function deleteInvitation(formData: FormData) {
     redirect(returnTo + "?error=" + encodeURIComponent("Nao e possivel excluir um convite ja aceito"));
   }
 
-  // Verify requester is admin of the group
+  // Pai e mae (admin ou member) podem excluir convites do grupo deles.
   const { data: membership } = await supabase
     .from("group_members")
     .select("role")
@@ -244,8 +277,8 @@ export async function deleteInvitation(formData: FormData) {
     .eq("user_id", user.id)
     .single();
 
-  if (!membership || membership.role !== "admin") {
-    redirect(returnTo + "?error=" + encodeURIComponent("Apenas administradores podem excluir convites"));
+  if (!membership || (membership.role !== "admin" && membership.role !== "member")) {
+    redirect(returnTo + "?error=" + encodeURIComponent("Apenas pais responsaveis podem excluir convites"));
   }
 
   // Use service role to bypass RLS (no DELETE policy on invitations table)
@@ -262,6 +295,16 @@ export async function deleteInvitation(formData: FormData) {
   if (error) {
     redirect(returnTo + "?error=" + encodeURIComponent(error.message));
   }
+
+  // Transparencia: avisa o outro co-pai que um convite foi excluido.
+  await notifyCoparents({
+    groupId: invitation.group_id,
+    actorUserId: user.id,
+    type: "invitation_deleted",
+    title: "Convite excluído",
+    message: "Um convite foi excluído permanentemente.",
+    link: "/familia",
+  });
 
   revalidatePath("/convite/enviar");
   revalidatePath("/familia");
