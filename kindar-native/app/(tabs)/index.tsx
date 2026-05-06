@@ -5,14 +5,14 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useAuth } from '@/store/auth';
-import { useDashboard } from '@/hooks/useDashboard';
-import { useI18n } from '@/i18n';
-import { colors, spacing, radius, font, shadows } from '@/design-system/tokens';
-import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from '@/lib/constants';
-import ActivityReportModal from '@/components/activities/ActivityReportModal';
-import ActivityDetailSheet from '@/components/activities/ActivityDetailSheet';
-import QuickActionsModal from '@/components/QuickActionsModal';
+import { useAuth } from '../../src/store/auth';
+import { useDashboard } from '../../src/hooks/useDashboard';
+import { useI18n } from '../../src/i18n';
+import { colors, spacing, radius, font, shadows } from './_tokens';
+import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from '../../src/lib/constants';
+import ActivityReportModal from '../../src/components/activities/ActivityReportModal';
+import ActivityDetailSheet from '../../src/components/activities/ActivityDetailSheet';
+import QuickActionsModal from '../../src/components/QuickActionsModal';
 
 // i18n keys for greetings — same keys the PWA uses
 // (`dashboard.goodMorning` / `goodAfternoon` / `goodEvening`).
