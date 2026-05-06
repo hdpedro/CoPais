@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Linking } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -122,6 +122,24 @@ export default function DashboardScreen() {
               </Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
+              {/* WhatsApp Kindar — paridade PWA (ResponsiveShell:104). Cor
+                  oficial #25D366. Abre conversa com o numero do bot. */}
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  Linking.openURL('https://wa.me/5521999605044?text=Oi%20Kindar!').catch(() => {});
+                }}
+                hitSlop={6}
+                testID="home-whatsapp"
+                accessibilityLabel="Abrir WhatsApp Kindar"
+                style={{
+                  width: 36, height: 36, borderRadius: 18,
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="logo-whatsapp" size={22} color="#25D366" />
+              </TouchableOpacity>
+
               {/* Kindar AI button — matches PWA mic button next to bell */}
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ai'); }}
@@ -195,14 +213,64 @@ export default function DashboardScreen() {
                 ) : null}
               </View>
 
-              {/* Main info */}
-              <Text style={{ fontSize: 22, fontWeight: font.weights.bold, color: '#fff', lineHeight: 28 }}>
-                <Text style={{ color: '#D4735A' }}>{firstCustody.childFirstName}</Text>{' '}
-                está com {firstCustody.isWithMe ? 'você' : firstCustody.responsibleName}
-              </Text>
-              <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
-                {firstCustody.childFirstName}{data.endDateLabel ? ` · ${data.endDateLabel}` : ''}
-              </Text>
+              {/* Main info — agrupa filhos pelo responsavel:
+                  - Todos com mesma pessoa: "Martim e Otto estao com voce"
+                  - Distribuidos: "Martim com voce · Otto com Fernanda"
+                  - 1 filho: comportamento original */}
+              {(() => {
+                const groupKey = (c: typeof firstCustody) => c.isWithMe ? '__me__' : c.responsibleName;
+                const grouped = new Map<string, typeof data.custodyChildren>();
+                data.custodyChildren.forEach(c => {
+                  const k = groupKey(c);
+                  const arr = grouped.get(k) || [];
+                  arr.push(c);
+                  grouped.set(k, arr);
+                });
+                const formatNames = (names: string[]) => {
+                  if (names.length === 1) return names[0];
+                  if (names.length === 2) return `${names[0]} e ${names[1]}`;
+                  return `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`;
+                };
+
+                if (grouped.size === 1) {
+                  // Todos com a mesma pessoa
+                  const [responsible, kids] = Array.from(grouped.entries())[0];
+                  const who = responsible === '__me__' ? 'você' : responsible;
+                  const verb = kids.length === 1 ? 'está' : 'estão';
+                  const namesText = formatNames(kids.map(c => c.childFirstName));
+                  return (
+                    <>
+                      <Text style={{ fontSize: 22, fontWeight: font.weights.bold, color: '#fff', lineHeight: 28 }}>
+                        <Text style={{ color: '#D4735A' }}>{namesText}</Text>{' '}
+                        {verb} com {who}
+                      </Text>
+                      <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>
+                        {namesText}{data.endDateLabel ? ` · ${data.endDateLabel}` : ''}
+                      </Text>
+                    </>
+                  );
+                }
+
+                // Distribuidos: linha por filho
+                return (
+                  <View>
+                    {data.custodyChildren.map((c) => {
+                      const who = c.isWithMe ? 'você' : c.responsibleName;
+                      return (
+                        <Text key={c.childFirstName} style={{ fontSize: 18, fontWeight: font.weights.bold, color: '#fff', lineHeight: 24 }}>
+                          <Text style={{ color: c.color || '#D4735A' }}>{c.childFirstName}</Text>{' '}
+                          com {who}
+                        </Text>
+                      );
+                    })}
+                    {data.endDateLabel ? (
+                      <Text style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 4 }}>
+                        {data.endDateLabel}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })()}
 
               {/* Progress bar */}
               {data.streakTotal > 1 ? (

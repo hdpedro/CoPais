@@ -349,12 +349,44 @@ export function useDashboard() {
         endDateLabel = `${custodyType} - ${dayOfWeekPt}`;
       }
 
-      // Custody summary for greeting subtitle: "Eduarda com Angelino hoje"
+      // Custody summary for greeting subtitle. Suporta multiplos filhos:
+      //  - Todos com a mesma pessoa: "Eduarda e Joao com voce hoje"
+      //  - Distribuidos: "Eduarda com voce · Joao com Angelino"
+      //  - 1 filho: comportamento original
       let custodySummary: string | null = null;
       if (custodyChildren.length > 0) {
-        const c = custodyChildren[0];
-        const who = c.isWithMe ? 'você' : c.responsibleName;
-        custodySummary = `${c.childFirstName} com ${who} hoje`;
+        // Agrupa por responsavel
+        const groupKey = (c: CustodyChild) => c.isWithMe ? '__me__' : c.responsibleName;
+        const grouped = new Map<string, CustodyChild[]>();
+        custodyChildren.forEach(c => {
+          const k = groupKey(c);
+          const arr = grouped.get(k) || [];
+          arr.push(c);
+          grouped.set(k, arr);
+        });
+
+        const formatNames = (names: string[]) => {
+          if (names.length === 1) return names[0];
+          if (names.length === 2) return `${names[0]} e ${names[1]}`;
+          return `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`;
+        };
+
+        if (grouped.size === 1) {
+          // Todos com a mesma pessoa
+          const [responsible, kids] = Array.from(grouped.entries())[0];
+          const who = responsible === '__me__' ? 'você' : responsible;
+          const names = formatNames(kids.map(c => c.childFirstName));
+          custodySummary = `${names} com ${who} hoje`;
+        } else {
+          // Distribuidos — uma frase por grupo
+          const parts: string[] = [];
+          grouped.forEach((kids, responsible) => {
+            const who = responsible === '__me__' ? 'você' : responsible;
+            const names = formatNames(kids.map(c => c.childFirstName));
+            parts.push(`${names} com ${who}`);
+          });
+          custodySummary = parts.join(' · ');
+        }
       }
 
       // Pending activity reports: for each recurring activity, find occurrences
