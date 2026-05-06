@@ -86,6 +86,41 @@ export function getDisplayName(fullName: string | null | undefined): string {
   return fullName.split(' ')[0];
 }
 
+// ---------- Quick Actions ----------
+
+export interface QuickActionDefNative {
+  id: string;
+  href: string;
+  color: string;
+  defaultLabel: string;
+  icon: string; // Ionicons name
+}
+
+export const QUICK_ACTIONS_CATALOG_NATIVE: QuickActionDefNative[] = [
+  { id: 'nova-despesa',   href: '/despesas/nova',      color: '#D4735A', defaultLabel: 'Nova despesa',      icon: 'add-circle-outline' },
+  { id: 'calendario',     href: '/(tabs)/calendario',  color: '#5B9E85', defaultLabel: 'Agenda',            icon: 'calendar-outline' },
+  { id: 'financeiro',     href: '/financeiro',         color: '#5B9E85', defaultLabel: 'Financeiro',        icon: 'cash-outline' },
+  { id: 'saude',          href: '/(tabs)/saude',       color: '#EF4444', defaultLabel: 'Saúde',             icon: 'heart-outline' },
+  { id: 'acordos',        href: '/acordos',            color: '#F59E0B', defaultLabel: 'Acordos',           icon: 'reader-outline' },
+  { id: 'documentos',     href: '/documentos',         color: '#F59E0B', defaultLabel: 'Documentos',        icon: 'document-outline' },
+  { id: 'decisoes',       href: '/decisoes',           color: '#8B5CF6', defaultLabel: 'Decisões',          icon: 'checkmark-circle-outline' },
+  { id: 'notas',          href: '/notas',              color: '#3B82F6', defaultLabel: 'Notas',             icon: 'pencil-outline' },
+  { id: 'nova-atividade', href: '/atividades/nova',    color: '#22C55E', defaultLabel: 'Nova atividade',    icon: 'fitness-outline' },
+  { id: 'novo-evento',    href: '/calendario/novo',    color: '#5B9E85', defaultLabel: 'Novo evento',       icon: 'calendar-number-outline' },
+  { id: 'nova-consulta',  href: '/saude/consultas',    color: '#EF4444', defaultLabel: 'Nova consulta',     icon: 'medkit-outline' },
+  { id: 'checkin',        href: '/checkin',            color: '#F59E0B', defaultLabel: 'Check-in',          icon: 'checkmark-done-outline' },
+  { id: 'semana',         href: '/semana',             color: '#3B82F6', defaultLabel: 'Análise semanal',   icon: 'stats-chart-outline' },
+  { id: 'escola',         href: '/escola',             color: '#8B5CF6', defaultLabel: 'Escola',            icon: 'school-outline' },
+  { id: 'criancas',       href: '/criancas',           color: '#22C55E', defaultLabel: 'Crianças',          icon: 'people-outline' },
+];
+
+export const DEFAULT_QUICK_ACTIONS_NATIVE = {
+  primary: 'nova-despesa',
+  secondary: ['calendario', 'semana', 'documentos', 'financeiro', 'acordos', 'saude'],
+} as const;
+
+// ---------- Dates ----------
+
 /** Get today's date as YYYY-MM-DD in Brazil timezone (same as PWA) */
 export function getBrazilToday(): string {
   return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Sao_Paulo' });

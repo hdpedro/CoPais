@@ -184,7 +184,14 @@
     "custodyActivationTitle": "Organizar escala de responsáveis?",
     "custodyActivationDescription": "Agora vocês são {count} cuidando de {childName}. Configurem quem fica com ela em cada dia.",
     "custodyActivationCta": "Configurar escala",
-    "custodyActivationDismiss": "Agora não"
+    "custodyActivationDismiss": "Agora não",
+    "customizeActions": "Personalizar ações",
+    "primaryAction": "Botão principal",
+    "secondaryActions": "Ações rápidas",
+    "maxActionsReached": "Máximo atingido",
+    "tapToAdd": "Toque para adicionar",
+    "saveActions": "Salvar",
+    "editActionsHint": "Editar"
   },
   "calendar": {
     "title": "Calendário",

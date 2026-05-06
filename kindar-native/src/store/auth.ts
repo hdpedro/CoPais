@@ -11,9 +11,15 @@
 import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
+import { QUICK_ACTIONS_CATALOG_NATIVE } from '../lib/constants';
 
 const ACTIVE_GROUP_KEY = '@kindar_active_group';
 let authSubscription: { unsubscribe: () => void } | null = null;
+
+interface QuickActionsConfig {
+  primary: string;
+  secondary: string[];
+}
 
 interface Profile {
   id: string;
@@ -24,6 +30,7 @@ interface Profile {
   role: string | null;
   avatar_url: string | null;
   locale: string | null;
+  quick_actions: QuickActionsConfig | null;
 }
 
 interface ActiveGroup {
@@ -55,6 +62,7 @@ interface AuthState {
   loadProfile: () => Promise<void>;
   loadActiveGroup: () => Promise<void>;
   switchGroup: (groupId: string) => void;
+  updateQuickActions: (primary: string, secondary: string[]) => Promise<{ success: boolean; error?: string }>;
 }
 
 export const useAuth = create<AuthState>((set, get) => ({
@@ -157,10 +165,10 @@ export const useAuth = create<AuthState>((set, get) => ({
     if (!userId) return;
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, display_name, email, phone, role, avatar_url, locale')
+      .select('id, full_name, display_name, email, phone, role, avatar_url, locale, quick_actions')
       .eq('id', userId)
       .single();
-    if (!error && data) set({ profile: data });
+    if (!error && data) set({ profile: data as Profile });
   },
 
   loadActiveGroup: async () => {
@@ -215,5 +223,32 @@ export const useAuth = create<AuthState>((set, get) => ({
         custodyEnabled: m.custodyEnabled,
       },
     });
+  },
+
+  updateQuickActions: async (primary: string, secondary: string[]) => {
+    const userId = get().userId;
+    if (!userId) return { success: false, error: 'Não autenticado' };
+
+    const validIds = new Set(QUICK_ACTIONS_CATALOG_NATIVE.map(a => a.id));
+    if (!validIds.has(primary)) return { success: false, error: 'Ação primária inválida' };
+
+    const validSecondary = secondary
+      .filter(id => validIds.has(id) && id !== primary)
+      .slice(0, 6);
+
+    const quickActions: QuickActionsConfig = { primary, secondary: validSecondary };
+
+    const { error } = await supabase
+      .from('profiles')
+      .update({ quick_actions: quickActions })
+      .eq('id', userId);
+
+    if (error) return { success: false, error: 'Erro ao salvar preferências' };
+
+    set(state => ({
+      profile: state.profile ? { ...state.profile, quick_actions: quickActions } : state.profile,
+    }));
+
+    return { success: true };
   },
 }));

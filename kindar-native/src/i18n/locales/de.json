@@ -184,7 +184,14 @@
     "custodyActivationTitle": "Betreuungsplan einrichten?",
     "custodyActivationDescription": "Ihr seid jetzt {count}, die sich um {childName} kümmern. Legt fest, wer an welchem Tag betreut.",
     "custodyActivationCta": "Plan einrichten",
-    "custodyActivationDismiss": "Nicht jetzt"
+    "custodyActivationDismiss": "Nicht jetzt",
+    "customizeActions": "Aktionen anpassen",
+    "primaryAction": "Hauptschaltfläche",
+    "secondaryActions": "Schnellaktionen",
+    "maxActionsReached": "Maximum erreicht",
+    "tapToAdd": "Zum Hinzufügen tippen",
+    "saveActions": "Speichern",
+    "editActionsHint": "Bearbeiten"
   },
   "calendar": {
     "title": "Kalender",

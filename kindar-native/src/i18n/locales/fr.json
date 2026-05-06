@@ -184,7 +184,14 @@
     "custodyActivationTitle": "Organiser un planning de garde ?",
     "custodyActivationDescription": "Vous êtes maintenant {count} à prendre soin de {childName}. Configurez qui s'en occupe chaque jour.",
     "custodyActivationCta": "Configurer le planning",
-    "custodyActivationDismiss": "Pas maintenant"
+    "custodyActivationDismiss": "Pas maintenant",
+    "customizeActions": "Personnaliser les actions",
+    "primaryAction": "Bouton principal",
+    "secondaryActions": "Actions rapides",
+    "maxActionsReached": "Maximum atteint",
+    "tapToAdd": "Appuyer pour ajouter",
+    "saveActions": "Enregistrer",
+    "editActionsHint": "Modifier"
   },
   "calendar": {
     "title": "Calendrier",

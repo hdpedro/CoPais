@@ -184,7 +184,14 @@
     "custodyActivationTitle": "¿Organizar horario de responsables?",
     "custodyActivationDescription": "Ahora son {count} cuidando de {childName}. Configuren quién se queda cada día.",
     "custodyActivationCta": "Configurar horario",
-    "custodyActivationDismiss": "Ahora no"
+    "custodyActivationDismiss": "Ahora no",
+    "customizeActions": "Personalizar acciones",
+    "primaryAction": "Botón principal",
+    "secondaryActions": "Acciones rápidas",
+    "maxActionsReached": "Máximo alcanzado",
+    "tapToAdd": "Toca para añadir",
+    "saveActions": "Guardar",
+    "editActionsHint": "Editar"
   },
   "calendar": {
     "title": "Calendario",

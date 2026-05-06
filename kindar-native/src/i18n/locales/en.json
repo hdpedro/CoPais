@@ -184,7 +184,14 @@
     "custodyActivationTitle": "Set up a care schedule?",
     "custodyActivationDescription": "Now you are {count} caring for {childName}. Set up who stays with them each day.",
     "custodyActivationCta": "Set up schedule",
-    "custodyActivationDismiss": "Not now"
+    "custodyActivationDismiss": "Not now",
+    "customizeActions": "Customize actions",
+    "primaryAction": "Primary button",
+    "secondaryActions": "Quick actions",
+    "maxActionsReached": "Maximum reached",
+    "tapToAdd": "Tap to add",
+    "saveActions": "Save",
+    "editActionsHint": "Edit"
   },
   "calendar": {
     "title": "Calendar",
