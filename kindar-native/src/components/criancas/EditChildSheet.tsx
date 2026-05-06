@@ -19,16 +19,18 @@
  *   - children.photo_url → uploadChildAvatar (Storage path, signed at read)
  */
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Modal, Pressable, ScrollView,
   KeyboardAvoidingView, Platform, Alert, Image, ActivityIndicator,
 } from 'react-native';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import type { Child, MedicalInfo } from '../../services/children';
 import { updateChild, upsertChildMedicalInfo, uploadChildAvatar, signChildAvatar } from '../../services/children';
+import { supabase } from '../../lib/supabase';
 import { DatePickerField, isoDateToDisplay } from '../ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 
@@ -117,6 +119,29 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
   const [bloodType, setBloodType] = useState<string | null>(medicalInfo?.blood_type ?? null);
   const [photoUrl, setPhotoUrl] = useState<string | null>(child.photo_url);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
+  // Ultima medida (peso/altura) — read-only nesta tela; fonte unica em
+  // growth_records via /saude/crescimento. Mostrar aqui evita o paradoxo
+  // "preenchi mas nao apareceu" reportado pelo Henrique.
+  const [latestGrowth, setLatestGrowth] = useState<{
+    weight_kg: number | null;
+    height_cm: number | null;
+    measured_date: string;
+  } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from('growth_records')
+        .select('weight_kg, height_cm, measured_date')
+        .eq('child_id', child.id)
+        .order('measured_date', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!cancelled && data) setLatestGrowth(data as typeof latestGrowth);
+    })();
+    return () => { cancelled = true; };
+  }, [child.id]);
   const [saving, setSaving] = useState(false);
 
   const cpfValid = useMemo(() => cpf.trim().length === 0 || isValidCpf(cpf), [cpf]);
@@ -555,6 +580,59 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               <Ionicons name="add" size={22} color="#fff" />
             </TouchableOpacity>
           </View>
+
+          {/* Crescimento — read-only com link pra /saude/crescimento.
+              Resolve o paradoxo "preenchi peso/altura mas nao apareceu":
+              o dado vive em growth_records (historico datado), nao em
+              children. Mostramos a ultima medida aqui pra dar visibilidade
+              + atalho rapido pra adicionar nova. */}
+          <Label>Crescimento</Label>
+          <TouchableOpacity
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              onClose();
+              router.push('/saude/crescimento' as never);
+            }}
+            activeOpacity={0.7}
+            style={{
+              flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+              backgroundColor: colors.bgSurface, borderRadius: radius.md,
+              padding: spacing.md, marginBottom: spacing.lg,
+            }}
+          >
+            <View style={{
+              width: 40, height: 40, borderRadius: 20,
+              backgroundColor: colors.brandLight,
+              alignItems: 'center', justifyContent: 'center',
+            }}>
+              <Ionicons name="fitness-outline" size={20} color={colors.brand} />
+            </View>
+            <View style={{ flex: 1 }}>
+              {latestGrowth ? (
+                <>
+                  <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
+                    {[
+                      latestGrowth.weight_kg ? `${latestGrowth.weight_kg}kg` : null,
+                      latestGrowth.height_cm ? `${latestGrowth.height_cm}cm` : null,
+                    ].filter(Boolean).join(' · ') || '—'}
+                  </Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
+                    Última medida em {latestGrowth.measured_date.split('-').reverse().join('/')}
+                  </Text>
+                </>
+              ) : (
+                <>
+                  <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
+                    Adicionar peso e altura
+                  </Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
+                    Acompanhar o crescimento ao longo do tempo
+                  </Text>
+                </>
+              )}
+            </View>
+            <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+          </TouchableOpacity>
 
           {/* Anotações */}
           <Label>Anotações</Label>
