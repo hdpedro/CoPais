@@ -186,17 +186,10 @@ export default function EscalaScreen() {
     const iso = parseDate(startDateDisplay);
     if (!iso) { Alert.alert('Data inválida', 'Use DD/MM/AAAA'); return; }
 
-    // Mirror PWA `ScheduleBuilder.tsx:148-153` — block users from picking
-    // a non-Monday start date, otherwise the bi-weekly cycle anchor (which
-    // the service silently shifts to Monday) doesn't match user expectation.
-    const startDay = new Date(iso + 'T12:00:00').getDay();
-    if (startDay !== 1) {
-      Alert.alert(
-        'Início precisa ser segunda-feira',
-        'A data de início deve ser uma segunda-feira para alinhar com a escala quinzenal. Escolha a segunda-feira mais próxima.',
-      );
-      return;
-    }
+    // O algoritmo do servidor (actions/calendar.ts:272-280 e
+    // api/calendar/generate-schedule/route.ts) ancora o ciclo quinzenal
+    // automaticamente na segunda-feira da semana da data escolhida —
+    // qualquer dia funciona. Sem bloqueio aqui.
 
     Alert.alert(
       'Gerar escala',

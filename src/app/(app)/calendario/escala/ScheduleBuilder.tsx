@@ -145,12 +145,9 @@ export default function ScheduleBuilder({
       setError("Configure pelo menos 1 dia na escala.");
       return;
     }
-    // Validate that start date is a Monday
-    const startDay = new Date(startDate + "T12:00:00").getDay();
-    if (startDay !== 1) {
-      setError("A data de inicio deve ser uma segunda-feira para alinhar com a escala quinzenal.");
-      return;
-    }
+    // Server (actions/calendar.ts:272-280) ancora o ciclo quinzenal na
+    // segunda-feira da semana da data escolhida automaticamente — qualquer
+    // dia funciona. Sem bloqueio aqui.
 
     setSubmitting(true);
     setError("");
@@ -358,15 +355,9 @@ export default function ScheduleBuilder({
             }}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50"
           />
-          {startDate && new Date(startDate + "T12:00:00").getDay() !== 1 ? (
-            <p className="text-xs text-amber-600 font-medium mt-1">
-              A data selecionada nao e uma segunda-feira. A escala deve comecar na segunda.
-            </p>
-          ) : (
-            <p className="text-xs text-muted mt-1">
-              Escolha uma segunda-feira para alinhar com a semana.
-            </p>
-          )}
+          <p className="text-xs text-muted mt-1">
+            O ciclo quinzenal e ancorado na segunda-feira da semana — qualquer dia funciona.
+          </p>
         </div>
 
         <div>
