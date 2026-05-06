@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Image } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -252,15 +252,24 @@ export default function DashboardScreen() {
                   }}
                 >
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: custody ? spacing.sm : 0 }}>
-                    <View style={{
-                      width: 44, height: 44, borderRadius: 22,
-                      backgroundColor: colors.brandLight,
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Text style={{ fontSize: 20, fontWeight: font.weights.bold, color: colors.brand }}>
-                        {child.firstName.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
+                    {child.photoUrl ? (
+                      // eslint-disable-next-line jsx-a11y/alt-text -- RN Image usa accessibilityLabel
+                      <Image
+                        source={{ uri: child.photoUrl }}
+                        style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: colors.brandLight }}
+                        accessibilityLabel={`Foto de ${child.firstName}`}
+                      />
+                    ) : (
+                      <View style={{
+                        width: 44, height: 44, borderRadius: 22,
+                        backgroundColor: colors.brandLight,
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Text style={{ fontSize: 20, fontWeight: font.weights.bold, color: colors.brand }}>
+                          {child.firstName.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
                         {child.firstName}
@@ -689,15 +698,24 @@ export default function DashboardScreen() {
                       flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
                     }}
                   >
-                    <View style={{
-                      width: 34, height: 34, borderRadius: 17,
-                      backgroundColor: 'rgba(255,255,255,0.85)',
-                      alignItems: 'center', justifyContent: 'center',
-                    }}>
-                      <Text style={{ fontSize: 14, fontWeight: font.weights.bold, color: colors.brand }}>
-                        {h.childName.charAt(0).toUpperCase()}
-                      </Text>
-                    </View>
+                    {h.childPhotoUrl ? (
+                      // eslint-disable-next-line jsx-a11y/alt-text -- RN Image usa accessibilityLabel
+                      <Image
+                        source={{ uri: h.childPhotoUrl }}
+                        style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.85)' }}
+                        accessibilityLabel={`Foto de ${h.childName}`}
+                      />
+                    ) : (
+                      <View style={{
+                        width: 34, height: 34, borderRadius: 17,
+                        backgroundColor: 'rgba(255,255,255,0.85)',
+                        alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        <Text style={{ fontSize: 14, fontWeight: font.weights.bold, color: colors.brand }}>
+                          {h.childName.charAt(0).toUpperCase()}
+                        </Text>
+                      </View>
+                    )}
                     <View style={{ flex: 1, minWidth: 0 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                         <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: statusConfig.dot }} />

@@ -36,6 +36,7 @@ interface ActivityItem {
 interface ChildHealthSummary {
   childId: string;
   childName: string;
+  childPhotoUrl: string | null;
   status: 'healthy' | 'monitoring' | 'treatment';
   statusLabel: string;           // 'Em tratamento' / 'Em acompanhamento' / 'Saudavel'
   detail: string;
@@ -47,6 +48,7 @@ interface ChildCard {
   fullName: string;
   firstName: string;
   age: number;
+  photoUrl: string | null;
 }
 
 export interface PendingSwap {
@@ -196,7 +198,7 @@ export function useDashboard() {
           .eq('group_id', groupId)
           .then(r => r, () => ({ data: [] as never[] })),
         supabase.from('children')
-          .select('id, full_name, birth_date')
+          .select('id, full_name, birth_date, photo_url')
           .eq('group_id', groupId)
           .then(r => r, () => ({ data: [] as never[] })),
         activeGroup.custodyEnabled
@@ -433,6 +435,7 @@ export function useDashboard() {
           fullName: c.full_name,
           firstName: getDisplayName(c.full_name),
           age,
+          photoUrl: c.photo_url || null,
         };
       });
 
@@ -467,7 +470,7 @@ export function useDashboard() {
           : status === 'monitoring' ? 'Em acompanhamento'
           : 'Saudavel';
 
-        return { childId: child.id, childName: child.firstName, status, statusLabel, detail, nextAction };
+        return { childId: child.id, childName: child.firstName, childPhotoUrl: child.photoUrl, status, statusLabel, detail, nextAction };
       });
       // Sort: treatment (highest priority) > monitoring > healthy — matches PWA
       childHealthSummaries.sort((a, b) => {
