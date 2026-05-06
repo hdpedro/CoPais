@@ -32,7 +32,7 @@ import {
   View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator,
   KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,13 +59,20 @@ const RESPONSIBLE_COLORS = [
 export default function NovoEventoScreen() {
   const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
+  // Aceita ?date=YYYY-MM-DD (ex: clicar dia vazio no calendario abre
+  // este form ja com a data escolhida). Default: hoje.
+  const params = useLocalSearchParams<{ date?: string }>();
+  const initialDateIso = (() => {
+    const raw = typeof params.date === 'string' ? params.date : '';
+    return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : dateToIso(new Date());
+  })();
 
   // ── Form state (mirrors PWA event branch) ─────────────────────────────
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [allDay, setAllDay] = useState(false);
   const [multiDay, setMultiDay] = useState(false);
-  const [startDateIso, setStartDateIso] = useState<string>(dateToIso(new Date()));
+  const [startDateIso, setStartDateIso] = useState<string>(initialDateIso);
   const [endDateIso, setEndDateIso] = useState<string | null>(null);
   const [startTime, setStartTime] = useState<string | null>(null);
   const [endTime, setEndTime] = useState<string | null>(null); // optional, kept for parity

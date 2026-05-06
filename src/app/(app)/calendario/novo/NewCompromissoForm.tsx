@@ -19,6 +19,9 @@ interface Props {
   children: { id: string; full_name: string }[];
   members: { user_id: string; full_name: string }[];
   groupId: string;
+  /** Pre-selected date from `?date=YYYY-MM-DD` query param (clicking
+   * "Adicionar evento" on an empty day opens with the day pre-filled). */
+  initialDate?: string | null;
 }
 
 type CategoryValue =
@@ -115,7 +118,7 @@ function CollapsibleSection({
 /*  Main Component                                                     */
 /* ================================================================== */
 
-export default function NewCompromissoForm({ children, members, groupId }: Props) {
+export default function NewCompromissoForm({ children, members, groupId, initialDate }: Props) {
   const { t } = useI18n();
 
   /* --- shared state ------------------------------------------------ */
@@ -124,6 +127,7 @@ export default function NewCompromissoForm({ children, members, groupId }: Props
   const [submitted, setSubmitted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const todayStr = getBrazilToday();
+  const defaultDateStr = initialDate || todayStr;
 
   /* --- activity state ---------------------------------------------- */
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
@@ -672,12 +676,12 @@ export default function NewCompromissoForm({ children, members, groupId }: Props
                 <label className="block text-[11px] text-[#7A8C8B] mb-1">
                   {recurrence === "never" ? t("newForm.date") : t("newForm.startDate")} <span className="text-[#D4735A]">*</span>
                 </label>
-                <input name="startDate" type="date" required className={inputClass} />
+                <input name="startDate" type="date" required defaultValue={defaultDateStr} className={inputClass} />
               </div>
               {recurrence !== "never" && (
                 <div>
                   <label className="block text-[11px] text-[#7A8C8B] mb-1">{t("newForm.endDateOpt")}</label>
-                  <input name="endDate" type="date" className={inputClass} />
+                  <input name="endDate" type="date" defaultValue={defaultDateStr} className={inputClass} />
                 </div>
               )}
             </div>
@@ -865,14 +869,14 @@ export default function NewCompromissoForm({ children, members, groupId }: Props
                 <label className="block text-[11px] text-[#7A8C8B] mb-1">
                   {multiDay ? t("newForm.startDate") : t("newForm.date")} <span className="text-[#D4735A]">*</span>
                 </label>
-                <input name="eventDate" type="date" required className={inputClass} />
+                <input name="eventDate" type="date" required defaultValue={defaultDateStr} className={inputClass} />
               </div>
               {multiDay && (
                 <div>
                   <label className="block text-[11px] text-[#7A8C8B] mb-1">
                     {t("newForm.endDate")} <span className="text-[#D4735A]">*</span>
                   </label>
-                  <input name="endDate" type="date" required className={inputClass} />
+                  <input name="endDate" type="date" required defaultValue={defaultDateStr} className={inputClass} />
                 </div>
               )}
               {!allDay && (
@@ -1017,7 +1021,7 @@ export default function NewCompromissoForm({ children, members, groupId }: Props
                 </label>
                 <input
                   name="startDate" type="date" required
-                  defaultValue={todayStr} min={todayStr}
+                  defaultValue={defaultDateStr} min={todayStr}
                   className={inputClass}
                 />
               </div>
@@ -1027,7 +1031,7 @@ export default function NewCompromissoForm({ children, members, groupId }: Props
                 </label>
                 <input
                   name="endDate" type="date" required
-                  defaultValue={todayStr} min={todayStr}
+                  defaultValue={defaultDateStr} min={todayStr}
                   className={inputClass}
                 />
               </div>

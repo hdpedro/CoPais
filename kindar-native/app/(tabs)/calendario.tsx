@@ -17,6 +17,7 @@ import { respondToEventRequest, type EventRequest } from '../../src/services/eve
 import WeekendPlanner from '../../src/components/calendar/WeekendPlanner';
 import SwapRequestModal from '../../src/components/calendar/SwapRequestModal';
 import SwapBalanceCard from '../../src/components/calendar/SwapBalanceCard';
+import ActivityDetailSheet from '../../src/components/activities/ActivityDetailSheet';
 import { syncEventsToDeviceCalendar } from '../../src/services/calendar-sync';
 
 function formatDateKey(d: Date): string {
@@ -42,6 +43,7 @@ export default function CalendarScreen() {
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [swapIsVisit, setSwapIsVisit] = useState(false);
   const [syncing, setSyncing] = useState(false);
+  const [activityDetail, setActivityDetail] = useState<{ activityId: string; occurrenceDate: string } | null>(null);
 
   const handleEventRequestDecision = useCallback(async (
     request: EventRequest,
@@ -641,13 +643,79 @@ export default function CalendarScreen() {
           ) : null}
 
           {selectedEvents.length === 0 ? (
-            <Text style={{ color: colors.textMuted, fontSize: font.sizes.md, textAlign: 'center', paddingVertical: spacing['2xl'] }}>
-              Nenhum evento neste dia
-            </Text>
+            // Dia vazio: CTAs claros — nunca deixar o usuario num estado morto.
+            <View style={{ paddingTop: spacing.md, paddingBottom: spacing.sm }}>
+              <Text style={{
+                color: colors.textMuted, fontSize: font.sizes.sm, textAlign: 'center',
+                marginBottom: spacing.lg,
+              }}>
+                Nada agendado neste dia
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  const day = selectedDay;
+                  setSelectedDay(null);
+                  router.push({ pathname: '/calendario/novo', params: { date: day || '' } } as never);
+                }}
+                activeOpacity={0.85}
+                style={{
+                  backgroundColor: colors.brand, borderRadius: radius.xl,
+                  paddingVertical: spacing.lg, paddingHorizontal: spacing.lg,
+                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+                  gap: spacing.sm, marginBottom: spacing.md, ...shadows.sm,
+                }}
+              >
+                <Ionicons name="add-circle" size={20} color="#fff" />
+                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
+                  Adicionar evento
+                </Text>
+              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedDay(null);
+                    router.push('/saude/registrar' as never);
+                  }}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
+                    paddingVertical: spacing.md, alignItems: 'center',
+                    flexDirection: 'row', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  <Ionicons name="medkit-outline" size={16} color={colors.text} />
+                  <Text style={{ color: colors.text, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                    Consulta
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    setSelectedDay(null);
+                    router.push('/atividades/nova' as never);
+                  }}
+                  activeOpacity={0.8}
+                  style={{
+                    flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
+                    paddingVertical: spacing.md, alignItems: 'center',
+                    flexDirection: 'row', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  <Ionicons name="repeat" size={16} color={colors.text} />
+                  <Text style={{ color: colors.text, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                    Atividade
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
           ) : (
             <ScrollView style={{ maxHeight: 300 }}>
               {selectedEvents.map((e, i) => {
                 const isSchool = !!e.schoolLogId;
+                const isCustody = e.type === 'custody';
+                const isClickable = !isCustody; // custody usa as quick actions abaixo
                 const Body = (
                   <View testID={`calendar-event-${e.id}`} style={{
                     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
@@ -668,25 +736,45 @@ export default function CalendarScreen() {
                         {e.time ? ` · ${e.time}` : ''}
                       </Text>
                     </View>
-                    {isSchool ? (
+                    {isClickable ? (
                       <Ionicons name="chevron-forward" size={16} color={colors.textMuted} />
                     ) : null}
                   </View>
                 );
-                return isSchool ? (
+                if (!isClickable) {
+                  return <View key={e.id + '-' + i}>{Body}</View>;
+                }
+                return (
                   <TouchableOpacity
                     key={e.id + '-' + i}
-                    activeOpacity={0.7}
+                    activeOpacity={0.6}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                      setSelectedDay(null);
-                      router.push({ pathname: '/escola', params: { highlight: e.schoolLogId! } } as never);
+                      const day = selectedDay;
+                      if (isSchool && e.schoolLogId) {
+                        setSelectedDay(null);
+                        router.push({ pathname: '/escola', params: { highlight: e.schoolLogId } } as never);
+                        return;
+                      }
+                      if (e.type === 'activity' && day) {
+                        // Detail sheet rico com checklist + acoes — paridade com a home.
+                        setActivityDetail({ activityId: e.id, occurrenceDate: day });
+                        return;
+                      }
+                      if (e.type === 'appointment') {
+                        setSelectedDay(null);
+                        router.push('/saude/consultas' as never);
+                        return;
+                      }
+                      if (e.type === 'event') {
+                        setSelectedDay(null);
+                        router.push('/eventos' as never);
+                        return;
+                      }
                     }}
                   >
                     {Body}
                   </TouchableOpacity>
-                ) : (
-                  <View key={e.id + '-' + i}>{Body}</View>
                 );
               })}
             </ScrollView>
@@ -760,6 +848,18 @@ export default function CalendarScreen() {
           />
         );
       })()}
+
+      {/* Activity detail sheet — abre ao clicar em uma atividade no DayDetail.
+          Reusa o mesmo componente da home (paridade), com checklist + acoes. */}
+      {activityDetail && userId ? (
+        <ActivityDetailSheet
+          visible={!!activityDetail}
+          onClose={() => setActivityDetail(null)}
+          activityId={activityDetail.activityId}
+          occurrenceDate={activityDetail.occurrenceDate}
+          completedBy={userId}
+        />
+      ) : null}
     </View>
   );
 }
