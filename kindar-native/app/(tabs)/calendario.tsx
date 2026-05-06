@@ -159,10 +159,11 @@ export default function CalendarScreen() {
             Calendário
           </Text>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-            {activeGroup?.custodyEnabled ? (
+            {!activeGroup?.isReadonly ? (
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/escala'); }}
                 hitSlop={6}
+                accessibilityLabel="Configurar escala de guarda"
                 style={{
                   width: 40, height: 40, borderRadius: 12,
                   backgroundColor: colors.bgElevated, ...shadows.sm,
@@ -515,8 +516,11 @@ export default function CalendarScreen() {
           </View>
         </View>
 
-        {/* Schedule generator CTA — this is the "gerar escala" entry point */}
-        {activeGroup?.custodyEnabled ? (
+        {/* Schedule generator CTA — entry point for guarda config.
+            Shown to any non-readonly member regardless of custody_enabled, so
+            new groups (custody_enabled defaults to false) still have a way in.
+            services/schedule.ts flips the flag to true once a schedule is saved. */}
+        {!activeGroup?.isReadonly ? (
           <TouchableOpacity
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/escala'); }}
             activeOpacity={0.85}
@@ -531,10 +535,12 @@ export default function CalendarScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15, fontWeight: font.weights.bold, color: '#fff' }}>
-                Gerar escala de guarda
+                {activeGroup?.custodyEnabled ? 'Editar escala de guarda' : 'Configurar escala de guarda'}
               </Text>
               <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>
-                Configurar padrão 14 dias e gerar eventos recorrentes
+                {activeGroup?.custodyEnabled
+                  ? 'Ajustar padrão 14 dias e regerar eventos'
+                  : 'Definir quem fica com as crianças em cada dia'}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
