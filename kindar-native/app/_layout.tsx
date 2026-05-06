@@ -3,6 +3,7 @@ import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text, Linking } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import * as Updates from 'expo-updates';
 import { useAuth } from '../src/store/auth';
 import { useI18n } from '../src/i18n';
 import { setupOffline } from '../src/services/offline';
@@ -33,6 +34,27 @@ export default function RootLayout() {
     // RevenueCat pode inicializar antes do login (anon user); quando userId
     // aparecer, o effect abaixo chama identifyUser() pra fazer o link.
     initializeIAP().catch(() => {});
+
+    // OTA "premium": com checkAutomatically=ON_LOAD o expo-updates baixa o
+    // bundle novo em background, mas so APLICA na proxima abertura — o user
+    // ve "estado antigo" depois de fechar/reabrir 1x e fica frustrado.
+    // Aqui forcamos reload imediato logo apos o download terminar, no
+    // cold start. So roda em release builds (Updates.isEnabled).
+    if (Updates.isEnabled) {
+      (async () => {
+        try {
+          const update = await Updates.checkForUpdateAsync();
+          if (update.isAvailable) {
+            await Updates.fetchUpdateAsync();
+            await Updates.reloadAsync();
+          }
+        } catch {
+          // sem internet, fingerprint mismatch, ou erro de rede —
+          // mantem o bundle atual; nao quebra o app.
+        }
+      })();
+    }
+
     return cleanup;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
