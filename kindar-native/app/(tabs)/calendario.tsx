@@ -17,7 +17,6 @@ import { respondToEventRequest, type EventRequest } from '../../src/services/eve
 import WeekendPlanner from '../../src/components/calendar/WeekendPlanner';
 import SwapRequestModal from '../../src/components/calendar/SwapRequestModal';
 import SwapBalanceCard from '../../src/components/calendar/SwapBalanceCard';
-import ActivityDetailSheet from '../../src/components/activities/ActivityDetailSheet';
 import { syncEventsToDeviceCalendar } from '../../src/services/calendar-sync';
 
 function formatDateKey(d: Date): string {
@@ -43,7 +42,6 @@ export default function CalendarScreen() {
   const [swapModalOpen, setSwapModalOpen] = useState(false);
   const [swapIsVisit, setSwapIsVisit] = useState(false);
   const [syncing, setSyncing] = useState(false);
-  const [activityDetail, setActivityDetail] = useState<{ activityId: string; occurrenceDate: string } | null>(null);
 
   const handleEventRequestDecision = useCallback(async (
     request: EventRequest,
@@ -620,58 +618,67 @@ export default function CalendarScreen() {
         <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} onPress={() => setSelectedDay(null)} />
         <View style={{
           backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'],
-          padding: spacing.xl, paddingBottom: 40, minHeight: 200,
+          paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: 36,
         }}>
-          <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
+          <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.md }} />
 
-          <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm }}>
-            {selectedDay ? (() => {
-              const [y, m, d] = selectedDay.split('-').map(Number);
-              const date = new Date(y, m - 1, d);
-              const dayName = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado'][date.getDay()];
-              return `${dayName}, ${d} de ${MONTH_NAMES[m - 1]}`;
-            })() : ''}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
+              {selectedDay ? (() => {
+                const [y, m, d] = selectedDay.split('-').map(Number);
+                const date = new Date(y, m - 1, d);
+                // Estilo Apple Calendar: "Qua, 6 de mai" (compacto, escaneavel).
+                const dayName = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'][date.getDay()];
+                return `${dayName}, ${d} de ${MONTH_NAMES[m - 1]?.toLowerCase().slice(0, 3) || ''}`;
+              })() : ''}
+            </Text>
+            {selectedEvents.length > 0 ? (
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.medium }}>
+                {selectedEvents.length} {selectedEvents.length === 1 ? 'item' : 'itens'}
+              </Text>
+            ) : null}
+          </View>
 
           {selectedDay && holidays[selectedDay] ? (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.md }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm }}>
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#a855f7' }} />
-              <Text style={{ fontSize: font.sizes.sm, color: '#a855f7', fontWeight: font.weights.medium }}>
+              <Text style={{ fontSize: font.sizes.xs, color: '#a855f7', fontWeight: font.weights.medium }}>
                 Feriado: {holidays[selectedDay]}
               </Text>
             </View>
           ) : null}
 
           {selectedEvents.length === 0 ? (
-            // Dia vazio: CTAs claros — nunca deixar o usuario num estado morto.
-            <View style={{ paddingTop: spacing.md, paddingBottom: spacing.sm }}>
+            // Dia vazio compacto: 1 linha de copy + 3 chips de acao em row.
+            // Antes ocupava meia tela com hierarquia exagerada — agora cabe
+            // em ~140px e nao parece "tela morta com botao gigante".
+            <>
               <Text style={{
-                color: colors.textMuted, fontSize: font.sizes.sm, textAlign: 'center',
-                marginBottom: spacing.lg,
+                color: colors.textMuted, fontSize: font.sizes.sm,
+                marginBottom: spacing.md,
               }}>
-                Nada agendado neste dia
+                Nada agendado por aqui. O que voce quer registrar?
               </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  const day = selectedDay;
-                  setSelectedDay(null);
-                  router.push({ pathname: '/calendario/novo', params: { date: day || '' } } as never);
-                }}
-                activeOpacity={0.85}
-                style={{
-                  backgroundColor: colors.brand, borderRadius: radius.xl,
-                  paddingVertical: spacing.lg, paddingHorizontal: spacing.lg,
-                  flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
-                  gap: spacing.sm, marginBottom: spacing.md, ...shadows.sm,
-                }}
-              >
-                <Ionicons name="add-circle" size={20} color="#fff" />
-                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-                  Adicionar evento
-                </Text>
-              </TouchableOpacity>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    const day = selectedDay;
+                    setSelectedDay(null);
+                    router.push({ pathname: '/calendario/novo', params: { date: day || '' } } as never);
+                  }}
+                  activeOpacity={0.85}
+                  style={{
+                    flex: 1.4, backgroundColor: colors.brand, borderRadius: radius.md,
+                    paddingVertical: spacing.md, flexDirection: 'row',
+                    alignItems: 'center', justifyContent: 'center', gap: 6,
+                  }}
+                >
+                  <Ionicons name="add" size={16} color="#fff" />
+                  <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.bold }}>
+                    Evento
+                  </Text>
+                </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -681,12 +688,12 @@ export default function CalendarScreen() {
                   activeOpacity={0.8}
                   style={{
                     flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
-                    paddingVertical: spacing.md, alignItems: 'center',
-                    flexDirection: 'row', justifyContent: 'center', gap: 6,
+                    paddingVertical: spacing.md, flexDirection: 'row',
+                    alignItems: 'center', justifyContent: 'center', gap: 6,
                   }}
                 >
-                  <Ionicons name="medkit-outline" size={16} color={colors.text} />
-                  <Text style={{ color: colors.text, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                  <Ionicons name="medkit-outline" size={14} color={colors.text} />
+                  <Text style={{ color: colors.text, fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>
                     Consulta
                   </Text>
                 </TouchableOpacity>
@@ -699,17 +706,17 @@ export default function CalendarScreen() {
                   activeOpacity={0.8}
                   style={{
                     flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
-                    paddingVertical: spacing.md, alignItems: 'center',
-                    flexDirection: 'row', justifyContent: 'center', gap: 6,
+                    paddingVertical: spacing.md, flexDirection: 'row',
+                    alignItems: 'center', justifyContent: 'center', gap: 6,
                   }}
                 >
-                  <Ionicons name="repeat" size={16} color={colors.text} />
-                  <Text style={{ color: colors.text, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                  <Ionicons name="repeat" size={14} color={colors.text} />
+                  <Text style={{ color: colors.text, fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>
                     Atividade
                   </Text>
                 </TouchableOpacity>
               </View>
-            </View>
+            </>
           ) : (
             <ScrollView style={{ maxHeight: 320 }}>
               {selectedEvents.map((e, i) => {
@@ -763,10 +770,12 @@ export default function CalendarScreen() {
                         return;
                       }
                       if (e.type === 'activity' && day) {
+                        // Navega pra rota dedicada em vez de abrir Modal
+                        // aninhado — evita o "clique fantasma" (Modal+Modal
+                        // + tap propagando pro CalendarGrid durante a
+                        // transicao).
                         setSelectedDay(null);
-                        // Pequeno delay deixa o Modal anterior fechar limpo
-                        // antes do ActivityDetailSheet abrir (transicao suave).
-                        setTimeout(() => setActivityDetail({ activityId: e.id, occurrenceDate: day }), 220);
+                        router.push({ pathname: '/atividades/[id]', params: { id: e.id, date: day } } as never);
                         return;
                       }
                       if (e.type === 'appointment') {
@@ -918,17 +927,6 @@ export default function CalendarScreen() {
         );
       })()}
 
-      {/* Activity detail sheet — abre ao clicar em uma atividade no DayDetail.
-          Reusa o mesmo componente da home (paridade), com checklist + acoes. */}
-      {activityDetail && userId ? (
-        <ActivityDetailSheet
-          visible={!!activityDetail}
-          onClose={() => setActivityDetail(null)}
-          activityId={activityDetail.activityId}
-          occurrenceDate={activityDetail.occurrenceDate}
-          completedBy={userId}
-        />
-      ) : null}
     </View>
   );
 }
