@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useEffect, useRef } from "react";
 import { DragDropContext, Droppable, Draggable, type DropResult } from "@hello-pangea/dnd";
 import { QUICK_ACTIONS_CATALOG, DEFAULT_QUICK_ACTIONS } from "@/lib/constants";
 import { updateQuickActions } from "@/actions/profile";
@@ -20,6 +20,26 @@ export default function QuickActionsModal({ isOpen, onClose, initialPrimary, ini
     initialSecondary.length > 0 ? initialSecondary : [...DEFAULT_QUICK_ACTIONS.secondary]
   );
   const [isPending, startTransition] = useTransition();
+  // skipNextAutoSave: evita auto-save disparar no sync inicial quando o modal abre.
+  const skipNextAutoSave = useRef(true);
+
+  // Auto-save com debounce — paridade com native QuickActionsModal:
+  // fechar via X, backdrop ou ESC nao perde mudancas.
+  useEffect(() => {
+    if (!isOpen) {
+      skipNextAutoSave.current = true;
+      return;
+    }
+    if (skipNextAutoSave.current) {
+      skipNextAutoSave.current = false;
+      return;
+    }
+    const handle = setTimeout(() => {
+      const filtered = secondary.filter((s) => s !== primary);
+      void updateQuickActions(primary, filtered);
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [primary, secondary, isOpen]);
 
   if (!isOpen) return null;
 
