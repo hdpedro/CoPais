@@ -39,8 +39,19 @@ export default function CalendarScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [responding, setResponding] = useState<string | null>(null);
-  const [swapModalOpen, setSwapModalOpen] = useState(false);
-  const [swapIsVisit, setSwapIsVisit] = useState(false);
+  // SwapContext: snapshot dos dados necessarios quando o user toca em
+  // "Pedir troca" / "Oferecer troca" / "Pedir visita" no Day Sheet. Antes
+  // de abrir o SwapRequestModal, fechamos o Day Sheet (RN nao stacka 2
+  // <Modal> em iOS — segundo modal nao aparecia, parecia que "nada
+  // acontecia"). O snapshot garante que o SwapRequestModal continue tendo
+  // todos os dados necessarios mesmo apos selectedDay virar null.
+  const [swapContext, setSwapContext] = useState<{
+    date: string;
+    targetUserId: string;
+    targetUserName: string;
+    targetColor: string;
+    isVisit: boolean;
+  } | null>(null);
   const [syncing, setSyncing] = useState(false);
 
   const handleEventRequestDecision = useCallback(async (
@@ -865,10 +876,38 @@ export default function CalendarScreen() {
             const custodyEvent = selectedEvents.find(e => e.type === 'custody');
             if (!custodyEvent || !custodyEvent.responsibleId) return null;
             const isOwnDay = custodyEvent.responsibleId === userId;
+
+            // openSwap: snapshot dos dados + fecha Day Sheet ANTES de abrir
+            // SwapRequestModal. Sem isso, 2 <Modal> RN concorrentes em iOS
+            // -> SwapRequestModal nao aparecia (bug "tem botoes mas nada
+            // acontece" reportado pelo Henrique).
+            const openSwap = (isVisit: boolean) => {
+              const day = selectedDay;
+              if (!day || !custodyEvent.responsibleId) return;
+              const otherMember = members.find(m => m.userId !== userId);
+              const targetUserId = isOwnDay
+                ? (otherMember?.userId || '')
+                : custodyEvent.responsibleId;
+              if (!targetUserId) return;
+              const targetMember = members.find(m => m.userId === targetUserId);
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setSelectedDay(null); // fecha Day Sheet
+              // pequeno delay deixa o Modal anterior fechar antes do novo abrir
+              setTimeout(() => {
+                setSwapContext({
+                  date: day,
+                  targetUserId,
+                  targetUserName: targetMember?.name || 'Co-responsavel',
+                  targetColor: targetMember?.color || custodyEvent.color,
+                  isVisit,
+                });
+              }, 220);
+            };
+
             return (
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
                 <TouchableOpacity
-                  onPress={() => { setSwapIsVisit(false); setSwapModalOpen(true); }}
+                  onPress={() => openSwap(false)}
                   style={{
                     flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                     backgroundColor: colors.brand, alignItems: 'center',
@@ -880,7 +919,7 @@ export default function CalendarScreen() {
                 </TouchableOpacity>
                 {!isOwnDay ? (
                   <TouchableOpacity
-                    onPress={() => { setSwapIsVisit(true); setSwapModalOpen(true); }}
+                    onPress={() => openSwap(true)}
                     style={{
                       flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                       borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
@@ -897,35 +936,22 @@ export default function CalendarScreen() {
         </View>
       </Modal>
 
-      {/* Swap request modal — target resolution matches PWA PR #3 (Angelino):
-          if the selected day is MY own day, target = the OTHER parent (not me).
-          Otherwise target = day's current responsible. */}
-      {(() => {
-        if (!selectedDay || !activeGroup?.custodyEnabled || !userId) return null;
-        const custodyEvent = selectedEvents.find(e => e.type === 'custody');
-        if (!custodyEvent || !custodyEvent.responsibleId) return null;
-        const isOwnDay = custodyEvent.responsibleId === userId;
-        const otherMember = members.find(m => m.userId !== userId);
-        const targetUserId = isOwnDay
-          ? (otherMember?.userId || '')
-          : custodyEvent.responsibleId;
-        if (!targetUserId) return null;
-        const targetMember = members.find(m => m.userId === targetUserId);
-        return (
-          <SwapRequestModal
-            visible={swapModalOpen}
-            onClose={() => setSwapModalOpen(false)}
-            onSubmitted={refresh}
-            selectedDate={selectedDay}
-            targetUserId={targetUserId}
-            targetUserName={targetMember?.name || 'Co-responsavel'}
-            targetColor={targetMember?.color || custodyEvent.color}
-            groupId={activeGroup.groupId}
-            currentUserId={userId}
-            isVisitRequest={swapIsVisit}
-          />
-        );
-      })()}
+      {/* Swap request modal — abre apos snapshot. Independente do
+          selectedDay (Day Sheet ja fechou). */}
+      {swapContext && activeGroup?.custodyEnabled && userId ? (
+        <SwapRequestModal
+          visible
+          onClose={() => setSwapContext(null)}
+          onSubmitted={refresh}
+          selectedDate={swapContext.date}
+          targetUserId={swapContext.targetUserId}
+          targetUserName={swapContext.targetUserName}
+          targetColor={swapContext.targetColor}
+          groupId={activeGroup.groupId}
+          currentUserId={userId}
+          isVisitRequest={swapContext.isVisit}
+        />
+      ) : null}
 
     </View>
   );
