@@ -18,11 +18,11 @@
  */
 /* eslint-disable react-hooks/set-state-in-effect, @typescript-eslint/no-explicit-any */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView, ActivityIndicator, Alert, Share,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from '../../lib/supabase';
@@ -95,48 +95,63 @@ export default function ActivityDetailSheet({
   const [loading, setLoading] = useState(false);
   const [toggling, setToggling] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (!visible) return;
+  const loadActivity = useCallback(async () => {
     setLoading(true);
-    Promise.all([
-      supabase
-        .from('child_activities')
-        .select('id, name, category, time_start, time_end, location, notes, teacher_name, class_name, room, children(full_name), responsible:profiles!child_activities_responsible_id_fkey(full_name)')
-        .eq('id', activityId)
-        .maybeSingle()
-        .then((r: any) => {
-          if (!r.data) return null;
-          const child = Array.isArray(r.data.children) ? r.data.children[0] : r.data.children;
-          const resp = Array.isArray(r.data.responsible) ? r.data.responsible[0] : r.data.responsible;
-          return {
-            id: r.data.id,
-            name: r.data.name,
-            category: r.data.category,
-            time_start: r.data.time_start,
-            time_end: r.data.time_end,
-            location: r.data.location,
-            notes: r.data.notes,
-            childName: child?.full_name?.split(' ')[0] || 'Todos',
-            responsibleName: resp?.full_name || null,
-            teacherName: r.data.teacher_name,
-            className: r.data.class_name,
-            room: r.data.room,
-          } as ActivityFull;
-        }),
-      fetchChecklist(activityId),
-      fetchChecklistCompletions(activityId, occurrenceDate),
-    ]).then(([act, list, completedSet]) => {
+    try {
+      const [act, list, completedSet] = await Promise.all([
+        supabase
+          .from('child_activities')
+          .select('id, name, category, time_start, time_end, location, notes, teacher_name, class_name, room, children(full_name), responsible:profiles!child_activities_responsible_id_fkey(full_name)')
+          .eq('id', activityId)
+          .maybeSingle()
+          .then((r: any) => {
+            if (!r.data) return null;
+            const child = Array.isArray(r.data.children) ? r.data.children[0] : r.data.children;
+            const resp = Array.isArray(r.data.responsible) ? r.data.responsible[0] : r.data.responsible;
+            return {
+              id: r.data.id,
+              name: r.data.name,
+              category: r.data.category,
+              time_start: r.data.time_start,
+              time_end: r.data.time_end,
+              location: r.data.location,
+              notes: r.data.notes,
+              childName: child?.full_name?.split(' ')[0] || 'Todos',
+              responsibleName: resp?.full_name || null,
+              teacherName: r.data.teacher_name,
+              className: r.data.class_name,
+              room: r.data.room,
+            } as ActivityFull;
+          }),
+        fetchChecklist(activityId),
+        fetchChecklistCompletions(activityId, occurrenceDate),
+      ]);
       setActivity(act);
       setItems(list);
       setCompleted(completedSet);
+    } catch {
+      // Garante encerramento do loading mesmo em erro — evita
+      // "tela de processando" infinita.
+    } finally {
       setLoading(false);
-    }).catch(() => {
-      // Sem .catch o setLoading nunca cleared -> "tela de processando"
-      // infinita. Reportado pelo Henrique. Garante encerramento mesmo
-      // em erro (no piores casos, activity fica null e onClose cuida).
-      setLoading(false);
-    });
-  }, [visible, activityId, occurrenceDate]);
+    }
+  }, [activityId, occurrenceDate]);
+
+  // Carga inicial quando o sheet abre / id muda.
+  useEffect(() => {
+    if (!visible) return;
+    loadActivity();
+  }, [visible, loadActivity]);
+
+  // No modo fullscreen (rota dedicada), recarrega ao voltar pra tela —
+  // resolve o bug "alterei responsavel mas nao reflete no card de detalhe":
+  // ao voltar de /atividades/edit/[id], a focagem dispara refetch.
+  useFocusEffect(
+    useCallback(() => {
+      if (!fullscreen || !visible) return;
+      loadActivity();
+    }, [fullscreen, visible, loadActivity]),
+  );
 
   async function handleToggle(item: ChecklistItem) {
     const isNowCompleted = !completed.has(item.id);

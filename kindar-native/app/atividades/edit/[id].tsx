@@ -19,7 +19,7 @@ import {
   View, Text, TextInput, ScrollView, TouchableOpacity, ActivityIndicator,
   KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -135,25 +135,32 @@ export default function EditActivityScreen() {
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {/* Header com chevron-back + Salvar (estilo iOS) */}
+      {/* Garante que nenhum Stack header nativo aparece sobrepondo o nosso. */}
+      <Stack.Screen options={{ headerShown: false }} />
+      {/* Header com Cancelar + Salvar (estilo iOS premium): sticky no topo,
+          divisor, padding generoso pra ser inconfundivel. */}
       <View style={{
-        paddingTop: insets.top + 8, paddingHorizontal: spacing.lg, paddingBottom: spacing.md,
+        paddingTop: insets.top + 10, paddingHorizontal: spacing.lg, paddingBottom: spacing.md,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-        backgroundColor: colors.bg,
+        backgroundColor: colors.bgElevated,
+        borderBottomWidth: 0.5,
+        borderBottomColor: colors.borderLight,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} testID="edit-activity-cancel">
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-            <Ionicons name="chevron-back" size={26} color={colors.text} />
-            <Text style={{ fontSize: font.sizes.md, color: colors.text, marginLeft: 2 }}>Cancelar</Text>
+            <Ionicons name="chevron-back" size={28} color={colors.brand} />
+            <Text style={{ fontSize: font.sizes.md, color: colors.brand, marginLeft: -2, fontWeight: font.weights.medium }}>
+              Voltar
+            </Text>
           </View>
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
           Editar atividade
         </Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving} hitSlop={8}>
+        <TouchableOpacity onPress={handleSave} disabled={saving || !name.trim()} hitSlop={12} testID="edit-activity-save">
           <Text style={{
             fontSize: font.sizes.md, fontWeight: font.weights.bold,
-            color: saving ? colors.textMuted : colors.brand,
+            color: (saving || !name.trim()) ? colors.textMuted : colors.brand,
           }}>
             {saving ? '...' : 'Salvar'}
           </Text>
