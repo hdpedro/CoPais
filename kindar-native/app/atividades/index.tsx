@@ -1,9 +1,9 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
   KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
 } from 'react-native';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../../src/store/auth';
@@ -78,24 +78,6 @@ export default function AtividadesScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
-
-  // Auto-abrir editor quando navegado com ?editId=... (vindo de
-  // ActivityDetailSheet "Editar"). So abre uma vez por id por sessao
-  // pra evitar reabrir se o user fechar e o param continuar na URL.
-  const params = useLocalSearchParams<{ editId?: string }>();
-  const editIdParam = typeof params.editId === 'string' ? params.editId : null;
-  const handledEditIdRef = useRef<string | null>(null);
-  useEffect(() => {
-    if (!editIdParam || activities.length === 0) return;
-    if (handledEditIdRef.current === editIdParam) return;
-    const act = activities.find((a) => a.id === editIdParam);
-    if (act) {
-      handledEditIdRef.current = editIdParam;
-      openEditor(act);
-      // Limpa o param da URL pra nao reabrir em proximas focagens.
-      router.setParams({ editId: '' });
-    }
-  }, [editIdParam, activities]);
 
   function openEditor(activity: Activity) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

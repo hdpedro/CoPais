@@ -28,6 +28,9 @@ export async function updateActivity(activityId: string, updates: {
   name?: string; category?: string; location?: string | null; notes?: string | null;
   time_start?: string | null; time_end?: string | null; days_of_week?: string | null;
   recurrence_type?: string;
+  responsible_id?: string | null;
+  teacher_name?: string | null;
+  class_name?: string | null;
 }) {
   return safeWrite({ table: 'child_activities', operation: 'update', payload: { id: activityId, ...updates } });
 }

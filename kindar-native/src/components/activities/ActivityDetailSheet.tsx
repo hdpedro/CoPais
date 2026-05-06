@@ -230,11 +230,9 @@ export default function ActivityDetailSheet({
 
   function handleEdit() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // router.replace: substitui a rota atual em vez de fazer back+push
-    // (que tinha race condition em iOS — back era async, push acontecia
-    // antes de back completar, e o resultado era inconsistente). A tela
-    // /atividades detecta editId e auto-abre o editor.
-    router.replace({ pathname: '/atividades', params: { editId: activityId } } as never);
+    // Rota dedicada de edicao (push). Apos salvar/cancelar, router.back
+    // volta pra detail. Sem perder contexto.
+    router.push({ pathname: '/atividades/edit/[id]', params: { id: activityId } } as never);
   }
 
   async function performDelete(scope: 'occurrence' | 'future' | 'all') {
