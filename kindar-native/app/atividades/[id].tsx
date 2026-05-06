@@ -43,6 +43,7 @@ export default function ActivityDetailScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ActivityDetailSheet
         visible
+        fullscreen
         onClose={() => router.back()}
         activityId={activityId}
         occurrenceDate={occurrenceDate}

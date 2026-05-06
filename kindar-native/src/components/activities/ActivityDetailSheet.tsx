@@ -67,6 +67,10 @@ interface Props {
   completedBy: string;
   /** Triggers ActivityReportModal in the parent. Optional. */
   onReport?: () => void;
+  /** Quando true, renderiza como tela cheia (sem Modal, sem backdrop).
+   * Usado pela rota /atividades/[id] pra evitar "sheet flutuando sobre
+   * fundo cinza vazio". Default false (mantem comportamento de modal). */
+  fullscreen?: boolean;
 }
 
 function formatDate(iso: string): string {
@@ -83,7 +87,7 @@ function formatTime(t: string | null): string {
 }
 
 export default function ActivityDetailSheet({
-  visible, onClose, activityId, occurrenceDate, completedBy, onReport,
+  visible, onClose, activityId, occurrenceDate, completedBy, onReport, fullscreen = false,
 }: Props) {
   const [activity, setActivity] = useState<ActivityFull | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
@@ -186,7 +190,9 @@ export default function ActivityDetailSheet({
   function handleEdit() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     onClose();
-    router.push('/atividades');
+    // Navega pra lista de atividades passando o id — a tela /atividades
+    // abre o editor automaticamente (useEffect com searchParams.editId).
+    router.push({ pathname: '/atividades', params: { editId: activityId } } as never);
   }
 
   async function handleDelete() {
@@ -226,26 +232,36 @@ export default function ActivityDetailSheet({
   const completedCount = completed.size;
   const progress = items.length > 0 ? completedCount / items.length : 0;
 
-  return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={onClose} />
-        <View style={{
-          backgroundColor: colors.bgElevated,
-          borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'],
-          paddingTop: spacing.md, paddingBottom: 40, maxHeight: '92%',
-        }}>
-          <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
+  // Body da sheet — extraido pra poder ser embrulhado em Modal (default)
+  // ou renderizado fullscreen (quando usado na rota dedicada).
+  const Body = (
+    <View style={fullscreen ? {
+      flex: 1, backgroundColor: colors.bgElevated, paddingTop: spacing.md, paddingBottom: 24,
+    } : {
+      backgroundColor: colors.bgElevated,
+      borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'],
+      paddingTop: spacing.md, paddingBottom: 40, maxHeight: '92%',
+    }}>
+      {!fullscreen ? (
+        <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
+      ) : null}
 
-          {/* Header: date + close */}
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: spacing.xl, marginBottom: spacing.md }}>
-            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, flex: 1 }}>
-              {formatDate(occurrenceDate)}
-            </Text>
-            <TouchableOpacity onPress={onClose} hitSlop={8}>
-              <Ionicons name="close" size={24} color={colors.textMuted} />
-            </TouchableOpacity>
-          </View>
+      {/* Header: data + back/close */}
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', paddingHorizontal: spacing.xl, marginBottom: spacing.md }}>
+        {fullscreen ? (
+          <TouchableOpacity onPress={onClose} hitSlop={8} style={{ marginRight: spacing.md, paddingTop: 2 }}>
+            <Ionicons name="chevron-back" size={26} color={colors.text} />
+          </TouchableOpacity>
+        ) : null}
+        <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, flex: 1 }}>
+          {formatDate(occurrenceDate)}
+        </Text>
+        {!fullscreen ? (
+          <TouchableOpacity onPress={onClose} hitSlop={8}>
+            <Ionicons name="close" size={24} color={colors.textMuted} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
 
           {loading || !activity ? (
             <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing['3xl'] }} />
@@ -373,7 +389,23 @@ export default function ActivityDetailSheet({
               ) : null}
             </ScrollView>
           )}
-        </View>
+    </View>
+  );
+
+  // Fullscreen: body direto numa <View flex 1> ocupando a tela toda.
+  // Usado pela rota /atividades/[id] — sem backdrop cinza, sem sheet
+  // flutuando, parece tela nativa.
+  if (fullscreen) {
+    return visible ? Body : null;
+  }
+
+  // Default: comportamento de bottom-sheet sobre backdrop. Usado quando
+  // chamado inline (ex: home dashboard).
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
+        <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={onClose} />
+        {Body}
       </View>
     </Modal>
   );
