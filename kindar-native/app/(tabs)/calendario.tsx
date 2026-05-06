@@ -11,7 +11,7 @@ import { useCalendar, type CalendarEvent } from '../../src/hooks/useCalendar';
 import { useAuth } from '../../src/store/auth';
 import { DAY_NAMES, MONTH_NAMES } from '../../src/lib/constants';
 import { getHolidayMap } from '../../src/lib/brazilian-holidays';
-import { colors, spacing, radius, font, shadows } from './_tokens';
+import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 import { respondToSwap } from '../../src/services/swaps';
 import { respondToEventRequest, type EventRequest } from '../../src/services/event-requests';
 import WeekendPlanner from '../../src/components/calendar/WeekendPlanner';
