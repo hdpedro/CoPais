@@ -443,13 +443,14 @@ export async function clearCustodySchedule(groupId: string) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
-  // Verify user is group member AND admin
+  // Pai e mae (admin ou member) podem limpar a escala — simetrico com
+  // generateSchedule. Apenas readonly e bloqueado.
   const membership = await verifyGroupMembership(supabase, groupId, user.id);
   if (!membership) {
     return { error: "Sem permissao para este grupo." };
   }
-  if (membership.role !== "admin") {
-    return { error: "Apenas administradores podem limpar a escala." };
+  if (membership.role !== "admin" && membership.role !== "member") {
+    return { error: "Apenas pais responsaveis podem limpar a escala." };
   }
 
   // Use service role to bypass RLS for batch delete

@@ -297,10 +297,16 @@ describe("calendar actions", () => {
       expect(mockRedirect).toHaveBeenCalledWith("/login");
     });
 
-    it("returns error for non-admin users", async () => {
+    it("allows member (co-parent) to clear schedule — same as admin", async () => {
       mockVerifyGroupMembership.mockResolvedValueOnce({ role: "member" });
+      await expect(clearCustodySchedule("group-1")).rejects.toThrow("NEXT_REDIRECT");
+      expect(mockRedirect).toHaveBeenCalledWith("/calendario");
+    });
+
+    it("returns error for readonly users", async () => {
+      mockVerifyGroupMembership.mockResolvedValueOnce({ role: "readonly" });
       const result = await clearCustodySchedule("group-1");
-      expect(result).toEqual({ error: "Apenas administradores podem limpar a escala." });
+      expect(result).toEqual({ error: "Apenas pais responsaveis podem limpar a escala." });
     });
   });
 });
