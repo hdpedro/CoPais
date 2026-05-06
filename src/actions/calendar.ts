@@ -220,13 +220,15 @@ export async function generateSchedule(formData: FormData) {
 
   const groupId = formData.get("groupId") as string;
 
-  // Verify user belongs to this group AND is admin
+  // Pai e mae (admin ou member) podem gerar/atualizar escala — sao
+  // responsaveis pela crianca igualmente. Apenas readonly (mediator/lawyer/
+  // grandparent/caregiver) e bloqueado.
   const membership = await verifyGroupMembership(supabase, groupId, user.id);
   if (!membership) {
     return { error: "Sem permissao para este grupo." };
   }
-  if (membership.role !== "admin") {
-    return { error: "Apenas administradores podem gerar escalas." };
+  if (membership.role !== "admin" && membership.role !== "member") {
+    return { error: "Apenas pais responsaveis podem gerar escalas." };
   }
 
   const childId = formData.get("childId") as string;

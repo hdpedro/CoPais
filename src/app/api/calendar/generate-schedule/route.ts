@@ -40,7 +40,9 @@ export async function POST(request: Request) {
 
   const admin = createAdminClient();
 
-  // Admin-only gate
+  // Pai e mae (admin ou member) podem gerar/atualizar escala — sao
+  // responsaveis pela crianca igualmente. Apenas readonly (mediator/lawyer/
+  // grandparent/caregiver) e bloqueado.
   const { data: membership } = await admin
     .from("group_members")
     .select("role")
@@ -51,9 +53,9 @@ export async function POST(request: Request) {
   if (!membership) {
     return NextResponse.json({ error: "Sem permissão para este grupo." }, { status: 403 });
   }
-  if (membership.role !== "admin") {
+  if (membership.role !== "admin" && membership.role !== "member") {
     return NextResponse.json(
-      { error: "Apenas administradores podem gerar escalas." },
+      { error: "Apenas pais responsáveis podem gerar escalas." },
       { status: 403 },
     );
   }
