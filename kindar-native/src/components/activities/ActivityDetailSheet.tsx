@@ -167,21 +167,62 @@ export default function ActivityDetailSheet({
   async function handleShare() {
     if (!activity) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const lines = [
-      `📋 ${activity.name}`,
-      formatDate(occurrenceDate),
-    ];
+
+    // Copy premium: linguagem natural, tom de pai/mae compartilhando o
+    // dia da crianca (nao "debug"). Capitaliza primeira letra. Inclui
+    // contexto util (categoria, professor, sala) sem ficar denso.
+    const cat = ACTIVITY_CATEGORIES.find(c => c.value === activity.category);
+    const catLabel = CATEGORY_LABEL[activity.category];
+    const title = `${cat?.icon ? cat.icon + ' ' : ''}${activity.name}`;
+
+    const lines: string[] = [];
+    // Linha 1: titulo + categoria humanizada
+    lines.push(`*${title}*`);
+    if (catLabel) lines.push(catLabel);
+    lines.push('');
+
+    // Quando + onde + quem
+    lines.push(`🗓️ ${formatDate(occurrenceDate)}`);
     if (activity.time_start) {
-      lines.push(`🕐 ${formatTime(activity.time_start)}${activity.time_end ? ` - ${formatTime(activity.time_end)}` : ''}`);
+      const t = `${formatTime(activity.time_start)}${activity.time_end ? ` às ${formatTime(activity.time_end)}` : ''}`;
+      lines.push(`⏰ ${t}`);
     }
     if (activity.location) lines.push(`📍 ${activity.location}`);
     if (activity.childName) lines.push(`👶 ${activity.childName}`);
+
+    // Contexto adicional (sem virar lista de debug)
+    const extras: string[] = [];
+    if (activity.teacherName) extras.push(`Prof. ${activity.teacherName}`);
+    if (activity.className) extras.push(activity.className);
+    if (activity.room) extras.push(`Sala ${activity.room}`);
+    if (extras.length > 0) {
+      lines.push('');
+      lines.push(extras.join(' · '));
+    }
+    if (activity.responsibleName) {
+      lines.push('');
+      lines.push(`Responsável: ${activity.responsibleName}`);
+    }
+
+    // Progresso do checklist se houver
     if (items.length > 0) {
       lines.push('');
-      lines.push(`✅ ${completed.size}/${items.length} itens do checklist`);
+      const done = completed.size;
+      lines.push(`✅ ${done} de ${items.length} ${items.length === 1 ? 'item preparado' : 'itens preparados'}`);
     }
+
+    // CTA discreto — ajuda o destinatario a saber a fonte. Sem virar spam.
+    lines.push('');
+    lines.push('— compartilhado pelo Kindar');
+
     try {
-      await Share.share({ message: lines.join('\n') });
+      await Share.share({
+        // `title` aparece no preview do iOS Share Sheet e no header de
+        // alguns apps (Telegram, Mail). WhatsApp ignora title mas
+        // respeita formatting *bold* e quebras.
+        title,
+        message: lines.join('\n'),
+      });
     } catch {
       // user cancelled
     }
@@ -189,34 +230,50 @@ export default function ActivityDetailSheet({
 
   function handleEdit() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    onClose();
-    // Navega pra lista de atividades passando o id — a tela /atividades
-    // abre o editor automaticamente (useEffect com searchParams.editId).
-    router.push({ pathname: '/atividades', params: { editId: activityId } } as never);
+    // router.replace: substitui a rota atual em vez de fazer back+push
+    // (que tinha race condition em iOS — back era async, push acontecia
+    // antes de back completar, e o resultado era inconsistente). A tela
+    // /atividades detecta editId e auto-abre o editor.
+    router.replace({ pathname: '/atividades', params: { editId: activityId } } as never);
   }
 
-  async function handleDelete() {
+  async function performDelete(scope: 'occurrence' | 'future' | 'all') {
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+    const r = await deleteActivity(activityId, { scope, occurrenceDate });
+    if (r.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      onClose();
+    } else {
+      Alert.alert('Erro', r.error || 'Falha ao excluir.');
+    }
+  }
+
+  function handleDelete() {
     if (!activity) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    // 3 opcoes (paridade Apple/Google Calendar) — pais que organizam
+    // recorrencia precisam de granularidade pra "esta semana" vs "serie".
     Alert.alert(
-      'Excluir atividade',
-      `Apagar "${activity.name}"? Essa ação remove a atividade e todas as ocorrências futuras.`,
+      `Excluir "${activity.name}"`,
+      'O que voce quer apagar?',
       [
-        { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-            const r = await deleteActivity(activityId);
-            if (r.success) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              onClose();
-            } else {
-              Alert.alert('Erro', r.error || 'Falha ao excluir.');
-            }
-          },
+          text: 'Apenas este dia',
+          onPress: () => performDelete('occurrence'),
         },
+        {
+          text: 'Esta e as proximas',
+          style: 'destructive',
+          onPress: () => performDelete('future'),
+        },
+        {
+          text: 'Toda a serie',
+          style: 'destructive',
+          onPress: () => performDelete('all'),
+        },
+        { text: 'Cancelar', style: 'cancel' },
       ],
+      { cancelable: true },
     );
   }
 

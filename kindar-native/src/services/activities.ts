@@ -32,9 +32,64 @@ export async function updateActivity(activityId: string, updates: {
   return safeWrite({ table: 'child_activities', operation: 'update', payload: { id: activityId, ...updates } });
 }
 
-export async function deleteActivity(activityId: string) {
-  // PWA soft-deletes via is_active=false to preserve history. Match that behavior.
-  return safeWrite({ table: 'child_activities', operation: 'update', payload: { id: activityId, is_active: false } });
+export type DeleteScope = 'occurrence' | 'future' | 'all';
+
+/**
+ * Excluir atividade — 3 modos (paridade Apple/Google Calendar):
+ *   - 'occurrence': apaga so a ocorrencia daquele dia (calendar_occurrences)
+ *   - 'future':     apaga ocorrencias >= occurrenceDate (calendar_occurrences)
+ *   - 'all':        soft-delete da atividade (is_active=false) + apaga
+ *                   TODAS as ocorrencias presentes/futuras
+ *
+ * Por que so deletamos `calendar_occurrences` no caso 'occurrence' e
+ * 'future' (sem mexer em child_activities): o is_active=false e do
+ * registro-pai. Se o user so quer pular UMA ocorrencia, manter a
+ * activity ativa permite que ela continue aparecendo em outros dias.
+ */
+export async function deleteActivity(activityId: string, opts?: {
+  scope?: DeleteScope;
+  occurrenceDate?: string;
+  groupId?: string;
+}) {
+  const scope: DeleteScope = opts?.scope ?? 'all';
+  const today = new Date().toISOString().slice(0, 10);
+
+  if (scope === 'occurrence') {
+    if (!opts?.occurrenceDate) return { success: false, error: 'Data da ocorrencia obrigatoria' };
+    const { error } = await supabase
+      .from('calendar_occurrences')
+      .delete()
+      .eq('activity_id', activityId)
+      .eq('occurrence_date', opts.occurrenceDate);
+    return error ? { success: false, error: error.message } : { success: true };
+  }
+
+  if (scope === 'future') {
+    const cutoff = opts?.occurrenceDate || today;
+    const { error } = await supabase
+      .from('calendar_occurrences')
+      .delete()
+      .eq('activity_id', activityId)
+      .gte('occurrence_date', cutoff);
+    return error ? { success: false, error: error.message } : { success: true };
+  }
+
+  // 'all' (default): soft-delete + apaga ocorrencias futuras pra sumirem
+  // imediatamente do calendario sem esperar reidx. Historico (ocorrencias
+  // passadas) preservado.
+  const r = await safeWrite({
+    table: 'child_activities',
+    operation: 'update',
+    payload: { id: activityId, is_active: false },
+  });
+  if (!r.success) return r;
+  const { error: occErr } = await supabase
+    .from('calendar_occurrences')
+    .delete()
+    .eq('activity_id', activityId)
+    .gte('occurrence_date', today);
+  if (occErr) return { success: false, error: occErr.message };
+  return { success: true };
 }
 
 // ── Checklist ──────────────────────────────────────────────────────────────
