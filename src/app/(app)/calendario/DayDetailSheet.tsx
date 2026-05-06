@@ -1312,23 +1312,41 @@ export default memo(function DayDetailSheet({
               )}
 
               {/* Adicionar evento neste dia — sempre visivel pra reduzir
-                  fricca de criacao. CTA principal quando o dia esta vazio. */}
+                  fricca de criacao. CTA principal + atalhos compactos
+                  (paridade com native: 1 toque pra consulta/atividade). */}
               {isFutureDate || dateKey === todayStr ? (
-                <Link
-                  href={`/calendario/novo?date=${dateKey}`}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 bg-[#5B9E85]/5 border border-[#5B9E85]/25 rounded-xl hover:bg-[#5B9E85]/10 transition-colors"
-                >
-                  <div className="w-9 h-9 bg-[#5B9E85]/15 rounded-full flex items-center justify-center">
-                    <svg className="w-5 h-5 text-[#5B9E85]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
+                <div className="space-y-2">
+                  <Link
+                    href={`/calendario/novo?date=${dateKey}`}
+                    className="w-full flex items-center gap-3 px-4 py-3 bg-[#5B9E85] text-white rounded-xl hover:bg-[#4A8A72] transition-colors"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
+                    <span className="text-sm font-bold flex-1">Adicionar evento</span>
+                  </Link>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      href="/saude/registrar"
+                      className="flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 hover:bg-gray-200 text-dark rounded-xl text-xs font-semibold transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-3-3v6m5 4H7a2 2 0 01-2-2V8a2 2 0 012-2h2.586a1 1 0 01.707.293l1.414 1.414a1 1 0 00.707.293H19a2 2 0 012 2v8a2 2 0 01-2 2z" />
+                      </svg>
+                      Consulta
+                    </Link>
+                    <Link
+                      href="/atividades/nova"
+                      className="flex items-center justify-center gap-1.5 py-2.5 bg-gray-100 hover:bg-gray-200 text-dark rounded-xl text-xs font-semibold transition-colors"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                      </svg>
+                      Atividade
+                    </Link>
                   </div>
-                  <div className="text-left flex-1">
-                    <p className="text-sm font-semibold text-[#5B9E85]">Adicionar evento</p>
-                    <p className="text-xs text-muted">Compromisso, consulta, atividade</p>
-                  </div>
-                </Link>
+                </div>
               ) : null}
             </div>
           ) : null}
