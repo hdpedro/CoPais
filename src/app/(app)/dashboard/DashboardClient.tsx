@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/i18n/provider";
+import ChildAvatarWeb from "@/components/ui/ChildAvatarWeb";
 import { EXPENSE_CATEGORIES, ACTIVITY_CATEGORIES } from "@/lib/constants";
 import type { ParentColorMap } from "@/lib/calendar-utils";
 
@@ -664,20 +665,7 @@ export default function DashboardClient(props: DashboardClientProps) {
               return (
                 <Link key={child.childId} href={`/saude?child=${child.childId}`} prefetch={false} className="block">
                   <div className={`${colors.bg} ${colors.border} border rounded-xl p-3 flex items-center gap-3`}>
-                    {child.childPhotoUrl ? (
-                      // eslint-disable-next-line @next/next/no-img-element -- foto vem de Supabase Storage com URL signed; next/image nao adiciona valor aqui
-                      <img
-                        src={child.childPhotoUrl}
-                        alt={`Foto de ${child.childName}`}
-                        className="w-9 h-9 rounded-full object-cover flex-shrink-0 bg-white/80"
-                      />
-                    ) : (
-                      <div className="w-9 h-9 bg-white/80 rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-[16px] font-bold text-[#D4735A]">
-                          {child.childName.charAt(0).toUpperCase()}
-                        </span>
-                      </div>
-                    )}
+                    <ChildAvatarWeb photoUrl={child.childPhotoUrl} firstName={child.childName} />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />

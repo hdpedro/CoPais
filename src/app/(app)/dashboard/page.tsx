@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/supabase/auth-helper";
 import { getCachedProfileByUser, getCachedMembers, getCachedChildren } from "@/lib/cached-queries";
+import { getSignedFileUrl } from "@/lib/storage-signed-url";
 import { getActiveGroup } from "@/lib/group-utils";
 import { autoAcceptPendingInvitations } from "@/actions/invitation";
 import { getGroupSubscription, trialDaysRemaining } from "@/lib/billing";
@@ -507,12 +508,24 @@ export default async function DashboardPage() {
     return {
       childId: child.id,
       childName,
+      // photo_url e armazenado como path do Storage; e assinado depois
+      // (em paralelo) abaixo pra nao bloquear a query principal.
       childPhotoUrl: (child as { photo_url?: string | null }).photo_url ?? null,
       status,
       statusLabel: status === "treatment" ? "Em tratamento" : status === "monitoring" ? "Em acompanhamento" : "Saudável",
       detail, activeMedication, nextAction,
     };
   });
+
+  // Assinar avatares — fora do cache pra respeitar TTL (1h). Falhas
+  // viram null e o ChildAvatar / DashboardClient cai pra inicial.
+  await Promise.all(
+    childHealthSummaries.map(async (s) => {
+      if (s.childPhotoUrl) {
+        s.childPhotoUrl = await getSignedFileUrl(supabase, "documents", s.childPhotoUrl);
+      }
+    }),
+  );
 
   // Sort by attention level: treatment > monitoring > healthy
   childHealthSummaries.sort((a, b) => {

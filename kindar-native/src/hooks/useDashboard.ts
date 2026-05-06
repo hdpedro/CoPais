@@ -13,6 +13,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
+import { signChildAvatar } from '../services/children';
 import { PARENT_COLORS, getDisplayName } from '../lib/constants';
 import { cacheGet, cacheSet, isOnline } from '../services/offline';
 import { subscribeToNotifications } from '../services/notifications';
@@ -425,8 +426,28 @@ export function useDashboard() {
           };
         }).filter((a: ActivityItem) => a.name);
 
-      // Child cards
-      const childCards: ChildCard[] = (children || []).map((c: any) => {
+      // Child cards. photo_url e armazenado como STORAGE PATH (nao URL),
+      // entao precisa ser assinado antes de chegar no <Image>. Sem isso
+      // o card renderizava um circulo vazio (Image falhava silenciosa,
+      // sem fallback pra inicial). Assinatura em paralelo pra todos os
+      // filhos pra nao bloquear o resto do dashboard.
+      const rawCards = (children || []).map((c: any) => ({ row: c, signedUrl: null as string | null }));
+      const signTasks = rawCards.map(async (item) => {
+        const raw = item.row.photo_url as string | null | undefined;
+        if (!raw) return;
+        if (/^https?:\/\//i.test(raw)) {
+          item.signedUrl = raw; // legado: ja era URL absoluta
+          return;
+        }
+        try {
+          item.signedUrl = await signChildAvatar(raw);
+        } catch {
+          item.signedUrl = null;
+        }
+      });
+      await Promise.all(signTasks);
+
+      const childCards: ChildCard[] = rawCards.map(({ row: c, signedUrl }) => {
         const bd = new Date(c.birth_date + 'T12:00:00');
         const ageDiff = Date.now() - bd.getTime();
         const age = Math.floor(ageDiff / (365.25 * 24 * 60 * 60 * 1000));
@@ -435,7 +456,7 @@ export function useDashboard() {
           fullName: c.full_name,
           firstName: getDisplayName(c.full_name),
           age,
-          photoUrl: c.photo_url || null,
+          photoUrl: signedUrl,
         };
       });
 
