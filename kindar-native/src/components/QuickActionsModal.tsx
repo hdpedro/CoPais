@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, Modal,
   ActivityIndicator, Alert, Platform,
@@ -30,9 +30,13 @@ export default function QuickActionsModal({ visible, onClose }: Props) {
   const [primary, setPrimary] = useState<string>(DEFAULT_QUICK_ACTIONS_NATIVE.primary);
   const [secondary, setSecondary] = useState<string[]>([...DEFAULT_QUICK_ACTIONS_NATIVE.secondary]);
   const [saving, setSaving] = useState(false);
+  // skipNextAutoSave: evita auto-save disparar quando o useEffect de sync
+  // inicial popula primary/secondary a partir do profile (reseta na abertura).
+  const skipNextAutoSave = useRef(true);
 
   useEffect(() => {
     if (!visible) return;
+    skipNextAutoSave.current = true;
     const saved = profile?.quick_actions;
     // Reset estado quando o modal reabre, sincronizando com o profile salvo
     // (padrao "controlled reset on prop change" — set-state-in-effect intencional).
@@ -40,6 +44,20 @@ export default function QuickActionsModal({ visible, onClose }: Props) {
     setPrimary(saved?.primary ?? DEFAULT_QUICK_ACTIONS_NATIVE.primary);
     setSecondary(saved?.secondary?.length ? [...saved.secondary] : [...DEFAULT_QUICK_ACTIONS_NATIVE.secondary]);
   }, [visible, profile]);
+
+  // Auto-save com debounce sempre que o usuario muda primary ou secondary.
+  // Evita o bug de "fechar via X sem salvar" — UX moderna: persiste imediato.
+  useEffect(() => {
+    if (!visible) return;
+    if (skipNextAutoSave.current) {
+      skipNextAutoSave.current = false;
+      return;
+    }
+    const handle = setTimeout(() => {
+      updateQuickActions(primary, secondary.filter(s => s !== primary));
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [primary, secondary, visible, updateQuickActions]);
 
   const catalogMap = Object.fromEntries(QUICK_ACTIONS_CATALOG_NATIVE.map(a => [a.id, a]));
   const selectedSecondary = secondary.filter(id => id !== primary);
