@@ -119,13 +119,51 @@ export async function updateEvent(eventId: string, updates: {
   title?: string;
   description?: string | null;
   event_date?: string;
+  end_date?: string | null;
   event_time?: string | null;
   location?: string | null;
   all_day?: boolean;
+  assigned_to?: string | null;
+  child_id?: string | null;
 }) {
   return safeWrite({ table: 'events', operation: 'update', payload: { id: eventId, ...updates } });
 }
 
 export async function deleteEvent(eventId: string) {
   return safeWrite({ table: 'events', operation: 'delete', payload: { id: eventId } });
+}
+
+/** Detalhe completo de um evento — paridade com /eventos/[id]. */
+export async function fetchEventDetail(eventId: string): Promise<(SocialEvent & {
+  child_id: string | null;
+  childName: string | null;
+  description: string | null;
+  end_date: string | null;
+  created_by: string | null;
+  createdByName: string | null;
+}) | null> {
+  const { data } = await supabase.from('events')
+    .select('id, title, description, event_date, end_date, event_time, location, all_day, assigned_to, child_id, created_by, profiles!events_assigned_to_fkey(full_name), children(full_name), creator:profiles!events_created_by_fkey(full_name)')
+    .eq('id', eventId)
+    .maybeSingle();
+  if (!data) return null;
+  const ev = data as any;
+  const child = Array.isArray(ev.children) ? ev.children[0] : ev.children;
+  const creator = Array.isArray(ev.creator) ? ev.creator[0] : ev.creator;
+  return {
+    id: ev.id,
+    title: ev.title,
+    description: ev.description,
+    event_date: ev.event_date,
+    end_date: ev.end_date,
+    event_time: ev.event_time,
+    location: ev.location,
+    all_day: ev.all_day,
+    assigned_to: ev.assigned_to,
+    assignedName: ev.profiles?.full_name?.split(' ')[0] || '',
+    child_id: ev.child_id,
+    childName: child?.full_name?.split(' ')[0] || null,
+    created_by: ev.created_by,
+    createdByName: creator?.full_name?.split(' ')[0] || null,
+  };
 }

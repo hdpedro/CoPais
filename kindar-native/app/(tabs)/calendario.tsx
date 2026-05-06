@@ -795,8 +795,11 @@ export default function CalendarScreen() {
                         return;
                       }
                       if (e.type === 'event') {
+                        // Navega pra rota dedicada de detalhe (paridade
+                        // com /atividades/[id]). Antes ia pra lista
+                        // generica perdendo contexto.
                         setSelectedDay(null);
-                        router.push('/eventos' as never);
+                        router.push({ pathname: '/eventos/[id]', params: { id: e.id } } as never);
                         return;
                       }
                     }}
