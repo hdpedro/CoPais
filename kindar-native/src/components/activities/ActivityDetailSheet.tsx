@@ -126,6 +126,11 @@ export default function ActivityDetailSheet({
       setItems(list);
       setCompleted(completedSet);
       setLoading(false);
+    }).catch(() => {
+      // Sem .catch o setLoading nunca cleared -> "tela de processando"
+      // infinita. Reportado pelo Henrique. Garante encerramento mesmo
+      // em erro (no piores casos, activity fica null e onClose cuida).
+      setLoading(false);
     });
   }, [visible, activityId, occurrenceDate]);
 

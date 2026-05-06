@@ -82,7 +82,7 @@ export function useCalendar() {
         // calendario/page.tsx — `child_activities!inner` ensures we only
         // return rows where the parent activity still exists.
         supabase.from('calendar_occurrences')
-          .select('id, occurrence_date, child_activities!inner(name, category, time_start)')
+          .select('id, occurrence_date, activity_id, child_activities!inner(id, name, category, time_start)')
           .eq('group_id', groupId)
           .gte('occurrence_date', startKey)
           .lte('occurrence_date', endKey)
@@ -157,11 +157,15 @@ export function useCalendar() {
         }
       });
 
-      // Activity occurrences
+      // Activity occurrences — id deve ser do child_activities (nao da
+      // occurrence) pra que ActivityDetailSheet consiga abrir o detalhe.
+      // Antes id=o.id (calendar_occurrences) -> query .eq('id', activityId)
+      // em child_activities nao matchava -> tela ficava em loading infinito.
       (occurrences || []).forEach((o: any) => {
         const act = o.child_activities;
+        const actId = (act?.id || o.activity_id || o.id) as string;
         allEvents.push({
-          id: o.id,
+          id: actId,
           date: o.occurrence_date,
           type: 'activity',
           title: act?.name || '',
