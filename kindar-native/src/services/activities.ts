@@ -115,7 +115,10 @@ export async function fetchActivityReport(activityId: string, occurrenceDate: st
 export async function submitActivityReport(params: {
   groupId: string;
   activityId: string;
-  childId: string | null;
+  /** Nao persistido em activity_reports (a tabela nao tem child_id —
+   * crianca e derivada via activity_id -> child_activities.child_id).
+   * Mantido na interface por compat com callers que ja sabem do childId. */
+  childId?: string | null;
   occurrenceDate: string;
   status: ActivityReportStatus;
   notes: string | null;
@@ -138,7 +141,6 @@ export async function submitActivityReport(params: {
     const { error } = await supabase.from('activity_reports').insert({
       group_id: params.groupId,
       activity_id: params.activityId,
-      child_id: params.childId,
       occurrence_date: params.occurrenceDate,
       status: params.status,
       notes: params.notes,
