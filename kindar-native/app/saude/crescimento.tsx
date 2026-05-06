@@ -7,7 +7,7 @@
  *   - chave de FlatList agora estavel via id (era spread perigoso antes)
  */
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +17,7 @@ import { safeWrite } from '../../src/services/offline';
 import { useAuth } from '../../src/store/auth';
 import { getDisplayName } from '../../src/lib/constants';
 import ScreenHeader from '../../src/components/ui/ScreenHeader';
+import Toast from '../../src/components/ui/Toast';
 import { DatePickerField, dateToIso } from '../../src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
 
@@ -43,6 +44,7 @@ export default function CrescimentoScreen() {
   const [dateIso, setDateIso] = useState<string>(dateToIso(new Date()));
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ msg: string; variant?: 'success' | 'error' } | null>(null);
 
   // Synchronous guard against double-tap duplication. setState is async,
   // so disabled={saving} alone allows ~2-3 taps to slip through before
@@ -64,6 +66,22 @@ export default function CrescimentoScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Realtime: refletir mudancas vindas de outro dispositivo (ou do
+  // co-pai) sem precisar refresh manual. Filtra por group_id pra nao
+  // receber broadcast de outros grupos.
+  useEffect(() => {
+    if (!activeGroup) return;
+    const ch = supabase
+      .channel(`growth:list:${activeGroup.groupId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'growth_records', filter: `group_id=eq.${activeGroup.groupId}` },
+        () => load(),
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [activeGroup?.groupId, load]);
 
   function resetForm() {
     setEditingId(null);
@@ -128,9 +146,10 @@ export default function CrescimentoScreen() {
       record.height_cm ? `${record.height_cm}cm` : null,
       record.head_cm ? `PC ${record.head_cm}cm` : null,
     ].filter(Boolean).join(' · ');
+    const dateBr = record.measured_date.split('-').reverse().join('/');
     Alert.alert(
-      'Excluir medida',
-      `${record.childName} · ${record.measured_date.split('-').reverse().join('/')}${summary ? `\n${summary}` : ''}`,
+      'Excluir registro de crescimento?',
+      `${record.childName} · ${dateBr}${summary ? `\n${summary}` : ''}\n\nEsta acao nao pode ser desfeita.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -140,9 +159,11 @@ export default function CrescimentoScreen() {
             const r = await safeWrite({ table: 'growth_records', operation: 'delete', payload: { id: record.id } });
             if (r.success) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              setToast({ msg: `Registro de ${dateBr} removido`, variant: 'success' });
               await load();
             } else {
-              Alert.alert('Erro', r.error || 'Não consegui excluir.');
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              setToast({ msg: r.error || 'Nao consegui excluir. Tente de novo.', variant: 'error' });
             }
           },
         },
@@ -261,6 +282,7 @@ export default function CrescimentoScreen() {
           </TouchableOpacity>
         )}
       />
+      <Toast value={toast} onClear={() => setToast(null)} />
     </View>
   );
 }

@@ -120,27 +120,41 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(child.photo_url);
   const [uploadingPhoto, setUploadingPhoto] = useState(false);
   // Ultima medida (peso/altura) — read-only nesta tela; fonte unica em
-  // growth_records via /saude/crescimento. Mostrar aqui evita o paradoxo
-  // "preenchi mas nao apareceu" reportado pelo Henrique.
-  const [latestGrowth, setLatestGrowth] = useState<{
-    weight_kg: number | null;
-    height_cm: number | null;
-    measured_date: string;
-  } | null>(null);
+  // growth_records via /saude/crescimento. Buscamos as duas ultimas para
+  // mostrar tendencia (delta + tempo desde a ultima atualizacao).
+  type GrowthRow = { weight_kg: number | null; height_cm: number | null; measured_date: string };
+  const [growthRows, setGrowthRows] = useState<GrowthRow[]>([]);
+  const latestGrowth = growthRows[0] || null;
+  const previousGrowth = growthRows[1] || null;
 
+  // Realtime: refetch ao detectar INSERT/UPDATE/DELETE em growth_records
+  // do child atual. Evita o "ainda parece beta" de precisar reabrir a tela.
   useEffect(() => {
     let cancelled = false;
-    (async () => {
+    const fetchGrowth = async () => {
       const { data } = await supabase
         .from('growth_records')
         .select('weight_kg, height_cm, measured_date')
         .eq('child_id', child.id)
         .order('measured_date', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (!cancelled && data) setLatestGrowth(data as typeof latestGrowth);
-    })();
-    return () => { cancelled = true; };
+        .limit(2);
+      if (!cancelled) setGrowthRows((data || []) as GrowthRow[]);
+    };
+    fetchGrowth();
+
+    const channel = supabase
+      .channel(`growth:${child.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'growth_records', filter: `child_id=eq.${child.id}` },
+        () => fetchGrowth(),
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      supabase.removeChannel(channel);
+    };
   }, [child.id]);
   const [saving, setSaving] = useState(false);
 
@@ -584,21 +598,23 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           {/* Crescimento — read-only com link pra /saude/crescimento.
               Resolve o paradoxo "preenchi peso/altura mas nao apareceu":
               o dado vive em growth_records (historico datado), nao em
-              children. Mostramos a ultima medida aqui pra dar visibilidade
-              + atalho rapido pra adicionar nova. */}
+              children. Mostramos a ultima medida + tendencia aqui (visao
+              derivada). Realtime channel garante atualizacao automatica. */}
           <Label>Crescimento</Label>
-          <TouchableOpacity
+          <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
               onClose();
               router.push('/saude/crescimento' as never);
             }}
-            activeOpacity={0.7}
-            style={{
+            style={({ pressed }) => ({
               flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-              backgroundColor: colors.bgSurface, borderRadius: radius.md,
+              backgroundColor: pressed ? colors.brandLight : colors.bgSurface,
+              borderRadius: radius.md,
               padding: spacing.md, marginBottom: spacing.lg,
-            }}
+              opacity: pressed ? 0.92 : 1,
+              transform: [{ scale: pressed ? 0.99 : 1 }],
+            })}
           >
             <View style={{
               width: 40, height: 40, borderRadius: 20,
@@ -617,7 +633,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
                     ].filter(Boolean).join(' · ') || '—'}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-                    Última medida em {latestGrowth.measured_date.split('-').reverse().join('/')}
+                    {growthInsight(latestGrowth, previousGrowth)}
                   </Text>
                 </>
               ) : (
@@ -632,7 +648,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               )}
             </View>
             <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-          </TouchableOpacity>
+          </Pressable>
 
           {/* Anotações */}
           <Label>Anotações</Label>
@@ -669,6 +685,49 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
       </View>
     </KeyboardAvoidingView>
   );
+}
+
+// Pequeno insight derivado das duas ultimas medidas — gera percepcao
+// de acompanhamento continuo, em vez de so listar a data.
+function growthInsight(
+  latest: { weight_kg: number | null; measured_date: string },
+  previous: { weight_kg: number | null; measured_date: string } | null,
+): string {
+  const days = daysSince(latest.measured_date);
+  const relative =
+    days === 0 ? 'Atualizada hoje'
+    : days === 1 ? 'Atualizada ontem'
+    : days < 7 ? `Atualizada há ${days} dias`
+    : days < 30 ? `Atualizada há ${Math.round(days / 7)} sem.`
+    : days < 365 ? `Atualizada há ${Math.round(days / 30)} meses`
+    : `Atualizada há ${Math.round(days / 365)} anos`;
+
+  if (latest.weight_kg != null && previous?.weight_kg != null) {
+    const delta = latest.weight_kg - previous.weight_kg;
+    if (Math.abs(delta) >= 0.1) {
+      const sign = delta > 0 ? '+' : '';
+      const monthLabel = monthFromIso(previous.measured_date);
+      return `${sign}${delta.toFixed(1)}kg desde ${monthLabel} · ${relative}`;
+    }
+  }
+  return relative;
+}
+
+function daysSince(iso: string): number {
+  const [y, m, d] = iso.split('-').map(Number);
+  if (!y || !m || !d) return 0;
+  const past = new Date(y, m - 1, d).getTime();
+  const now = Date.now();
+  return Math.max(0, Math.floor((now - past) / 86400000));
+}
+
+function monthFromIso(iso: string): string {
+  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const [y, m] = iso.split('-').map(Number);
+  if (!y || !m) return '';
+  const now = new Date();
+  const sameYear = now.getFullYear() === y;
+  return sameYear ? months[m - 1] : `${months[m - 1]}/${String(y).slice(2)}`;
 }
 
 function ageHint(iso: string): string {
