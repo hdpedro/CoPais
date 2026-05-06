@@ -442,9 +442,8 @@ O Kindar usa **Progressive Disclosure** para atender qualquer tipo de familia se
 
 - **Slogan**: "Organize a rotina de quem voce cuida" (neutro, universal)
 - **Flag `custody_enabled`** (boolean na tabela `coparenting_groups`): controla visibilidade de features de guarda compartilhada
-- **Novos grupos**: `custody_enabled = false` (experiencia universal)
-- **Grupos existentes**: `custody_enabled = true` (retrocompativel)
-- **Ativacao natural**: via CustodyActivationCard (dashboard, quando 2+ membros) ou ScheduleBuilder (calendario)
+- **Default**: `custody_enabled = true` para todos os grupos (revertido em 2026-05-05). Guarda eh feature core do ICP que paga; modo universal disponivel via dispensa do CTA, nao via default tecnico
+- **Calendario sempre exibe CTA `/calendario/escala`** quando nao ha escala — defesa em profundidade contra esse bug voltar
 - **Modulos afetados**: Dashboard, Calendario, Financeiro, IA, Cron, Landing Page, Auth, Onboarding, i18n
 
 O sistema **nao pergunta** sobre situacao familiar. Features de coparentalidade aparecem quando fazem sentido (2o adulto entra, ou usuario busca).

@@ -7,12 +7,15 @@
 
 ## 1. POSICIONAMENTO
 
-**Kindar é um organizador universal de rotina familiar** — não só para pais separados.
+**Kindar atende pais separados (ICP principal) e estende para o universo familiar**.
 
 - Slogan: "Organize a rotina de quem você cuida"
-- Flag `custody_enabled` (em `coparenting_groups`) ativa progressivamente as features de guarda compartilhada
-- Novos grupos começam com `custody_enabled = false` (experiência universal)
-- Atende: famílias nucleares, separadas, homoafetivas, monoparentais, avós guardiões, cuidadores profissionais
+- ICP que paga: pais separados / divorciados (guarda compartilhada). É a feature pela qual baixam o app.
+- Flag `custody_enabled` (em `coparenting_groups`) controla a UI de guarda — **default `true`** (revertido em 2026-05-05 após bug crítico de ativação iOS, ver MEMORY abaixo).
+- Modo "universal" continua disponível: famílias nucleares, monoparentais, avós, cuidadores podem dispensar o card de configurar escala — não precisam mexer flag.
+- Atende: famílias nucleares, separadas, homoafetivas, monoparentais, avós guardiões, cuidadores profissionais — mas guarda é o ímã principal.
+
+> **2026-05-05 — Reposicionamento revertido em parte**: o "Progressive Disclosure" original (default `false`) escondia a feature core do ICP que paga. 2 usuários iOS reclamaram; backfill flipou 6 grupos para `true`. Lição: posicionamento universal é copy de marketing, não default técnico.
 
 ---
 

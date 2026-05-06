@@ -180,14 +180,14 @@ export default memo(function CalendarClient({
   }, [activities]);
 
   const hasCustodyData = custodyEnabled && Object.keys(custodyMap).length > 0;
+  // Defesa em profundidade: mostra o CTA sempre que nao houver eventos de
+  // guarda visiveis, independente do valor de custody_enabled. O ScheduleBuilder
+  // flipa a flag para true ao salvar a escala.
+  const showSetupCard = Object.keys(custodyMap).length === 0;
 
   return (
     <>
-      {custodyEnabled && !hasCustodyData && (
-        <div className="rounded-xl bg-gray-50 border border-gray-200 p-3 text-center">
-          <p className="text-[12px] text-gray-500">{t("schedule.optional")}</p>
-        </div>
-      )}
+      {showSetupCard && <EnableCustodyLink variant="setup" />}
 
       {custodyEnabled && custodyChangeBanner && (
         <div className="flex items-start gap-3 rounded-xl bg-amber-50 border border-amber-200 p-3">
@@ -241,8 +241,6 @@ export default memo(function CalendarClient({
       <EventRequestList requests={eventRequests} currentUserId={currentUserId} />
 
       <CalendarExportButton groupId={groupId} />
-
-      {!custodyEnabled && <EnableCustodyLink />}
 
       {/* Day Detail Bottom Sheet with Quick Swap */}
       <DayDetailSheet
