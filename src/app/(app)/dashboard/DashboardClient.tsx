@@ -147,6 +147,7 @@ interface ChildCard {
 interface ChildHealthSummary {
   childId: string;
   childName: string;
+  childPhotoUrl: string | null;
   status: "healthy" | "monitoring" | "treatment";
   statusLabel: string;
   detail: string;
@@ -663,11 +664,20 @@ export default function DashboardClient(props: DashboardClientProps) {
               return (
                 <Link key={child.childId} href={`/saude?child=${child.childId}`} prefetch={false} className="block">
                   <div className={`${colors.bg} ${colors.border} border rounded-xl p-3 flex items-center gap-3`}>
-                    <div className="w-9 h-9 bg-white/80 rounded-full flex items-center justify-center flex-shrink-0">
-                      <span className="text-[16px] font-bold text-[#D4735A]">
-                        {child.childName.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
+                    {child.childPhotoUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- foto vem de Supabase Storage com URL signed; next/image nao adiciona valor aqui
+                      <img
+                        src={child.childPhotoUrl}
+                        alt={`Foto de ${child.childName}`}
+                        className="w-9 h-9 rounded-full object-cover flex-shrink-0 bg-white/80"
+                      />
+                    ) : (
+                      <div className="w-9 h-9 bg-white/80 rounded-full flex items-center justify-center flex-shrink-0">
+                        <span className="text-[16px] font-bold text-[#D4735A]">
+                          {child.childName.charAt(0).toUpperCase()}
+                        </span>
+                      </div>
+                    )}
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />

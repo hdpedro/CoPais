@@ -84,7 +84,7 @@ export function getCachedChildren(groupId: string) {
       const supabase = getAdminClient();
       const { data } = await supabase
         .from("children")
-        .select("id, full_name, birth_date, sex")
+        .select("id, full_name, birth_date, sex, photo_url")
         .eq("group_id", groupId);
       return data || [];
     },

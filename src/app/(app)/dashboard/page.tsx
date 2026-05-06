@@ -455,6 +455,7 @@ export default async function DashboardPage() {
   interface ChildHealthSummary {
     childId: string;
     childName: string;
+    childPhotoUrl: string | null;
     status: "healthy" | "monitoring" | "treatment";
     statusLabel: string;
     detail: string;
@@ -503,7 +504,14 @@ export default async function DashboardPage() {
       nextAction = "Ver consulta";
     }
 
-    return { childId: child.id, childName, status, statusLabel: status === "treatment" ? "Em tratamento" : status === "monitoring" ? "Em acompanhamento" : "Saudável", detail, activeMedication, nextAction };
+    return {
+      childId: child.id,
+      childName,
+      childPhotoUrl: (child as { photo_url?: string | null }).photo_url ?? null,
+      status,
+      statusLabel: status === "treatment" ? "Em tratamento" : status === "monitoring" ? "Em acompanhamento" : "Saudável",
+      detail, activeMedication, nextAction,
+    };
   });
 
   // Sort by attention level: treatment > monitoring > healthy
