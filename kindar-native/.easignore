@@ -1,6 +1,12 @@
 # EAS Build ignore — exclude what doesn't need to be shipped to the build worker.
 # Without this, the local node_modules is uploaded and conflicts with npm ci on
 # the worker (EACCES because the upload-restored permissions block writes).
+#
+# IMPORTANTE: este arquivo deve ser MINIMO. eas-cli#3198 documenta um bug em
+# que patterns como `tests/` excluem pastas com mesmo nome em qualquer
+# profundidade no upload — o que pode quebrar o resolver Metro no EAGER_BUNDLE
+# se algum arquivo nested for descartado por engano. Mantemos so o estritamente
+# necessario.
 
 # dependencies — let the worker `npm ci` from package-lock
 node_modules/
@@ -18,8 +24,6 @@ android/app/build/
 
 # logs
 *.log
-expo-web.log
-expo-web.err.log
 
 # env files (worker uses eas.json env block + EAS Secrets)
 .env
@@ -29,16 +33,3 @@ expo-web.err.log
 # misc
 .DS_Store
 Thumbs.db
-
-# tests
-test-results-*/
-playwright-report/
-playwright.config.ts
-
-
-# All test result directories (variations across versions)
-test-results/
-test-results-*/
-tests/
-playwright-report/
-playwright-report-*/
