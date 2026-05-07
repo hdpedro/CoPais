@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, Text, Linking } from 'react-native';
+import { View, ActivityIndicator, Text, Linking, AppState } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Updates from 'expo-updates';
 import { useAuth } from 'src/store/auth';
@@ -60,7 +60,11 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Register for push + identify RevenueCat user after login
+  // Register for push + identify RevenueCat user after login. Tambem re-tenta
+  // o registro APNs/FCM toda vez que o app volta pro foreground — cobre o
+  // cenario onde o registro inicial falhou (sem internet, backend instavel)
+  // e o token nunca foi salvo no DB. Idempotente no backend (dedup por user
+  // + token), entao executar varias vezes nao gera duplicatas.
   useEffect(() => {
     if (!userId) {
       resetUser().catch(() => {});
@@ -68,6 +72,15 @@ export default function RootLayout() {
     }
     registerForPushNotificationsAsync().catch(() => {});
     identifyUser(userId).catch(() => {});
+
+    let lastState = AppState.currentState;
+    const sub = AppState.addEventListener('change', (next) => {
+      if (next === 'active' && lastState !== 'active') {
+        registerForPushNotificationsAsync().catch(() => {});
+      }
+      lastState = next;
+    });
+    return () => sub.remove();
   }, [userId]);
 
   // Navigate on notification tap

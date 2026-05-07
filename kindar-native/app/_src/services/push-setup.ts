@@ -86,22 +86,41 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
     }
   }
 
-  // Register with PWA backend
+  // Register with PWA backend. Idempotente — backend dedupa por (user, token).
+  // Retry leve em caso de falha de rede pra cobrir flapping de conexao no
+  // primeiro foreground apos login (cenario do Gustavo: app abriu sem internet,
+  // registro falhou, ninguem chamou de novo). 2 tentativas com 2s entre.
   try {
     const { data: { session } } = await supabase.auth.getSession();
     if (!session?.access_token) return token;
+    const url = `${WEB_URL}/api/push/register-apns`;
+    const body = JSON.stringify({ token, platform: Platform.OS });
 
-    await fetch(`${WEB_URL}/api/push/register-apns`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${session.access_token}`,
-      },
-      body: JSON.stringify({
-        token,
-        platform: Platform.OS,
-      }),
-    });
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body,
+        });
+        if (res.ok) {
+          lastErr = null;
+          break;
+        }
+        // Backend retornou erro — registra mas nao falha o app
+        lastErr = new Error(`push register HTTP ${res.status}`);
+      } catch (e) {
+        lastErr = e;
+      }
+      if (attempt === 0) await new Promise(r => setTimeout(r, 2000));
+    }
+    if (lastErr) {
+      console.warn('[push-setup] failed to register token with backend (after retry):', lastErr);
+    }
   } catch (e) {
     console.warn('[push-setup] failed to register token with backend:', e);
   }
