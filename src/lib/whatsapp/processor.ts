@@ -6,6 +6,17 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { parseIntent } from "@/lib/ai/local-parser";
+import {
+  parseQueryIntent,
+  fuzzyMatchIntent,
+  dispatchCustomAction,
+  parseMultiIntent,
+  detectChildAmbiguity,
+  loadSessionState,
+  saveSessionState,
+  applyFollowUp,
+} from "@/lib/ai/local-queries";
+import { hasNegation } from "@/lib/ai/local-helpers";
 import { AI_TOOLS, executeTool } from "@/lib/ai/tools";
 import { routeToolsRequest, routeTextRequest } from "@/lib/ai/router";
 import { logAIRequest } from "@/lib/ai/core/logger";
@@ -472,8 +483,9 @@ export async function processWhatsAppMessage(
   /* ================================================================ */
 
   const localIntent = parseIntent(userText, childNames, memberNames, "pt");
+  const waNegated = hasNegation(userText);
 
-  if (localIntent && localIntent.confidence >= 0.7) {
+  if (localIntent && localIntent.confidence >= 0.7 && !(localIntent.action.startsWith("create") && waNegated)) {
     const isActionIntent = localIntent.action.startsWith("create");
 
     if (isActionIntent) {
@@ -517,6 +529,127 @@ export async function processWhatsAppMessage(
 
       await sendAndLog(supabase, phone, result.success ? `\u2705 ${result.message}` : `\u26A0\uFE0F ${result.message}`, userId);
       return;
+    }
+  }
+
+  /* ================================================================ */
+  /* Step 7a-2: Local QUERIES + s\u00EDntese + drafts (sem LLM)             */
+  /* ================================================================ */
+
+  const queryParseCtx = {
+    children: toolCtx.children.map((c) => ({ id: c.id, name: c.name })),
+    members: toolCtx.members,
+    currentUserId: userId,
+  };
+
+  // Multi-intent: "quanto gastei e quem tá com o Bê?" — processa as duas
+  const waMultiIntents = parseMultiIntent(userText, queryParseCtx);
+  if (waMultiIntents.length >= 2) {
+    const results: string[] = [];
+    for (const intent of waMultiIntents) {
+      let result;
+      if (intent.action.startsWith("custom")) {
+        result = await dispatchCustomAction(intent, toolCtx);
+      } else {
+        const mapped = mapLocalActionToTool(
+          { action: intent.action, params: intent.params, confidence: intent.confidence },
+          toolCtx,
+        );
+        if (mapped) {
+          result = await executeTool(mapped.toolName, mapped.toolParams, toolCtx);
+        }
+      }
+      if (result?.success && result.message) results.push(result.message);
+    }
+    if (results.length >= 2) {
+      await logAIRequest({
+        userId,
+        groupId,
+        provider: "local-multi",
+        feature: "assistant_chat",
+        success: true,
+        responseTimeMs: Date.now() - start,
+      });
+      await sendAndLog(supabase, phone, results.join("\n\n---\n\n"), userId);
+      return;
+    }
+  }
+
+  // Follow-up via session state
+  const waSession = await loadSessionState(toolCtx);
+  const waFollowUp = applyFollowUp(userText, waSession, queryParseCtx);
+
+  let waQueryIntent = parseQueryIntent(userText, queryParseCtx);
+  let waProvider = "local-regex";
+  if (!waQueryIntent) {
+    waQueryIntent = fuzzyMatchIntent(userText, queryParseCtx);
+    if (waQueryIntent) waProvider = "local-fuzzy";
+  }
+  if (!waQueryIntent && waFollowUp) {
+    waQueryIntent = waFollowUp;
+    waProvider = "local-followup";
+  }
+
+  // Clarificação de criança ambígua
+  if (waQueryIntent && !waQueryIntent.params.child_name && !waQueryIntent.params.childName) {
+    const requiresChild = ["queryHealth", "queryStatus", "queryHistory", "customChildSummary"];
+    if (requiresChild.includes(waQueryIntent.action)) {
+      const ambig = detectChildAmbiguity(userText, toolCtx.children);
+      if (ambig.ambiguous && ambig.candidates.length >= 2) {
+        const names = ambig.candidates.map((c) => c.name.split(" ")[0]).join(" ou ");
+        await logAIRequest({
+          userId,
+          groupId,
+          provider: "local-clarify",
+          feature: "assistant_chat",
+          success: true,
+          responseTimeMs: Date.now() - start,
+        });
+        await sendAndLog(supabase, phone, `Você quer dizer **${names}**? Me confirma qual.`, userId);
+        return;
+      }
+    }
+  }
+
+  if (waQueryIntent && waQueryIntent.confidence >= 0.6) {
+    if (waQueryIntent.action.startsWith("custom")) {
+      const result = await dispatchCustomAction(waQueryIntent, toolCtx);
+      if (result) {
+        await logAIRequest({
+          userId,
+          groupId,
+          provider: waProvider,
+          feature: "assistant_chat",
+          success: result.success,
+          responseTimeMs: Date.now() - start,
+        });
+        if (result.success) {
+          await saveSessionState(toolCtx, waQueryIntent).catch(() => {/* best effort */});
+        }
+        await sendAndLog(supabase, phone, result.message, userId);
+        return;
+      }
+    }
+
+    const mappedQuery = mapLocalActionToTool(
+      { action: waQueryIntent.action, params: waQueryIntent.params, confidence: waQueryIntent.confidence },
+      toolCtx,
+    );
+    if (mappedQuery) {
+      const result = await executeTool(mappedQuery.toolName, mappedQuery.toolParams, toolCtx);
+      await logAIRequest({
+        userId,
+        groupId,
+        provider: waProvider,
+        feature: "assistant_tool",
+        success: result.success,
+        responseTimeMs: Date.now() - start,
+      });
+      if (result.success) {
+        await saveSessionState(toolCtx, waQueryIntent).catch(() => {/* best effort */});
+        await sendAndLog(supabase, phone, result.message, userId);
+        return;
+      }
     }
   }
 

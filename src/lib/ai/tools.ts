@@ -24,6 +24,7 @@ export interface ToolContext {
   groupId: string;
   children: Array<{ id: string; name: string; birth_date?: string | null }>;
   members: Array<{ id: string; name: string }>;
+  locale?: string; // "pt-BR" | "en" | "es" | "fr" | "de" — usado pelos handlers locais
 }
 
 export interface ToolResult {

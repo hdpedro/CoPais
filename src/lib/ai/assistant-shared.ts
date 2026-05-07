@@ -49,6 +49,14 @@ export async function buildAssistantContext(
     .select("user_id, role, profiles(full_name)")
     .eq("group_id", groupId);
 
+  // Locale do usuário atual (pt-BR | en | es | fr | de)
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("locale")
+    .eq("id", userId)
+    .single();
+  const locale = profile?.locale || "pt-BR";
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const members = (membersRaw || []).map((m: any) => ({
     id: m.user_id,
@@ -119,6 +127,7 @@ export async function buildAssistantContext(
       birth_date: c.birth_date,
     })),
     members,
+    locale,
   };
 
   return { contextStr, toolCtx, custodyEnabled };
@@ -314,6 +323,41 @@ export function mapLocalActionToTool(
         },
       };
     }
+
+    /* -------- QUERIES (mapped to existing get_* tools, no confirmation) -- */
+
+    case "queryCustody":
+      return { toolName: "get_custody_info", toolParams: { date: p.date || "" } };
+
+    case "queryUpcoming":
+      return { toolName: "get_upcoming_events", toolParams: { days: Number(p.days) || 30 } };
+
+    case "queryExpenses":
+      return {
+        toolName: "get_expenses_summary",
+        toolParams: { period: p.period || "month", child_name: p.child_name || "" },
+      };
+
+    case "queryBalance":
+      return { toolName: "get_balance", toolParams: {} };
+
+    case "queryHealth":
+      return { toolName: "get_health_summary", toolParams: { child_name: p.child_name || "" } };
+
+    case "queryChildren":
+      return { toolName: "get_children_info", toolParams: {} };
+
+    case "queryStatus":
+      return { toolName: "get_child_status", toolParams: { child_name: p.child_name || "" } };
+
+    case "queryHistory":
+      return {
+        toolName: "get_child_history",
+        toolParams: { child_name: p.child_name || "", days: Number(p.days) || 30 },
+      };
+
+    case "queryPending":
+      return { toolName: "get_pending_approvals", toolParams: {} };
 
     default:
       return null;

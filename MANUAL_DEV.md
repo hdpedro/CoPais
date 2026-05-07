@@ -613,6 +613,7 @@ Kindar/
     │   │       └── index.ts          # Factory com AI_MODE env flag
     │   ├── constants.ts              # COLORS, EXPENSE_CATEGORIES, CHECKIN_CATEGORIES, ACTIVITY_CATEGORIES, DEFAULT_CHECKLIST_ITEMS, PARENT_COLORS
     │   ├── calendar-utils.ts         # getDaysInMonth, getMonthGrid, buildCustodyMap, computeSwapBalance, getBrazilToday, getBrazilNow
+    │   ├── format.ts                  # formatCRM (strip prefixo CRM/CRO; espelhado em kindar-native/src/lib/format.ts)
     │   ├── recurrence-utils.ts       # getOccurrences, occursOnDate, getNextOccurrence, RECURRENCE_OPTIONS
     │   ├── push.ts                   # createNotificationWithPush (web-push VAPID)
     │   ├── auth-utils.ts             # verifyGroupMembership
@@ -1305,12 +1306,136 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 
 ### Assistente IA Kindar
 - **Assistente conversacional completo** com interface de chat, sugestoes rapidas, typing indicator e input por voz (Speech Recognition API)
+- **Pipeline local-first em 5 camadas** (`src/app/api/ai/assistant/route.ts` e `src/lib/whatsapp/processor.ts` com paridade):
+  1. **Multi-intent splitter** — divide mensagens em `e`/`+`/`;` e processa em paralelo. "quanto gastei e quem ta com o Bê?" → 2 respostas concatenadas.
+  2. **STEP 1a — `parseIntent` (regex)** — 13 padroes de criacao (`createExpense`, `createAppointment`, etc) com confidence ≥ 0.7. Bloqueado se `hasNegation(text)` (ex: "nao marquei consulta" nao cria nada). Pede confirmacao antes de executar.
+  3. **STEP 1b — `parseQueryIntent`** (`src/lib/ai/local-queries.ts`) — 30+ padroes de consulta/sintese/smalltalk/draft 100% determinisos:
+     - `query*` (9 actions) → mapeia para tool existente (`get_custody_info`, `get_expenses_summary`, `get_balance`, etc) e executa direto sem LLM.
+     - `custom*` (16 actions) → handlers locais sem tool:
+       - **Custodia**: `runCustodyCount` (quantos dias em junho), `runNextCustody` (proxima janela)
+       - **Sintese**: `runFamilySummary` (cross-domain), `runChildSummary`
+       - **Comunicacao**: `buildDraftMessage` (7 templates: atraso, troca, despesa, consulta, escola, comportamento, generico)
+       - **Smalltalk**: `buildHelpMessage`, `buildGreetingMessage`, `buildThanksMessage`
+       - **Eventos**: `runUpcomingBirthdays` (proximos aniversarios), `runWeekendPlan` (custodia+eventos sab/dom), `runExpenseComparison` (mes atual vs passado com %)
+       - **Novos**: `runSchoolInfo` (escola/serie/professor), `runRecentNotes` (anotacoes privadas), `runOpenDecisions` (votacoes em aberto), `runActiveAgreements` (acordos ativos), `runTodayNext` (proximo item da agenda hoje)
+  4. **STEP 1b' — `fuzzyMatchIntent`** (Nivel 2) — BM25-light com Levenshtein + stemming PT (`local-helpers.ts`):
+     - 9 entradas com keywords + IDF leve, threshold ≥ 1.3
+     - Camada 1: substring/prefix match (rapido)
+     - Camada 2: stem match — cobre "gastei"/"gastando"/"gasto" → raiz "gast"
+     - Camada 3: Levenshtein distance (typos: "vasina" → "vacina", "sado" → "saldo")
+     - Inclui girias e abreviacoes brasileiras (`tô`/`ta`/`fds`/`finde`/`netinho`/`rombo`/`torrei`)
+  5. **STEP 1c — Clarificacao automatica** — quando intent precisa de child mas o nome e ambiguo (`Bê` → Bernardo OU Beatriz), retorna pergunta `"Voce quer dizer **Bernardo** ou **Beatriz**?"`.
+  6. **STEP 1d — Follow-up via `assistant_session_state`** (TTL 30min, `migration 00072`):
+     - Carrega `lastIntent`, `lastParams`, `lastChildId` do par (user, group)
+     - "e em julho?" depois de "quantos dias em junho?" reusa intent + troca periodo
+     - Pronome ("ele tem alergia?") resolve pra ultimo child mencionado
+     - Salva state apos sucesso de qualquer intent local
+  7. **STEP 2 — AI Router** (so quando todas as camadas locais falham) — Groq → Together → Gemini.
+- **Datas avancadas** (`local-helpers.ts`): feriados BR via algoritmo de Gauss (`easterDate`, `brHolidays`), aliases ("carnaval", "pascoa", "tiradentes"), offsets relativos ("daqui 3 dias", "em 2 semanas"), ordinais ("primeiro fim de semana de junho", "ultima quinta de maio").
+- **i18n completo**: handlers locais respondem em `pt`/`en`/`es`/`fr`/`de` baseado em `profiles.locale`. Dicionario interno em `local-queries.ts` com strings tipadas via `Strings` interface.
+- **Logging granular**: `ai_requests.provider` distingue `local-regex`, `local-fuzzy`, `local-custom`, `local-fuzzy-custom`, `local-followup`, `local-followup-custom`, `local-multi`, `local-clarify` para medir precisao do parser local.
+- **Permutacoes cobertas**: apelidos (`Bê` → Bernardo via prefixo, com protecao contra colisao), papeis (`mãe`/`pai`/`ex`/`coparente` → resolvido), avos como destinatario de mensagem (`vovó`/`vovô`), periodos (`em junho`, `esse mes`, `fim de semana`, `mes que vem`, `semana passada`, `no mes de fevereiro`, `daqui 3 dias`, `no carnaval`), self-reference (`eu`/`comigo`/`meu`), pronomes (`ele`/`ela`/`dele`/`dela` resolvidos via session state).
+- **186 testes unitarios** especificos do parser local (137 em `local-queries.test.ts` + 49 em `local-helpers.test.ts`), 742 testes na suite total.
+
+#### Cobertura de cenarios (real-world, pais/maes/avos)
+
+**Smalltalk e onboarding**
+- Saudacoes com tom regional: "oi", "bom dia", "tche", "oxe", "mano", "salve familia", "fala ai", "qual a boa"
+- Help/comandos: "ajuda", "?", "o que voce faz", "como funciona", "comandos"
+- Agradecimentos: "valeu", "vlw", "obrigad[oa]", "brigado"
+
+**Custodia e calendario**
+- Hoje/amanha/dia X: "quem ta com o Bê hoje", "de quem e a vez", "guarda dia 15"
+- Contagem: "quantos dias tenho a guarda em junho", "quantos finais de semana fico com X"
+- Proxima janela: "quando vou pegar o Bê", "proxima vez que fico com ele"
+- Agenda: "o que tem essa semana", "proximos compromissos", "tem festa proxima"
+- Fim de semana: "planos do fim de semana", "o que vamos fazer no finde", "fds tem"
+- Dia comemorativo: "dia das maes", "quando cai o dia dos pais", "dia das criancas"
+
+**Despesas**
+- Resumo: "quanto gastei esse mes", "gastos com escola"
+- Saldo: "qual meu saldo", "estamos quites", "quanto eu devo pro Henrique", "quanto a Maria me deve"
+- Comparacao: "gastei mais que o mes passado", "esse mes foi maior"
+- Por pessoa: "quem pagou o que"
+
+**Saude**
+- Resumo: "como ta a saude do Bê", "alergias", "remedios", "proxima vacina"
+- Status simples: "ainda doente", "melhorou", "ainda com tosse"
+- Carteira de vacinacao: "carteira de vacinacao", "vacinas tomadas", "historico de vacinas"
+- Profissional: "telefone do pediatra", "whatsapp do oftalmo", "numero do dentista"
+
+**Crianca/familia**
+- Info: "informacoes do filho", "quantos anos o Bê tem", "qual a escola do Bê"
+- Status: "Bê ta doente", "como ta o Bê"
+- Historico: "historico do Bê", "ultima coisa que rolou com Bernardo"
+- Aniversario: "proximo aniversario", "quando e o aniversario do Bê", "que dia eh o aniversario"
+
+**Aprovacoes/decisoes/acordos**
+- Pendentes: "aprovacoes pendentes", "tem coisa pra aprovar", "trocas pendentes"
+- Decisoes abertas: "decisoes em aberto", "votacoes em aberto", "temos que decidir"
+- Acordos ativos: "quais nossos acordos", "regras da casa"
+
+**Documentos e endereco**
+- Documentos: "documentos do Bernardo", "onde ta o RG", "passaporte"
+- Endereco: "onde busco o Bê", "endereco da escola", "qual o endereco"
+- Notas: "minhas notas recentes", "ultimas anotacoes"
+
+**Sintese**
+- Familia: "resumo da familia esse mes"
+- Crianca: "como foi a semana do Bê"
+- Hoje: "tudo certo pra hoje", "panorama do dia", "como ta o dia"
+- Proximo da agenda: "proxima coisa de hoje", "o que vem agora"
+
+**Comunicacao (drafts determinisos com 11 templates)**
+- Atraso: "vou atrasar 15 minutos pra trocar"
+- Troca: "trocar dia 15 por 20"
+- Despesa nova: notificacao
+- Consulta agendada: notificacao
+- Material escolar
+- Comportamento/situacao
+- **Viagem com filho**: "viajar com o Bê entre X e Y"
+- **Autorizacao**: "preciso de uma autorizacao"
+- **Emergencia**: "emergencia, ele caiu"
+- **Parabens**: "texto pra dar parabens"
+- Generico (fallback)
+
+**Abreviacoes brasileiras de WhatsApp aceitas**
+- `vc`/`vcs` -> voce/voces
+- `tb`/`tbm` -> tambem
+- `q` -> que (com lookahead seguro)
+- `pq` -> porque
+- `oq` -> o que
+- `qto`/`qts` -> quanto/quantos
+- `qd`/`qdo` -> quando
+- `hj` -> hoje
+- `amh` -> amanha
+- `n` -> nao (com lookahead anti-Unicode)
+- `eh` -> e
+- `pra`/`pro` -> para/para o
+- `agt` -> a gente
+- `msm` -> mesmo
+- `vlw`/`blz`/`obg`/`tmj` -> valeu/beleza/obrigado/tamo junto
+- `dnv` -> de novo
+- `td`/`tds` -> tudo/todos
+- `qq` -> qualquer
+- `aki` -> aqui
+- `bb` -> bebe
+- `pedi`/`tel`/`dr`/`dra`/`doc` -> pediatra/telefone/doutor/doutora/documento
+
+**Girias regionais**
+- "trampo", "grana", "rombo", "torrei" (despesas)
+- "guri"/"guria", "moleque", "molecada", "pivete", "filhote" (criancas)
+- "netinho"/"netinha" (avos)
+- "fds"/"finde" (fim de semana)
+- "tche", "oxe", "mano", "salve" (saudacoes)
 - **Arquitetura AI centralizada** (`src/lib/ai/`): todo codigo de IA em modulo unico
   - `src/lib/ai/core/` — types, config, logger, usage tracking, service entry point (`generateAIResponse()`)
   - `src/lib/ai/providers/` — Groq, Together, Gemini providers
   - `src/lib/ai/router.ts` — multi-provider router (Groq → Together → Gemini fallback)
+  - `src/lib/ai/local-parser.ts` — parser regex de criacao (13 patterns PT-BR)
+  - `src/lib/ai/local-queries.ts` — parser de queries + handlers de sintese + templates de drafts + fuzzy matcher (Nivel 2)
   - `src/lib/ai/image-utils.ts` — compressao de imagem para vision APIs
-  - Arquivos migrados de `src/lib/`: `ai-actions.ts`, `ai-cache.ts`, `ai-context.ts`, `ai-local-parser.ts`, `ai-rate-limit.ts`, `ai-tools.ts`
+  - Arquivos migrados de `src/lib/`: `ai-actions.ts`, `ai-cache.ts`, `ai-context.ts`, `ai-rate-limit.ts`, `ai-tools.ts`
 - **Multi-provider AI Router**:
   - **Vision**: Groq `llama-4-scout` → Together `Llama-Vision-Free` → Gemini `gemini-2.0-flash`
   - **Text**: Groq `llama-3.3-70b` → Together `Llama-3.3-70B-Turbo-Free` → Gemini `gemini-2.0-flash`

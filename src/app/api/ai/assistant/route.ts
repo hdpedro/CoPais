@@ -10,6 +10,17 @@ import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { AI_TOOLS, executeTool } from "@/lib/ai/tools";
 import { aiRateLimiter } from "@/lib/ai/rate-limit";
 import { parseIntent } from "@/lib/ai/local-parser";
+import {
+  parseQueryIntent,
+  fuzzyMatchIntent,
+  dispatchCustomAction,
+  parseMultiIntent,
+  detectChildAmbiguity,
+  loadSessionState,
+  saveSessionState,
+  applyFollowUp,
+} from "@/lib/ai/local-queries";
+import { hasNegation } from "@/lib/ai/local-helpers";
 import { routeToolsRequest, routeTextRequest } from "@/lib/ai/router";
 import { logAIRequest } from "@/lib/ai/core/logger";
 import { canUseAI } from "@/lib/ai/core/usage";
@@ -158,12 +169,15 @@ export async function POST(req: NextRequest) {
     }
 
     /* ================================================================ */
-    /* STEP 1: Try LOCAL parsing                                        */
+    /* STEP 1a: LOCAL parser \u2014 actions (create*)                        */
     /* ================================================================ */
 
     const localIntent = parseIntent(userText, childNames, memberNames, "pt");
 
-    if (localIntent && localIntent.confidence >= 0.7) {
+    // Negação bloqueia creates ("não marquei consulta" não deve criar nada).
+    const negated = hasNegation(userText);
+
+    if (localIntent && localIntent.confidence >= 0.7 && !(localIntent.action.startsWith("create") && negated)) {
       const isActionIntent = localIntent.action.startsWith("create");
 
       if (isActionIntent) {
@@ -200,6 +214,135 @@ export async function POST(req: NextRequest) {
             role: "assistant",
             content: `\u2705 ${result.message}`,
           });
+        }
+      }
+    }
+
+    /* ================================================================ */
+    /* STEP 1b: LOCAL parser \u2014 queries + s\u00edntese + drafts (no LLM)      */
+    /* ================================================================ */
+
+    const queryParseCtx = {
+      children: toolCtx.children.map((c) => ({ id: c.id, name: c.name })),
+      members: toolCtx.members,
+      currentUserId: user.id,
+    };
+
+    // Multi-intent: se a mensagem tem 2+ perguntas em "e"/";"/"+", processa todas.
+    const multiIntents = parseMultiIntent(userText, queryParseCtx);
+    if (multiIntents.length >= 2) {
+      const results: string[] = [];
+      for (const intent of multiIntents) {
+        let result;
+        if (intent.action.startsWith("custom")) {
+          result = await dispatchCustomAction(intent, toolCtx);
+        } else {
+          const mapped = mapLocalActionToTool(
+            { action: intent.action, params: intent.params, confidence: intent.confidence },
+            toolCtx,
+          );
+          if (mapped) {
+            result = await executeTool(mapped.toolName, mapped.toolParams, toolCtx);
+          }
+        }
+        if (result?.success && result.message) results.push(result.message);
+      }
+      if (results.length >= 2) {
+        await logAIRequest({
+          userId: user.id,
+          groupId,
+          provider: "local-multi",
+          feature: "assistant_chat",
+          success: true,
+          responseTimeMs: Date.now() - start,
+        });
+        return NextResponse.json({
+          role: "assistant",
+          content: results.join("\n\n---\n\n"),
+        });
+      }
+    }
+
+    // Tenta follow-up usando session state ("e em julho?", "ele tem alergia?")
+    const sessionState = await loadSessionState(toolCtx);
+    const followUp = applyFollowUp(userText, sessionState, queryParseCtx);
+
+    let queryIntent = parseQueryIntent(userText, queryParseCtx);
+    let queryProvider = "local-regex";
+    if (!queryIntent) {
+      // N\u00edvel 2 \u2014 fuzzy fallback (ainda 100% local)
+      queryIntent = fuzzyMatchIntent(userText, queryParseCtx);
+      if (queryIntent) queryProvider = "local-fuzzy";
+    }
+    // N\u00edvel 3 \u2014 follow-up de session state se nada acertou
+    if (!queryIntent && followUp) {
+      queryIntent = followUp;
+      queryProvider = "local-followup";
+    }
+
+    // Detecta ambiguidade de crian\u00e7a quando intent precisaria de child mas
+    // n\u00e3o resolveu (ex: "sa\u00fade do B\u00ea" \u2014 Bernardo OU Beatriz).
+    if (queryIntent && !queryIntent.params.child_name && !queryIntent.params.childName) {
+      const requiresChild = ["queryHealth", "queryStatus", "queryHistory", "customChildSummary"];
+      if (requiresChild.includes(queryIntent.action)) {
+        const ambig = detectChildAmbiguity(userText, toolCtx.children);
+        if (ambig.ambiguous && ambig.candidates.length >= 2) {
+          const names = ambig.candidates.map((c) => c.name.split(" ")[0]).join(" ou ");
+          await logAIRequest({
+            userId: user.id,
+            groupId,
+            provider: "local-clarify",
+            feature: "assistant_chat",
+            success: true,
+            responseTimeMs: Date.now() - start,
+          });
+          return NextResponse.json({
+            role: "assistant",
+            content: `Voc\u00ea quer dizer **${names}**? Me confirma qual.`,
+          });
+        }
+      }
+    }
+
+    if (queryIntent && queryIntent.confidence >= 0.6) {
+      // Custom handlers (s\u00edntese, contagem de guarda, drafts) \u2014 n\u00e3o usam tool
+      if (queryIntent.action.startsWith("custom")) {
+        const result = await dispatchCustomAction(queryIntent, toolCtx);
+        if (result) {
+          await logAIRequest({
+            userId: user.id,
+            groupId,
+            provider: queryProvider === "local-fuzzy" ? "local-fuzzy-custom" : queryProvider === "local-followup" ? "local-followup-custom" : "local-custom",
+            feature: "assistant_chat",
+            success: result.success,
+            responseTimeMs: Date.now() - start,
+          });
+          // Persistir state pra follow-ups subsequentes
+          if (result.success) {
+            await saveSessionState(toolCtx, queryIntent).catch(() => {/* best effort */});
+          }
+          return NextResponse.json({ role: "assistant", content: result.message });
+        }
+      }
+
+      // Query mapeada pra tool existente
+      const mappedQuery = mapLocalActionToTool(
+        { action: queryIntent.action, params: queryIntent.params, confidence: queryIntent.confidence },
+        toolCtx,
+      );
+      if (mappedQuery) {
+        const result = await executeTool(mappedQuery.toolName, mappedQuery.toolParams, toolCtx);
+        await logAIRequest({
+          userId: user.id,
+          groupId,
+          provider: queryProvider,
+          feature: "assistant_tool",
+          success: result.success,
+          responseTimeMs: Date.now() - start,
+        });
+        if (result.success) {
+          await saveSessionState(toolCtx, queryIntent).catch(() => {/* best effort */});
+          return NextResponse.json({ role: "assistant", content: result.message });
         }
       }
     }
@@ -348,14 +491,14 @@ export async function POST(req: NextRequest) {
 
     if (isRateLimit) {
       return NextResponse.json(
-        { role: "assistant", content: "O assistente atingiu o limite temporario. Tente em alguns minutos. \u23F3" },
+        { error: "O assistente atingiu o limite temporario. Tente em alguns minutos. \u23F3" },
         { status: 429 }
       );
     }
 
     reportServerError(error, { filePath: "src/app/api/ai/assistant/route.ts" });
     return NextResponse.json(
-      { role: "assistant", content: "Desculpe, ocorreu um erro. Tente novamente. \uD83D\uDE4F" },
+      { error: "Desculpe, ocorreu um erro. Tente novamente. \uD83D\uDE4F" },
       { status: 500 }
     );
   }
