@@ -25,6 +25,7 @@
         "NSPhotoLibraryAddUsageDescription": "O Kindar salva imagens geradas pelo app na sua biblioteca de fotos quando você toca em Salvar — por exemplo, o resumo semanal da família em PDF, o comprovante consolidado de despesas do mês ou um relatório de saúde. Assim você mantém um backup local independente do app.",
         "NSCalendarsUsageDescription": "O Kindar sincroniza seus eventos de guarda compartilhada (ex: sextas no Lar A, dias de revezamento) e as atividades das crianças (ex: consulta dentista terça às 15h, aula de natação quinta às 17h) com o app Calendário do iPhone, para você visualizá-los junto com seus outros compromissos.",
         "NSCalendarsFullAccessUsageDescription": "O Kindar sincroniza seus eventos de guarda compartilhada (ex: sextas no Lar A, dias de revezamento) e as atividades das crianças (ex: consulta dentista terça às 15h, aula de natação quinta às 17h) com o app Calendário do iPhone, para você visualizá-los junto com seus outros compromissos.",
+        "NSFaceIDUsageDescription": "O Kindar usa Face ID para proteger seu acesso ao app. Os dados das crianças, conversas com o co-responsável, despesas e prontuário médico ficam bloqueados e só você pode desbloquear. Funciona como o WhatsApp e apps bancários.",
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -52,6 +53,12 @@
       "expo-font",
       "expo-secure-store",
       "expo-apple-authentication",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "O Kindar usa Face ID para proteger seu acesso ao app. Os dados das crianças, conversas com o co-responsável, despesas e prontuário médico ficam bloqueados e só você pode desbloquear."
+        }
+      ],
       [
         "expo-image-picker",
         {

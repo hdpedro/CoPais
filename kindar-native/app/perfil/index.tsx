@@ -178,6 +178,23 @@ export default function PerfilScreen() {
           </View>
         </View>
 
+        {/* Seguranca (Face ID / Touch ID) — padrao WhatsApp/apps bancarios.
+            Protege o app inteiro com biometria do dispositivo. */}
+        <TouchableOpacity onPress={() => router.push('/perfil/seguranca')}
+          testID="perfil-seguranca"
+          accessibilityLabel="Seguranca e bloqueio do app"
+          style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm,
+            flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <Ionicons name="lock-closed-outline" size={20} color={colors.brand} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: font.sizes.md, color: colors.text }}>Seguranca</Text>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
+              Bloqueio com Face ID / Touch ID
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+        </TouchableOpacity>
+
         {/* Subscription */}
         <TouchableOpacity onPress={() => router.push('/pricing')}
           style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm,

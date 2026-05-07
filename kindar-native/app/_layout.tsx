@@ -18,6 +18,7 @@ import { initializeIAP, identifyUser, resetUser } from '../src/services/iap';
 import { colors } from '../src/design-system/tokens';
 // AIFab removed 2026-05-05 — was overlapping buttons on other screens.
 import AIAssistantSheet from '../src/components/ai/AIAssistantSheet';
+import LockGate from '../src/components/LockGate';
 
 export default function RootLayout() {
   const { isLoading, initialize, userId } = useAuth();
@@ -106,6 +107,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        <LockGate>
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <Stack screenOptions={{
             headerShown: false,
@@ -144,6 +146,7 @@ export default function RootLayout() {
               (header sparkle button do dashboard, deep link /ai, etc.). */}
           <AIAssistantSheet />
         </View>
+        </LockGate>
         <StatusBar style="dark" />
       </GestureHandlerRootView>
     </ErrorBoundary>
