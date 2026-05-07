@@ -365,6 +365,104 @@ export function splitMultiIntent(text: string): string[] {
 }
 
 /* ------------------------------------------------------------------ */
+/* Off-topic detector — escopo do Kindar é APENAS criança/coparentalidade */
+/* ------------------------------------------------------------------ */
+
+export type OffTopicCategory =
+  | "weather"
+  | "marketplace"
+  | "politics"
+  | "sports"
+  | "medical_advice"
+  | "legal_advice"
+  | "finance_adult"
+  | "fitness_adult"
+  | "general_chitchat"
+  | null;
+
+interface OffTopicRule {
+  category: NonNullable<OffTopicCategory>;
+  patterns: RegExp[];
+  reply: string;
+}
+
+const OFF_TOPIC_RULES: OffTopicRule[] = [
+  {
+    category: "weather",
+    patterns: [
+      /\b(?:vai\s+chover|vai\s+fazer\s+(?:sol|frio|calor)|previsao\s+do\s+tempo|temperatura\s+(?:hoje|amanha|ontem)|tempo\s+(?:hoje|amanha)|chuva|chovendo|temporal|nublado|ensolarado|umidade)\b/,
+    ],
+    reply: "Não acompanho clima — pra previsão use o app de tempo do seu celular. Posso ajudar com agenda, saúde ou guarda dos filhos? 🌤️",
+  },
+  {
+    category: "marketplace",
+    patterns: [
+      /\b(?:indica[r]?(?:cao)?|recomenda[r]?(?:cao)?|qual\s+(?:o|a)\s+melhor|onde\s+(?:acho|encontro|tem)\s+um[a]?|melhor\s+(?:lugar|loja|restaurante|escola|pediatra)\b)|review\s+de|avaliacao\s+de\b/,
+    ],
+    reply: "Não faço indicações de serviços ou produtos. Pra escolher pediatra/escola/etc, conversa com pessoas próximas ou usa apps especializados. Posso te ajudar a registrar quando achar. 🤝",
+  },
+  {
+    category: "politics",
+    patterns: [
+      /\b(?:eleic|presidente|deputado|senador|prefeito|governador|governo|partido|esquerda|direita|votar\s+em|em\s+quem\s+votar|candidato|stf|congresso|impeachment)\b/,
+    ],
+    reply: "Não converso sobre política. Foco aqui é organizar a vida dos filhos. 🌱",
+  },
+  {
+    category: "sports",
+    patterns: [
+      /\b(?:jogo\s+do|placar|campeonato|libertadores|mundial|seleção|seleçao|copa\s+do\s+mundo|brasileirao|premiere\s+league|champions|nba|nfl|formula\s*1|f1)\b/,
+    ],
+    reply: "Esporte não é meu negócio aqui. Pra falar de filhos, sou eu. ⚽",
+  },
+  {
+    category: "medical_advice",
+    patterns: [
+      /\b(?:posso\s+dar\s+(?:dipirona|paracetamol|ibuprofeno|amoxicilina)|que\s+dose\s+de|qual\s+remedio\s+(?:eu\s+)?(?:posso|devo)|e\s+normal\s+(?:vomitar|chorar\s+tanto)|deveria\s+ir\s+(?:no\s+pronto|ao\s+ps))\b/,
+    ],
+    reply: "Não dou conselho médico. Isso é com o pediatra — chama ele ou vai ao pronto-socorro se for grave. Posso te ajudar a registrar o sintoma e marcar consulta? 🏥",
+  },
+  {
+    category: "legal_advice",
+    patterns: [
+      /\b(?:posso\s+processar|vou\s+processar|advogad[oa]|juiz|juiza|liminar|pensao\s+alimenticia|guarda\s+(?:compartilhada\s+e|unilateral|legal\s+)|direito\s+(?:dos\s+)?(?:pais?|maes?|filhos?)|custodia\s+(?:legal|judicial))\b/,
+    ],
+    reply: "Não dou orientação jurídica. Pra dúvidas legais sobre guarda, pensão ou direitos, fala com um(a) advogado(a) de família. Posso te ajudar a organizar registros que talvez sejam úteis. ⚖️",
+  },
+  {
+    category: "finance_adult",
+    patterns: [
+      /\b(?:investir|investiment|acoes\s+(?:da|de)|renda\s+fixa|renda\s+variavel|cdb|tesouro\s+direto|crypto|bitcoin|bolsa\s+de\s+valores|trading)\b/,
+    ],
+    reply: "Finanças pessoais não é meu escopo. Aqui eu cuido só das despesas dos filhos. 💸",
+  },
+  {
+    category: "fitness_adult",
+    patterns: [
+      /\b(?:minha\s+(?:dieta|academia|treino)|musculacao|emagrecer|perder\s+peso|crossfit|pilates\s+pra\s+mim|nutricao\s+(?:adulta|para\s+mim))\b/,
+    ],
+    reply: "Sou focado nos filhos, não em rotina de adulto. Pra isso, app de fitness/nutrição. 💪",
+  },
+  {
+    category: "general_chitchat",
+    patterns: [
+      /\b(?:me\s+conta\s+uma\s+piada|faz\s+um\s+poema|escreve\s+(?:uma\s+)?historia|me\s+diverte|conta\s+algo|que\s+(?:cor|filme|livro|musica)\s+(?:e\s+)?(?:o\s+)?(?:seu|melhor)|qual\s+(?:o\s+)?seu\s+(?:nome|favorito|signo))\b/,
+    ],
+    reply: "Sou direto: assistente do Kindar pra coparentalidade. Pra papo solto tem outras IAs. 😉",
+  },
+];
+
+export function detectOffTopic(text: string): { category: OffTopicCategory; reply: string | null } {
+  const n = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  for (const rule of OFF_TOPIC_RULES) {
+    for (const re of rule.patterns) {
+      if (re.test(n)) return { category: rule.category, reply: rule.reply };
+    }
+  }
+  return { category: null, reply: null };
+}
+
+/* ------------------------------------------------------------------ */
 /* Pronoun resolution                                                  */
 /* ------------------------------------------------------------------ */
 

@@ -20,7 +20,7 @@ import {
   saveSessionState,
   applyFollowUp,
 } from "@/lib/ai/local-queries";
-import { hasNegation } from "@/lib/ai/local-helpers";
+import { hasNegation, detectOffTopic } from "@/lib/ai/local-helpers";
 import { routeToolsRequest, routeTextRequest } from "@/lib/ai/router";
 import { logAIRequest } from "@/lib/ai/core/logger";
 import { canUseAI } from "@/lib/ai/core/usage";
@@ -345,6 +345,25 @@ export async function POST(req: NextRequest) {
           return NextResponse.json({ role: "assistant", content: result.message });
         }
       }
+    }
+
+    /* ================================================================ */
+    /* STEP 1e: Off-topic — escopo Kindar = filhos + coparentalidade.    */
+    /* Bloqueia chamada de LLM paga pra clima, marketplace, política,    */
+    /* esporte, conselho médico/jurídico, finanças adultas, etc.         */
+    /* ================================================================ */
+
+    const offTopic = detectOffTopic(userText);
+    if (offTopic.category) {
+      await logAIRequest({
+        userId: user.id,
+        groupId,
+        provider: `local-offtopic-${offTopic.category}`,
+        feature: "assistant_chat",
+        success: true,
+        responseTimeMs: Date.now() - start,
+      });
+      return NextResponse.json({ role: "assistant", content: offTopic.reply || "" });
     }
 
     /* ================================================================ */

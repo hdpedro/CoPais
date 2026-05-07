@@ -1330,7 +1330,12 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
      - "e em julho?" depois de "quantos dias em junho?" reusa intent + troca periodo
      - Pronome ("ele tem alergia?") resolve pra ultimo child mencionado
      - Salva state apos sucesso de qualquer intent local
-  7. **STEP 2 — AI Router** (so quando todas as camadas locais falham) — Groq → Together → Gemini.
+  7. **STEP 1e — Off-topic detector** (`detectOffTopic` em `local-helpers.ts`):
+     - Bloqueia chamada de LLM paga para perguntas fora do escopo Kindar (= filhos + coparentalidade).
+     - 9 categorias: `weather`, `marketplace`, `politics`, `sports`, `medical_advice`, `legal_advice`, `finance_adult`, `fitness_adult`, `general_chitchat`.
+     - Cada categoria tem resposta de redirecionamento padrao (sem LLM): "Não acompanho clima — pra previsão use o app de tempo do seu celular. Posso ajudar com agenda, saúde ou guarda dos filhos? 🌤️"
+     - Logging: `local-offtopic-${category}` em `ai_requests.provider` para metrificar.
+  8. **STEP 2 — AI Router** (so quando TUDO acima falhou) — Groq → Together → Gemini, com `buildSystemPrompt` reforçado: escopo estrito a filhos/coparentalidade, recusa cordial pra perguntas fora do escopo, redirecionamento explicito a profissional pra dúvidas médicas/jurídicas.
 - **Datas avancadas** (`local-helpers.ts`): feriados BR via algoritmo de Gauss (`easterDate`, `brHolidays`), aliases ("carnaval", "pascoa", "tiradentes"), offsets relativos ("daqui 3 dias", "em 2 semanas"), ordinais ("primeiro fim de semana de junho", "ultima quinta de maio").
 - **i18n completo**: handlers locais respondem em `pt`/`en`/`es`/`fr`/`de` baseado em `profiles.locale`. Dicionario interno em `local-queries.ts` com strings tipadas via `Strings` interface.
 - **Logging granular**: `ai_requests.provider` distingue `local-regex`, `local-fuzzy`, `local-custom`, `local-fuzzy-custom`, `local-followup`, `local-followup-custom`, `local-multi`, `local-clarify` para medir precisao do parser local.

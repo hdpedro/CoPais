@@ -131,3 +131,58 @@ describe("Pronouns", () => {
   it("'dela' → true", () => expect(hasPronoun("a saúde dela")).toBe(true));
   it("frase sem pronome → false", () => expect(hasPronoun("Bernardo tem 5 anos")).toBe(false));
 });
+
+import { detectOffTopic } from "../src/lib/ai/local-helpers";
+
+describe("Off-topic detector — escopo restrito", () => {
+  const cases: Array<[string, string]> = [
+    ["vai chover amanhã?", "weather"],
+    ["qual a previsão do tempo?", "weather"],
+    ["está chovendo?", "weather"],
+    ["indica um pediatra perto?", "marketplace"],
+    ["qual a melhor escola da região?", "marketplace"],
+    ["onde acho um dentista bom?", "marketplace"],
+    ["o que você acha do governo?", "politics"],
+    ["em quem votar?", "politics"],
+    ["qual o placar do jogo?", "sports"],
+    ["quem ganhou o brasileirão?", "sports"],
+    ["posso dar dipirona pro Bê?", "medical_advice"],
+    ["que dose de paracetamol?", "medical_advice"],
+    ["é normal vomitar tanto?", "medical_advice"],
+    ["posso processar a mãe dele?", "legal_advice"],
+    ["preciso de advogado", "legal_advice"],
+    ["devo investir em ações?", "finance_adult"],
+    ["quanto comprar de bitcoin?", "finance_adult"],
+    ["minha dieta tá ruim", "fitness_adult"],
+    ["meu treino de musculação", "fitness_adult"],
+    ["me conta uma piada", "general_chitchat"],
+    ["faz um poema", "general_chitchat"],
+    ["qual seu signo?", "general_chitchat"],
+  ];
+  for (const [text, expected] of cases) {
+    it(`"${text}" → ${expected}`, () => {
+      const r = detectOffTopic(text);
+      expect(r.category).toBe(expected);
+      expect(r.reply).toBeTruthy();
+    });
+  }
+});
+
+describe("Off-topic detector — não-falsos-positivos no escopo do app", () => {
+  // Coisas que NÃO devem ser off-topic (são pertinentes a coparentalidade/filhos)
+  const inScope = [
+    "quanto gastei esse mês?",
+    "tem festa de aniversário próxima?",
+    "como tá a saúde do Bê?",
+    "quando é a próxima consulta?",
+    "preciso falar com a mãe sobre escola",
+    "quais nossos acordos?",
+    "decisões em aberto",
+    "aniversário do Bernardo",
+  ];
+  for (const t of inScope) {
+    it(`"${t}" NÃO é off-topic`, () => {
+      expect(detectOffTopic(t).category).toBeNull();
+    });
+  }
+});

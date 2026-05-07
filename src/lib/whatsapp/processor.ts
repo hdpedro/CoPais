@@ -16,7 +16,7 @@ import {
   saveSessionState,
   applyFollowUp,
 } from "@/lib/ai/local-queries";
-import { hasNegation } from "@/lib/ai/local-helpers";
+import { hasNegation, detectOffTopic } from "@/lib/ai/local-helpers";
 import { AI_TOOLS, executeTool } from "@/lib/ai/tools";
 import { routeToolsRequest, routeTextRequest } from "@/lib/ai/router";
 import { logAIRequest } from "@/lib/ai/core/logger";
@@ -718,6 +718,24 @@ export async function processWhatsAppMessage(
       success: true,
       responseTimeMs: Date.now() - start,
     });
+    return;
+  }
+
+  /* ================================================================ */
+  /* Step 7a-3: Off-topic — escopo Kindar = filhos + coparentalidade   */
+  /* ================================================================ */
+
+  const waOffTopic = detectOffTopic(userText);
+  if (waOffTopic.category) {
+    await logAIRequest({
+      userId,
+      groupId,
+      provider: `local-offtopic-${waOffTopic.category}`,
+      feature: "assistant_chat",
+      success: true,
+      responseTimeMs: Date.now() - start,
+    });
+    await sendAndLog(supabase, phone, waOffTopic.reply || "", userId);
     return;
   }
 
