@@ -8,7 +8,9 @@ import type {
   Allergy,
   ActiveMedication,
   Vaccination,
+  MedicalProfessional,
 } from '../../services/children';
+import { formatCRM } from '../../lib/format';
 
 interface Props {
   childId: string;
@@ -17,6 +19,7 @@ interface Props {
   allergies: Allergy[];
   medications: ActiveMedication[];
   vaccinations: Vaccination[];
+  professionals: MedicalProfessional[];
 }
 
 function Section({ title, action, children }: { title: string; action?: { label: string; onPress: () => void }; children: React.ReactNode }) {
@@ -58,7 +61,7 @@ function Empty({ text }: { text: string }) {
   return <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted }}>{text}</Text>;
 }
 
-export default function TabSaude({ medicalInfo, latestGrowth, allergies, medications, vaccinations }: Props) {
+export default function TabSaude({ medicalInfo, latestGrowth, allergies, medications, vaccinations, professionals }: Props) {
   return (
     <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }} showsVerticalScrollIndicator={false}>
       {/* Quick stats grid */}
@@ -193,6 +196,48 @@ export default function TabSaude({ medicalInfo, latestGrowth, allergies, medicat
           ) : null}
         </Section>
       ) : null}
+
+      <Section
+        title={`Profissionais (${professionals.length})`}
+        action={{ label: 'Ver tudo', onPress: () => router.push('/saude/profissionais') }}
+      >
+        {professionals.length === 0 ? (
+          <Empty text="Nenhum profissional cadastrado." />
+        ) : (
+          professionals.slice(0, 3).map((p, idx) => {
+            const crm = formatCRM(p.crm);
+            const last = idx === Math.min(professionals.length, 3) - 1;
+            return (
+              <TouchableOpacity
+                key={p.id}
+                onPress={() => router.push('/saude/profissionais')}
+                activeOpacity={0.7}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  paddingVertical: spacing.sm,
+                  borderBottomWidth: last ? 0 : 0.5,
+                  borderBottomColor: colors.borderLight,
+                  gap: spacing.sm,
+                }}
+              >
+                <Text style={{ fontSize: 18 }}>👨‍⚕️</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: font.sizes.md, color: colors.text, fontWeight: '500' }} numberOfLines={1}>
+                    {p.name}
+                  </Text>
+                  {(p.specialty || crm) ? (
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>
+                      {[p.specialty, crm ? `CRM ${crm}` : null].filter(Boolean).join(' · ')}
+                    </Text>
+                  ) : null}
+                </View>
+                <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+              </TouchableOpacity>
+            );
+          })
+        )}
+      </Section>
     </ScrollView>
   );
 }

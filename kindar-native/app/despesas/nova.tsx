@@ -5,13 +5,13 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
-import { supabase } from '../../src/lib/supabase';
-import { createExpense, uploadExpenseReceipt } from '../../src/services/expenses';
-import { EXPENSE_CATEGORIES } from '../../src/lib/constants';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import { DatePickerField, dateToIso } from '../../src/components/ui/DateTimeField';
-import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { supabase } from 'src/lib/supabase';
+import { createExpense, uploadExpenseReceipt } from 'src/services/expenses';
+import { EXPENSE_CATEGORIES } from 'src/lib/constants';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 interface ChildOption { id: string; full_name: string; }
 interface MemberOption { user_id: string; name: string; }

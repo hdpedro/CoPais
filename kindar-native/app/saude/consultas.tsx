@@ -1,20 +1,20 @@
 /**
  * Consultas — Lista de consultas + criar nova.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps, react-hooks/preserve-manual-memoization */
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { supabase } from '../../src/lib/supabase';
-import { safeWrite } from '../../src/services/offline';
-import { notifyAction } from '../../src/services/notify';
-import { useAuth } from '../../src/store/auth';
-import { getDisplayName } from '../../src/lib/constants';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import { DatePickerField, TimePickerField, dateToIso } from '../../src/components/ui/DateTimeField';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { safeWrite } from 'src/services/offline';
+import { notifyAction } from 'src/services/notify';
+import { useAuth } from 'src/store/auth';
+import { getDisplayName } from 'src/lib/constants';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { DatePickerField, TimePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Appt { id: string; title: string; appointment_date: string; location: string | null; status: string; notes: string | null; childName: string; profName: string | null; child_id: string; }
 

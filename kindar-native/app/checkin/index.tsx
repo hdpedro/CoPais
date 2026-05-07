@@ -10,17 +10,17 @@ import {
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { supabase } from '../../src/lib/supabase';
-import { safeWrite } from '../../src/services/offline';
-import { notifyAction } from '../../src/services/notify';
-import { useAuth } from '../../src/store/auth';
-import { getDisplayName, CHECKIN_CATEGORIES } from '../../src/lib/constants';
-import { fetchChildren, type Child } from '../../src/services/children';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import FAB from '../../src/components/ui/FAB';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { DatePickerField, dateToIso } from '../../src/components/ui/DateTimeField';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { safeWrite } from 'src/services/offline';
+import { notifyAction } from 'src/services/notify';
+import { useAuth } from 'src/store/auth';
+import { getDisplayName, CHECKIN_CATEGORIES } from 'src/lib/constants';
+import { fetchChildren, type Child } from 'src/services/children';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import FAB from 'src/components/ui/FAB';
+import EmptyState from 'src/components/ui/EmptyState';
+import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface CheckinItem {
   id: string; category: string; title: string; notes: string | null;

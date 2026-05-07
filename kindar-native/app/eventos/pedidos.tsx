@@ -10,13 +10,13 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
+import { useAuth } from 'src/store/auth';
 import {
   fetchMyPendingEventRequests, respondToEventRequest, cancelEventRequest,
   type EventRequest,
-} from '../../src/services/event-requests';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/services/event-requests';
+import EmptyState from 'src/components/ui/EmptyState';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const ACTION_META: Record<string, { label: string; icon: string; color: string }> = {
   edit: { label: 'Editar', icon: '✏️', color: '#3B82F6' },

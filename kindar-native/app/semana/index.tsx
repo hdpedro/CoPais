@@ -24,14 +24,14 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { supabase } from '../../src/lib/supabase';
-import { useAuth } from '../../src/store/auth';
+import { supabase } from 'src/lib/supabase';
+import { useAuth } from 'src/store/auth';
 import {
   PARENT_COLORS, getDisplayName, getBrazilToday, formatDateKey,
-} from '../../src/lib/constants';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/lib/constants';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import EmptyState from 'src/components/ui/EmptyState';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 /* ─── Types ─── */
 interface Member { userId: string; name: string; color: string }

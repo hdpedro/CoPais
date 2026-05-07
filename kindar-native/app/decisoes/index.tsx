@@ -6,15 +6,15 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
+import { useAuth } from 'src/store/auth';
 import {
   fetchDecisions, createDecision, voteOnDecision, closeDecision,
   type Decision, type DecisionCategory, type VoteChoice,
-} from '../../src/services/decisions';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import FAB from '../../src/components/ui/FAB';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/services/decisions';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import FAB from 'src/components/ui/FAB';
+import EmptyState from 'src/components/ui/EmptyState';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
   escola: { icon: '🎒', color: '#3B82F6', label: 'Escola' },

@@ -31,18 +31,18 @@ import {
   purchasePackage,
   restore,
   PRODUCT_IDS,
-} from '../src/services/iap';
+} from 'src/services/iap';
 import {
   getBillingStatus,
   enableSubscriptionSplit,
   disableSubscriptionSplit,
   type BillingStatus,
   FREE_BILLING,
-} from '../src/services/billing';
-import { useAuth } from '../src/store/auth';
-import { supabase } from '../src/lib/supabase';
-import ScreenHeader from '../src/components/ui/ScreenHeader';
-import { colors, spacing, radius, font, shadows } from '../src/design-system/tokens';
+} from 'src/services/billing';
+import { useAuth } from 'src/store/auth';
+import { supabase } from 'src/lib/supabase';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface SplitMember {
   user_id: string;
@@ -131,7 +131,7 @@ export default function AssinaturaScreen() {
     } else {
       setSplitMembers([]);
     }
-  }, [activeGroup?.groupId, userId]);
+  }, [activeGroup, userId]);
 
   async function handleEnableSplit(coUserId: string) {
     if (!activeGroup?.groupId) return;

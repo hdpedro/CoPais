@@ -4,18 +4,18 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../src/store/auth';
+import { useAuth } from 'src/store/auth';
 import {
   fetchNotifications,
   markAsRead,
   markAllAsRead,
   subscribeToNotifications,
   type AppNotification,
-} from '../../src/services/notifications';
-import { clearBadge } from '../../src/services/push-setup';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { useI18n } from '../../src/i18n';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/services/notifications';
+import { clearBadge } from 'src/services/push-setup';
+import EmptyState from 'src/components/ui/EmptyState';
+import { useI18n } from 'src/i18n';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 // Fallback routes por type quando notification.link é null. Ordem de precedencia:
 // 1. notification.link (preferido — definido pela action que criou a notification)

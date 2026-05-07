@@ -8,9 +8,9 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
-import { fetchIllnesses, resolveIllness, addEvolutionQuick, type IllnessEpisode } from '../../src/services/health';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { fetchIllnesses, resolveIllness, addEvolutionQuick, type IllnessEpisode } from 'src/services/health';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const SEV_META: Record<string, { label: string; color: string }> = {
   mild: { label: 'Leve', color: '#4CAF50' },

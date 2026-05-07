@@ -5,13 +5,13 @@ import { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, ScrollView } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { supabase } from '../../src/lib/supabase';
-import { safeWrite } from '../../src/services/offline';
-import { notifyAction } from '../../src/services/notify';
-import { useAuth } from '../../src/store/auth';
-import { getDisplayName } from '../../src/lib/constants';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { safeWrite } from 'src/services/offline';
+import { notifyAction } from 'src/services/notify';
+import { useAuth } from 'src/store/auth';
+import { getDisplayName } from 'src/lib/constants';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Allergy { id: string; name: string; allergy_type: string; severity: string; reaction: string | null; childName: string; child_id: string; }
 

@@ -12,12 +12,12 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../src/lib/supabase';
-import { safeWrite } from '../../src/services/offline';
-import { notifyAction } from '../../src/services/notify';
-import { useAuth } from '../../src/store/auth';
-import { getDisplayName } from '../../src/lib/constants';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { safeWrite } from 'src/services/offline';
+import { notifyAction } from 'src/services/notify';
+import { useAuth } from 'src/store/auth';
+import { getDisplayName } from 'src/lib/constants';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 // PT-BR month names (matches PWA `calendar.monthNames` translation source).
 const MONTH_NAMES_PT = [
@@ -158,6 +158,7 @@ export default function ChatRoomScreen() {
   useEffect(() => {
     if (!channelId || !activeGroup) return;
     const myLoadId = ++loadIdRef.current;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
     setMessages([]); // clear immediately so the previous channel's bubbles disappear
     // Entering a channel clears its unread counter (mirrors PWA `ChatRoom.tsx` behavior).
@@ -213,7 +214,7 @@ export default function ChatRoomScreen() {
       if (loadIdRef.current !== myLoadId) return; // stale fetch
 
       // image_url is path-only after migration 062 — sign in parallel.
-      const { getSignedFileUrl } = await import('../../src/services/storage');
+      const { getSignedFileUrl } = await import('src/services/storage');
       const signed = await Promise.all((msgs || []).map(async (m: any) => ({
         ...m,
         image_url: m.image_url
@@ -233,7 +234,7 @@ export default function ChatRoomScreen() {
           .slice(-20)
           .map((m: any) => m.id as string);
         if (unreadIds.length > 0) {
-          const { apiFetch } = await import('../../src/lib/api-fetch');
+          const { apiFetch } = await import('src/lib/api-fetch');
           apiFetch('/api/chat/read', { method: 'POST', body: { messageIds: unreadIds } })
             .then(() => {}, () => {});
         }
@@ -282,7 +283,7 @@ export default function ChatRoomScreen() {
           if (msg.image_url.startsWith('http')) {
             imageUrl = msg.image_url;
           } else {
-            const { getSignedFileUrl } = await import('../../src/services/storage');
+            const { getSignedFileUrl } = await import('src/services/storage');
             imageUrl = (await getSignedFileUrl('documents', msg.image_url, 3600)) || msg.image_url;
           }
         }
@@ -297,7 +298,7 @@ export default function ChatRoomScreen() {
         });
         // Mark as read — single-id call to /api/chat/read (Wave I).
         if (userId && msg.sender_id !== userId) {
-          const { apiFetch } = await import('../../src/lib/api-fetch');
+          const { apiFetch } = await import('src/lib/api-fetch');
           apiFetch('/api/chat/read', { method: 'POST', body: { messageIds: [msg.id] } })
             .then(() => {}, () => {});
         }
@@ -380,7 +381,7 @@ export default function ChatRoomScreen() {
       return;
     }
     toneTimerRef.current = setTimeout(async () => {
-      const { analyzeTone } = await import('../../src/lib/tone-moderator');
+      const { analyzeTone } = await import('src/lib/tone-moderator');
       const result = analyzeTone(text);
       setToneResult({ isAggressive: result.isAggressive, suggestion: result.suggestion });
       setShowSuggestion(result.isAggressive);

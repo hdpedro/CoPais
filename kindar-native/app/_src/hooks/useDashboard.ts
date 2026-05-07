@@ -25,13 +25,18 @@ interface CustodyChild {
   color: string;
 }
 
+/** Estado de uma atividade no dia atual. So preenchido para `todayActivities`. */
+export type TodayActivityState = 'upcoming' | 'ended-unreported' | 'ended-reported';
+
 interface ActivityItem {
   id: string;
   name: string;
   category: string;
   childName: string;
+  childId: string | null;
   timeStr: string;
   location: string;
+  state?: TodayActivityState;
 }
 
 interface ChildHealthSummary {
@@ -214,13 +219,13 @@ export function useDashboard() {
         // .eq('status','active') silently returned 0 rows and hid the day card.
         // Same query shape as line 354 below — kept consistent on purpose.
         supabase.from('calendar_occurrences')
-          .select('id, activity_id, occurrence_date, child_activities(id, name, category, time_start, time_end, location, children(full_name))')
+          .select('id, activity_id, occurrence_date, child_activities(id, name, category, time_start, time_end, location, child_id, children(full_name))')
           .eq('group_id', groupId)
           .eq('occurrence_date', today)
           .limit(20)
           .then(r => r, () => ({ data: [] as never[] })),
         supabase.from('calendar_occurrences')
-          .select('id, activity_id, occurrence_date, child_activities(id, name, category, time_start, time_end, location, children(full_name))')
+          .select('id, activity_id, occurrence_date, child_activities(id, name, category, time_start, time_end, location, child_id, children(full_name))')
           .eq('group_id', groupId)
           .eq('occurrence_date', tomorrowStr)
           .limit(20)
@@ -389,9 +394,12 @@ export function useDashboard() {
         }
       }
 
-      // Pending activity reports: for each recurring activity, find occurrences
-      // in the last 7 days (excluding today) that have no activity_report row.
+      // Pending activity reports: ocorrencias de DIAS PASSADOS (>=7d ago,
+      // <today) sem activity_report. Atividades de HOJE encerradas ficam na
+      // secao "Atividades de hoje" com pill "Relatar" inline (state-aware
+      // rendering em (tabs)/index.tsx). Sem duplicacao entre as duas secoes.
       const pendingReports: PendingReport[] = [];
+      const todayReportedActivityIds = new Set<string>();
       try {
         const weekAgo = new Date();
         weekAgo.setDate(weekAgo.getDate() - 7);
@@ -400,7 +408,7 @@ export function useDashboard() {
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = formatDateKey(yesterday);
 
-        const [{ data: pastOccs }, { data: existingReports }] = await Promise.all([
+        const [{ data: pastOccs }, { data: existingReports }, { data: todayReportsData }] = await Promise.all([
           // NOTE: calendar_occurrences has NO status column (see migration
           // 00038_calendar_occurrences.sql) — filtering by status silently
           // returned 0 rows and hid the Pendentes section. Mirror the PWA
@@ -420,7 +428,18 @@ export function useDashboard() {
             .lte('occurrence_date', yesterdayStr)
             .limit(200)
             .then(r => r, () => ({ data: [] as never[] })),
+          // Reports de HOJE — usados pra marcar visualmente atividades ja
+          // relatadas (mostra check + line-through), distinguindo das que
+          // ainda precisam de Relatar (mostra pill amber).
+          supabase.from('activity_reports')
+            .select('activity_id')
+            .eq('group_id', groupId)
+            .eq('occurrence_date', today)
+            .limit(50)
+            .then(r => r, () => ({ data: [] as never[] })),
         ]);
+
+        for (const r of (todayReportsData as any[])) todayReportedActivityIds.add(r.activity_id);
 
         const reported = new Set((existingReports || []).map((r: any) => `${r.activity_id}__${r.occurrence_date}`));
         const seenKeys = new Set<string>();
@@ -444,8 +463,20 @@ export function useDashboard() {
         }
       } catch { /* pending reports are a nice-to-have */ }
 
-      // Map occurrences to ActivityItems
-      const mapOccurrences = (occs: any[]): ActivityItem[] =>
+      // Map occurrences to ActivityItems. Para hoje, classificamos o estado
+      // (upcoming / ended-unreported / ended-reported) pra a UI distinguir
+      // visualmente e oferecer "Relatar" inline em encerradas-sem-relato.
+      const realNowMinutes = new Date().getHours() * 60 + new Date().getMinutes();
+      const classifyTodayState = (act: any): TodayActivityState => {
+        const endStr: string | null = act?.time_end || act?.time_start;
+        if (!endStr) return 'upcoming';
+        const [h, m] = String(endStr).split(':').map(Number);
+        const endMin = h * 60 + (m || 0);
+        if (endMin > realNowMinutes) return 'upcoming';
+        return todayReportedActivityIds.has(act.id) ? 'ended-reported' : 'ended-unreported';
+      };
+
+      const mapOccurrences = (occs: any[], isToday: boolean): ActivityItem[] =>
         (occs || []).map((o: any) => {
           const act = o.child_activities;
           return {
@@ -453,8 +484,10 @@ export function useDashboard() {
             name: act?.name || '',
             category: act?.category || 'other',
             childName: getDisplayName(act?.children?.full_name),
+            childId: act?.child_id || null,
             timeStr: act?.time_start ? act.time_start.slice(0, 5) : '',
             location: act?.location || '',
+            state: isToday ? classifyTodayState(act) : undefined,
           };
         }).filter((a: ActivityItem) => a.name);
 
@@ -602,8 +635,8 @@ export function useDashboard() {
         streakTotal,
         endDateLabel,
         children: children || [],
-        todayActivities: mapOccurrences(todayOccurrences || []),
-        tomorrowActivities: mapOccurrences(tomorrowOccurrences || []),
+        todayActivities: mapOccurrences(todayOccurrences || [], true),
+        tomorrowActivities: mapOccurrences(tomorrowOccurrences || [], false),
         members: memberList,
         groupName: activeGroup.groupName || 'Familia',
         memberCount: memberList.length,

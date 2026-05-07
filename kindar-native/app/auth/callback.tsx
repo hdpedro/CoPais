@@ -12,8 +12,8 @@
 import { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, Linking } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
-import { supabase } from '../../src/lib/supabase';
-import { colors, spacing, font } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { colors, spacing, font } from 'src/design-system/tokens';
 
 function extractTokensFromUrl(urlString: string): { accessToken: string | null; refreshToken: string | null; errorCode: string | null } {
   try {

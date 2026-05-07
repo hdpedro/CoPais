@@ -11,10 +11,10 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../../src/store/auth';
-import { createIllness } from '../../../src/services/health';
-import { fetchChildren, type Child } from '../../../src/services/children';
-import { colors, spacing, radius, font } from '../../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { createIllness } from 'src/services/health';
+import { fetchChildren, type Child } from 'src/services/children';
+import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const SEVERITIES: { value: 'mild' | 'moderate' | 'severe'; label: string; color: string; icon: string }[] = [
   { value: 'mild', label: 'Leve', color: '#4CAF50', icon: '🟢' },

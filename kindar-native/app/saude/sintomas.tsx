@@ -11,10 +11,10 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
-import { fetchSymptoms, createSymptomEntry, type SymptomEntry } from '../../src/services/health';
-import { fetchChildren, type Child } from '../../src/services/children';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { fetchSymptoms, createSymptomEntry, type SymptomEntry } from 'src/services/health';
+import { fetchChildren, type Child } from 'src/services/children';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const SYMPTOM_TYPES: { value: string; label: string; icon: string; color: string }[] = [
   { value: 'febre', label: 'Febre', icon: '🌡️', color: '#E53935' },

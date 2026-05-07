@@ -18,9 +18,9 @@
 import { useEffect } from 'react';
 import { View } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
-import { useAuth } from '../../src/store/auth';
-import ActivityDetailSheet from '../../src/components/activities/ActivityDetailSheet';
-import { colors } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import ActivityDetailSheet from 'src/components/activities/ActivityDetailSheet';
+import { colors } from 'src/design-system/tokens';
 
 export default function ActivityDetailScreen() {
   const params = useLocalSearchParams<{ id: string; date?: string }>();

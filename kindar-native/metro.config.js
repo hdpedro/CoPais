@@ -27,20 +27,24 @@ const path = require('path');
 const projectRoot = __dirname;
 const config = getDefaultConfig(projectRoot);
 
-// watchFolders: ainda incluimos src/ pra hot-reload local funcionar.
+// CAUSA RAIZ DO BUG EAS (descoberta em build #66/#67 com diagnostic ls):
+// EAS upload mantem APENAS `app/` e `assets/` populados no worker. Toda
+// outra pasta (incluindo `src/`) chega VAZIA. Heuristica do upload ignora
+// folders nao-canonicos do Expo. Por isso movemos `src/` -> `app/_src/`
+// (commit ?) — agora vai junto no upload do `app/`.
+//
+// extraNodeModules.src aponta pra novo local. Imports estilo modulo
+// `import 'src/lib/X'` resolvem pra app/_src/lib/X. Imports relativos
+// `../../src/X` foram bulk-rewritten pra `src/X`.
 config.watchFolders = [
   ...(config.watchFolders || []),
-  path.join(projectRoot, 'src'),
+  path.join(projectRoot, 'app', '_src'),
 ];
 
-// extraNodeModules: faz Metro tratar 'src' como pacote node_modules.
-// Quando algum arquivo faz `import 'src/lib/supabase'`, Metro resolve via
-// extraNodeModules['src'] -> <projectRoot>/src/lib/supabase. Sem ..
-// relatives, sem cross-dir issues no worker EAS.
 config.resolver = config.resolver || {};
 config.resolver.extraNodeModules = {
   ...(config.resolver.extraNodeModules || {}),
-  src: path.join(projectRoot, 'src'),
+  src: path.join(projectRoot, 'app', '_src'),
 };
 
 module.exports = config;

@@ -6,13 +6,13 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useAuth } from '../../src/store/auth';
-import { fetchEvents, updateEvent, deleteEvent, type SocialEvent } from '../../src/services/events';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import FAB from '../../src/components/ui/FAB';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { DatePickerField, TimePickerField } from '../../src/components/ui/DateTimeField';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { fetchEvents, updateEvent, deleteEvent, type SocialEvent } from 'src/services/events';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import FAB from 'src/components/ui/FAB';
+import EmptyState from 'src/components/ui/EmptyState';
+import { DatePickerField, TimePickerField } from 'src/components/ui/DateTimeField';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 function formatDate(d: string) {
   const [y, m, day] = d.split('-');

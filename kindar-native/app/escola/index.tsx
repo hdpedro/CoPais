@@ -16,17 +16,17 @@ import {
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
-import { fetchChildren, fetchChildEducation, upsertChildEducation, type ChildEducation } from '../../src/services/children';
+import { useAuth } from 'src/store/auth';
+import { fetchChildren, fetchChildEducation, upsertChildEducation, type ChildEducation } from 'src/services/children';
 import {
   fetchSchoolLogs, createSchoolLog, updateSchoolLog, deleteSchoolLog, toggleSchoolLogCompleted,
   EVENT_SUBTYPES, NOTE_SUBTYPES, SUBTYPE_LABEL, SUBTYPE_ICON, SUBTYPE_HINT, getKind,
   type SchoolLog, type SchoolLogType, type SchoolKind,
-} from '../../src/services/school';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { TimePickerField, DatePickerField } from '../../src/components/ui/DateTimeField';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/services/school';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import EmptyState from 'src/components/ui/EmptyState';
+import { TimePickerField, DatePickerField } from 'src/components/ui/DateTimeField';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface ChildSchool {
   childId: string;

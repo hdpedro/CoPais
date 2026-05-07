@@ -14,12 +14,12 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../src/store/auth';
-import { useHealth } from '../../src/hooks/useHealth';
-import { safeWrite } from '../../src/services/offline';
-import { notifyAction } from '../../src/services/notify';
-import { getBrazilToday } from '../../src/lib/constants';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { useHealth } from 'src/hooks/useHealth';
+import { safeWrite } from 'src/services/offline';
+import { notifyAction } from 'src/services/notify';
+import { getBrazilToday } from 'src/lib/constants';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 type EventType = 'illness' | 'medication' | 'appointment' | 'observation';
 
@@ -38,7 +38,7 @@ export default function RegistrarScreen() {
   const [eventType, setEventType] = useState<EventType | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
+  const [, setError] = useState('');
 
   // Form fields
   const [title, setTitle] = useState('');

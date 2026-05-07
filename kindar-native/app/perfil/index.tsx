@@ -3,12 +3,12 @@ import { View, Text, ScrollView, TouchableOpacity, TextInput, ActivityIndicator,
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useAuth } from '../../src/store/auth';
-import { safeWrite } from '../../src/services/offline';
-import { useI18n } from '../../src/i18n';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import WhatsAppLinkSection from '../../src/components/profile/WhatsAppLinkSection';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { safeWrite } from 'src/services/offline';
+import { useI18n } from 'src/i18n';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import WhatsAppLinkSection from 'src/components/profile/WhatsAppLinkSection';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 const PRIVACY_URL = `${WEB_URL}/privacidade`;

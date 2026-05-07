@@ -11,17 +11,17 @@ import * as WebBrowser from 'expo-web-browser';
 import { Ionicons } from '@expo/vector-icons';
 
 const REMEMBER_KEY = '@kindar_remember_email';
-import { useAuth } from '../../src/store/auth';
+import { useAuth } from 'src/store/auth';
 import {
   signInWithApple,
   signInWithGoogleToken,
   GOOGLE_IOS_CLIENT_ID_EXPORTED,
   GOOGLE_ANDROID_CLIENT_ID_EXPORTED,
   GOOGLE_SIGN_IN_CONFIGURED,
-} from '../../src/services/social-auth';
-import { supabase } from '../../src/lib/supabase';
-import { useI18n } from '../../src/i18n';
-import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+} from 'src/services/social-auth';
+import { supabase } from 'src/lib/supabase';
+import { useI18n } from 'src/i18n';
+import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 // Required by expo-auth-session: completes the in-app browser session
 // once Google's redirect lands back in the app (kindar:// scheme).

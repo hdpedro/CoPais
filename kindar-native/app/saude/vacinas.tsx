@@ -1,20 +1,20 @@
 /**
  * Vacinas — Lista de vacinacao + registrar nova.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps, react-hooks/preserve-manual-memoization */
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { supabase } from '../../src/lib/supabase';
-import { safeWrite } from '../../src/services/offline';
-import { useAuth } from '../../src/store/auth';
-import { getDisplayName } from '../../src/lib/constants';
+import { supabase } from 'src/lib/supabase';
+import { safeWrite } from 'src/services/offline';
+import { useAuth } from 'src/store/auth';
+import { getDisplayName } from 'src/lib/constants';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import { DatePickerField, dateToIso } from '../../src/components/ui/DateTimeField';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Vaccine { id: string; vaccine_name: string; dose_label: string | null; administered_date: string; location: string | null; childName: string; }
 

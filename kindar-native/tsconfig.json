@@ -4,10 +4,10 @@
     "strict": true,
     "paths": {
       "@/*": [
-        "./src/*"
+        "./app/_src/*"
       ],
       "src/*": [
-        "./src/*"
+        "./app/_src/*"
       ]
     }
   },

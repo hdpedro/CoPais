@@ -11,13 +11,13 @@ import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../src/store/auth';
+import { useAuth } from 'src/store/auth';
 import {
   fetchDecisions, fetchArguments, postArgument, voteOnDecision, closeDecision,
   type Decision, type DecisionArgument, type VoteChoice,
-} from '../../src/services/decisions';
-import { supabase } from '../../src/lib/supabase';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/services/decisions';
+import { supabase } from 'src/lib/supabase';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
   escola: { icon: '🎒', color: '#3B82F6', label: 'Escola' },

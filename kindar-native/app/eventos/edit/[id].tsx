@@ -16,12 +16,12 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../../src/store/auth';
-import { supabase } from '../../../src/lib/supabase';
-import { updateEvent } from '../../../src/services/events';
-import { getDisplayName } from '../../../src/lib/constants';
-import { DatePickerField, TimePickerField } from '../../../src/components/ui/DateTimeField';
-import { colors, spacing, radius, font, shadows } from '../../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { supabase } from 'src/lib/supabase';
+import { updateEvent } from 'src/services/events';
+import { getDisplayName } from 'src/lib/constants';
+import { DatePickerField, TimePickerField } from 'src/components/ui/DateTimeField';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Member { user_id: string; name: string; }
 interface Child { id: string; name: string; }

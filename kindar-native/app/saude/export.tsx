@@ -11,10 +11,10 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
-import { supabase } from '../../src/lib/supabase';
-import { fetchChildren, type Child } from '../../src/services/children';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { supabase } from 'src/lib/supabase';
+import { fetchChildren, type Child } from 'src/services/children';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 

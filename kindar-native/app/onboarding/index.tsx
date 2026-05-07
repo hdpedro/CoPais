@@ -3,11 +3,11 @@ import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../src/lib/supabase';
-import { useAuth } from '../../src/store/auth';
-import { markQuestStep } from '../../src/services/quest';
-import { useI18n } from '../../src/i18n';
-import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { useAuth } from 'src/store/auth';
+import { markQuestStep } from 'src/services/quest';
+import { useI18n } from 'src/i18n';
+import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 

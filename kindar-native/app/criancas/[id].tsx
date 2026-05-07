@@ -14,17 +14,17 @@
 import { useEffect, useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
-import { useAuth } from '../../src/store/auth';
-import { fetchChildDetail, type ChildDetail } from '../../src/services/children';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import ChildHeader from '../../src/components/criancas/ChildHeader';
-import TabBar, { type ChildTab } from '../../src/components/criancas/TabBar';
-import TabGeral from '../../src/components/criancas/TabGeral';
-import TabSaude from '../../src/components/criancas/TabSaude';
-import TabDocumentos from '../../src/components/criancas/TabDocumentos';
-import TabEducacao from '../../src/components/criancas/TabEducacao';
-import UploadSheet from '../../src/components/criancas/UploadSheet';
-import { colors, spacing, font } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { fetchChildDetail, type ChildDetail } from 'src/services/children';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import ChildHeader from 'src/components/criancas/ChildHeader';
+import TabBar, { type ChildTab } from 'src/components/criancas/TabBar';
+import TabGeral from 'src/components/criancas/TabGeral';
+import TabSaude from 'src/components/criancas/TabSaude';
+import TabDocumentos from 'src/components/criancas/TabDocumentos';
+import TabEducacao from 'src/components/criancas/TabEducacao';
+import UploadSheet from 'src/components/criancas/UploadSheet';
+import { colors, spacing, font } from 'src/design-system/tokens';
 
 export default function ChildDetailScreen() {
   const { id, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: ChildTab }>();
@@ -100,7 +100,7 @@ export default function ChildDetailScreen() {
     );
   }
 
-  const { child, medicalInfo, latestGrowth, allergies, medications, vaccinations, documents, education } = data;
+  const { child, medicalInfo, latestGrowth, allergies, medications, vaccinations, documents, education, professionals } = data;
 
   return (
     <View testID="child-detail-screen" style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -128,6 +128,7 @@ export default function ChildDetailScreen() {
             allergies={allergies}
             medications={medications}
             vaccinations={vaccinations}
+            professionals={professionals}
           />
         </ScrollView>
       )}

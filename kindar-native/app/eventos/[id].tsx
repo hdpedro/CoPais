@@ -15,8 +15,8 @@ import { Stack, router, useFocusEffect, useLocalSearchParams } from 'expo-router
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { fetchEventDetail, deleteEvent } from '../../src/services/events';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { fetchEventDetail, deleteEvent } from 'src/services/events';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 type EventDetail = NonNullable<Awaited<ReturnType<typeof fetchEventDetail>>>;
 

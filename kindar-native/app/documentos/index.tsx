@@ -24,18 +24,18 @@ import {
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
-import { fetchChildren, type Child } from '../../src/services/children';
+import { useAuth } from 'src/store/auth';
+import { fetchChildren, type Child } from 'src/services/children';
 import {
   fetchDocuments,
   deleteDocument,
   DOCUMENT_CATEGORIES,
   type Document,
-} from '../../src/services/documents';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import EmptyState from '../../src/components/ui/EmptyState';
-import UploadSheet from '../../src/components/criancas/UploadSheet';
-import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+} from 'src/services/documents';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import EmptyState from 'src/components/ui/EmptyState';
+import UploadSheet from 'src/components/criancas/UploadSheet';
+import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const CATEGORY_BY_VALUE = Object.fromEntries(DOCUMENT_CATEGORIES.map((c) => [c.value, c]));
 
@@ -113,7 +113,7 @@ export default function DocumentosScreen() {
 
   async function handleOpen(doc: Document) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const { getSignedFileUrl } = await import('../../src/services/storage');
+    const { getSignedFileUrl } = await import('src/services/storage');
     const signed = await getSignedFileUrl('documents', doc.file_url, 3600);
     const target = signed || doc.file_url;
     Linking.openURL(target).catch(() => Alert.alert('Erro', 'Não foi possível abrir.'));

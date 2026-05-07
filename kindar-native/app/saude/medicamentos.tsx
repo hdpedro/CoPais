@@ -1,7 +1,7 @@
 /**
  * Medicamentos — Lista + criar + confirm dose tracking (paridade PWA).
  */
-/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps, react-hooks/preserve-manual-memoization */
+/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, ActivityIndicator, Modal, ScrollView,
@@ -9,14 +9,14 @@ import {
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../src/lib/supabase';
-import { safeWrite } from '../../src/services/offline';
-import { notifyAction } from '../../src/services/notify';
-import { logMedicationDose } from '../../src/services/health';
-import { useAuth } from '../../src/store/auth';
-import { getDisplayName, getBrazilToday } from '../../src/lib/constants';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { safeWrite } from 'src/services/offline';
+import { notifyAction } from 'src/services/notify';
+import { logMedicationDose } from 'src/services/health';
+import { useAuth } from 'src/store/auth';
+import { getDisplayName, getBrazilToday } from 'src/lib/constants';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Med {
   id: string; name: string; dosage: string; frequency: string; status: string;

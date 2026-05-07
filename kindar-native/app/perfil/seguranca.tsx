@@ -20,10 +20,10 @@ import { useEffect, useState } from 'react';
 import { View, Text, ScrollView, Switch, TouchableOpacity, Alert, ActivityIndicator, Platform, Linking } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import { useLock, TIMEOUT_LABELS, type LockTimeout } from '../../src/store/lock';
-import { authenticate, getBiometricCapability, type BiometricCapability } from '../../src/services/biometric-lock';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useLock, TIMEOUT_LABELS, type LockTimeout } from 'src/store/lock';
+import { authenticate, getBiometricCapability, type BiometricCapability } from 'src/services/biometric-lock';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const TIMEOUT_OPTIONS: { value: LockTimeout; description: string }[] = [
   { value: 'immediate', description: 'Mais seguro — pede sempre que abrir o app' },

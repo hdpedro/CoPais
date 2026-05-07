@@ -17,13 +17,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useAuth } from '../../src/store/auth';
-import { getUserSubscription, type UserSubscription } from '../../src/services/payments';
-import { getAvailablePackages, purchasePackage, restore } from '../../src/services/iap';
+import { useAuth } from 'src/store/auth';
+import { getUserSubscription, type UserSubscription } from 'src/services/payments';
+import { getAvailablePackages, purchasePackage, restore } from 'src/services/iap';
 import type { PurchasesPackage } from 'react-native-purchases';
-import { supabase } from '../../src/lib/supabase';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 

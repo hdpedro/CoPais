@@ -9,12 +9,12 @@ import {
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
-import { fetchNotes, createNote, updateNote, deleteNote, type Note } from '../../src/services/notes';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import FAB from '../../src/components/ui/FAB';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { fetchNotes, createNote, updateNote, deleteNote, type Note } from 'src/services/notes';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import FAB from 'src/components/ui/FAB';
+import EmptyState from 'src/components/ui/EmptyState';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 // Categories must match the CHECK constraint on private_notes.category
 // (migration 00019). Aligning the labels with the PWA prevents UX drift

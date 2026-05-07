@@ -10,15 +10,15 @@ import {
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
+import { useAuth } from 'src/store/auth';
 import {
   fetchAgreements, createAgreement, acceptAgreement, deleteAgreement,
   type Agreement, type AgreementCategory,
-} from '../../src/services/agreements';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import FAB from '../../src/components/ui/FAB';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/services/agreements';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import FAB from 'src/components/ui/FAB';
+import EmptyState from 'src/components/ui/EmptyState';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const CAT_META: Record<string, { label: string; icon: string; color: string }> = {
   principle: { label: 'Principio', icon: '🌟', color: '#8B5CF6' },

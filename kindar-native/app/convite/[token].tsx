@@ -7,9 +7,9 @@ import { View, Text, TouchableOpacity, ActivityIndicator, Alert } from 'react-na
 import { useLocalSearchParams, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useAuth } from '../../src/store/auth';
-import { acceptInvitation } from '../../src/services/invitations';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { acceptInvitation } from 'src/services/invitations';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 export default function AceitarConviteScreen() {
   const insets = useSafeAreaInsets();

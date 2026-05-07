@@ -25,15 +25,15 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../src/lib/supabase';
-import { useAuth } from '../../src/store/auth';
-import { fetchFinancialSummary, fetchMonthlySpending } from '../../src/services/expenses';
+import { supabase } from 'src/lib/supabase';
+import { useAuth } from 'src/store/auth';
+import { fetchFinancialSummary, fetchMonthlySpending } from 'src/services/expenses';
 import {
   listSettlements, createSettlement, confirmSettlement, computeBalanceOwed,
   type Settlement,
-} from '../../src/services/settlements';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/services/settlements';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface MemberOption {
   user_id: string;

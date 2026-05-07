@@ -6,18 +6,18 @@ import {
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
-import { useAuth } from '../../src/store/auth';
+import { useAuth } from 'src/store/auth';
 import {
   fetchActivities, updateActivity, deleteActivity, type Activity,
-} from '../../src/services/activities';
-import { ACTIVITY_CATEGORIES } from '../../src/lib/constants';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import FAB from '../../src/components/ui/FAB';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { TimePickerField, dateToIso } from '../../src/components/ui/DateTimeField';
-import ActivityReportModal from '../../src/components/activities/ActivityReportModal';
-import ActivityChecklistModal from '../../src/components/activities/ActivityChecklistModal';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/services/activities';
+import { ACTIVITY_CATEGORIES } from 'src/lib/constants';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import FAB from 'src/components/ui/FAB';
+import EmptyState from 'src/components/ui/EmptyState';
+import { TimePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import ActivityReportModal from 'src/components/activities/ActivityReportModal';
+import ActivityChecklistModal from 'src/components/activities/ActivityChecklistModal';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 function normalizeTime(t: string | null | undefined): string | null {
   if (!t) return null;

@@ -11,9 +11,9 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
-import { createChild } from '../../src/services/children';
-import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+import { useAuth } from 'src/store/auth';
+import { createChild } from 'src/services/children';
+import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 // Schema check (CHECK sex IN ('M','F')) lives on `children.sex`. Native must
 // store one of these two literals — values like 'female'/'male'/'other' are

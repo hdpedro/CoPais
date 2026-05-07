@@ -20,9 +20,9 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../src/lib/supabase';
-import { useAuth } from '../../src/store/auth';
-import { colors, spacing, radius, font } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { useAuth } from 'src/store/auth';
+import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 const CONFIRM_WORD = 'DELETAR';

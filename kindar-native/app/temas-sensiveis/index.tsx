@@ -10,16 +10,16 @@ import {
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../../src/store/auth';
+import { useAuth } from 'src/store/auth';
 import {
   fetchSensitiveNotes, createSensitiveNote, requestDeletion, approveDeletion, cancelDeletion,
   type SensitiveNote, type SensitiveTopic,
-} from '../../src/services/sensitive';
-import { fetchChildren, type Child } from '../../src/services/children';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import FAB from '../../src/components/ui/FAB';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/services/sensitive';
+import { fetchChildren, type Child } from 'src/services/children';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import FAB from 'src/components/ui/FAB';
+import EmptyState from 'src/components/ui/EmptyState';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const TOPIC_META: Record<string, { label: string; icon: string; color: string }> = {
   consumo: { label: 'Consumo', icon: '🚬', color: '#F59E0B' },

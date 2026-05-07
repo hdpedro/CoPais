@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { colors } from '../../src/design-system/tokens';
+import { colors } from 'src/design-system/tokens';
 
 export default function ChatLayout() {
   return (

@@ -1,5 +1,5 @@
 import { Redirect } from 'expo-router';
-import { useAuth } from '../src/store/auth';
+import { useAuth } from 'src/store/auth';
 
 export default function DashboardAlias() {
   const { isAuthenticated, activeGroup } = useAuth();

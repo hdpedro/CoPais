@@ -10,10 +10,10 @@ import {
 import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../src/lib/supabase';
-import { useAuth } from '../../src/store/auth';
-import { getDisplayName } from '../../src/lib/constants';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { useAuth } from 'src/store/auth';
+import { getDisplayName } from 'src/lib/constants';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const EVENT_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
   illness: { icon: '🤒', color: '#E53935', label: 'Doenca / Sintoma' },
@@ -38,7 +38,7 @@ interface DetailRow {
 export default function DetalheScreen() {
   const insets = useSafeAreaInsets();
   const { id, type } = useLocalSearchParams<{ id: string; type: string }>();
-  const { activeGroup } = useAuth();
+  useAuth();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
   const [loading, setLoading] = useState(true);
   const [authorName, setAuthorName] = useState('');
@@ -85,7 +85,7 @@ export default function DetalheScreen() {
   // Build detail rows
   const rows: DetailRow[] = [];
   if (data) {
-    const childName = getDisplayName((data.children as any)?.full_name);
+    const childName = getDisplayName((data.children as { full_name?: string } | null)?.full_name);
     if (childName) rows.push({ label: 'Crianca', value: childName, icon: '👶' });
 
     if (type === 'illness') {
@@ -115,7 +115,7 @@ export default function DetalheScreen() {
     }
 
     if (type === 'appointment') {
-      const prof = data.medical_professionals as any;
+      const prof = data.medical_professionals as { name?: string; specialty?: string } | null;
       if (prof?.name) rows.push({ label: 'Profissional', value: prof.name, icon: '👨‍⚕️' });
       if (prof?.specialty) rows.push({ label: 'Especialidade', value: prof.specialty, icon: '🏥' });
       if (data.location) rows.push({ label: 'Local', value: data.location as string, icon: '📍' });

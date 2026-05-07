@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { useAuth } from '../../src/store/auth';
+import { useAuth } from 'src/store/auth';
 import {
   fetchExpenses,
   approveExpense,
@@ -13,12 +13,12 @@ import {
   deleteExpense,
   fetchFinancialSummary,
   type Expense,
-} from '../../src/services/expenses';
-import { EXPENSE_CATEGORIES } from '../../src/lib/constants';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import FAB from '../../src/components/ui/FAB';
-import EmptyState from '../../src/components/ui/EmptyState';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+} from 'src/services/expenses';
+import { EXPENSE_CATEGORIES } from 'src/lib/constants';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import FAB from 'src/components/ui/FAB';
+import EmptyState from 'src/components/ui/EmptyState';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const STATUS_COLORS: Record<string, { bg: string; text: string; label: string }> = {
   pending: { bg: 'rgba(232,162,40,0.1)', text: '#E8A228', label: 'Pendente' },
@@ -127,7 +127,7 @@ export default function DespesasScreen() {
     if (expense.receipt_url) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       // Sign on demand: bucket is private, stored value is path-only.
-      const { getSignedFileUrl } = await import('../../src/services/storage');
+      const { getSignedFileUrl } = await import('src/services/storage');
       const signed = await getSignedFileUrl('receipts', expense.receipt_url, 3600);
       setViewingReceipt(signed || expense.receipt_url);
     }

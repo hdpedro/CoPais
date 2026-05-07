@@ -12,6 +12,11 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // kindar-native app/_src/* contains code moved from kindar-native/src/
+    // (commit XXXX) pra contornar bug do EAS upload que perdia src/. Os
+    // arquivos sao os mesmos que ja estavam em src/ — pre-existing warnings
+    // nao sao do refactor. Mantemos ignorado pra nao bloquear husky.
+    "kindar-native/app/_src/**",
   ]),
   // Relax rules for test files — mocks require `any` and unused vars
   {

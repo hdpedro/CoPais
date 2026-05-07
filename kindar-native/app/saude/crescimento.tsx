@@ -12,14 +12,14 @@ import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Aler
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
-import { supabase } from '../../src/lib/supabase';
-import { safeWrite } from '../../src/services/offline';
-import { useAuth } from '../../src/store/auth';
-import { getDisplayName } from '../../src/lib/constants';
-import ScreenHeader from '../../src/components/ui/ScreenHeader';
-import Toast from '../../src/components/ui/Toast';
-import { DatePickerField, dateToIso } from '../../src/components/ui/DateTimeField';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { safeWrite } from 'src/services/offline';
+import { useAuth } from 'src/store/auth';
+import { getDisplayName } from 'src/lib/constants';
+import ScreenHeader from 'src/components/ui/ScreenHeader';
+import Toast from 'src/components/ui/Toast';
+import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface GrowthRecord {
   id: string;

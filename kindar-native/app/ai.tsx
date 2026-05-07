@@ -13,8 +13,8 @@
 import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { View } from 'react-native';
-import { useAIModal } from '../src/store/ai-modal';
-import { colors } from '../src/design-system/tokens';
+import { useAIModal } from 'src/store/ai-modal';
+import { colors } from 'src/design-system/tokens';
 
 export default function AIAssistantScreen() {
   const open = useAIModal((s) => s.open);

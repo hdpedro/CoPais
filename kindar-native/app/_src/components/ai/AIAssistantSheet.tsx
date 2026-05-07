@@ -89,7 +89,7 @@ export default function AIAssistantSheet() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || `Erro ${res.status}`);
+        throw new Error(data?.error || data?.content || `Erro ${res.status}`);
       }
 
       setMessages(prev => prev.map(m =>

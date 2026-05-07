@@ -4,21 +4,21 @@ import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text, Linking } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Updates from 'expo-updates';
-import { useAuth } from '../src/store/auth';
-import { useI18n } from '../src/i18n';
-import { setupOffline } from '../src/services/offline';
-import { installGlobalErrorHandlers } from '../src/lib/error-reporter';
-import ErrorBoundary from '../src/components/ui/ErrorBoundary';
+import { useAuth } from 'src/store/auth';
+import { useI18n } from 'src/i18n';
+import { setupOffline } from 'src/services/offline';
+import { installGlobalErrorHandlers } from 'src/lib/error-reporter';
+import ErrorBoundary from 'src/components/ui/ErrorBoundary';
 import {
   setupNotificationHandler,
   registerForPushNotificationsAsync,
   addNotificationResponseListener,
-} from '../src/services/push-setup';
-import { initializeIAP, identifyUser, resetUser } from '../src/services/iap';
-import { colors } from '../src/design-system/tokens';
+} from 'src/services/push-setup';
+import { initializeIAP, identifyUser, resetUser } from 'src/services/iap';
+import { colors } from 'src/design-system/tokens';
 // AIFab removed 2026-05-05 — was overlapping buttons on other screens.
-import AIAssistantSheet from '../src/components/ai/AIAssistantSheet';
-import LockGate from '../src/components/LockGate';
+import AIAssistantSheet from 'src/components/ai/AIAssistantSheet';
+import LockGate from 'src/components/LockGate';
 
 export default function RootLayout() {
   const { isLoading, initialize, userId } = useAuth();

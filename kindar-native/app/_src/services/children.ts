@@ -85,6 +85,17 @@ export interface ChildEducation {
   entry_time: string | null; exit_time: string | null; extracurricular_activities: string[] | null;
 }
 
+export interface MedicalProfessional {
+  id: string;
+  name: string;
+  specialty: string | null;
+  crm: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  address: string | null;
+  notes: string | null;
+}
+
 export async function fetchChildren(groupId: string): Promise<Child[]> {
   // NB: `blood_type` lives on `child_medical_info`, not `children`. Listing
   // it here used to make PostgREST 400 the whole query and the Crianças list
@@ -108,6 +119,7 @@ export interface ChildDetail {
   vaccinations: Vaccination[];
   documents: ChildDocument[];
   education: ChildEducation | null;
+  professionals: MedicalProfessional[];
 }
 
 export async function fetchChildDetail(childId: string, groupId: string): Promise<ChildDetail | null> {
@@ -120,6 +132,7 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
     vaccinesRes,
     documentsRes,
     educationRes,
+    professionalsRes,
   ] = await Promise.all([
     supabase
       .from('children')
@@ -164,6 +177,14 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
       .select('school_name, school_address, school_phone, grade, class_name, teacher_name, coordinator_name, entry_time, exit_time, extracurricular_activities')
       .eq('child_id', childId)
       .maybeSingle(),
+    // Profissionais são group-scoped (não child-scoped). Mostramos a lista
+    // do grupo na aba Saúde da criança como atalho — quem cuida dela costuma
+    // cuidar com os mesmos médicos.
+    supabase
+      .from('medical_professionals')
+      .select('id, name, specialty, crm, phone, whatsapp, address, notes')
+      .eq('group_id', groupId)
+      .order('name', { ascending: true }),
   ]);
 
   if (!childRes.data) return null;
@@ -197,6 +218,7 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
     vaccinations: (vaccinesRes.data ?? []) as Vaccination[],
     documents,
     education: (educationRes.data as ChildEducation | null) ?? null,
+    professionals: (professionalsRes.data ?? []) as MedicalProfessional[],
   };
 }
 

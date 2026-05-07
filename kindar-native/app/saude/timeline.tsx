@@ -11,8 +11,8 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useHealth, type HealthEvent } from '../../src/hooks/useHealth';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { useHealth, type HealthEvent } from 'src/hooks/useHealth';
+import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const EVENT_ICONS: Record<string, { icon: string; color: string }> = {
   illness: { icon: '🤒', color: '#E53935' },
@@ -23,12 +23,13 @@ const EVENT_ICONS: Record<string, { icon: string; color: string }> = {
   dose: { icon: '💉', color: '#7C6FAE' },
 };
 
-const CHIP_LABELS: Record<string, { label: string; color: string }> = {
-  illness: { label: 'Doenca', color: '#E53935' },
-  medication: { label: 'Medicado', color: '#3b82f6' },
-  appointment: { label: 'Consulta', color: '#5B9E85' },
-  observation: { label: 'Nota', color: '#E8A228' },
-};
+// CHIP_LABELS reservado pra uso futuro nos chips agrupadores.
+// const CHIP_LABELS: Record<string, { label: string; color: string }> = {
+//   illness: { label: 'Doenca', color: '#E53935' },
+//   medication: { label: 'Medicado', color: '#3b82f6' },
+//   appointment: { label: 'Consulta', color: '#5B9E85' },
+//   observation: { label: 'Nota', color: '#E8A228' },
+// };
 
 interface DayGroup {
   date: string;
@@ -54,7 +55,7 @@ function formatTime(iso: string): string {
 
 export default function TimelineScreen() {
   const insets = useSafeAreaInsets();
-  const { data, loading, refresh } = useHealth();
+  const { data, refresh } = useHealth();
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<string | null>(null);
 

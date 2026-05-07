@@ -27,9 +27,9 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { supabase } from '../../../src/lib/supabase';
-import { useAuth } from '../../../src/store/auth';
-import { colors, spacing, radius, font, shadows } from '../../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { useAuth } from 'src/store/auth';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Child { id: string; full_name: string; birth_date: string; sex: 'M' | 'F' | null; }
 interface Illness {
