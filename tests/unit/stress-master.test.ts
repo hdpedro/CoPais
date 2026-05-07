@@ -423,7 +423,7 @@ describe("BLOCO B — Calendário (35)", () => {
 
   it("B53 · mudança refletida no dashboard: useDashboard agora dedup swap > regular (fix Angelino)", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/hooks/useDashboard.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/hooks/useDashboard.ts"),
       "utf8",
     );
     expect(file).toMatch(/dedupedToday|swap[^a-z]?wins|aSwap|bSwap/i);
@@ -606,7 +606,7 @@ describe("BLOCO C — Saúde (25)", () => {
 
   it("C82 · criança saudável: query active_medications.status='active' filtra", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/hooks/useDashboard.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/hooks/useDashboard.ts"),
       "utf8",
     );
     expect(file).toMatch(/active_medications[\s\S]{0,300}\.eq\(['"]status['"],\s*['"]active['"]/);
@@ -640,7 +640,7 @@ describe("BLOCO C — Saúde (25)", () => {
     expect(ALL_MIGRATIONS.length).toBeGreaterThan(0); // sanity
     // limit applied at native fetch layer
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/services/health.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/services/health.ts"),
       "utf8",
     );
     expect(file.length).toBeGreaterThan(0);
@@ -921,7 +921,7 @@ describe("BLOCO E — Chat / Notificações (20)", () => {
 
   it("E127 · rede offline e volta: setupOffline NetInfo + sync queue no native", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/services/offline.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/services/offline.ts"),
       "utf8",
     );
     expect(file).toMatch(/setupOffline|NetInfo|syncQueue/);
@@ -958,7 +958,7 @@ describe("BLOCO E — Chat / Notificações (20)", () => {
 describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
   it("F131 · login email/senha: signIn em store/auth com signInWithPassword", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/signInWithPassword/);
@@ -966,7 +966,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F132 · login Google: signInWithOAuth provider 'google' em social-auth", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/services/social-auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/services/social-auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/signInWithGoogle|provider:\s*['"]google['"]/);
@@ -974,7 +974,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F133 · login Apple: signInWithIdToken Apple em social-auth", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/services/social-auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/services/social-auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/signInWithApple|provider:\s*['"]apple['"]/);
@@ -982,7 +982,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F134 · logout normal: signOut limpa AsyncStorage active_group_key", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/AsyncStorage\.removeItem\(ACTIVE_GROUP_KEY\)/);
@@ -990,7 +990,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F135 · logout e login outra conta: SIGNED_IN clear stale state se uid mudou", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/currentUid\s*!==\s*uid|profile:\s*null,\s*activeGroup:\s*null/);
@@ -998,7 +998,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F136 · sessão expirada: SIGNED_OUT clear isAuthenticated", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/SIGNED_OUT[\s\S]{0,200}isAuthenticated:\s*false/);
@@ -1006,7 +1006,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F137 · token renovado: TOKEN_REFRESHED handled in onAuthStateChange", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/TOKEN_REFRESHED/);
@@ -1014,7 +1014,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F138 · app fechado e reaberto: getSession check no init", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/supabase\.auth\.getSession/);
@@ -1022,7 +1022,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F139 · troca rápida de contas: stale group cleanup automático em loadActiveGroup", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/savedId && !saved[\s\S]{0,80}removeItem\(ACTIVE_GROUP_KEY\)/);
@@ -1030,7 +1030,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F140 · conta sem grupo: loadActiveGroup retorna null e seta activeGroup null", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/activeGroup:\s*null,\s*memberships:\s*\[\]/);
@@ -1038,7 +1038,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F141 · conta com grupo: list mapping group_members → memberships", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/group_members[\s\S]{0,200}coparenting_groups/);
@@ -1050,7 +1050,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F143 · erro de senha: signIn retorna { success: false, error }", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/return\s*\{\s*success:\s*false/);
@@ -1058,7 +1058,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F144 · erro de rede no login: catch retorna 'Erro de conexao'", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/Erro de conex[ãa]o/);
@@ -1066,7 +1066,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F145 · cadastro novo usuário: signUp com referred_by em metadata", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/signUp[\s\S]{0,400}referred_by/);
@@ -1074,7 +1074,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F146 · reinstalar app: AsyncStorage limpo no signOut e re-init via getSession", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/store/auth.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/store/auth.ts"),
       "utf8",
     );
     expect(file).toMatch(/AsyncStorage\.removeItem/);
@@ -1082,7 +1082,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
 
   it("F147 · dados persistidos corretamente: Supabase auth usa AsyncStorage adapter (sobrevive app kill)", () => {
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/lib/supabase.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/lib/supabase.ts"),
       "utf8",
     );
     expect(file).toMatch(/AsyncStorage|@react-native-async-storage/);
@@ -1097,7 +1097,7 @@ describe("BLOCO F — Login / Sessão / Segurança (20)", () => {
   it("F149 · multi device simultâneo: Supabase auth refresh tokens são per-device (built-in)", () => {
     // No code change required; just confirm auth client is initialized correctly.
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/src/lib/supabase.ts"),
+      path.resolve(__dirname, "../../kindar-native/app/_src/lib/supabase.ts"),
       "utf8",
     );
     expect(file).toMatch(/createClient/);
