@@ -305,12 +305,18 @@ export function getEffectiveBalance(
     switch (op.operation_type) {
       case "waive":
       case "gift_day": {
-        // Cancel the +/-1 from the raw balance for this single concession
+        // Cancel the +/-1 from the raw balance for this single concession.
+        // UI convention: proposer is the debtor who ceded the day (raw shows
+        // proposer = -days, target = +days from the original swap). To cancel
+        // we ADD +days to proposer (offset their -days) and subtract from
+        // target. Sign-flip fix 2026-05-07 — the original implementation
+        // doubled the swap effect instead of cancelling. Caught by
+        // tests/unit/native-balance.test.ts.
         const proposer = op.proposed_by;
         const target = op.target_user_id;
         const days = op.days || 1;
-        adjustments[proposer] = (adjustments[proposer] || 0) - days;
-        adjustments[target] = (adjustments[target] || 0) + days;
+        adjustments[proposer] = (adjustments[proposer] || 0) + days;
+        adjustments[target] = (adjustments[target] || 0) - days;
         break;
       }
       case "forgive_balance": {

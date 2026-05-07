@@ -195,11 +195,17 @@ export function getEffectiveBalance(
     switch (op.operation_type) {
       case 'waive':
       case 'gift_day': {
+        // Cancela o +/-1 que aquele swap gerou no raw. Convencao da UI:
+        // quem PROPÕE o waive e o devedor (raw[proposer] = -days, ja que
+        // ele cedeu o dia); o target e o credor (raw[target] = +days).
+        // Pra anular: proposer ganha +days, target perde days.
+        // Bug historico (corrigido 2026-05-07): a logica anterior somava
+        // no mesmo sentido do raw, dobrando o efeito em vez de cancelar.
         const proposer = op.proposed_by;
         const target = op.target_user_id;
         const days = op.days || 1;
-        adjustments[proposer] = (adjustments[proposer] || 0) - days;
-        adjustments[target] = (adjustments[target] || 0) + days;
+        adjustments[proposer] = (adjustments[proposer] || 0) + days;
+        adjustments[target] = (adjustments[target] || 0) - days;
         break;
       }
       case 'forgive_balance': {
