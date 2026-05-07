@@ -11,6 +11,7 @@ import { PARENT_COLORS, getDisplayName } from '../lib/constants';
 import { loadMyPendingSwaps, loadMySentSwaps, type SwapRequestDetail } from '../services/swaps';
 import { listBalanceOperations, type BalanceOperation } from '../services/balance-operations';
 import { fetchMyPendingEventRequests, type EventRequest } from '../services/event-requests';
+import type { CustodyEventRaw } from '../lib/calendar-balance';
 
 export interface CalendarEvent {
   id: string;
@@ -37,6 +38,10 @@ function formatDateKey(d: Date): string {
 export function useCalendar() {
   const { userId, activeGroup } = useAuth();
   const [events, setEvents] = useState<CalendarEvent[]>([]);
+  // custodyEvents: raw rows (NAO expandidas em dias) — usado pelo
+  // computeSwapBalance pra detectar regular-vs-swap em cada data e
+  // reproduzir o calculo de saldo do PWA (paridade obrigatoria).
+  const [custodyEvents, setCustodyEvents] = useState<CustodyEventRaw[]>([]);
   const [members, setMembers] = useState<MemberColor[]>([]);
   const [pendingSwaps, setPendingSwaps] = useState<SwapRequestDetail[]>([]);
   const [mySentSwaps, setMySentSwaps] = useState<SwapRequestDetail[]>([]);
@@ -136,6 +141,15 @@ export function useCalendar() {
       // this the calendar still renders the old responsible after the
       // co-parent accepts the swap (Angelino bug 2026-04-27).
       const stable = (custodyData || []) as any[];
+      // Persist raw custody_events (sem expansao por dia) pra calculo de
+      // saldo via computeSwapBalance — match PWA src/lib/calendar-utils.ts.
+      setCustodyEvents(stable.map((ce: any) => ({
+        id: ce.id,
+        responsible_user_id: ce.responsible_user_id,
+        start_date: ce.start_date,
+        end_date: ce.end_date,
+        custody_type: ce.custody_type,
+      })));
       const orderedCustody = [
         ...stable.filter((ce) => ce.custody_type === 'swap'),
         ...stable.filter((ce) => ce.custody_type === 'exception'),
@@ -232,7 +246,7 @@ export function useCalendar() {
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
-  return { events, members, pendingSwaps, mySentSwaps, balanceOps, pendingEventRequests, loading, refresh: loadData };
+  return { events, custodyEvents, members, pendingSwaps, mySentSwaps, balanceOps, pendingEventRequests, loading, refresh: loadData };
 }
 
 // Re-export colors for use in the calendar

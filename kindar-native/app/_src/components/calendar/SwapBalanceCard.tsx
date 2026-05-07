@@ -11,27 +11,51 @@
 import { useState, useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import type { MemberColor } from '../../hooks/useCalendar';
+import { type BalanceOperation } from '../../services/balance-operations';
 import {
-  type BalanceOperation,
-  computeBalanceFromOps,
-} from '../../services/balance-operations';
+  computeSwapBalance,
+  getEffectiveBalance,
+  type CustodyEventRaw,
+} from '../../lib/calendar-balance';
 import BalanceHistorySheet from './BalanceHistorySheet';
 import ProposeBalanceAdjustmentSheet from './ProposeBalanceAdjustmentSheet';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 
 interface Props {
   operations: BalanceOperation[];
+  /** Raw custody_events — usado pra calcular saldo automatico de swaps
+   *  (paridade com PWA src/lib/calendar-utils.ts:computeSwapBalance). */
+  custodyEvents: CustodyEventRaw[];
   members: MemberColor[];
   currentUserId: string;
   groupId: string;
   onChanged?: () => void;
 }
 
-export default function SwapBalanceCard({ operations, members, currentUserId, groupId, onChanged }: Props) {
+export default function SwapBalanceCard({ operations, custodyEvents, members, currentUserId, groupId, onChanged }: Props) {
   const [historyOpen, setHistoryOpen] = useState(false);
   const [proposeOpen, setProposeOpen] = useState(false);
 
-  const balanceByUser = useMemo(() => computeBalanceFromOps(operations), [operations]);
+  const balanceByUser = useMemo(() => {
+    const parentIds = members.map(m => m.userId);
+    // 1. Saldo bruto: comparar regular schedule vs custody com swaps.
+    //    Cada dia onde owner_regular != owner_actual conta +1 / -1.
+    const raw = computeSwapBalance(custodyEvents, parentIds);
+    // 2. Operacoes manuais (waive/gift_day/forgive/reset) ajustam por cima.
+    const opsRaw = operations.map(op => ({
+      id: op.id,
+      operation_type: op.operation_type,
+      status: op.status,
+      days: op.days || 1,
+      proposed_by: op.proposed_by,
+      target_user_id: op.target_user_id,
+      responded_at: op.responded_at,
+      created_at: op.created_at,
+    }));
+    const effective = getEffectiveBalance(raw, opsRaw);
+    return effective.effectiveByUser;
+  }, [custodyEvents, operations, members]);
+
   const pending = operations.filter(o => o.status === 'pending').length;
 
   const entries = members
@@ -39,7 +63,10 @@ export default function SwapBalanceCard({ operations, members, currentUserId, gr
     .sort((a, b) => b.balance - a.balance);
 
   const isBalanced = entries.every(e => e.balance === 0);
-  const hasActivity = operations.length > 0;
+  // Mostra o card sempre que houver swaps automaticos OU operacoes manuais.
+  // No PWA o equivalente e `totalSwapDays > 0 || operations.length > 0`.
+  const hasSwaps = entries.some(e => e.balance !== 0);
+  const hasActivity = operations.length > 0 || hasSwaps;
 
   if (!hasActivity) return null;
 

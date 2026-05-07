@@ -34,7 +34,7 @@ function getFirstDayOfWeek(y: number, m: number): number { return new Date(y, m,
 
 export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
-  const { events, members, pendingSwaps, mySentSwaps, balanceOps, pendingEventRequests, refresh } = useCalendar();
+  const { events, custodyEvents, members, pendingSwaps, mySentSwaps, balanceOps, pendingEventRequests, refresh } = useCalendar();
   const { activeGroup, userId } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
@@ -660,6 +660,7 @@ export default function CalendarScreen() {
         {activeGroup?.custodyEnabled && userId ? (
           <SwapBalanceCard
             operations={balanceOps}
+            custodyEvents={custodyEvents}
             members={members}
             currentUserId={userId}
             groupId={activeGroup.groupId}
