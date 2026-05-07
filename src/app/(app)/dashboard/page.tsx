@@ -108,6 +108,7 @@ export default async function DashboardPage() {
     { data: activityOccurrences },
     { data: dashSocialEvents },
     { data: pastOccurrences },
+    { data: todayReportsRaw },
   ] = await Promise.all([
     // Single custody_events query covering 3-month range (replaces 5 separate queries)
     // Skip entirely when custody is not enabled (saves a DB query)
@@ -192,7 +193,11 @@ export default async function DashboardPage() {
       .gte("event_date", todayKey)
       .lte("event_date", sevenDaysKey)
       .then(r => r, () => ({ data: [] as never[] })),
-    // Past activity occurrences for pending reports (last 7 days, excluding today)
+    // Past activity occurrences for pending reports (last 7 days, EXCLUINDO
+    // hoje). Atividade de hoje encerrada nao vai pra Pendentes — fica na
+    // propria secao "Atividades de hoje" com pill "Relatar" inline (ver
+    // bloco `todayActivities` abaixo). Isso evita duplicacao e mantem a
+    // atividade no mesmo lugar onde o usuario espera ver.
     supabase
       .from("calendar_occurrences")
       .select("occurrence_date, activity_id, child_activities!inner(id, name, category, child_id, children(full_name))")
@@ -200,6 +205,14 @@ export default async function DashboardPage() {
       .gte("occurrence_date", formatDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7)))
       .lt("occurrence_date", todayKey)
       .limit(200)
+      .then(r => r, () => ({ data: [] as never[] })),
+    // Reports de HOJE — usados pra marcar visualmente atividades ja
+    // relatadas com check (vs as ainda pendentes, que recebem CTA inline).
+    supabase
+      .from("activity_reports")
+      .select("activity_id")
+      .eq("group_id", groupId)
+      .eq("occurrence_date", todayKey)
       .then(r => r, () => ({ data: [] as never[] })),
   ]);
 
@@ -235,6 +248,12 @@ export default async function DashboardPage() {
 
   // Process activities from pre-computed calendar_occurrences (no runtime recurrence expansion)
 
+  // Estados de uma atividade na visao de hoje:
+  //  - 'upcoming':         ainda nao encerrou (ou sem horario marcado)
+  //  - 'ended-unreported': time_end ja passou e nao ha activity_report
+  //  - 'ended-reported':   time_end ja passou e ha activity_report
+  // Atividades de outros dias (amanha, futuras) ficam sem state.
+  type TodayState = 'upcoming' | 'ended-unreported' | 'ended-reported';
   interface DashActivityItem {
     id: string;
     name: string;
@@ -244,6 +263,21 @@ export default async function DashboardPage() {
     location: string | null;
     children: { full_name: string | null } | { full_name: string | null }[] | null;
     activity_checklist_items: { id: string; name: string }[];
+    state?: TodayState;
+  }
+
+  const todayReportedSet = new Set(
+    ((todayReportsRaw || []) as { activity_id: string }[]).map((r) => r.activity_id)
+  );
+  const brazilNow = getBrazilNow();
+  const realNowMinutes = brazilNow.getHours() * 60 + brazilNow.getMinutes();
+  function classifyToday(activityId: string, timeEnd: string | null | undefined, timeStart: string | null | undefined): TodayState {
+    const endStr = timeEnd || timeStart;
+    if (!endStr) return 'upcoming'; // sem horario, sempre tratamos como aberta
+    const [h, m] = String(endStr).split(":").map(Number);
+    const endMin = h * 60 + (m || 0);
+    if (endMin > realNowMinutes) return 'upcoming';
+    return todayReportedSet.has(activityId) ? 'ended-reported' : 'ended-unreported';
   }
 
   const tomorrowActivities: DashActivityItem[] = [];
@@ -267,15 +301,12 @@ export default async function DashboardPage() {
     };
 
     if (dateKey === todayKey) {
-      const actTime = act.time_end || act.time_start;
-      if (actTime) {
-        const [h, m] = actTime.split(":").map(Number);
-        const actEndMinutes = h * 60 + (m || 0);
-        const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        if (actEndMinutes >= nowMinutes) todayActivities.push(dashAct);
-      } else {
-        todayActivities.push(dashAct);
-      }
+      // Mostrar TODAS as atividades de hoje, marcadas por estado. UX antes:
+      // sumiam apos o time_end (e demoravam pra voltar como Pendente no dia
+      // seguinte). UX agora: ficam visiveis no proprio bloco "Hoje" ate o
+      // fim do dia, com pill "Relatar" inline quando encerradas.
+      dashAct.state = classifyToday(act.id, act.time_end, act.time_start);
+      todayActivities.push(dashAct);
     } else if (dateKey === tomorrowKey) {
       tomorrowActivities.push(dashAct);
     } else if (dateKey >= dayAfterTomorrowKey) {
@@ -296,11 +327,19 @@ export default async function DashboardPage() {
         activity_checklist_items: [],
       };
       if (evt.event_date === todayKey) {
-        // Only show today's events that haven't ended
+        // Eventos nao tem activity_reports — nao da pra "Relatar". Entao
+        // mantemos o comportamento original: somem da lista apos
+        // event_time. (Compara horario real BR via realNowMinutes — antes
+        // usavamos `now` ancorado ao meio-dia, o que mantinha eventos da
+        // tarde sempre visiveis e escondia eventos da manha o dia inteiro.)
         if (evt.event_time) {
           const [h, m] = evt.event_time.split(":").map(Number);
-          if (h * 60 + (m || 0) >= now.getHours() * 60 + now.getMinutes()) todayActivities.push(fakeAct);
+          if (h * 60 + (m || 0) >= realNowMinutes) {
+            (fakeAct as DashActivityItem).state = 'upcoming';
+            todayActivities.push(fakeAct);
+          }
         } else {
+          (fakeAct as DashActivityItem).state = 'upcoming';
           todayActivities.push(fakeAct);
         }
       }
@@ -330,6 +369,8 @@ export default async function DashboardPage() {
   const hasUpcomingActivities = upcomingActivities.length > 0;
 
   // Compute pending activity reports from pre-computed past occurrences (no runtime recurrence)
+  // Range: ultimos 7 dias, EXCLUINDO hoje. Hoje fica na secao "Atividades de
+  // hoje" (com CTA "Relatar" inline para encerradas). Pendentes = backlog.
   const pendingReportPairs: { activityId: string; activityName: string; category: string; childName: string; occurrenceDate: string }[] = [];
   for (const occ of pastOccurrences || []) {
     const act = Array.isArray(occ.child_activities) ? occ.child_activities[0] : occ.child_activities;
@@ -543,7 +584,6 @@ export default async function DashboardPage() {
   const firstName = nameParts.length > 1 && prefixes.includes(nameParts[0].toLowerCase())
     ? `${nameParts[0]} ${nameParts[1]}`
     : nameParts[0] || "Pai";
-  const brazilNow = getBrazilNow();
   const hour = brazilNow.getHours();
   const greetingKey: "morning" | "afternoon" | "evening" = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
 
@@ -693,6 +733,7 @@ export default async function DashboardPage() {
     timeStr: act.time_start ? act.time_start.slice(0, 5) : "",
     location: act.location || "",
     checklistItems: (act.activity_checklist_items || []).map((i) => i.name),
+    state: act.state, // 'upcoming' | 'ended-unreported' | 'ended-reported' (so para hoje)
   });
 
   const todayActivitiesProps = todayActivities.map(mapActivity);
