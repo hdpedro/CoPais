@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "scripts": {
-    "eas-build-pre-install": "echo '=== EAS DEBUG: working dir contents ==='; pwd; ls -la; echo '=== src/ ==='; ls -la src/ 2>&1 || echo 'src/ MISSING'; echo '=== src/design-system/ ==='; ls -la src/design-system/ 2>&1 || echo 'src/design-system/ MISSING'; echo '=== src/lib/ ==='; ls -la src/lib/ 2>&1 || echo 'src/lib/ MISSING'; echo '=== app/(tabs)/ ==='; ls -la 'app/(tabs)/' 2>&1 || echo 'app/(tabs)/ MISSING'; echo '=== END DEBUG ==='; chmod -R u+w . 2>/dev/null; rm -rf node_modules 2>/dev/null; mkdir -p node_modules && chmod 755 node_modules; true",
+    "eas-build-pre-install": "chmod -R u+w . 2>/dev/null; rm -rf node_modules 2>/dev/null; mkdir -p node_modules && chmod 755 node_modules; true",
     "start": "expo start",
     "android": "expo start --android",
     "ios": "expo start --ios",
