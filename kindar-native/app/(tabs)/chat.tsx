@@ -7,10 +7,10 @@ import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { supabase } from '../../src/lib/supabase';
-import { apiFetch } from '../../src/lib/api-fetch';
-import { useAuth } from '../../src/store/auth';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { supabase } from 'src/lib/supabase';
+import { apiFetch } from 'src/lib/api-fetch';
+import { useAuth } from 'src/store/auth';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Channel {
   id: string;

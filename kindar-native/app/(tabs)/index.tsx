@@ -5,15 +5,15 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useAuth } from '../../src/store/auth';
-import { useDashboard } from '../../src/hooks/useDashboard';
-import { useI18n } from '../../src/i18n';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
-import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from '../../src/lib/constants';
-import ActivityReportModal from '../../src/components/activities/ActivityReportModal';
-import ActivityDetailSheet from '../../src/components/activities/ActivityDetailSheet';
-import QuickActionsModal from '../../src/components/QuickActionsModal';
-import ChildAvatar from '../../src/components/ui/ChildAvatar';
+import { useAuth } from 'src/store/auth';
+import { useDashboard } from 'src/hooks/useDashboard';
+import { useI18n } from 'src/i18n';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
+import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from 'src/lib/constants';
+import ActivityReportModal from 'src/components/activities/ActivityReportModal';
+import ActivityDetailSheet from 'src/components/activities/ActivityDetailSheet';
+import QuickActionsModal from 'src/components/QuickActionsModal';
+import ChildAvatar from 'src/components/ui/ChildAvatar';
 
 // i18n keys for greetings — same keys the PWA uses
 // (`dashboard.goodMorning` / `goodAfternoon` / `goodEvening`).
@@ -408,39 +408,85 @@ export default function DashboardScreen() {
                   </Text>
                   {data!.todayActivities.map(act => {
                     const catIcon = ACTIVITY_CATEGORIES.find(c => c.value === act.category)?.icon || '📌';
+                    const isEndedUnreported = act.state === 'ended-unreported';
+                    const isEndedReported = act.state === 'ended-reported';
+
+                    // Tap em encerrada-sem-relato vai DIRETO ao modal de
+                    // Relatar — economiza o detail sheet quando a unica
+                    // acao restante e relatar. As outras (upcoming /
+                    // reportada) abrem o detail sheet normalmente.
+                    const onPress = () => {
+                      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                      if (isEndedUnreported) {
+                        setReportModal({
+                          open: true,
+                          activityId: act.id,
+                          activityName: act.name,
+                          childId: act.childId,
+                          occurrenceDate: todayIso,
+                        });
+                      } else {
+                        setActivityDetail({
+                          activityId: act.id,
+                          activityName: act.name,
+                          childId: act.childId,
+                          occurrenceDate: todayIso,
+                        });
+                      }
+                    };
+
                     return (
                       <TouchableOpacity
                         key={`today-${act.id}`}
                         activeOpacity={0.75}
-                        onPress={() => {
-                          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                          setActivityDetail({
-                            activityId: act.id,
-                            activityName: act.name,
-                            childId: null,
-                            occurrenceDate: todayIso,
-                          });
-                        }}
+                        onPress={onPress}
                         style={{
-                          backgroundColor: colors.bgElevated, borderRadius: radius.md,
+                          backgroundColor: isEndedUnreported ? 'rgba(232,162,40,0.08)' : colors.bgElevated,
+                          borderWidth: isEndedUnreported ? 1 : 0,
+                          borderColor: isEndedUnreported ? 'rgba(232,162,40,0.35)' : 'transparent',
+                          borderRadius: radius.md,
                           padding: spacing.md, marginBottom: 6,
-                          flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.sm,
+                          flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                          opacity: isEndedReported ? 0.6 : 1,
+                          ...(isEndedUnreported ? null : shadows.sm),
                         }}
                       >
-                        <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: `${colors.brand}15`, alignItems: 'center', justifyContent: 'center' }}>
+                        <View style={{
+                          width: 36, height: 36, borderRadius: 10,
+                          backgroundColor: isEndedUnreported ? 'rgba(232,162,40,0.2)' : `${colors.brand}15`,
+                          alignItems: 'center', justifyContent: 'center',
+                        }}>
                           <Text style={{ fontSize: 16 }}>{catIcon}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
-                          <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
+                          <Text style={{
+                            fontSize: 13,
+                            fontWeight: font.weights.semibold,
+                            color: isEndedReported ? colors.textSecondary : colors.text,
+                            textDecorationLine: isEndedReported ? 'line-through' : 'none',
+                          }}>
                             {act.name}
                           </Text>
                           <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                            {act.timeStr ? <Text style={{ color: colors.text, fontWeight: font.weights.medium }}>{act.timeStr}</Text> : null}
+                            {act.timeStr ? <Text style={{ color: isEndedReported ? colors.textSecondary : colors.text, fontWeight: font.weights.medium }}>{act.timeStr}</Text> : null}
                             {act.childName ? ` · ${act.childName}` : ''}
                             {act.location ? ` · ${act.location}` : ''}
                           </Text>
                         </View>
-                        <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+                        {isEndedUnreported ? (
+                          <View style={{
+                            backgroundColor: '#E8A228', paddingHorizontal: spacing.md, paddingVertical: 4,
+                            borderRadius: radius.full,
+                          }}>
+                            <Text style={{ color: '#fff', fontSize: 10, fontWeight: font.weights.bold }}>
+                              {t('activityReport.reportNow')}
+                            </Text>
+                          </View>
+                        ) : isEndedReported ? (
+                          <Ionicons name="checkmark-circle" size={18} color={colors.brand} />
+                        ) : (
+                          <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
+                        )}
                       </TouchableOpacity>
                     );
                   })}
@@ -463,7 +509,7 @@ export default function DashboardScreen() {
                           setActivityDetail({
                             activityId: act.id,
                             activityName: act.name,
-                            childId: null,
+                            childId: act.childId,
                             occurrenceDate: tomorrowIso,
                           });
                         }}

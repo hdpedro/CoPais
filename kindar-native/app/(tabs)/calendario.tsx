@@ -7,17 +7,17 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { useCalendar, type CalendarEvent } from '../../src/hooks/useCalendar';
-import { useAuth } from '../../src/store/auth';
-import { DAY_NAMES, MONTH_NAMES } from '../../src/lib/constants';
-import { getHolidayMap } from '../../src/lib/brazilian-holidays';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
-import { respondToSwap, cancelMySwap } from '../../src/services/swaps';
-import { respondToEventRequest, type EventRequest } from '../../src/services/event-requests';
-import WeekendPlanner from '../../src/components/calendar/WeekendPlanner';
-import SwapRequestModal from '../../src/components/calendar/SwapRequestModal';
-import SwapBalanceCard from '../../src/components/calendar/SwapBalanceCard';
-import { syncEventsToDeviceCalendar } from '../../src/services/calendar-sync';
+import { useCalendar, type CalendarEvent } from 'src/hooks/useCalendar';
+import { useAuth } from 'src/store/auth';
+import { DAY_NAMES, MONTH_NAMES } from 'src/lib/constants';
+import { getHolidayMap } from 'src/lib/brazilian-holidays';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
+import { respondToSwap, cancelMySwap } from 'src/services/swaps';
+import { respondToEventRequest, type EventRequest } from 'src/services/event-requests';
+import WeekendPlanner from 'src/components/calendar/WeekendPlanner';
+import SwapRequestModal from 'src/components/calendar/SwapRequestModal';
+import SwapBalanceCard from 'src/components/calendar/SwapBalanceCard';
+import { syncEventsToDeviceCalendar } from 'src/services/calendar-sync';
 
 function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

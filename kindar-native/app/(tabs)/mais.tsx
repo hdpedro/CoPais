@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
-import { colors, spacing, radius, font, shadows } from '../../src/design-system/tokens';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface ModuleItem {
   icon: string;
