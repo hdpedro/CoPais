@@ -5,11 +5,40 @@ import { useI18n } from "@/i18n/provider";
 import { APPOINTMENT_STATUSES } from "@/lib/health-constants";
 import CompleteAppointmentForm from "./CompleteAppointmentForm";
 
+interface MedicalProfessional {
+  id?: string;
+  // Real DB column is `name` (matches medical_professionals table). The
+  // form/UI label is "Nome" but the field name is the DB one.
+  name?: string | null;
+  specialty?: string | null;
+  whatsapp?: string | null;
+}
+
+interface ChildRef {
+  id?: string;
+  full_name?: string | null;
+}
+
+interface Appointment {
+  id: string;
+  title: string;
+  appointment_date: string;
+  appointment_type: string | null;
+  status: string;
+  diagnosis?: string | null;
+  summary?: string | null;
+  location?: string | null;
+  return_date?: string | null;
+  return_notes?: string | null;
+  medical_professionals?: MedicalProfessional | MedicalProfessional[] | null;
+  children?: ChildRef | ChildRef[] | null;
+}
+
 interface Props {
-  appointments: any[];
-  upcoming: any[];
-  past: any[];
-  pendingReturns: any[];
+  appointments: Appointment[];
+  upcoming: Appointment[];
+  past: Appointment[];
+  pendingReturns: Appointment[];
   isReadonly: boolean;
   success?: string;
   error?: string;
@@ -55,11 +84,13 @@ export default function ConsultasClient({
     return digits;
   }
 
-  function renderAppointmentCard(apt: any, isPast: boolean, showCompleteForm: boolean = false) {
+  function renderAppointmentCard(apt: Appointment, isPast: boolean, showCompleteForm: boolean = false) {
     const { day, month } = formatDate(apt.appointment_date);
     const time = formatTime(apt.appointment_date);
-    const professional = apt.medical_professionals as any;
-    const child = apt.children as any;
+    const professional = (Array.isArray(apt.medical_professionals)
+      ? apt.medical_professionals[0]
+      : apt.medical_professionals) ?? null;
+    const child = (Array.isArray(apt.children) ? apt.children[0] : apt.children) ?? null;
     const status = APPOINTMENT_STATUSES[apt.status] || { label: apt.status, color: "bg-gray-100 text-gray-500" };
     const tc = typeConfig[apt.appointment_type || "rotina"] || typeConfig.rotina;
 
@@ -174,7 +205,9 @@ export default function ConsultasClient({
           </div>
           <div className="space-y-2">
             {pendingReturns.map((apt) => {
-              const professional = apt.medical_professionals as any;
+              const professional = (Array.isArray(apt.medical_professionals)
+                ? apt.medical_professionals[0]
+                : apt.medical_professionals) ?? null;
               return (
                 <div key={apt.id} className="flex items-center gap-2 text-xs">
                   <span className="font-semibold text-amber-700">

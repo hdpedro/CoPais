@@ -5,6 +5,9 @@ import { useI18n } from "@/i18n/provider";
 import { createSensitiveNote } from "@/actions/sensitive";
 import { requestDeletion, approveDeletion, cancelDeletion } from "@/actions/sensitive-topics";
 
+type ChildRef = { full_name: string } | null;
+type ProfileRef = { full_name: string } | null;
+
 interface Note {
   id: string;
   title: string;
@@ -15,8 +18,13 @@ interface Note {
   created_at: string;
   deletion_requested_by: string | null;
   deletion_requested_at: string | null;
-  children: { full_name: string } | null;
-  profiles: { full_name: string } | null;
+  // Supabase nested relation may arrive as object or single-element array.
+  children: ChildRef | ChildRef[];
+  profiles: ProfileRef | ProfileRef[];
+}
+
+function pickFirst<T>(v: T | T[]): T {
+  return Array.isArray(v) ? v[0] : v;
 }
 
 interface SensitiveTopicsClientProps {
@@ -148,7 +156,7 @@ export default function SensitiveTopicsClient({
                         )}
                       </div>
                       <p className="text-xs text-muted">
-                        {topicLabels[note.topic]} {(note.children as any)?.full_name ? `- ${(note.children as any).full_name}` : ""}
+                        {topicLabels[note.topic]} {pickFirst(note.children)?.full_name ? `- ${pickFirst(note.children)!.full_name}` : ""}
                       </p>
                     </div>
                   </div>
@@ -161,7 +169,7 @@ export default function SensitiveTopicsClient({
                     {t("sensitive.viewSource")}
                   </a>
                 )}
-                <p className="text-xs text-muted mt-2 ml-8">{t("sensitive.by")} {(note.profiles as any)?.full_name}</p>
+                <p className="text-xs text-muted mt-2 ml-8">{t("sensitive.by")} {pickFirst(note.profiles)?.full_name}</p>
 
                 {/* Deletion actions */}
                 {!isReadonly && (

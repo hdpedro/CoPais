@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { getDisplayName } from "@/lib/constants";
 import { useI18n } from "@/i18n/provider";
 
@@ -17,6 +18,14 @@ export default function ViewedByBadge({
   currentUserId,
 }: ViewedByBadgeProps) {
   const { t } = useI18n();
+  // `now` is captured at mount (and refreshed every minute) so the
+  // "X minutes ago" label updates without making render impure
+  // (react-hooks/purity).
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
 
   // Filter out current user's own views
   const otherViews = views.filter((v) => v.viewed_by !== currentUserId);
@@ -26,7 +35,7 @@ export default function ViewedByBadge({
   const name = getDisplayName(mostRecent.profiles?.full_name, true) || t("health.viewedBy.someone");
   const viewedAt = new Date(mostRecent.viewed_at);
   const minutesAgo = Math.floor(
-    (Date.now() - viewedAt.getTime()) / (1000 * 60),
+    (now - viewedAt.getTime()) / (1000 * 60),
   );
 
   let timeStr: string;

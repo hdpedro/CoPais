@@ -91,8 +91,12 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const finalTranscriptRef = useRef("");
 
-  /* Portal mount */
+  /* Portal mount — must run after hydration to access `document` (SSR safe).
+     Synchronous setState inside the effect is intentional: the value comes
+     from a browser-only API and the render before hydration deliberately
+     yields a `null` portal (component returns nothing). */
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setPortalContainer(document.body);
   }, []);
 
@@ -125,7 +129,11 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     };
   }, [isOpen]);
 
-  /* Keyboard: Escape to close */
+  /* Keyboard: Escape to close.
+     `closeModal` is declared below as a `useCallback` and would TDZ-crash
+     if listed in this effect's deps array; suppress exhaustive-deps for
+     this particular case — the effect only fires on isOpen flips and
+     reads `closeModal` lazily inside the keydown handler. */
   useEffect(() => {
     if (!isOpen) return;
     const handler = (e: KeyboardEvent) => {
@@ -133,6 +141,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     };
     document.addEventListener("keydown", handler);
     return () => document.removeEventListener("keydown", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
   /* ---- Open / Close ---- */

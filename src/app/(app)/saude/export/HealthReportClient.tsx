@@ -1,8 +1,9 @@
 "use client";
 
 import { useI18n } from "@/i18n/provider";
+import { formatCRM } from "@/lib/format";
 
-interface MedicalInfo {
+export interface MedicalInfo {
   blood_type: string | null;
   insurance_name: string | null;
   insurance_number: string | null;
@@ -29,7 +30,7 @@ interface Medication {
   prescribed_by: string | null;
 }
 
-interface Illness {
+export interface Illness {
   title: string;
   symptoms: string[] | null;
   start_date: string | null;
@@ -41,7 +42,7 @@ interface Illness {
   notes: string | null;
 }
 
-interface Appointment {
+export interface Appointment {
   title: string;
   appointment_date: string | null;
   appointment_type: string | null;
@@ -116,7 +117,7 @@ export default function HealthReportClient({
 }: HealthReportProps) {
   const { t } = useI18n();
 
-  const pediatrician = (medicalInfo as any)?.medical_professionals;
+  const pediatrician = medicalInfo?.medical_professionals ?? null;
 
   const severityLabel: Record<string, string> = {
     grave: t("health.export.severe"),
@@ -323,7 +324,7 @@ export default function HealthReportClient({
             <InfoRow label={t("health.export.bloodType")} value={medicalInfo?.blood_type || notInformed} />
             <InfoRow label={t("health.export.insurance")} value={medicalInfo?.insurance_name ? `${medicalInfo.insurance_name}${medicalInfo.insurance_number ? ` (${medicalInfo.insurance_number})` : ""}` : notInformed} />
             <InfoRow label={t("health.export.susCard")} value={medicalInfo?.sus_number || notInformed} />
-            <InfoRow label={t("health.export.mainPediatrician")} value={pediatrician ? `${pediatrician.name}${pediatrician.specialty ? ` - ${pediatrician.specialty}` : ""}${pediatrician.crm ? ` (CRM: ${pediatrician.crm})` : ""}` : notInformed} />
+            <InfoRow label={t("health.export.mainPediatrician")} value={pediatrician ? `${pediatrician.name}${pediatrician.specialty ? ` - ${pediatrician.specialty}` : ""}${pediatrician.crm ? ` (CRM: ${formatCRM(pediatrician.crm)})` : ""}` : notInformed} />
           </tbody>
         </table>
 
@@ -456,7 +457,7 @@ export default function HealthReportClient({
               {appointments.map((a, i) => (
                 <tr key={i} style={i % 2 === 1 ? altRowStyle : {}}>
                   <Td>{formatDateTime(a.appointment_date)}</Td>
-                  <Td bold>{a.title}{(a as any).medical_professionals?.name ? ` (${(a as any).medical_professionals.name})` : ""}</Td>
+                  <Td bold>{a.title}{a.medical_professionals?.name ? ` (${a.medical_professionals.name})` : ""}</Td>
                   <Td>{appointmentTypeLabel[(a.appointment_type as string)] || a.appointment_type || "\u2014"}</Td>
                   <Td>{a.location || "\u2014"}</Td>
                   <Td>{statusLabel[a.status] || a.status}</Td>
@@ -577,7 +578,7 @@ export default function HealthReportClient({
                 <tr key={i} style={i % 2 === 1 ? altRowStyle : {}}>
                   <Td bold>{p.name}</Td>
                   <Td>{p.specialty || "\u2014"}</Td>
-                  <Td>{p.crm || "\u2014"}</Td>
+                  <Td>{p.crm ? formatCRM(p.crm) : "\u2014"}</Td>
                   <Td>{p.phone || p.whatsapp || "\u2014"}</Td>
                 </tr>
               ))}

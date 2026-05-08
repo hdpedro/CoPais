@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { compareVaccinations } from "@/lib/sbp-vaccine-calendar";
 import { getBrazilToday } from "@/lib/calendar-utils";
-import HealthReportClient from "./HealthReportClient";
+import HealthReportClient, { type MedicalInfo, type Illness, type Appointment } from "./HealthReportClient";
 
 export default async function HealthExportPage({
   searchParams,
@@ -124,11 +124,11 @@ export default async function HealthExportPage({
       ageLabel={ageLabel}
       generatedDate={generatedDate}
       generatedTime={generatedTime}
-      medicalInfo={medicalInfo as any}
+      medicalInfo={medicalInfo as unknown as MedicalInfo | null}
       allergies={allergies}
       medications={medications}
-      illnesses={illnesses as any}
-      appointments={appointments as any}
+      illnesses={illnesses as unknown as Illness[] | null}
+      appointments={appointments as unknown as Appointment[] | null}
       vaccinations={vaccinations}
       growthRecords={growthRecords}
       professionals={professionals}

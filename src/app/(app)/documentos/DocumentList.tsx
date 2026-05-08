@@ -4,7 +4,10 @@ import { useState } from "react";
 import DocumentViewer from "./DocumentViewer";
 import { useI18n } from "@/i18n/provider";
 
-interface DocumentRow {
+type ChildRef = { full_name: string } | null;
+type ProfileRef = { full_name: string } | null;
+
+export interface DocumentRow {
   id: string;
   name: string;
   file_url: string;
@@ -12,8 +15,15 @@ interface DocumentRow {
   mime_type: string | null;
   category: string;
   created_at: string;
-  children: { full_name: string } | null;
-  profiles: { full_name: string } | null;
+  // Supabase nested selects can return either a single object or an array
+  // depending on the join cardinality inferred at query time. Both shapes
+  // are accepted; readers normalize via `Array.isArray`.
+  children: ChildRef | ChildRef[];
+  profiles: ProfileRef | ProfileRef[];
+}
+
+function pickFirst<T>(v: T | T[]): T {
+  return Array.isArray(v) ? v[0] : v;
 }
 
 const catIcons: Record<string, string> = {
@@ -74,12 +84,12 @@ export default function DocumentList({
                 </p>
                 <p className="text-xs text-muted">
                   {catLabels[doc.category]}{" "}
-                  {(doc.children as any)?.full_name
-                    ? `- ${(doc.children as any).full_name}`
+                  {pickFirst(doc.children)?.full_name
+                    ? `- ${pickFirst(doc.children)!.full_name}`
                     : ""}
                 </p>
                 <p className="text-xs text-muted">
-                  {(doc.profiles as any)?.full_name} -{" "}
+                  {pickFirst(doc.profiles)?.full_name} -{" "}
                   {new Date(doc.created_at).toLocaleDateString("pt-BR")}
                   {doc.file_size ? ` - ${formatSize(doc.file_size)}` : ""}
                 </p>
@@ -118,8 +128,8 @@ export default function DocumentList({
             mime_type: selected.mime_type,
             category: selected.category,
             created_at: selected.created_at,
-            child_name: (selected.children as any)?.full_name || undefined,
-            uploader_name: (selected.profiles as any)?.full_name || undefined,
+            child_name: pickFirst(selected.children)?.full_name || undefined,
+            uploader_name: pickFirst(selected.profiles)?.full_name || undefined,
           }}
           onClose={() => setSelected(null)}
         />

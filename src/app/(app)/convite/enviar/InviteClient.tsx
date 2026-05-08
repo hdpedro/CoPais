@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useI18n } from "@/i18n/provider";
 import { createInvitation } from "@/actions/invitation";
 import { deleteInvitation } from "@/actions/members";
@@ -35,6 +36,9 @@ export default function InviteClient({
   groupName,
   firstName,
   allInvites,
+  // inviteToken is part of the interface for forward compat; not yet
+  // consumed in this component.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   inviteToken,
   inviteSuccess,
   inviteDeleted,
@@ -42,6 +46,9 @@ export default function InviteClient({
   error,
 }: InviteClientProps) {
   const { t } = useI18n();
+  // Capture `now` at mount so expiry math is pure during render
+  // (react-hooks/purity).
+  const [now] = useState(() => Date.now());
 
   if (isAdminDenied) {
     return (
@@ -164,7 +171,7 @@ export default function InviteClient({
                       <p className="text-xs text-muted mt-0.5">
                         {roleLabels[inv.role] || inv.role}
                         {isPending && (
-                          <span> — {t("invite.expiresIn", { days: String(Math.ceil((expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) })}</span>
+                          <span> — {t("invite.expiresIn", { days: String(Math.ceil((expires.getTime() - now) / (1000 * 60 * 60 * 24))) })}</span>
                         )}
                       </p>
                     </div>

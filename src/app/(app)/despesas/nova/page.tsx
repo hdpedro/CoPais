@@ -31,7 +31,8 @@ export default async function NewExpensePage() {
 
   const members = (groupMembers || []).map((m) => {
     const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-    return { user_id: m.user_id, full_name: (p as any)?.full_name || "Usuario" };
+    const fullName = (p as { full_name?: string | null } | null)?.full_name;
+    return { user_id: m.user_id, full_name: fullName || "Usuario" };
   });
 
   const today = getBrazilToday();

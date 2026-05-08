@@ -40,14 +40,20 @@ export default function ActivityReportModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // Reset ALL fields when modal opens for a new activity
+  // Reset ALL fields when modal opens for a new activity. This is the
+  // documented "reset on prop change" pattern; the cleaner alternative
+  // is to remount via `key={activityId + occurrenceDate}` in the parent —
+  // tracked as follow-up. The synchronous setState block is intentional
+  // and gated on isOpen flipping to true.
   useEffect(() => {
     if (isOpen) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setStatus("completed");
       setNotes("");
       setChildMood("");
       setError("");
       setSubmitting(false);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [isOpen, activityId, occurrenceDate]);
 

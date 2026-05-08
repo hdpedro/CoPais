@@ -6,10 +6,35 @@ import { getDisplayName } from "@/lib/constants";
 import UpdateEpisodeForm from "./UpdateEpisodeForm";
 import ResolveButton from "./ResolveButton";
 
+interface ChildRef {
+  full_name?: string | null;
+}
+
+interface ProfileRef {
+  full_name?: string | null;
+}
+
+interface Episode {
+  id: string;
+  title: string;
+  severity: string | null;
+  start_date: string;
+  end_date?: string | null;
+  symptoms?: string[] | null;
+  diagnosis?: string | null;
+  notes?: string | null;
+  hospital_visit?: boolean | null;
+  hospital_name?: string | null;
+  hospital_date?: string | null;
+  created_at?: string | null;
+  children?: ChildRef | ChildRef[] | null;
+  profiles?: ProfileRef | ProfileRef[] | null;
+}
+
 interface Props {
-  episodes: any[];
-  activeEpisodes: any[];
-  recoveredEpisodes: any[];
+  episodes: Episode[];
+  activeEpisodes: Episode[];
+  recoveredEpisodes: Episode[];
   isReadonly: boolean;
   today: string;
   success?: string;
@@ -51,7 +76,7 @@ export default function DoencasClient({
     return Math.max(1, Math.ceil((tTime - s) / (1000 * 60 * 60 * 24)));
   }
 
-  function getEvolutionTrend(notes: string | null): { label: string; icon: string; color: string } {
+  function getEvolutionTrend(notes: string | null | undefined): { label: string; icon: string; color: string } {
     if (!notes) return { label: t("health.stableEvolution"), icon: "➡️", color: "bg-gray-100 text-gray-600" };
     const lines = notes.split("\n").filter(Boolean).slice(0, 3);
     if (lines.length === 0) return { label: t("health.stableEvolution"), icon: "➡️", color: "bg-gray-100 text-gray-600" };
@@ -71,10 +96,15 @@ export default function DoencasClient({
     }
   }
 
-  function getCreatorName(ep: any) {
-    const profile = ep.profiles as any;
+  function getCreatorName(ep: Episode) {
+    const profile = (Array.isArray(ep.profiles) ? ep.profiles[0] : ep.profiles) ?? null;
     if (!profile?.full_name) return null;
     return getDisplayName(profile.full_name, true);
+  }
+
+  function getChildName(ep: Episode): string | null | undefined {
+    const child = (Array.isArray(ep.children) ? ep.children[0] : ep.children) ?? null;
+    return child?.full_name;
   }
 
   return (
@@ -130,7 +160,7 @@ export default function DoencasClient({
                           </span>
                         </div>
                         <p className="text-xs text-muted">
-                          {(ep.children as any)?.full_name} &middot; {formatShortDate(ep.start_date)} &middot; {days} {t("health.days").toLowerCase()}
+                          {getChildName(ep)} &middot; {formatShortDate(ep.start_date)} &middot; {days} {t("health.days").toLowerCase()}
                         </p>
                       </div>
                       <div className="flex flex-col items-end gap-1 flex-shrink-0">
@@ -226,7 +256,7 @@ export default function DoencasClient({
                         </span>
                       </div>
                       <p className="text-xs text-muted">
-                        {(ep.children as any)?.full_name} &middot; {formatShortDate(ep.start_date)}
+                        {getChildName(ep)} &middot; {formatShortDate(ep.start_date)}
                         {ep.end_date && (
                           <> &rarr; {formatShortDate(ep.end_date)} ({daysBetween(ep.start_date, ep.end_date)} {t("health.days").toLowerCase()})</>
                         )}

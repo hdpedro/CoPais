@@ -11,12 +11,13 @@ export interface ActivityRecurrence {
 }
 
 /** Parse days_of_week from DB (JSON string or array) */
-export function parseDaysOfWeek(raw: any): number[] | null {
+export function parseDaysOfWeek(raw: unknown): number[] | null {
   if (!raw) return null;
-  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw)) return raw as number[];
+  if (typeof raw !== "string") return null;
   try {
     const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed)) return parsed;
+    if (Array.isArray(parsed)) return parsed as number[];
   } catch {}
   return null;
 }

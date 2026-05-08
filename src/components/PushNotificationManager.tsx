@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY!;
 
@@ -19,28 +19,9 @@ export default function PushNotificationManager() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">("default");
   const [showBanner, setShowBanner] = useState(false);
 
-  useEffect(() => {
-    if (!("Notification" in window) || !("PushManager" in window)) {
-      setPermission("unsupported");
-      return;
-    }
-
-    setPermission(Notification.permission);
-
-    // If already granted, subscribe silently
-    if (Notification.permission === "granted") {
-      subscribeToPush();
-      return;
-    }
-
-    // If not denied, show banner after 3 seconds
-    if (Notification.permission === "default") {
-      const timer = setTimeout(() => setShowBanner(true), 3000);
-      return () => clearTimeout(timer);
-    }
-  }, []);
-
-  async function subscribeToPush() {
+  // Defined before the bootstrap effect so the lint rule
+  // `react-hooks/immutability` (no access before declaration) is satisfied.
+  const subscribeToPush = useCallback(async () => {
     try {
       const registration = await navigator.serviceWorker.ready;
 
@@ -67,7 +48,33 @@ export default function PushNotificationManager() {
     } catch (err) {
       console.error("Push subscription failed:", err);
     }
-  }
+  }, []);
+
+  // Bootstrap: read browser permission and decide whether to silently
+  // subscribe or surface the banner. Synchronous setState is intentional
+  // — the values come from a browser-only API not available at render time.
+  useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    if (!("Notification" in window) || !("PushManager" in window)) {
+      setPermission("unsupported");
+      return;
+    }
+
+    setPermission(Notification.permission);
+
+    // If already granted, subscribe silently
+    if (Notification.permission === "granted") {
+      subscribeToPush();
+      return;
+    }
+
+    // If not denied, show banner after 3 seconds
+    if (Notification.permission === "default") {
+      const timer = setTimeout(() => setShowBanner(true), 3000);
+      return () => clearTimeout(timer);
+    }
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [subscribeToPush]);
 
   async function handleEnable() {
     setShowBanner(false);
@@ -86,12 +93,14 @@ export default function PushNotificationManager() {
     localStorage.setItem("push-banner-dismissed", Date.now().toString());
   }
 
-  // Don't show if dismissed recently
+  // Don't show if dismissed recently — reads localStorage which is a
+  // browser-only API, so the setState here is part of bootstrapping.
   useEffect(() => {
     const dismissed = localStorage.getItem("push-banner-dismissed");
     if (dismissed) {
       const daysSince = (Date.now() - parseInt(dismissed)) / (1000 * 60 * 60 * 24);
       if (daysSince < 7) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowBanner(false);
       }
     }

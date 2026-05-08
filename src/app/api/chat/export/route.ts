@@ -82,7 +82,11 @@ export async function GET(request: Request) {
 
   const memberNames: Record<string, string> = {};
   const memberNamesList: string[] = [];
-  (members || []).forEach((m: any) => {
+  type GroupMemberRow = {
+    user_id: string;
+    profiles: { full_name: string | null } | { full_name: string | null }[] | null;
+  };
+  (members as GroupMemberRow[] || []).forEach((m) => {
     const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
     const name = p?.full_name || "Usuario";
     memberNames[m.user_id] = name;

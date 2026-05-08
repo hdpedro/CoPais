@@ -380,7 +380,12 @@ export default function ChatRoom({
     }
   }, [messages, userId, supabase]);
 
+  // Auto-mark unread incoming messages as read whenever the list mutates.
+  // The callback short-circuits when no unread items exist, so the loop
+  // that the linter warns about (callback recreates → effect re-fires →
+  // callback runs setMessages → recreate) self-terminates after one pass.
   useEffect(() => {
+    /* eslint-disable-next-line react-hooks/set-state-in-effect */
     markMessagesAsRead();
   }, [markMessagesAsRead]);
 

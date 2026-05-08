@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
@@ -61,12 +62,17 @@ export default function FamiliaClient({
   children,
   pendingInvites,
   acceptedInvites,
+  // appUrl is part of the interface for forward compat; not yet consumed.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   appUrl,
   successMessage,
   errorMessage,
   cancelInviteAction,
 }: FamiliaClientProps) {
   const { t } = useI18n();
+  // Capture `now` at mount so age/expiry math is pure during render
+  // (react-hooks/purity). Stale-by-a-day is acceptable on this screen.
+  const [now] = useState(() => Date.now());
 
   const roleLabels: Record<string, string> = {
     admin: t("familyPage.roleAdmin"),
@@ -196,7 +202,7 @@ export default function FamiliaClient({
             <div className="space-y-2">
               {children.map((child) => {
                 const age = Math.floor(
-                  (Date.now() - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
+                  (now - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000)
                 );
                 return (
                   <div key={child.id} className="flex items-center justify-between">
@@ -239,8 +245,8 @@ export default function FamiliaClient({
           <div className="space-y-2">
             {pendingInvites.map((invite) => {
               const expires = new Date(invite.expires_at);
-              const isExpired = expires < new Date();
-              const daysLeft = Math.ceil((expires.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+              const isExpired = expires.getTime() < now;
+              const daysLeft = Math.ceil((expires.getTime() - now) / (1000 * 60 * 60 * 24));
 
               return (
                 <div key={invite.id} className="bg-white rounded-xl p-4 shadow-sm">

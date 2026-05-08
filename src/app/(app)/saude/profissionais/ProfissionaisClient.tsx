@@ -2,9 +2,21 @@
 
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
+import { formatCRM } from "@/lib/format";
+
+interface Professional {
+  id: string;
+  name: string;
+  specialty: string | null;
+  crm: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  address: string | null;
+  notes: string | null;
+}
 
 interface Props {
-  professionals: any[] | null;
+  professionals: Professional[] | null;
   isReadonly: boolean;
   success?: string;
   error?: string;
@@ -13,7 +25,8 @@ interface Props {
 export default function ProfissionaisClient({ professionals, isReadonly, success, error: errorMsg }: Props) {
   const { t } = useI18n();
 
-  function cleanWhatsAppNumber(number: string): string {
+  function cleanWhatsAppNumber(number: string | null | undefined): string {
+    if (!number) return "";
     const digits = number.replace(/\D/g, "");
     if (digits.length < 8) return "";
     if (digits.length <= 11) return "55" + digits;
@@ -61,7 +74,7 @@ export default function ProfissionaisClient({ professionals, isReadonly, success
                 <h3 className="font-semibold text-dark">{prof.name}</h3>
                 {prof.specialty && <p className="text-sm text-muted capitalize">{prof.specialty}</p>}
               </div>
-              {prof.crm && <p className="text-xs text-muted mb-1">{t("health.crmCro")}: {prof.crm}</p>}
+              {prof.crm && <p className="text-xs text-muted mb-1">{t("health.crmCro")}: {formatCRM(prof.crm)}</p>}
               <div className="space-y-1 mt-3">
                 {prof.phone && (
                   <div className="flex items-center gap-2 text-sm text-dark">

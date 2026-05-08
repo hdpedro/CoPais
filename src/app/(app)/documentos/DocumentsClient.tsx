@@ -3,7 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { useI18n } from "@/i18n/provider";
 import { createDocument } from "@/actions/documents";
-import DocumentList from "./DocumentList";
+import DocumentList, { type DocumentRow } from "./DocumentList";
 
 interface Child {
   id: string;
@@ -14,7 +14,7 @@ interface DocumentsClientProps {
   groupId: string;
   isReadonly: boolean;
   children: Child[];
-  documents: any[];
+  documents: DocumentRow[];
 }
 
 export default function DocumentsClient({ groupId, isReadonly, children, documents }: DocumentsClientProps) {

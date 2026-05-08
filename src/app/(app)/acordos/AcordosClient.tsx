@@ -4,6 +4,8 @@ import { useState, useTransition } from "react";
 import { useI18n } from "@/i18n/provider";
 import { createAgreement, acceptAgreement } from "@/actions/agreements";
 
+type ProfileRef = { full_name: string } | null;
+
 interface Agreement {
   id: string;
   title: string;
@@ -13,7 +15,12 @@ interface Agreement {
   accepted_by: string | null;
   created_by: string;
   created_at?: string;
-  profiles: { full_name: string } | null;
+  // Supabase joined relation can come back as object or single-element array.
+  profiles: ProfileRef | ProfileRef[];
+}
+
+function pickProfile(p: Agreement["profiles"]): ProfileRef {
+  return Array.isArray(p) ? p[0] ?? null : p;
 }
 
 interface AcordosClientProps {
@@ -239,7 +246,7 @@ export default function AcordosClient({ agreements, groupId, userId, isReadonly 
                         )}
                       </div>
                       <p className="text-[11px] text-muted">
-                        {categoryLabels[agreement.category]} · {(agreement.profiles as any)?.full_name?.split(" ")[0]}
+                        {categoryLabels[agreement.category]} · {pickProfile(agreement.profiles)?.full_name?.split(" ")[0]}
                       </p>
                     </div>
                     {!isReadonly && !isCreator ? (
@@ -306,7 +313,7 @@ export default function AcordosClient({ agreements, groupId, userId, isReadonly 
                         )}
                       </div>
                       <p className="text-[11px] text-muted">
-                        {categoryLabels[agreement.category]} · {(agreement.profiles as any)?.full_name?.split(" ")[0]}
+                        {categoryLabels[agreement.category]} · {pickProfile(agreement.profiles)?.full_name?.split(" ")[0]}
                       </p>
                     </div>
                     <span className="text-[10px] font-bold px-2 py-1 rounded-full bg-[#5B9E85]/10 text-[#5B9E85]">
