@@ -183,10 +183,20 @@ export async function createSchoolLog(params: {
 
 export async function updateSchoolLog(
   logId: string,
-  updates: { title?: string; description?: string | null; subject?: string | null; score?: string | null },
+  updates: {
+    title?: string;
+    description?: string | null;
+    subject?: string | null;
+    score?: string | null;
+    subtype?: SchoolLogType;
+    childId?: string;
+    logDate?: string;
+    eventTime?: string | null;
+  },
 ) {
-  // Route through API so the calendar mirror's title stays in sync when
-  // the underlying log title changes (service handles both writes).
+  // Route through API so the calendar mirror stays in sync with all edits
+  // (title/description/date/time/subtype/child) — service handles both
+  // writes and the kind transition lifecycle (note↔event).
   const r = await apiFetch<{ success: true }>('/api/school', {
     method: 'PATCH',
     body: { logId, ...updates },
@@ -203,6 +213,20 @@ export async function deleteSchoolLog(logId: string) {
   });
   if (!r.ok) return { success: false as const, error: r.error || 'Falha ao excluir' };
   return { success: true as const };
+}
+
+/**
+ * Fetch the calendar mirror's `event_time` for a given log. Used when opening
+ * the edit modal so the time picker can prefill (school_logs itself doesn't
+ * store the time — it lives only on the events row).
+ */
+export async function fetchSchoolLogEventTime(logId: string): Promise<string | null> {
+  const { data } = await supabase
+    .from('events')
+    .select('event_time')
+    .eq('school_log_id', logId)
+    .maybeSingle();
+  return (data?.event_time as string | null) ?? null;
 }
 
 /**

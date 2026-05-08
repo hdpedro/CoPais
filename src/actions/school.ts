@@ -101,12 +101,26 @@ export async function updateSchoolLog(formData: FormData) {
   const membership = await verifyGroupMembership(supabase, log.group_id, user.id);
   if (!membership) redirect("/escola?error=" + encodeURIComponent("Sem permissao."));
 
-  const result = await svcUpdate(supabase, logId, {
-    title: (formData.get("title") as string) ?? undefined,
-    description: formData.has("description") ? (formData.get("description") as string) : undefined,
-    subject: formData.has("subject") ? (formData.get("subject") as string) : undefined,
-    score: formData.has("score") ? (formData.get("score") as string) : undefined,
-  });
+  const rawSubtype = formData.has("subtype") ? (formData.get("subtype") as string) : undefined;
+  if (rawSubtype !== undefined && !isValidSubtype(rawSubtype)) {
+    redirect("/escola?error=" + encodeURIComponent("Tipo inválido."));
+  }
+
+  const result = await svcUpdate(
+    supabase,
+    logId,
+    {
+      title: (formData.get("title") as string) ?? undefined,
+      description: formData.has("description") ? (formData.get("description") as string) : undefined,
+      subject: formData.has("subject") ? (formData.get("subject") as string) : undefined,
+      score: formData.has("score") ? (formData.get("score") as string) : undefined,
+      subtype: rawSubtype as SchoolSubtype | undefined,
+      childId: formData.has("childId") ? (formData.get("childId") as string) : undefined,
+      logDate: formData.has("logDate") ? (formData.get("logDate") as string) : undefined,
+      eventTime: formData.has("eventTime") ? ((formData.get("eventTime") as string) || null) : undefined,
+    },
+    user.id,
+  );
   if (!result.success) redirect("/escola?error=" + encodeURIComponent(result.error));
 
   revalidatePath("/escola");

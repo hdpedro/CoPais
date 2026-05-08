@@ -81,7 +81,7 @@ const HHMM = /^\d{2}:\d{2}$/;
  *   meeting + "Reunião de pais"   → "👥 Reunião escolar"
  *   event   + "Festa junina"      → "🎉 Festa junina"
  */
-function calendarTitleFor(input: CreateSchoolLogInput): string {
+function calendarTitleFor(args: { subtype: SchoolSubtype; title: string; subject?: string | null }): string {
   const labelByType: Record<SchoolSubtype, string> = {
     exam: "📚 Prova",
     meeting: "👥 Reunião escolar",
@@ -95,12 +95,18 @@ function calendarTitleFor(input: CreateSchoolLogInput): string {
     concern: "⚠️ Atenção",
     other: "📌 Registro escolar",
   };
-  const prefix = labelByType[input.subtype];
-  if (input.subtype === "exam" && input.subject) {
-    return `${prefix} · ${input.subject}`;
+  const prefix = labelByType[args.subtype];
+  if (args.subtype === "exam" && args.subject) {
+    return `${prefix} · ${args.subject}`;
   }
   // For non-exam events, use the user title verbatim (it carries the meaning).
-  return `${prefix}: ${input.title}`;
+  return `${prefix}: ${args.title}`;
+}
+
+function eventDescriptionFor(args: { description?: string | null; subtype: SchoolSubtype; score?: string | null }): string | null {
+  const parts = [args.description?.trim()].filter(Boolean) as string[];
+  if (args.subtype === "exam" && args.score) parts.push(`Nota: ${args.score}`);
+  return parts.length > 0 ? parts.join("\n") : null;
 }
 
 // ── Public API ───────────────────────────────────────────────────────────
@@ -171,16 +177,15 @@ export async function createSchoolLog(
   // ── 2. Mirror to events when kind=event ─────────────────────────────
   let eventId: string | null = null;
   if (kind === "event") {
-    const calendarTitle = calendarTitleFor(input);
-    const eventDescParts = [input.description?.trim()].filter(Boolean) as string[];
-    if (input.subtype === "exam" && input.score) eventDescParts.push(`Nota: ${input.score}`);
+    const calendarTitle = calendarTitleFor({ subtype: input.subtype, title: input.title, subject: input.subject });
+    const calendarDesc = eventDescriptionFor({ description: input.description, subtype: input.subtype, score: input.score });
     const { data: ev, error: evErr } = await supabase
       .from("events")
       .insert({
         group_id: input.groupId,
         child_id: input.childId,
         title: calendarTitle,
-        description: eventDescParts.join("\n") || null,
+        description: calendarDesc,
         event_date: input.logDate,
         event_time: input.eventTime || null,
         all_day: !input.eventTime,
@@ -215,15 +220,59 @@ export async function deleteSchoolLog(
 }
 
 /**
- * Update the user-editable fields. Title and description only — subtype
- * and date intentionally not editable (delete + re-create instead, which
- * keeps the calendar mirror coherent).
+ * Update any user-editable field on a school log, keeping the calendar
+ * mirror in sync. Supports all fields: title, description, subject, score,
+ * subtype (log_type), child, log_date, eventTime.
+ *
+ * Calendar mirror lifecycle when subtype changes kind:
+ *   note → event   creates a new `events` row (requires `userId`)
+ *   event → note   deletes the existing `events` row
+ *   event → event  updates title/description/date/time/child on the row
+ *   note → note    no calendar effect
+ *
+ * `userId` is only required when the patch results in creating a new
+ * calendar row (kind transition note→event); pass it whenever you have it.
  */
 export async function updateSchoolLog(
   supabase: SupabaseClient,
   logId: string,
-  patch: { title?: string; description?: string | null; subject?: string | null; score?: string | null },
+  patch: {
+    title?: string;
+    description?: string | null;
+    subject?: string | null;
+    score?: string | null;
+    subtype?: SchoolSubtype;
+    childId?: string;
+    logDate?: string;
+    eventTime?: string | null;
+  },
+  userId?: string,
 ): Promise<ServiceResult<{ id: string }>> {
+  // ── Fetch current state ──────────────────────────────────────────────
+  const { data: existing, error: readErr } = await supabase
+    .from("school_logs")
+    .select("id, group_id, child_id, log_type, title, description, log_date, subject, score")
+    .eq("id", logId)
+    .maybeSingle();
+  if (readErr || !existing) return { success: false, error: "Registro não encontrado." };
+
+  // ── Validate patch ───────────────────────────────────────────────────
+  if (patch.subtype !== undefined && !isValidSubtype(patch.subtype)) {
+    return { success: false, error: "Tipo inválido." };
+  }
+  if (patch.logDate !== undefined && !ISO_DATE.test(patch.logDate)) {
+    return { success: false, error: "Data inválida (esperado YYYY-MM-DD)." };
+  }
+  if (patch.eventTime && !HHMM.test(patch.eventTime)) {
+    return { success: false, error: "Horário inválido (esperado HH:MM)." };
+  }
+  if (patch.childId !== undefined && patch.childId !== existing.child_id) {
+    if (!(await verifyChildInGroup(supabase, patch.childId, existing.group_id))) {
+      return { success: false, error: "Criança não pertence a este grupo." };
+    }
+  }
+
+  // ── Build school_logs update ─────────────────────────────────────────
   const update: Record<string, string | null> = {};
   if (patch.title !== undefined) {
     const t = patch.title.trim();
@@ -233,22 +282,91 @@ export async function updateSchoolLog(
   if (patch.description !== undefined) update.description = patch.description?.trim() || null;
   if (patch.subject !== undefined) update.subject = patch.subject?.trim() || null;
   if (patch.score !== undefined) update.score = patch.score?.trim() || null;
+  if (patch.subtype !== undefined) update.log_type = patch.subtype;
+  if (patch.childId !== undefined) update.child_id = patch.childId;
+  if (patch.logDate !== undefined) update.log_date = patch.logDate;
 
-  if (Object.keys(update).length === 0) {
-    return { success: true, data: { id: logId } };
+  if (Object.keys(update).length > 0) {
+    const { error } = await supabase.from("school_logs").update(update).eq("id", logId);
+    if (error) return { success: false, error: error.message };
   }
 
-  const { error } = await supabase.from("school_logs").update(update).eq("id", logId);
-  if (error) return { success: false, error: error.message };
+  // ── Sync calendar mirror ─────────────────────────────────────────────
+  // Compute the merged "next" state — needed both to decide kind transition
+  // and to generate the calendar title/description.
+  const nextSubtype = (patch.subtype ?? (existing.log_type as SchoolSubtype));
+  const nextTitle = patch.title !== undefined ? (update.title as string) : (existing.title as string);
+  const nextDescription = patch.description !== undefined
+    ? (update.description as string | null)
+    : (existing.description as string | null);
+  const nextSubject = patch.subject !== undefined
+    ? (update.subject as string | null)
+    : (existing.subject as string | null);
+  const nextScore = patch.score !== undefined
+    ? (update.score as string | null)
+    : (existing.score as string | null);
+  const nextChildId = patch.childId !== undefined ? patch.childId : existing.child_id;
+  const nextLogDate = patch.logDate !== undefined ? patch.logDate : (existing.log_date as string);
+  const nextKind = getKind(nextSubtype);
 
-  // Keep calendar mirror title roughly in sync — best-effort, ignore
-  // errors so a missing FK row doesn't fail the user-facing edit.
-  if (patch.title !== undefined) {
-    await supabase
-      .from("events")
-      .update({ title: update.title })
-      .eq("school_log_id", logId);
+  // Look up the existing mirror (may not exist if old kind=note).
+  const { data: mirror } = await supabase
+    .from("events")
+    .select("id, event_time")
+    .eq("school_log_id", logId)
+    .maybeSingle();
+
+  const calendarTitle = calendarTitleFor({ subtype: nextSubtype, title: nextTitle, subject: nextSubject });
+  const calendarDesc = eventDescriptionFor({ description: nextDescription, subtype: nextSubtype, score: nextScore });
+
+  if (nextKind === "event") {
+    // For eventTime, use the patch if provided; otherwise keep what the
+    // mirror had. New mirrors (note→event) start with no time = all_day.
+    const nextEventTime: string | null =
+      patch.eventTime !== undefined ? (patch.eventTime || null) : (mirror?.event_time ?? null);
+
+    if (mirror) {
+      const { error: mirrorErr } = await supabase
+        .from("events")
+        .update({
+          title: calendarTitle,
+          description: calendarDesc,
+          event_date: nextLogDate,
+          event_time: nextEventTime,
+          all_day: !nextEventTime,
+          child_id: nextChildId,
+        })
+        .eq("id", mirror.id);
+      if (mirrorErr) return { success: false, error: `Falha ao atualizar evento no calendário: ${mirrorErr.message}` };
+    } else {
+      // note → event transition: insert new mirror row.
+      if (!userId) {
+        return { success: false, error: "Usuário não informado para criar evento no calendário." };
+      }
+      if (!nextChildId) {
+        return { success: false, error: "Criança obrigatória para criar evento no calendário." };
+      }
+      const { error: mirrorErr } = await supabase.from("events").insert({
+        group_id: existing.group_id,
+        child_id: nextChildId,
+        title: calendarTitle,
+        description: calendarDesc,
+        event_date: nextLogDate,
+        event_time: nextEventTime,
+        all_day: !nextEventTime,
+        created_by: userId,
+        school_log_id: logId,
+      });
+      if (mirrorErr) return { success: false, error: `Falha ao criar evento no calendário: ${mirrorErr.message}` };
+    }
+  } else {
+    // event → note transition (or note→note): delete any mirror row.
+    if (mirror) {
+      const { error: delErr } = await supabase.from("events").delete().eq("id", mirror.id);
+      if (delErr) return { success: false, error: `Falha ao remover evento do calendário: ${delErr.message}` };
+    }
   }
+
   return { success: true, data: { id: logId } };
 }
 

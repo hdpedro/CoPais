@@ -504,6 +504,7 @@ Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`
 - `status` ('completed'|'missed'|'cancelled')
 - `child_mood` ('happy'|'neutral'|'sad'|'anxious'|'tired'), `notes` (TEXT), `reported_by`
 - **UI Native:** `ActivityReportModal` acionado via botao "Relatar" no card de atividade
+- **UX state-aware no dashboard (PWA + Native, 2026-05-06):** atividades do dia tem 3 estados visuais (`upcoming` / `ended-unreported` / `ended-reported`), classificados server-side com base em `time_end` real BR (`getBrazilNow` no PWA, `new Date()` no native) + presenca de `activity_report` para hoje. Encerrada-sem-relato mostra pill "Relatar" inline; encerrada-com-relato fica muted + check verde. A secao "Pendentes" cobre apenas dias passados (>=7d, <today) — hoje fica na propria secao "Hoje" para evitar duplicacao. Antes deste fix a atividade encerrada hoje so virava pendente no dia seguinte.
 
 **46. checklist_completions** — Itens da checklist de atividade marcados como feitos.
 - `activity_id`, `item_id` (FK activity_checklist_items), `occurrence_date`
@@ -1199,6 +1200,7 @@ Sistema para ajustes consensuais de saldo entre coparentes, alem da divida autom
 | ensureDefaultChannels | chat-channels.ts | Garante canais padrao |
 | markChannelRead | chat-channels.ts | Marca canal como lido |
 | createSchoolLog | school.ts | Registra nota escolar |
+| updateSchoolLog | school.ts | Edita registro escolar (todos os campos, sincroniza espelho do calendário em mudanças de subtype/data/hora/criança) |
 | createSensitiveNote | sensitive.ts | Cria tema sensivel |
 | requestDeletion | sensitive-topics.ts | Solicita delecao (dual-approval) |
 | approveDeletion | sensitive-topics.ts | Aprova delecao |

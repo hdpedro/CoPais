@@ -96,12 +96,25 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ success: true, completed: r.data.completed });
   }
 
-  const r = await updateSchoolLog(supabase, logId, {
-    title: body.title as string | undefined,
-    description: body.description === undefined ? undefined : ((body.description as string | null) ?? null),
-    subject: body.subject === undefined ? undefined : ((body.subject as string | null) ?? null),
-    score: body.score === undefined ? undefined : ((body.score as string | null) ?? null),
-  });
+  if (body.subtype !== undefined && !isValidSubtype(body.subtype)) {
+    return NextResponse.json({ error: "subtype inválido." }, { status: 400 });
+  }
+
+  const r = await updateSchoolLog(
+    supabase,
+    logId,
+    {
+      title: body.title as string | undefined,
+      description: body.description === undefined ? undefined : ((body.description as string | null) ?? null),
+      subject: body.subject === undefined ? undefined : ((body.subject as string | null) ?? null),
+      score: body.score === undefined ? undefined : ((body.score as string | null) ?? null),
+      subtype: body.subtype as SchoolSubtype | undefined,
+      childId: body.childId as string | undefined,
+      logDate: body.logDate as string | undefined,
+      eventTime: body.eventTime === undefined ? undefined : ((body.eventTime as string | null) ?? null),
+    },
+    user.id,
+  );
   if (!r.success) return NextResponse.json({ error: r.error }, { status: 400 });
   revalidatePath("/escola");
   revalidatePath("/calendario");

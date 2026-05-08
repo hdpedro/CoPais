@@ -23,6 +23,7 @@ interface Child {
 
 interface SchoolLog {
   id: string;
+  child_id: string | null;
   title: string;
   description: string | null;
   log_type: string;
@@ -31,6 +32,7 @@ interface SchoolLog {
   logged_by: string;
   subject: string | null;
   score: string | null;
+  event_time: string | null;
   children: { full_name?: string } | null;
   profiles: { full_name?: string } | null;
 }
@@ -73,9 +75,7 @@ export default function EscolaClient({ groupId, isReadonly, childrenList, logs, 
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [submitting, setSubmitting] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editTitle, setEditTitle] = useState("");
-  const [editDesc, setEditDesc] = useState("");
+  const [editingLog, setEditingLog] = useState<SchoolLog | null>(null);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [composer, setComposer] = useState<ComposerState>({ stage: "closed" });
   const [filterKind, setFilterKind] = useState<"all" | SchoolKind>("all");
@@ -101,17 +101,23 @@ export default function EscolaClient({ groupId, isReadonly, childrenList, logs, 
     }
   }
 
+  async function handleEditSubmit(formData: FormData) {
+    setSubmitting(true);
+    try {
+      await updateSchoolLog(formData);
+    } catch {
+      // server-action redirect throws — expected
+    } finally {
+      setSubmitting(false);
+      setEditingLog(null);
+    }
+  }
+
   async function handleToggleCompleted(logId: string) {
     startTransition(async () => {
       await toggleSchoolLogCompleted(logId);
       router.refresh();
     });
-  }
-
-  function startEdit(log: SchoolLog) {
-    setEditingId(log.id);
-    setEditTitle(log.title);
-    setEditDesc(log.description || "");
   }
 
   /* ─ Filtered list ────────────────────────────────────────────── */
@@ -166,101 +172,73 @@ export default function EscolaClient({ groupId, isReadonly, childrenList, logs, 
             const subtype = log.log_type as SchoolSubtype;
             const meta = SUBTYPE_META[subtype] || SUBTYPE_META.other;
             const kind = getKind(subtype);
-            const isEditing = editingId === log.id;
             const isDeleting = deleteConfirmId === log.id;
             const isHomework = subtype === "homework";
 
             return (
               <div key={log.id} className={`bg-white rounded-xl p-4 shadow-sm transition-all ${log.completed ? "opacity-60" : ""}`}>
-                {isEditing ? (
-                  <form action={updateSchoolLog} className="space-y-2">
-                    <input type="hidden" name="logId" value={log.id} />
-                    <input
-                      type="text"
-                      name="title"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                      required
-                    />
-                    <textarea
-                      name="description"
-                      value={editDesc}
-                      onChange={(e) => setEditDesc(e.target.value)}
-                      rows={2}
-                      className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm"
-                    />
-                    <div className="flex gap-2">
-                      <button type="submit" className="flex-1 py-2 bg-[#2E7268] text-white text-xs font-semibold rounded-lg">Salvar</button>
-                      <button type="button" onClick={() => setEditingId(null)} className="flex-1 py-2 bg-gray-100 text-gray-600 text-xs font-semibold rounded-lg">Cancelar</button>
-                    </div>
-                  </form>
-                ) : (
-                  <>
-                    <div className="flex items-start gap-3">
-                      {isHomework && (
-                        <button
-                          type="button"
-                          onClick={() => handleToggleCompleted(log.id)}
-                          disabled={isPending}
-                          className="mt-1 flex-shrink-0"
-                        >
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
-                            log.completed ? "bg-[#2E7268] border-[#2E7268]" : "border-gray-300 hover:border-[#C07055]"
-                          }`}>
-                            {log.completed && (
-                              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
-                          </div>
-                        </button>
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1 gap-2">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <span className="text-lg flex-shrink-0">{meta.icon}</span>
-                            <div className="min-w-0">
-                              <h4 className={`font-medium text-dark text-sm truncate ${log.completed ? "line-through" : ""}`}>{log.title}</h4>
-                              <p className="text-xs text-muted truncate">
-                                {meta.label}
-                                {log.subject ? ` · ${log.subject}` : ""}
-                                {log.children?.full_name ? ` · ${log.children.full_name}` : ""}
-                                {kind === "event" ? " · 📅 no calendário" : ""}
-                              </p>
-                            </div>
-                          </div>
-                          <span className="text-xs text-muted flex-shrink-0">{new Date(log.log_date + "T12:00:00").toLocaleDateString("pt-BR")}</span>
+                <div className="flex items-start gap-3">
+                  {isHomework && (
+                    <button
+                      type="button"
+                      onClick={() => handleToggleCompleted(log.id)}
+                      disabled={isPending}
+                      className="mt-1 flex-shrink-0"
+                    >
+                      <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                        log.completed ? "bg-[#2E7268] border-[#2E7268]" : "border-gray-300 hover:border-[#C07055]"
+                      }`}>
+                        {log.completed && (
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={3} strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                    </button>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1 gap-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-lg flex-shrink-0">{meta.icon}</span>
+                        <div className="min-w-0">
+                          <h4 className={`font-medium text-dark text-sm truncate ${log.completed ? "line-through" : ""}`}>{log.title}</h4>
+                          <p className="text-xs text-muted truncate">
+                            {meta.label}
+                            {log.subject ? ` · ${log.subject}` : ""}
+                            {log.children?.full_name ? ` · ${log.children.full_name}` : ""}
+                            {kind === "event" ? " · 📅 no calendário" : ""}
+                          </p>
                         </div>
-                        {log.score && (
-                          <p className="text-xs font-medium text-[#2E7268] ml-8 mt-1">Nota: {log.score}</p>
-                        )}
-                        {log.description && <p className="text-sm text-muted mt-1.5 ml-8">{log.description}</p>}
-                        <p className="text-xs text-muted mt-1 ml-8">Por {getDisplayName(log.profiles?.full_name) || "Usuario"}</p>
                       </div>
+                      <span className="text-xs text-muted flex-shrink-0">{new Date(log.log_date + "T12:00:00").toLocaleDateString("pt-BR")}</span>
                     </div>
-
-                    {!isReadonly && (
-                      <div className="flex items-center gap-2 mt-3 pt-2 border-t border-gray-50 ml-8">
-                        <button type="button" onClick={() => startEdit(log)} className="text-[11px] text-[#C07055] font-medium hover:underline">Editar</button>
-                        {isDeleting ? (
-                          <div className="flex items-center gap-2">
-                            <span className="text-[11px] text-red-500">Excluir?</span>
-                            <form action={deleteSchoolLog}>
-                              <input type="hidden" name="logId" value={log.id} />
-                              <button type="submit" className="text-[11px] text-red-600 font-bold hover:underline">Sim</button>
-                            </form>
-                            <button type="button" onClick={() => setDeleteConfirmId(null)} className="text-[11px] text-gray-400 hover:underline">Não</button>
-                          </div>
-                        ) : (
-                          <button type="button" onClick={() => setDeleteConfirmId(log.id)} className="text-[11px] text-red-400 font-medium hover:underline">Excluir</button>
-                        )}
-                        {isHomework && log.completed && (
-                          <span className="ml-auto text-[10px] font-bold text-[#2E7268] px-2 py-0.5 bg-[#2E7268]/10 rounded-full">Concluído</span>
-                        )}
-                      </div>
+                    {log.score && (
+                      <p className="text-xs font-medium text-[#2E7268] ml-8 mt-1">Nota: {log.score}</p>
                     )}
-                  </>
+                    {log.description && <p className="text-sm text-muted mt-1.5 ml-8">{log.description}</p>}
+                    <p className="text-xs text-muted mt-1 ml-8">Por {getDisplayName(log.profiles?.full_name) || "Usuario"}</p>
+                  </div>
+                </div>
+
+                {!isReadonly && (
+                  <div className="flex items-center gap-2 mt-3 pt-2 border-t border-gray-50 ml-8">
+                    <button type="button" onClick={() => setEditingLog(log)} className="text-[11px] text-[#C07055] font-medium hover:underline">Editar</button>
+                    {isDeleting ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-red-500">Excluir?</span>
+                        <form action={deleteSchoolLog}>
+                          <input type="hidden" name="logId" value={log.id} />
+                          <button type="submit" className="text-[11px] text-red-600 font-bold hover:underline">Sim</button>
+                        </form>
+                        <button type="button" onClick={() => setDeleteConfirmId(null)} className="text-[11px] text-gray-400 hover:underline">Não</button>
+                      </div>
+                    ) : (
+                      <button type="button" onClick={() => setDeleteConfirmId(log.id)} className="text-[11px] text-red-400 font-medium hover:underline">Excluir</button>
+                    )}
+                    {isHomework && log.completed && (
+                      <span className="ml-auto text-[10px] font-bold text-[#2E7268] px-2 py-0.5 bg-[#2E7268]/10 rounded-full">Concluído</span>
+                    )}
+                  </div>
                 )}
               </div>
             );
@@ -308,6 +286,24 @@ export default function EscolaClient({ groupId, isReadonly, childrenList, logs, 
                 onClose={closeComposer}
               />
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ─── EDIT MODAL ──────────────────────────────────────────── */}
+      {editingLog && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/40 p-0 sm:p-4" onClick={() => setEditingLog(null)}>
+          <div
+            className="bg-white w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <EditFormStep
+              log={editingLog}
+              childrenList={childrenList}
+              submitting={submitting}
+              onSubmit={handleEditSubmit}
+              onClose={() => setEditingLog(null)}
+            />
           </div>
         </div>
       )}
@@ -514,6 +510,134 @@ function FormStep({
       <button type="submit" disabled={submitting}
         className="w-full py-2.5 bg-[#2E7268] text-white text-sm font-semibold rounded-lg hover:bg-[#1F5A52] transition-colors disabled:opacity-50">
         {submitting ? "Salvando..." : "Registrar"}
+      </button>
+    </form>
+  );
+}
+
+/**
+ * Edit a school log — full form mirroring the create form. The user can
+ * change subtype (which triggers a kind transition: note↔event creates or
+ * removes the calendar mirror), child, date, time, subject, score, title,
+ * description. The service handles the calendar mirror sync.
+ */
+function EditFormStep({
+  log, childrenList, submitting, onSubmit, onClose,
+}: {
+  log: SchoolLog;
+  childrenList: Child[];
+  submitting: boolean;
+  onSubmit: (fd: FormData) => void;
+  onClose: () => void;
+}) {
+  const [subtype, setSubtype] = useState<SchoolSubtype>(log.log_type as SchoolSubtype);
+  const meta = SUBTYPE_META[subtype] || SUBTYPE_META.other;
+  const kind = getKind(subtype);
+  const isExam = subtype === "exam";
+  const wasEvent = getKind(log.log_type as SchoolSubtype) === "event";
+
+  return (
+    <form action={onSubmit} className="p-5 space-y-3 max-h-[92vh] overflow-y-auto">
+      <div className="flex items-center justify-between mb-2">
+        <h3 className="text-lg font-bold text-dark flex items-center gap-2">
+          <span>{meta.icon}</span> Editar {meta.label.toLowerCase()}
+        </h3>
+        <button type="button" onClick={onClose} className="text-muted hover:text-dark text-xl leading-none">×</button>
+      </div>
+
+      <input type="hidden" name="logId" value={log.id} />
+      <input type="hidden" name="subtype" value={subtype} />
+
+      <div>
+        <label className="block text-xs font-medium text-dark mb-1">Tipo</label>
+        <div className="flex flex-wrap gap-1.5">
+          {[...EVENT_SUBTYPES, ...NOTE_SUBTYPES].map((s) => {
+            const m = SUBTYPE_META[s];
+            const active = subtype === s;
+            return (
+              <button
+                key={s}
+                type="button"
+                onClick={() => setSubtype(s)}
+                className={`text-[11px] px-2.5 py-1 rounded-full border transition-colors ${
+                  active
+                    ? "bg-[#2E7268] text-white border-[#2E7268]"
+                    : "bg-white text-dark border-gray-200 hover:border-[#2E7268]/40"
+                }`}
+              >
+                {m.icon} {m.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-xs font-medium text-dark mb-1">Criança</label>
+        <select name="childId" required defaultValue={log.child_id || ""}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30">
+          {childrenList.map((c) => <option key={c.id} value={c.id}>{c.full_name}</option>)}
+        </select>
+      </div>
+
+      {isExam && (
+        <div>
+          <label className="block text-xs font-medium text-dark mb-1">Matéria</label>
+          <input type="text" name="subject" required defaultValue={log.subject || ""} placeholder="Ex: Matemática"
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
+        </div>
+      )}
+
+      <div>
+        <label className="block text-xs font-medium text-dark mb-1">{isExam ? "Conteúdo / Tópico" : "Título"}</label>
+        <input type="text" name="title" required defaultValue={log.title}
+          placeholder={isExam ? "Ex: Trigonometria + funções" : `Ex: ${meta.label}`}
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
+      </div>
+
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-dark mb-1">Data</label>
+          <input type="date" name="logDate" defaultValue={log.log_date} required
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
+        </div>
+        {kind === "event" && (
+          <div>
+            <label className="block text-xs font-medium text-dark mb-1">Horário (opcional)</label>
+            <input type="time" name="eventTime" defaultValue={log.event_time ? log.event_time.slice(0, 5) : ""}
+              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
+          </div>
+        )}
+      </div>
+
+      {isExam && (
+        <div>
+          <label className="block text-xs font-medium text-dark mb-1">Nota (opcional)</label>
+          <input type="text" name="score" defaultValue={log.score || ""} placeholder='Ex: "8,5" ou "B+"'
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
+        </div>
+      )}
+
+      <div>
+        <label className="block text-xs font-medium text-dark mb-1">Observação (opcional)</label>
+        <textarea name="description" rows={2} defaultValue={log.description || ""}
+          placeholder="Detalhes adicionais"
+          className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
+      </div>
+
+      {kind === "event" ? (
+        <div className="p-3 bg-[#C07055]/5 border border-[#C07055]/20 rounded-lg">
+          <p className="text-xs text-[#C07055] font-medium">📅 Aparece no calendário na nova data{wasEvent ? "" : " (será adicionado agora)"}.</p>
+        </div>
+      ) : wasEvent ? (
+        <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+          <p className="text-xs text-amber-700 font-medium">⚠️ Vai ser removido do calendário (virou um registro).</p>
+        </div>
+      ) : null}
+
+      <button type="submit" disabled={submitting}
+        className="w-full py-2.5 bg-[#2E7268] text-white text-sm font-semibold rounded-lg hover:bg-[#1F5A52] transition-colors disabled:opacity-50">
+        {submitting ? "Salvando..." : "Salvar"}
       </button>
     </form>
   );

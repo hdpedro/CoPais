@@ -20,6 +20,7 @@ import { useAuth } from 'src/store/auth';
 import { fetchChildren, fetchChildEducation, upsertChildEducation, type ChildEducation } from 'src/services/children';
 import {
   fetchSchoolLogs, createSchoolLog, updateSchoolLog, deleteSchoolLog, toggleSchoolLogCompleted,
+  fetchSchoolLogEventTime,
   EVENT_SUBTYPES, NOTE_SUBTYPES, SUBTYPE_LABEL, SUBTYPE_ICON, SUBTYPE_HINT, getKind,
   type SchoolLog, type SchoolLogType, type SchoolKind,
 } from 'src/services/school';
@@ -227,10 +228,18 @@ export default function EscolaScreen() {
     setComposer({ stage: 'closed' });
   }
 
-  function openEditLog(log: SchoolLog) {
+  async function openEditLog(log: SchoolLog) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setLogChildId(log.child_id);
+    setLogSubtype(log.log_type);
     setLogTitle(log.title);
     setLogDescription(log.description || '');
+    setLogDate(log.log_date);
+    setLogSubject(log.subject || '');
+    setLogScore(log.score || '');
+    // event_time lives only on the calendar mirror, fetch it for prefill.
+    const eventTime = getKind(log.log_type) === 'event' ? await fetchSchoolLogEventTime(log.id) : null;
+    setLogEventTime(eventTime ? eventTime.slice(0, 5) : '');
     setEditingLog(log);
   }
 
@@ -275,13 +284,28 @@ export default function EscolaScreen() {
   async function handleSaveEditLog() {
     if (!editingLog) return;
     if (!logTitle.trim()) {
-      Alert.alert('Titulo obrigatorio');
+      Alert.alert('Título obrigatório', 'Dê um nome ao registro.');
+      return;
+    }
+    if (!logChildId) {
+      Alert.alert('Criança obrigatória', 'Escolha pra qual criança o registro vale.');
+      return;
+    }
+    if (logSubtype === 'exam' && !logSubject.trim()) {
+      Alert.alert('Matéria obrigatória', 'Para uma prova, informe a matéria.');
       return;
     }
     setSavingLog(true);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const res = await updateSchoolLog(editingLog.id, {
       title: logTitle,
       description: logDescription,
+      subtype: logSubtype,
+      childId: logChildId,
+      logDate,
+      eventTime: getKind(logSubtype) === 'event' ? (logEventTime || null) : null,
+      subject: logSubtype === 'exam' ? logSubject : null,
+      score: logSubtype === 'exam' ? (logScore || null) : null,
     });
     setSavingLog(false);
     if (res.success) {
@@ -289,7 +313,8 @@ export default function EscolaScreen() {
       setEditingLog(null);
       await loadLogs();
     } else {
-      Alert.alert('Erro', res.error || 'Nao consegui salvar.');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', res.error || 'Não consegui salvar.');
     }
   }
 
@@ -738,28 +763,92 @@ export default function EscolaScreen() {
         </KeyboardAvoidingView>
       </Modal>
 
-      {/* Editar registro existente */}
+      {/* Editar registro existente — todos os campos editáveis. Mudar
+          subtype entre kind=event/note recria/remove o espelho do calendário. */}
       <Modal visible={!!editingLog} animationType="slide" transparent onRequestClose={() => setEditingLog(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
           <TouchableOpacity activeOpacity={1} onPress={() => setEditingLog(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
-          <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
+          <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
-              Editar registro
+              {SUBTYPE_ICON[logSubtype]} Editar {SUBTYPE_LABEL[logSubtype].toLowerCase()}
             </Text>
-            <ScrollView>
-              <Label>Titulo</Label>
-              <Input value={logTitle} onChangeText={setLogTitle} />
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <Label>Tipo</Label>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.xs, paddingVertical: 2 }}>
+                {[...EVENT_SUBTYPES, ...NOTE_SUBTYPES].map((s) => (
+                  <Chip
+                    key={s}
+                    label={`${SUBTYPE_ICON[s]} ${SUBTYPE_LABEL[s]}`}
+                    active={logSubtype === s}
+                    onPress={() => setLogSubtype(s)}
+                  />
+                ))}
+              </ScrollView>
 
-              <Label>Descricao</Label>
-              <Input value={logDescription} onChangeText={setLogDescription} multiline />
+              <Label>Criança</Label>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
+                {childOptions.map((c) => (
+                  <Chip key={c.id} label={c.short_name} active={logChildId === c.id} onPress={() => setLogChildId(c.id)} />
+                ))}
+              </View>
+
+              {logSubtype === 'exam' ? (
+                <>
+                  <Label>Matéria</Label>
+                  <Input value={logSubject} onChangeText={setLogSubject} placeholder="Ex: Matemática" />
+                </>
+              ) : null}
+
+              <Label>{logSubtype === 'exam' ? 'Conteúdo / Tópico' : 'Título'}</Label>
+              <Input
+                value={logTitle}
+                onChangeText={setLogTitle}
+                placeholder={logSubtype === 'exam' ? 'Ex: Trigonometria + funções' : `Ex: ${SUBTYPE_LABEL[logSubtype]}`}
+              />
+
+              <Label>Data</Label>
+              <DatePickerField value={logDate} onChange={(d) => setLogDate(d || todayIso())} />
+
+              {getKind(logSubtype) === 'event' ? (
+                <>
+                  <Label>Horário (opcional)</Label>
+                  <TimePickerField value={logEventTime || null} onChange={(t) => setLogEventTime(t || '')} />
+                </>
+              ) : null}
+
+              {logSubtype === 'exam' ? (
+                <>
+                  <Label>Nota (opcional)</Label>
+                  <Input value={logScore} onChangeText={setLogScore} placeholder='Ex: "8,5" ou "B+"' />
+                </>
+              ) : null}
+
+              <Label>Observação (opcional)</Label>
+              <Input value={logDescription} onChangeText={setLogDescription} placeholder="Detalhes adicionais" multiline />
+
+              {getKind(logSubtype) === 'event' ? (
+                <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.secondary}08`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.secondary}30` }}>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
+                    📅 Aparece no calendário em {(() => {
+                      try { return new Date(`${logDate}T12:00:00`).toLocaleDateString('pt-BR'); } catch { return logDate; }
+                    })()}.
+                  </Text>
+                </View>
+              ) : editingLog && getKind(editingLog.log_type) === 'event' ? (
+                <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.warning}10`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.warning}40` }}>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.warning, fontWeight: font.weights.medium }}>
+                    ⚠️ Vai ser removido do calendário (virou um registro).
+                  </Text>
+                </View>
+              ) : null}
 
               <TouchableOpacity
                 disabled={savingLog}
                 onPress={handleSaveEditLog}
                 style={{
                   backgroundColor: colors.brand, borderRadius: radius.md,
-                  paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.md,
+                  paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.lg,
                   opacity: savingLog ? 0.5 : 1,
                 }}
               >
