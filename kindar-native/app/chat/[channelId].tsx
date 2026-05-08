@@ -128,6 +128,11 @@ export default function ChatRoomScreen() {
   const toneTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flatListRef = useRef<FlatList>(null);
   const membersRef = useRef<Record<string, string>>({});
+  // Track the active channel's slug so realtime handlers can apply the
+  // "Geral channel includes channel_id IS NULL" legacy rule (mirrors PWA
+  // `api/chat/messages/route.ts:40-45`). Without this, legacy messages
+  // posted before migration 00021_chat_channels.sql never reach the room.
+  const channelSlugRef = useRef<string | null>(null);
 
   // Export-to-PDF modal state (mirrors PWA `ChatRoom.tsx:768-816`).
   // Empty `selectedMonth` means "all messages"; empty `selectedChannelId` means
@@ -170,77 +175,105 @@ export default function ChatRoomScreen() {
     });
 
     async function load() {
-      // Channel name + all channels for tabs + member count in one shot
-      const [{ data: ch }, { data: allCh }, { data: members }] = await Promise.all([
-        supabase.from('chat_channels').select('name').eq('id', channelId).single(),
-        supabase.from('chat_channels')
-          .select('id, name, icon, channel_type, sort_order, child_id, children(full_name)')
-          .eq('group_id', activeGroup!.groupId)
-          .order('sort_order'),
-        supabase.from('group_members')
-          .select('user_id, profiles(full_name, display_name, email)')
-          .eq('group_id', activeGroup!.groupId),
-      ]);
-      if (loadIdRef.current !== myLoadId) return; // user switched channels
-      if (ch) setChannelName(ch.name);
-      setChannels((allCh || []).map((c: any) => ({
-        id: c.id, name: c.name, icon: c.icon,
-        channel_type: c.channel_type,
-        child_name: c.children?.full_name?.split(' ')[0] || null,
-      })));
-      setMemberCount((members || []).length);
+      try {
+        // Channel name + all channels for tabs + member count in one shot
+        const [{ data: ch }, { data: allCh }, { data: members }] = await Promise.all([
+          supabase.from('chat_channels').select('name, slug').eq('id', channelId).single(),
+          supabase.from('chat_channels')
+            .select('id, name, icon, channel_type, sort_order, child_id, children(full_name)')
+            .eq('group_id', activeGroup!.groupId)
+            .order('sort_order'),
+          supabase.from('group_members')
+            .select('user_id, profiles(full_name, display_name, email)')
+            .eq('group_id', activeGroup!.groupId),
+        ]);
+        if (loadIdRef.current !== myLoadId) return; // user switched channels
+        if (ch) setChannelName(ch.name);
+        // Cache slug for realtime handlers + messages query (Geral includes NULL).
+        channelSlugRef.current = ch?.slug ?? null;
+        setChannels((allCh || []).map((c: any) => ({
+          id: c.id, name: c.name, icon: c.icon,
+          channel_type: c.channel_type,
+          child_name: c.children?.full_name?.split(' ')[0] || null,
+        })));
+        setMemberCount((members || []).length);
 
-      const memberMap: Record<string, string> = {};
-      (members || []).forEach((m: any) => {
-        const p = m.profiles || {};
-        memberMap[m.user_id] = p.display_name
-          || getDisplayName(p.full_name)
-          || (p.email ? p.email.split('@')[0].split('.')[0] : 'Usuario');
-      });
-      membersRef.current = memberMap;
+        const memberMap: Record<string, string> = {};
+        (members || []).forEach((m: any) => {
+          const p = m.profiles || {};
+          memberMap[m.user_id] = p.display_name
+            || getDisplayName(p.full_name)
+            || (p.email ? p.email.split('@')[0].split('.')[0] : 'Usuario');
+        });
+        membersRef.current = memberMap;
 
-      // Messages
-      // Note: `edited_at` is requested defensively — the column doesn't exist
-      // in the current schema, but selecting it conditionally would require a
-      // probe query. Supabase will return null for unknown columns? It actually
-      // errors. So we keep it OUT of the explicit select and just rely on the
-      // type having edited_at as optional (always undefined for now).
-      const { data: msgs } = await supabase
-        .from('chat_messages')
-        .select('id, text, sender_id, created_at, image_url, reply_to_id, read_by')
-        .eq('channel_id', channelId)
-        .order('created_at', { ascending: true })
-        .limit(100);
-      if (loadIdRef.current !== myLoadId) return; // stale fetch
+        // Messages
+        // Geral channel includes legacy rows with `channel_id IS NULL`
+        // (mirrors PWA `api/chat/messages/route.ts:40-45`). Mensagens
+        // criadas antes da migração 00021_chat_channels.sql ficaram sem
+        // channel_id e só voltam pelo OR abaixo.
+        const isGeral = ch?.slug === 'geral';
+        let msgsQuery = supabase
+          .from('chat_messages')
+          .select('id, text, sender_id, created_at, image_url, reply_to_id, read_by')
+          .order('created_at', { ascending: true })
+          .limit(100);
+        if (isGeral) {
+          msgsQuery = msgsQuery.or(`channel_id.eq.${channelId},channel_id.is.null`);
+        } else {
+          msgsQuery = msgsQuery.eq('channel_id', channelId);
+        }
+        const { data: msgs, error: msgsError } = await msgsQuery;
+        if (loadIdRef.current !== myLoadId) return; // stale fetch
+        if (msgsError) throw msgsError;
 
-      // image_url is path-only after migration 062 — sign in parallel.
-      const { getSignedFileUrl } = await import('src/services/storage');
-      const signed = await Promise.all((msgs || []).map(async (m: any) => ({
-        ...m,
-        image_url: m.image_url
-          ? (await getSignedFileUrl('documents', m.image_url, 3600)) || m.image_url
-          : null,
-        senderName: memberMap[m.sender_id] || 'Usuario',
-      })));
-      if (loadIdRef.current !== myLoadId) return; // stale signed-URL batch
-      setMessages(signed);
+        // image_url is path-only after migration 062 — sign in parallel.
+        const { getSignedFileUrl } = await import('src/services/storage');
+        const signed = await Promise.all((msgs || []).map(async (m: any) => ({
+          ...m,
+          image_url: m.image_url
+            ? (await getSignedFileUrl('documents', m.image_url, 3600)) || m.image_url
+            : null,
+          senderName: memberMap[m.sender_id] || 'Usuario',
+        })));
+        if (loadIdRef.current !== myLoadId) return; // stale signed-URL batch
+        setMessages(signed);
 
-      // Mark unread messages as read — single batched call to /api/chat/read
-      // (Wave I single-source-of-truth migration). Server merges read_by atomically
-      // per message and gates writes by group membership.
-      if (userId && msgs && msgs.length > 0) {
-        const unreadIds = msgs
-          .filter((m: any) => m.sender_id !== userId && (!m.read_by || !(m.read_by as Record<string, unknown>)[userId]))
-          .slice(-20)
-          .map((m: any) => m.id as string);
-        if (unreadIds.length > 0) {
-          const { apiFetch } = await import('src/lib/api-fetch');
-          apiFetch('/api/chat/read', { method: 'POST', body: { messageIds: unreadIds } })
-            .then(() => {}, () => {});
+        // Mark unread messages as read — single batched call to /api/chat/read
+        // (Wave I single-source-of-truth migration). Server merges read_by atomically
+        // per message and gates writes by group membership.
+        if (userId && msgs && msgs.length > 0) {
+          const unreadIds = msgs
+            .filter((m: any) => m.sender_id !== userId && (!m.read_by || !(m.read_by as Record<string, unknown>)[userId]))
+            .slice(-20)
+            .map((m: any) => m.id as string);
+          if (unreadIds.length > 0) {
+            const { apiFetch } = await import('src/lib/api-fetch');
+            apiFetch('/api/chat/read', { method: 'POST', body: { messageIds: unreadIds } })
+              .then(() => {}, () => {});
+          }
+        }
+      } catch (e) {
+        // Without this catch, any rejection above (network blip, signed-URL
+        // failure, schema drift) silently aborts the load and leaves the
+        // room blank — which is exactly the iOS bug we're fixing. Forward
+        // to /api/log-error so we can diagnose remotely.
+        if (loadIdRef.current === myLoadId) {
+          try {
+            const { reportError } = await import('src/lib/error-reporter');
+            reportError(e, {
+              filePath: 'app/chat/[channelId].tsx',
+              metadata: { channelId, step: 'load' },
+            });
+          } catch {}
+          console.warn('[chat-detail] load failed', e);
+          setMessages([]);
+        }
+      } finally {
+        if (loadIdRef.current === myLoadId) {
+          setLoading(false);
         }
       }
-
-      setLoading(false);
     }
 
     load();
@@ -267,8 +300,14 @@ export default function ChatRoomScreen() {
 
         // Active channel? If yes, append to the visible thread. Otherwise
         // bump the per-channel unread count so the pill bar shows the dot.
-        if (msg.channel_id !== channelId) {
-          if (userId && msg.sender_id !== userId) {
+        // Geral special-case: legacy rows with channel_id=null also belong
+        // to Geral (mirrors PWA api/chat/messages route).
+        const isGeralRoom = channelSlugRef.current === 'geral';
+        const matchesActiveChannel =
+          msg.channel_id === channelId
+          || (isGeralRoom && msg.channel_id == null);
+        if (!matchesActiveChannel) {
+          if (userId && msg.sender_id !== userId && msg.channel_id) {
             setUnreadByChannel(prev => ({
               ...prev,
               [msg.channel_id]: (prev[msg.channel_id] ?? 0) + 1,
@@ -310,7 +349,11 @@ export default function ChatRoomScreen() {
         filter: `group_id=eq.${groupId}`,
       }, (payload) => {
         const updated = payload.new as any;
-        if (updated.channel_id !== channelId) return;
+        const isGeralRoom = channelSlugRef.current === 'geral';
+        const matchesActiveChannel =
+          updated.channel_id === channelId
+          || (isGeralRoom && updated.channel_id == null);
+        if (!matchesActiveChannel) return;
         setMessages(prev => prev.map(m =>
           m.id === updated.id
             ? {
@@ -329,7 +372,11 @@ export default function ChatRoomScreen() {
         filter: `group_id=eq.${groupId}`,
       }, (payload) => {
         const deleted = payload.old as any;
-        if (deleted.channel_id !== channelId) return;
+        const isGeralRoom = channelSlugRef.current === 'geral';
+        const matchesActiveChannel =
+          deleted.channel_id === channelId
+          || (isGeralRoom && deleted.channel_id == null);
+        if (!matchesActiveChannel) return;
         setMessages(prev => prev.filter(m => m.id !== deleted.id));
       })
       .subscribe();
