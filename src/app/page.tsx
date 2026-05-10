@@ -10,6 +10,7 @@ import LandingPricingPreview from "@/components/landing/LandingPricingPreview";
 import LandingFaq from "@/components/landing/LandingFaq";
 import LandingSocialProof from "@/components/landing/LandingSocialProof";
 import LandingWhatsAppHero from "@/components/landing/LandingWhatsAppHero";
+import AppStoreBadges from "@/components/landing/AppStoreBadges";
 import PageViewTracker from "@/components/analytics/PageViewTracker";
 
 // Revalidate every 30s to keep the Early Bird counter fresh without
@@ -120,6 +121,14 @@ export default async function Home() {
                 <svg className="w-3.5 h-3.5 text-[#2E7268]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                 Funciona no celular
               </span>
+            </div>
+
+            {/* App store badges — Apple ativo, Google aguardando aprovacao */}
+            <div className="mt-10 flex flex-col items-center gap-3">
+              <p className="text-[12px] font-semibold uppercase tracking-widest text-[#9A8878]">
+                Tambem disponivel como app
+              </p>
+              <AppStoreBadges variant="default" />
             </div>
           </div>
         </section>
@@ -416,7 +425,7 @@ export default async function Home() {
       {/* ═══ FOOTER ═══ */}
       <footer className="py-12 px-5 sm:px-8 bg-[#0E0C0A] text-white/50">
         <div className="max-w-6xl mx-auto">
-          <div className="grid sm:grid-cols-3 gap-8">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             <div>
               <div className="flex items-center gap-2 mb-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -441,6 +450,13 @@ export default async function Home() {
                 <li><Link href="/termos" className="hover:text-white transition-colors">Termos de uso</Link></li>
                 <li><Link href="/privacidade" className="hover:text-white transition-colors">Politica de privacidade</Link></li>
               </ul>
+            </div>
+            <div>
+              <p className="font-semibold text-white mb-3 text-sm">Baixe o app</p>
+              <AppStoreBadges variant="compact" className="!justify-start" />
+              <p className="mt-3 text-xs text-white/40 leading-relaxed">
+                iOS disponivel na App Store. Android em breve — aguardando aprovacao da Google.
+              </p>
             </div>
           </div>
           <div className="mt-10 pt-6 border-t border-white/10 text-xs text-center">
