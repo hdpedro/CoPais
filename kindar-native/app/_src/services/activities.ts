@@ -6,6 +6,7 @@
 import { supabase } from '../lib/supabase';
 import { apiFetch } from '../lib/api-fetch';
 import { safeWrite } from './offline';
+import { generateOccurrences } from '../lib/occurrence-generator';
 
 export interface Activity {
   id: string; name: string; category: string; child_id: string | null;
@@ -28,11 +29,40 @@ export async function updateActivity(activityId: string, updates: {
   name?: string; category?: string; location?: string | null; notes?: string | null;
   time_start?: string | null; time_end?: string | null; days_of_week?: string | null;
   recurrence_type?: string;
+  start_date?: string;
+  end_date?: string | null;
+  day_of_month?: number | null;
+  custom_interval?: number;
+  custom_unit?: string;
   responsible_id?: string | null;
   teacher_name?: string | null;
   class_name?: string | null;
 }) {
-  return safeWrite({ table: 'child_activities', operation: 'update', payload: { id: activityId, ...updates } });
+  const r = await safeWrite({ table: 'child_activities', operation: 'update', payload: { id: activityId, ...updates } });
+  if (!r.success) return r;
+
+  // Se mudou algo que afeta as datas das ocorrencias, regenera. Senao
+  // (so name/notes/time/location), as datas existentes continuam validas.
+  const recurrenceFields = [
+    'recurrence_type', 'start_date', 'end_date', 'days_of_week',
+    'day_of_month', 'custom_interval', 'custom_unit',
+  ] as const;
+  const changedRecurrence = recurrenceFields.some(f => f in updates);
+  if (!changedRecurrence) return r;
+
+  // Busca a row atualizada pra alimentar o generator.
+  const { data: act } = await supabase
+    .from('child_activities')
+    .select('id, group_id, child_id, recurrence_type, start_date, end_date, days_of_week, day_of_month, custom_interval, custom_unit')
+    .eq('id', activityId)
+    .single();
+  if (!act) return r;
+
+  const genResult = await generateOccurrences(act);
+  if (genResult.error) {
+    console.warn('[activities] regenerate occurrences failed:', genResult.error);
+  }
+  return r;
 }
 
 export type DeleteScope = 'occurrence' | 'future' | 'all';
@@ -212,20 +242,69 @@ export async function submitActivityReport(params: {
 
 export async function createActivity(params: {
   groupId: string; name: string; category: string; childId?: string;
-  recurrenceType?: string; startDate: string; timeStart?: string; timeEnd?: string;
-  location?: string; notes?: string; daysOfWeek?: string; createdBy: string;
+  recurrenceType?: string; startDate: string; endDate?: string | null;
+  timeStart?: string; timeEnd?: string;
+  location?: string; notes?: string; daysOfWeek?: string;
+  dayOfMonth?: number | null; customInterval?: number; customUnit?: string;
+  responsibleId?: string | null;
+  createdBy: string;
 }) {
-  return safeWrite({
-    table: 'child_activities', operation: 'insert',
-    payload: {
-      group_id: params.groupId, child_id: params.childId || null,
-      name: params.name.trim(), category: params.category || 'other',
-      recurrence_type: params.recurrenceType || 'never', start_date: params.startDate,
-      days_of_week: params.daysOfWeek || null, time_start: params.timeStart || null,
-      time_end: params.timeEnd || null, location: params.location?.trim() || null,
-      notes: params.notes?.trim() || null, is_active: true, created_by: params.createdBy,
-    },
+  // 1. Insere a atividade master. NAO usamos safeWrite aqui porque
+  //    precisamos do id retornado pra gerar occurrences imediatamente
+  //    (offline queue nao retorna id sincrono).
+  const recurrenceType = params.recurrenceType || 'never';
+  const { data, error } = await supabase
+    .from('child_activities')
+    .insert({
+      group_id: params.groupId,
+      child_id: params.childId || null,
+      name: params.name.trim(),
+      category: params.category || 'other',
+      recurrence_type: recurrenceType,
+      start_date: params.startDate,
+      end_date: params.endDate || null,
+      days_of_week: params.daysOfWeek || null,
+      day_of_month: params.dayOfMonth ?? null,
+      custom_interval: params.customInterval ?? 1,
+      custom_unit: params.customUnit || 'week',
+      time_start: params.timeStart || null,
+      time_end: params.timeEnd || null,
+      location: params.location?.trim() || null,
+      notes: params.notes?.trim() || null,
+      responsible_id: params.responsibleId || null,
+      is_active: true,
+      created_by: params.createdBy,
+    })
+    .select('id')
+    .single();
+
+  if (error || !data) {
+    return { success: false as const, error: error?.message || 'Erro ao criar atividade' };
+  }
+
+  // 2. Gera as occurrences pre-computadas. Sem isso o calendario nao
+  //    consegue listar a atividade nas datas futuras (PWA src/actions/
+  //    activities.ts:96-111 faz a mesma coisa). Bug Hailla 2026-05-07.
+  const genResult = await generateOccurrences({
+    id: data.id,
+    group_id: params.groupId,
+    child_id: params.childId || null,
+    recurrence_type: recurrenceType,
+    start_date: params.startDate,
+    end_date: params.endDate || null,
+    days_of_week: params.daysOfWeek || null,
+    day_of_month: params.dayOfMonth ?? null,
+    custom_interval: params.customInterval ?? 1,
+    custom_unit: params.customUnit || 'week',
   });
+
+  // Se ocorrences falharam, ainda retornamos sucesso na atividade
+  // (UI mostra atividade criada). Mas logamos pra observabilidade.
+  if (genResult.error) {
+    console.warn('[activities] generateOccurrences failed:', genResult.error);
+  }
+
+  return { success: true as const, id: data.id, occurrencesGenerated: genResult.count };
 }
 
 // ── Single-occurrence overrides ─────────────────────────────────────────────

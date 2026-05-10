@@ -22,11 +22,28 @@ function formatDateKey(date) {
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}-${m}-${d}`;
 }
+// Bug Hailla 2026-05-07: clients antigos salvaram strings PT-BR — normalizamos.
+const DOW_MAP = { dom:0, seg:1, ter:2, qua:3, qui:4, sex:5, sab:6, domingo:0, segunda:1, terca:2, "terça":2, quarta:3, quinta:4, sexta:5, sabado:6, "sábado":6 };
+function normalizeDow(v) {
+  if (typeof v === "number" && v >= 0 && v <= 6) return v;
+  if (typeof v === "string") {
+    const t = v.trim().toLowerCase();
+    if (t in DOW_MAP) return DOW_MAP[t];
+    const n = Number(t); if (Number.isFinite(n) && n >= 0 && n <= 6) return n;
+  }
+  return null;
+}
 function parseDaysOfWeek(raw) {
   if (!raw) return null;
-  if (Array.isArray(raw)) return raw;
-  try { const p = JSON.parse(raw); if (Array.isArray(p)) return p; } catch {}
-  return null;
+  let arr = null;
+  if (Array.isArray(raw)) arr = raw;
+  else if (typeof raw === "string") {
+    try { const p = JSON.parse(raw); if (Array.isArray(p)) arr = p; } catch {}
+  }
+  if (!arr) return null;
+  const out = [];
+  for (const v of arr) { const n = normalizeDow(v); if (n != null) out.push(n); }
+  return out.length ? out : null;
 }
 function getOccurrences(activity, rangeStart, rangeEnd) {
   const dates = [];

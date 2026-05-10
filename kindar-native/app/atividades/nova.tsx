@@ -214,6 +214,12 @@ export default function NovaAtividadeScreen() {
       ? JSON.stringify(selectedDays.slice().sort())
       : undefined;
 
+    // createActivity ja insere TODOS os campos (incluindo responsibleId e
+    // endDate) e gera calendar_occurrences pre-computadas. Trade-off: nao
+    // suporta mais offline-create (perde a queue do safeWrite). Aceitavel
+    // porque o cenario "criar atividade sem internet" e raro e era melhor
+    // perder isso do que ter activities orfas sem occurrences (bug Hailla
+    // 2026-05-07: 4 atividades criadas, nenhuma aparecia no calendario).
     const result = await createActivity({
       groupId: activeGroup.groupId,
       name,
@@ -221,59 +227,30 @@ export default function NovaAtividadeScreen() {
       childId: childId || undefined,
       recurrenceType: recurrence,
       startDate: getBrazilToday(),
+      endDate: endDateIso || null,
       timeStart: timeStart ? `${timeStart}:00` : undefined,
       timeEnd: timeEnd ? `${timeEnd}:00` : undefined,
       location: location.trim() || undefined,
       notes: notes.trim() || undefined,
       daysOfWeek: daysJson,
+      responsibleId: responsibleId || null,
       createdBy: userId,
     });
 
-    // After the master row is created, persist optional fields the service
-    // doesn't surface (responsible_id, end_date) and checklist items.
-    let fullSuccess = result.success;
-    let activityId: string | null = null;
-    if (result.success && !result.queued) {
-      // Look up the row we just inserted by (group_id, name, created_by) +
-      // most recent. This is good enough for our single-form context.
-      const { data: row } = await supabase
-        .from('child_activities')
-        .select('id')
-        .eq('group_id', activeGroup.groupId)
-        .eq('name', name.trim())
-        .eq('created_by', userId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      activityId = row?.id ?? null;
-
-      if (activityId) {
-        // Patch responsible_id + end_date in the same row.
-        const patch: Record<string, unknown> = {};
-        if (responsibleId) patch.responsible_id = responsibleId;
-        if (endDateIso) patch.end_date = endDateIso;
-        if (Object.keys(patch).length > 0) {
-          const { error: patchErr } = await supabase
-            .from('child_activities')
-            .update(patch)
-            .eq('id', activityId);
-          if (patchErr) fullSuccess = false;
-        }
-
-        // Insert checklist items (mirrors PWA — non-fatal on failure).
-        const itemsToInsert = checklistItems.map((item, i) => ({
-          activity_id: activityId!,
-          name: item.trim(),
-          sort_order: i,
-        })).filter(r => r.name.length > 0);
-        if (itemsToInsert.length > 0) {
-          const { error: itemsErr } = await supabase
-            .from('activity_checklist_items')
-            .insert(itemsToInsert);
-          if (itemsErr) {
-            // Surface as a soft warning — the activity itself was created.
-            console.warn('[atividade] checklist insert failed', itemsErr.message);
-          }
+    const fullSuccess = result.success;
+    if (result.success && result.id) {
+      // Insert checklist items — non-fatal se falhar.
+      const itemsToInsert = checklistItems.map((item, i) => ({
+        activity_id: result.id,
+        name: item.trim(),
+        sort_order: i,
+      })).filter(r => r.name.length > 0);
+      if (itemsToInsert.length > 0) {
+        const { error: itemsErr } = await supabase
+          .from('activity_checklist_items')
+          .insert(itemsToInsert);
+        if (itemsErr) {
+          console.warn('[atividade] checklist insert failed', itemsErr.message);
         }
       }
     }
