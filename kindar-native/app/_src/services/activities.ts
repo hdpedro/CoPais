@@ -282,9 +282,11 @@ export async function createActivity(params: {
     return { success: false as const, error: error?.message || 'Erro ao criar atividade' };
   }
 
-  // 2. Gera as occurrences pre-computadas. Sem isso o calendario nao
-  //    consegue listar a atividade nas datas futuras (PWA src/actions/
-  //    activities.ts:96-111 faz a mesma coisa). Bug Hailla 2026-05-07.
+  // 2. Trigger no banco (migration 00074) ja gerou as calendar_occurrences
+  //    automaticamente. Esta chamada JS e DEFESA EM PROFUNDIDADE: se o
+  //    trigger nao existir (DB rollback, ambiente local sem migration),
+  //    a UI ainda funciona. ON CONFLICT DO NOTHING no insert torna a
+  //    operacao idempotente — duplicar nao gera linhas extras.
   const genResult = await generateOccurrences({
     id: data.id,
     group_id: params.groupId,
@@ -297,11 +299,8 @@ export async function createActivity(params: {
     custom_interval: params.customInterval ?? 1,
     custom_unit: params.customUnit || 'week',
   });
-
-  // Se ocorrences falharam, ainda retornamos sucesso na atividade
-  // (UI mostra atividade criada). Mas logamos pra observabilidade.
   if (genResult.error) {
-    console.warn('[activities] generateOccurrences failed:', genResult.error);
+    console.warn('[activities] generateOccurrences (defense in depth) failed:', genResult.error);
   }
 
   return { success: true as const, id: data.id, occurrencesGenerated: genResult.count };

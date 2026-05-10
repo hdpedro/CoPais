@@ -32,3 +32,8 @@ Quando descobrir um par novo, adicione aqui. Quando extrair um service, mova-o d
 
 Bugs anteriores causados por esquecer essa regra:
 - `2026-05-01` swap proposed_date direction: corrigido no PWA mas não no native, depois descoberto e corrigido no commit 6b273c0. Solução estrutural: a partir de hoje a lógica vive em `services/swap.ts` única.
+- `2026-05-07` calendar_occurrences não geradas no native: PWA `actions/activities.ts` chamava `generateOccurrences`, native `services/activities.ts` não. Hailla criou Jiu-Jitsu 4× e nada apareceu no calendário. **Solução estrutural definitiva (migration `00074`): trigger AFTER INSERT/UPDATE em `child_activities` chama `generate_activity_occurrences()` PL/pgSQL. Banco é a fonte de verdade — independe do client. Lib JS no PWA + native continua existindo como defesa em profundidade (UI otimista + ambiente sem migration), mas idempotente via `ON CONFLICT DO NOTHING`.**
+
+## Padrão "responsabilidade do banco" pra side-effects derivados
+
+Quando uma tabela B é **derivada** de uma tabela A (ex: `calendar_occurrences` ← `child_activities`), prefira gerar B via trigger no banco em vez de exigir que cada client lembre de chamar a lib JS. Triggers garantem cobertura 100% — PWA, native, AI, importação, edge function, SQL direto, qualquer caller futuro. Lib JS continua valendo como defesa em profundidade (UI otimista) mas a fonte de verdade é o banco.
