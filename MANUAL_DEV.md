@@ -369,6 +369,7 @@ Browser
 7. **Sem FK Joins**: PostgREST FK joins removidos, substituidos por queries separadas + joins manuais em JS
 8. **Sem state management global**: Cada page busca seus proprios dados. Revalidacao via `revalidatePath()`
 9. **i18n via useI18n()**: Todas as strings de UI traduzidas em 5 idiomas
+10. **Storage seguro (buckets privados + signed URLs com TTL curto)**: buckets `documents` e `receipts` sao `public: false` desde a migration 062, com RLS scopeada por `group_members`. Reads passam por `getSignedFileUrl(supabase, bucket, path)` ([src/lib/storage-signed-url.ts](src/lib/storage-signed-url.ts)) com **TTL default de 300s (5min)** pra minimizar janela de exposicao de tokens. Acoes que precisam de URL viva fora do request inicial (botoes "download" / "abrir em nova aba" depois de minutos no modal) chamam `POST /api/<documents|expenses>/[id]/sign` ([service](src/lib/services/storage.ts)) que valida group membership e retorna URL fresca. Frontend nunca expoe paths brutos; backend nunca devolve URL com TTL longa.
 
 ### Fluxo de Dados Tipico
 
