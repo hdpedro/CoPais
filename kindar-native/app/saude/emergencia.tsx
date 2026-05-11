@@ -64,6 +64,7 @@ export default function EmergenciaScreen() {
     loadChildren();
   }, [activeGroup]);
 
+  const groupId = activeGroup?.groupId;
   const loadSummary = useCallback(async () => {
     if (!selectedChildId) { setLoading(false); return; }
 
@@ -98,6 +99,18 @@ export default function EmergenciaScreen() {
         .maybeSingle();
       pediatricianName = (ped as any)?.name || null;
       pediatricianPhone = (ped as any)?.phone || null;
+    } else if (groupId) {
+      // Fallback: pega o pediatra mais antigo cadastrado no grupo quando ninguem marcou explicitamente
+      const { data: ped } = await supabase
+        .from('medical_professionals')
+        .select('name, phone')
+        .eq('group_id', groupId)
+        .eq('specialty', 'pediatra')
+        .order('created_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      pediatricianName = (ped as any)?.name || null;
+      pediatricianPhone = (ped as any)?.phone || null;
     }
 
     setSummary({
@@ -110,7 +123,7 @@ export default function EmergenciaScreen() {
       sus: medical?.sus_number || null,
     });
     setLoading(false);
-  }, [selectedChildId]);
+  }, [selectedChildId, groupId]);
 
   useFocusEffect(useCallback(() => { loadSummary(); }, [loadSummary]));
 

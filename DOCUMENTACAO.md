@@ -684,6 +684,7 @@ Politicas garantem que:
 - Card "Guarda ativa" com info de custodia por filho, streak de dias, proxima troca
 - Visao da semana (7 dias com cores de guarda + feriados)
 - **Alertas de saude**: medicamentos ativos, alergias criticas, consultas proximas, doencas ativas
+  - **Medicamentos de uso continuo NAO aparecem na home**: query do dashboard filtra `active_medications` por `end_date IS NOT NULL` (so cursos agudos com data de fim definida disparam "Em tratamento" + chip "Confirmar dose"). Medicacao continua (`end_date = null`) fica restrita a `/saude/medicamentos`. Aplicado em PWA (`src/app/(app)/dashboard/page.tsx`) e nativo (`kindar-native/app/_src/hooks/useDashboard.ts`).
 - **Atividades do dia/amanha**: cards com icone de categoria, horario, checklist preview
 - **Eventos sociais** integrados na mesma secao de atividades
 - **Decisoes pendentes** com urgencia e contagem de votos
@@ -847,7 +848,7 @@ Hub central de saude com sub-modulos:
 - **Vacinas** (`/saude/vacinas`): comparacao com calendario SBP, doses, lotes, local aplicacao, confirmacao de dose (`ConfirmDoseButton`)
 - **Crescimento** (`/saude/crescimento`): peso, altura, perimetro cefalico, **grafico visual** (`GrowthChart`), comparacao WHO
 - **Profissionais** (`/saude/profissionais`): diretorio com especialidade, CRM, telefone, WhatsApp
-- **Ficha de Emergencia** (`/saude/emergencia`): gera QR Code com dados criticos de saude (tipo sanguineo, alergias, medicacoes, convenio/SUS, contatos, pediatra). Endpoint publico `/api/health/emergency/[childId]?token=...` renderiza HTML auto-contido. Token UUID por crianca (`emergency_token` na tabela `children`). Botoes de compartilhar, copiar link e regenerar QR. Checklist visual dos dados preenchidos
+- **Ficha de Emergencia** (`/saude/emergencia`): gera QR Code com dados criticos de saude (tipo sanguineo, alergias, medicacoes, convenio/SUS, contatos, pediatra). Endpoint publico `/api/health/emergency/[childId]?token=...` renderiza HTML auto-contido. Token UUID por crianca (`emergency_token` na tabela `children`). Botoes de compartilhar, copiar link e regenerar QR. Checklist visual dos dados preenchidos. **Fallback automatico de pediatra**: quando `child_medical_info.primary_pediatrician_id` e null, busca o primeiro `medical_professionals` do grupo com `specialty='pediatra'` (`order created_at asc, limit 1`). Aplicado nas 3 superficies: nativo (`kindar-native/app/saude/emergencia.tsx`), endpoint publico (`src/app/api/health/emergency/[childId]/route.ts`) e checklist do PWA (`src/app/(app)/saude/emergencia/page.tsx`).
 - **Resumo pre-consulta** (`/saude/consultas/resumo`): gera resumo completo de saude desde a ultima consulta concluida (ou nascimento). Agrega doencas, sintomas, medicamentos (com aderencia), vacinas, crescimento, alergias, info medica e consultas do periodo. Botoes para copiar texto formatado e imprimir (CSS print-ready). Selecao de crianca via query param `?crianca=`. i18n: secao `preSummary` (~53 chaves)
 - **Exportacao** (`/saude/export`): exportar registros de saude
 - **Rastreamento de visualizacoes**: `HealthViewTracker` registra quem viu, `ViewedByBadge` (i18n) mostra badges

@@ -55,7 +55,8 @@ export async function GET(
       .eq("group_id", child.group_id),
   ]);
 
-  // Fetch pediatrician if exists
+  // Fetch pediatrician — usa link explicito quando existe, senao cai no primeiro
+  // profissional do grupo com specialty='pediatra' (fallback automatico).
   let pediatrician: { name: string; phone: string | null; specialty: string | null } | null = null;
   if (medicalInfo?.primary_pediatrician_id) {
     const { data: ped } = await supabase
@@ -63,6 +64,16 @@ export async function GET(
       .select("name, phone, specialty")
       .eq("id", medicalInfo.primary_pediatrician_id)
       .single();
+    pediatrician = ped;
+  } else {
+    const { data: ped } = await supabase
+      .from("medical_professionals")
+      .select("name, phone, specialty")
+      .eq("group_id", child.group_id)
+      .eq("specialty", "pediatra")
+      .order("created_at", { ascending: true })
+      .limit(1)
+      .maybeSingle();
     pediatrician = ped;
   }
 

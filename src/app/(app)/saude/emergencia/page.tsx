@@ -92,6 +92,18 @@ export default async function EmergencyPage({
       .eq("group_id", groupId),
   ]);
 
+  // Pediatra: usa link explicito quando existe, senao verifica se ha algum profissional
+  // com specialty='pediatra' no grupo (mesma logica de fallback usada no /api/health/emergency).
+  let hasPediatrician = !!medicalInfo?.primary_pediatrician_id;
+  if (!hasPediatrician) {
+    const { count } = await serviceSupabase
+      .from("medical_professionals")
+      .select("id", { count: "exact", head: true })
+      .eq("group_id", groupId)
+      .eq("specialty", "pediatra");
+    hasPediatrician = (count ?? 0) > 0;
+  }
+
   const healthSummary = {
     bloodType: medicalInfo?.blood_type || null,
     allergiesCount: allergies?.length ?? 0,
@@ -99,7 +111,7 @@ export default async function EmergencyPage({
     hasInsurance: !!(medicalInfo?.insurance_name),
     hasSus: !!(medicalInfo?.sus_number),
     contactsCount: groupMembers?.length ?? 0,
-    hasPediatrician: !!(medicalInfo?.primary_pediatrician_id),
+    hasPediatrician,
   };
 
   return (
