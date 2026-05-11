@@ -21,7 +21,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, ScrollView, ActivityIndicator, Alert, Share,
+  ActionSheetIOS, Platform,
 } from 'react-native';
+import { reportError } from '../../lib/error-reporter';
 import { router, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -72,6 +74,9 @@ interface Props {
    * Usado pela rota /atividades/[id] pra evitar "sheet flutuando sobre
    * fundo cinza vazio". Default false (mantem comportamento de modal). */
   fullscreen?: boolean;
+  /** Avisa o parent (calendario, dashboard) pra refazer load apos delete.
+   * Sem isso, o card permanece visivel ate o user navegar manualmente. */
+  onChanged?: () => void;
 }
 
 function formatDate(iso: string): string {
@@ -88,7 +93,7 @@ function formatTime(t: string | null): string {
 }
 
 export default function ActivityDetailSheet({
-  visible, onClose, activityId, occurrenceDate, completedBy, onReport, fullscreen = false,
+  visible, onClose, activityId, occurrenceDate, completedBy, onReport, fullscreen = false, onChanged,
 }: Props) {
   const insets = useSafeAreaInsets();
   const [activity, setActivity] = useState<ActivityFull | null>(null);
@@ -253,39 +258,86 @@ export default function ActivityDetailSheet({
   }
 
   async function performDelete(scope: 'occurrence' | 'future' | 'all') {
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
-    const r = await deleteActivity(activityId, { scope, occurrenceDate });
-    if (r.success) {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onClose();
-    } else {
-      Alert.alert('Erro', r.error || 'Falha ao excluir.');
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+    try {
+      const r = await deleteActivity(activityId, { scope, occurrenceDate });
+      if (r.success) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+        // Avisa o parent pra refazer load — sem isso, o card fica visivel
+        // ate o user navegar manualmente (cache stale do useCalendar).
+        // Bug Angelino 2026-05-11: clicava em Excluir mas atividade
+        // permanecia. Sem feedback de erro nem refresh = usuario assumia
+        // "nao funciona". onChanged dispara loadData() no calendar.
+        onChanged?.();
+        // Confirmacao visivel — antes era silencioso (so haptic).
+        const msg = scope === 'occurrence'
+          ? 'Ocorrencia deste dia removida do calendario.'
+          : scope === 'future'
+          ? 'Esta ocorrencia e as proximas foram removidas.'
+          : 'Atividade removida do calendario.';
+        Alert.alert('Pronto', msg, [{ text: 'OK', onPress: onClose }]);
+      } else {
+        // Erro visivel pro user + reportado pra debugging futuro.
+        reportError(new Error(`activity_delete_failed: ${r.error || 'unknown'}`), {
+          filePath: 'ActivityDetailSheet.performDelete',
+          severity: 'warning',
+          metadata: { activityId, scope, occurrenceDate, error: r.error },
+        });
+        Alert.alert('Erro ao excluir', r.error || 'Tente novamente em alguns segundos.');
+      }
+    } catch (err) {
+      // Falha imprevista (rede, timeout, etc) — capturada pra nao
+      // deixar sheet preso. Reporta pra debug + mostra erro.
+      reportError(err, {
+        filePath: 'ActivityDetailSheet.performDelete',
+        severity: 'error',
+        metadata: { activityId, scope, occurrenceDate },
+      });
+      Alert.alert('Erro', 'Nao foi possivel excluir agora. Verifique sua conexao e tente novamente.');
     }
   }
 
   function handleDelete() {
-    if (!activity) return;
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    // 3 opcoes (paridade Apple/Google Calendar) — pais que organizam
-    // recorrencia precisam de granularidade pra "esta semana" vs "serie".
+    if (!activity) {
+      // Defesa: se activity nao carregou ainda, mostra feedback em vez de
+      // retornar silencioso. Antes era `if (!activity) return;` — Angelino
+      // poderia clicar e nada acontecer.
+      Alert.alert('Aguarde', 'Carregando dados da atividade...');
+      return;
+    }
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+
+    // iOS: ActionSheetIOS (padrao Apple) — bonito, 3+ opcoes verticais,
+    // botoes destructive bem destacados, sem o problema de Alert com 4
+    // botoes que confunde o user (caso real: Angelino 2026-05-11).
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          title: `Excluir "${activity.name}"`,
+          message: 'O que voce quer apagar?',
+          options: ['Apenas este dia', 'Esta e as proximas', 'Toda a serie', 'Cancelar'],
+          destructiveButtonIndex: [0, 1, 2],
+          cancelButtonIndex: 3,
+        },
+        (idx) => {
+          if (idx === 0) performDelete('occurrence');
+          else if (idx === 1) performDelete('future');
+          else if (idx === 2) performDelete('all');
+          // idx 3 = Cancelar, no-op
+        },
+      );
+      return;
+    }
+
+    // Android: Alert ja funciona bem com varios botoes (botoes horizontais
+    // + overflow vertical quando muitos).
     Alert.alert(
       `Excluir "${activity.name}"`,
       'O que voce quer apagar?',
       [
-        {
-          text: 'Apenas este dia',
-          onPress: () => performDelete('occurrence'),
-        },
-        {
-          text: 'Esta e as proximas',
-          style: 'destructive',
-          onPress: () => performDelete('future'),
-        },
-        {
-          text: 'Toda a serie',
-          style: 'destructive',
-          onPress: () => performDelete('all'),
-        },
+        { text: 'Apenas este dia', onPress: () => performDelete('occurrence') },
+        { text: 'Esta e as proximas', style: 'destructive', onPress: () => performDelete('future') },
+        { text: 'Toda a serie', style: 'destructive', onPress: () => performDelete('all') },
         { text: 'Cancelar', style: 'cancel' },
       ],
       { cancelable: true },

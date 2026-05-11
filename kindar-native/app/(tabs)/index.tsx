@@ -971,6 +971,9 @@ export default function DashboardScreen() {
           activityId={activityDetail.activityId}
           occurrenceDate={activityDetail.occurrenceDate}
           completedBy={userId}
+          // Refresh do dashboard apos delete/edit — sem isso, o card
+          // permanece visivel mesmo apos o user excluir.
+          onChanged={refresh}
           onReport={() => {
             setReportModal({
               open: true,

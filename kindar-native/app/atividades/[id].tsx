@@ -49,6 +49,10 @@ export default function ActivityDetailScreen() {
         activityId={activityId}
         occurrenceDate={occurrenceDate}
         completedBy={userId}
+        // Apos delete bem-sucedido, volta pro calendario (useFocusEffect
+        // do useCalendar refaz load automaticamente). Sem isso, o card
+        // permanecia visivel ate user navegar manualmente.
+        onChanged={() => router.back()}
       />
     </View>
   );
