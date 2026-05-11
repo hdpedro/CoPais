@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
-import { EXPENSE_CATEGORIES, getDisplayName } from "@/lib/constants";
+import { EXPENSE_CATEGORIES } from "@/lib/constants";
 import { updateExpenseStatus } from "@/actions/expenses";
 import RejectExpenseButton from "./RejectExpenseButton";
 import DeleteExpenseButton from "./DeleteExpenseButton";
@@ -133,7 +133,7 @@ export default function ExpensesClient({
                   </div>
                   <div className="flex items-center gap-2">
                     {expense.receipt_url && (
-                      <ReceiptViewer url={expense.receipt_url} />
+                      <ReceiptViewer expenseId={expense.id} url={expense.receipt_url} />
                     )}
                     <div className="text-right">
                       <p className="font-semibold text-dark">R$ {Number(expense.amount).toFixed(2)}</p>

@@ -36,11 +36,18 @@ export function extractStoragePath(value: string): {
   return { bucket: null, path: value };
 }
 
+// Default TTL: 5 minutes. Cobre o load de uma página (PWA re-renderiza no
+// próximo nav) e o caching offline do native (a Image baixa pra disco em
+// segundos). Antes era 3600s, mas isso aumenta a janela em que uma URL com
+// token vazada (screenshot, log, share) continua resolvendo. Pra ações que
+// precisam de URL viva fora do request inicial (clique em "download" minutos
+// depois), o frontend chama `/api/<recurso>/[id]/sign` que gera uma URL fresca
+// validando sessão + group membership.
 export async function getSignedFileUrl(
   supabase: SupabaseClient,
   bucket: StorageBucket,
   pathOrUrl: string,
-  ttlSec = 3600,
+  ttlSec = 300,
 ): Promise<string | null> {
   if (!pathOrUrl) return null;
   const { path } = extractStoragePath(pathOrUrl);
@@ -65,7 +72,7 @@ export async function getSignedFileUrl(
 export async function getSignedFileUrls(
   supabase: SupabaseClient,
   items: Array<{ id: string; bucket: StorageBucket; pathOrUrl: string }>,
-  ttlSec = 3600,
+  ttlSec = 300,
 ): Promise<Record<string, string | null>> {
   const out: Record<string, string | null> = {};
   await Promise.all(

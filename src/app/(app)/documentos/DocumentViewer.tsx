@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useCallback } from "react";
+import { useEffect, useCallback, useState } from "react";
 import { useI18n } from "@/i18n/provider";
 
 interface Document {
@@ -54,6 +54,35 @@ export default function DocumentViewer({
     legal: t("docViewer.catLegal"),
     other: t("docViewer.catOther"),
   };
+
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
+
+  // O `doc.file_url` que chega aqui foi assinado server-side com TTL curto
+  // (5min). Pra ações que podem acontecer minutos depois do load (clicar
+  // "download" depois de inspecionar o documento) pedimos uma URL fresca via
+  // /api/documents/[id]/sign — assim a janela em que o token original fica
+  // exposto na rede/HTML/screenshot é mínima.
+  const openWithFreshUrl = useCallback(async () => {
+    if (downloadingId === doc.id) return;
+    setDownloadingId(doc.id);
+    try {
+      const res = await fetch(`/api/documents/${doc.id}/sign`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      if (!res.ok) {
+        // Fallback: tenta a URL atual mesmo (pode ainda estar válida).
+        window.open(doc.file_url, "_blank", "noopener,noreferrer");
+        return;
+      }
+      const data = (await res.json()) as { url: string };
+      window.open(data.url, "_blank", "noopener,noreferrer");
+    } catch {
+      window.open(doc.file_url, "_blank", "noopener,noreferrer");
+    } finally {
+      setDownloadingId(null);
+    }
+  }, [doc.id, doc.file_url, downloadingId]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -118,14 +147,15 @@ export default function DocumentViewer({
             </div>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <a
-              href={doc.file_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              download
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition-colors"
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                void openWithFreshUrl();
+              }}
+              disabled={downloadingId === doc.id}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-white text-xs font-semibold transition-colors disabled:opacity-60"
               style={{ backgroundColor: "#D4735A" }}
-              onClick={(e) => e.stopPropagation()}
             >
               <svg
                 className="w-4 h-4"
@@ -141,7 +171,7 @@ export default function DocumentViewer({
                 />
               </svg>
               {t("docViewer.download")}
-            </a>
+            </button>
             <button
               onClick={onClose}
               className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 transition-colors text-gray-500"
@@ -200,12 +230,11 @@ export default function DocumentViewer({
               <p className="text-sm text-gray-500 mb-6">
                 {t("docViewer.previewNotAvailable")}
               </p>
-              <a
-                href={doc.file_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                download
-                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold transition-colors"
+              <button
+                type="button"
+                onClick={() => void openWithFreshUrl()}
+                disabled={downloadingId === doc.id}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-semibold transition-colors disabled:opacity-60"
                 style={{ backgroundColor: "#D4735A" }}
               >
                 <svg
@@ -222,7 +251,7 @@ export default function DocumentViewer({
                   />
                 </svg>
                 {t("docViewer.downloadFile")}
-              </a>
+              </button>
             </div>
           )}
         </div>
