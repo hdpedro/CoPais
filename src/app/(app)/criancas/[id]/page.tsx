@@ -53,12 +53,15 @@ export default async function ChildDetailPage({
       .select("*")
       .eq("child_id", id)
       .single(),
-    // Latest growth record
+    // Latest growth record. Schema usa `measured_date` (date) — `recorded_at`
+    // era um typo historico que fazia PostgREST retornar 400 e o query
+    // falhar silenciosamente (cards Peso/Altura ficavam vazios mesmo com
+    // dados no banco). Fix 2026-05-11.
     supabase
       .from("growth_records")
       .select("*")
       .eq("child_id", id)
-      .order("recorded_at", { ascending: false })
+      .order("measured_date", { ascending: false })
       .limit(1),
     // Allergies
     supabase

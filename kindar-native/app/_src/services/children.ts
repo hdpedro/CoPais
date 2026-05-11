@@ -39,7 +39,11 @@ export interface GrowthRecord {
   child_id: string;
   weight_kg: number | null;
   height_cm: number | null;
-  recorded_at: string;
+  /** Schema real do banco e `measured_date` (date). O nome antigo
+   * `recorded_at` era um typo historico — coluna nunca existiu —
+   * fazia PostgREST retornar 400 e latestGrowth ficar null
+   * silenciosamente. Bug reportado 2026-05-11. */
+  measured_date: string;
 }
 
 export interface Allergy {
@@ -147,9 +151,9 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
       .maybeSingle(),
     supabase
       .from('growth_records')
-      .select('id, child_id, weight_kg, height_cm, recorded_at')
+      .select('id, child_id, weight_kg, height_cm, measured_date')
       .eq('child_id', childId)
-      .order('recorded_at', { ascending: false })
+      .order('measured_date', { ascending: false })
       .limit(1),
     supabase
       .from('child_allergies')
