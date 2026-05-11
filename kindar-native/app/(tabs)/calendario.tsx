@@ -179,7 +179,29 @@ export default function CalendarScreen() {
     setRefreshing(false);
   }, [refresh]);
 
-  const selectedEvents = selectedDay ? (eventMap[selectedDay] || []) : [];
+  // Defense-in-depth: dedup custody pra mesma crianca no day sheet.
+  // useCalendar ja deduplica desde commit ede2ece, mas se algum payload
+  // legado (cache, race condition) trouxer 2 entries custody pra mesma
+  // crianca+dia, mantemos so o primeiro (swap ganha — ordem garantida
+  // pelo useCalendar). Sem isso, dia 16/05 do Bernardo aparecia 2x
+  // "Bernardo Guarda" (regular+swap) bug 2026-05-11.
+  const selectedEvents = useMemo(() => {
+    if (!selectedDay) return [] as CalendarEvent[];
+    const raw = eventMap[selectedDay] || [];
+    const seenCustody = new Set<string>();
+    const out: CalendarEvent[] = [];
+    for (const ev of raw) {
+      if (ev.type === 'custody') {
+        // Usa title (nome da crianca) como discriminador. responsibleId
+        // muda entre regular vs swap — nao serve como chave.
+        const key = ev.title || '__group__';
+        if (seenCustody.has(key)) continue;
+        seenCustody.add(key);
+      }
+      out.push(ev);
+    }
+    return out;
+  }, [selectedDay, eventMap]);
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
