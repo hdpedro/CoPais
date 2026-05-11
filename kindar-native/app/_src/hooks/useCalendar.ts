@@ -84,7 +84,7 @@ export function useCalendar() {
           .then(r => r, () => ({ data: [] as never[] })),
         activeGroup.custodyEnabled
           ? supabase.from('custody_events')
-              .select('id, start_date, end_date, responsible_user_id, custody_type, children(full_name)')
+              .select('id, start_date, end_date, responsible_user_id, custody_type, child_id, children(full_name)')
               .eq('group_id', groupId)
               .gte('end_date', startKey)
               .lte('start_date', endKey)
@@ -165,15 +165,26 @@ export function useCalendar() {
         ...stable.filter((ce) => ce.custody_type === 'exception'),
         ...stable.filter((ce) => ce.custody_type !== 'swap' && ce.custody_type !== 'exception'),
       ];
+      // Dedup: garante UM custody event por (date, child). O loop processa
+      // swap primeiro, depois exception, depois regular — entao o que entra
+      // primeiro "ganha" e o resto e pulado. Sem isso o day sheet mostrava
+      // 2 linhas "Guarda" pra mesma crianca no dia que tinha swap aprovado
+      // (regular + swap coexistem em custody_events).
+      const seenCustodyDays = new Set<string>();
       orderedCustody.forEach((ce: any) => {
         const start = new Date(ce.start_date + 'T12:00:00');
         const end = new Date(ce.end_date + 'T12:00:00');
         const member = memberList.find(m => m.userId === ce.responsible_user_id);
+        const childKey = ce.child_id || '__group__';
 
         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+          const dateKey = formatDateKey(d);
+          const seenKey = `${dateKey}__${childKey}`;
+          if (seenCustodyDays.has(seenKey)) continue;
+          seenCustodyDays.add(seenKey);
           allEvents.push({
             id: ce.id,
-            date: formatDateKey(d),
+            date: dateKey,
             type: 'custody',
             title: getDisplayName(ce.children?.full_name),
             color: member?.color || PARENT_COLORS.primary,
