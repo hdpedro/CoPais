@@ -1,15 +1,21 @@
 /**
  * POST /api/expenses/[id]/sign
  *
- * Retorna uma signed URL fresca (TTL 5min) pro recibo de uma despesa.
- * Mesmo padrão do /api/documents/[id]/sign — valida group membership
- * via service antes de assinar.
+ * @deprecated — desde 2026-05-11 esta rota é fallback durante a migração para
+ * `GET /api/files/[id]?type=receipt`. Veja a doc em
+ * `src/app/api/documents/[id]/sign/route.ts` para o racional.
  */
 
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { getSignedReceiptUrl } from "@/lib/services/storage";
+import {
+  rateLimitCheck,
+  rateLimitHeaders,
+} from "@/lib/rate-limit/postgres";
+import { getIpHashFromRequest } from "@/lib/rate-limit/ip";
+import { isSignedUrlsDeprecated } from "@/lib/feature-flags/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -17,9 +23,25 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (isSignedUrlsDeprecated()) {
+    return NextResponse.json(
+      { error: "Endpoint descontinuado. Use GET /api/files/[id]?type=receipt." },
+      { status: 410 },
+    );
+  }
+
   const user = await resolveAuthenticatedUser(request);
   if (!user) {
     return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
+  }
+
+  const ipHash = await getIpHashFromRequest(request);
+  const limit = await rateLimitCheck(user.id, ipHash, "download-file");
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded.", blockedBy: limit.blockedBy },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
   }
 
   const { id } = await params;

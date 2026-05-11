@@ -1,22 +1,29 @@
 /**
  * POST /api/documents/[id]/sign
  *
- * Retorna uma signed URL fresca (TTL 5min) pra um documento específico.
- * Usado pelo botão "download" do DocumentViewer quando a URL inicial pode
- * já ter expirado (sessão longa, aba aberta), e pelo native quando precisa
- * reabrir o arquivo offline-first.
+ * @deprecated — desde 2026-05-11 esta rota é fallback durante a migração para
+ * `GET /api/files/[id]?type=document`. O stream proxy é mais seguro: cada
+ * download passa por rate-limit + audit, em vez de devolver uma signed URL
+ * que vive 300s sem controle do Vercel.
  *
- * Auth: dual (cookie PWA + Bearer native). Valida que o user é membro do
- * grupo dono do documento antes de assinar.
+ * Mantida para clientes que ainda não migraram (apps EAS antigos). Quando
+ * `SIGNED_URLS_DEPRECATED=true`, retorna 410 Gone — só ligar após zero hits
+ * por 30 dias.
  *
- * Não retorna o path bruto — só a URL com token + expires_at, pra cliente
- * decidir se exibe ou pede refresh.
+ * Auth: dual (cookie PWA + Bearer native).
+ * Rate-limit: `download-file` (10 req/min user, 20 IP).
  */
 
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { getSignedDocumentUrl } from "@/lib/services/storage";
+import {
+  rateLimitCheck,
+  rateLimitHeaders,
+} from "@/lib/rate-limit/postgres";
+import { getIpHashFromRequest } from "@/lib/rate-limit/ip";
+import { isSignedUrlsDeprecated } from "@/lib/feature-flags/rate-limit";
 
 export const dynamic = "force-dynamic";
 
@@ -24,9 +31,25 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (isSignedUrlsDeprecated()) {
+    return NextResponse.json(
+      { error: "Endpoint descontinuado. Use GET /api/files/[id]?type=document." },
+      { status: 410 },
+    );
+  }
+
   const user = await resolveAuthenticatedUser(request);
   if (!user) {
     return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
+  }
+
+  const ipHash = await getIpHashFromRequest(request);
+  const limit = await rateLimitCheck(user.id, ipHash, "download-file");
+  if (!limit.allowed) {
+    return NextResponse.json(
+      { error: "Rate limit exceeded.", blockedBy: limit.blockedBy },
+      { status: 429, headers: rateLimitHeaders(limit) },
+    );
   }
 
   const { id } = await params;
@@ -42,9 +65,6 @@ export async function POST(
   }
 
   return NextResponse.json(result.data, {
-    headers: {
-      // Não cachear — TTL curto deve sempre vir do servidor.
-      "Cache-Control": "no-store",
-    },
+    headers: { "Cache-Control": "no-store" },
   });
 }

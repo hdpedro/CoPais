@@ -525,6 +525,43 @@ Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`
 | `documents` | 10MB | images, PDF, DOC | `/documentos` upload + chat images (prefix `{groupId}/chat/`) |
 | `receipts` | 5MB | images, PDF | Comprovante em `/despesas/nova` |
 
+### Download de arquivo (post-migration 077)
+
+Desde a migration `00077_rate_limit_buckets.sql` (2026-05-11), todo **download completo** de documento/recibo passa pelo **stream proxy autenticado** `GET /api/files/[id]?type=document|receipt`. O proxy:
+
+1. Valida sessão (cookie PWA ou Bearer native).
+2. Exige header `X-Kindar-Client` (`web-pwa@<ver>`, `native-ios@<ver>`, `native-android@<ver>`).
+3. Aplica rate-limit Postgres-backed em paralelo nas chaves `user:` e `ip:` (escopo `download-file` = 10/min user, 20/min IP, + segunda camada `download-file-hour` = 50/h user).
+4. Valida group membership via `services/storage.ts:validateFileAccess`.
+5. Baixa do Supabase Storage server-side via admin client e streama o blob com `Content-Disposition: attachment`.
+6. Registra `usage_events` (`feature=file_download`, metadata `{bucket, bytes, file_id, scope, client, ip_hash}`).
+
+**Endpoints `/api/documents/[id]/sign` e `/api/expenses/[id]/sign` ficam `@deprecated`** mas continuam disponíveis durante a transição. Quando a env `SIGNED_URLS_DEPRECATED=true` os endpoints retornam 410 Gone.
+
+**Renderização inline** (img/iframe em listas, chat photo) continua usando signed URL server-side com TTL 300s, porque `<img src=>` não permite custom headers. Escopo `preview-image` cobre essa rota.
+
+**Anti-replay**: existe nonce JWT HS256 emitido em `POST /api/files/nonce` (TTL 5min, JTI consumido uma única vez). Quando `FILES_NONCE_REQUIRED=true`, o `GET /api/files/[id]` exige header `X-Files-Nonce`. Defaults `false` durante rollout — ligar após native bater no helper `services/files.ts` em todos os clients.
+
+#### Kill switches
+
+| Env var | Default | Efeito |
+|---------|---------|--------|
+| `RATE_LIMIT_ENFORCED` | true | false → checks ainda rodam (audit preservado) mas nunca 429. |
+| `FILES_PROXY_ENABLED` | true | false → `GET /api/files/*` retorna 503; clientes caem no `/sign`. |
+| `SIGNED_URLS_DEPRECATED` | false | true → `/sign` retorna 410 Gone. |
+| `RATE_LIMIT_IP_ENFORCED` | true | false → desliga apenas a chave de IP. |
+| `FILES_NONCE_REQUIRED` | false | true → `/api/files` exige `X-Files-Nonce`. |
+
+#### Env vars obrigatórias
+
+- `FILES_NONCE_SECRET` (HS256 do nonce — `openssl rand -hex 32`)
+- `IP_SALT` (sal do hash de IP — `openssl rand -hex 32`; mudar invalida buckets)
+
+#### Helpers cliente
+
+- PWA: `src/lib/files/client.ts` → `downloadFile(id, type)` / `openFile(id, type)`.
+- Native: `kindar-native/app/_src/services/files.ts` → `openFileNative(id, type)` / `downloadFileNative(id, type)` (usa expo-file-system + expo-sharing).
+
 #### 39-42. WhatsApp Integration (Migration 00043)
 
 **39. whatsapp_phone_links** — Vinculacao de numero WhatsApp ao perfil do usuario.
@@ -674,6 +711,7 @@ Politicas garantem que:
 | `00052_cron_logs.sql` | **Observabilidade de CRONs**: tabela `cron_logs` (name, success, processed, sent, errors JSONB, started_at, finished_at, duration_ms) + indices |
 | `00064_birthday_notification_type.sql` | **Lembrete de aniversario**: adiciona valor `birthday_reminder` ao enum `notification_type` (consumido por `/api/cron/birthday-reminders`, dispara D-7) |
 | `00065_whatsapp_v2_views.sql` | **WhatsApp v2**: views read-only `child_current_status` (snapshot de saude por crianca derivado de illness_episodes + active_medications + child_allergies) e `expense_balance_per_user` (saldo pendente derivado de expenses.split_ratio). Usadas pelas tools `get_child_status` e `get_balance`. |
+| `00076_security_definer_views_invoker.sql` | **Storage/Views security hardening**: flipa 7 views públicas (`v_group_active_subscription`, `expense_balance_per_user`, `v_active_coupons`, `v_referral_stats`, `child_current_status`, `v_early_bird_slots_remaining`, `user_health_score`) de SECURITY DEFINER → `security_invoker = true`. Garante que views respeitem RLS do caller, fechando 7 advisors de ERROR. Adiciona policy SELECT em `referral_clicks` pro owner do código (necessário pra `v_referral_stats` funcionar com invoker). |
 
 ---
 
@@ -912,8 +950,11 @@ Todas as acoes importantes geram mensagem automatica no chat do grupo via `postC
 
 ### 24. Convite (`/convite/enviar`)
 - Envio de convites por email/telefone
+- **E-mail transacional** disparado via Resend (`src/lib/emails/invitation.ts`) na criacao
 - Aceitacao via link com token (`/convite/[token]`)
 - Auto-aceitacao de convites pendentes ao fazer login
+- **Reenvio** de convite pendente pela tela `/familia` (PWA action `resendInvitation`) ou app nativo (`PATCH /api/invitations` com `action: 'resend'`)
+- Servico consolidado: `src/lib/services/invitations.ts` (`createInvitation`, `resendInvitationEmail`) — PWA e nativo partilham a mesma logica de gate, side-effects e dispatch de e-mail
 
 ### 25. Perfil (`/perfil`)
 - Visualizacao e edicao de dados pessoais (`EditProfileForm`)

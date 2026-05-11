@@ -126,10 +126,21 @@ export default function DespesasScreen() {
   async function handleItemPress(expense: Expense) {
     if (expense.receipt_url) {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      // Sign on demand: bucket is private, stored value is path-only.
-      const { getSignedFileUrl } = await import('src/services/storage');
-      const signed = await getSignedFileUrl('receipts', expense.receipt_url, 3600);
-      setViewingReceipt(signed || expense.receipt_url);
+      // Stream proxy autenticado — rate-limit + audit por download. Em vez de
+      // setar URL remota direto em <Image>, baixamos pro disco local e
+      // setamos `file://...` no viewer.
+      const { downloadFileNative } = await import('src/services/files');
+      const result = await downloadFileNative(expense.id, 'receipt');
+      if (!result.ok || !result.localUri) {
+        Alert.alert(
+          'Erro',
+          result.status === 429
+            ? 'Muitos downloads. Aguarde um momento.'
+            : result.error ?? 'Não foi possível abrir o comprovante.',
+        );
+        return;
+      }
+      setViewingReceipt(result.localUri);
     }
   }
 

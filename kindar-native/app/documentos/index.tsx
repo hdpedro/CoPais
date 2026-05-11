@@ -19,7 +19,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Alert,
-  Linking,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -113,10 +112,16 @@ export default function DocumentosScreen() {
 
   async function handleOpen(doc: Document) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const { getSignedFileUrl } = await import('src/services/storage');
-    const signed = await getSignedFileUrl('documents', doc.file_url, 3600);
-    const target = signed || doc.file_url;
-    Linking.openURL(target).catch(() => Alert.alert('Erro', 'Não foi possível abrir.'));
+    const { openFileNative } = await import('src/services/files');
+    const result = await openFileNative(doc.id, 'document');
+    if (!result.ok) {
+      Alert.alert(
+        'Erro',
+        result.status === 429
+          ? 'Muitos downloads. Aguarde um momento.'
+          : result.error ?? 'Não foi possível abrir.',
+      );
+    }
   }
 
   function handleDelete(doc: Document) {

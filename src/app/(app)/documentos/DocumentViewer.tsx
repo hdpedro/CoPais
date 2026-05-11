@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback, useState } from "react";
 import { useI18n } from "@/i18n/provider";
+import { downloadFile, openFile } from "@/lib/files/client";
 
 interface Document {
   id: string;
@@ -56,33 +57,41 @@ export default function DocumentViewer({
   };
 
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // O `doc.file_url` que chega aqui foi assinado server-side com TTL curto
-  // (5min). Pra ações que podem acontecer minutos depois do load (clicar
-  // "download" depois de inspecionar o documento) pedimos uma URL fresca via
-  // /api/documents/[id]/sign — assim a janela em que o token original fica
-  // exposto na rede/HTML/screenshot é mínima.
+  // Download passa pelo stream proxy `/api/files/[id]` — cada byte conta
+  // contra `download-file` (10/min user, 20/min IP) e gera linha em
+  // usage_events. Em caso de 429 mostramos mensagem em vez de cair pra URL
+  // antiga (que ficaria sem rate-limit).
   const openWithFreshUrl = useCallback(async () => {
     if (downloadingId === doc.id) return;
     setDownloadingId(doc.id);
+    setErrorMsg(null);
     try {
-      const res = await fetch(`/api/documents/${doc.id}/sign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        // Fallback: tenta a URL atual mesmo (pode ainda estar válida).
-        window.open(doc.file_url, "_blank", "noopener,noreferrer");
-        return;
+      const result = await openFile(doc.id, "document");
+      if (!result.ok) {
+        // popup blocked → tenta forçar download em vez de abrir
+        if (result.error === "popup_blocked") {
+          const dl = await downloadFile(doc.id, "document");
+          if (!dl.ok) {
+            setErrorMsg(
+              dl.status === 429
+                ? "Muitos downloads. Aguarde um momento."
+                : dl.error ?? "Falha ao baixar arquivo.",
+            );
+          }
+        } else {
+          setErrorMsg(
+            result.status === 429
+              ? "Muitos downloads. Aguarde um momento."
+              : result.error ?? "Falha ao abrir arquivo.",
+          );
+        }
       }
-      const data = (await res.json()) as { url: string };
-      window.open(data.url, "_blank", "noopener,noreferrer");
-    } catch {
-      window.open(doc.file_url, "_blank", "noopener,noreferrer");
     } finally {
       setDownloadingId(null);
     }
-  }, [doc.id, doc.file_url, downloadingId]);
+  }, [doc.id, downloadingId]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -263,6 +272,9 @@ export default function DocumentViewer({
             {doc.uploader_name && " - "}
             {new Date(doc.created_at).toLocaleDateString("pt-BR")}
           </p>
+          {errorMsg && (
+            <p className="text-xs text-red-500 mt-1">{errorMsg}</p>
+          )}
         </div>
       </div>
     </div>

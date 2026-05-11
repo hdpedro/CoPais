@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { openFile, downloadFile } from "@/lib/files/client";
 
 interface Props {
   expenseId: string;
@@ -10,32 +11,40 @@ interface Props {
 export default function ReceiptViewer({ expenseId, url }: Props) {
   const [open, setOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const isPdf = url.toLowerCase().includes(".pdf");
 
-  // A `url` que chega aqui foi assinada server-side com TTL curto (5min).
-  // Pra "abrir em nova aba" pedimos uma URL fresca via /api/expenses/[id]/sign,
-  // assim o token original não fica viajando por window.open num horário
-  // imprevisível depois do load da página.
+  // Abre via stream proxy `/api/files/[id]?type=receipt` — rate-limit
+  // (download-file 10/min, 50/h) + audit log em usage_events. Em 429
+  // mostramos mensagem em vez de tentar a URL antiga (que seria bypass).
   const openExternal = useCallback(async () => {
     if (refreshing) return;
     setRefreshing(true);
+    setErrorMsg(null);
     try {
-      const res = await fetch(`/api/expenses/${expenseId}/sign`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
-      if (!res.ok) {
-        window.open(url, "_blank", "noopener,noreferrer");
-        return;
+      const result = await openFile(expenseId, "receipt");
+      if (!result.ok) {
+        if (result.error === "popup_blocked") {
+          const dl = await downloadFile(expenseId, "receipt");
+          if (!dl.ok) {
+            setErrorMsg(
+              dl.status === 429
+                ? "Muitos downloads. Aguarde um momento."
+                : dl.error ?? "Falha ao baixar comprovante.",
+            );
+          }
+        } else {
+          setErrorMsg(
+            result.status === 429
+              ? "Muitos downloads. Aguarde um momento."
+              : result.error ?? "Falha ao abrir comprovante.",
+          );
+        }
       }
-      const data = (await res.json()) as { url: string };
-      window.open(data.url, "_blank", "noopener,noreferrer");
-    } catch {
-      window.open(url, "_blank", "noopener,noreferrer");
     } finally {
       setRefreshing(false);
     }
-  }, [expenseId, url, refreshing]);
+  }, [expenseId, refreshing]);
 
   const handleEscape = useCallback((e: KeyboardEvent) => {
     if (e.key === "Escape") setOpen(false);
@@ -97,6 +106,11 @@ export default function ReceiptViewer({ expenseId, url }: Props) {
               </div>
             </div>
 
+            {errorMsg && (
+              <div className="px-4 pt-3">
+                <p className="text-xs text-red-500">{errorMsg}</p>
+              </div>
+            )}
             {/* Content */}
             <div className="p-4">
               {isPdf ? (
