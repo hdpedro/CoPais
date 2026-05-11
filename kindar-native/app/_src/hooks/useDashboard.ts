@@ -66,12 +66,33 @@ interface ChildCard {
 
 export interface PendingSwap {
   id: string;
+  requesterId: string; // pra chamar respondToSwap (action card inline no dashboard)
   requesterName: string;
   originalDate: string;
   proposedDate: string | null;
   reason: string | null;
   type: string;
   createdAt: string;
+}
+
+/** Pedido de troca que EU enviei, aguardando o coparente responder.
+ *  Mostrado no dashboard + calendar com botao "Cancelar pedido" inline. */
+export interface MySentSwap {
+  id: string;
+  targetUserId: string;
+  targetName: string;
+  originalDate: string;
+  proposedDate: string | null;
+  reason: string | null;
+  type: string;
+}
+
+/** Detecta mudanca de custodia entre hoje e amanha — banner laranja
+ *  no topo do dashboard/calendar pra pais que precisam se organizar. */
+export interface TomorrowSwapInfo {
+  childName: string;
+  nextPerson: string;
+  isWithMeTomorrow: boolean;
 }
 
 export interface PendingDecision {
@@ -140,6 +161,10 @@ interface DashboardData {
   pendingSwapsList: PendingSwap[];
   pendingDecisionsList: PendingDecision[];
   pendingExpensesList: PendingExpense[];
+  /** Pedidos que EU enviei, aguardando o coparente. Card "Cancelar pedido". */
+  mySentSwapsList: MySentSwap[];
+  /** Banner "Amanha: troca de guarda". null quando custodia nao muda. */
+  tomorrowSwapInfo: TomorrowSwapInfo | null;
 
   // Children cards
   childCards: ChildCard[];
@@ -221,6 +246,8 @@ export function useDashboard() {
         { data: openDecisions },
         { data: approvedExpenses },
         { data: pendingSwapsData },
+        { data: mySentSwapsData },
+        { data: tomorrowCustodyData },
       ] = await withTimeout(Promise.all([
         supabase.from('group_members')
           .select('user_id, role, profiles(full_name)')
@@ -308,6 +335,26 @@ export function useDashboard() {
               .eq('target_user_id', userId)
               .order('created_at', { ascending: false })
               .limit(3)
+              .then(r => r, () => ({ data: [] as never[] }))
+          : Promise.resolve({ data: [] as never[] }),
+        // Meus pedidos enviados aguardando o coparente (cancelar pedido inline).
+        activeGroup.custodyEnabled
+          ? supabase.from('swap_requests')
+              .select('id, original_date, proposed_date, reason, type, target_user_id, profiles!swap_requests_target_user_id_fkey(full_name)')
+              .eq('group_id', groupId)
+              .eq('status', 'pending')
+              .eq('requester_id', userId)
+              .order('created_at', { ascending: false })
+              .limit(5)
+              .then(r => r, () => ({ data: [] as never[] }))
+          : Promise.resolve({ data: [] as never[] }),
+        // Custodia de AMANHA (banner laranja "Amanha: troca de guarda").
+        activeGroup.custodyEnabled
+          ? supabase.from('custody_events')
+              .select('id, start_date, end_date, responsible_user_id, child_id, custody_type, children(full_name)')
+              .eq('group_id', groupId)
+              .lte('start_date', tomorrowStr)
+              .gte('end_date', tomorrowStr)
               .then(r => r, () => ({ data: [] as never[] }))
           : Promise.resolve({ data: [] as never[] }),
       ]), FETCH_TIMEOUT_MS, 'useDashboard:mainQueries');
@@ -605,6 +652,7 @@ export function useDashboard() {
       // Build actionable pending lists
       const pendingSwapsList: PendingSwap[] = (pendingSwapsData || []).map((s: any) => ({
         id: s.id,
+        requesterId: s.requester_id,
         requesterName: getDisplayName(s.profiles?.full_name) || 'Co-responsavel',
         originalDate: s.original_date,
         proposedDate: s.proposed_date,
@@ -612,6 +660,57 @@ export function useDashboard() {
         type: s.type || 'swap',
         createdAt: s.created_at,
       }));
+
+      // Meus pedidos enviados — aguardando coparente responder
+      const mySentSwapsList: MySentSwap[] = (mySentSwapsData || []).map((s: any) => ({
+        id: s.id,
+        targetUserId: s.target_user_id,
+        targetName: getDisplayName(s.profiles?.full_name) || 'Co-responsavel',
+        originalDate: s.original_date,
+        proposedDate: s.proposed_date,
+        reason: s.reason,
+        type: s.type || 'swap',
+      }));
+
+      // Banner "Amanha: troca de guarda" — compara owner de hoje vs amanha
+      // pra cada crianca. Se mudou, mostra. Espelha tomorrowSwapInfo do
+      // calendario.tsx — necessario pra pais com comunicacao dificil terem
+      // visibilidade do que vem.
+      //
+      // custodyData = custodia de hoje (ja buscada em cima pro hero).
+      // tomorrowCustodyData = custodia de amanha (nova query).
+      // Quando ambos tem o mesmo child_id mas responsible_user_id diferente,
+      // banner ativa. Tie-break: custody_type='swap' ganha de 'regular'.
+      let tomorrowSwapInfo: TomorrowSwapInfo | null = null;
+      if (activeGroup.custodyEnabled && tomorrowCustodyData && custodyEvents) {
+        const pickOwner = (rows: any[], childId: string | null): { uid: string; childName: string } | null => {
+          const filtered = rows.filter(r => (r.child_id || null) === childId);
+          if (filtered.length === 0) return null;
+          // Swap ganha
+          const winner = filtered.find(r => r.custody_type === 'swap') || filtered[0];
+          return {
+            uid: winner.responsible_user_id,
+            childName: getDisplayName(winner.children?.full_name) || 'a crianca',
+          };
+        };
+        // Coleta todos os child_ids unicos entre hoje + amanha
+        const allChildIds = new Set<string | null>();
+        for (const r of (custodyEvents as any[])) allChildIds.add(r.child_id || null);
+        for (const r of (tomorrowCustodyData as any[])) allChildIds.add(r.child_id || null);
+        for (const childId of allChildIds) {
+          const todayOwner = pickOwner(custodyEvents as any[], childId);
+          const tmwOwner = pickOwner(tomorrowCustodyData as any[], childId);
+          if (!todayOwner || !tmwOwner) continue;
+          if (todayOwner.uid === tmwOwner.uid) continue;
+          const tmwPerson = memberList.find(m => m.user_id === tmwOwner.uid);
+          tomorrowSwapInfo = {
+            childName: tmwOwner.childName,
+            nextPerson: tmwPerson?.name || 'o outro responsavel',
+            isWithMeTomorrow: tmwOwner.uid === userId,
+          };
+          break; // 1 banner so
+        }
+      }
 
       // Decisions — filter out those the user already voted on
       const openDecisionList = (openDecisions || []) as any[];
@@ -681,6 +780,8 @@ export function useDashboard() {
         pendingDecisions: pendingDecisionsList.length,
         balance: (myTotal - otherTotal) / 2,
         pendingSwaps: pendingSwapsList.length,
+        mySentSwapsList,
+        tomorrowSwapInfo,
         pendingSwapsList,
         pendingDecisionsList,
         pendingExpensesList,

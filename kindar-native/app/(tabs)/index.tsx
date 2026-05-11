@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Linking } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Linking, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useAuth } from 'src/store/auth';
 import { useDashboard } from 'src/hooks/useDashboard';
+import { respondToSwap, cancelMySwap } from 'src/services/swaps';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from 'src/lib/constants';
@@ -88,6 +89,63 @@ export default function DashboardScreen() {
     await refresh();
     setRefreshing(false);
   }, [refresh]);
+
+  // Estado pra desabilitar botoes durante respostas a swap requests.
+  // Espelha o calendar.tsx — paridade na UX de aprovar/rejeitar.
+  const [responding, setResponding] = useState<string | null>(null);
+
+  const handleSwapDecision = useCallback(async (
+    swapId: string,
+    decision: 'approved' | 'rejected',
+    requesterId: string,
+    originalDate: string,
+  ) => {
+    if (!activeGroup) return;
+    setResponding(swapId);
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    const result = await respondToSwap(swapId, decision, activeGroup.groupId, requesterId, originalDate);
+    if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+      await refresh();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+      Alert.alert('Erro', result.error || 'Falha ao responder.');
+    }
+    setResponding(null);
+  }, [activeGroup, refresh]);
+
+  const handleCancelMySwap = useCallback((swapId: string) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    Alert.alert(
+      'Cancelar pedido?',
+      'Voce vai retirar a solicitacao de troca. O outro responsavel sera avisado.',
+      [
+        { text: 'Manter pedido', style: 'cancel' },
+        {
+          text: 'Cancelar pedido',
+          style: 'destructive',
+          onPress: async () => {
+            setResponding(swapId);
+            const r = await cancelMySwap(swapId);
+            setResponding(null);
+            if (r.success) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+              await refresh();
+            } else {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
+              Alert.alert('Erro', r.error || 'Falha ao cancelar.');
+            }
+          },
+        },
+      ],
+    );
+  }, [refresh]);
+
+  function formatSwapDate(iso: string): string {
+    const [, m, d] = iso.split('-').map(Number);
+    const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    return `${d}/${months[(m || 1) - 1]}`;
+  }
 
   if (!data && loading) {
     return (
@@ -685,50 +743,157 @@ export default function DashboardScreen() {
           </Animated.View>
         ) : null}
 
-        {/* === PENDING SWAPS (detailed cards) === */}
-        {(data?.pendingSwapsList.length || 0) > 0 ? (
-          <Animated.View entering={FadeInDown.delay(240).duration(400)}>
+        {/* === AMANHA: TROCA DE GUARDA (banner laranja) ===
+            Pais com comunicacao dificil precisam saber se a custodia
+            de amanha mudou \xe2\x80\x94 esse banner cobre exatamente esse caso. */}
+        {data?.tomorrowSwapInfo ? (
+          <Animated.View entering={FadeInDown.delay(230).duration(400)}>
             <View style={{
-              backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg,
-              marginBottom: spacing.lg, ...shadows.sm,
+              backgroundColor: 'rgba(232,162,40,0.1)', borderRadius: radius.xl,
+              borderWidth: 1, borderColor: 'rgba(232,162,40,0.3)',
+              padding: spacing.md, flexDirection: 'row', alignItems: 'center',
+              gap: spacing.sm, marginBottom: spacing.lg,
             }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-                <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                  🔄 Trocas de guarda
+              <Ionicons name="sync-outline" size={20} color="#b45309" />
+              <Text style={{ flex: 1, fontSize: font.sizes.sm, color: '#b45309', fontWeight: font.weights.medium }}>
+                Amanh\xc3\xa3: troca de guarda \xe2\x80\x94 {data.tomorrowSwapInfo.childName} estar\xc3\xa1 com {data.tomorrowSwapInfo.isWithMeTomorrow ? 'voc\xc3\xaa' : data.tomorrowSwapInfo.nextPerson}
+              </Text>
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* === PENDING SWAPS — eu sou o target, com APROVAR/REJEITAR inline.
+             Antes era so listagem passiva (tap pra ir pro calendar). Agora
+             pais respondem direto do Inicio \xe2\x80\x94 acesso facil mesmo pra quem
+             nao mexe muito no app. Espelha calendar.tsx l. 247-311. */}
+        {(data?.pendingSwapsList.length || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(235).duration(400)}>
+            <View style={{
+              marginBottom: spacing.lg,
+              backgroundColor: `${colors.secondary}10`, borderRadius: radius.xl,
+              borderWidth: 1, borderColor: `${colors.secondary}30`,
+              padding: spacing.lg,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <Text style={{ fontSize: 18 }}>\xf0\x9f\x94\x84</Text>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
+                  {data!.pendingSwapsList.length === 1 ? '1 troca pendente' : `${data!.pendingSwapsList.length} trocas pendentes`}
                 </Text>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/calendario')}>
-                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
-                </TouchableOpacity>
               </View>
               {data!.pendingSwapsList.map((s, i) => {
-                const orig = formatDatePt(s.originalDate);
-                const prop = s.proposedDate ? formatDatePt(s.proposedDate) : null;
+                const orig = formatSwapDate(s.originalDate);
+                const prop = s.proposedDate ? formatSwapDate(s.proposedDate) : null;
                 return (
-                  <TouchableOpacity
+                  <View
                     key={s.id}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/(tabs)/calendario'); }}
-                    activeOpacity={0.7}
                     style={{
-                      flexDirection: 'row', alignItems: 'center', gap: spacing.md,
                       paddingVertical: spacing.sm,
                       borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
                     }}
                   >
-                    <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.secondary}20`, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 14 }}>🔄</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: font.weights.medium, color: colors.text }} numberOfLines={1}>
-                        {s.requesterName} quer trocar {orig}{prop ? ` por ${prop}` : ''}
+                    <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
+                      {s.requesterName} quer trocar {orig}{prop ? ` por ${prop}` : ''}
+                    </Text>
+                    {s.reason ? (
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2, fontStyle: 'italic' }}>
+                        {`“${s.reason}”`}
                       </Text>
-                      {s.reason ? (
-                        <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>
-                          {s.reason}
+                    ) : null}
+                    <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                      <TouchableOpacity
+                        disabled={responding === s.id}
+                        onPress={() => handleSwapDecision(s.id, 'rejected', s.requesterId, s.originalDate)}
+                        style={{
+                          flex: 1, paddingVertical: 8, borderRadius: radius.md,
+                          borderWidth: 1, borderColor: colors.borderLight,
+                          alignItems: 'center', opacity: responding === s.id ? 0.5 : 1,
+                        }}
+                      >
+                        <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
+                          Rejeitar
                         </Text>
-                      ) : null}
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        disabled={responding === s.id}
+                        onPress={() => handleSwapDecision(s.id, 'approved', s.requesterId, s.originalDate)}
+                        style={{
+                          flex: 1, paddingVertical: 8, borderRadius: radius.md,
+                          backgroundColor: colors.brand,
+                          alignItems: 'center', opacity: responding === s.id ? 0.5 : 1,
+                        }}
+                      >
+                        <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                          Aprovar
+                        </Text>
+                      </TouchableOpacity>
                     </View>
-                    <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
-                  </TouchableOpacity>
+                  </View>
+                );
+              })}
+            </View>
+          </Animated.View>
+        ) : null}
+
+        {/* === MEUS PEDIDOS ENVIADOS (aguardando o coparente responder) ===
+             Botao "Cancelar pedido" inline \xe2\x80\x94 user nao precisa abrir
+             calendario pra desistir. Espelha calendar.tsx l. 313-377. */}
+        {(data?.mySentSwapsList.length || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(240).duration(400)}>
+            <View style={{
+              marginBottom: spacing.lg,
+              backgroundColor: `${colors.brand}08`, borderRadius: radius.xl,
+              borderWidth: 1, borderColor: `${colors.brand}25`,
+              padding: spacing.lg,
+            }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
+                <Text style={{ fontSize: 18 }}>\xf0\x9f\x93\xa4</Text>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
+                  {data!.mySentSwapsList.length === 1 ? '1 pedido aguardando resposta' : `${data!.mySentSwapsList.length} pedidos aguardando resposta`}
+                </Text>
+              </View>
+              {data!.mySentSwapsList.map((s, i) => {
+                const isVisit = s.type === 'visit' || (!s.proposedDate && s.reason?.toLowerCase().includes('visit'));
+                const isDebt = !s.proposedDate && !isVisit;
+                const summary = isVisit
+                  ? `Pediu visita em ${formatSwapDate(s.originalDate)}`
+                  : isDebt
+                    ? `Pediu o dia ${formatSwapDate(s.originalDate)} (ficar\xc3\xa1 devendo)`
+                    : `Quer trocar ${formatSwapDate(s.originalDate)}${s.proposedDate ? ` por ${formatSwapDate(s.proposedDate)}` : ''}`;
+                return (
+                  <View
+                    key={s.id}
+                    style={{
+                      paddingVertical: spacing.sm,
+                      borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
+                    }}
+                  >
+                    <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
+                      {summary}
+                    </Text>
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
+                      Aguardando {s.targetName}
+                    </Text>
+                    {s.reason ? (
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2, fontStyle: 'italic' }}>
+                        {`“${s.reason}”`}
+                      </Text>
+                    ) : null}
+                    <TouchableOpacity
+                      disabled={responding === s.id}
+                      onPress={() => handleCancelMySwap(s.id)}
+                      style={{
+                        marginTop: spacing.sm,
+                        paddingVertical: 8, borderRadius: radius.md,
+                        borderWidth: 1, borderColor: colors.borderLight,
+                        alignItems: 'center',
+                        opacity: responding === s.id ? 0.5 : 1,
+                      }}
+                    >
+                      <Text style={{ color: colors.error, fontSize: font.sizes.xs, fontWeight: font.weights.medium }}>
+                        Cancelar pedido
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 );
               })}
             </View>
