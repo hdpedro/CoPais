@@ -62,8 +62,8 @@ export async function POST(req: NextRequest) {
     const user = { id: auth.id };
     const supabase = createAdminClient();
 
-    // Rate limit check
-    const rateCheck = aiRateLimiter.check(user.id);
+    // Rate limit check — agora delega pro Postgres (scope ai-assistant).
+    const rateCheck = await aiRateLimiter.check(user.id);
     if (!rateCheck.allowed) {
       return NextResponse.json(
         { error: "Muitas mensagens. Aguarde um momento." },

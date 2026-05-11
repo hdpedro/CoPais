@@ -1,16 +1,33 @@
 /* ------------------------------------------------------------------ */
-/* ai-rate-limit.ts                                                   */
-/* Per-user sliding-window rate limiter for AI assistant requests.     */
-/* Uses in-memory storage (resets on deploy).                          */
+/* ai/rate-limit.ts                                                    */
+/*                                                                     */
+/* Wrapper de compatibilidade pro rate-limiter de AI assistant.        */
+/* Desde a migration 077, delega pro `rateLimitCheck` Postgres-backed  */
+/* (scope `ai-assistant`) que é distribuído entre Vercel instances e   */
+/* persistente entre deploys.                                          */
+/*                                                                     */
+/* A classe `AIRateLimiter` continua exportada com a mesma forma in-   */
+/* memory pra callers que precisam de uma chave fora de user_id (ex.:  */
+/* `waRateLimiter` em whatsapp/processor.ts usa phone number como key  */
+/* num webhook não-autenticado). Migrar esses callers caso a caso.     */
 /* ------------------------------------------------------------------ */
+
+import { rateLimitCheck } from "@/lib/rate-limit/postgres";
 
 interface RateLimitBucket {
   timestamps: number[];
 }
 
-const DEFAULT_WINDOW_MS = 60 * 1000; // 1 minute
-const DEFAULT_MAX_REQUESTS = 20; // 20 req/min per user (under Groq's 30 rpm)
+const DEFAULT_WINDOW_MS = 60 * 1000;
+const DEFAULT_MAX_REQUESTS = 20;
 
+/**
+ * In-memory sliding window. Mantida pra callers fora de auth (webhook
+ * WhatsApp por phone number, processamento em background).
+ *
+ * NÃO usar pra rotas autenticadas — `rateLimitCheck` (Postgres) é
+ * distribuído e persistente.
+ */
 export class AIRateLimiter {
   private buckets = new Map<string, RateLimitBucket>();
   private windowMs: number;
@@ -18,44 +35,35 @@ export class AIRateLimiter {
 
   constructor(
     windowMs = DEFAULT_WINDOW_MS,
-    maxRequests = DEFAULT_MAX_REQUESTS
+    maxRequests = DEFAULT_MAX_REQUESTS,
   ) {
     this.windowMs = windowMs;
     this.maxRequests = maxRequests;
   }
 
-  /**
-   * Check if a user can make a request. Returns an object with:
-   * - allowed: whether the request is allowed
-   * - remaining: how many requests are left in the window
-   * - retryAfterMs: if not allowed, how long to wait
-   */
-  check(userId: string): {
+  check(key: string): {
     allowed: boolean;
     remaining: number;
     retryAfterMs: number;
   } {
     const now = Date.now();
-    const bucket = this.buckets.get(userId) || { timestamps: [] };
+    const bucket = this.buckets.get(key) || { timestamps: [] };
 
-    // Remove timestamps outside the window
     bucket.timestamps = bucket.timestamps.filter(
-      (ts) => now - ts < this.windowMs
+      (ts) => now - ts < this.windowMs,
     );
 
     if (bucket.timestamps.length >= this.maxRequests) {
       const oldestInWindow = bucket.timestamps[0];
-      const retryAfterMs = this.windowMs - (now - oldestInWindow);
       return {
         allowed: false,
         remaining: 0,
-        retryAfterMs: Math.max(0, retryAfterMs),
+        retryAfterMs: Math.max(0, this.windowMs - (now - oldestInWindow)),
       };
     }
 
-    // Record this request
     bucket.timestamps.push(now);
-    this.buckets.set(userId, bucket);
+    this.buckets.set(key, bucket);
 
     return {
       allowed: true,
@@ -64,16 +72,15 @@ export class AIRateLimiter {
     };
   }
 
-  /** Clean up stale buckets (call periodically) */
   prune(): number {
     const now = Date.now();
     let pruned = 0;
-    for (const [userId, bucket] of this.buckets) {
+    for (const [key, bucket] of this.buckets) {
       bucket.timestamps = bucket.timestamps.filter(
-        (ts) => now - ts < this.windowMs
+        (ts) => now - ts < this.windowMs,
       );
       if (bucket.timestamps.length === 0) {
-        this.buckets.delete(userId);
+        this.buckets.delete(key);
         pruned++;
       }
     }
@@ -85,5 +92,23 @@ export class AIRateLimiter {
   }
 }
 
-// Singleton instance
-export const aiRateLimiter = new AIRateLimiter();
+/**
+ * Checa rate-limit do AI assistant pra um usuário autenticado.
+ * Delega pro `rateLimitCheck` Postgres (scope `ai-assistant` = 20/min user).
+ *
+ * Async — callers existentes precisam adicionar `await`.
+ */
+export const aiRateLimiter = {
+  async check(userId: string, ipHash: string | null = null): Promise<{
+    allowed: boolean;
+    remaining: number;
+    retryAfterMs: number;
+  }> {
+    const result = await rateLimitCheck(userId, ipHash, "ai-assistant");
+    return {
+      allowed: result.allowed,
+      remaining: result.remaining,
+      retryAfterMs: result.retryAfterMs,
+    };
+  },
+};

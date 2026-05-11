@@ -20,6 +20,15 @@ jobs:
 
       - run: npm ci
 
+      # tests/unit/native-*.test.ts importa de kindar-native/app/_src/lib/.
+      # Vitest resolve o tsconfig do native ao tipar esses arquivos, que
+      # extende `expo/tsconfig.base`. Sem deps do native instaladas, a
+      # transformacao falha com TSCONFIG_ERROR. `--ignore-scripts` pula
+      # postinstall do Expo (sentry/expo-modules-core) que pediria
+      # variaveis nativas indisponiveis em CI.
+      - run: npm ci --ignore-scripts
+        working-directory: kindar-native
+
       - run: npm run test -- --run
 
       - run: npm run test:coverage

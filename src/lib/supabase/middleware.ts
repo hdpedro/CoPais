@@ -1,5 +1,29 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { rateLimitCheck, rateLimitHeaders } from "@/lib/rate-limit/postgres";
+import { getIpHashFromRequest } from "@/lib/rate-limit/ip";
+
+/**
+ * Rotas que não passam pelo rate-limit `api-global` no middleware:
+ *   - webhooks (Stripe, RevenueCat, WhatsApp, Discord) — origem externa controlada
+ *   - cron jobs do Vercel (autenticados via X-Vercel-Signature)
+ *   - autenticação social (volumes baixos, têm rate-limit interno)
+ *
+ * Endpoints sensíveis (`/api/files`, `/api/documents/[id]/sign`) fazem
+ * rate-limit próprio por scope dedicado.
+ */
+const RATE_LIMIT_SKIP_PREFIXES = [
+  "/api/stripe/webhook",
+  "/api/revenuecat/webhook",
+  "/api/whatsapp/webhook",
+  "/api/discord/",
+  "/api/cron/",
+  "/api/auth/callback",
+];
+
+function shouldSkipRateLimit(pathname: string): boolean {
+  return RATE_LIMIT_SKIP_PREFIXES.some((p) => pathname.startsWith(p));
+}
 
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -124,6 +148,28 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/dashboard";
     return NextResponse.redirect(url);
+  }
+
+  // ----- api-global rate limit (defesa em profundidade) -----
+  // Aplica um teto agregado de 200/min por user (400/min por IP) pra qualquer
+  // /api/* não-pública. Webhooks e crons saem via RATE_LIMIT_SKIP_PREFIXES.
+  // Endpoints sensíveis ainda fazem o check específico por scope.
+  const pathname = request.nextUrl.pathname;
+  if (pathname.startsWith("/api/") && !shouldSkipRateLimit(pathname)) {
+    const ipHash = await getIpHashFromRequest(request);
+    const userId = user?.id ?? null;
+    if (userId || ipHash) {
+      const limit = await rateLimitCheck(userId, ipHash, "api-global");
+      if (!limit.allowed) {
+        return new NextResponse(
+          JSON.stringify({ error: "Rate limit exceeded.", blockedBy: limit.blockedBy }),
+          {
+            status: 429,
+            headers: { ...rateLimitHeaders(limit), "Content-Type": "application/json" },
+          },
+        );
+      }
+    }
   }
 
   return supabaseResponse;

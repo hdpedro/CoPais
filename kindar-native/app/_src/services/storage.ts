@@ -1,10 +1,13 @@
 /**
  * Storage signed-URL helper for the native iOS/Android app.
  *
- * Mirrors src/lib/storage-signed-url.ts on the PWA. After migration 062
- * the buckets are private — you MUST sign URLs to display receipts /
- * documents. This module handles both legacy (full URL) and new (path)
- * formats stored in `documents.file_url` and `expenses.receipt_url`.
+ * @deprecated pra download de arquivo completo (anexo, recibo). Use
+ * `services/files.ts:openFileNative/downloadFileNative` que passa pelo
+ * stream proxy `/api/files/[id]` autenticado + rate-limited.
+ *
+ * Mantida pra preview inline de imagem em chat — `<Image source={{uri}}>`
+ * não suporta custom headers. TTL alinhado com a versão PWA (300s) pra
+ * mitigar replay.
  */
 
 import { supabase } from '../lib/supabase';
@@ -29,7 +32,7 @@ export function extractStoragePath(value: string): {
 export async function getSignedFileUrl(
   bucket: StorageBucket,
   pathOrUrl: string,
-  ttlSec = 3600,
+  ttlSec = 300,
 ): Promise<string | null> {
   if (!pathOrUrl) return null;
   const { path } = extractStoragePath(pathOrUrl);
@@ -49,7 +52,7 @@ export async function getSignedFileUrl(
 /** Batch signer — same pattern as PWA helper. */
 export async function getSignedFileUrls(
   items: Array<{ id: string; bucket: StorageBucket; pathOrUrl: string }>,
-  ttlSec = 3600,
+  ttlSec = 300,
 ): Promise<Record<string, string | null>> {
   const out: Record<string, string | null> = {};
   await Promise.all(

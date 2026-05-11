@@ -1554,6 +1554,9 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 12. **Sempre** valide enums/status server-side antes de gravar no banco
 13. **Sempre** valide MIME type de arquivos server-side antes de upload ao Storage
 14. **Sempre** desabilite botoes de upload durante o envio e resete o input apos sucesso (prevencao de duplicatas)
+15. **Nunca** devolva signed URL pra download bruto. Use `GET /api/files/[id]?type=document|receipt` (stream proxy autenticado, rate-limited, com audit). Veja secao "Download de arquivo" em DOCUMENTACAO.md.
+16. **Sempre** envie `X-Kindar-Client` em chamadas pra `/api/files/*` e `/api/files/nonce`. PWA usa `web-pwa@<ver>`, native usa `native-{ios|android}@<ver>` (helpers `src/lib/files/client.ts` + `kindar-native/app/_src/services/files.ts` cuidam disso).
+17. **Para rate-limit em rotas autenticadas**: use `rateLimitCheck(userId, ipHash, scope)` de `src/lib/rate-limit/postgres.ts` com um scope dedicado em `src/lib/rate-limit/scopes.ts`. NAO crie limiter in-memory — fragmenta entre Vercel instances e reseta em deploy. O scope `api-global` ja eh aplicado no middleware como teto agregado.
 
 ---
 
