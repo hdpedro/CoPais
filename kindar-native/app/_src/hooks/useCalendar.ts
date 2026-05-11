@@ -12,6 +12,10 @@ import { loadMyPendingSwaps, loadMySentSwaps, type SwapRequestDetail } from '../
 import { listBalanceOperations, type BalanceOperation } from '../services/balance-operations';
 import { fetchMyPendingEventRequests, type EventRequest } from '../services/event-requests';
 import type { CustodyEventRaw } from '../lib/calendar-balance';
+import { withTimeout } from '../lib/with-timeout';
+import { reportError } from '../lib/error-reporter';
+
+const FETCH_TIMEOUT_MS = 15_000;
 
 export interface CalendarEvent {
   id: string;
@@ -50,7 +54,13 @@ export function useCalendar() {
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
-    if (!userId || !activeGroup) return;
+    // Libera o spinner ate em caminhos sem auth — sem isso a tela pode ficar
+    // travada se userId/activeGroup nunca aparecerem (bug similar useDashboard
+    // 2026-05-11). Finally global no fim cobre os demais caminhos.
+    if (!userId || !activeGroup) {
+      setLoading(false);
+      return;
+    }
     const groupId = activeGroup.groupId;
 
     // Range: 1 month back + 12 months ahead
@@ -67,7 +77,7 @@ export function useCalendar() {
         { data: occurrences },
         { data: socialEvents },
         { data: appointments },
-      ] = await Promise.all([
+      ] = await withTimeout(Promise.all([
         supabase.from('group_members')
           .select('user_id, profiles(full_name, display_name, email)')
           .eq('group_id', groupId)
@@ -112,7 +122,7 @@ export function useCalendar() {
           .lte('appointment_date', endKey + 'T23:59:59')
           .limit(200)
           .then(r => r, () => ({ data: [] as never[] })),
-      ]);
+      ]), FETCH_TIMEOUT_MS, 'useCalendar:mainQueries');
 
       // Members — display name cascade: display_name → full_name.first →
       // email prefix. Never surface raw email (fixes screenshot complaint).
@@ -221,12 +231,12 @@ export function useCalendar() {
 
       // Pending swap requests + event-action requests addressed to me
       if (activeGroup.custodyEnabled) {
-        const [swaps, sentSwaps, ops, eventReqs] = await Promise.all([
+        const [swaps, sentSwaps, ops, eventReqs] = await withTimeout(Promise.all([
           loadMyPendingSwaps(groupId, userId),
           loadMySentSwaps(groupId, userId),
           listBalanceOperations(groupId),
           fetchMyPendingEventRequests(groupId, userId),
-        ]);
+        ]), FETCH_TIMEOUT_MS, 'useCalendar:swapsAndOps');
         setPendingSwaps(swaps);
         setMySentSwaps(sentSwaps);
         setBalanceOps(ops);
@@ -235,11 +245,16 @@ export function useCalendar() {
         setPendingSwaps([]);
         setMySentSwaps([]);
         setBalanceOps([]);
-        setPendingEventRequests(await fetchMyPendingEventRequests(groupId, userId));
+        setPendingEventRequests(await withTimeout(
+          fetchMyPendingEventRequests(groupId, userId),
+          FETCH_TIMEOUT_MS,
+          'useCalendar:eventRequests',
+        ));
       }
-    } catch {
-      // Silently fail
+    } catch (e) {
+      reportError(e, { severity: 'error', filePath: 'useCalendar.loadData' }).catch(() => {});
     } finally {
+      // Invariante: spinner SEMPRE termina, mesmo em timeout/erro/early return.
       setLoading(false);
     }
   }, [userId, activeGroup]);

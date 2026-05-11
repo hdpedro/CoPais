@@ -9,6 +9,10 @@ import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
 import { getDisplayName } from '../lib/constants';
+import { withTimeout } from '../lib/with-timeout';
+import { reportError } from '../lib/error-reporter';
+
+const FETCH_TIMEOUT_MS = 15_000;
 
 // ── Types ──
 
@@ -122,29 +126,38 @@ export function useHealth(selectedChildId?: string) {
   const [loading, setLoading] = useState(true);
 
   const loadData = useCallback(async () => {
-    if (!userId || !activeGroup) return;
+    // Mesmo invariante de useDashboard/useCalendar: spinner sempre termina.
+    if (!userId || !activeGroup) {
+      setLoading(false);
+      return;
+    }
     const groupId = activeGroup.groupId;
 
     try {
-      // Members for name lookup
-      const { data: members } = await supabase
-        .from('group_members')
-        .select('user_id, profiles(full_name)')
-        .eq('group_id', groupId);
+      // Members for name lookup (com timeout pra nao pendurar a tela inteira
+      // se essa unica query travar — fallback: lookup vazio, nomes ficam '').
+      const { data: members } = await withTimeout(
+        supabase
+          .from('group_members')
+          .select('user_id, profiles(full_name)')
+          .eq('group_id', groupId),
+        FETCH_TIMEOUT_MS,
+        'useHealth:members',
+      );
 
       const memberMap: Record<string, string> = {};
       (members || []).forEach((m: any) => {
         memberMap[m.user_id] = getDisplayName(m.profiles?.full_name);
       });
 
-      // All queries in parallel
+      // All queries in parallel (com timeout: se uma travar, a tela libera)
       const [
         { data: children },
         { data: illnesses },
         { data: medications },
         { data: appointments },
         { data: allergies },
-      ] = await Promise.all([
+      ] = await withTimeout(Promise.all([
         supabase.from('children')
           .select('id, full_name, birth_date')
           .eq('group_id', groupId)
@@ -166,8 +179,9 @@ export function useHealth(selectedChildId?: string) {
           .limit(30),
         supabase.from('child_allergies')
           .select('id, child_id, name, allergy_type, severity, reaction, children(full_name)')
-          .eq('group_id', groupId),
-      ]);
+          .eq('group_id', groupId)
+          .then(r => r, () => ({ data: [] as never[] })),
+      ]), FETCH_TIMEOUT_MS, 'useHealth:mainQueries');
 
       // Map illnesses
       const mappedIllnesses: Illness[] = (illnesses || []).map((i: any) => ({
@@ -296,9 +310,10 @@ export function useHealth(selectedChildId?: string) {
         allergies: mappedAllergies,
         timeline,
       });
-    } catch {
-      // Silent fail
+    } catch (e) {
+      reportError(e, { severity: 'error', filePath: 'useHealth.loadData' }).catch(() => {});
     } finally {
+      // Invariante: spinner SEMPRE termina, mesmo em timeout/erro/early return.
       setLoading(false);
     }
   }, [userId, activeGroup, selectedChildId]);

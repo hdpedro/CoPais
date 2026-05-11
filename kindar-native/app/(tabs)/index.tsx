@@ -97,6 +97,30 @@ export default function DashboardScreen() {
     );
   }
 
+  // Fetch terminou (loading=false) mas data ficou null — timeout, rede caiu,
+  // RLS bloqueou, etc. NUNCA deixar tela vazia ou em "Carregando..." pra
+  // sempre. Empty state + botao retry pra desbloquear o user (bug Aline
+  // 2026-05-11: hook prendia em loading=true; agora a tela cai aqui).
+  if (!data) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', paddingHorizontal: spacing.xl }}>
+        <Text style={{ fontSize: 48, marginBottom: spacing.md }}>📡</Text>
+        <Text style={{ color: colors.text, fontSize: font.sizes.lg, fontWeight: '700', textAlign: 'center', marginBottom: spacing.sm }}>
+          Não consegui carregar
+        </Text>
+        <Text style={{ color: colors.textMuted, fontSize: font.sizes.md, textAlign: 'center', marginBottom: spacing.lg }}>
+          Verifique sua conexão e tente de novo.
+        </Text>
+        <TouchableOpacity
+          onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); refresh(); }}
+          style={{ backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md }}
+        >
+          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: '700' }}>Tentar de novo</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  }
+
   const greeting = data ? t(GREETING_I18N_KEYS[data.greeting]) : t('common.hello');
   const firstName = data?.firstName || '';
   const firstCustody = data?.custodyChildren?.[0];

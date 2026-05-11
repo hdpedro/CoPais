@@ -17,6 +17,13 @@ import { signChildAvatar } from '../services/children';
 import { PARENT_COLORS, getDisplayName } from '../lib/constants';
 import { cacheGet, cacheSet, isOnline } from '../services/offline';
 import { subscribeToNotifications } from '../services/notifications';
+import { withTimeout } from '../lib/with-timeout';
+import { reportError } from '../lib/error-reporter';
+
+// Hard ceiling pra todo o ciclo de fetch. Sem isso, uma query do Supabase
+// pendurada (TLS travado, token expirado, DNS lento) trava a tela em
+// "Carregando..." pra sempre — bug 2026-05-11 reportado pela Aline (Android).
+const FETCH_TIMEOUT_MS = 15_000;
 
 interface CustodyChild {
   childFirstName: string;
@@ -168,23 +175,39 @@ export function useDashboard() {
   const [error, setError] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
-    if (!userId || !activeGroup) return;
+    // Sem usuario/grupo nao tem o que carregar — mas ainda precisamos liberar
+    // o spinner pra UI nao ficar travada (bug Aline 2026-05-11). O finally
+    // global no fim do try/catch cobre TODOS os caminhos de saida.
+    if (!userId || !activeGroup) {
+      setLoading(false);
+      return;
+    }
     const groupId = activeGroup.groupId;
     const cacheKey = `dashboard_${groupId}`;
 
-    // Try cache first when offline
-    if (!isOnline()) {
-      const cached = await cacheGet<DashboardData>(cacheKey);
-      if (cached) { setData(cached); setLoading(false); return; }
-    }
-
     try {
+      // Try cache first when offline. Antes esse path ficava no inicio e
+      // tinha um `return` cru — quando offline E sem cache, loading
+      // continuava true pra sempre. Agora mora dentro do try pra cair no
+      // finally que libera o spinner.
+      if (!isOnline()) {
+        const cached = await cacheGet<DashboardData>(cacheKey);
+        if (cached) { setData(cached); return; }
+        // Offline + sem cache: deixa data=null mas finally vai liberar o
+        // spinner e a UI mostra empty state em vez de "Carregando..." eterno.
+        return;
+      }
+
       const today = formatDateKey(new Date());
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = formatDateKey(tomorrow);
 
-      // All queries in parallel (resilient — each with fallback)
+      // All queries in parallel (resilient — each with fallback).
+      // Envolto em withTimeout: se qualquer query do Supabase pendurar
+      // (TLS travado, token expirado em refresh storm), o TimeoutError
+      // dispara em 15s e cai no catch — UI sai do "Carregando..." em vez
+      // de bloquear pra sempre. Telemetria via error-reporter.
       const [
         { data: members },
         { data: children },
@@ -198,7 +221,7 @@ export function useDashboard() {
         { data: openDecisions },
         { data: approvedExpenses },
         { data: pendingSwapsData },
-      ] = await Promise.all([
+      ] = await withTimeout(Promise.all([
         supabase.from('group_members')
           .select('user_id, role, profiles(full_name)')
           .eq('group_id', groupId)
@@ -284,7 +307,7 @@ export function useDashboard() {
               .limit(3)
               .then(r => r, () => ({ data: [] as never[] }))
           : Promise.resolve({ data: [] as never[] }),
-      ]);
+      ]), FETCH_TIMEOUT_MS, 'useDashboard:mainQueries');
 
       // Build member color map
       const memberList = (members || []).map((m: any, i: number) => ({
@@ -408,7 +431,7 @@ export function useDashboard() {
         yesterday.setDate(yesterday.getDate() - 1);
         const yesterdayStr = formatDateKey(yesterday);
 
-        const [{ data: pastOccs }, { data: existingReports }, { data: todayReportsData }] = await Promise.all([
+        const [{ data: pastOccs }, { data: existingReports }, { data: todayReportsData }] = await withTimeout(Promise.all([
           // NOTE: calendar_occurrences has NO status column (see migration
           // 00038_calendar_occurrences.sql) — filtering by status silently
           // returned 0 rows and hid the Pendentes section. Mirror the PWA
@@ -437,7 +460,7 @@ export function useDashboard() {
             .eq('occurrence_date', today)
             .limit(50)
             .then(r => r, () => ({ data: [] as never[] })),
-        ]);
+        ]), FETCH_TIMEOUT_MS, 'useDashboard:pendingReports');
 
         for (const r of (todayReportsData as any[])) todayReportedActivityIds.add(r.activity_id);
 
@@ -510,7 +533,11 @@ export function useDashboard() {
           item.signedUrl = null;
         }
       });
-      await Promise.all(signTasks);
+      // Timeout curto: assinar avatar e' nice-to-have, nao deve travar dashboard.
+      // Se Storage demorar, cai no catch via Promise.race e signedUrl fica null
+      // (UI usa fallback de inicial do nome).
+      await withTimeout(Promise.all(signTasks), 5_000, 'useDashboard:signAvatars')
+        .catch(() => { /* avatars sao opcionais */ });
 
       const childCards: ChildCard[] = rawCards.map(({ row: c, signedUrl }) => {
         const bd = new Date(c.birth_date + 'T12:00:00');
@@ -588,12 +615,18 @@ export function useDashboard() {
       const openDecisionIds = openDecisionList.map((d: any) => d.id);
       let votedIds = new Set<string>();
       if (openDecisionIds.length > 0) {
-        const { data: votes } = await supabase
-          .from('decision_votes')
-          .select('decision_id')
-          .eq('user_id', userId)
-          .in('decision_id', openDecisionIds);
-        votedIds = new Set((votes || []).map((v: any) => v.decision_id));
+        try {
+          const { data: votes } = await withTimeout(
+            supabase
+              .from('decision_votes')
+              .select('decision_id')
+              .eq('user_id', userId)
+              .in('decision_id', openDecisionIds),
+            10_000,
+            'useDashboard:decisionVotes',
+          );
+          votedIds = new Set((votes || []).map((v: any) => v.decision_id));
+        } catch { /* sem votos: assume nada votado */ }
       }
       const pendingDecisionsList: PendingDecision[] = openDecisionList
         .filter((d: any) => !votedIds.has(d.id))
@@ -656,9 +689,20 @@ export function useDashboard() {
       setData(dashData);
       cacheSet(cacheKey, dashData);
       setError(null);
-    } catch {
-      setError('Erro ao carregar dados');
+    } catch (e) {
+      // Falhou (timeout, rede, query 4xx/5xx). Tenta cache stale como
+      // fallback pra evitar tela vazia — melhor mostrar dado de 5min atras
+      // do que "Erro ao carregar". Se nao tem cache, deixa data=null e a
+      // UI mostra empty state com botao "Tentar de novo".
+      try {
+        const stale = await cacheGet<DashboardData>(cacheKey);
+        if (stale) setData(stale);
+      } catch { /* cache miss: deixa data=null */ }
+      setError(e instanceof Error ? e.message : 'Erro ao carregar dados');
+      reportError(e, { severity: 'error', filePath: 'useDashboard.loadData' }).catch(() => {});
     } finally {
+      // SEMPRE liberar o spinner — esse e o invariante que precisa segurar
+      // pra UI nunca mais ficar travada em "Carregando..." (bug Aline).
       setLoading(false);
     }
   }, [userId, activeGroup, profile]);
