@@ -132,10 +132,13 @@ export default async function DashboardPage() {
           .order("created_at", { ascending: false }).limit(3)
           .then(r => r, () => ({ data: [] as never[] }))
       : Promise.resolve({ data: [] as never[] }),
-    // Active medications
+    // Active medications — apenas cursos agudos (com end_date definida).
+    // Medicacao sem end_date = uso continuo/cronico, fica fora da home pra
+    // evitar poluicao visual; ainda visivel em /saude/medicamentos.
     supabase.from("active_medications")
       .select("id, name, dosage, frequency, child_id, children(full_name)")
       .eq("group_id", groupId).eq("status", "active")
+      .not("end_date", "is", null)
       .order("created_at", { ascending: false }).limit(5)
       .then(r => r, () => ({ data: [] as never[] })),
     // Critical allergies

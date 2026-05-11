@@ -274,11 +274,14 @@ export function useDashboard() {
           .eq('status', 'active')
           .limit(10)
           .then(r => r, () => ({ data: [] as never[] })),
-        // Active medications
+        // Active medications — apenas cursos agudos (com end_date definida).
+        // Medicacao sem end_date = uso continuo/cronico, fica fora da home pra
+        // evitar poluicao visual; ainda visivel em /saude/medicamentos.
         supabase.from('active_medications')
           .select('id, name, child_id, children(full_name)')
           .eq('group_id', groupId)
           .eq('status', 'active')
+          .not('end_date', 'is', null)
           .limit(10)
           .then(r => r, () => ({ data: [] as never[] })),
         // Open decisions with details (for actionable card)
