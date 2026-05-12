@@ -745,7 +745,7 @@ export default function DashboardScreen() {
 
         {/* === AMANHA: TROCA DE GUARDA (banner laranja) ===
             Pais com comunicacao dificil precisam saber se a custodia
-            de amanha mudou \xe2\x80\x94 esse banner cobre exatamente esse caso. */}
+            de amanha mudou — esse banner cobre exatamente esse caso. */}
         {data?.tomorrowSwapInfo ? (
           <Animated.View entering={FadeInDown.delay(230).duration(400)}>
             <View style={{
@@ -756,7 +756,7 @@ export default function DashboardScreen() {
             }}>
               <Ionicons name="sync-outline" size={20} color="#b45309" />
               <Text style={{ flex: 1, fontSize: font.sizes.sm, color: '#b45309', fontWeight: font.weights.medium }}>
-                Amanh\xc3\xa3: troca de guarda \xe2\x80\x94 {data.tomorrowSwapInfo.childName} estar\xc3\xa1 com {data.tomorrowSwapInfo.isWithMeTomorrow ? 'voc\xc3\xaa' : data.tomorrowSwapInfo.nextPerson}
+                Amanhã: troca de guarda — {data.tomorrowSwapInfo.childName} estará com {data.tomorrowSwapInfo.isWithMeTomorrow ? 'você' : data.tomorrowSwapInfo.nextPerson}
               </Text>
             </View>
           </Animated.View>
@@ -764,7 +764,7 @@ export default function DashboardScreen() {
 
         {/* === PENDING SWAPS — eu sou o target, com APROVAR/REJEITAR inline.
              Antes era so listagem passiva (tap pra ir pro calendar). Agora
-             pais respondem direto do Inicio \xe2\x80\x94 acesso facil mesmo pra quem
+             pais respondem direto do Inicio — acesso facil mesmo pra quem
              nao mexe muito no app. Espelha calendar.tsx l. 247-311. */}
         {(data?.pendingSwapsList.length || 0) > 0 ? (
           <Animated.View entering={FadeInDown.delay(235).duration(400)}>
@@ -775,7 +775,7 @@ export default function DashboardScreen() {
               padding: spacing.lg,
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
-                <Text style={{ fontSize: 18 }}>\xf0\x9f\x94\x84</Text>
+                <Text style={{ fontSize: 18 }}>🔄</Text>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
                   {data!.pendingSwapsList.length === 1 ? '1 troca pendente' : `${data!.pendingSwapsList.length} trocas pendentes`}
                 </Text>
@@ -835,7 +835,7 @@ export default function DashboardScreen() {
         ) : null}
 
         {/* === MEUS PEDIDOS ENVIADOS (aguardando o coparente responder) ===
-             Botao "Cancelar pedido" inline \xe2\x80\x94 user nao precisa abrir
+             Botao "Cancelar pedido" inline — user nao precisa abrir
              calendario pra desistir. Espelha calendar.tsx l. 313-377. */}
         {(data?.mySentSwapsList.length || 0) > 0 ? (
           <Animated.View entering={FadeInDown.delay(240).duration(400)}>
@@ -846,7 +846,7 @@ export default function DashboardScreen() {
               padding: spacing.lg,
             }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
-                <Text style={{ fontSize: 18 }}>\xf0\x9f\x93\xa4</Text>
+                <Text style={{ fontSize: 18 }}>📤</Text>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
                   {data!.mySentSwapsList.length === 1 ? '1 pedido aguardando resposta' : `${data!.mySentSwapsList.length} pedidos aguardando resposta`}
                 </Text>
@@ -857,7 +857,7 @@ export default function DashboardScreen() {
                 const summary = isVisit
                   ? `Pediu visita em ${formatSwapDate(s.originalDate)}`
                   : isDebt
-                    ? `Pediu o dia ${formatSwapDate(s.originalDate)} (ficar\xc3\xa1 devendo)`
+                    ? `Pediu o dia ${formatSwapDate(s.originalDate)} (ficará devendo)`
                     : `Quer trocar ${formatSwapDate(s.originalDate)}${s.proposedDate ? ` por ${formatSwapDate(s.proposedDate)}` : ''}`;
                 return (
                   <View
