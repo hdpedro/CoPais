@@ -56,7 +56,12 @@ export default function LoginScreen() {
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const { signIn } = useAuth();
+  // Mostra botao "Reenviar email" quando o login falha com email nao confirmado.
+  // Cobre o cenario do Brenno (2026-05-12): usuario cadastrou mas o email de
+  // confirmacao caiu em spam/foi bloqueado por falta de SPF+DMARC (resolvido).
+  const [emailNotConfirmed, setEmailNotConfirmed] = useState(false);
+  const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const { signIn, resendConfirmation } = useAuth();
   const t = useI18n(s => s.t);
 
   // Native Google sign-in via expo-auth-session.
@@ -129,6 +134,8 @@ export default function LoginScreen() {
     }
     setLoading(true);
     setError('');
+    setEmailNotConfirmed(false);
+    setResendStatus('idle');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
     const result = await signIn(email.trim().toLowerCase(), password);
@@ -153,6 +160,12 @@ export default function LoginScreen() {
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(result.error || 'Erro ao entrar');
+      // Detecta "email nao confirmado" pra revelar o botao de reenvio.
+      // Match contra a string PT-BR (translateAuthError ja mapeou).
+      if (result.error?.toLowerCase().includes('e-mail ainda não confirmado') ||
+          result.error?.toLowerCase().includes('email not confirmed')) {
+        setEmailNotConfirmed(true);
+      }
     }
     setLoading(false);
   }
@@ -210,6 +223,46 @@ export default function LoginScreen() {
             padding: spacing.md, marginBottom: spacing.lg,
           }}>
             <Text style={{ color: colors.error, fontSize: font.sizes.sm }}>{error}</Text>
+            {/* CTA inline: reenviar email quando a conta nao foi confirmada.
+                Antes o user ficava preso sem saber o que fazer (Brenno 2026-05-12). */}
+            {emailNotConfirmed && resendStatus !== 'sent' ? (
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!email) {
+                    setError('Digite seu e-mail acima primeiro');
+                    return;
+                  }
+                  setResendStatus('sending');
+                  Haptics.selectionAsync();
+                  const r = await resendConfirmation(email);
+                  if (r.success) {
+                    setResendStatus('sent');
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  } else {
+                    setResendStatus('error');
+                    setError(r.error || 'Não consegui reenviar. Tente em alguns minutos.');
+                  }
+                }}
+                disabled={resendStatus === 'sending'}
+                style={{
+                  marginTop: spacing.sm,
+                  paddingVertical: spacing.xs,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.xs,
+                }}
+              >
+                <Ionicons name="mail-outline" size={14} color={colors.authPrimary} />
+                <Text style={{ color: colors.authPrimary, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                  {resendStatus === 'sending' ? 'Reenviando…' : 'Reenviar e-mail de confirmação'}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+            {resendStatus === 'sent' ? (
+              <Text style={{ color: colors.success, fontSize: font.sizes.sm, marginTop: spacing.sm }}>
+                Enviado! Confira sua caixa de entrada e a pasta de spam.
+              </Text>
+            ) : null}
           </View>
         ) : null}
 

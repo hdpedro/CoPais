@@ -12,6 +12,7 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { QUICK_ACTIONS_CATALOG_NATIVE } from '../lib/constants';
+import { translateAuthError } from '../lib/auth-errors';
 
 const ACTIVE_GROUP_KEY = '@kindar_active_group';
 let authSubscription: { unsubscribe: () => void } | null = null;
@@ -58,6 +59,7 @@ interface AuthState {
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   signUp: (email: string, password: string, fullName: string, refCode?: string | null) => Promise<{ success: boolean; error?: string }>;
+  resendConfirmation: (email: string) => Promise<{ success: boolean; error?: string }>;
   signOut: () => Promise<void>;
   loadProfile: () => Promise<void>;
   loadActiveGroup: () => Promise<void>;
@@ -118,13 +120,29 @@ export const useAuth = create<AuthState>((set, get) => ({
         email: email.trim().toLowerCase(),
         password,
       });
-      if (error) return { success: false, error: error.message };
+      // Erros do Supabase chegam em ingles — mapeia pra pt-BR pra UI nao
+      // expor strings tipo "Email not confirmed" / "Invalid login credentials".
+      // Bug observado 2026-05-12 (Brenno) onde a UI vazou o ingles cru.
+      if (error) return { success: false, error: translateAuthError(error.message) };
 
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return { success: false, error: 'Erro ao obter usuario' };
 
       set({ isAuthenticated: true, userId: user.id });
       await Promise.all([get().loadProfile(), get().loadActiveGroup()]);
+      return { success: true };
+    } catch {
+      return { success: false, error: 'Erro de conexao' };
+    }
+  },
+
+  resendConfirmation: async (email: string) => {
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim().toLowerCase(),
+      });
+      if (error) return { success: false, error: translateAuthError(error.message) };
       return { success: true };
     } catch {
       return { success: false, error: 'Erro de conexao' };
@@ -147,7 +165,7 @@ export const useAuth = create<AuthState>((set, get) => ({
           },
         },
       });
-      if (error) return { success: false, error: error.message };
+      if (error) return { success: false, error: translateAuthError(error.message) };
       return { success: true };
     } catch {
       return { success: false, error: 'Erro de conexão' };
