@@ -32,15 +32,14 @@ const GOOGLE_IOS_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
   || '855915326367-eiinspdtmmf3u63sfj4kj8ghn2d6p7ie.apps.googleusercontent.com';
 
-// Android Google OAuth Client ID. No hardcoded fallback because the Android
-// SHA-1 binds the client ID to the keystore — the value is environment-
-// specific and must come from EAS env (`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`).
-// The placeholder below is non-empty so `useIdTokenAuthRequest`'s invariant
-// doesn't crash on mount when the var is unset; the login screen hides the
-// Google button on Android in that case (see `app/auth/login.tsx`).
+// Android Google OAuth Client ID. SHA-1 da Play App Signing key vincula o
+// client a `com.kindar.app` (configurado 2026-05-12 no Google Cloud Console,
+// projeto `lares-490817`). EAS env (`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`)
+// continua sendo a source of truth pra rotacoes futuras; o fallback abaixo e'
+// o valor producao pra cobrir builds locais sem .env presente.
 const GOOGLE_ANDROID_CLIENT_ID =
   process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID
-  || 'kindar-android-client-id-not-configured.apps.googleusercontent.com';
+  || '855915326367-sglhlakpandb50d3n12d5urdgr3qig7n.apps.googleusercontent.com';
 
 interface BackendSession {
   access_token: string;

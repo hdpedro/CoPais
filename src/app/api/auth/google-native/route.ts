@@ -19,11 +19,13 @@ import {
   mintSupabaseSession,
 } from "@/lib/social-auth-helpers";
 
-// Accepted audiences: iOS + Web client IDs configured in Google Cloud
-// Console for the Kindar project. Add more here if we add Android with
-// its own client id.
+// Accepted audiences: iOS + Android + Web client IDs configured in Google
+// Cloud Console for the Kindar project (lares-490817). Android added
+// 2026-05-12 (commit linked) — SHA-1 da Play App Signing key bound the
+// client to com.kindar.app.
 const ACCEPTED_AUDIENCES = [
   process.env.GOOGLE_OAUTH_IOS_CLIENT_ID || "855915326367-eiinspdtmmf3u63sfj4kj8ghn2d6p7ie.apps.googleusercontent.com",
+  process.env.GOOGLE_OAUTH_ANDROID_CLIENT_ID || "855915326367-sglhlakpandb50d3n12d5urdgr3qig7n.apps.googleusercontent.com",
   process.env.GOOGLE_OAUTH_WEB_CLIENT_ID || "",
 ].filter(Boolean);
 
