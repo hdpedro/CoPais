@@ -5,6 +5,50 @@
 
 ---
 
+## ANDROID — link direto de instalacao (sideload APK)
+
+> Use quando o tester nao consegue entrar na lista de teste do Play Store ou quer
+> instalar sem esperar convite. Funciona em qualquer Android, qualquer conta Google.
+
+**Link direto do APK (build 1.0.3 #15, assinado pra beta):**
+```
+https://github.com/hdpedro/CoPais/releases/download/android-beta-1.0.3.15/kindar-1.0.3-beta.apk
+```
+
+**Pagina da release (com instrucoes detalhadas):**
+```
+https://github.com/hdpedro/CoPais/releases/tag/android-beta-1.0.3.15
+```
+
+### Mensagem pra WhatsApp Android
+
+```
+Oi! Pra instalar o Kindar no Android, segue o passo-a-passo:
+
+1. Abra esse link no seu Android:
+   https://github.com/hdpedro/CoPais/releases/download/android-beta-1.0.3.15/kindar-1.0.3-beta.apk
+
+2. Toque no arquivo baixado (chama "kindar-1.0.3-beta.apk")
+
+3. Se aparecer "Por seguranca seu celular nao pode instalar este app":
+   - Toque em Configuracoes
+   - Ative "Permitir desta fonte"
+   - Volte e toque em Instalar
+
+⚠️ Se voce ja tinha o Kindar instalado pelo Play Store (que travava em
+"Algo deu errado"), desinstale primeiro antes de instalar este aqui.
+
+Quando entrarmos com a versao definitiva no Play Store, vou avisar
+pra voce desinstalar essa e baixar a oficial.
+```
+
+> **Notas importantes pro time:**
+> - APK assinado com chave **beta** (diferente da chave Play Store). Auto-update via Play Store nao vai funcionar — quando promover testers pra Play Store, peca desinstalar+reinstalar.
+> - Link permanente (GitHub Release). Nao expira.
+> - Pra trocar pro build novo: gerar APK novo + atualizar a Release com `gh release upload android-beta-X.Y.Z assets/apk --clobber`.
+
+---
+
 ## VERSAO WHATSAPP (curta, direta)
 
 ```
