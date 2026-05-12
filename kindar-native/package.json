@@ -5,6 +5,7 @@
   "scripts": {
     "eas-build-pre-install": "chmod -R u+w . 2>/dev/null; rm -rf node_modules 2>/dev/null; mkdir -p node_modules && chmod 755 node_modules; true",
     "start": "expo start",
+    "ota:all": "node scripts/publish-ota-all-versions.mjs",
     "android": "expo start --android",
     "ios": "expo start --ios",
     "web": "expo start --web",

@@ -33,6 +33,14 @@ O Play Store abre direto na pagina do Kindar — e so tocar em "Instalar".
 > - Link gerado pela pagina **Internal App Sharing** do Play Console em 2026-05-12.
 > - Pra subir build novo (#16, etc): abrir https://play.google.com/console/u/0/internal-app-sharing, arrastar o AAB, copiar link novo. Validade reinicia.
 
+### Como o tester loga depois de instalar
+
+Apos instalar, na tela de login o tester pode escolher:
+- **Continuar com Google** (recomendado): toca no botao, escolhe a conta Google do celular, autoriza, ja entra. Configurado em 2026-05-12 — funciona em qualquer Android com Play Services.
+- **E-mail + senha**: cria conta pelo "Criar conta" ou usa credenciais existentes. Email de confirmacao chega no inbox principal (SPF + DMARC ativos em kindar.com.br). Se nao chegar em 2min, tem botao "Reenviar e-mail de confirmacao" inline na tela de login.
+
+> **iOS**: tem **Entrar com Apple** como alternativa. Android nao tem Apple Sign-In (limitacao da Apple, nao do app).
+
 ---
 
 ## VERSAO WHATSAPP (curta, direta)

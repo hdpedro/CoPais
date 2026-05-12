@@ -25,21 +25,15 @@ import { supabase } from '../lib/supabase';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
-// iOS Google OAuth Client ID (matches the reversed scheme registered in
-// app.json → ios.infoPlist.CFBundleURLTypes). Must match the audience the
-// backend's `/api/auth/google-native` accepts.
-const GOOGLE_IOS_CLIENT_ID =
-  process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID
-  || '855915326367-eiinspdtmmf3u63sfj4kj8ghn2d6p7ie.apps.googleusercontent.com';
-
-// Android Google OAuth Client ID. SHA-1 da Play App Signing key vincula o
-// client a `com.kindar.app` (configurado 2026-05-12 no Google Cloud Console,
-// projeto `lares-490817`). EAS env (`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID`)
-// continua sendo a source of truth pra rotacoes futuras; o fallback abaixo e'
-// o valor producao pra cobrir builds locais sem .env presente.
-const GOOGLE_ANDROID_CLIENT_ID =
-  process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID
-  || '855915326367-sglhlakpandb50d3n12d5urdgr3qig7n.apps.googleusercontent.com';
+// OAuth Client IDs vem EXCLUSIVAMENTE de env vars resolvidos no bundle-time
+// (EAS env do profile correspondente). Sem fallback hardcoded — duplicar
+// client IDs em multiplos arquivos cria risco de divergencia silenciosa
+// quando rotaciona credenciais. Single source of truth: `eas.json` env.
+//
+// Quando ausentes: GOOGLE_SIGN_IN_CONFIGURED retorna false e o botao Google
+// no login fica escondido. Comportamento intencional pra builds sem credencial.
+const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
+const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '';
 
 interface BackendSession {
   access_token: string;
@@ -173,7 +167,7 @@ export const GOOGLE_SIGN_IN_CONFIGURED =
   Platform.OS === 'ios'
     ? !!GOOGLE_IOS_CLIENT_ID
     : Platform.OS === 'android'
-      ? !!process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID
+      ? !!GOOGLE_ANDROID_CLIENT_ID
       : false;
 
 /**

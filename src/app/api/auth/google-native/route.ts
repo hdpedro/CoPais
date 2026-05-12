@@ -19,17 +19,27 @@ import {
   mintSupabaseSession,
 } from "@/lib/social-auth-helpers";
 
-// Accepted audiences: iOS + Android + Web client IDs configured in Google
-// Cloud Console for the Kindar project (lares-490817). Android added
-// 2026-05-12 (commit linked) — SHA-1 da Play App Signing key bound the
-// client to com.kindar.app.
+// Accepted audiences: iOS + Android + Web client IDs configurados em
+// Google Cloud Console no projeto Kindar (lares-490817). Vem APENAS de
+// env vars — sem fallback hardcoded pra evitar divergencia silenciosa
+// quando rotaciona credenciais. Falta de qualquer audience derruba o
+// endpoint com erro 503 explicito (vs aceitar tokens de aud errado).
 const ACCEPTED_AUDIENCES = [
-  process.env.GOOGLE_OAUTH_IOS_CLIENT_ID || "855915326367-eiinspdtmmf3u63sfj4kj8ghn2d6p7ie.apps.googleusercontent.com",
-  process.env.GOOGLE_OAUTH_ANDROID_CLIENT_ID || "855915326367-sglhlakpandb50d3n12d5urdgr3qig7n.apps.googleusercontent.com",
-  process.env.GOOGLE_OAUTH_WEB_CLIENT_ID || "",
-].filter(Boolean);
+  process.env.GOOGLE_OAUTH_IOS_CLIENT_ID,
+  process.env.GOOGLE_OAUTH_ANDROID_CLIENT_ID,
+  process.env.GOOGLE_OAUTH_WEB_CLIENT_ID,
+].filter((s): s is string => typeof s === "string" && s.length > 0);
 
 export async function POST(req: NextRequest) {
+  // Defense in depth: se as audiences nao foram configuradas, devolve 503
+  // em vez de processar com lista vazia (`verifyGoogleIdToken` aceitaria
+  // qualquer aud). Erro fica visivel pro time imediatamente em vez de
+  // virar problema silencioso de seguranca.
+  if (ACCEPTED_AUDIENCES.length === 0) {
+    console.error("[google-native] No accepted audiences configured. Missing env vars: GOOGLE_OAUTH_{IOS,ANDROID,WEB}_CLIENT_ID");
+    return NextResponse.json({ error: "service_misconfigured" }, { status: 503 });
+  }
+
   let body: Record<string, unknown>;
   try {
     body = await req.json();
