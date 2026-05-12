@@ -5,6 +5,36 @@
 
 ---
 
+## ANDROID — link Google Play Internal App Sharing
+
+> Use quando o tester nao consegue entrar na lista de teste do Play Store ou
+> quer instalar sem esperar convite. Funciona em **qualquer conta Google**
+> logada no Play Store do Android, sem precisar de cadastro previo.
+
+**Link de instalacao (Google Play oficial):**
+```
+https://play.google.com/apps/test/RQdV_uz1j2U/ahAO29uNSvPZbUYiznHCBieYa9MCQ4D_9hl6kHxwbImYuQ1qWqlodE_7eNpne7UgWvfgryoTCobSohqTya0hNwr5Ra
+```
+
+Build 1.0.3 #15 — mesma versao do internal/alpha track. Validade: **60 dias** (ate 11 de julho de 2026).
+
+### Mensagem pronta pra WhatsApp Android
+
+```
+Oi! Pra instalar o Kindar no Android, abre esse link direto no celular:
+
+https://play.google.com/apps/test/RQdV_uz1j2U/ahAO29uNSvPZbUYiznHCBieYa9MCQ4D_9hl6kHxwbImYuQ1qWqlodE_7eNpne7UgWvfgryoTCobSohqTya0hNwr5Ra
+
+O Play Store abre direto na pagina do Kindar — e so tocar em "Instalar".
+```
+
+> **Notas pro time:**
+> - APK servido pelo Google Play (mesma chave, mesma assinatura) — quando o tester depois entrar na lista de teste oficial, o Play Store atualiza normalmente sem desinstalar.
+> - Link gerado pela pagina **Internal App Sharing** do Play Console em 2026-05-12.
+> - Pra subir build novo (#16, etc): abrir https://play.google.com/console/u/0/internal-app-sharing, arrastar o AAB, copiar link novo. Validade reinicia.
+
+---
+
 ## VERSAO WHATSAPP (curta, direta)
 
 ```
