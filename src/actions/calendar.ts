@@ -56,7 +56,15 @@ export async function createCustodyEvent(formData: FormData) {
     });
 
     if (events.length > 0) {
-      const { error } = await supabase.from("custody_events").insert(events);
+      // UPSERT idempotente (migration 00076 + bug Hailla 2026-05-11).
+      // Se o user clica em "Salvar" 2x rapido (UI nao desabilita botao),
+      // segunda call duplicava eventos. Agora ignora duplicate silenciosamente.
+      const { error } = await supabase
+        .from("custody_events")
+        .upsert(events, {
+          onConflict: "group_id,start_date,end_date,custody_type,responsible_user_id,child_id",
+          ignoreDuplicates: true,
+        });
       if (error) redirect("/calendario/novo?error=" + encodeURIComponent(error.message));
     }
 
@@ -82,7 +90,13 @@ export async function createCustodyEvent(formData: FormData) {
     if (endTime) eventData.end_time = endTime;
     if (isRecurring) eventData.is_recurring = true;
 
-    const { error } = await supabase.from("custody_events").insert(eventData);
+    // UPSERT idempotente — bug Hailla 2026-05-11 (double-click no submit).
+    const { error } = await supabase
+      .from("custody_events")
+      .upsert(eventData, {
+        onConflict: "group_id,start_date,end_date,custody_type,responsible_user_id,child_id",
+        ignoreDuplicates: true,
+      });
 
     if (error) redirect("/calendario/novo?error=" + encodeURIComponent(error.message));
 
@@ -386,28 +400,37 @@ export async function generateSchedule(formData: FormData) {
 
   if (deleteError) return { error: "Erro ao limpar escala anterior: " + deleteError.message };
 
-  // Insert in batches of 100 to avoid payload limits
+  // UPSERT idempotente (migration 00076 criou UNIQUE index com NULLS NOT
+  // DISTINCT). Antes era INSERT + restore-on-error que poderia gerar
+  // duplicatas quando o user salvava escala 2x rapido ou quando o batch
+  // falhava parcialmente. Bug Hailla 2026-05-11 (6x rows duplicados
+  // pra mesmo dia).
+  const ON_CONFLICT = "group_id,start_date,end_date,custody_type,responsible_user_id,child_id";
   try {
     for (let i = 0; i < events.length; i += 100) {
       const batch = events.slice(i, i + 100);
-      const { error } = await adminClient.from("custody_events").insert(batch);
+      const { error } = await adminClient
+        .from("custody_events")
+        .upsert(batch, { onConflict: ON_CONFLICT, ignoreDuplicates: true });
       if (error) {
-        // Attempt to restore old events on insert failure
         if (existingEvents && existingEvents.length > 0) {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const restoreData = existingEvents.map(({ id, ...rest }) => rest);
-          await adminClient.from("custody_events").insert(restoreData);
+          await adminClient
+            .from("custody_events")
+            .upsert(restoreData, { onConflict: ON_CONFLICT, ignoreDuplicates: true });
         }
         return { error: "Erro ao inserir nova escala: " + error.message };
       }
     }
   } catch (error) {
     reportServerError(error, { filePath: "src/actions/calendar.ts" });
-    // Attempt to restore old events on unexpected failure
     if (existingEvents && existingEvents.length > 0) {
       // eslint-disable-next-line @typescript-eslint/no-unused-vars
       const restoreData = existingEvents.map(({ id, ...rest }) => rest);
-      await adminClient.from("custody_events").insert(restoreData);
+      await adminClient
+        .from("custody_events")
+        .upsert(restoreData, { onConflict: ON_CONFLICT, ignoreDuplicates: true });
     }
     return { error: "Erro inesperado ao gerar escala." };
   }

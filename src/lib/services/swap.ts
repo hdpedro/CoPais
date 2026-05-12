@@ -374,7 +374,15 @@ async function materializeApprovedSwap(
     return { ok: true, data: { inserted: 0 } };
   }
 
-  const { error } = await supabase.from("custody_events").insert(swapEvents);
+  // UPSERT idempotente — se respondToSwapRequest for chamada 2x (race
+  // condition de double-tap ou retry), nao gera custody_events duplicados.
+  // Migration 00076 garante o UNIQUE index. Bug Hailla 2026-05-11.
+  const { error } = await supabase
+    .from("custody_events")
+    .upsert(swapEvents, {
+      onConflict: "group_id,start_date,end_date,custody_type,responsible_user_id,child_id",
+      ignoreDuplicates: true,
+    });
   if (error) return { ok: false, error: error.message, status: 400 };
   return { ok: true, data: { inserted: swapEvents.length } };
 }

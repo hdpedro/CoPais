@@ -177,10 +177,26 @@ export async function POST(request: Request) {
     );
   }
 
+  // Bug Hailla 2026-05-11: o codigo antigo fazia DELETE + INSERT batch +
+  // restore-on-error. Quando o INSERT falhava parcialmente OU quando o
+  // user salvava 2x rapido, o `existingEvents` snapshot ja tinha rows
+  // recem-inseridos -> restore reinsertava -> 6 duplicatas pra mesmo dia.
+  //
+  // Fix: UPSERT idempotente via onConflict. Como migration 00076 criou
+  // UNIQUE index (group_id, start_date, end_date, custody_type,
+  // responsible_user_id, child_id) com NULLS NOT DISTINCT, basta usar
+  // `ignoreDuplicates: true` pra silenciosamente pular rows que ja
+  // existem. Resultado: idempotente, sem duplicatas, sem necessidade de
+  // restore (porque o DELETE inicial garante estado limpo).
   try {
     for (let i = 0; i < events.length; i += 100) {
       const batch = events.slice(i, i + 100);
-      const { error } = await admin.from("custody_events").insert(batch);
+      const { error } = await admin
+        .from("custody_events")
+        .upsert(batch, {
+          onConflict: "group_id,start_date,end_date,custody_type,responsible_user_id,child_id",
+          ignoreDuplicates: true,
+        });
       if (error) {
         if (existingEvents && existingEvents.length > 0) {
           const restoreData = existingEvents.map((row) => {
@@ -188,7 +204,12 @@ export async function POST(request: Request) {
             delete copy.id;
             return copy;
           });
-          await admin.from("custody_events").insert(restoreData);
+          await admin
+            .from("custody_events")
+            .upsert(restoreData, {
+              onConflict: "group_id,start_date,end_date,custody_type,responsible_user_id,child_id",
+              ignoreDuplicates: true,
+            });
         }
         return NextResponse.json(
           { error: "Erro ao inserir nova escala: " + error.message },
@@ -203,7 +224,12 @@ export async function POST(request: Request) {
         delete copy.id;
         return copy;
       });
-      await admin.from("custody_events").insert(restoreData);
+      await admin
+        .from("custody_events")
+        .upsert(restoreData, {
+          onConflict: "group_id,start_date,end_date,custody_type,responsible_user_id,child_id",
+          ignoreDuplicates: true,
+        });
     }
     const msg = e instanceof Error ? e.message : "Erro inesperado ao gerar escala.";
     return NextResponse.json({ error: msg }, { status: 500 });

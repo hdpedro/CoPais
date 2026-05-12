@@ -113,12 +113,36 @@ export default function CrescimentoScreen() {
     submittingRef.current = true;
     setSaving(true);
     try {
+      // Normalize input: alguns usuarios digitam altura em metros (1.7) em
+      // vez de cm (170). Bug Hailla/Bernardo 2026-05-11: Bernardo cadastrado
+      // com height_cm=1.5, Guilherme com height_cm=1.7. Cards de saude
+      // mostram '1.5cm' / '1.7cm' (errado visualmente).
+      // Regra: se valor for < 3 e razoavel pra metros (0.3-2.5), multiplica
+      // por 100. Acima de 3, assume que ja esta em cm.
+      const rawHeight = height ? parseFloat(height.replace(',', '.')) : null;
+      const normHeight = rawHeight != null && rawHeight > 0 && rawHeight < 3
+        ? Math.round(rawHeight * 100)
+        : rawHeight;
+      // Sanity check: peso > 500 = improvavel (kg). Avisa user.
+      const rawWeight = weight ? parseFloat(weight.replace(',', '.')) : null;
+      if (rawWeight != null && (rawWeight < 0.5 || rawWeight > 250)) {
+        Alert.alert('Peso fora do esperado', `${rawWeight}kg parece estranho. Confirme o valor.`);
+        submittingRef.current = false;
+        setSaving(false);
+        return;
+      }
+      if (normHeight != null && (normHeight < 20 || normHeight > 230)) {
+        Alert.alert('Altura fora do esperado', `${normHeight}cm parece estranho. Confirme o valor (digite em cm).`);
+        submittingRef.current = false;
+        setSaving(false);
+        return;
+      }
       const payload = {
         group_id: activeGroup.groupId,
         child_id: selectedChild,
         measured_date: dateIso,
-        weight_kg: weight ? parseFloat(weight.replace(',', '.')) : null,
-        height_cm: height ? parseFloat(height.replace(',', '.')) : null,
+        weight_kg: rawWeight,
+        height_cm: normHeight,
         head_cm: headCm ? parseFloat(headCm.replace(',', '.')) : null,
         created_by: userId,
       };
