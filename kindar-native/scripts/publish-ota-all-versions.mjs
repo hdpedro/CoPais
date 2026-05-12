@@ -29,7 +29,10 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { resolve, dirname } from "node:path";
+import { createRequire } from "node:module";
 import { fileURLToPath } from "node:url";
+
+const require = createRequire(import.meta.url);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const APP_JSON = resolve(__dirname, "..", "app.json");
@@ -72,10 +75,19 @@ function setVersion(v) {
   writeFileSync(APP_JSON, JSON.stringify(j, null, 2) + "\n", "utf8");
 }
 
-function run(cmd, args) {
+// Invoca `npx eas-cli update ...` cross-platform sem deixar a shell
+// mexer com aspas/espaco nos args. No Windows, `npx` e' .cmd entao usa
+// cmd.exe explicito; no POSIX, usa npx direto com shell:false.
+function runEas(args) {
+  const fullArgs = ["eas-cli", ...args];
   return new Promise((resolveP, rejectP) => {
-    const p = spawn(cmd, args, { stdio: "inherit", shell: process.platform === "win32" });
-    p.on("exit", (code) => code === 0 ? resolveP() : rejectP(new Error(`${cmd} exited ${code}`)));
+    let p;
+    if (process.platform === "win32") {
+      p = spawn("cmd.exe", ["/c", "npx", ...fullArgs], { stdio: "inherit", shell: false });
+    } else {
+      p = spawn("npx", fullArgs, { stdio: "inherit", shell: false });
+    }
+    p.on("exit", (code) => code === 0 ? resolveP() : rejectP(new Error(`eas-cli exited ${code}`)));
     p.on("error", rejectP);
   });
 }
@@ -85,8 +97,8 @@ try {
     console.log(`\n=== Publishing OTA pra runtimeVersion ${v} ===`);
     setVersion(v);
     const msg = `${baseMessage} (${v})`;
-    await run("npx", [
-      "eas-cli", "update",
+    await runEas([
+      "update",
       "--branch", "production",
       "--message", msg,
       "--non-interactive",
