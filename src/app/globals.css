@@ -143,6 +143,45 @@ button, a, [role="button"] {
   }
 }
 
+/* Onboarding wizard: gentle fade + slide for step transitions and child cards. */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Celebração ao criar a família — pop elástico no checkmark + sparkles flutuando. */
+@keyframes heroPop {
+  0%   { opacity: 0; transform: scale(0.55); }
+  60%  { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1.0); }
+}
+
+@keyframes sparkle {
+  0%   { opacity: 0; transform: translateY(8px) scale(0.6); }
+  60%  { opacity: 1; transform: translateY(-2px) scale(1.1); }
+  100% { opacity: 1; transform: translateY(-4px) scale(1.0); }
+}
+
+/* Respeita "Reduzir movimento" do SO. Animações decorativas viram quase
+   instantâneas (não removidas — algumas comunicam estado e seriam confusas
+   se sumissem). 0.01ms é o padrão WCAG-friendly: efetivo + não nulo. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-slide-up,
+  [class*="animate-[fadeIn"],
+  [class*="animate-[slideUp"],
+  [class*="animate-[heroPop"],
+  [class*="animate-[sparkle"] {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 /* Skeleton shimmer animation for loading states */
 @keyframes shimmer {
   0% { background-position: -200% 0; }

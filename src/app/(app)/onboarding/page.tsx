@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { autoAcceptPendingInvitations } from "@/actions/invitation";
 import OnboardingForm from "./OnboardingForm";
-import OnboardingHeader from "./OnboardingHeader";
 
 export default async function OnboardingPage() {
   const supabase = await createClient();
@@ -26,9 +25,10 @@ export default async function OnboardingPage() {
     redirect("/dashboard");
   }
 
+  // The wizard now renders its own contextual header per step (welcome,
+  // child form, family summary) — `OnboardingHeader` is no longer used.
   return (
-    <div className="max-w-lg mx-auto">
-      <OnboardingHeader />
+    <div className="max-w-lg mx-auto py-8 px-4">
       <OnboardingForm />
     </div>
   );

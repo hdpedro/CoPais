@@ -15,7 +15,13 @@ import { captureServerEvent } from "@/lib/posthog-server";
 import { markQuestStep } from "@/actions/onboarding-quest";
 import { notifyCoparents } from "@/lib/services/notify-coparents";
 
-const ALLOWED_ROLES = ["parent", "mediator", "lawyer"];
+// Mantém paridade com `src/actions/invitation.ts:createInvitation` e com a UI
+// de convite (PWA `/onboarding/convite` + native `onboarding/convite.tsx`),
+// que historicamente expõem 3 papéis familiares (parent/grandparent/caregiver).
+// `mediator` e `lawyer` ficam disponíveis para fluxos administrativos (membros
+// da página de Família). `group_role` continua sendo derivado abaixo —
+// mediator/lawyer ⇒ readonly, demais ⇒ member.
+const ALLOWED_ROLES = ["parent", "grandparent", "caregiver", "mediator", "lawyer"];
 
 export async function POST(request: Request) {
   const user = await resolveAuthenticatedUser(request);

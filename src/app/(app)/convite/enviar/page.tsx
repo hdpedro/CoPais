@@ -21,7 +21,6 @@ export default async function SendInvitePage({
         isAdminDenied={true}
         groupId=""
         groupName=""
-        firstName=""
         allInvites={[]}
         inviteToken={undefined}
         inviteSuccess={false}
@@ -33,7 +32,6 @@ export default async function SendInvitePage({
   }
 
   const { groupId, groupName } = activeGroup;
-  const firstName = user.user_metadata?.full_name?.split(" ")[0] || "voce";
 
   // Fetch all invitations (pending, accepted, expired, revoked)
   const { data: allInvites } = await supabase
@@ -54,7 +52,6 @@ export default async function SendInvitePage({
       isAdminDenied={false}
       groupId={groupId}
       groupName={groupName}
-      firstName={firstName}
       allInvites={allInvites || []}
       inviteToken={inviteToken}
       inviteSuccess={inviteSuccess}

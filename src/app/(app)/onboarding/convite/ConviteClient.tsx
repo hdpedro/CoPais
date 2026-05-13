@@ -8,8 +8,6 @@ import InviteShareCard from "./InviteShareCard";
 interface ConviteClientProps {
   groupId: string;
   groupName: string;
-  firstName: string;
-  inviteToken: string | null;
   inviteSuccess: boolean;
   inviteLink: string | null;
   errorParam: string | null;
@@ -18,8 +16,6 @@ interface ConviteClientProps {
 export default function ConviteClient({
   groupId,
   groupName,
-  firstName,
-  inviteToken,
   inviteSuccess,
   inviteLink,
   errorParam,
@@ -28,11 +24,19 @@ export default function ConviteClient({
 
   return (
     <div className="max-w-lg mx-auto pb-20">
-      {/* Progress indicator */}
-      <div className="flex items-center justify-center gap-2 mb-8">
-        <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">1</div>
-        <div className="w-12 h-0.5 bg-primary" />
-        <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center text-sm font-bold">2</div>
+      {/* Progress indicator — harmonizado com OnboardingForm wizard (3 etapas:
+          Família · Crianças · Convite). 3ª dot ativa (expandida). */}
+      <div
+        className="flex items-center justify-center gap-2 mb-8"
+        role="progressbar"
+        aria-valuenow={3}
+        aria-valuemin={1}
+        aria-valuemax={3}
+        aria-label="Etapa 3 de 3"
+      >
+        <span className="h-1 w-6 rounded-full bg-primary" />
+        <span className="h-1 w-6 rounded-full bg-primary" />
+        <span className="h-1 w-8 rounded-full bg-primary" />
       </div>
 
       <div className="text-center mb-6">
@@ -49,7 +53,7 @@ export default function ConviteClient({
 
       {/* If invite already sent, show share card */}
       {inviteSuccess && inviteLink ? (
-        <InviteShareCard inviteLink={inviteLink} groupName={groupName} firstName={firstName} />
+        <InviteShareCard inviteLink={inviteLink} groupName={groupName} />
       ) : (
         <>
           {/* Invite form */}

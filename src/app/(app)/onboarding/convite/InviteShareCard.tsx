@@ -5,11 +5,9 @@ import { useState } from "react";
 export default function InviteShareCard({
   inviteLink,
   groupName,
-  firstName,
 }: {
   inviteLink: string;
   groupName: string;
-  firstName: string;
 }) {
   const [copied, setCopied] = useState(false);
 

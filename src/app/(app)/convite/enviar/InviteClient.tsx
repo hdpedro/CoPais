@@ -21,7 +21,6 @@ interface InviteClientProps {
   isAdminDenied: boolean;
   groupId: string;
   groupName: string;
-  firstName: string;
   allInvites: Invite[];
   inviteToken: string | undefined;
   inviteSuccess: boolean;
@@ -34,7 +33,6 @@ export default function InviteClient({
   isAdminDenied,
   groupId,
   groupName,
-  firstName,
   allInvites,
   // inviteToken is part of the interface for forward compat; not yet
   // consumed in this component.
@@ -90,7 +88,7 @@ export default function InviteClient({
       {/* Show share card if invite was just created */}
       {inviteSuccess && inviteLink ? (
         <div className="space-y-4">
-          <InviteShareCard inviteLink={inviteLink} groupName={groupName} firstName={firstName} />
+          <InviteShareCard inviteLink={inviteLink} groupName={groupName} />
           <div className="text-center">
             <Link href="/convite/enviar" className="text-sm text-primary font-medium hover:underline">
               {t("invite.sendAnother")}

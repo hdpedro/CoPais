@@ -21,7 +21,6 @@ export default async function OnboardingConvitePage({
 
   const groupId = activeGroup.groupId;
   const groupName = activeGroup.groupName;
-  const firstName = user.user_metadata?.full_name?.split(" ")[0] || "voce";
 
   // Check if invite was already created
   const inviteToken = params.token || null;
@@ -33,8 +32,6 @@ export default async function OnboardingConvitePage({
     <ConviteClient
       groupId={groupId}
       groupName={groupName}
-      firstName={firstName}
-      inviteToken={inviteToken}
       inviteSuccess={inviteSuccess}
       inviteLink={inviteLink}
       errorParam={params.error || null}

@@ -1,97 +1,497 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+/**
+ * Onboarding wizard — PWA.
+ *
+ * Orquestrador enxuto. Combina o reducer (`_lib/wizard-state.ts`), os
+ * helpers de formatação (`_lib/format.ts`), o classificador de erros
+ * (`_lib/errors.ts`) e os sub-componentes memoizados (`_components/*`).
+ *
+ * Sub-etapas: family → first-child → family-summary com loop
+ * add-child/edit-child + remove otimista + convite inline.
+ *
+ * Endpoints REST compartilhados com o native:
+ *   POST /api/create-group            (1ª criança + grupo, atomic com rollback)
+ *   POST /api/children                (Nx)
+ *   PATCH /api/children/[id]          (editar)
+ *   DELETE /api/children/[id]         (remover; UI otimista)
+ *   POST /api/invitations             (convite com dual-auth)
+ *
+ * Paridade native: `kindar-native/app/onboarding/index.tsx` segue o mesmo
+ * desenho. Veja `_components/README.md` pra arquitetura completa.
+ */
+
+import {
+  useCallback, useEffect, useReducer, useRef, type FormEvent,
+} from "react";
 import { useI18n } from "@/i18n/provider";
+import { ChildForm } from "./_components/ChildForm";
+import { FamilyStep } from "./_components/FamilyStep";
+import { FamilySummary } from "./_components/FamilySummary";
+import { ProgressDots } from "./_components/ProgressDots";
+import { isAbortError, resolveFetchErrorMessage } from "./_lib/errors";
+import type { ChildSex, InviteRole, WizardChild } from "./_lib/types";
+import {
+  initialWizardState, progressIndex, wizardReducer,
+} from "./_lib/wizard-state";
+
+const TOTAL_STEPS = 3;
 
 export default function OnboardingForm() {
   const { t } = useI18n();
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [state, dispatch] = useReducer(wizardReducer, initialWizardState);
+  const {
+    step, groupId, groupName, kids, form, invite,
+    pendingDeleteId, summaryError,
+  } = state;
 
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  // ────────────────────────────────────────────────────────────────────
+  // Refs — focus management + AbortController pra cleanup de fetches.
+  // ────────────────────────────────────────────────────────────────────
+  const nameRef = useRef<HTMLInputElement>(null);
+  const summaryHeadingRef = useRef<HTMLHeadingElement>(null);
+  /**
+   * Pool de AbortControllers em-flight. Toda chamada fetch registra o
+   * seu controller aqui; no unmount, abortamos todos pra evitar
+   * "setState on unmounted component" warnings + memory leaks. O
+   * controller também é abortado quando uma chamada concorrente é
+   * iniciada (deduplicação implícita).
+   */
+  const controllersRef = useRef<Set<AbortController>>(new Set());
+
+  useEffect(() => {
+    // Capture o ref atual num closure — o cleanup roda no unmount com
+    // o set que existia naquele momento.
+    const controllers = controllersRef.current;
+    return () => {
+      controllers.forEach((c) => c.abort());
+      controllers.clear();
+    };
+  }, []);
+
+  /** Cria um AbortController novo + registra pro cleanup. */
+  function makeController(): AbortController {
+    const c = new AbortController();
+    controllersRef.current.add(c);
+    return c;
+  }
+  /** Remove um controller já consumido. */
+  function disposeController(c: AbortController) {
+    controllersRef.current.delete(c);
+  }
+
+  // Foca o input principal ao entrar em first-child/add-child/edit-child.
+  useEffect(() => {
+    if (step === "add-child" || step === "first-child" || step === "edit-child") {
+      const tmr = setTimeout(() => nameRef.current?.focus(), 80);
+      return () => clearTimeout(tmr);
+    }
+    // Ao chegar no resumo, joga o foco no heading pra screen readers
+    // anunciarem "{groupName}" — usuário de teclado/AT não fica órfão.
+    if (step === "family-summary") {
+      const tmr = setTimeout(() => summaryHeadingRef.current?.focus(), 80);
+      return () => clearTimeout(tmr);
+    }
+  }, [step]);
+
+  // Avisa antes de fechar a aba quando o onboarding já tem grupo criado.
+  useEffect(() => {
+    if (step !== "family-summary") return;
+    function handler(e: BeforeUnloadEvent) {
+      e.preventDefault();
+      e.returnValue = "";
+    }
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [step]);
+
+  // ────────────────────────────────────────────────────────────────────
+  // Handlers — memoizados pra estabilizar identidade dos props.
+  // ────────────────────────────────────────────────────────────────────
+
+  const setGroupName = useCallback((value: string) => {
+    dispatch({ type: "SET_GROUP_NAME", value });
+  }, []);
+
+  const gotoFirstChild = useCallback(() => {
+    if (state.groupName.trim()) dispatch({ type: "GOTO_FIRST_CHILD" });
+  }, [state.groupName]);
+
+  const gotoFamily = useCallback(() => dispatch({ type: "GOTO_FAMILY" }), []);
+
+  const startAddChild = useCallback(() => dispatch({ type: "ENTER_ADD_CHILD" }), []);
+
+  const startEditChild = useCallback((childId: string) => {
+    const child = state.kids.find((k) => k.id === childId);
+    if (child) dispatch({ type: "ENTER_EDIT_CHILD", child });
+  }, [state.kids]);
+
+  const cancelForm = useCallback(() => dispatch({ type: "CANCEL_FORM" }), []);
+
+  const setFormName = useCallback((value: string) => {
+    dispatch({ type: "FORM_FIELD", field: "name", value });
+  }, []);
+
+  const setFormBirth = useCallback((value: string) => {
+    dispatch({ type: "FORM_FIELD", field: "birthDate", value });
+  }, []);
+
+  const setFormSex = useCallback((value: ChildSex | "") => {
+    dispatch({ type: "FORM_SEX", value });
+  }, []);
+
+  const requestDelete = useCallback((id: string) => {
+    dispatch({ type: "REQUEST_DELETE", id });
+  }, []);
+
+  const cancelDelete = useCallback(() => dispatch({ type: "CANCEL_DELETE" }), []);
+
+  const dismissSummaryError = useCallback(() => {
+    dispatch({ type: "CLEAR_SUMMARY_ERROR" });
+  }, []);
+
+  const setInviteEmail = useCallback((value: string) => {
+    dispatch({ type: "INVITE_FIELD", field: "email", value });
+  }, []);
+
+  const setInviteRole = useCallback((value: InviteRole) => {
+    dispatch({ type: "INVITE_ROLE", value });
+  }, []);
+
+  const sendAnother = useCallback(() => dispatch({ type: "INVITE_SEND_ANOTHER" }), []);
+
+  // ────────────────────────────────────────────────────────────────────
+  // Submits — START → SUCCESS/ERROR com AbortController.
+  // ────────────────────────────────────────────────────────────────────
+
+  const handleFirstChildSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setError(null);
-    setLoading(true);
+    if (!groupName.trim() || !form.name.trim() || !form.birthDate) return;
+    dispatch({ type: "FORM_SUBMIT_START" });
 
-    const form = e.currentTarget;
-    const formData = new FormData(form);
-
+    const controller = makeController();
     try {
       const res = await fetch("/api/create-group", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
         body: JSON.stringify({
-          name: formData.get("name"),
-          childName: formData.get("childName"),
-          childBirthDate: formData.get("childBirthDate"),
+          name: groupName.trim(),
+          childName: form.name.trim(),
+          childBirthDate: form.birthDate,
+          childSex: form.sex || null,
         }),
       });
-
-      const result = await res.json();
-
+      const result = (await res.json().catch(() => ({}))) as {
+        groupId?: string; childId?: string; error?: string;
+      };
       if (!res.ok || result.error) {
-        setError(result.error || t("onboardingForm.errorCreating"));
-        setLoading(false);
-      } else {
-        // Full page navigation to avoid any auth token issues
-        window.location.href = "/onboarding/convite";
+        const message = resolveFetchErrorMessage({
+          status: res.status,
+          serverMessage: result.error,
+          fallbackKey: "onboardingForm.errorCreating",
+        }, t);
+        if (message) dispatch({ type: "FORM_SUBMIT_ERROR", message });
+        return;
       }
-    } catch {
-      setError(t("onboardingForm.unexpectedError"));
-      setLoading(false);
+      const child: WizardChild = {
+        id: result.childId || `local-${Date.now()}`,
+        fullName: form.name.trim(),
+        birthDate: form.birthDate,
+        sex: form.sex || null,
+      };
+      dispatch({ type: "FIRST_CHILD_SUCCESS", groupId: result.groupId || null, child });
+    } catch (cause) {
+      if (isAbortError(cause)) return;
+      const message = resolveFetchErrorMessage({
+        cause,
+        fallbackKey: "onboardingForm.unexpectedError",
+      }, t);
+      if (message) dispatch({ type: "FORM_SUBMIT_ERROR", message });
+    } finally {
+      disposeController(controller);
     }
-  }
+  }, [groupName, form.name, form.birthDate, form.sex, t]);
+
+  const handleAnotherChildSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!groupId || !form.name.trim() || !form.birthDate) return;
+    dispatch({ type: "FORM_SUBMIT_START" });
+
+    const controller = makeController();
+    try {
+      const res = await fetch("/api/children", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          groupId,
+          fullName: form.name.trim(),
+          birthDate: form.birthDate,
+          sex: form.sex || null,
+        }),
+      });
+      const result = (await res.json().catch(() => ({}))) as {
+        child?: { id: string }; error?: string;
+      };
+      if (!res.ok || result.error) {
+        const message = resolveFetchErrorMessage({
+          status: res.status,
+          serverMessage: result.error,
+          fallbackKey: "onboardingForm.errorAddingChild",
+        }, t);
+        if (message) dispatch({ type: "FORM_SUBMIT_ERROR", message });
+        return;
+      }
+      const child: WizardChild = {
+        id: result.child?.id || `local-${Date.now()}`,
+        fullName: form.name.trim(),
+        birthDate: form.birthDate,
+        sex: form.sex || null,
+      };
+      dispatch({ type: "ANOTHER_CHILD_SUCCESS", child });
+    } catch (cause) {
+      if (isAbortError(cause)) return;
+      const message = resolveFetchErrorMessage({
+        cause,
+        fallbackKey: "onboardingForm.errorAddingChild",
+      }, t);
+      if (message) dispatch({ type: "FORM_SUBMIT_ERROR", message });
+    } finally {
+      disposeController(controller);
+    }
+  }, [groupId, form.name, form.birthDate, form.sex, t]);
+
+  const handleEditChildSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!groupId || !form.editingChildId || !form.name.trim() || !form.birthDate) return;
+    dispatch({ type: "FORM_SUBMIT_START" });
+
+    const controller = makeController();
+    try {
+      const res = await fetch(`/api/children/${form.editingChildId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          groupId,
+          fullName: form.name.trim(),
+          birthDate: form.birthDate,
+          sex: form.sex || null,
+        }),
+      });
+      const result = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok || result.error) {
+        const message = resolveFetchErrorMessage({
+          status: res.status,
+          serverMessage: result.error,
+          fallbackKey: "onboardingForm.errorUpdatingChild",
+        }, t);
+        if (message) dispatch({ type: "FORM_SUBMIT_ERROR", message });
+        return;
+      }
+      const child: WizardChild = {
+        id: form.editingChildId,
+        fullName: form.name.trim(),
+        birthDate: form.birthDate,
+        sex: form.sex || null,
+      };
+      dispatch({ type: "EDIT_CHILD_SUCCESS", child });
+    } catch (cause) {
+      if (isAbortError(cause)) return;
+      const message = resolveFetchErrorMessage({
+        cause,
+        fallbackKey: "onboardingForm.errorUpdatingChild",
+      }, t);
+      if (message) dispatch({ type: "FORM_SUBMIT_ERROR", message });
+    } finally {
+      disposeController(controller);
+    }
+  }, [groupId, form.editingChildId, form.name, form.birthDate, form.sex, t]);
+
+  /**
+   * Delete otimista: remove o card imediatamente; se a API falhar,
+   * restaura na posição original + mostra banner de erro no resumo.
+   * Snapshot vive em `state.optimisticDelete` (vide reducer).
+   */
+  const confirmDelete = useCallback(async (childId: string) => {
+    if (!groupId) return;
+    dispatch({ type: "REMOVE_CHILD_OPTIMISTIC", id: childId });
+
+    const controller = makeController();
+    try {
+      const res = await fetch(
+        `/api/children/${childId}?groupId=${encodeURIComponent(groupId)}`,
+        { method: "DELETE", signal: controller.signal },
+      );
+      const result = (await res.json().catch(() => ({}))) as { error?: string };
+      if (!res.ok || result.error) {
+        const message = resolveFetchErrorMessage({
+          status: res.status,
+          serverMessage: result.error,
+          fallbackKey: "onboardingForm.errorRemovingChild",
+        }, t);
+        dispatch({
+          type: "REMOVE_CHILD_REVERT",
+          message: message || t("onboardingForm.errorRemovingChild"),
+        });
+        return;
+      }
+      dispatch({ type: "REMOVE_CHILD_CONFIRM" });
+    } catch (cause) {
+      if (isAbortError(cause)) {
+        // O usuário saiu da tela — não vamos restaurar porque não há tela.
+        // O servidor pode já ter aceitado o DELETE; a próxima visita ao
+        // app reflete o estado correto via fetch normal.
+        return;
+      }
+      const message = resolveFetchErrorMessage({
+        cause,
+        fallbackKey: "onboardingForm.errorRemovingChild",
+      }, t);
+      dispatch({
+        type: "REMOVE_CHILD_REVERT",
+        message: message || t("onboardingForm.errorRemovingChild"),
+      });
+    } finally {
+      disposeController(controller);
+    }
+  }, [groupId, t]);
+
+  const handleSendInvite = useCallback(async () => {
+    if (!groupId || !invite.email.trim() || !invite.email.includes("@")) {
+      dispatch({ type: "INVITE_SEND_ERROR", message: t("onboardingForm.invalidEmail") });
+      return;
+    }
+    dispatch({ type: "INVITE_SEND_START" });
+
+    const controller = makeController();
+    try {
+      const res = await fetch("/api/invitations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        signal: controller.signal,
+        body: JSON.stringify({
+          groupId,
+          email: invite.email.trim().toLowerCase(),
+          role: invite.role,
+        }),
+      });
+      const result = (await res.json().catch(() => ({}))) as {
+        token?: string; error?: string;
+      };
+      if (!res.ok || !result.token) {
+        const message = resolveFetchErrorMessage({
+          status: res.status,
+          serverMessage: result.error,
+          fallbackKey: "onboardingForm.errorSendingInvite",
+        }, t);
+        if (message) dispatch({ type: "INVITE_SEND_ERROR", message });
+        return;
+      }
+      dispatch({
+        type: "INVITE_SEND_SUCCESS",
+        sent: { token: result.token, email: invite.email.trim() },
+      });
+    } catch (cause) {
+      if (isAbortError(cause)) return;
+      const message = resolveFetchErrorMessage({
+        cause,
+        fallbackKey: "onboardingForm.errorSendingInvite",
+      }, t);
+      if (message) dispatch({ type: "INVITE_SEND_ERROR", message });
+    } finally {
+      disposeController(controller);
+    }
+  }, [groupId, invite.email, invite.role, t]);
+
+  const finishOnboarding = useCallback(() => {
+    // Reload completo evita issues raros com token Supabase + redirect server-side.
+    window.location.href = "/dashboard";
+  }, []);
+
+  // ────────────────────────────────────────────────────────────────────
+  // Render
+  // ────────────────────────────────────────────────────────────────────
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white rounded-xl p-6 shadow-sm space-y-4">
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">
-          {error}
-        </div>
+    <div className="space-y-6">
+      <ProgressDots activeIndex={progressIndex(step)} totalSteps={TOTAL_STEPS} t={t} />
+
+      {step === "family" && (
+        <FamilyStep
+          value={groupName}
+          onChange={setGroupName}
+          onContinue={gotoFirstChild}
+          t={t}
+        />
       )}
 
-      <div>
-        <label className="block text-sm font-medium text-dark mb-1">{t("onboardingForm.familyName")}</label>
-        <input
-          type="text"
-          name="name"
-          required
-          placeholder={t("onboardingForm.familyNamePlaceholder")}
-          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+      {step === "first-child" && (
+        <ChildForm
+          kind="first"
+          name={form.name} birth={form.birthDate} sex={form.sex}
+          loading={form.loading} error={form.error}
+          onName={setFormName} onBirth={setFormBirth} onSex={setFormSex}
+          onSubmit={handleFirstChildSubmit}
+          onBack={gotoFamily}
+          nameRef={nameRef}
+          t={t}
         />
-      </div>
+      )}
 
-      <hr className="my-4" />
-      <h3 className="text-lg font-semibold text-dark">{t("onboardingForm.addFirstChild")}</h3>
-
-      <div>
-        <label className="block text-sm font-medium text-dark mb-1">{t("onboardingForm.childFullName")}</label>
-        <input
-          type="text"
-          name="childName"
-          required
-          placeholder={t("onboardingForm.childNamePlaceholder")}
-          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+      {step === "add-child" && (
+        <ChildForm
+          kind="another"
+          name={form.name} birth={form.birthDate} sex={form.sex}
+          loading={form.loading} error={form.error}
+          onName={setFormName} onBirth={setFormBirth} onSex={setFormSex}
+          onSubmit={handleAnotherChildSubmit}
+          onBack={cancelForm}
+          nameRef={nameRef}
+          t={t}
         />
-      </div>
+      )}
 
-      <div>
-        <label className="block text-sm font-medium text-dark mb-1">{t("onboardingForm.birthDate")}</label>
-        <input
-          type="date"
-          name="childBirthDate"
-          required
-          className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary"
+      {step === "edit-child" && (
+        <ChildForm
+          kind="edit"
+          name={form.name} birth={form.birthDate} sex={form.sex}
+          loading={form.loading} error={form.error}
+          onName={setFormName} onBirth={setFormBirth} onSex={setFormSex}
+          onSubmit={handleEditChildSubmit}
+          onBack={cancelForm}
+          nameRef={nameRef}
+          t={t}
         />
-      </div>
+      )}
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="w-full py-3 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50"
-      >
-        {loading ? t("onboardingForm.creating") : t("onboardingForm.createAndContinue")}
-      </button>
-    </form>
+      {step === "family-summary" && (
+        <FamilySummary
+          groupName={groupName}
+          kids={kids}
+          headingRef={summaryHeadingRef}
+          summaryError={summaryError}
+          onDismissSummaryError={dismissSummaryError}
+          onAddAnother={startAddChild}
+          onEdit={startEditChild}
+          pendingDeleteId={pendingDeleteId}
+          onRequestDelete={requestDelete}
+          onConfirmDelete={confirmDelete}
+          onCancelDelete={cancelDelete}
+          inviteEmail={invite.email}
+          inviteRole={invite.role}
+          inviteSending={invite.sending}
+          inviteError={invite.error}
+          inviteSent={invite.sent}
+          onInviteEmail={setInviteEmail}
+          onInviteRole={setInviteRole}
+          onSendInvite={handleSendInvite}
+          onSendAnother={sendAnother}
+          onFinish={finishOnboarding}
+          t={t}
+        />
+      )}
+    </div>
   );
 }

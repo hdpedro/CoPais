@@ -118,12 +118,16 @@ export default function OnboardingConviteScreen() {
       style={{ flex: 1, backgroundColor: colors.bg }}
     >
       <ScrollView contentContainerStyle={{ paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 80, padding: spacing.xl, flexGrow: 1 }} keyboardShouldPersistTaps="handled">
-        {/* Progress indicator */}
-        <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: spacing['2xl'] }}>
+        {/* Progress indicator — harmonizado com o wizard de onboarding (3 etapas
+            visíveis: Família · Crianças · Convite). 3ª dot ativa (expandida). */}
+        <View
+          style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: spacing['2xl'] }}
+          accessibilityRole="progressbar"
+          accessibilityLabel="Etapa 3 de 3"
+        >
           <View style={{ width: 24, height: 4, borderRadius: 2, backgroundColor: colors.brand }} />
           <View style={{ width: 24, height: 4, borderRadius: 2, backgroundColor: colors.brand }} />
-          <View style={{ width: 24, height: 4, borderRadius: 2, backgroundColor: colors.brand }} />
-          <View style={{ width: 24, height: 4, borderRadius: 2, backgroundColor: colors.brand }} />
+          <View style={{ width: 32, height: 4, borderRadius: 2, backgroundColor: colors.brand }} />
         </View>
 
         <View style={{ alignItems: 'center', marginBottom: spacing['2xl'] }}>

@@ -29,7 +29,21 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { name, childName, childBirthDate } = body;
+  const {
+    name,
+    childName,
+    childBirthDate,
+    childSex,
+    childAllergies,
+    childNotes,
+  } = body as {
+    name?: string;
+    childName?: string;
+    childBirthDate?: string;
+    childSex?: "M" | "F" | null;
+    childAllergies?: string[] | null;
+    childNotes?: string | null;
+  };
 
   if (!name) {
     return NextResponse.json({ error: "Nome da familia e obrigatorio." }, { status: 400 });
@@ -40,10 +54,31 @@ export async function POST(request: Request) {
   // already verified the user identity above.
   const admin = createAdminClient();
 
-  // Generate UUID upfront so we don't need .select() after insert.
+  // Generate UUIDs upfront so we don't need .select() after insert and the
+  // wizard receives stable ids to drive subsequent edit/remove actions.
   const groupId = crypto.randomUUID();
+  const childId = childName && childBirthDate ? crypto.randomUUID() : null;
 
-  // Create group
+  // Compensation rollback — Supabase admin client não expõe transações
+  // explícitas em JS, então a opção é cleanup manual quando uma escrita
+  // posterior falha. Sem isso, antes desse fix o usuário podia ficar com
+  // um grupo órfão (criado mas sem membership/criança) caso a segunda ou
+  // terceira INSERT falhasse, o que travava o onboarding em estados estranhos.
+  async function rollback(reason: string) {
+    // Best-effort — não bloqueia a resposta de erro se o cleanup também
+    // falhar. Logamos pra investigar manualmente.
+    try {
+      await admin.from("group_members").delete().eq("group_id", groupId);
+      await admin.from("coparenting_groups").delete().eq("id", groupId);
+    } catch (err) {
+      console.error(
+        `[create-group] rollback após "${reason}" também falhou:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  }
+
+  // 1) Cria grupo
   const { error: groupError } = await admin
     .from("coparenting_groups")
     .insert({ id: groupId, name, created_by: userId });
@@ -52,7 +87,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: groupError.message }, { status: 400 });
   }
 
-  // Add creator as admin
+  // 2) Adiciona o criador como admin do grupo
   const { error: memberError } = await admin.from("group_members").insert({
     group_id: groupId,
     user_id: userId,
@@ -60,30 +95,44 @@ export async function POST(request: Request) {
   });
 
   if (memberError) {
+    await rollback("membership insert failed");
     return NextResponse.json({ error: memberError.message }, { status: 400 });
   }
 
-  // Add child if provided
+  // 3) Adiciona a criança se fornecida. Schema check (`sex IN ('M','F')`)
+  //    vive em `children.sex` (migration 00036) — valores inválidos viram null.
   let step = 1; // group created
-  if (childName && childBirthDate) {
+  if (childId && childName && childBirthDate) {
+    const sex = childSex === "M" || childSex === "F" ? childSex : null;
+    const allergies =
+      Array.isArray(childAllergies) && childAllergies.length > 0
+        ? childAllergies.map(a => String(a).trim()).filter(Boolean)
+        : null;
     const { error: childError } = await admin.from("children").insert({
+      id: childId,
       group_id: groupId,
       full_name: childName,
       birth_date: childBirthDate,
+      sex,
+      allergies: allergies && allergies.length > 0 ? allergies : null,
+      notes: childNotes?.trim() || null,
     });
     if (childError) {
+      await rollback("child insert failed");
       return NextResponse.json({ error: childError.message }, { status: 400 });
     }
     step = 2; // child created
   }
 
-  // Update onboarding progress
+  // 4) Atualiza onboarding_step (best-effort — não rollback se falhar:
+  //    o grupo + membership + criança já estão criados e válidos, o quest
+  //    apenas fica desatualizado num campo informativo).
   await admin.from("profiles").update({ onboarding_step: step }).eq("id", userId);
 
-  // Invalidate caches
+  // 5) Invalida caches
   revalidateTag(`profile-${userId}`, "max");
   revalidateTag(`members-${groupId}`, "max");
   revalidateTag(`children-${groupId}`, "max");
 
-  return NextResponse.json({ success: true, groupId });
+  return NextResponse.json({ success: true, groupId, childId });
 }
