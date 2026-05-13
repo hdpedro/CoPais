@@ -259,6 +259,9 @@ export interface DashboardClientProps {
   // Collab Foundation — Fase 1. Unread count of school_logs for the
   // current user, used to surface "Escola · N novos" when > 0.
   schoolUnreadCount: number;
+  // Fase 1B. Unread count of expenses (status pending / cancel_pending)
+  // que precisam de atenção do user.
+  expensesUnreadCount: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -312,15 +315,18 @@ export default function DashboardClient(props: DashboardClientProps) {
     visibleSections,
     quickActionsConfig,
     schoolUnreadCount,
+    expensesUnreadCount,
   } = props;
 
   // Snapshot the user's unread state on each dashboard mount. PostHog
   // groups same-value events into a single funnel step, so this gives
-  // "% of days a user had pending school context" without instrumenting
-  // every screen. One event per render is fine — PostHog batches.
+  // "% of days a user had pending context" without instrumenting every screen.
   useEffect(() => {
     trackEvent(EVENTS.UNREAD_COUNT, { record_type: "school_log", count: schoolUnreadCount });
   }, [schoolUnreadCount]);
+  useEffect(() => {
+    trackEvent(EVENTS.UNREAD_COUNT, { record_type: "expense", count: expensesUnreadCount });
+  }, [expensesUnreadCount]);
 
   // Resolve quick actions from user config or defaults
   const qaConfig = quickActionsConfig ?? { primary: DEFAULT_QUICK_ACTIONS.primary, secondary: [...DEFAULT_QUICK_ACTIONS.secondary] };
@@ -874,6 +880,28 @@ export default function DashboardClient(props: DashboardClientProps) {
             </div>
             <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#C07055] text-white text-[11px] font-bold flex-shrink-0">
               {schoolUnreadCount}
+            </span>
+          </div>
+        </Link>
+      )}
+
+      {/* === EXPENSES UNREAD (Collab Foundation — Fase 1B) === */}
+      {show("expensesUnread") && expensesUnreadCount > 0 && (
+        <Link href="/despesas" prefetch={false} className="block">
+          <div className="bg-[#FFF8F4] border border-[#C07055]/30 rounded-2xl p-3.5 flex items-center gap-3 hover:bg-[#FBEFE7] transition-colors">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg bg-[#C07055]/15">
+              💰
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-[#2C2C2C]">
+                {expensesUnreadCount === 1
+                  ? t("collab.dashboardExpensesUnreadOne")
+                  : t("collab.dashboardExpensesUnreadOther", { count: expensesUnreadCount })}
+              </p>
+              <p className="text-[11px] text-[#7A8C8B]">{t("collab.dashboardExpensesHint")}</p>
+            </div>
+            <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#C07055] text-white text-[11px] font-bold flex-shrink-0">
+              {expensesUnreadCount}
             </span>
           </div>
         </Link>

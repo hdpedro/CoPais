@@ -106,6 +106,11 @@ export default function DashboardScreen() {
       track(EVENTS.UNREAD_COUNT, { record_type: 'school_log', count: data.schoolUnreadCount });
     }
   }, [data?.schoolUnreadCount]);
+  useEffect(() => {
+    if (typeof data?.expensesUnreadCount === 'number') {
+      track(EVENTS.UNREAD_COUNT, { record_type: 'expense', count: data.expensesUnreadCount });
+    }
+  }, [data?.expensesUnreadCount]);
 
   // Estado pra desabilitar botoes durante respostas a swap requests.
   // Espelha o calendar.tsx — paridade na UX de aprovar/rejeitar.
@@ -733,6 +738,44 @@ export default function DashboardScreen() {
               }}>
                 <Text style={{ color: '#fff', fontSize: 11, fontWeight: font.weights.bold }}>
                   {data!.schoolUnreadCount}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        ) : null}
+
+        {/* === EXPENSES UNREAD (Collab Foundation — Fase 1B) === */}
+        {(data?.expensesUnreadCount || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(218).duration(400)}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
+              style={{
+                backgroundColor: 'rgba(192,112,85,0.08)',
+                borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
+                flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                borderWidth: 1, borderColor: 'rgba(192,112,85,0.3)',
+              }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(192,112,85,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 18 }}>💰</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
+                  {data!.expensesUnreadCount === 1
+                    ? t('collab.dashboardExpensesUnreadOne')
+                    : t('collab.dashboardExpensesUnreadOther', { count: data!.expensesUnreadCount })}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+                  {t('collab.dashboardExpensesHint')}
+                </Text>
+              </View>
+              <View style={{
+                backgroundColor: colors.brand, paddingHorizontal: 8, paddingVertical: 2,
+                borderRadius: radius.full, minWidth: 22, alignItems: 'center',
+              }}>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: font.weights.bold }}>
+                  {data!.expensesUnreadCount}
                 </Text>
               </View>
             </TouchableOpacity>

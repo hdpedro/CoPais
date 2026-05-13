@@ -283,8 +283,17 @@ O app suporta **5 idiomas** completos:
 - Dashboard financeiro com resumo mensal, breakdown por categoria, historico
 - **Acertos financeiros (Settlements)**: registro de pagamentos (PIX, dinheiro, transferencia), confirmacao de recebimento
 - Redirect apos criacao de despesa corrigido (removido try/catch que capturava excecao de redirect)
-
-### 9. Decisoes (`/decisoes`)
+- **Coordenação ativa (Fase 1B da Foundation Collab — `00078`)**:
+  - Push pro outro responsável quando despesa é criada (coalescing 60s + priority-aware)
+  - Badge "Nova" no card, chip de prioridade (Info / Importante / Urgente), "Visto por X · 14:32" no card expandido
+  - Filtros por status (Tudo / Pendentes / Aprovadas / Rejeitadas / Canceladas) + agrupamento por mês com total
+  - markAsRead apenas no tap explícito do card
+  - Dashboard mostra linha "N despesas pra ver" linkando pra /despesas
+- **Edição/correção (Fase 1B)**:
+  - **Editar**: pending/rejected = edita livre; approved = qualquer mudança REVERTE pra pending (re-aprovação obrigatória)
+  - **Cancelar**: pending/rejected = cancela direto; approved = pede acordo do reviewer (status `cancel_pending` → coparente aprova ou recusa)
+  - **Reabrir**: reviewer pode reabrir aprovação em até 24h (motivo obrigatório, server enforce)
+  - **Audit trail imutável** (`expense_history`): quem fez o quê e quando, snapshot before/after pra edits, motivo nas ações que exigem. Panel inline no card expandido
 - Votacao estruturada: concordo / discordo / vou pensar
 - Argumentos pro/contra por decisao
 - **Auto-resolucao** quando todos votam

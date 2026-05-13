@@ -63,6 +63,16 @@ export const EVENTS = {
   SCHOOL_LOG_READ: "school_log_read",              // user opened a school_log card (markAsRead)
   UNREAD_COUNT: "unread_count",                    // periodic snapshot of unread for dashboards
   URGENT_CREATED: "urgent_created",                // user created a record with priority=urgent
+
+  // Expenses — Fase 1B (edit / cancel / reopen flow)
+  EXPENSE_READ: "expense_read",                    // user opened an expense card
+  EXPENSE_CREATED: "expense_created",              // emitted server-side (already existed)
+  EXPENSE_EDITED: "expense_edited",                // creator edited (may revert approval)
+  EXPENSE_CANCELLED: "expense_cancelled",          // pending/rejected cancelled direct
+  EXPENSE_CANCEL_REQUESTED: "expense_cancel_requested", // approved expense → cancel_pending
+  EXPENSE_CANCEL_APPROVED: "expense_cancel_approved",   // reviewer confirmed cancel
+  EXPENSE_CANCEL_REJECTED: "expense_cancel_rejected",   // reviewer refused cancel
+  EXPENSE_REOPENED: "expense_reopened",            // reviewer reopened within 24h
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

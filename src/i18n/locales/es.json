@@ -1256,7 +1256,10 @@
     "priorityUrgentHint": "Urgente envía push inmediato al otro responsable.",
     "dashboardSchoolUnreadOne": "1 registro escolar nuevo",
     "dashboardSchoolUnreadOther": "{count} registros escolares nuevos",
-    "dashboardTapHint": "Toque para ver lo que el otro responsable registró."
+    "dashboardTapHint": "Toque para ver lo que el otro responsable registró.",
+    "dashboardExpensesUnreadOne": "1 gasto para revisar",
+    "dashboardExpensesUnreadOther": "{count} gastos para revisar",
+    "dashboardExpensesHint": "Pendientes de aprobación o solicitud de cancelación."
   },
   "schoolPage": {
     "subtitle": "Seguimiento de la rutina escolar y desarrollo de los niños.",

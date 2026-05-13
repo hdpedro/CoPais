@@ -42,6 +42,9 @@ const { mockRedirect, mockChain, mockSupabase, mockVerifyGroupMembership, mockAd
 // vi.mock declarations
 // ---------------------------------------------------------------------------
 
+// "server-only" guard fail-fasts em build pra prevenir bundling no client.
+// Em Vitest (Node) o marker não tem significado — stubamos.
+vi.mock("server-only", () => ({}));
 vi.mock("next/navigation", () => ({
   redirect: (...args: any[]) => { mockRedirect(...args); throw new Error("NEXT_REDIRECT"); },
 }));
@@ -154,8 +157,12 @@ describe("expenses actions", () => {
     });
 
     it("redirects with error when user has no membership", async () => {
-      // Service queries group_members via maybeSingle.
-      mockChain.maybeSingle.mockResolvedValueOnce({ data: null, error: null });
+      // Action chama resolveActorName (profiles → maybeSingle) ANTES de
+      // delegar ao service que faz verifyMembership (group_members →
+      // maybeSingle). Mockamos os 2 em ordem.
+      mockChain.maybeSingle
+        .mockResolvedValueOnce({ data: { display_name: "Test", full_name: "Test User" }, error: null }) // resolveActorName
+        .mockResolvedValueOnce({ data: null, error: null }); // verifyMembership → null = não-membro
       await expect(createExpense(fd(base))).rejects.toThrow("NEXT_REDIRECT");
       expectRedirectContains("Sem permissao");
     });

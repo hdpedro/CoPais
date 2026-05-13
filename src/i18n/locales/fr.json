@@ -1256,7 +1256,10 @@
     "priorityUrgentHint": "Urgent envoie une notification immédiate à l'autre parent.",
     "dashboardSchoolUnreadOne": "1 nouvelle entrée scolaire",
     "dashboardSchoolUnreadOther": "{count} nouvelles entrées scolaires",
-    "dashboardTapHint": "Touchez pour voir ce que l'autre parent a enregistré."
+    "dashboardTapHint": "Touchez pour voir ce que l'autre parent a enregistré.",
+    "dashboardExpensesUnreadOne": "1 dépense à examiner",
+    "dashboardExpensesUnreadOther": "{count} dépenses à examiner",
+    "dashboardExpensesHint": "En attente d'approbation ou demande d'annulation."
   },
   "schoolPage": {
     "subtitle": "Suivi de la routine scolaire et du développement des enfants.",

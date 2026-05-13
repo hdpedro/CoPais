@@ -9,7 +9,10 @@
     "priorityUrgentHint": "Urgent sends an immediate push to the other parent.",
     "dashboardSchoolUnreadOne": "1 new school entry",
     "dashboardSchoolUnreadOther": "{count} new school entries",
-    "dashboardTapHint": "Tap to see what the other parent logged."
+    "dashboardTapHint": "Tap to see what the other parent logged.",
+    "dashboardExpensesUnreadOne": "1 expense to review",
+    "dashboardExpensesUnreadOther": "{count} expenses to review",
+    "dashboardExpensesHint": "Pending approval or cancellation request."
   },
   "common": {
     "appName": "Kindar",

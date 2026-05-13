@@ -1256,7 +1256,10 @@
     "priorityUrgentHint": "Dringend sendet eine sofortige Benachrichtigung an die andere Bezugsperson.",
     "dashboardSchoolUnreadOne": "1 neuer Schuleintrag",
     "dashboardSchoolUnreadOther": "{count} neue Schuleinträge",
-    "dashboardTapHint": "Tippen Sie, um zu sehen, was die andere Bezugsperson eingetragen hat."
+    "dashboardTapHint": "Tippen Sie, um zu sehen, was die andere Bezugsperson eingetragen hat.",
+    "dashboardExpensesUnreadOne": "1 Ausgabe zum Überprüfen",
+    "dashboardExpensesUnreadOther": "{count} Ausgaben zum Überprüfen",
+    "dashboardExpensesHint": "Ausstehende Genehmigung oder Stornierungsantrag."
   },
   "schoolPage": {
     "subtitle": "Begleitung der Schulroutine und Entwicklung der Kinder.",

@@ -502,6 +502,33 @@ Tabela única polimórfica de read receipts. Uma linha por `(record_type, record
 - Index: `idx_school_logs_priority (group_id, priority)`
 - Trigger: `school_logs_auto_mark_creator_read` AFTER INSERT — popula `collab_reads` pro `logged_by` automaticamente
 
+#### 39c. expenses (extensão Fase 1B — Edit/Cancel/Reopen + Audit)
+- **Status enum estendido** (`approval_status`): adicionados labels `cancelled` (criador cancelou) e `cancel_pending` (criador pediu cancelar despesa já aprovada, aguardando concordância do reviewer)
+- **Coluna nova**: `priority public.collab_priority NOT NULL DEFAULT 'info'`
+- **Novas colunas de tracking**:
+  - `rejected_by`, `rejected_at` — quem rejeitou e quando
+  - `cancel_requested_by`, `cancel_requested_at`, `cancel_reason` — pedido de cancel
+  - `cancelled_by`, `cancelled_at` — quem confirmou o cancel
+  - `edited_at`, `edit_count` — última edição + contagem (chip "editada" no UI)
+- **Indexes novos**:
+  - `idx_expenses_priority (group_id, priority)`
+  - `idx_expenses_group_status_created (group_id, status, created_at DESC)` — drives o feed principal
+- **Trigger**: `expenses_auto_mark_creator_read` AFTER INSERT
+- Migration: `00078_collab_expenses_edit_audit.sql`
+
+#### 40. expense_history (Audit trail — Fase 1B)
+Audit trail imutável de despesas. Padrão a replicar pra outros módulos quando precisarem de "quem mexeu no quê".
+- `id`, `expense_id` (FK → expenses ON DELETE CASCADE), `actor_id` (FK → profiles)
+- `action TEXT CHECK IN ('created','edited','approved','rejected','cancel_requested','cancelled','reopened','restored')`
+- `before JSONB`, `after JSONB` — snapshots dos campos editáveis (drive "valor R$X → R$Y" no UI)
+- `reason TEXT` — obrigatório pra ações 'rejected', 'cancelled', 'reopened', 'restored'
+- `at TIMESTAMPTZ` — auto now()
+- **RLS**: `expense_history group read` (qualquer membro do grupo) + `expense_history self insert` (`actor_id = auth.uid()` AND member). **SEM UPDATE/DELETE policies — imutável.**
+- **Index**: `idx_expense_history_expense_at (expense_id, at DESC)` pro audit panel
+- Migration: `00078_collab_expenses_edit_audit.sql`
+- Helper: `src/lib/services/expense-history.ts:logExpenseHistory(...)` — fire-and-forget
+- Consumido por: panel inline no card expandido (PWA + native), backfill retroativo de evento 'created' pra expenses pré-migration
+
 #### 43-47. Tabelas usadas pelo Kindar Native (mapeadas agora no native)
 
 **43. custody_schedules** — Pattern da escala de guarda quinzenal (2 semanas = 14 dias), `UNIQUE(group_id, child_id)`.
@@ -695,6 +722,7 @@ Politicas garantem que:
 | `00064_birthday_notification_type.sql` | **Lembrete de aniversario**: adiciona valor `birthday_reminder` ao enum `notification_type` (consumido por `/api/cron/birthday-reminders`, dispara D-7) |
 | `00065_whatsapp_v2_views.sql` | **WhatsApp v2**: views read-only `child_current_status` (snapshot de saude por crianca derivado de illness_episodes + active_medications + child_allergies) e `expense_balance_per_user` (saldo pendente derivado de expenses.split_ratio). Usadas pelas tools `get_child_status` e `get_balance`. |
 | `00077_collab_foundation.sql` | **Foundation: Collaborative Records — Fase 1**: tabela polimórfica `collab_reads` + enum `collab_priority` + função `collab_record_group()` + RPC `mark_collab_read()` + trigger `school_logs_auto_mark_creator_read`. Adiciona coluna `priority` em `school_logs`. Primeira camada do "sistema de sincronização familiar" — read receipts, unread state, prioridade compartilhados entre coparentes. |
+| `00078_collab_expenses_edit_audit.sql` | **Foundation Fase 1B — Despesas**: adoption da foundation pra expenses (priority + trigger auto-mark + WHEN branch em `collab_record_group()`) + status enum estendido (`cancelled`, `cancel_pending`) + colunas de tracking (rejected_by/at, cancel_requested_*, cancelled_*, edited_at, edit_count) + tabela `expense_history` imutável com RLS scopeada por grupo + indexes (group_id, status, created_at DESC) pra perf. Habilita Edit/Cancel/Reopen com audit trail. |
 
 ---
 
