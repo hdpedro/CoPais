@@ -15,6 +15,7 @@ import * as Haptics from 'expo-haptics';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 import { uploadDocument, DOCUMENT_CATEGORIES, type UploadDocumentInput } from '../../services/documents';
 
@@ -41,6 +42,14 @@ const ALLOWED_MIME = [
 ];
 
 export default function UploadSheet({ visible, onClose, onUploaded, groupId, childId, uploadedBy }: Props) {
+  // Android + Modal pageSheet: presentationStyle="pageSheet" só funciona
+  // como sheet com top inset automático no iOS. No Android cai pra
+  // fullscreen e a status bar fica SOBRE o header — relógio do sistema
+  // sobrepõe "Cancelar" e ícones de status sobrepõem "Enviar".
+  // Fix: aplicar insets.top manualmente no header (iOS já faz pelo
+  // pageSheet visual, mas mantemos pra evitar branch — diff de poucos px
+  // é imperceptível).
+  const insets = useSafeAreaInsets();
   const [file, setFile] = useState<PickedFile | null>(null);
   const [name, setName] = useState('');
   const [category, setCategory] = useState<string>('other');
@@ -163,14 +172,18 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1, backgroundColor: colors.bg }}
       >
-        {/* Sheet header */}
+        {/* Sheet header — paddingTop dinâmico cobre status bar do Android
+            (no iOS o pageSheet já dá o inset; aplicar +insets.top neutraliza
+            sem efeito visual ruim porque iOS retorna insets.top relativo ao
+            sheet, ~0 quando renderizado como page sheet). */}
         <View
           style={{
             flexDirection: 'row',
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.md,
+            paddingTop: spacing.md + (Platform.OS === 'android' ? insets.top : 0),
+            paddingBottom: spacing.md,
             borderBottomWidth: 0.5,
             borderBottomColor: colors.borderLight,
             backgroundColor: colors.bgElevated,
