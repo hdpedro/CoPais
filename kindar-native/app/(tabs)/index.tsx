@@ -719,10 +719,12 @@ export default function DashboardScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
-                  {data!.schoolUnreadCount === 1 ? '1 registro escolar novo' : `${data!.schoolUnreadCount} registros escolares novos`}
+                  {data!.schoolUnreadCount === 1
+                    ? t('collab.dashboardSchoolUnreadOne')
+                    : t('collab.dashboardSchoolUnreadOther', { count: data!.schoolUnreadCount })}
                 </Text>
                 <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
-                  Toque pra ver o que o outro responsável registrou.
+                  {t('collab.dashboardTapHint')}
                 </Text>
               </View>
               <View style={{

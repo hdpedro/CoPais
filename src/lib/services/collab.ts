@@ -52,13 +52,23 @@ interface NotifyCollabCreateArgs {
 const COALESCE_WINDOW_SECONDS = 60;
 
 /**
- * Build a stable push tag per (recipient, type, actor, group). Multiple
- * pushes inside the coalescing window share this tag and replace each
- * other on the device. Across recipients the tag varies (each device
- * only collapses its own incoming pushes).
+ * Build a push tag that GROUPS pushes within the same coalesce window but
+ * SEPARATES pushes across windows. Without the time bucket, a push sent
+ * 5 minutes after a burst would replace the old aggregated notification
+ * on the device — user loses history if they hadn't seen the first wave.
+ *
+ * Bucket = floor(now / window). Two pushes in the same bucket share the
+ * tag and replace each other (coalesce). A push in the next bucket has a
+ * new tag and stays as a separate notification.
  */
-function coalesceTag(recipientId: string, recordType: CollabRecordType, actorUserId: string, groupId: string): string {
-  return `${recordType}:${groupId}:${actorUserId}:${recipientId}`;
+function coalesceTag(
+  recipientId: string,
+  recordType: CollabRecordType,
+  actorUserId: string,
+  groupId: string,
+  bucket: number,
+): string {
+  return `${recordType}:${groupId}:${actorUserId}:${recipientId}:${bucket}`;
 }
 
 /**
@@ -88,11 +98,21 @@ export async function notifyCollabCreate(args: NotifyCollabCreateArgs): Promise<
     if (!members || members.length === 0) return;
 
     const notificationType = `${args.recordType}_created`;
+    // Time bucket pra rotacionar a tag de push: pushes na mesma janela
+    // de 60s compartilham bucket e se substituem no device; pushes em
+    // janelas diferentes ganham buckets distintos e não se sobrescrevem.
+    const bucket = Math.floor(Date.now() / (COALESCE_WINDOW_SECONDS * 1000));
+    // Prefixo de título por actor — usado tanto pra agregação ("Amanda
+    // adicionou N registros") quanto pra filtrar a contagem de recentes
+    // por actor. Sem isso, dois coparentes criando em janela próxima
+    // gerariam "Bob adicionou 2 registros" mesmo se só 1 foi do Bob.
+    const actorPrefix = args.title.split(" adicionou")[0];
 
     await Promise.all(
       members.map(async (m) => {
-        // Count recent same-class notifications to this recipient — drives
-        // the coalesced push title. Recent = last COALESCE_WINDOW_SECONDS.
+        // Count recent notifications to this recipient FROM THE SAME ACTOR
+        // (matched via title prefix — notifications table doesn't store
+        // actor_user_id explicitly). Recent = last COALESCE_WINDOW_SECONDS.
         // Counting BEFORE insert: if count=0 → first, push individual.
         // If count>=1 → push aggregated "N+1 registros".
         const since = new Date(Date.now() - COALESCE_WINDOW_SECONDS * 1000).toISOString();
@@ -101,6 +121,7 @@ export async function notifyCollabCreate(args: NotifyCollabCreateArgs): Promise<
           .select("id", { count: "exact", head: true })
           .eq("user_id", m.user_id)
           .eq("type", notificationType)
+          .ilike("title", `${actorPrefix}%`)
           .gte("created_at", since);
 
         // Always create the in-app notification row (inbox shows all).
@@ -129,7 +150,7 @@ export async function notifyCollabCreate(args: NotifyCollabCreateArgs): Promise<
           title: pushTitle,
           body: pushBody,
           url: pushLink,
-          tag: coalesceTag(m.user_id, args.recordType, args.actorUserId, args.groupId),
+          tag: coalesceTag(m.user_id, args.recordType, args.actorUserId, args.groupId, bucket),
         });
 
         // Telemetry — one event per recipient. Coalesced flag for analytics.

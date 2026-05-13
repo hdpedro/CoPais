@@ -8,7 +8,7 @@
  * Antes do 2026-04-27 essa tela so editava `child_education`. A timeline
  * de `school_logs` era PWA-only — fechado por essa migracao.
  */
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
@@ -29,6 +29,7 @@ import EmptyState from 'src/components/ui/EmptyState';
 import { TimePickerField, DatePickerField } from 'src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
+import { useI18n } from 'src/i18n';
 
 interface ChildSchool {
   childId: string;
@@ -95,6 +96,7 @@ function todayIso(): string {
 
 export default function EscolaScreen() {
   const { activeGroup, userId } = useAuth();
+  const t = useI18n(s => s.t);
   const groupId = activeGroup?.groupId ?? null;
 
   // Deep link from calendar: tap on event with school_log_id sets ?highlight=<id>
@@ -146,14 +148,27 @@ export default function EscolaScreen() {
   // one expansion at a time. Deep link from push starts expanded.
   const [expandedLogId, setExpandedLogId] = useState<string | null>(highlight || null);
 
-  // Fire `notification_opened` once when arriving via push deep link.
-  // Mirrors the PWA EscolaClient instrumentation so the funnel works
-  // across surfaces.
+  // Push deep link → explicit open. Fire notification_opened AND
+  // mark as read. Mirrors PWA EscolaClient behavior — without this,
+  // tapping a push notification didn't actually mark the record as
+  // read, so the badge stayed "Novo" until the user tapped the card
+  // a second time.
   useEffect(() => {
-    if (highlight) {
-      track(EVENTS.NOTIFICATION_OPENED, { record_type: 'school_log', record_id: highlight });
+    if (!highlight) return;
+    track(EVENTS.NOTIFICATION_OPENED, { record_type: 'school_log', record_id: highlight });
+    // Defer the markAsRead until the logs list is loaded — without this,
+    // we'd mark a record we haven't fetched yet (RPC still works, just
+    // racy with the optimistic local state). loadLogs runs on useFocusEffect.
+    const target = logs.find((l) => l.id === highlight);
+    if (target && isUnread(target)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOptimisticReads((prev) => new Set(prev).add(highlight));
+      void markSchoolLogRead(highlight);
     }
-  }, [highlight]);
+    // Re-run when logs land — first pass before fetch will see logs.length=0
+    // and bail; the second pass picks up the loaded target.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlight, logs.length]);
 
   const load = useCallback(async () => {
     if (!groupId) return;
@@ -204,13 +219,17 @@ export default function EscolaScreen() {
   }, [groupId, userId]);
 
   // ── Read-receipt helpers ───────────────────────────────────────────
-  // Indexed by log_id for O(1) lookup. Built each render — cheap.
-  const readsByLogId = new Map<string, SchoolLogRead[]>();
-  for (const r of reads) {
-    const arr = readsByLogId.get(r.log_id) || [];
-    arr.push(r);
-    readsByLogId.set(r.log_id, arr);
-  }
+  // Indexed by log_id for O(1) lookup. Memoized so mutation only happens
+  // on construction; subsequent renders reuse the same Map.
+  const readsByLogId = useMemo(() => {
+    const map = new Map<string, SchoolLogRead[]>();
+    for (const r of reads) {
+      const arr = map.get(r.log_id) || [];
+      arr.push(r);
+      map.set(r.log_id, arr);
+    }
+    return map;
+  }, [reads]);
 
   function isUnread(log: SchoolLog): boolean {
     if (optimisticReads.has(log.id)) return false;
@@ -610,13 +629,13 @@ export default function EscolaScreen() {
                             </Text>
                             {unread ? (
                               <View style={{ backgroundColor: colors.brand, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
-                                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>Novo</Text>
+                                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{t('collab.new')}</Text>
                               </View>
                             ) : null}
                             {log.priority !== 'info' ? (
                               <View style={{ backgroundColor: priorityMeta.chipBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
                                 <Text style={{ color: priorityMeta.chipText, fontSize: 10, fontWeight: '700', textTransform: 'uppercase' }}>
-                                  {priorityMeta.label}
+                                  {t(`collab.priority${log.priority.charAt(0).toUpperCase() + log.priority.slice(1)}`)}
                                 </Text>
                               </View>
                             ) : null}
@@ -655,7 +674,7 @@ export default function EscolaScreen() {
                           <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xs, columnGap: spacing.md, rowGap: 2 }}>
                             {readers.map((r) => (
                               <Text key={r.user_id} style={{ fontSize: 11, color: colors.brand }}>
-                                ✓ Visto · {formatReadAt(r.read_at)}
+                                ✓ {t('collab.seen')} · {formatReadAt(r.read_at)}
                               </Text>
                             ))}
                           </View>
@@ -908,19 +927,19 @@ export default function EscolaScreen() {
                   multiline
                 />
 
-                <Label>Prioridade</Label>
+                <Label>{t('collab.priorityLabel')}</Label>
                 <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm }}>
                   {(['info', 'important', 'urgent'] as const).map((p) => (
                     <Chip
                       key={p}
-                      label={p === 'info' ? 'Info' : p === 'important' ? 'Importante' : 'Urgente'}
+                      label={t(`collab.priority${p.charAt(0).toUpperCase() + p.slice(1)}`)}
                       active={logPriority === p}
                       onPress={() => setLogPriority(p)}
                     />
                   ))}
                 </View>
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: spacing.sm }}>
-                  Urgente envia push imediato pro outro responsável.
+                  {t('collab.priorityUrgentHint')}
                 </Text>
 
                 {getKind(composer.subtype) === 'event' ? (
@@ -1016,12 +1035,12 @@ export default function EscolaScreen() {
               <Label>Observação (opcional)</Label>
               <Input value={logDescription} onChangeText={setLogDescription} placeholder="Detalhes adicionais" multiline />
 
-              <Label>Prioridade</Label>
+              <Label>{t('collab.priorityLabel')}</Label>
               <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm }}>
                 {(['info', 'important', 'urgent'] as const).map((p) => (
                   <Chip
                     key={p}
-                    label={p === 'info' ? 'Info' : p === 'important' ? 'Importante' : 'Urgente'}
+                    label={t(`collab.priority${p.charAt(0).toUpperCase() + p.slice(1)}`)}
                     active={logPriority === p}
                     onPress={() => setLogPriority(p)}
                   />

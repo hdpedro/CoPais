@@ -58,10 +58,11 @@ interface EscolaClientProps {
 
 /* ─── Priority metadata ─────────────────────────────────────────── */
 
-const PRIORITY_META: Record<SchoolPriority, { label: string; chipBg: string; chipText: string; borderColor: string; rank: number }> = {
-  info:      { label: "Info",       chipBg: "bg-gray-100",   chipText: "text-gray-600",  borderColor: "border-transparent",      rank: 0 },
-  important: { label: "Importante", chipBg: "bg-amber-100",  chipText: "text-amber-800", borderColor: "border-amber-300",        rank: 1 },
-  urgent:    { label: "Urgente",    chipBg: "bg-red-100",    chipText: "text-red-700",   borderColor: "border-red-400",          rank: 2 },
+// Visual config — labels come from i18n at render time via t(...).
+const PRIORITY_META: Record<SchoolPriority, { i18nKey: string; chipBg: string; chipText: string; borderColor: string; rank: number }> = {
+  info:      { i18nKey: "collab.priorityInfo",      chipBg: "bg-gray-100",   chipText: "text-gray-600",  borderColor: "border-transparent",      rank: 0 },
+  important: { i18nKey: "collab.priorityImportant", chipBg: "bg-amber-100",  chipText: "text-amber-800", borderColor: "border-amber-300",        rank: 1 },
+  urgent:    { i18nKey: "collab.priorityUrgent",    chipBg: "bg-red-100",    chipText: "text-red-700",   borderColor: "border-red-400",          rank: 2 },
 };
 
 function formatReadAt(iso: string): string {
@@ -118,13 +119,27 @@ export default function EscolaClient({ groupId, isReadonly, currentUserId, child
   // Expanded cards — clicking a card expands it AND marks it read.
   const [expandedId, setExpandedId] = useState<string | null>(highlightId);
 
-  // When the page is opened via a push deep link (?highlight=<id>), fire
-  // `notification_opened` once. Drives the funnel metric "push sent →
-  // user actually opened the record" so PostHog Trends can chart it.
+  // Push deep link (?highlight=<id>) → user explicitly opened this record
+  // by tapping a notification. Treat that as "open detail":
+  //   1. Fire `notification_opened` (funnel metric)
+  //   2. Mark as read (the tap IS the explicit intent — same rule as
+  //      tap-to-expand on the list). If the user just lands on /escola
+  //      via menu without ?highlight=, nothing is marked.
+  // Single-shot per highlightId. setState inside effect is intentional —
+  // optimistic read state must apply before the next paint, otherwise the
+  // "Novo" badge flickers between mount and the server-side revalidation.
   useEffect(() => {
-    if (highlightId) {
-      trackEvent(EVENTS.NOTIFICATION_OPENED, { record_type: "school_log", record_id: highlightId });
+    if (!highlightId) return;
+    trackEvent(EVENTS.NOTIFICATION_OPENED, { record_type: "school_log", record_id: highlightId });
+    const target = logs.find((l) => l.id === highlightId);
+    if (target && isUnread(target)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOptimisticReads((prev) => new Set(prev).add(highlightId));
+      void markSchoolLogRead(highlightId);
     }
+    // logs / isUnread intentionally omitted: this must run exactly once per
+    // highlightId arrival, not on every re-render after reads update.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [highlightId]);
 
   // Index reads by log_id for O(1) lookup. Group by log so we can show
@@ -345,12 +360,12 @@ export default function EscolaClient({ groupId, isReadonly, currentUserId, child
                             </h4>
                             {unread && (
                               <span className="text-[10px] font-bold text-white bg-[#C07055] px-1.5 py-0.5 rounded-full">
-                                Novo
+                                {t("collab.new")}
                               </span>
                             )}
                             {log.priority !== "info" && (
                               <span className={`text-[10px] font-bold ${priorityMeta.chipBg} ${priorityMeta.chipText} px-1.5 py-0.5 rounded-full uppercase tracking-wide`}>
-                                {priorityMeta.label}
+                                {t(priorityMeta.i18nKey)}
                               </span>
                             )}
                           </div>
@@ -381,7 +396,7 @@ export default function EscolaClient({ groupId, isReadonly, currentUserId, child
                       <div className="mt-2 ml-8 flex flex-wrap gap-x-3 gap-y-0.5">
                         {readers.map((r) => (
                           <span key={r.user_id} className="text-[11px] text-[#2E7268]">
-                            ✓ Visto · {formatReadAt(r.read_at)}
+                            ✓ {t("collab.seen")} · {formatReadAt(r.read_at)}
                           </span>
                         ))}
                       </div>
@@ -601,6 +616,7 @@ function FormStep({
   onBack: () => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const meta = SUBTYPE_META[subtype];
   const kind = getKind(subtype);
   const isExam = subtype === "exam";
@@ -671,18 +687,18 @@ function FormStep({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-dark mb-1">Prioridade</label>
-        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Prioridade">
+        <label className="block text-xs font-medium text-dark mb-1">{t("collab.priorityLabel")}</label>
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("collab.priorityLabel")}>
           {(["info", "important", "urgent"] as const).map((p, i) => (
             <label key={p} className="cursor-pointer">
               <input type="radio" name="priority" value={p} defaultChecked={i === 0} className="peer sr-only" />
               <div className="text-center px-2 py-2 rounded-lg border text-xs font-medium border-gray-200 peer-checked:border-[#2E7268] peer-checked:bg-[#2E7268]/10 peer-checked:text-[#2E7268] text-gray-600">
-                {p === "info" ? "Info" : p === "important" ? "Importante" : "Urgente"}
+                {t(`collab.priority${p.charAt(0).toUpperCase() + p.slice(1)}`)}
               </div>
             </label>
           ))}
         </div>
-        <p className="text-[11px] text-muted mt-1">Urgente envia push imediato pro outro responsável.</p>
+        <p className="text-[11px] text-muted mt-1">{t("collab.priorityUrgentHint")}</p>
       </div>
 
       {kind === "event" && (
@@ -714,6 +730,7 @@ function EditFormStep({
   onSubmit: (fd: FormData) => void;
   onClose: () => void;
 }) {
+  const { t } = useI18n();
   const [subtype, setSubtype] = useState<SchoolSubtype>(log.log_type as SchoolSubtype);
   const meta = SUBTYPE_META[subtype] || SUBTYPE_META.other;
   const kind = getKind(subtype);
@@ -810,13 +827,13 @@ function EditFormStep({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-dark mb-1">Prioridade</label>
-        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label="Prioridade">
+        <label className="block text-xs font-medium text-dark mb-1">{t("collab.priorityLabel")}</label>
+        <div className="grid grid-cols-3 gap-2" role="radiogroup" aria-label={t("collab.priorityLabel")}>
           {(["info", "important", "urgent"] as const).map((p) => (
             <label key={p} className="cursor-pointer">
               <input type="radio" name="priority" value={p} defaultChecked={log.priority === p} className="peer sr-only" />
               <div className="text-center px-2 py-2 rounded-lg border text-xs font-medium border-gray-200 peer-checked:border-[#2E7268] peer-checked:bg-[#2E7268]/10 peer-checked:text-[#2E7268] text-gray-600">
-                {p === "info" ? "Info" : p === "important" ? "Importante" : "Urgente"}
+                {t(`collab.priority${p.charAt(0).toUpperCase() + p.slice(1)}`)}
               </div>
             </label>
           ))}

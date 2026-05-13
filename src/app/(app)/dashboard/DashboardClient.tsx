@@ -866,9 +866,11 @@ export default function DashboardClient(props: DashboardClientProps) {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-semibold text-[#2C2C2C]">
-                {schoolUnreadCount === 1 ? "1 registro escolar novo" : `${schoolUnreadCount} registros escolares novos`}
+                {schoolUnreadCount === 1
+                  ? t("collab.dashboardSchoolUnreadOne")
+                  : t("collab.dashboardSchoolUnreadOther", { count: schoolUnreadCount })}
               </p>
-              <p className="text-[11px] text-[#7A8C8B]">Toque pra ver o que o outro responsável registrou.</p>
+              <p className="text-[11px] text-[#7A8C8B]">{t("collab.dashboardTapHint")}</p>
             </div>
             <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#C07055] text-white text-[11px] font-bold flex-shrink-0">
               {schoolUnreadCount}

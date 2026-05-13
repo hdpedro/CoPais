@@ -330,6 +330,13 @@ O app suporta **5 idiomas** completos:
 ### 15. Escola (`/escola`)
 - Registro de notas escolares e ocorrencias
 - Integrado na aba Educacao do perfil da crianca
+- **Coordenação ativa (Fase 1 da Foundation Collab — `00077`)**:
+  - Push pro outro responsável quando alguém cria registro (com coalescing 60s)
+  - Badge "Novo" no card, "Visto por X · 14:32" estilo iMessage, chip de prioridade (Info / Importante / Urgente)
+  - Sort: unread DESC → priority DESC → date DESC
+  - markAsRead SOMENTE no tap explícito do card (nunca em scroll/mount)
+  - Dashboard mostra linha "N registros escolares novos" linkando pra /escola
+  - Migration `00077_collab_foundation.sql` introduz infra reutilizável pros próximos módulos colaborativos (Saúde, Decisões, Financeiro). Vide `.claude/CLAUDE.md` seção "Foundation: Collaborative Records".
 
 ### 16. Temas Sensiveis (`/temas-sensiveis`)
 - Espaco para discussao de temas delicados
