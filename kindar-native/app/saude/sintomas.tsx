@@ -16,22 +16,37 @@ import { fetchSymptoms, createSymptomEntry, type SymptomEntry } from 'src/servic
 import { fetchChildren, type Child } from 'src/services/children';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
+/**
+ * Enums DEVEM bater com o CHECK constraint do schema (migration 00037).
+ * Valores aceitos pelo banco:
+ *   symptom_type: febre | vomito | diarreia | tosse | dor | mancha | falta_apetite | outro
+ *   intensity:    leve  | moderado | forte
+ *
+ * Bug Diogo 2026-05-13: a tela usava enums em INGLES (mild/moderate/severe)
+ * e tipos em divergencia (cansaco/coriza/apetite — nao existem no schema;
+ * faltavam mancha/falta_apetite). Resultado: TODO INSERT batia com
+ * `23514 check_violation` e o user via "Erro: Nao foi possivel registrar".
+ * Default `intensity='moderate'` garantia falha mesmo sem o user mexer.
+ *
+ * Paridade com PWA `src/app/(app)/saude/sintomas/SintomasClient.tsx`
+ * (SYMPTOM_CONFIG + INTENSITY_CONFIG) — fonte de verdade da UI.
+ */
 const SYMPTOM_TYPES: { value: string; label: string; icon: string; color: string }[] = [
   { value: 'febre', label: 'Febre', icon: '🌡️', color: '#E53935' },
   { value: 'vomito', label: 'Vômito', icon: '🤮', color: '#E8A228' },
   { value: 'diarreia', label: 'Diarreia', icon: '💩', color: '#F59E0B' },
   { value: 'tosse', label: 'Tosse', icon: '😷', color: '#3B82F6' },
   { value: 'dor', label: 'Dor', icon: '🤕', color: '#9333EA' },
-  { value: 'cansaco', label: 'Cansaço', icon: '😴', color: '#6B7280' },
-  { value: 'apetite', label: 'Sem apetite', icon: '🍽️', color: '#C0876D' },
-  { value: 'coriza', label: 'Coriza', icon: '🤧', color: '#22C55E' },
+  { value: 'mancha', label: 'Mancha', icon: '🔴', color: '#EC4899' },
+  { value: 'falta_apetite', label: 'Sem apetite', icon: '🍽️', color: '#C0876D' },
   { value: 'outro', label: 'Outro', icon: '📝', color: '#8A8A8A' },
 ];
 
-const INTENSITIES: { value: 'mild' | 'moderate' | 'severe'; label: string; color: string }[] = [
-  { value: 'mild', label: 'Leve', color: '#4CAF50' },
-  { value: 'moderate', label: 'Moderado', color: '#E8A228' },
-  { value: 'severe', label: 'Severo', color: '#E53935' },
+type Intensity = 'leve' | 'moderado' | 'forte';
+const INTENSITIES: { value: Intensity; label: string; color: string }[] = [
+  { value: 'leve', label: 'Leve', color: '#4CAF50' },
+  { value: 'moderado', label: 'Moderado', color: '#E8A228' },
+  { value: 'forte', label: 'Forte', color: '#E53935' },
 ];
 
 function formatRelative(iso: string): string {
@@ -66,7 +81,7 @@ export default function SintomasScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
   const [symptomType, setSymptomType] = useState('febre');
-  const [intensity, setIntensity] = useState<'mild' | 'moderate' | 'severe'>('moderate');
+  const [intensity, setIntensity] = useState<Intensity>('moderado');
   const [temperature, setTemperature] = useState('');
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -118,13 +133,23 @@ export default function SintomasScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setComposerOpen(false);
       setSymptomType('febre');
-      setIntensity('moderate');
+      setIntensity('moderado');
       setTemperature('');
       setNotes('');
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', 'Não foi possível registrar o sintoma.');
+      // Mostrar a mensagem real do Supabase quando houver — ajuda o usuario
+      // a entender o problema (offline, validacao, RLS) em vez do generico
+      // "Nao foi possivel". Bug Diogo 2026-05-13 ficou invisivel por meses
+      // porque o alert generico escondia o `23514 check_violation` real.
+      const detail = (result as { error?: string }).error;
+      Alert.alert(
+        'Erro ao registrar sintoma',
+        detail
+          ? `Detalhes: ${detail}`
+          : 'Tente novamente. Se persistir, verifique sua conexão.'
+      );
     }
   }
 

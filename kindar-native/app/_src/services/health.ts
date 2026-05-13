@@ -36,7 +36,12 @@ export interface IllnessEpisode {
    * comma-joined text on read.
    */
   symptoms: string[] | null;
-  severity: 'mild' | 'moderate' | 'severe' | null;
+  /**
+   * Schema (migration 00013): `CHECK (severity IN ('leve','moderado','grave'))`.
+   * Tipo antigo declarava 'mild'/'moderate'/'severe' (ingles) — quebrava
+   * INSERT silenciosamente em `app/saude/doencas/nova.tsx`.
+   */
+  severity: 'leve' | 'moderado' | 'grave' | null;
   notes: string | null;
   hospital: string | null;
   childName?: string;
@@ -72,8 +77,20 @@ export async function fetchSymptoms(childId: string, daysBack = 14): Promise<Sym
 export async function createSymptomEntry(params: {
   groupId: string;
   childId: string;
+  /**
+   * Schema (migration 00037): `symptom_type IN ('febre','vomito','diarreia',
+   * 'tosse','dor','mancha','falta_apetite','outro')`. Mantido como `string`
+   * livre aqui pra evitar duplicar o enum, mas a UI em `app/saude/sintomas.tsx`
+   * SO permite os valores aceitos.
+   */
   symptomType: string;
-  intensity?: 'mild' | 'moderate' | 'severe';
+  /**
+   * Schema (migration 00037): `intensity IN ('leve','moderado','forte')`.
+   * Atencao: e DIFERENTE de `illness_episodes.severity` que usa 'grave'.
+   * Tipo antigo era 'mild'/'moderate'/'severe' — quebrava INSERT (bug
+   * Diogo 2026-05-13).
+   */
+  intensity?: 'leve' | 'moderado' | 'forte';
   temperature?: number;
   notes?: string;
   illnessEpisodeId?: string;
@@ -141,7 +158,12 @@ export async function createIllness(params: {
    * working without code churn.
    */
   symptoms?: string | string[];
-  severity?: 'mild' | 'moderate' | 'severe';
+  /**
+   * Schema (migration 00013): `CHECK (severity IN ('leve','moderado','grave'))`.
+   * Atencao: e DIFERENTE de `symptom_entries.intensity` ('leve','moderado','forte').
+   * O tipo antigo era 'mild'/'moderate'/'severe' — quebrava INSERT silenciosamente.
+   */
+  severity?: 'leve' | 'moderado' | 'grave';
   notes?: string;
   hospital?: string;
 }) {

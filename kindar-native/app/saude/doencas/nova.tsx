@@ -16,10 +16,24 @@ import { createIllness } from 'src/services/health';
 import { fetchChildren, type Child } from 'src/services/children';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
-const SEVERITIES: { value: 'mild' | 'moderate' | 'severe'; label: string; color: string; icon: string }[] = [
-  { value: 'mild', label: 'Leve', color: '#4CAF50', icon: '🟢' },
-  { value: 'moderate', label: 'Moderado', color: '#E8A228', icon: '🟡' },
-  { value: 'severe', label: 'Severo', color: '#E53935', icon: '🔴' },
+/**
+ * Enum DEVE bater com o CHECK constraint de `illness_episodes.severity`
+ * (migration 00013): `severity IN ('leve', 'moderado', 'grave')`.
+ *
+ * Atencao: o valor "grave" e DIFERENTE de "forte" usado em
+ * `symptom_entries.intensity` — sao tabelas distintas com vocabularios
+ * historicamente distintos. Nao alinhar errado.
+ *
+ * Bug 2026-05-13 (mesma sessao do bug Diogo de sintomas): a tela usava
+ * 'mild'/'moderate'/'severe' (ingles). Como ha CHECK constraint no banco,
+ * TODO INSERT falhava silenciosamente com 23514 — o usuario via "Erro"
+ * generico e abandonava o cadastro.
+ */
+type Severity = 'leve' | 'moderado' | 'grave';
+const SEVERITIES: { value: Severity; label: string; color: string; icon: string }[] = [
+  { value: 'leve', label: 'Leve', color: '#4CAF50', icon: '🟢' },
+  { value: 'moderado', label: 'Moderado', color: '#E8A228', icon: '🟡' },
+  { value: 'grave', label: 'Grave', color: '#E53935', icon: '🔴' },
 ];
 
 function parseDate(display: string): string | null {
@@ -45,7 +59,7 @@ export default function NovaDoencaScreen() {
   const [title, setTitle] = useState('');
   const [startDate, setStartDate] = useState(todayDisplay());
   const [symptoms, setSymptoms] = useState('');
-  const [severity, setSeverity] = useState<'mild' | 'moderate' | 'severe'>('mild');
+  const [severity, setSeverity] = useState<Severity>('leve');
   const [hospital, setHospital] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
@@ -95,7 +109,15 @@ export default function NovaDoencaScreen() {
       router.back();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', 'Nao foi possivel registrar a doenca.');
+      // Surface o erro real do Supabase pra debug (mesmo padrao adotado em
+      // sintomas.tsx apos o bug Diogo). Alert generico mascarava bugs por meses.
+      const detail = (result as { error?: string }).error;
+      Alert.alert(
+        'Erro ao registrar doenca',
+        detail
+          ? `Detalhes: ${detail}`
+          : 'Tente novamente. Se persistir, verifique sua conexão.'
+      );
     }
   }
 
