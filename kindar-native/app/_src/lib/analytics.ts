@@ -63,6 +63,9 @@ export const EVENTS = {
   UNREAD_COUNT: 'unread_count',
   URGENT_CREATED: 'urgent_created',
 
+  // Calendar — custody integrity regression alarm
+  CUSTODY_OVERLAP_DETECTED: 'custody_overlap_detected',
+
   // Expenses — Fase 1B
   EXPENSE_READ: 'expense_read',
   EXPENSE_CREATED: 'expense_created',

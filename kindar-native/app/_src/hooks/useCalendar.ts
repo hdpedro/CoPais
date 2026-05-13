@@ -14,6 +14,8 @@ import { fetchMyPendingEventRequests, type EventRequest } from '../services/even
 import type { CustodyEventRaw } from '../lib/calendar-balance';
 import { withTimeout } from '../lib/with-timeout';
 import { reportError } from '../lib/error-reporter';
+import { detectCustodyOverlap } from '../lib/calendar-overlap-detect';
+import { track, EVENTS } from '../lib/analytics';
 
 const FETCH_TIMEOUT_MS = 15_000;
 
@@ -151,6 +153,25 @@ export function useCalendar() {
       // this the calendar still renders the old responsible after the
       // co-parent accepts the swap (Angelino bug 2026-04-27).
       const stable = (custodyData || []) as any[];
+
+      // Defesa em profundidade: depois da migration 00079 isso só deveria
+      // disparar em casos extremos (bypass de trigger, restore de backup
+      // legado). Vira regression alarm no PostHog. Em loop apertado seria
+      // caro; aqui é uma vez por fetch (~5min entre fetches).
+      const overlapReport = detectCustodyOverlap(
+        stable.map(ce => ({
+          id: ce.id, start_date: ce.start_date, end_date: ce.end_date,
+          custody_type: ce.custody_type, child_id: ce.child_id || null,
+        })),
+      );
+      if (overlapReport.hasOverlap) {
+        track(EVENTS.CUSTODY_OVERLAP_DETECTED, {
+          group_id: groupId,
+          conflict_count: overlapReport.conflicts.length,
+          sample_conflict: overlapReport.conflicts[0],
+        });
+      }
+
       // Persist raw custody_events (sem expansao por dia) pra calculo de
       // saldo via computeSwapBalance — match PWA src/lib/calendar-utils.ts.
       setCustodyEvents(stable.map((ce: any) => ({

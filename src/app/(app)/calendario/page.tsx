@@ -16,6 +16,8 @@ import {
 } from "@/lib/calendar-utils";
 // getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
 import { getBirthdayOccurrences, computeAgeOnDate } from "@/lib/birthday-utils";
+import { detectCustodyOverlap } from "@/lib/calendar-overlap-detect";
+import { captureServerEvent } from "@/lib/posthog-server";
 import dynamic from "next/dynamic";
 import CalendarHeader from "./CalendarHeader";
 
@@ -172,6 +174,23 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   });
 
   const custodyEvents = (events || []) as unknown as CustodyEvent[];
+
+  // Defesa em profundidade — depois de 00079 isso só dispara em bypass.
+  // Vira regression alarm no PostHog. Server-side capture (não bloqueia render).
+  const overlapReport = detectCustodyOverlap(
+    custodyEvents.map(ce => ({
+      id: ce.id, start_date: ce.start_date, end_date: ce.end_date,
+      custody_type: ce.custody_type, child_id: ce.child_id ?? null,
+    })),
+  );
+  if (overlapReport.hasOverlap) {
+    captureServerEvent(user.id, "custody_overlap_detected", {
+      group_id: groupId,
+      conflict_count: overlapReport.conflicts.length,
+      sample_conflict: overlapReport.conflicts[0],
+    });
+  }
+
   const custodyMap = buildCustodyMap(custodyEvents, allMembersMap);
 
   // Convert map to serializable object for client
