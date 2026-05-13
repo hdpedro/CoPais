@@ -75,12 +75,15 @@ export default async function ChildDetailPage({
       .select("*")
       .eq("child_id", id)
       .eq("status", "active"),
-    // Vaccination records
+    // Vaccination records — coluna e `administered_date` (schema migration
+    // 00005). `applied_date` nao existe; o `.order()` antigo fazia o
+    // PostgREST devolver 400 e a contagem ficava zero silenciosamente.
+    // Bug 2026-05-13, simetrico ao fix em kindar-native.
     supabase
       .from("vaccination_records")
       .select("*")
       .eq("child_id", id)
-      .order("applied_date", { ascending: false }),
+      .order("administered_date", { ascending: false }),
     // Documents for this child
     supabase
       .from("documents")

@@ -61,6 +61,28 @@ function Empty({ text }: { text: string }) {
   return <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted }}>{text}</Text>;
 }
 
+// Mapeamento enum → label PT-BR. Mantido inline (em vez de i18n) pra
+// paridade visual com `app/saude/alergias.tsx`, que faz o mesmo.
+function labelType(t: string): string {
+  switch (t) {
+    case 'food': return 'Alimentar';
+    case 'medication': return 'Medicamento';
+    case 'environmental': return 'Ambiental';
+    case 'insect': return 'Inseto';
+    case 'other': return 'Outro';
+    default: return t;
+  }
+}
+
+function labelSeverity(s: string): string {
+  switch (s) {
+    case 'severe': return 'Grave';
+    case 'moderate': return 'Moderada';
+    case 'mild': return 'Leve';
+    default: return s;
+  }
+}
+
 export default function TabSaude({ medicalInfo, latestGrowth, allergies, medications, vaccinations, professionals }: Props) {
   return (
     <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }} showsVerticalScrollIndicator={false}>
@@ -106,6 +128,13 @@ export default function TabSaude({ medicalInfo, latestGrowth, allergies, medicat
                 gap: spacing.sm,
               }}
             >
+              {/*
+                Severity enum no banco e 'severe' | 'moderate' | 'mild'
+                (vide `app/saude/alergias.tsx` + validacao em
+                `api/health/allergies/route.ts`). Antes desse fix
+                comparavamos com 'severa'/'moderada' (PT-BR feminino) e
+                o dot nunca virava vermelho/amarelo — sempre cinza.
+              */}
               <View
                 style={{
                   width: 8,
@@ -113,18 +142,23 @@ export default function TabSaude({ medicalInfo, latestGrowth, allergies, medicat
                   borderRadius: 4,
                   marginTop: 6,
                   backgroundColor:
-                    a.severity === 'severa' ? '#E53935' : a.severity === 'moderada' ? '#FFA726' : colors.textMuted,
+                    a.severity === 'severe' ? '#E53935' : a.severity === 'moderate' ? '#FFA726' : '#4CAF50',
                 }}
               />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: font.sizes.md, color: colors.text, fontWeight: '500' }}>
-                  {a.allergen}
+                  {a.name}
                 </Text>
-                {a.severity ? (
-                  <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                    Severidade: {a.severity}
-                  </Text>
-                ) : null}
+                {/* Linha secundaria: tipo + severidade + reacao quando houver. */}
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
+                  {[
+                    a.allergy_type ? labelType(a.allergy_type) : null,
+                    a.severity ? labelSeverity(a.severity) : null,
+                    a.reaction || null,
+                  ]
+                    .filter(Boolean)
+                    .join(' · ')}
+                </Text>
               </View>
             </View>
           ))
@@ -175,10 +209,14 @@ export default function TabSaude({ medicalInfo, latestGrowth, allergies, medicat
               <Ionicons name="shield-checkmark" size={16} color={colors.success} style={{ marginRight: spacing.sm }} />
               <Text style={{ fontSize: font.sizes.sm, color: colors.text, flex: 1 }} numberOfLines={1}>
                 {v.vaccine_name}
+                {v.dose_label ? <Text style={{ color: colors.textMuted }}> · {v.dose_label}</Text> : null}
               </Text>
-              {v.applied_date ? (
+              {v.administered_date ? (
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                  {new Date(v.applied_date).toLocaleDateString('pt-BR')}
+                  {/* Usar split em vez de new Date pra evitar shift de timezone
+                      (DATE column do PG vem como YYYY-MM-DD e new Date()
+                      interpreta como UTC midnight, voltando 1 dia em UTC-3). */}
+                  {v.administered_date.split('-').reverse().join('/')}
                 </Text>
               ) : null}
             </View>

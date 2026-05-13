@@ -52,7 +52,10 @@ interface Medication {
 interface Vaccination {
   id: string;
   vaccine_name: string;
-  applied_date: string | null;
+  // Schema real: `administered_date` (migration 00005). Tipo antigo
+  // `applied_date` nunca correspondeu a uma coluna real; mantido aqui
+  // apenas pra alinhar com o select corrigido em page.tsx.
+  administered_date: string;
 }
 
 interface DocumentRow {

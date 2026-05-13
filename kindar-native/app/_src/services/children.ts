@@ -46,12 +46,27 @@ export interface GrowthRecord {
   measured_date: string;
 }
 
+/**
+ * Schema real (vide migration original de `child_allergies` + docstring de
+ * `src/app/api/health/allergies/route.ts`):
+ *   id uuid, group_id uuid, child_id uuid, name text NOT NULL,
+ *   allergy_type text NOT NULL, severity text NOT NULL, reaction text NULL,
+ *   created_by uuid, created_at timestamptz.
+ *
+ * Antes desse fix (2026-05-13) a interface declarava `allergen`/`notes`
+ * (colunas que NÃO existem). O `.select()` correspondente fazia o
+ * PostgREST retornar 400 silenciosamente — `allergies` chegava `[]` e a
+ * tela renderizava "ALERGIAS (0)" mesmo com row no banco. Bug reportado
+ * pela Mia/Família Sousa. Mesma classe do typo `recorded_at` em
+ * `growth_records` corrigido em 2026-05-11.
+ */
 export interface Allergy {
   id: string;
   child_id: string;
-  allergen: string;
-  severity: string | null;
-  notes: string | null;
+  name: string;
+  allergy_type: string;
+  severity: string;
+  reaction: string | null;
 }
 
 export interface ActiveMedication {
@@ -63,11 +78,21 @@ export interface ActiveMedication {
   status: string;
 }
 
+/**
+ * Schema real (migration 00005, linhas 114-126): coluna e `administered_date`,
+ * NAO `applied_date`. Antes desse fix (2026-05-13) tanto a interface quanto o
+ * SELECT e `.order()` usavam `applied_date` — coluna inexistente — fazendo o
+ * PostgREST devolver 400 e o array chegar vazio. Resultado: aba Saude mostrava
+ * "Vacinas (0)" mesmo com vacinas no banco. Mesma classe do bug `allergen`/`notes`
+ * de `child_allergies` corrigido na mesma sessao. PWA tinha o mesmo erro em
+ * `src/app/(app)/criancas/[id]/page.tsx` (corrigido junto).
+ */
 export interface Vaccination {
   id: string;
   child_id: string;
   vaccine_name: string;
-  applied_date: string | null;
+  dose_label: string | null;
+  administered_date: string;
 }
 
 export interface ChildDocument {
@@ -157,7 +182,7 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
       .limit(1),
     supabase
       .from('child_allergies')
-      .select('id, child_id, allergen, severity, notes')
+      .select('id, child_id, name, allergy_type, severity, reaction')
       .eq('child_id', childId)
       .order('created_at', { ascending: false }),
     supabase
@@ -167,9 +192,9 @@ export async function fetchChildDetail(childId: string, groupId: string): Promis
       .eq('status', 'active'),
     supabase
       .from('vaccination_records')
-      .select('id, child_id, vaccine_name, applied_date')
+      .select('id, child_id, vaccine_name, dose_label, administered_date')
       .eq('child_id', childId)
-      .order('applied_date', { ascending: false }),
+      .order('administered_date', { ascending: false }),
     supabase
       .from('documents')
       .select('id, name, category, file_url, file_size, mime_type, child_id, uploaded_by, created_at, profiles!documents_uploaded_by_fkey(full_name)')
