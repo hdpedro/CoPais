@@ -37,3 +37,57 @@ Bugs anteriores causados por esquecer essa regra:
 ## Padrão "responsabilidade do banco" pra side-effects derivados
 
 Quando uma tabela B é **derivada** de uma tabela A (ex: `calendar_occurrences` ← `child_activities`), prefira gerar B via trigger no banco em vez de exigir que cada client lembre de chamar a lib JS. Triggers garantem cobertura 100% — PWA, native, AI, importação, edge function, SQL direto, qualquer caller futuro. Lib JS continua valendo como defesa em profundidade (UI otimista) mas a fonte de verdade é o banco.
+
+## Foundation: Collaborative Records (awareness + read receipts + priority)
+
+A migration `00077_collab_foundation.sql` introduz infraestrutura compartilhada para **records colaborativos** — qualquer tipo de registro onde múltiplos coparentes precisam de awareness, read receipts e prioridade. Primeiro consumidor: `school_logs` (Fase 1). Próximos: Saúde, Decisões, Financeiro, Calendário, Ocorrências.
+
+**Princípio**: o valor do Kindar não está em armazenar dados — está em garantir que os responsáveis compartilhem contexto no momento certo. Cada módulo colaborativo herda esse comportamento via foundation, sem reimplementar.
+
+### Tabela única `collab_reads`
+
+```sql
+collab_reads (record_type TEXT, record_id UUID, user_id UUID, read_at TIMESTAMPTZ)
+PRIMARY KEY (record_type, record_id, user_id)
+```
+
+Uma linha por (record, user) quando o user explicitamente abre o detalhe do record. Polimórfica por convenção, não por FK — cada adoção adiciona um WHEN branch em `collab_record_group(record_type, record_id)` pra RLS resolver o group.
+
+### Enum `collab_priority`
+
+`('info', 'important', 'urgent')`. Cada tabela colaborativa opta-in com `ADD COLUMN priority collab_priority NOT NULL DEFAULT 'info'`. Urgente envia push priority="high" (FCM/APNs) mas sem time-sensitive entitlement por enquanto (Fase 2).
+
+### Server helper: `src/lib/services/collab.ts`
+
+- `notifyCollabCreate({recordType, recordId, groupId, actorUserId, priority, title, message, link})` — fan-out de push pros outros membros (role admin/member), com **coalescing**: pushes do mesmo (recipient, type, actor) em até 60s usam tag estável e mensagem agregada ("Amanda adicionou 3 registros escolares"). In-app notification row é criada sempre (inbox não coalesce).
+- `unreadCollabCount({userId, groupId, recordType})` — count de records sem `collab_reads` row pro user. Drives dashboard badges.
+
+### Client helpers
+
+PWA: chama RPC `mark_collab_read(record_type, record_id)` via Supabase client. Server action `markSchoolLogRead(logId)` em `actions/school.ts` é o wrapper.
+Native: `markSchoolLogRead` em `kindar-native/app/_src/services/school.ts` chama o mesmo RPC.
+
+### Regras de UX firmadas em Fase 1
+
+1. **Read receipt sempre ON** — Kindar vende transparência entre coparentes; não tem opt-out por user. Opção por-grupo é Fase 2 caso vire arma de conflito.
+2. **`urgent` usa push normal por enquanto** — time-sensitive entitlement Apple requer capability change + rebuild EAS. Visual emphasis sim, channel diferente não.
+3. **Edit não dispara push** — só `create`. Evita spam. Escalation re-notify (info → urgent) é Fase 2.
+4. **Criador auto-marcado como lido** — trigger `school_logs_auto_mark_creator_read` insere row em `collab_reads`. Padrão a replicar pra novos módulos.
+5. **Marcar lido APENAS no detalhe** — nunca em scroll/list-mount/preload. O valor emocional do "Visto por Amanda · 14:32" depende dessa disciplina.
+6. **Anti-spam de notificação** — coalescing 60s via tag estável. Push individual + push agregado substituindo o anterior no device (FCM `tag`, APNs `thread-id`, web-push `tag`).
+
+### Adoção por novo módulo (~20 linhas)
+
+1. **Migration**: `ALTER TABLE <module> ADD COLUMN priority collab_priority NOT NULL DEFAULT 'info';` + `WHEN '<record_type>'` em `collab_record_group()` + trigger `<module>_auto_mark_creator_read` (cópia do school).
+2. **Service**: chamar `notifyCollabCreate` no fim do create do service.
+3. **UI**: `useUnread` no dashboard + badge "Novo" + chip de priority + `mark_collab_read` no tap-to-expand. PWA + native idênticos.
+4. **i18n**: namespace `collab` já tem todas as strings compartilhadas (priority labels, "Novo", "Visto"). Acrescente só o que for específico do módulo.
+5. **Analytics**: eventos `notification_sent`, `notification_opened`, `<module>_read`, `unread_count`, `urgent_created` já existem — basta passar `record_type: '<module>'`.
+
+### Eventos PostHog (Fase 1)
+
+- `notification_sent` (server, recipient distinctId) — props: `record_type`, `actor_user_id`, `priority`, `coalesced`, `coalesced_count`
+- `notification_opened` (client, ao abrir via deep link com `?highlight=`) — props: `record_type`, `record_id`
+- `school_log_read` (server, no markSchoolLogRead action) — props: `log_id`
+- `unread_count` (client, ao montar dashboard) — props: `record_type`, `count`
+- `urgent_created` (server, quando priority='urgent' no create) — props: `record_type`

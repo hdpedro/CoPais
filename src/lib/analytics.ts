@@ -55,6 +55,14 @@ export const EVENTS = {
 
   // A/B experiments
   EXPERIMENT_EXPOSED: "experiment_exposed",
+
+  // Collaborative Records Foundation — Fase 1 (school first, more later).
+  // Drives the engagement / awareness metrics the team uses to decide
+  // which modules to extend the foundation to next.
+  NOTIFICATION_OPENED: "notification_opened",      // user tapped a push and landed on the record
+  SCHOOL_LOG_READ: "school_log_read",              // user opened a school_log card (markAsRead)
+  UNREAD_COUNT: "unread_count",                    // periodic snapshot of unread for dashboards
+  URGENT_CREATED: "urgent_created",                // user created a record with priority=urgent
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

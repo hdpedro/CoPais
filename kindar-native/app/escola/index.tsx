@@ -8,7 +8,7 @@
  * Antes do 2026-04-27 essa tela so editava `child_education`. A timeline
  * de `school_logs` era PWA-only — fechado por essa migracao.
  */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import {
   View, Text, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
@@ -20,14 +20,16 @@ import { useAuth } from 'src/store/auth';
 import { fetchChildren, fetchChildEducation, upsertChildEducation, type ChildEducation } from 'src/services/children';
 import {
   fetchSchoolLogs, createSchoolLog, updateSchoolLog, deleteSchoolLog, toggleSchoolLogCompleted,
-  fetchSchoolLogEventTime,
+  fetchSchoolLogEventTime, fetchSchoolLogReads, markSchoolLogRead,
   EVENT_SUBTYPES, NOTE_SUBTYPES, SUBTYPE_LABEL, SUBTYPE_ICON, SUBTYPE_HINT, getKind,
-  type SchoolLog, type SchoolLogType, type SchoolKind,
+  type SchoolLog, type SchoolLogType, type SchoolKind, type SchoolPriority, type SchoolLogRead,
 } from 'src/services/school';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
 import { TimePickerField, DatePickerField } from 'src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
+import { track, EVENTS } from 'src/lib/analytics';
+import { useI18n } from 'src/i18n';
 
 interface ChildSchool {
   childId: string;
@@ -49,6 +51,25 @@ type Tab = 'info' | 'logs';
 const TYPE_LABELS = SUBTYPE_LABEL;
 const TYPE_ICONS = SUBTYPE_ICON;
 
+// Priority metadata — mirror of PWA EscolaClient PRIORITY_META.
+// rank drives the "unread first, then urgent first" sort below.
+const PRIORITY_META: Record<SchoolPriority, { label: string; chipBg: string; chipText: string; rank: number }> = {
+  info:      { label: 'Info',       chipBg: 'rgba(107,114,128,0.15)', chipText: '#4B5563',  rank: 0 },
+  important: { label: 'Importante', chipBg: 'rgba(245,158,11,0.18)',  chipText: '#B45309',  rank: 1 },
+  urgent:    { label: 'Urgente',    chipBg: 'rgba(239,68,68,0.18)',   chipText: '#B91C1C',  rank: 2 },
+};
+
+function formatReadAt(iso: string): string {
+  const d = new Date(iso);
+  const now = new Date();
+  const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
+  if (diffMin < 1) return 'agora';
+  if (diffMin < 60) return `há ${diffMin}min`;
+  const sameDay = d.toDateString() === now.toDateString();
+  if (sameDay) return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+}
+
 type ComposerStage =
   | { stage: 'closed' }
   | { stage: 'pick-kind' }
@@ -67,11 +88,15 @@ function formatLogDate(iso: string): string {
 }
 
 function todayIso(): string {
-  return new Date().toISOString().split('T')[0];
+  // Data LOCAL — toISOString() retornaria UTC, que vira o dia seguinte
+  // depois das 21h no Brasil (UTC-3) e o log fica com a data errada.
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 export default function EscolaScreen() {
   const { activeGroup, userId } = useAuth();
+  const t = useI18n(s => s.t);
   const groupId = activeGroup?.groupId ?? null;
 
   // Deep link from calendar: tap on event with school_log_id sets ?highlight=<id>
@@ -110,7 +135,40 @@ export default function EscolaScreen() {
   const [logEventTime, setLogEventTime] = useState<string>('');
   const [logSubject, setLogSubject] = useState<string>('');
   const [logScore, setLogScore] = useState<string>('');
+  const [logPriority, setLogPriority] = useState<SchoolPriority>('info');
   const [filterKind, setFilterKind] = useState<'all' | SchoolKind>('all');
+
+  // Collab reads — receipts for all logs in this group (current user +
+  // coparents). Powers "Novo" badge, unread count, "Visto por X · 14:32".
+  const [reads, setReads] = useState<SchoolLogRead[]>([]);
+  // Optimistic local reads — instant feedback when user opens a card.
+  // Server-authoritative reads come back in the next loadLogs() cycle.
+  const [optimisticReads, setOptimisticReads] = useState<Set<string>>(new Set());
+  // Expanded card — tapping a card expands it AND marks it read. Only
+  // one expansion at a time. Deep link from push starts expanded.
+  const [expandedLogId, setExpandedLogId] = useState<string | null>(highlight || null);
+
+  // Push deep link → explicit open. Fire notification_opened AND
+  // mark as read. Mirrors PWA EscolaClient behavior — without this,
+  // tapping a push notification didn't actually mark the record as
+  // read, so the badge stayed "Novo" until the user tapped the card
+  // a second time.
+  useEffect(() => {
+    if (!highlight) return;
+    track(EVENTS.NOTIFICATION_OPENED, { record_type: 'school_log', record_id: highlight });
+    // Defer the markAsRead until the logs list is loaded — without this,
+    // we'd mark a record we haven't fetched yet (RPC still works, just
+    // racy with the optimistic local state). loadLogs runs on useFocusEffect.
+    const target = logs.find((l) => l.id === highlight);
+    if (target && isUnread(target)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setOptimisticReads((prev) => new Set(prev).add(highlight));
+      void markSchoolLogRead(highlight);
+    }
+    // Re-run when logs land — first pass before fetch will see logs.length=0
+    // and bail; the second pass picks up the loaded target.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [highlight, logs.length]);
 
   const load = useCallback(async () => {
     if (!groupId) return;
@@ -139,10 +197,64 @@ export default function EscolaScreen() {
   const loadLogs = useCallback(async () => {
     if (!groupId) return;
     setLogsLoading(true);
-    const rows = await fetchSchoolLogs(groupId);
+    // Fetch logs + reads in parallel — reads drives the "Novo" badge so
+    // we need both before painting.
+    const [rows, readsRows] = await Promise.all([
+      fetchSchoolLogs(groupId),
+      fetchSchoolLogReads(groupId),
+    ]);
     setLogs(rows);
+    setReads(readsRows);
+    // Drop optimistic reads that are now reflected on the server — keeps
+    // the set small and avoids stale state if a coparent unreads (future).
+    const serverReadIds = new Set(
+      readsRows.filter((r) => r.user_id === userId).map((r) => r.log_id),
+    );
+    setOptimisticReads((prev) => {
+      const next = new Set<string>();
+      for (const id of prev) if (!serverReadIds.has(id)) next.add(id);
+      return next;
+    });
     setLogsLoading(false);
-  }, [groupId]);
+  }, [groupId, userId]);
+
+  // ── Read-receipt helpers ───────────────────────────────────────────
+  // Indexed by log_id for O(1) lookup. Memoized so mutation only happens
+  // on construction; subsequent renders reuse the same Map.
+  const readsByLogId = useMemo(() => {
+    const map = new Map<string, SchoolLogRead[]>();
+    for (const r of reads) {
+      const arr = map.get(r.log_id) || [];
+      arr.push(r);
+      map.set(r.log_id, arr);
+    }
+    return map;
+  }, [reads]);
+
+  function isUnread(log: SchoolLog): boolean {
+    if (optimisticReads.has(log.id)) return false;
+    const logReads = readsByLogId.get(log.id) || [];
+    return !logReads.some((r) => r.user_id === userId);
+  }
+
+  function coparentReaders(log: SchoolLog): SchoolLogRead[] {
+    const logReads = readsByLogId.get(log.id) || [];
+    return logReads.filter((r) => r.user_id !== userId);
+  }
+
+  // Per CLAUDE.md "Collaborative Records": mark read ONLY on explicit
+  // open — never on scroll/mount/preload. Tap toggles expansion AND
+  // marks read on first open.
+  function handleOpenCard(log: SchoolLog) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const wasExpanded = expandedLogId === log.id;
+    setExpandedLogId(wasExpanded ? null : log.id);
+    if (wasExpanded) return;
+    if (isUnread(log)) {
+      setOptimisticReads((prev) => new Set(prev).add(log.id));
+      void markSchoolLogRead(log.id);
+    }
+  }
 
   useFocusEffect(
     useCallback(() => {
@@ -207,6 +319,7 @@ export default function EscolaScreen() {
     setLogEventTime('');
     setLogSubject('');
     setLogScore('');
+    setLogPriority('info');
   }
 
   function openCreateLog() {
@@ -237,6 +350,7 @@ export default function EscolaScreen() {
     setLogDate(log.log_date);
     setLogSubject(log.subject || '');
     setLogScore(log.score || '');
+    setLogPriority(log.priority || 'info');
     // event_time lives only on the calendar mirror, fetch it for prefill.
     const eventTime = getKind(log.log_type) === 'event' ? await fetchSchoolLogEventTime(log.id) : null;
     setLogEventTime(eventTime ? eventTime.slice(0, 5) : '');
@@ -269,6 +383,7 @@ export default function EscolaScreen() {
       eventTime: logEventTime || null,
       subject: logSubject || null,
       score: logScore || null,
+      priority: logPriority,
     });
     setSavingLog(false);
     if (res.success) {
@@ -306,6 +421,7 @@ export default function EscolaScreen() {
       eventTime: getKind(logSubtype) === 'event' ? (logEventTime || null) : null,
       subject: logSubtype === 'exam' ? logSubject : null,
       score: logSubtype === 'exam' ? (logScore || null) : null,
+      priority: logPriority,
     });
     setSavingLog(false);
     if (res.success) {
@@ -359,7 +475,19 @@ export default function EscolaScreen() {
 
       <View style={{ flexDirection: 'row', paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm }}>
         <TabPill label="Informacoes" active={tab === 'info'} onPress={() => setTab('info')} />
-        <TabPill label={`Registros${logs.length > 0 ? ` (${logs.length})` : ''}`} active={tab === 'logs'} onPress={() => setTab('logs')} />
+        {/* Registros tab shows total count and (em parênteses) the unread
+            count when there are new ones — so user sees at a glance "8 (3 novos)". */}
+        <TabPill
+          label={(() => {
+            const total = logs.length;
+            const unread = logs.filter(isUnread).length;
+            if (total === 0) return 'Registros';
+            if (unread > 0) return `Registros (${total}) · ${unread} novo${unread > 1 ? 's' : ''}`;
+            return `Registros (${total})`;
+          })()}
+          active={tab === 'logs'}
+          onPress={() => setTab('logs')}
+        />
       </View>
 
       {tab === 'info' ? (
@@ -417,19 +545,47 @@ export default function EscolaScreen() {
                 subtitle="Toque em + abaixo para registrar uma prova, reunião, nota ou conquista."
               />
             ) : (
-              logs.filter(l => filterKind === 'all' || getKind(l.log_type) === filterKind).map((log) => {
+              logs
+                .filter(l => filterKind === 'all' || getKind(l.log_type) === filterKind)
+                // Sort: unread first → highest priority → newest date. Mirrors PWA EscolaClient.
+                .slice()
+                .sort((a, b) => {
+                  const ua = isUnread(a) ? 1 : 0;
+                  const ub = isUnread(b) ? 1 : 0;
+                  if (ua !== ub) return ub - ua;
+                  const pa = PRIORITY_META[a.priority]?.rank ?? 0;
+                  const pb = PRIORITY_META[b.priority]?.rank ?? 0;
+                  if (pa !== pb) return pb - pa;
+                  return b.log_date.localeCompare(a.log_date);
+                })
+                .map((log) => {
                 const isHomework = log.log_type === 'homework';
                 const isEvent = getKind(log.log_type) === 'event';
                 const isHighlighted = highlight && log.id === highlight;
+                const unread = isUnread(log);
+                const expanded = expandedLogId === log.id;
+                const priorityMeta = PRIORITY_META[log.priority] || PRIORITY_META.info;
+                const readers = coparentReaders(log);
+
                 return (
-                  <View
+                  <TouchableOpacity
                     key={log.id}
+                    activeOpacity={0.85}
+                    onPress={() => handleOpenCard(log)}
                     style={{
-                      backgroundColor: colors.bgElevated,
+                      backgroundColor: unread ? 'rgba(192,112,85,0.06)' : colors.bgElevated,
                       borderRadius: radius.xl,
                       padding: spacing.lg,
                       marginBottom: spacing.sm,
                       opacity: log.completed ? 0.6 : 1,
+                      borderLeftWidth: 4,
+                      borderLeftColor: unread
+                        ? colors.brand
+                        : log.priority === 'urgent'
+                          ? '#EF4444'
+                          : log.priority === 'important'
+                            ? '#F59E0B'
+                            : 'transparent',
                       borderWidth: isHighlighted ? 2 : 0,
                       borderColor: isHighlighted ? colors.brand : 'transparent',
                       ...shadows.sm,
@@ -437,7 +593,10 @@ export default function EscolaScreen() {
                   >
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm }}>
                       {isHomework ? (
-                        <TouchableOpacity onPress={() => handleToggleCompleted(log)} style={{ marginTop: 2 }}>
+                        <TouchableOpacity
+                          onPress={(e) => { e.stopPropagation(); handleToggleCompleted(log); }}
+                          style={{ marginTop: 2 }}
+                        >
                           <View
                             style={{
                               width: 22, height: 22, borderRadius: 6,
@@ -455,19 +614,32 @@ export default function EscolaScreen() {
                       <Text style={{ fontSize: 22 }}>{TYPE_ICONS[log.log_type]}</Text>
 
                       <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <Text
-                            style={{
-                              fontSize: font.sizes.md,
-                              fontWeight: font.weights.semibold,
-                              color: colors.text,
-                              textDecorationLine: log.completed ? 'line-through' : 'none',
-                              flex: 1,
-                            }}
-                            numberOfLines={2}
-                          >
-                            {log.title}
-                          </Text>
+                        <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <View style={{ flex: 1, flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.xs }}>
+                            <Text
+                              style={{
+                                fontSize: font.sizes.md,
+                                fontWeight: font.weights.semibold,
+                                color: colors.text,
+                                textDecorationLine: log.completed ? 'line-through' : 'none',
+                              }}
+                              numberOfLines={2}
+                            >
+                              {log.title}
+                            </Text>
+                            {unread ? (
+                              <View style={{ backgroundColor: colors.brand, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
+                                <Text style={{ color: '#fff', fontSize: 10, fontWeight: '700' }}>{t('collab.new')}</Text>
+                              </View>
+                            ) : null}
+                            {log.priority !== 'info' ? (
+                              <View style={{ backgroundColor: priorityMeta.chipBg, paddingHorizontal: 6, paddingVertical: 2, borderRadius: 999 }}>
+                                <Text style={{ color: priorityMeta.chipText, fontSize: 10, fontWeight: '700', textTransform: 'uppercase' }}>
+                                  {t(`collab.priority${log.priority.charAt(0).toUpperCase() + log.priority.slice(1)}`)}
+                                </Text>
+                              </View>
+                            ) : null}
+                          </View>
                           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginLeft: spacing.sm }}>
                             {formatLogDate(log.log_date)}
                           </Text>
@@ -484,7 +656,10 @@ export default function EscolaScreen() {
                           </Text>
                         ) : null}
                         {log.description ? (
-                          <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.xs }}>
+                          <Text
+                            style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.xs }}
+                            numberOfLines={expanded ? undefined : 2}
+                          >
                             {log.description}
                           </Text>
                         ) : null}
@@ -494,21 +669,39 @@ export default function EscolaScreen() {
                           </Text>
                         ) : null}
 
-                        <View style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.sm }}>
-                          <TouchableOpacity onPress={() => openEditLog(log)}>
-                            <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
-                              Editar
-                            </Text>
-                          </TouchableOpacity>
-                          <TouchableOpacity onPress={() => handleDeleteLog(log)}>
-                            <Text style={{ fontSize: font.sizes.xs, color: colors.error, fontWeight: font.weights.medium }}>
-                              Excluir
-                            </Text>
-                          </TouchableOpacity>
-                        </View>
+                        {/* Read receipts — only when expanded, only when coparent has read */}
+                        {expanded && readers.length > 0 ? (
+                          <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginTop: spacing.xs, columnGap: spacing.md, rowGap: 2 }}>
+                            {readers.map((r) => (
+                              <Text key={r.user_id} style={{ fontSize: 11, color: colors.brand }}>
+                                ✓ {t('collab.seen')} · {formatReadAt(r.read_at)}
+                              </Text>
+                            ))}
+                          </View>
+                        ) : null}
+
+                        {/* Edit/Delete only visible when expanded — keeps the
+                            collapsed card clean and reduces accidental taps. */}
+                        {expanded ? (
+                          <View
+                            style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.sm }}
+                            onStartShouldSetResponder={() => true}
+                          >
+                            <TouchableOpacity onPress={(e) => { e.stopPropagation(); openEditLog(log); }}>
+                              <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
+                                Editar
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={(e) => { e.stopPropagation(); handleDeleteLog(log); }}>
+                              <Text style={{ fontSize: font.sizes.xs, color: colors.error, fontWeight: font.weights.medium }}>
+                                Excluir
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
+                        ) : null}
                       </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })
             )}
@@ -734,6 +927,21 @@ export default function EscolaScreen() {
                   multiline
                 />
 
+                <Label>{t('collab.priorityLabel')}</Label>
+                <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm }}>
+                  {(['info', 'important', 'urgent'] as const).map((p) => (
+                    <Chip
+                      key={p}
+                      label={t(`collab.priority${p.charAt(0).toUpperCase() + p.slice(1)}`)}
+                      active={logPriority === p}
+                      onPress={() => setLogPriority(p)}
+                    />
+                  ))}
+                </View>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: spacing.sm }}>
+                  {t('collab.priorityUrgentHint')}
+                </Text>
+
                 {getKind(composer.subtype) === 'event' ? (
                   <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.secondary}08`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.secondary}30` }}>
                     <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
@@ -826,6 +1034,18 @@ export default function EscolaScreen() {
 
               <Label>Observação (opcional)</Label>
               <Input value={logDescription} onChangeText={setLogDescription} placeholder="Detalhes adicionais" multiline />
+
+              <Label>{t('collab.priorityLabel')}</Label>
+              <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm }}>
+                {(['info', 'important', 'urgent'] as const).map((p) => (
+                  <Chip
+                    key={p}
+                    label={t(`collab.priority${p.charAt(0).toUpperCase() + p.slice(1)}`)}
+                    active={logPriority === p}
+                    onPress={() => setLogPriority(p)}
+                  />
+                ))}
+              </View>
 
               {getKind(logSubtype) === 'event' ? (
                 <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.secondary}08`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.secondary}30` }}>

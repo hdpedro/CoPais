@@ -23,6 +23,7 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
+import { notifyCollabCreate, type CollabPriority } from "./collab";
 
 // ── Types ────────────────────────────────────────────────────────────────
 
@@ -31,6 +32,11 @@ export type SchoolSubtype =
   | "grade" | "behavior" | "achievement" | "concern" | "other"; // notes
 
 export type SchoolKind = "event" | "note";
+
+// Re-export so callers (actions, api routes) import priority from school
+// without needing to know about the collab layer. Tight coupling at the
+// boundary, loose elsewhere.
+export type SchoolPriority = CollabPriority;
 
 export const EVENT_SUBTYPES: SchoolSubtype[] = ["exam", "meeting", "event", "homework", "absence"];
 export const NOTE_SUBTYPES: SchoolSubtype[] = ["grade", "behavior", "achievement", "concern", "other"];
@@ -53,6 +59,11 @@ export interface CreateSchoolLogInput {
   subject?: string | null;
   /** Prova-specific (or future grade evolution) — free-text grade. */
   score?: string | null;
+  /** Collaborative priority — drives push urgency + UI emphasis. Defaults to 'info'. */
+  priority?: SchoolPriority;
+  /** Display name of the actor — used for the coparent push title.
+   *  Optional; falls back to a generic message if not provided. */
+  actorDisplayName?: string | null;
 }
 
 export interface CreateSchoolLogResult {
@@ -167,6 +178,7 @@ export async function createSchoolLog(
       logged_by: input.userId,
       subject: input.subject?.trim() || null,
       score: input.score?.trim() || null,
+      priority: input.priority || "info",
     })
     .select("id")
     .single();
@@ -202,6 +214,23 @@ export async function createSchoolLog(
     }
     eventId = ev?.id ?? null;
   }
+
+  // ── 3. Notify coparents (best-effort, never blocks the create) ──────
+  // Coalesces in a 60s burst so creating multiple records back-to-back
+  // shows as one aggregated push ("Amanda adicionou N registros escolares")
+  // instead of N separate alerts. Edit doesn't notify (default rule).
+  const actorName = input.actorDisplayName?.trim() || "Um responsável";
+  const pushTitle = `${actorName} adicionou um registro escolar`;
+  await notifyCollabCreate({
+    recordType: "school_log",
+    recordId: schoolLog.id,
+    groupId: input.groupId,
+    actorUserId: input.userId,
+    priority: input.priority || "info",
+    title: pushTitle,
+    message: title,
+    link: `/escola?highlight=${schoolLog.id}`,
+  });
 
   return { success: true, data: { schoolLogId: schoolLog.id, eventId, kind } };
 }
@@ -245,6 +274,10 @@ export async function updateSchoolLog(
     childId?: string;
     logDate?: string;
     eventTime?: string | null;
+    /** Edit doesn't trigger a notification by default (CLAUDE.md: edit
+     *  is silent to avoid spam). Priority escalation re-notification is
+     *  a Fase 2 feature. */
+    priority?: SchoolPriority;
   },
   userId?: string,
 ): Promise<ServiceResult<{ id: string }>> {
@@ -285,6 +318,7 @@ export async function updateSchoolLog(
   if (patch.subtype !== undefined) update.log_type = patch.subtype;
   if (patch.childId !== undefined) update.child_id = patch.childId;
   if (patch.logDate !== undefined) update.log_date = patch.logDate;
+  if (patch.priority !== undefined) update.priority = patch.priority;
 
   if (Object.keys(update).length > 0) {
     const { error } = await supabase.from("school_logs").update(update).eq("id", logId);

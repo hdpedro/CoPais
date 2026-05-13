@@ -1,4 +1,16 @@
 {
+  "collab": {
+    "new": "Neu",
+    "seen": "Gesehen",
+    "priorityLabel": "Priorität",
+    "priorityInfo": "Info",
+    "priorityImportant": "Wichtig",
+    "priorityUrgent": "Dringend",
+    "priorityUrgentHint": "Dringend sendet eine sofortige Benachrichtigung an die andere Bezugsperson.",
+    "dashboardSchoolUnreadOne": "1 neuer Schuleintrag",
+    "dashboardSchoolUnreadOther": "{count} neue Schuleinträge",
+    "dashboardTapHint": "Tippen Sie, um zu sehen, was die andere Bezugsperson eingetragen hat."
+  },
   "common": {
     "appName": "Kindar",
     "loading": "Wird geladen...",

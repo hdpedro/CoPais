@@ -1227,6 +1227,18 @@
     "documentPlural": "documentos",
     "confirmDeleteDoc": "Tem certeza que deseja excluir este documento?"
   },
+  "collab": {
+    "new": "Novo",
+    "seen": "Visto",
+    "priorityLabel": "Prioridade",
+    "priorityInfo": "Info",
+    "priorityImportant": "Importante",
+    "priorityUrgent": "Urgente",
+    "priorityUrgentHint": "Urgente envia push imediato pro outro responsável.",
+    "dashboardSchoolUnreadOne": "1 registro escolar novo",
+    "dashboardSchoolUnreadOther": "{count} registros escolares novos",
+    "dashboardTapHint": "Toque pra ver o que o outro responsável registrou."
+  },
   "schoolPage": {
     "subtitle": "Acompanhamento da rotina escolar e desenvolvimento das crianças.",
     "registerChildFirst": "Cadastre uma criança antes de registrar informações escolares.",

@@ -371,6 +371,13 @@ Browser
 9. **i18n via useI18n()**: Todas as strings de UI traduzidas em 5 idiomas
 10. **Storage seguro (buckets privados + signed URLs com TTL curto)**: buckets `documents` e `receipts` sao `public: false` desde a migration 062, com RLS scopeada por `group_members`. Reads passam por `getSignedFileUrl(supabase, bucket, path)` ([src/lib/storage-signed-url.ts](src/lib/storage-signed-url.ts)) com **TTL default de 300s (5min)** pra minimizar janela de exposicao de tokens. Acoes que precisam de URL viva fora do request inicial (botoes "download" / "abrir em nova aba" depois de minutos no modal) chamam `POST /api/<documents|expenses>/[id]/sign` ([service](src/lib/services/storage.ts)) que valida group membership e retorna URL fresca. Frontend nunca expoe paths brutos; backend nunca devolve URL com TTL longa.
 
+11. **Collaborative Records Foundation** (migration `00077`): records colaborativos (school_logs hoje; saude/decisoes/financeiro a seguir) compartilham infra unica:
+    - Tabela polimorfica `collab_reads (record_type, record_id, user_id, read_at)` substitui ter uma tabela de leituras por modulo.
+    - Enum `collab_priority ('info','important','urgent')` aplicado per-tabela com `ADD COLUMN priority`.
+    - Service `src/lib/services/collab.ts` expoe `notifyCollabCreate` (fan-out + push coalescing 60s via tag estavel) e `unreadCollabCount`.
+    - Read receipts sempre ON, marcacao SOMENTE no tap explicito do detalhe (nunca em scroll/mount/preload), criador auto-marcado via trigger, edit nao dispara push.
+    - Adocao por novo modulo: ~20 linhas (ALTER ADD priority + WHEN branch em `collab_record_group()` + trigger auto-mark + chamada `notifyCollabCreate` no service). Vide `.claude/CLAUDE.md` secao "Foundation: Collaborative Records".
+
 ### Fluxo de Dados Tipico
 
 ```

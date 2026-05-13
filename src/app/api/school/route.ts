@@ -22,7 +22,30 @@ import {
   toggleSchoolLogCompleted,
   isValidSubtype,
   type SchoolSubtype,
+  type SchoolPriority,
 } from "@/lib/services/school";
+
+const VALID_PRIORITIES: SchoolPriority[] = ["info", "important", "urgent"];
+function parsePriority(raw: unknown): SchoolPriority | undefined {
+  if (typeof raw !== "string") return undefined;
+  return (VALID_PRIORITIES as string[]).includes(raw) ? (raw as SchoolPriority) : undefined;
+}
+
+async function lookupActorName(supabase: ReturnType<typeof createAdminClient>, userId: string): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("display_name, full_name")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!data) return null;
+    if (data.display_name?.trim()) return data.display_name.trim();
+    if (data.full_name?.trim()) return data.full_name.trim().split(" ")[0];
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 async function verifyMember(supabase: ReturnType<typeof createAdminClient>, groupId: string, userId: string) {
   const { data } = await supabase
@@ -60,6 +83,8 @@ export async function POST(request: Request) {
     eventTime: (body.eventTime as string) || null,
     subject: (body.subject as string) || null,
     score: (body.score as string) || null,
+    priority: parsePriority(body.priority),
+    actorDisplayName: await lookupActorName(supabase, user.id),
   });
 
   if (!result.success) {
@@ -112,6 +137,7 @@ export async function PATCH(request: Request) {
       childId: body.childId as string | undefined,
       logDate: body.logDate as string | undefined,
       eventTime: body.eventTime === undefined ? undefined : ((body.eventTime as string | null) ?? null),
+      priority: parsePriority(body.priority),
     },
     user.id,
   );

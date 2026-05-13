@@ -175,6 +175,10 @@ interface DashboardData {
 
   // Pending activity reports
   pendingReports: PendingReport[];
+
+  // Collab Foundation — Fase 1. Unread count of school_logs for the
+  // current user. Drives the dashboard "Escola · N novos" row.
+  schoolUnreadCount: number;
 }
 
 function formatDate(): string {
@@ -536,6 +540,24 @@ export function useDashboard() {
         }
       } catch { /* pending reports are a nice-to-have */ }
 
+      // ── School unread count (Collab Foundation — Fase 1) ─────────
+      // Two-query approach: all school_log ids in group + reads by user.
+      // Run in parallel inside a small try so a Storage/RLS hiccup
+      // doesn't tank the whole dashboard.
+      let schoolUnreadCount = 0;
+      try {
+        const [{ data: schoolIdsRows }, { data: readsRows }] = await withTimeout(Promise.all([
+          supabase.from('school_logs').select('id').eq('group_id', groupId)
+            .then(r => r, () => ({ data: [] as never[] })),
+          supabase.from('collab_reads').select('record_id')
+            .eq('user_id', userId).eq('record_type', 'school_log')
+            .then(r => r, () => ({ data: [] as never[] })),
+        ]), 8_000, 'useDashboard:schoolUnread');
+        const ids = ((schoolIdsRows || []) as { id: string }[]).map(r => r.id);
+        const reads = new Set(((readsRows || []) as { record_id: string }[]).map(r => r.record_id));
+        schoolUnreadCount = ids.filter(id => !reads.has(id)).length;
+      } catch { /* unread badge is a nice-to-have */ }
+
       // Map occurrences to ActivityItems. Para hoje, classificamos o estado
       // (upcoming / ended-unreported / ended-reported) pra a UI distinguir
       // visualmente e oferecer "Relatar" inline em encerradas-sem-relato.
@@ -789,6 +811,7 @@ export function useDashboard() {
         childHealthSummaries,
         hasAnyCriticalChild,
         pendingReports,
+        schoolUnreadCount,
       };
       setData(dashData);
       cacheSet(cacheKey, dashData);
