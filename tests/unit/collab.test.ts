@@ -31,6 +31,10 @@ const { mockAdminChain, mockAdminClient, mockSendPushToUser, mockCaptureServerEv
     return { mockAdminChain, mockAdminClient, mockSendPushToUser, mockCaptureServerEvent };
   });
 
+// "server-only" throws when imported from anything other than a Server
+// Component in production. In vitest we're running Node — the marker is
+// not meaningful here, so we stub it.
+vi.mock("server-only", () => ({}));
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: vi.fn().mockReturnValue(mockAdminClient) }));
 vi.mock("@/lib/push", () => ({ sendPushToUser: mockSendPushToUser }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerEvent: mockCaptureServerEvent }));

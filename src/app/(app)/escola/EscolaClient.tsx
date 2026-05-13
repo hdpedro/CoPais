@@ -7,6 +7,8 @@ import { useI18n } from "@/i18n/provider";
 import { createSchoolLog, deleteSchoolLog, updateSchoolLog, toggleSchoolLogCompleted, markSchoolLogRead } from "@/actions/school";
 import { getDisplayName } from "@/lib/constants";
 import { trackEvent, EVENTS } from "@/lib/analytics";
+// Import from school-shared (client-safe) — `@/lib/services/school` is
+// server-only and would pull next/headers + Node crypto into this bundle.
 import {
   EVENT_SUBTYPES,
   NOTE_SUBTYPES,
@@ -14,7 +16,7 @@ import {
   type SchoolKind,
   type SchoolPriority,
   getKind,
-} from "@/lib/services/school";
+} from "@/lib/services/school-shared";
 
 /* ─── Types ─────────────────────────────────────────────────────── */
 
