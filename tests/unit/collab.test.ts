@@ -14,7 +14,6 @@ const { mockAdminChain, mockAdminClient, mockSendPushToUser, mockCaptureServerEv
       neq: vi.fn(),
       in: vi.fn(),
       gte: vi.fn(),
-      ilike: vi.fn(),
     };
     // Default: every method returns the chain so .eq().neq().in() works.
     // Tests override the terminal `select` / `insert` to inject results.

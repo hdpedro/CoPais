@@ -102,26 +102,28 @@ export async function notifyCollabCreate(args: NotifyCollabCreateArgs): Promise<
     // de 60s compartilham bucket e se substituem no device; pushes em
     // janelas diferentes ganham buckets distintos e não se sobrescrevem.
     const bucket = Math.floor(Date.now() / (COALESCE_WINDOW_SECONDS * 1000));
-    // Prefixo de título por actor — usado tanto pra agregação ("Amanda
-    // adicionou N registros") quanto pra filtrar a contagem de recentes
-    // por actor. Sem isso, dois coparentes criando em janela próxima
-    // gerariam "Bob adicionou 2 registros" mesmo se só 1 foi do Bob.
-    const actorPrefix = args.title.split(" adicionou")[0];
+    // O caller passa um title constante por actor (ex: "Amanda adicionou
+    // um registro escolar") que serve tanto como dedup-key da contagem
+    // (eq exato abaixo) quanto como input pra coalescedTitle. Esse título
+    // é hardcoded em pt-BR no service do módulo (school, etc) — gap
+    // conhecido pra i18n do push body (Fase 2 quando precisar).
 
     await Promise.all(
       members.map(async (m) => {
-        // Count recent notifications to this recipient FROM THE SAME ACTOR
-        // (matched via title prefix — notifications table doesn't store
-        // actor_user_id explicitly). Recent = last COALESCE_WINDOW_SECONDS.
-        // Counting BEFORE insert: if count=0 → first, push individual.
-        // If count>=1 → push aggregated "N+1 registros".
+        // Count recent notifications to this recipient FROM THE SAME ACTOR.
+        // Matched por eq EXATO no title base (e.g. "Amanda adicionou um
+        // registro escolar") em vez de prefix-like — assim "Amanda" não
+        // colide com "Amanda Silva" quando ambas existem no grupo.
+        // Coalesced titles têm forma diferente ("Amanda adicionou 2
+        // registros escolares") e portanto não interferem na contagem.
+        // Counting BEFORE insert: count=0 → individual push; ≥1 → agregado.
         const since = new Date(Date.now() - COALESCE_WINDOW_SECONDS * 1000).toISOString();
         const { count: recentCount } = await admin
           .from("notifications")
           .select("id", { count: "exact", head: true })
           .eq("user_id", m.user_id)
           .eq("type", notificationType)
-          .ilike("title", `${actorPrefix}%`)
+          .eq("title", args.title)
           .gte("created_at", since);
 
         // Always create the in-app notification row (inbox shows all).
