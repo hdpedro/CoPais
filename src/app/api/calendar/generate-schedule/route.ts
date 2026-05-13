@@ -152,23 +152,39 @@ export async function POST(request: Request) {
     );
   }
 
-  // History guard: never touch events with start_date < today.
-  const todayStr = new Date().toISOString().split("T")[0];
+  // Janela de regeneração: do startDate até endDate da NOVA escala. Preserva
+  // tudo fora dessa janela (passado + futuro distante intocado). Bug Hailla
+  // 2026-05-13: filtro antigo `start_date >= today` falhava em ranges como
+  // "Hailla 08→11" quando today=12 — start=08<12 não era deletado, mas o
+  // range cobria dias DENTRO da janela nova → overlap garantido.
+  //
+  // Correção: deletar TUDO que sobrepõe a janela [startDate, endDate], do
+  // mesmo tipo (regular). Swap / exception não são tocados — são side-
+  // effects de eventos manuais (troca aprovada, ajuste único).
+  const newRangeStart = fmt(startDate);
+  const newRangeEnd = fmt(new Date(endDate.getTime() - 86400000)); // endDate é exclusivo
+
+  // Snapshot pra rollback em caso de falha no INSERT.
   const { data: existingEvents } = await admin
     .from("custody_events")
     .select("*")
     .eq("group_id", groupId)
     .eq("child_id", childId)
     .eq("custody_type", "regular")
-    .gte("start_date", todayStr);
+    .lte("start_date", newRangeEnd)
+    .gte("end_date", newRangeStart);
 
+  // Range-overlap delete: end_date >= newStart AND start_date <= newEnd
+  // captura todos os ranges que sobrepõem a janela nova, mesmo os que
+  // começaram antes de today.
   const { error: deleteError } = await admin
     .from("custody_events")
     .delete()
     .eq("group_id", groupId)
     .eq("child_id", childId)
     .eq("custody_type", "regular")
-    .gte("start_date", todayStr);
+    .lte("start_date", newRangeEnd)
+    .gte("end_date", newRangeStart);
 
   if (deleteError) {
     return NextResponse.json(

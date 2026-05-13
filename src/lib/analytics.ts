@@ -64,6 +64,13 @@ export const EVENTS = {
   UNREAD_COUNT: "unread_count",                    // periodic snapshot of unread for dashboards
   URGENT_CREATED: "urgent_created",                // user created a record with priority=urgent
 
+  // Calendar — custody integrity (Fase Calendar 1)
+  // Disparado se o client receber custody_events com OVERLAP de mesmo
+  // tipo no mesmo (group, child, dia). Em produção, isso só deve
+  // acontecer ANTES da migration 00079 (trigger + EXCLUDE) — depois é
+  // impossível inserir overlap. Vira regression alarm.
+  CUSTODY_OVERLAP_DETECTED: "custody_overlap_detected",
+
   // Expenses — Fase 1B (edit / cancel / reopen flow)
   EXPENSE_READ: "expense_read",                    // user opened an expense card
   EXPENSE_CREATED: "expense_created",              // emitted server-side (already existed)
