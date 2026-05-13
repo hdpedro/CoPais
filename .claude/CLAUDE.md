@@ -95,6 +95,19 @@ Native: `markSchoolLogRead` em `kindar-native/app/_src/services/school.ts` chama
 ### Adoções consolidadas
 - `school_log` (migration 00077) — Escola: badges, visto-por, priority chips, push coalescing.
 - `expense` (migration 00078) — Despesas: TUDO acima + extensão Fase 1B (Edit/Cancel/Reopen) + audit trail (vide próxima seção).
+- `medical_appointment`, `illness_episode`, `active_medication`, `child_allergy`, `vaccination_record` (migration 00080) — Saúde Fase 3:
+  - 5 ALTER TABLE com priority (appointments/illness/medications/allergies default `important`, vaccines default `info`)
+  - `collab_record_group()` estendida com 5 WHEN branches
+  - Trigger `saude_auto_mark_creator_read` genérico (1 função, 5 instâncias com TG_ARGV[0])
+  - Trigger `illness_episodes_grave_to_urgent` BEFORE INSERT/UPDATE — quando `severity='grave'` E `priority='important'` (default), promove pra `'urgent'` automaticamente server-side. Respeita override explícito do cliente (não sobrescreve `urgent` ou `info` já passados).
+  - Backfill em 5 tabelas pros `created_by` históricos.
+  - Wrapper `src/lib/services/health-collab.ts:notifySaudeCreate({recordType, recordId, groupId, actorUserId, actorFirstName, childFirstName?, description, priorityOverride?})` — resolve priority efetivo da row (reflete trigger SQL `grave→urgent`) + monta título PT-BR por record_type + monta body com criança + deep link `/saude/<modulo>?highlight=<id>`. Server-side only; falha silenciosa.
+  - Endpoint `POST /api/health/notify-create` — wrapper compacto pro native chamar após `safeWrite` (offline-first). Valida `created_by = auth.uid()` + membership; resolve nomes server-side; chama `notifySaudeCreate`.
+  - `safeWrite` estendido com flag opcional `returnInsertedId: true` (backward-compatible) — quando passada em insert online, retorna `id` da row criada via `.select('id').single()`. Permite o caller (`createIllness`, `createAppointment`, `createMedication`, `createVaccinationRecord` em `kindar-native/app/_src/services/health.ts`) disparar `notifySaudeCreateNative` após sucesso.
+  - Dashboard tile **consolidada** (PWA + Native): "Saúde · N novos" agregando os 5 record_types (em vez de 5 tiles separadas — princípio "dashboard tight"). Tap leva a `/saude`. Telemetria PostHog `unread_count` com `record_type: 'saude_aggregate'` (1 event por mount).
+  - Strings i18n nos 5 idiomas: `collab.dashboardSaudeUnreadOne/Other/Hint`.
+  - **Fora da adoção (deliberado, anti-spam):** `medication_doses` (alto volume, várias/dia → fica scoped ao card do remédio); `symptom_entries` (alto volume; coalesce no episode parent); `growth_records` (medição rotineira, sem ação pro outro pai); `child_medical_info` (update raro de tipo sanguíneo/convênio); `medical_professionals` (cadastro/diretório, não evento).
+  - **Pendência conhecida (Fase 3.5 — não bloqueia adoção):** UI inline em cada uma das 5 telas individuais com chip "Novo" por card + chip de priority + linha "Visto por X · time" + `mark_collab_read` no tap-to-expand. Foundation entrega 80% do valor (push coalescing + dashboard tile + audit) sem isso; cards detail viram iteração quando o time validar uso em prod.
 
 ## Fase 1B: Edit / Cancel / Reopen + Audit Trail (Despesas pioneer)
 

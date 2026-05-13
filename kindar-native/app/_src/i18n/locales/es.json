@@ -12,7 +12,10 @@
     "dashboardTapHint": "Toque para ver lo que el otro responsable registró.",
     "dashboardExpensesUnreadOne": "1 gasto para revisar",
     "dashboardExpensesUnreadOther": "{count} gastos para revisar",
-    "dashboardExpensesHint": "Pendientes de aprobación o solicitud de cancelación."
+    "dashboardExpensesHint": "Pendientes de aprobación o solicitud de cancelación.",
+    "dashboardSaudeUnreadOne": "1 nuevo registro de salud",
+    "dashboardSaudeUnreadOther": "{count} nuevos registros de salud",
+    "dashboardSaudeHint": "Citas, enfermedades, medicamentos, alergias o vacunas."
   },
   "common": {
     "appName": "Kindar",

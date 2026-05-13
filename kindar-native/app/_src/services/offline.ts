@@ -233,7 +233,16 @@ export async function safeWrite(params: {
   table: SafeTable | string;
   operation: 'insert' | 'update' | 'delete';
   payload: Record<string, unknown>;
-}): Promise<{ success: boolean; error?: string; queued?: boolean }> {
+  /**
+   * Quando true em insert online, retorna o id da row criada via
+   * .select('id').single(). Usado por callers que precisam disparar
+   * side-effects pos-insert (ex: notifySaudeCreate da Foundation).
+   *
+   * Quando insert vai pra fila offline, id NÃO é retornado (a row ainda
+   * não existe no banco). Caller deve tratar undefined gracefully.
+   */
+  returnInsertedId?: boolean;
+}): Promise<{ success: boolean; error?: string; queued?: boolean; id?: string }> {
   if (!SAFE_TABLES.has(params.table)) {
     const msg = `[safeWrite] Tabela "${params.table}" fora da whitelist. Use a rota Bearer-auth /api/* equivalente.`;
     if (__DEV__) {
@@ -251,19 +260,31 @@ export async function safeWrite(params: {
   }
 
   try {
-    let result;
     if (params.operation === 'insert') {
-      result = await supabase.from(params.table).insert(params.payload);
-    } else if (params.operation === 'update') {
+      if (params.returnInsertedId) {
+        // Insert + retorna id da row criada. .single() força 1 row,
+        // erra se 0 ou multiple — semântica correta pra insert único.
+        const { data, error } = await supabase
+          .from(params.table)
+          .insert(params.payload)
+          .select('id')
+          .single();
+        if (error) return { success: false, error: error.message };
+        return { success: true, id: (data as { id?: string } | null)?.id };
+      }
+      const { error } = await supabase.from(params.table).insert(params.payload);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
+    }
+    if (params.operation === 'update') {
       const { id, ...updates } = params.payload;
-      result = await supabase.from(params.table).update(updates).eq('id', id as string);
-    } else {
-      result = await supabase.from(params.table).delete().eq('id', params.payload.id as string);
+      const { error } = await supabase.from(params.table).update(updates).eq('id', id as string);
+      if (error) return { success: false, error: error.message };
+      return { success: true };
     }
-
-    if (result.error) {
-      return { success: false, error: result.error.message };
-    }
+    // delete
+    const { error } = await supabase.from(params.table).delete().eq('id', params.payload.id as string);
+    if (error) return { success: false, error: error.message };
     return { success: true };
   } catch {
     // Network error during write → enqueue

@@ -12,6 +12,7 @@ import { revalidateTag, revalidatePath } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { notifySaudeCreate } from "@/lib/services/health-collab";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -226,6 +227,33 @@ export async function POST(request: Request) {
     skipped: skipped.length,
     group_id: groupId,
   });
+
+  // Saúde Foundation: dispara notificações pra cada vacina inserida. O
+  // coalescing 60s da Foundation transforma N pushes individuais em uma
+  // notificação agregada ("Amanda registrou N vacinas") no device do
+  // coparente. Inbox em-app mostra cada uma separadamente.
+  if (inserted && inserted.length > 0) {
+    const [profileRes, childRes] = await Promise.all([
+      admin.from("profiles").select("full_name").eq("id", user.id).single(),
+      admin.from("children").select("full_name").eq("id", childId).single(),
+    ]);
+    const actorName = (profileRes.data?.full_name as string | undefined)?.split(" ")[0] || "Alguém";
+    const childName = (childRes.data?.full_name as string | undefined)?.split(" ")[0];
+    // Em paralelo — coalescing dedup já cuida de evitar spam no device.
+    await Promise.allSettled(
+      inserted.map((row, idx) =>
+        notifySaudeCreate({
+          recordType: "vaccination_record",
+          recordId: row.id as string,
+          groupId,
+          actorUserId: user.id,
+          actorFirstName: actorName,
+          childFirstName: childName,
+          description: rows[idx]?.vaccine_name as string,
+        }),
+      ),
+    );
+  }
 
   revalidateTag(`health-${groupId}`, "max");
   revalidatePath("/saude");

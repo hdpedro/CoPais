@@ -111,6 +111,12 @@ export default function DashboardScreen() {
       track(EVENTS.UNREAD_COUNT, { record_type: 'expense', count: data.expensesUnreadCount });
     }
   }, [data?.expensesUnreadCount]);
+  useEffect(() => {
+    // Fase 3: agregado pra Saúde (1 event ao invés de 5 — mesma decisão do PWA).
+    if (typeof data?.saudeUnreadCount === 'number') {
+      track(EVENTS.UNREAD_COUNT, { record_type: 'saude_aggregate', count: data.saudeUnreadCount });
+    }
+  }, [data?.saudeUnreadCount]);
 
   // Estado pra desabilitar botoes durante respostas a swap requests.
   // Espelha o calendar.tsx — paridade na UX de aprovar/rejeitar.
@@ -776,6 +782,45 @@ export default function DashboardScreen() {
               }}>
                 <Text style={{ color: '#fff', fontSize: 11, fontWeight: font.weights.bold }}>
                   {data!.expensesUnreadCount}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        ) : null}
+
+        {/* === SAÚDE UNREAD (Collab Foundation — Fase 3, migration 00080) ===
+             Tile consolidada (soma dos 5 record_types). Tap → /saude. */}
+        {(data?.saudeUnreadCount || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(219).duration(400)}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude' as never); }}
+              style={{
+                backgroundColor: 'rgba(192,112,85,0.08)',
+                borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
+                flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                borderWidth: 1, borderColor: 'rgba(192,112,85,0.3)',
+              }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(192,112,85,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 18 }}>🩺</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
+                  {data!.saudeUnreadCount === 1
+                    ? t('collab.dashboardSaudeUnreadOne')
+                    : t('collab.dashboardSaudeUnreadOther', { count: data!.saudeUnreadCount })}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+                  {t('collab.dashboardSaudeHint')}
+                </Text>
+              </View>
+              <View style={{
+                backgroundColor: colors.brand, paddingHorizontal: 8, paddingVertical: 2,
+                borderRadius: radius.full, minWidth: 22, alignItems: 'center',
+              }}>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: font.weights.bold }}>
+                  {data!.saudeUnreadCount}
                 </Text>
               </View>
             </TouchableOpacity>

@@ -12,7 +12,10 @@
     "dashboardTapHint": "Touchez pour voir ce que l'autre parent a enregistré.",
     "dashboardExpensesUnreadOne": "1 dépense à examiner",
     "dashboardExpensesUnreadOther": "{count} dépenses à examiner",
-    "dashboardExpensesHint": "En attente d'approbation ou demande d'annulation."
+    "dashboardExpensesHint": "En attente d'approbation ou demande d'annulation.",
+    "dashboardSaudeUnreadOne": "1 nouvelle entrée de santé",
+    "dashboardSaudeUnreadOther": "{count} nouvelles entrées de santé",
+    "dashboardSaudeHint": "Rendez-vous, maladies, médicaments, allergies ou vaccins."
   },
   "common": {
     "appName": "Kindar",

@@ -262,6 +262,10 @@ export interface DashboardClientProps {
   // Fase 1B. Unread count of expenses (status pending / cancel_pending)
   // que precisam de atenção do user.
   expensesUnreadCount: number;
+  // Fase 3 (migration 00080). Unread count agregado dos 5 record_types
+  // de Saúde — consultas, doenças, medicamentos, alergias, vacinas.
+  // Tile consolidada "Saúde · N novos" no dashboard.
+  saudeUnreadCount: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -316,6 +320,7 @@ export default function DashboardClient(props: DashboardClientProps) {
     quickActionsConfig,
     schoolUnreadCount,
     expensesUnreadCount,
+    saudeUnreadCount,
   } = props;
 
   // Snapshot the user's unread state on each dashboard mount. PostHog
@@ -327,6 +332,12 @@ export default function DashboardClient(props: DashboardClientProps) {
   useEffect(() => {
     trackEvent(EVENTS.UNREAD_COUNT, { record_type: "expense", count: expensesUnreadCount });
   }, [expensesUnreadCount]);
+  useEffect(() => {
+    // Single aggregate event pra Saúde — não emitimos 5 (um por record_type)
+    // porque a UI tem 1 tile só. Dashboard com 5 eventos por mount infla
+    // o PostHog ingest sem ganho analítico relevante na Fase 3.
+    trackEvent(EVENTS.UNREAD_COUNT, { record_type: "saude_aggregate", count: saudeUnreadCount });
+  }, [saudeUnreadCount]);
 
   // Resolve quick actions from user config or defaults
   const qaConfig = quickActionsConfig ?? { primary: DEFAULT_QUICK_ACTIONS.primary, secondary: [...DEFAULT_QUICK_ACTIONS.secondary] };
@@ -902,6 +913,30 @@ export default function DashboardClient(props: DashboardClientProps) {
             </div>
             <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#C07055] text-white text-[11px] font-bold flex-shrink-0">
               {expensesUnreadCount}
+            </span>
+          </div>
+        </Link>
+      )}
+
+      {/* === SAÚDE UNREAD (Collab Foundation — Fase 3, migration 00080) ===
+           Tile consolidada (soma de consultas+doenças+medicamentos+alergias+
+           vacinas). Tap leva a /saude onde o user vê quais surfaces têm unread. */}
+      {show("saudeUnread") && saudeUnreadCount > 0 && (
+        <Link href="/saude" prefetch={false} className="block">
+          <div className="bg-[#FFF8F4] border border-[#C07055]/30 rounded-2xl p-3.5 flex items-center gap-3 hover:bg-[#FBEFE7] transition-colors">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg bg-[#C07055]/15">
+              🩺
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-[#2C2C2C]">
+                {saudeUnreadCount === 1
+                  ? t("collab.dashboardSaudeUnreadOne")
+                  : t("collab.dashboardSaudeUnreadOther", { count: saudeUnreadCount })}
+              </p>
+              <p className="text-[11px] text-[#7A8C8B]">{t("collab.dashboardSaudeHint")}</p>
+            </div>
+            <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#C07055] text-white text-[11px] font-bold flex-shrink-0">
+              {saudeUnreadCount}
             </span>
           </div>
         </Link>

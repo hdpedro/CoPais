@@ -19,6 +19,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { notifySaudeCreate } from "@/lib/services/health-collab";
 
 const VALID_TYPES = ["food", "medication", "environmental", "other"] as const;
 const VALID_SEVERITIES = ["mild", "moderate", "severe"] as const;
@@ -105,6 +106,32 @@ export async function POST(request: Request) {
   }
 
   captureServerEvent(user.id, "allergy_created", { childId });
+
+  // Saúde Foundation (migration 00080): notifica coparentes com coalescing
+  // 60s + priority 'important' (segurança/emergência). Falha silenciosa.
+  if (inserted?.id) {
+    const [profileRes, childRes] = await Promise.all([
+      admin.from("profiles").select("full_name").eq("id", user.id).single(),
+      admin.from("children").select("full_name").eq("id", childId).single(),
+    ]);
+    const actorName = (profileRes.data?.full_name as string | undefined)?.split(" ")[0] || "Alguém";
+    const childName = (childRes.data?.full_name as string | undefined)?.split(" ")[0];
+    const sevLabel =
+      severity === "severe" ? "Grave" :
+      severity === "moderate" ? "Moderada" :
+      severity === "mild" ? "Leve" : null;
+    const desc = sevLabel ? `${name} · ${sevLabel}` : name;
+    await notifySaudeCreate({
+      recordType: "child_allergy",
+      recordId: inserted.id,
+      groupId,
+      actorUserId: user.id,
+      actorFirstName: actorName,
+      childFirstName: childName,
+      description: desc,
+    });
+  }
+
   return NextResponse.json({ success: true, id: inserted?.id });
 }
 

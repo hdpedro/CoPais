@@ -1240,7 +1240,10 @@
     "dashboardTapHint": "Toque pra ver o que o outro responsável registrou.",
     "dashboardExpensesUnreadOne": "1 despesa pra ver",
     "dashboardExpensesUnreadOther": "{count} despesas pra ver",
-    "dashboardExpensesHint": "Pendentes de aprovação ou com pedido de cancelamento."
+    "dashboardExpensesHint": "Pendentes de aprovação ou com pedido de cancelamento.",
+    "dashboardSaudeUnreadOne": "1 registro de saúde novo",
+    "dashboardSaudeUnreadOther": "{count} registros de saúde novos",
+    "dashboardSaudeHint": "Consultas, doenças, medicamentos, alergias ou vacinas."
   },
   "schoolPage": {
     "subtitle": "Acompanhamento da rotina escolar e desenvolvimento das crianças.",

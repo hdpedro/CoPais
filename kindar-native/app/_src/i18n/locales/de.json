@@ -12,7 +12,10 @@
     "dashboardTapHint": "Tippen Sie, um zu sehen, was die andere Bezugsperson eingetragen hat.",
     "dashboardExpensesUnreadOne": "1 Ausgabe zum Überprüfen",
     "dashboardExpensesUnreadOther": "{count} Ausgaben zum Überprüfen",
-    "dashboardExpensesHint": "Ausstehende Genehmigung oder Stornierungsantrag."
+    "dashboardExpensesHint": "Ausstehende Genehmigung oder Stornierungsantrag.",
+    "dashboardSaudeUnreadOne": "1 neuer Gesundheitseintrag",
+    "dashboardSaudeUnreadOther": "{count} neue Gesundheitseinträge",
+    "dashboardSaudeHint": "Termine, Krankheiten, Medikamente, Allergien oder Impfungen."
   },
   "common": {
     "appName": "Kindar",
