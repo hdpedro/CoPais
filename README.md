@@ -25,7 +25,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **IA:** Multi-provider Router (Groq → Together → Gemini fallback) — assistente conversacional com function calling (12 tools), parsers robustos para PT-BR; Tesseract.js (OCR) para parser de convites de festa; Vision AI para leitura de carteirinha de vacinacao e OCR de recibos (WhatsApp). Vision: Groq llama-4-scout → Together Llama-Vision-Free → Gemini 2.0 Flash. Text: Groq llama-3.3-70b → Together Llama-3.3-70B-Turbo-Free → Gemini 2.0 Flash
 - **WhatsApp IA:** Kindar Assistente via Meta Cloud API — webhook, parser local, confirmacao via botoes interativos, OCR de recibos, multi-grupo
 - **Deploy:** Vercel (Hobby — free, repo publico)
-- **Analytics:** PostHog (30+ eventos rastreados)
+- **Analytics:** PostHog (30+ eventos rastreados) — cross-platform (PWA + iOS + Android + backend), super-property `platform` stamps every event para breakdown DAU/MAU por plataforma
 - **Error Tracking:** Sentry
 - **i18n:** 5 idiomas (PT, EN, ES, FR, DE) — ~1488 chaves por locale, 40 secoes
 - **Testes:** Playwright E2E (34 testes) + Vitest unitarios (286 testes totais)
@@ -39,6 +39,7 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **WebView hibrida:** `react-native-webview` com session injection Supabase — usado em `criancas/[id]` e `calendario/novo` para reaproveitar 2000+ LOC do PWA
 - **Offline:** `safeWrite` queue em `src/services/offline.ts` (AsyncStorage)
 - **Push:** APNs via expo-notifications + server-side `/api/native/notify`
+- **Analytics:** `posthog-react-native` (`app/_src/lib/analytics.ts`) — SDK puro JS, sem plugin EAS; identifica com `auth.users.id` (mesmo distinctId do PWA) e registra `platform: 'ios' | 'android'` como super-property
 - **Build:** EAS Build (production) com `appVersionSource: remote` + autoIncrement
 - **Submit:** EAS Submit → App Store Connect API (via `kindar-asc.mjs` local + GitHub Actions)
 - **Distribuicao:** Auto-distribute do build para testers individuais + grupos externos (`distributeBuildToTesters` em `kindar-asc.mjs`)
@@ -539,7 +540,7 @@ src/
       mais/             # Menu adicional
       notas/            # Notas privadas
       notificacoes/     # Central de notificacoes
-      onboarding/       # Primeiro acesso / criar grupo
+      onboarding/       # Wizard premium single-screen (familia → criancas com edit/remove inline → convite inline com share). PWA + nativo compartilham 4 endpoints: `/api/create-group` (1a, retorna childId), `/api/children` (Nx), `/api/children/[id]` PATCH/DELETE, `/api/invitations` (convite). Celebracao animada + ARIA live + timeout 3s no auto-accept
       perfil/           # Perfil do usuario + seletor de idioma
       saude/            # Registros de saude (8 sub-modulos + exportacao)
       temas-sensiveis/  # Discussoes sensiveis com delecao dual-approval

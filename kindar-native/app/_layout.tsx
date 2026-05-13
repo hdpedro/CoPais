@@ -15,10 +15,12 @@ import {
   addNotificationResponseListener,
 } from 'src/services/push-setup';
 import { initializeIAP, identifyUser, resetUser } from 'src/services/iap';
+import * as analytics from 'src/lib/analytics';
 import { colors } from 'src/design-system/tokens';
 // AIFab removed 2026-05-05 — was overlapping buttons on other screens.
 import AIAssistantSheet from 'src/components/ai/AIAssistantSheet';
 import LockGate from 'src/components/LockGate';
+import AnalyticsTree from 'src/components/AnalyticsTree';
 
 export default function RootLayout() {
   const { isLoading, initialize, userId } = useAuth();
@@ -35,6 +37,10 @@ export default function RootLayout() {
     // RevenueCat pode inicializar antes do login (anon user); quando userId
     // aparecer, o effect abaixo chama identifyUser() pra fazer o link.
     initializeIAP().catch(() => {});
+    // Analytics: bootstrap antes do primeiro evento. $app_opened de ciclo
+    // de vida cobre DAU/MAU sem instrumentar tela. identify acontece no
+    // effect [userId] abaixo, mesmo padrão do RevenueCat.
+    analytics.initAnalytics();
 
     // OTA "premium": com checkAutomatically=ON_LOAD o expo-updates baixa o
     // bundle novo em background, mas so APLICA na proxima abertura — o user
@@ -68,10 +74,12 @@ export default function RootLayout() {
   useEffect(() => {
     if (!userId) {
       resetUser().catch(() => {});
+      analytics.reset();
       return;
     }
     registerForPushNotificationsAsync().catch(() => {});
     identifyUser(userId).catch(() => {});
+    analytics.identify(userId);
 
     let lastState = AppState.currentState;
     const sub = AppState.addEventListener('change', (next) => {
@@ -120,6 +128,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        <AnalyticsTree>
         <LockGate>
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <Stack screenOptions={{
@@ -160,6 +169,7 @@ export default function RootLayout() {
           <AIAssistantSheet />
         </View>
         </LockGate>
+        </AnalyticsTree>
         <StatusBar style="dark" />
       </GestureHandlerRootView>
     </ErrorBoundary>

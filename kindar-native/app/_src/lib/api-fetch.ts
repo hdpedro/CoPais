@@ -11,9 +11,17 @@
  *   if (!r.ok) ... else r.data
  */
 
+import { Platform } from 'react-native';
 import { supabase } from './supabase';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
+
+// Stamped on every native→PWA request so server-side PostHog events can
+// be broken down by platform (ios | android) without changing every
+// `captureServerEvent()` call site. PWA browser sets an equivalent
+// `kindar-platform` cookie; the server reads whichever it can find.
+const PLATFORM_HEADER_VALUE: 'ios' | 'android' | 'web' =
+  Platform.OS === 'ios' ? 'ios' : Platform.OS === 'android' ? 'android' : 'web';
 
 interface ApiFetchOptions {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
@@ -49,6 +57,7 @@ export async function apiFetch<T = unknown>(
     method,
     headers: {
       Authorization: `Bearer ${session.access_token}`,
+      'X-Client-Platform': PLATFORM_HEADER_VALUE,
       ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
       ...headers,
     },

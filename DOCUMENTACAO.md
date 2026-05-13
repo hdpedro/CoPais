@@ -29,7 +29,7 @@
 | Auth | Supabase Auth + SSR | ^0.9.0 |
 | IA | Multi-provider Router: Groq → Together → Gemini + Tesseract.js (OCR) | Cloud API / local |
 | i18n | Custom (I18nProvider + useI18n) | 5 idiomas, ~1488 chaves, 40 secoes |
-| Analytics | PostHog | 30+ eventos |
+| Analytics | PostHog | 30+ eventos, cross-platform com super-property `platform` |
 | Error Tracking | Sentry | — |
 | Deploy | Vercel (Hobby, gratis para repo publico) | — |
 | Mobile legado | Capacitor | ^7 (deprecado) |
@@ -1224,7 +1224,10 @@ Sistema para ajustes consensuais de saldo entre coparentes, alem da divida autom
 | `/api/calendar/[token]` | GET | Feed iCalendar (RFC 5545, text/calendar) |
 | `/api/chat/export` | GET | Exportacao de chat em PDF |
 | `/api/chat/messages` | GET | Busca mensagens por canal |
-| `/api/create-group` | POST | Criacao de grupo familiar |
+| `/api/create-group` | POST | Criacao de grupo familiar + 1a crianca (1o passo do wizard de onboarding). Aceita `childSex`/`childAllergies`/`childNotes` e retorna `{ groupId, childId }` pra edit/remove imediato no wizard |
+| `/api/children` | POST | Adicao de crianca subsequente ao grupo (2a/3a/... via wizard de onboarding, PWA + nativo, dual-auth Bearer/cookie) |
+| `/api/children/[childId]` | PATCH/DELETE | Edita ou remove crianca via wizard (dual-auth). Valida membership + ownership do grupo antes de mutar |
+| `/api/invitations` | POST | Cria convite pra co-responsavel (dual-auth). Roles aceitos: parent/grandparent/caregiver/mediator/lawyer (mediator/lawyer -> readonly, demais -> member). Usado pelo wizard de onboarding (form inline) + tela de Familia |
 | `/api/cron/activity-reminders` | GET | Cron: lembretes push 24h antes + relatorios nao preenchidos (via `runCronWithReport`) |
 | `/api/cron/custody-change` | GET | Cron: notificacao de mudanca de custodia (via `runCronWithReport`) |
 | `/api/cron/retention` | GET | Cron: notificacoes de retencao D+1/3/7/14 (via `runCronWithReport`) |
@@ -1392,14 +1395,15 @@ src/
 │   │   ├── temas-sensiveis/ # SensitiveTopicsClient
 │   │   ├── familia/      # FamiliaClient, MemberActions
 │   │   ├── escola/       # EscolaClient
-│   │   ├── onboarding/   # OnboardingForm, OnboardingHeader, ConviteClient
+│   │   ├── onboarding/   # OnboardingForm (wizard premium: familia → criancas com loop → convite), ConviteClient
 │   │   └── convite/enviar/ # InviteClient
 │   └── api/
 │       ├── ai/           # assistant + context (2 routes)
 │       ├── auth/         # signout + test-login (2 routes)
 │       ├── calendar/[token]/ # iCal feed (1 route)
 │       ├── chat/         # messages + export (2 routes)
-│       ├── create-group/ # (1 route)
+│       ├── create-group/ # (1 route) cria grupo + 1a crianca via wizard (aceita sex/allergies/notes; retorna childId)
+│       ├── children/     # POST adiciona crianca + [childId] PATCH/DELETE edita/remove (dual-auth, wizard multi-child)
 │       ├── cron/         # 5 routes via runCronWithReport: activity-reminders, custody-change, retention, daily-report, monthly-report
 │       └── push/         # subscribe + chat (2 routes)
 ├── components/           # 12 componentes globais

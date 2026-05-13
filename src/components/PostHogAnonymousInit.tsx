@@ -3,6 +3,20 @@
 import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { getPostHogClient } from "@/lib/posthog";
+import { detectClientPlatform } from "@/lib/platform";
+
+/**
+ * Writes the `kindar-platform` cookie used by `posthog-server` to stamp
+ * server-side events. Idempotent — re-set on every route so the value
+ * stays accurate if the user installs the PWA mid-session.
+ */
+function syncPlatformCookie() {
+  if (typeof document === "undefined") return;
+  const platform = detectClientPlatform();
+  // 1 year, root path, lax — readable by Server Actions via cookies()
+  const oneYear = 60 * 60 * 24 * 365;
+  document.cookie = `kindar-platform=${platform}; Max-Age=${oneYear}; Path=/; SameSite=Lax`;
+}
 
 /**
  * Boots PostHog for ANONYMOUS visitors (landing, pricing, /r/[code]).
@@ -21,6 +35,10 @@ export default function PostHogAnonymousInit() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
+    // Keep the platform cookie fresh on every route so server-side
+    // events have the right value even if the user just installed the PWA.
+    syncPlatformCookie();
+
     const posthog = getPostHogClient();
     if (!posthog) return;
 

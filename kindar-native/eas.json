@@ -17,7 +17,9 @@
         "EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY": "appl_KnbatiIWuIsGLdMShDjqMlDDkvG",
         "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_DzwShzDFFdSgINGkNoANKzVkUZD",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "855915326367-eiinspdtmmf3u63sfj4kj8ghn2d6p7ie.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "855915326367-sglhlakpandb50d3n12d5urdgr3qig7n.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "855915326367-sglhlakpandb50d3n12d5urdgr3qig7n.apps.googleusercontent.com",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_3ql7Oys5M1A8DCO4Szbnf1iWGqFleLb6nOYcRk5DQvp",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
       },
       "channel": "development"
     },
@@ -33,7 +35,9 @@
         "EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY": "appl_KnbatiIWuIsGLdMShDjqMlDDkvG",
         "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_DzwShzDFFdSgINGkNoANKzVkUZD",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "855915326367-eiinspdtmmf3u63sfj4kj8ghn2d6p7ie.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "855915326367-sglhlakpandb50d3n12d5urdgr3qig7n.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "855915326367-sglhlakpandb50d3n12d5urdgr3qig7n.apps.googleusercontent.com",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_3ql7Oys5M1A8DCO4Szbnf1iWGqFleLb6nOYcRk5DQvp",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
       },
       "channel": "preview"
     },
@@ -56,7 +60,9 @@
         "EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY": "appl_KnbatiIWuIsGLdMShDjqMlDDkvG",
         "EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY": "goog_DzwShzDFFdSgINGkNoANKzVkUZD",
         "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "855915326367-eiinspdtmmf3u63sfj4kj8ghn2d6p7ie.apps.googleusercontent.com",
-        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "855915326367-sglhlakpandb50d3n12d5urdgr3qig7n.apps.googleusercontent.com"
+        "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "855915326367-sglhlakpandb50d3n12d5urdgr3qig7n.apps.googleusercontent.com",
+        "EXPO_PUBLIC_POSTHOG_KEY": "phc_3ql7Oys5M1A8DCO4Szbnf1iWGqFleLb6nOYcRk5DQvp",
+        "EXPO_PUBLIC_POSTHOG_HOST": "https://us.i.posthog.com"
       },
       "channel": "production"
     }

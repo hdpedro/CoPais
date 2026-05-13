@@ -60,7 +60,7 @@
 | Deploy | Vercel | Hobby | Zero-config para Next.js, auto-deploy |
 | IA | Multi-provider Router: Groq → Together → Gemini | Cloud API | Assistente conversacional com function calling (12 tools, multi-round), parsers robustos PT-BR; Invite Parser. Vision: llama-4-scout / Llama-Vision-Free / gemini-2.0-flash. Text: llama-3.3-70b / Llama-3.3-70B-Turbo-Free / gemini-2.0-flash |
 | OCR | Tesseract.js | local (browser/Node) | Extracao de texto de imagens/PDFs para o Invite Parser (100% free tier) |
-| Analytics | PostHog | — | 30+ eventos rastreados |
+| Analytics | PostHog | — | 30+ eventos rastreados, cross-platform PWA+iOS+Android, super-property `platform` para breakdown |
 | Error Tracking | Sentry | — | Monitoramento de erros em producao |
 | Testes E2E | Playwright | — | 34 testes |
 | Testes Unitarios | Vitest | — | 50 testes (AI parser) |
@@ -676,7 +676,7 @@ Kindar/
 | Rota | Descricao | Componentes Principais |
 |------|-----------|----------------------|
 | `/dashboard` | Pagina inicial | DashboardClient |
-| `/onboarding` | Primeiro acesso | — |
+| `/onboarding` | Wizard premium single-screen (familia → 1a crianca → resumo com loop "adicionar/editar/remover" + form de convite inline). Estado local mantem criancas + dados de convite; chama `/api/create-group` (1a), `/api/children` (Nx), `/api/children/[id]` PATCH/DELETE (edit/remove), `/api/invitations` (convite inline). Celebracao animada no marco "familia criada" + auto-accept de convites pendentes com timeout 3s | OnboardingForm (wizard com 5 sub-etapas: family, first-child, add-child, edit-child, family-summary) |
 | `/calendario` | Agenda unificada | CalendarClient, CalendarGrid, DayDetailSheet, SwapRequestList, SwapBalanceCard |
 | `/calendario/novo` | Novo compromisso (unificado) | NewCompromissoForm |
 | `/calendario/convite` | Invite Parser (adicionar via foto de convite) | — |
@@ -1588,7 +1588,7 @@ Exemplos: `DashboardClient`, `SaudeClient`, `ProfileContent`, `FinancialDashboar
 - Dynamic imports para 6 componentes pesados (AIAssistant, GrowthChart, etc.)
 - i18n lazy loading (apenas locale padrao carregado, demais sob demanda)
 - Landing page otimizada (cookie check antes de `getUser()`)
-- PostHog: 30+ eventos rastreados
+- PostHog: 30+ eventos rastreados — cross-platform PWA/iOS/Android. Cada client (`src/lib/posthog.ts` no PWA, `kindar-native/app/_src/lib/analytics.ts` no nativo) registra super-property `platform` (`web` | `pwa` | `ios` | `android`) no init. Mesmo `distinctId` (Supabase `auth.users.id`) em todas as plataformas → DAU/MAU por plataforma via Trends → breakdown `platform`. Backend (`posthog-node`) usa o mesmo `distinctId` mas sem `platform` (eventos de negócio, não de sessão).
 - Sentry: error tracking em producao
 - Performance indexes no banco (migration 00025)
 - Regra: nunca usar `select("*")`, sempre colunas especificas + `.limit()` + `Promise.all()`
