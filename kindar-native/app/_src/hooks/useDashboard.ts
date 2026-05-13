@@ -179,6 +179,8 @@ interface DashboardData {
   // Collab Foundation — Fase 1. Unread count of school_logs for the
   // current user. Drives the dashboard "Escola · N novos" row.
   schoolUnreadCount: number;
+  // Fase 1B — unread despesas (pending / cancel_pending).
+  expensesUnreadCount: number;
 }
 
 function formatDate(): string {
@@ -558,6 +560,22 @@ export function useDashboard() {
         schoolUnreadCount = ids.filter(id => !reads.has(id)).length;
       } catch { /* unread badge is a nice-to-have */ }
 
+      // ── Expenses unread (Fase 1B) — só pending/cancel_pending ────────
+      let expensesUnreadCount = 0;
+      try {
+        const [{ data: expenseIdsRows }, { data: expenseReadsRows }] = await withTimeout(Promise.all([
+          supabase.from('expenses').select('id').eq('group_id', groupId)
+            .in('status', ['pending', 'cancel_pending'])
+            .then(r => r, () => ({ data: [] as never[] })),
+          supabase.from('collab_reads').select('record_id')
+            .eq('user_id', userId).eq('record_type', 'expense')
+            .then(r => r, () => ({ data: [] as never[] })),
+        ]), 8_000, 'useDashboard:expensesUnread');
+        const ids = ((expenseIdsRows || []) as { id: string }[]).map(r => r.id);
+        const reads = new Set(((expenseReadsRows || []) as { record_id: string }[]).map(r => r.record_id));
+        expensesUnreadCount = ids.filter(id => !reads.has(id)).length;
+      } catch { /* idem */ }
+
       // Map occurrences to ActivityItems. Para hoje, classificamos o estado
       // (upcoming / ended-unreported / ended-reported) pra a UI distinguir
       // visualmente e oferecer "Relatar" inline em encerradas-sem-relato.
@@ -812,6 +830,7 @@ export function useDashboard() {
         hasAnyCriticalChild,
         pendingReports,
         schoolUnreadCount,
+        expensesUnreadCount,
       };
       setData(dashData);
       cacheSet(cacheKey, dashData);

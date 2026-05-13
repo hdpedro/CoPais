@@ -88,6 +88,62 @@ Native: `markSchoolLogRead` em `kindar-native/app/_src/services/school.ts` chama
 
 - `notification_sent` (server, recipient distinctId) — props: `record_type`, `actor_user_id`, `priority`, `coalesced`, `coalesced_count`
 - `notification_opened` (client, ao abrir via deep link com `?highlight=`) — props: `record_type`, `record_id`
-- `school_log_read` (server, no markSchoolLogRead action) — props: `log_id`
+- `school_log_read` / `expense_read` (server, ao markRead action) — props: `log_id` ou `expense_id`
 - `unread_count` (client, ao montar dashboard) — props: `record_type`, `count`
 - `urgent_created` (server, quando priority='urgent' no create) — props: `record_type`
+
+### Adoções consolidadas
+- `school_log` (migration 00077) — Escola: badges, visto-por, priority chips, push coalescing.
+- `expense` (migration 00078) — Despesas: TUDO acima + extensão Fase 1B (Edit/Cancel/Reopen) + audit trail (vide próxima seção).
+
+## Fase 1B: Edit / Cancel / Reopen + Audit Trail (Despesas pioneer)
+
+Despesas estendeu a Foundation com 4 endpoints novos + tabela de audit. Padrão a replicar quando outros módulos precisarem de "corrigir depois de criar":
+
+### Novos endpoints (service `src/lib/services/expenses.ts`)
+
+- **`editExpense({ expenseId, actorId, patch })`**
+  - SÓ o criador (`paid_by`) pode editar — server enforce (403 senão).
+  - `pending`/`rejected`: edita livre, status mantém ou volta a pending.
+  - `approved`: **edit REVERTE pra pending** (qualquer mudança em valor/data/descrição invalida aprovação — senão vira arma de "depois que aprovou, mudo o valor"). Re-notifica coparentes via `notifyCollabCreate`.
+  - `cancelled`/`cancel_pending`: bloqueado.
+  - Sempre grava audit `'edited'` com snapshot `before`/`after`.
+
+- **`requestCancelExpense({ expenseId, actorId, reason })`**
+  - Motivo obrigatório (transparência).
+  - `pending`/`rejected`: cancela direto, status='cancelled'.
+  - `approved`: status='cancel_pending', notifica reviewer original com priority='important'. Aguarda concordância via `respondToCancelRequest`.
+  - Audit `'cancelled'` ou `'cancel_requested'`.
+
+- **`respondToCancelRequest({ expenseId, reviewerId, approved, reason? })`**
+  - Reviewer ≠ criador (server enforce).
+  - `approved=true`: status='cancelled' (cancelled_by = reviewer).
+  - `approved=false`: status volta pra 'approved', limpa cancel_requested_*. Audit `'restored'`.
+
+- **`reopenApproval({ expenseId, actorId, reason })`**
+  - SÓ o approver original. Server enforce.
+  - Janela rígida 24h após `approved_at` (constante `REOPEN_WINDOW_MS`).
+  - Motivo obrigatório.
+  - Status volta pra 'pending'. Notifica criador com priority='important'. Audit `'reopened'`.
+
+### Tabela de audit `expense_history`
+
+Padrão a replicar pra outros módulos colaborativos. Schema (vide migration 00078):
+
+```sql
+expense_history (id, expense_id, actor_id, action TEXT, before JSONB, after JSONB, reason TEXT, at TIMESTAMPTZ)
+```
+
+- **Imutável**: RLS sem UPDATE/DELETE policies.
+- **Read = group members** (transparência total entre coparentes).
+- **Insert = actor self** (`actor_id = auth.uid()`).
+- **Helper**: `src/lib/services/expense-history.ts:logExpenseHistory(...)` — fire-and-forget, nunca bloqueia ação principal.
+
+Para Saúde/Decisões/Financeiro adotarem audit: criar `<module>_history` com mesmo shape + helper paralelo. Pattern uniforme.
+
+### Eventos novos (despesas)
+- `expense_edited` (server, no editExpense) — props: `expense_id`, `status_was`, `reverted_to_pending`
+- `expense_cancelled` (server, cancel direct) — props: `expense_id`, `from_status`
+- `expense_cancel_requested` (server, approved → cancel_pending) — props: `expense_id`
+- `expense_cancel_approved` / `expense_cancel_rejected` (server, no respondToCancelRequest)
+- `expense_reopened` (server, no reopenApproval) — props: `expense_id`

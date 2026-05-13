@@ -238,6 +238,25 @@ export default async function DashboardPage() {
   const _schoolReadIds = new Set(((userSchoolReads || []) as { record_id: string }[]).map((r) => r.record_id));
   const schoolUnreadCount = Array.from(_schoolLogIdsAll).filter((id) => !_schoolReadIds.has(id)).length;
 
+  // === EXPENSES UNREAD COUNT (Collab Foundation — Fase 1B) ===
+  // Mesmo padrão de school_logs mas só conta despesas que precisam de
+  // atenção (pending / cancel_pending) — terminais não fazem sentido como "nova".
+  const [{ data: expenseIdsForUnread }, { data: userExpenseReads }] = await Promise.all([
+    supabase
+      .from("expenses")
+      .select("id")
+      .eq("group_id", groupId)
+      .in("status", ["pending", "cancel_pending"]),
+    supabase
+      .from("collab_reads")
+      .select("record_id")
+      .eq("user_id", user.id)
+      .eq("record_type", "expense"),
+  ]);
+  const _expenseIdsAll = new Set(((expenseIdsForUnread || []) as { id: string }[]).map((r) => r.id));
+  const _expenseReadIds = new Set(((userExpenseReads || []) as { record_id: string }[]).map((r) => r.record_id));
+  const expensesUnreadCount = Array.from(_expenseIdsAll).filter((id) => !_expenseReadIds.has(id)).length;
+
   // Filter decisions where user hasn't voted yet
   const openDecisionIds = (openDecisions || []).map(d => d.id);
   const { data: decisionVotesForUser } = openDecisionIds.length > 0
@@ -830,7 +849,7 @@ export default async function DashboardPage() {
   // === CONTEXT-AWARE SECTION ORDERING ===
   // Prioritize sections based on what matters RIGHT NOW for this user.
   // Each section has a priority (lower = more important). Show top N, collapse rest.
-  type SectionId = "swapAlerts" | "hero" | "healthBlock" | "activities" | "schoolUnread" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
+  type SectionId = "swapAlerts" | "hero" | "healthBlock" | "activities" | "schoolUnread" | "expensesUnread" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
 
   const sectionPriorities: { id: SectionId; priority: number; hasData: boolean }[] = [
     { id: "swapAlerts", priority: 1, hasData: custodyEnabled && hasCustody && pendingSwapsProps.length > 0 },
@@ -842,6 +861,10 @@ export default async function DashboardPage() {
     // school logs are usually time-sensitive (próxima prova, reunião amanhã)
     // and parents want to see them before optional money/voting work.
     { id: "schoolUnread", priority: 6, hasData: schoolUnreadCount > 0 },
+    // Despesas novas ranqueiam logo abaixo da escola — mesma lógica:
+    // ações pendentes do coparente que precisam de awareness antes de
+    // listar pendentes/decisões individuais. CTA leva direto a /despesas.
+    { id: "expensesUnread", priority: 6.5, hasData: expensesUnreadCount > 0 },
     { id: "pendingExpenses", priority: 7, hasData: pendingExpenseProps.length > 0 },
     { id: "pendingDecisions", priority: 8, hasData: pendingDecisionsList.length > 0 },
     { id: "pendingReports", priority: 9, hasData: pendingReportsFinal.length > 0 },
@@ -932,6 +955,7 @@ export default async function DashboardPage() {
       };
     }),
     schoolUnreadCount,
+    expensesUnreadCount,
   };
 
   // Billing/trial widgets — only fetched after the group is resolved so

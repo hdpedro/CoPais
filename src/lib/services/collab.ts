@@ -36,10 +36,10 @@ export type CollabPriority = "info" | "important" | "urgent";
 
 export type CollabRecordType =
   | "school_log"
+  | "expense"
   // future:
   // | "decision"
   // | "health_event"
-  // | "expense"
   ;
 
 interface NotifyCollabCreateArgs {
@@ -196,13 +196,16 @@ export async function notifyCollabCreate(args: NotifyCollabCreateArgs): Promise<
  * new module adopts.
  */
 function coalescedTitle(recordType: CollabRecordType, baseTitle: string, count: number): string {
-  // Extract actor name from the front of `baseTitle` — convention is
-  // "<Name> adicionou ..." — we keep "<Name> adicionou N registros..."
-  // pattern stable.
-  const actorPrefix = baseTitle.split(" adicionou")[0];
+  // Extract actor name. Convention é título começando com "<Name> <verb>"
+  // — pra expenses o verbo é "registrou" (em vez de "adicionou"). Tentamos
+  // ambos pra extrair o prefix correto.
+  const actorPrefix =
+    baseTitle.split(" adicionou")[0]?.split(" registrou")[0] ?? baseTitle;
   switch (recordType) {
     case "school_log":
       return `${actorPrefix} adicionou ${count} registros escolares`;
+    case "expense":
+      return `${actorPrefix} registrou ${count} despesas`;
     default:
       return `${actorPrefix} adicionou ${count} registros`;
   }
@@ -216,6 +219,8 @@ function collabModuleHome(recordType: CollabRecordType): string {
   switch (recordType) {
     case "school_log":
       return "/escola";
+    case "expense":
+      return "/despesas";
     default:
       return "/dashboard";
   }
@@ -247,6 +252,16 @@ export async function unreadCollabCount(args: {
           .from("school_logs")
           .select("id", { count: "exact", head: false })
           .eq("group_id", args.groupId);
+        break;
+      case "expense":
+        // Pra despesas, só "novas" são as que ainda esperam atenção do
+        // user (pending ou cancel_pending). Aprovadas/rejeitadas/canceladas
+        // são terminais — não fazem sentido como "novo".
+        totalQuery = admin
+          .from("expenses")
+          .select("id", { count: "exact", head: false })
+          .eq("group_id", args.groupId)
+          .in("status", ["pending", "cancel_pending"]);
         break;
       default:
         return 0;

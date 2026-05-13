@@ -62,6 +62,16 @@ export const EVENTS = {
   SCHOOL_LOG_READ: 'school_log_read',
   UNREAD_COUNT: 'unread_count',
   URGENT_CREATED: 'urgent_created',
+
+  // Expenses — Fase 1B
+  EXPENSE_READ: 'expense_read',
+  EXPENSE_CREATED: 'expense_created',
+  EXPENSE_EDITED: 'expense_edited',
+  EXPENSE_CANCELLED: 'expense_cancelled',
+  EXPENSE_CANCEL_REQUESTED: 'expense_cancel_requested',
+  EXPENSE_CANCEL_APPROVED: 'expense_cancel_approved',
+  EXPENSE_CANCEL_REJECTED: 'expense_cancel_rejected',
+  EXPENSE_REOPENED: 'expense_reopened',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
