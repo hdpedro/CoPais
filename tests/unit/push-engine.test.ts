@@ -114,12 +114,16 @@ describe("BUG #2 — health pushes use specific types (visible in inbox)", () =>
     expect(INBOX_PWA).toMatch(/\.neq\(["']type["'],\s*["']system["']\)/);
   });
 
-  it("createAppointment uses health_appointment_created (not 'system')", () => {
-    expect(HEALTH).toMatch(/createNotificationWithPush\([^,]+,\s*["']health_appointment_created["']/);
+  // 2026-05-13: createAppointment + createAllergy migraram pra Saúde Foundation
+  // (migration 00080). O push agora vai via notifyCollabCreate, que internamente
+  // usa `${recordType}_created` (medical_appointment_created, child_allergy_created).
+  // Bug #2 (não usar 'system') continua validado pelo teste catch-all abaixo.
+  it("createAppointment usa notifySaudeCreate('medical_appointment') — Foundation pattern", () => {
+    expect(HEALTH).toMatch(/notifySaudeCreate\(\s*\{[\s\S]{0,300}recordType:\s*["']medical_appointment["']/);
   });
 
-  it("createAllergy uses health_allergy_created", () => {
-    expect(HEALTH).toMatch(/createNotificationWithPush\([^,]+,\s*["']health_allergy_created["']/);
+  it("createAllergy usa notifySaudeCreate('child_allergy') — Foundation pattern", () => {
+    expect(HEALTH).toMatch(/notifySaudeCreate\(\s*\{[\s\S]{0,300}recordType:\s*["']child_allergy["']/);
   });
 
   it("createVaccinationRecord uses health_vaccine_created", () => {

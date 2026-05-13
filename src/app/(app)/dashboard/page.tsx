@@ -257,6 +257,58 @@ export default async function DashboardPage() {
   const _expenseReadIds = new Set(((userExpenseReads || []) as { record_id: string }[]).map((r) => r.record_id));
   const expensesUnreadCount = Array.from(_expenseIdsAll).filter((id) => !_expenseReadIds.has(id)).length;
 
+  // === SAÚDE UNREAD COUNT (Collab Foundation — Fase 3, migration 00080) ===
+  // Soma agregada dos 5 record_types de Saúde — appointments scheduled,
+  // illness ativos, medications ativos, allergies, vaccines. Uma única
+  // tile no dashboard ("Saúde · N novos") em vez de 5 separadas pra não
+  // poluir. Tap leva pra /saude onde o user vê qual surface tem unread.
+  // Status filters batem com unreadCollabCount em collab.ts (mesmo critério).
+  const [
+    { data: appointmentIdsForUnread },
+    { data: illnessIdsForUnread },
+    { data: medicationIdsForUnread },
+    { data: allergyIdsForUnread },
+    { data: vaccineIdsForUnread },
+    { data: userSaudeReads },
+  ] = await Promise.all([
+    supabase.from("medical_appointments").select("id").eq("group_id", groupId).eq("status", "scheduled"),
+    supabase.from("illness_episodes").select("id").eq("group_id", groupId).eq("status", "active"),
+    supabase.from("active_medications").select("id").eq("group_id", groupId).eq("status", "active"),
+    supabase.from("child_allergies").select("id").eq("group_id", groupId),
+    supabase.from("vaccination_records").select("id").eq("group_id", groupId),
+    supabase
+      .from("collab_reads")
+      .select("record_id, record_type")
+      .eq("user_id", user.id)
+      .in("record_type", [
+        "medical_appointment",
+        "illness_episode",
+        "active_medication",
+        "child_allergy",
+        "vaccination_record",
+      ]),
+  ]);
+  const _saudeReadsByType = new Map<string, Set<string>>();
+  for (const r of ((userSaudeReads || []) as { record_id: string; record_type: string }[])) {
+    if (!_saudeReadsByType.has(r.record_type)) {
+      _saudeReadsByType.set(r.record_type, new Set());
+    }
+    _saudeReadsByType.get(r.record_type)!.add(r.record_id);
+  }
+  function _countUnreadFor(
+    rt: string,
+    rows: { id: string }[] | null | undefined,
+  ): number {
+    const reads = _saudeReadsByType.get(rt) || new Set();
+    return ((rows || []) as { id: string }[]).filter((r) => !reads.has(r.id)).length;
+  }
+  const saudeUnreadCount =
+    _countUnreadFor("medical_appointment", appointmentIdsForUnread) +
+    _countUnreadFor("illness_episode", illnessIdsForUnread) +
+    _countUnreadFor("active_medication", medicationIdsForUnread) +
+    _countUnreadFor("child_allergy", allergyIdsForUnread) +
+    _countUnreadFor("vaccination_record", vaccineIdsForUnread);
+
   // Filter decisions where user hasn't voted yet
   const openDecisionIds = (openDecisions || []).map(d => d.id);
   const { data: decisionVotesForUser } = openDecisionIds.length > 0
@@ -849,7 +901,7 @@ export default async function DashboardPage() {
   // === CONTEXT-AWARE SECTION ORDERING ===
   // Prioritize sections based on what matters RIGHT NOW for this user.
   // Each section has a priority (lower = more important). Show top N, collapse rest.
-  type SectionId = "swapAlerts" | "hero" | "healthBlock" | "activities" | "schoolUnread" | "expensesUnread" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
+  type SectionId = "swapAlerts" | "hero" | "healthBlock" | "activities" | "schoolUnread" | "expensesUnread" | "saudeUnread" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
 
   const sectionPriorities: { id: SectionId; priority: number; hasData: boolean }[] = [
     { id: "swapAlerts", priority: 1, hasData: custodyEnabled && hasCustody && pendingSwapsProps.length > 0 },
@@ -865,6 +917,11 @@ export default async function DashboardPage() {
     // ações pendentes do coparente que precisam de awareness antes de
     // listar pendentes/decisões individuais. CTA leva direto a /despesas.
     { id: "expensesUnread", priority: 6.5, hasData: expensesUnreadCount > 0 },
+    // Saúde (Collab Foundation Fase 3, migration 00080): tile consolidada
+    // com soma dos 5 record_types (consultas / doenças / medicamentos /
+    // alergias / vacinas). CTA leva a /saude. Priority 6.7 entre Despesas
+    // e Pending Expenses — informacional, não bloqueia tarefas.
+    { id: "saudeUnread", priority: 6.7, hasData: saudeUnreadCount > 0 },
     { id: "pendingExpenses", priority: 7, hasData: pendingExpenseProps.length > 0 },
     { id: "pendingDecisions", priority: 8, hasData: pendingDecisionsList.length > 0 },
     { id: "pendingReports", priority: 9, hasData: pendingReportsFinal.length > 0 },
@@ -956,6 +1013,7 @@ export default async function DashboardPage() {
     }),
     schoolUnreadCount,
     expensesUnreadCount,
+    saudeUnreadCount,
   };
 
   // Billing/trial widgets — only fetched after the group is resolved so

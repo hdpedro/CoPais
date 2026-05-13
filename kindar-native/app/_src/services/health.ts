@@ -8,6 +8,7 @@ import { supabase } from '../lib/supabase';
 import { apiFetch } from '../lib/api-fetch';
 import { safeWrite } from './offline';
 import { notifyAction } from './notify';
+import { notifySaudeCreateNative } from './saude-collab';
 
 export interface SymptomEntry {
   id: string;
@@ -181,6 +182,7 @@ export async function createIllness(params: {
   const result = await safeWrite({
     table: 'illness_episodes',
     operation: 'insert',
+    returnInsertedId: true,  // capturado pra notifySaudeCreateNative
     payload: {
       group_id: params.groupId,
       child_id: params.childId,
@@ -198,6 +200,21 @@ export async function createIllness(params: {
       title: `Doenca: ${params.title}`,
       childName: '',
     });
+    // Saúde Foundation: dispara push pra coparentes com coalescing 60s.
+    // Trigger SQL ja promoveu priority pra 'urgent' se severity='grave'.
+    // Body em PT-BR mapeado do enum.
+    if (result.id) {
+      const sevLabel = params.severity === 'grave'
+        ? 'Grave'
+        : params.severity === 'moderado'
+          ? 'Moderado'
+          : 'Leve';
+      notifySaudeCreateNative({
+        recordType: 'illness_episode',
+        recordId: result.id,
+        description: `${params.title.trim()} · ${sevLabel}`,
+      });
+    }
   }
   return result;
 }
@@ -279,11 +296,26 @@ export async function createAppointment(params: AppointmentInput) {
   if (params.returnDate) payload.return_date = params.returnDate;
   if (params.returnNotes) payload.return_notes = params.returnNotes.trim().slice(0, 2000);
 
-  const result = await safeWrite({ table: 'medical_appointments', operation: 'insert', payload });
+  const result = await safeWrite({
+    table: 'medical_appointments',
+    operation: 'insert',
+    returnInsertedId: true,
+    payload,
+  });
   if (result.success && !result.queued) {
     notifyAction('health_event_created', params.groupId, {
       title: `Consulta: ${params.title}`, childName: '',
     });
+    // Saúde Foundation: push com coalescing 60s. Body em formato DD/MM HH:MM
+    // pra evitar timezone shift do new Date() em DATE column.
+    if (result.id) {
+      const dateBR = params.appointmentDate.split('-').reverse().join('/');
+      notifySaudeCreateNative({
+        recordType: 'medical_appointment',
+        recordId: result.id,
+        description: `${params.title.trim()} · ${dateBR} ${params.appointmentTime}`,
+      });
+    }
   }
   return result;
 }
@@ -335,6 +367,7 @@ export async function createMedication(params: MedicationInput) {
   const result = await safeWrite({
     table: 'active_medications',
     operation: 'insert',
+    returnInsertedId: true,
     payload: {
       group_id: params.groupId,
       child_id: params.childId,
@@ -354,6 +387,15 @@ export async function createMedication(params: MedicationInput) {
     notifyAction('health_event_created', params.groupId, {
       title: `Medicamento: ${params.name}`, childName: '',
     });
+    // Saúde Foundation: push com coalescing 60s.
+    if (result.id) {
+      const desc = `${params.name.trim()} · ${params.dosage.trim()} · ${params.frequency.trim()}`;
+      notifySaudeCreateNative({
+        recordType: 'active_medication',
+        recordId: result.id,
+        description: desc,
+      });
+    }
   }
   return result;
 }
@@ -412,6 +454,7 @@ export async function createVaccinationRecord(params: VaccinationInput) {
   const result = await safeWrite({
     table: 'vaccination_records',
     operation: 'insert',
+    returnInsertedId: true,
     payload: {
       group_id: params.groupId,
       child_id: params.childId,
@@ -428,6 +471,15 @@ export async function createVaccinationRecord(params: VaccinationInput) {
       title: `Vacina: ${params.vaccineName}${params.doseLabel ? ` (${params.doseLabel})` : ''}`,
       childName: '',
     });
+    // Saúde Foundation: priority='info' default pra vacinas.
+    if (result.id) {
+      const desc = `${params.vaccineName.trim()}${params.doseLabel ? ` · ${params.doseLabel.trim()}` : ''}`;
+      notifySaudeCreateNative({
+        recordType: 'vaccination_record',
+        recordId: result.id,
+        description: desc,
+      });
+    }
   }
   return result;
 }

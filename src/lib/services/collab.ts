@@ -37,9 +37,17 @@ export type CollabPriority = "info" | "important" | "urgent";
 export type CollabRecordType =
   | "school_log"
   | "expense"
+  // Saúde (migration 00080): 5 tabelas adotam a Foundation.
+  // Doses/sintomas/growth/info ficam fora pra evitar spam (vide CLAUDE.md
+  // "Saúde Foundation adoption" — adoção #3).
+  | "medical_appointment"
+  | "illness_episode"
+  | "active_medication"
+  | "child_allergy"
+  | "vaccination_record"
   // future:
   // | "decision"
-  // | "health_event"
+  // | "calendar_event"
   ;
 
 interface NotifyCollabCreateArgs {
@@ -206,6 +214,16 @@ function coalescedTitle(recordType: CollabRecordType, baseTitle: string, count: 
       return `${actorPrefix} adicionou ${count} registros escolares`;
     case "expense":
       return `${actorPrefix} registrou ${count} despesas`;
+    case "medical_appointment":
+      return `${actorPrefix} agendou ${count} consultas`;
+    case "illness_episode":
+      return `${actorPrefix} registrou ${count} episódios de saúde`;
+    case "active_medication":
+      return `${actorPrefix} iniciou ${count} medicamentos`;
+    case "child_allergy":
+      return `${actorPrefix} cadastrou ${count} alergias`;
+    case "vaccination_record":
+      return `${actorPrefix} registrou ${count} vacinas`;
     default:
       return `${actorPrefix} adicionou ${count} registros`;
   }
@@ -221,6 +239,16 @@ function collabModuleHome(recordType: CollabRecordType): string {
       return "/escola";
     case "expense":
       return "/despesas";
+    case "medical_appointment":
+      return "/saude/agenda";
+    case "illness_episode":
+      return "/saude/doencas";
+    case "active_medication":
+      return "/saude/medicamentos";
+    case "child_allergy":
+      return "/saude/alergias";
+    case "vaccination_record":
+      return "/saude/vacinas";
     default:
       return "/dashboard";
   }
@@ -262,6 +290,49 @@ export async function unreadCollabCount(args: {
           .select("id", { count: "exact", head: false })
           .eq("group_id", args.groupId)
           .in("status", ["pending", "cancel_pending"]);
+        break;
+      // ── Saúde (5 record types) ──
+      // Consultas: só upcoming/scheduled contam como "novo" — passadas/
+      // canceladas viram histórico (terminal).
+      case "medical_appointment":
+        totalQuery = admin
+          .from("medical_appointments")
+          .select("id", { count: "exact", head: false })
+          .eq("group_id", args.groupId)
+          .in("status", ["scheduled"]);
+        break;
+      // Doenças: só episódios ativos importam pra "novo" — resolvidas
+      // não voltam a ser awareness.
+      case "illness_episode":
+        totalQuery = admin
+          .from("illness_episodes")
+          .select("id", { count: "exact", head: false })
+          .eq("group_id", args.groupId)
+          .eq("status", "active");
+        break;
+      // Medicamentos ativos: status='active' filtra os em uso. Concluídos
+      // (end_date no passado) viram histórico.
+      case "active_medication":
+        totalQuery = admin
+          .from("active_medications")
+          .select("id", { count: "exact", head: false })
+          .eq("group_id", args.groupId)
+          .eq("status", "active");
+        break;
+      // Alergias: todas relevantes (não tem terminal/ativa). Coparente
+      // sempre precisa saber quem tem o quê.
+      case "child_allergy":
+        totalQuery = admin
+          .from("child_allergies")
+          .select("id", { count: "exact", head: false })
+          .eq("group_id", args.groupId);
+        break;
+      // Vacinas: todas relevantes (cartão é histórico cumulativo).
+      case "vaccination_record":
+        totalQuery = admin
+          .from("vaccination_records")
+          .select("id", { count: "exact", head: false })
+          .eq("group_id", args.groupId);
         break;
       default:
         return 0;

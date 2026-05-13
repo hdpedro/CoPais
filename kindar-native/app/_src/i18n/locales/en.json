@@ -12,7 +12,10 @@
     "dashboardTapHint": "Tap to see what the other parent logged.",
     "dashboardExpensesUnreadOne": "1 expense to review",
     "dashboardExpensesUnreadOther": "{count} expenses to review",
-    "dashboardExpensesHint": "Pending approval or cancellation request."
+    "dashboardExpensesHint": "Pending approval or cancellation request.",
+    "dashboardSaudeUnreadOne": "1 new health entry",
+    "dashboardSaudeUnreadOther": "{count} new health entries",
+    "dashboardSaudeHint": "Appointments, illness, medications, allergies or vaccines."
   },
   "common": {
     "appName": "Kindar",

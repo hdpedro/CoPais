@@ -529,6 +529,34 @@ Audit trail imutável de despesas. Padrão a replicar pra outros módulos quando
 - Helper: `src/lib/services/expense-history.ts:logExpenseHistory(...)` — fire-and-forget
 - Consumido por: panel inline no card expandido (PWA + native), backfill retroativo de evento 'created' pra expenses pré-migration
 
+#### 41. Saúde Foundation adoption — Fase 3 (migration 00080)
+Saúde adota a Foundation: Collaborative Records pra 5 tabelas que envolvem coordenação aguda entre coparentes. Pattern idêntico ao Escola+Despesas; vide `.claude/CLAUDE.md` "Foundation: Collaborative Records" e "Adoção #3" pro pattern.
+
+**Tabelas que adotam (5):**
+- `medical_appointments` — coluna `priority` (default `important`), trigger `medical_appointments_auto_mark_creator_read`, WHEN branch `medical_appointment` em `collab_record_group()`
+- `illness_episodes` — coluna `priority` (default `important`), trigger `illness_episodes_auto_mark_creator_read`, WHEN branch `illness_episode`, **trigger BEFORE INSERT/UPDATE `illness_episodes_grave_to_urgent`**: quando `severity='grave'` E `priority='important'` (default), promove pra `'urgent'` automaticamente. Respeita override explícito do cliente.
+- `active_medications` — coluna `priority` (default `important`), trigger `active_medications_auto_mark_creator_read`, WHEN `active_medication`
+- `child_allergies` — coluna `priority` (default `important`), trigger `child_allergies_auto_mark_creator_read`, WHEN `child_allergy`
+- `vaccination_records` — coluna `priority` (default `info`; registro informacional, sem urgência operacional), trigger `vaccination_records_auto_mark_creator_read`, WHEN `vaccination_record`
+
+**Indexes pra dashboard query:** `idx_<tabela>_priority (group_id, priority)` em cada uma das 5.
+
+**Função genérica:** `saude_auto_mark_creator_read()` (1 função PL/pgSQL com TG_ARGV[0]=record_type) usada nos 5 triggers — reuso vs 5 funções idênticas.
+
+**Backfill:** insere `collab_reads` row pra cada `created_by` histórico nas 5 tabelas, idempotente via PK. Sem isso, todo registro pré-migration apareceria como "Novo" pro próprio criador.
+
+**Migration:** `00080_collab_saude.sql`
+
+**Consumido por:**
+- PWA: `src/actions/health.ts` (createAppointment / createMedication / createIllnessEpisode / createAllergy / createVaccinationRecord) + `src/app/api/health/allergies/route.ts` (POST) + `src/app/api/health/vaccines-bulk/route.ts` (POST com fan-out paralelo, coalescing 60s dedup no device).
+- Wrapper: `src/lib/services/health-collab.ts:notifySaudeCreate({recordType, recordId, groupId, actorUserId, actorFirstName, childFirstName?, description, priorityOverride?})` — server-only.
+- Native: `kindar-native/app/_src/services/health.ts` (createIllness/createAppointment/createMedication/createVaccinationRecord) via `safeWrite({returnInsertedId: true})` → `saude-collab.ts:notifySaudeCreateNative({recordType, recordId, description})` → `POST /api/health/notify-create` (valida ownership + resolve nomes server-side).
+- Dashboard tile **consolidada** "Saúde · N novos" (PWA + Native) — agregado dos 5 record_types.
+
+**Fora da adoção (anti-spam, deliberado):** `medication_doses` (várias/dia), `symptom_entries` (alto volume + coalesce no episode parent), `growth_records` (medição rotineira), `child_medical_info` (update raro), `medical_professionals` (diretório).
+
+**Pendência conhecida (Fase 3.5):** chip "Novo" + chip de priority + "Visto por X · time" + `mark_collab_read` inline em cada uma das 5 telas de Saúde. Adiciona valor incremental mas Foundation entrega 80% sem isso.
+
 #### 43-47. Tabelas usadas pelo Kindar Native (mapeadas agora no native)
 
 **43. custody_schedules** — Pattern da escala de guarda quinzenal (2 semanas = 14 dias), `UNIQUE(group_id, child_id)`.
@@ -723,6 +751,8 @@ Politicas garantem que:
 | `00065_whatsapp_v2_views.sql` | **WhatsApp v2**: views read-only `child_current_status` (snapshot de saude por crianca derivado de illness_episodes + active_medications + child_allergies) e `expense_balance_per_user` (saldo pendente derivado de expenses.split_ratio). Usadas pelas tools `get_child_status` e `get_balance`. |
 | `00077_collab_foundation.sql` | **Foundation: Collaborative Records — Fase 1**: tabela polimórfica `collab_reads` + enum `collab_priority` + função `collab_record_group()` + RPC `mark_collab_read()` + trigger `school_logs_auto_mark_creator_read`. Adiciona coluna `priority` em `school_logs`. Primeira camada do "sistema de sincronização familiar" — read receipts, unread state, prioridade compartilhados entre coparentes. |
 | `00078_collab_expenses_edit_audit.sql` | **Foundation Fase 1B — Despesas**: adoption da foundation pra expenses (priority + trigger auto-mark + WHEN branch em `collab_record_group()`) + status enum estendido (`cancelled`, `cancel_pending`) + colunas de tracking (rejected_by/at, cancel_requested_*, cancelled_*, edited_at, edit_count) + tabela `expense_history` imutável com RLS scopeada por grupo + indexes (group_id, status, created_at DESC) pra perf. Habilita Edit/Cancel/Reopen com audit trail. |
+| `00079_custody_integrity.sql` | **Calendário: integridade definitiva de `custody_events`** (Hailla bug 2026-05-13): view canônica `custody_resolved` (swap > exception > regular + created_at DESC tie-break) + função `custody_has_same_type_overlap()` + trigger BEFORE INSERT/UPDATE `custody_events_prevent_overlap` (rejeita overlap mesmo tipo) + cleanup de 43 dias de duplicatas em 7 grupos + EXCLUDE constraint `custody_events_no_overlap_same_type` (defesa em profundidade via daterange &&). 4 camadas. |
+| `00080_collab_saude.sql` | **Foundation Fase 3 — Saúde**: adoption da foundation pra 5 tabelas (`medical_appointments`, `illness_episodes`, `active_medications`, `child_allergies`, `vaccination_records`) com priority + indexes + trigger genérico `saude_auto_mark_creator_read` (1 função, 5 instâncias via TG_ARGV) + trigger `illness_episodes_grave_to_urgent` (BEFORE INSERT/UPDATE — severity='grave' + priority='important' → 'urgent' automático server-side) + WHEN branches estendidas em `collab_record_group()` + backfill em 5 tabelas pros `created_by` históricos. Doses/sintomas/growth/info médica/profissionais ficam FORA (anti-spam). |
 
 ---
 

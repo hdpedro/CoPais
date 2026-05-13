@@ -73,6 +73,13 @@ vi.mock("@/lib/push", () => ({
   sendPushToUsers: vi.fn().mockResolvedValue(undefined),
 }));
 vi.mock("@/lib/chat-notify", () => ({ postChatNotification: vi.fn().mockResolvedValue(undefined) }));
+// 2026-05-13 (Saúde Foundation): actions/health.ts agora importa
+// `@/lib/services/health-collab` que tem `import "server-only"`.
+// Vitest roda em Node — stub o marker pra não explodir.
+vi.mock("server-only", () => ({}));
+vi.mock("@/lib/services/health-collab", () => ({
+  notifySaudeCreate: vi.fn().mockResolvedValue(undefined),
+}));
 
 // ---------------------------------------------------------------------------
 // Imports

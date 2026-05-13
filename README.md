@@ -267,6 +267,15 @@ O app suporta **5 idiomas** completos:
 - **Exportacao** (`/saude/export`): exportar registros de saude
 - **Rastreamento de visualizacoes** (`HealthViewTracker`, `ViewedByBadge` com i18n)
 - **Push notifications** para TODOS os eventos de saude (alergias, vacinas, consultas, crescimento)
+- **Coordenação ativa (Fase 3 da Foundation Collab — `00080`)**:
+  - Push pra coparentes ao criar consulta / doença / medicamento / alergia / vacina (coalescing 60s + priority-aware)
+  - `illness_episodes.severity='grave'` promove priority pra `urgent` **automaticamente via trigger SQL** (server enforce — não confia no client)
+  - Dashboard tile **consolidada** "Saúde · N novos" (soma agregada dos 5 record_types) com deep link pra `/saude`
+  - Telemetria PostHog: `unread_count` (saude_aggregate), `notification_sent`, `urgent_created` (quando grave)
+  - Migration `00080_collab_saude.sql`: 5 ALTER TABLE com priority, `collab_record_group()` estendida, trigger genérico `saude_auto_mark_creator_read`, trigger `illness_episodes_grave_to_urgent`, backfill em 5 tabelas
+  - Wrapper server `src/lib/services/health-collab.ts:notifySaudeCreate` + endpoint `POST /api/health/notify-create` pro native chamar pós-INSERT
+  - `safeWrite` estendido com `returnInsertedId` (backward-compatible) pra capturar id da row criada e disparar notify
+  - Fora da adoção (anti-spam): doses, sintomas, crescimento, info médica básica, profissionais
 - **Sanitizacao de input** em todos os campos de texto de saude (max length limits)
 - **Link /saude/alergias/editar-info corrigido** (agora faz scroll ate o formulario)
 

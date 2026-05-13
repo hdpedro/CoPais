@@ -181,6 +181,10 @@ interface DashboardData {
   schoolUnreadCount: number;
   // Fase 1B — unread despesas (pending / cancel_pending).
   expensesUnreadCount: number;
+  // Fase 3 (migration 00080). Soma agregada dos 5 record_types de Saúde
+  // (appointments scheduled + illness active + medications active +
+  // allergies + vaccines). Drives "Saúde · N novos" row no dashboard.
+  saudeUnreadCount: number;
 }
 
 function formatDate(): string {
@@ -576,6 +580,65 @@ export function useDashboard() {
         expensesUnreadCount = ids.filter(id => !reads.has(id)).length;
       } catch { /* idem */ }
 
+      // ── Saúde unread (Fase 3, migration 00080) — soma dos 5 ──────────
+      // Agregado pra evitar 5 tiles no dashboard. Status filters batem
+      // com unreadCollabCount em src/lib/services/collab.ts (mesma regra
+      // PWA/native). Falha silenciosa: 0 quando algum query der hiccup.
+      let saudeUnreadCount = 0;
+      try {
+        const [
+          { data: aptRows },
+          { data: illRows },
+          { data: medRows },
+          { data: algRows },
+          { data: vacRows },
+          { data: saudeReadsRows },
+        ] = await withTimeout(Promise.all([
+          supabase.from('medical_appointments').select('id')
+            .eq('group_id', groupId).eq('status', 'scheduled')
+            .then(r => r, () => ({ data: [] as never[] })),
+          supabase.from('illness_episodes').select('id')
+            .eq('group_id', groupId).eq('status', 'active')
+            .then(r => r, () => ({ data: [] as never[] })),
+          supabase.from('active_medications').select('id')
+            .eq('group_id', groupId).eq('status', 'active')
+            .then(r => r, () => ({ data: [] as never[] })),
+          supabase.from('child_allergies').select('id')
+            .eq('group_id', groupId)
+            .then(r => r, () => ({ data: [] as never[] })),
+          supabase.from('vaccination_records').select('id')
+            .eq('group_id', groupId)
+            .then(r => r, () => ({ data: [] as never[] })),
+          supabase.from('collab_reads').select('record_id, record_type')
+            .eq('user_id', userId)
+            .in('record_type', [
+              'medical_appointment',
+              'illness_episode',
+              'active_medication',
+              'child_allergy',
+              'vaccination_record',
+            ])
+            .then(r => r, () => ({ data: [] as never[] })),
+        ]), 8_000, 'useDashboard:saudeUnread');
+        const readsByType = new Map<string, Set<string>>();
+        for (const r of ((saudeReadsRows || []) as { record_id: string; record_type: string }[])) {
+          if (!readsByType.has(r.record_type)) {
+            readsByType.set(r.record_type, new Set());
+          }
+          readsByType.get(r.record_type)!.add(r.record_id);
+        }
+        const countUnread = (rt: string, rows: { id: string }[] | null | undefined) => {
+          const reads = readsByType.get(rt) || new Set();
+          return ((rows || []) as { id: string }[]).filter(r => !reads.has(r.id)).length;
+        };
+        saudeUnreadCount =
+          countUnread('medical_appointment', aptRows) +
+          countUnread('illness_episode', illRows) +
+          countUnread('active_medication', medRows) +
+          countUnread('child_allergy', algRows) +
+          countUnread('vaccination_record', vacRows);
+      } catch { /* idem */ }
+
       // Map occurrences to ActivityItems. Para hoje, classificamos o estado
       // (upcoming / ended-unreported / ended-reported) pra a UI distinguir
       // visualmente e oferecer "Relatar" inline em encerradas-sem-relato.
@@ -831,6 +894,7 @@ export function useDashboard() {
         pendingReports,
         schoolUnreadCount,
         expensesUnreadCount,
+        saudeUnreadCount,
       };
       setData(dashData);
       cacheSet(cacheKey, dashData);

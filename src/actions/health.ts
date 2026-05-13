@@ -7,6 +7,48 @@ import { createClient as createSupabaseClient } from "@supabase/supabase-js";
 import { postChatNotification } from "@/lib/chat-notify";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { createNotificationWithPush } from "@/lib/push";
+import { notifySaudeCreate } from "@/lib/services/health-collab";
+
+/**
+ * Resolve o primeiro nome do actor a partir de profiles.full_name.
+ * Usado pra compor títulos de push em notifySaudeCreate ("Amanda agendou…").
+ * Falha silenciosa pra "alguém" — push é best-effort.
+ */
+async function actorFirstName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<string> {
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", userId)
+      .single();
+    return (data?.full_name as string | undefined)?.split(" ")[0] || "Alguém";
+  } catch {
+    return "Alguém";
+  }
+}
+
+/**
+ * Resolve o primeiro nome da criança. Usado no body do push de Saúde
+ * pra dar contexto rápido ("Pediatra · 20/05 · Mia"). Falha silenciosa.
+ */
+async function childFirstName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  childId: string,
+): Promise<string | undefined> {
+  try {
+    const { data } = await supabase
+      .from("children")
+      .select("full_name")
+      .eq("id", childId)
+      .single();
+    return (data?.full_name as string | undefined)?.split(" ")[0];
+  } catch {
+    return undefined;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Input sanitization helpers
@@ -274,17 +316,24 @@ export async function createAppointment(formData: FormData) {
       .eq("id", appointment.id);
   }
 
-  // Push notification to other group members
-  try {
-    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
-    const childName = child?.full_name?.split(" ")[0] || "crianca";
-    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
-    if (otherMembers.length > 0) {
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_appointment_created", "Consulta agendada", `📅 ${title} — ${childName} (${appointmentDate})`, "/saude/consultas")));
-    }
-  } catch {
-    // Push failure should not break the action
-  }
+  // Saúde Foundation: coalescing 60s, priority-aware push, deep link com
+  // highlight + auto-mark-read no client. Substitui o push hardcoded
+  // anterior. Vide src/lib/services/health-collab.ts.
+  const [actorName, childName] = await Promise.all([
+    actorFirstName(supabase, user.id),
+    childFirstName(supabase, childId),
+  ]);
+  // Mostra date em formato BR pra body do push.
+  const dateBR = appointmentDate.split("-").reverse().join("/");
+  await notifySaudeCreate({
+    recordType: "medical_appointment",
+    recordId: appointment.id,
+    groupId,
+    actorUserId: user.id,
+    actorFirstName: actorName,
+    childFirstName: childName,
+    description: `${title} · ${dateBR} ${appointmentTime}`,
+  });
 
   revalidatePath("/saude/consultas");
   redirect("/saude/consultas?success=Consulta+agendada");
@@ -418,26 +467,33 @@ export async function createMedication(formData: FormData) {
   if (!frequency) redirect("/saude/medicamentos?error=" + encodeURIComponent("Frequência é obrigatória"));
   if (!startDate) redirect("/saude/medicamentos?error=" + encodeURIComponent("Data de início é obrigatória"));
 
-  const { error } = await supabase.from("active_medications").insert({
-    group_id: groupId,
-    child_id: childId,
-    name,
-    dosage,
-    frequency,
-    frequency_hours: frequencyHours ? parseInt(frequencyHours, 10) : null,
-    reason: reason || null,
-    prescribed_by: prescribedBy || null,
-    start_date: startDate,
-    end_date: endDate || null,
-    notes: notes || null,
-    created_by: user.id,
-  });
+  // .select("id").single() pra capturar o id do registro novo e usar em
+  // notifySaudeCreate (Foundation push com coalescing/priority/deep link).
+  const { data: medication, error } = await supabase
+    .from("active_medications")
+    .insert({
+      group_id: groupId,
+      child_id: childId,
+      name,
+      dosage,
+      frequency,
+      frequency_hours: frequencyHours ? parseInt(frequencyHours, 10) : null,
+      reason: reason || null,
+      prescribed_by: prescribedBy || null,
+      start_date: startDate,
+      end_date: endDate || null,
+      notes: notes || null,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
 
   if (error) redirect("/saude/medicamentos?error=" + encodeURIComponent(error.message));
 
   captureServerEvent(user.id, "medication_created", { name });
 
-  // Post to chat
+  // Post to chat — mantido em paralelo à Foundation porque chat é um
+  // canal distinto de push (mensagem persistente em conversa).
   try {
     const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
     const childName = child?.full_name?.split(" ")[0] || "crianca";
@@ -447,6 +503,23 @@ export async function createMedication(formData: FormData) {
     );
   } catch {
     // Notification failure should not break the action
+  }
+
+  // Saúde Foundation: push com coalescing + read receipts + telemetria.
+  if (medication?.id) {
+    const [actorName, childName] = await Promise.all([
+      actorFirstName(supabase, user.id),
+      childFirstName(supabase, childId),
+    ]);
+    await notifySaudeCreate({
+      recordType: "active_medication",
+      recordId: medication.id,
+      groupId,
+      actorUserId: user.id,
+      actorFirstName: actorName,
+      childFirstName: childName,
+      description: `${name}${dosage ? ` · ${dosage}` : ""}${frequency ? ` · ${frequency}` : ""}`,
+    });
   }
 
   revalidatePath("/saude/medicamentos");
@@ -592,13 +665,19 @@ export async function createIllnessEpisode(formData: FormData) {
   if (hospitalName) insertData.hospital_name = hospitalName;
   if (hospitalDate) insertData.hospital_date = hospitalDate;
 
-  const { error } = await supabase.from("illness_episodes").insert(insertData);
+  // .select("id").single() pra capturar o id do episode e usar em
+  // notifySaudeCreate. Schema severity = leve/moderado/grave (00013).
+  const { data: illness, error } = await supabase
+    .from("illness_episodes")
+    .insert(insertData)
+    .select("id")
+    .single();
 
   if (error) redirect("/saude/doencas?error=" + encodeURIComponent(error.message));
 
   captureServerEvent(user.id, "illness_reported", { title });
 
-  // Get child name for chat
+  // Chat post — canal distinto, mantido em paralelo à Foundation.
   try {
     const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
     const childName = child?.full_name?.split(" ")[0] || "crianca";
@@ -609,6 +688,26 @@ export async function createIllnessEpisode(formData: FormData) {
     );
   } catch {
     // Notification failure should not break the action
+  }
+
+  // Saúde Foundation: trigger SQL `illness_episodes_grave_to_urgent` já
+  // promoveu priority pra 'urgent' se severity='grave'. notifySaudeCreate
+  // lê o priority efetivo da row pra disparar telemetria correta.
+  if (illness?.id) {
+    const [actorName, childName] = await Promise.all([
+      actorFirstName(supabase, user.id),
+      childFirstName(supabase, childId),
+    ]);
+    const sevLabel = severity === "grave" ? "Grave" : severity === "moderado" ? "Moderado" : "Leve";
+    await notifySaudeCreate({
+      recordType: "illness_episode",
+      recordId: illness.id,
+      groupId,
+      actorUserId: user.id,
+      actorFirstName: actorName,
+      childFirstName: childName,
+      description: `${title} · ${sevLabel}`,
+    });
   }
 
   revalidatePath("/saude/doencas");
@@ -734,28 +833,45 @@ export async function createAllergy(formData: FormData) {
   const severity = formData.get("severity") as string;
   const reaction = sanitizeText(formData.get("reaction") as string, 500);
 
-  const { error } = await supabase.from("child_allergies").insert({
-    group_id: groupId,
-    child_id: childId,
-    name,
-    allergy_type: allergyType || null,
-    severity: severity || null,
-    reaction: reaction || null,
-    created_by: user.id,
-  });
+  const { data: allergy, error } = await supabase
+    .from("child_allergies")
+    .insert({
+      group_id: groupId,
+      child_id: childId,
+      name,
+      allergy_type: allergyType || null,
+      severity: severity || null,
+      reaction: reaction || null,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
 
   if (error) redirect("/saude/alergias?error=" + encodeURIComponent(error.message));
 
-  // Push notification to other group members
-  try {
-    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
-    const childName = child?.full_name?.split(" ")[0] || "crianca";
-    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
-    if (otherMembers.length > 0) {
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_allergy_created", "Nova alergia registrada", `⚠️ ${name} (${severity || "leve"}) — ${childName}`, "/saude/alergias")));
-    }
-  } catch {
-    // Push failure should not break the action
+  // Saúde Foundation: substitui o push hardcoded por notifySaudeCreate
+  // (coalescing 60s + priority-aware + deep link com highlight).
+  if (allergy?.id) {
+    const [actorName, childName] = await Promise.all([
+      actorFirstName(supabase, user.id),
+      childFirstName(supabase, childId),
+    ]);
+    // severity em alergias = inglês (mild/moderate/severe). Mapear pra
+    // label PT-BR no body do push.
+    const sevLabel =
+      severity === "severe" ? "Grave" :
+      severity === "moderate" ? "Moderada" :
+      severity === "mild" ? "Leve" : null;
+    const desc = sevLabel ? `${name} · ${sevLabel}` : name;
+    await notifySaudeCreate({
+      recordType: "child_allergy",
+      recordId: allergy.id,
+      groupId,
+      actorUserId: user.id,
+      actorFirstName: actorName,
+      childFirstName: childName,
+      description: desc,
+    });
   }
 
   revalidatePath("/saude/alergias");
@@ -906,32 +1022,42 @@ export async function createVaccinationRecord(formData: FormData) {
   const location = sanitizeText(formData.get("location") as string, 200);
   const notes = sanitizeText(formData.get("notes") as string, 2000);
 
-  const { error } = await supabase.from("vaccination_records").insert({
-    group_id: groupId,
-    child_id: childId,
-    vaccine_name: vaccineName,
-    dose_label: doseLabel || null,
-    administered_date: administeredDate || null,
-    batch_number: batchNumber || null,
-    location: location || null,
-    notes: notes || null,
-    created_by: user.id,
-  });
+  const { data: vaccine, error } = await supabase
+    .from("vaccination_records")
+    .insert({
+      group_id: groupId,
+      child_id: childId,
+      vaccine_name: vaccineName,
+      dose_label: doseLabel || null,
+      administered_date: administeredDate || null,
+      batch_number: batchNumber || null,
+      location: location || null,
+      notes: notes || null,
+      created_by: user.id,
+    })
+    .select("id")
+    .single();
 
   if (error) redirect("/saude/vacinas?error=" + encodeURIComponent(error.message));
 
   captureServerEvent(user.id, "vaccine_recorded");
 
-  // Push notification to other group members
-  try {
-    const { data: child } = await supabase.from("children").select("full_name").eq("id", childId).single();
-    const childName = child?.full_name?.split(" ")[0] || "crianca";
-    const otherMembers = await getOtherGroupMembers(supabase, groupId, user.id);
-    if (otherMembers.length > 0) {
-      await Promise.allSettled(otherMembers.map((uid) => createNotificationWithPush(uid, "health_vaccine_created", "Vacina registrada", `💉 ${vaccineName}${doseLabel ? ` (${doseLabel})` : ""} — ${childName}`, "/saude/vacinas")));
-    }
-  } catch {
-    // Push failure should not break the action
+  // Saúde Foundation: priority='info' por default pra vacinas (registro
+  // informacional, sem urgência operacional). Substitui push hardcoded.
+  if (vaccine?.id) {
+    const [actorName, childName] = await Promise.all([
+      actorFirstName(supabase, user.id),
+      childFirstName(supabase, childId),
+    ]);
+    await notifySaudeCreate({
+      recordType: "vaccination_record",
+      recordId: vaccine.id,
+      groupId,
+      actorUserId: user.id,
+      actorFirstName: actorName,
+      childFirstName: childName,
+      description: `${vaccineName}${doseLabel ? ` · ${doseLabel}` : ""}`,
+    });
   }
 
   revalidatePath("/saude/vacinas");
