@@ -1,4 +1,16 @@
 {
+  "collab": {
+    "new": "Nouveau",
+    "seen": "Vu",
+    "priorityLabel": "Priorité",
+    "priorityInfo": "Info",
+    "priorityImportant": "Important",
+    "priorityUrgent": "Urgent",
+    "priorityUrgentHint": "Urgent envoie une notification immédiate à l'autre parent.",
+    "dashboardSchoolUnreadOne": "1 nouvelle entrée scolaire",
+    "dashboardSchoolUnreadOther": "{count} nouvelles entrées scolaires",
+    "dashboardTapHint": "Touchez pour voir ce que l'autre parent a enregistré."
+  },
   "common": {
     "appName": "Kindar",
     "loading": "Chargement...",

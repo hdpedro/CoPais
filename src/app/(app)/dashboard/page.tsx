@@ -219,6 +219,25 @@ export default async function DashboardPage() {
       .then(r => r, () => ({ data: [] as never[] })),
   ]);
 
+  // === SCHOOL UNREAD COUNT (Collab Foundation — Fase 1) ===
+  // Count of school_logs the current user hasn't read yet. Drives the
+  // dashboard "Escola · N novos" surface so a busy parent sees pending
+  // school context without opening the module. Two queries, both indexed.
+  const [{ data: schoolLogIdsForUnread }, { data: userSchoolReads }] = await Promise.all([
+    supabase
+      .from("school_logs")
+      .select("id")
+      .eq("group_id", groupId),
+    supabase
+      .from("collab_reads")
+      .select("record_id")
+      .eq("user_id", user.id)
+      .eq("record_type", "school_log"),
+  ]);
+  const _schoolLogIdsAll = new Set(((schoolLogIdsForUnread || []) as { id: string }[]).map((r) => r.id));
+  const _schoolReadIds = new Set(((userSchoolReads || []) as { record_id: string }[]).map((r) => r.record_id));
+  const schoolUnreadCount = Array.from(_schoolLogIdsAll).filter((id) => !_schoolReadIds.has(id)).length;
+
   // Filter decisions where user hasn't voted yet
   const openDecisionIds = (openDecisions || []).map(d => d.id);
   const { data: decisionVotesForUser } = openDecisionIds.length > 0
@@ -811,7 +830,7 @@ export default async function DashboardPage() {
   // === CONTEXT-AWARE SECTION ORDERING ===
   // Prioritize sections based on what matters RIGHT NOW for this user.
   // Each section has a priority (lower = more important). Show top N, collapse rest.
-  type SectionId = "swapAlerts" | "hero" | "healthBlock" | "activities" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
+  type SectionId = "swapAlerts" | "hero" | "healthBlock" | "activities" | "schoolUnread" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
 
   const sectionPriorities: { id: SectionId; priority: number; hasData: boolean }[] = [
     { id: "swapAlerts", priority: 1, hasData: custodyEnabled && hasCustody && pendingSwapsProps.length > 0 },
@@ -819,13 +838,17 @@ export default async function DashboardPage() {
     { id: "childCards", priority: 3, hasData: (children?.length || 0) > 0 },
     { id: "healthBlock", priority: 4, hasData: childHealthSummaries.length > 0 },
     { id: "activities", priority: 5, hasData: hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities },
-    { id: "pendingExpenses", priority: 6, hasData: pendingExpenseProps.length > 0 },
-    { id: "pendingDecisions", priority: 7, hasData: pendingDecisionsList.length > 0 },
-    { id: "pendingReports", priority: 8, hasData: pendingReportsFinal.length > 0 },
-    { id: "financial", priority: 9, hasData: true },
-    { id: "quickActions", priority: 10, hasData: !isReadonly },
-    { id: "invite", priority: 11, hasData: (members?.length || 0) < 2 },
-    { id: "custodyActivation", priority: 12, hasData: !custodyEnabled && (members?.length || 0) >= 2 },
+    // Collab Foundation: ranks just above pending decisions because new
+    // school logs are usually time-sensitive (próxima prova, reunião amanhã)
+    // and parents want to see them before optional money/voting work.
+    { id: "schoolUnread", priority: 6, hasData: schoolUnreadCount > 0 },
+    { id: "pendingExpenses", priority: 7, hasData: pendingExpenseProps.length > 0 },
+    { id: "pendingDecisions", priority: 8, hasData: pendingDecisionsList.length > 0 },
+    { id: "pendingReports", priority: 9, hasData: pendingReportsFinal.length > 0 },
+    { id: "financial", priority: 10, hasData: true },
+    { id: "quickActions", priority: 11, hasData: !isReadonly },
+    { id: "invite", priority: 12, hasData: (members?.length || 0) < 2 },
+    { id: "custodyActivation", priority: 13, hasData: !custodyEnabled && (members?.length || 0) >= 2 },
   ];
 
   // Filter to sections with data, sort by priority
@@ -908,6 +931,7 @@ export default async function DashboardPage() {
         daysAgo,
       };
     }),
+    schoolUnreadCount,
   };
 
   // Billing/trial widgets — only fetched after the group is resolved so

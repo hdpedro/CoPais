@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
+import { captureServerEvent } from "@/lib/posthog-server";
 import {
   createSchoolLog as svcCreate,
   deleteSchoolLog as svcDelete,
@@ -11,7 +12,33 @@ import {
   toggleSchoolLogCompleted as svcToggle,
   isValidSubtype,
   type SchoolSubtype,
+  type SchoolPriority,
 } from "@/lib/services/school";
+
+const VALID_PRIORITIES: SchoolPriority[] = ["info", "important", "urgent"];
+function parsePriority(raw: FormDataEntryValue | null): SchoolPriority | undefined {
+  if (typeof raw !== "string") return undefined;
+  return (VALID_PRIORITIES as string[]).includes(raw) ? (raw as SchoolPriority) : undefined;
+}
+
+async function resolveActorName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<string | null> {
+  try {
+    const { data } = await supabase
+      .from("profiles")
+      .select("display_name, full_name")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!data) return null;
+    if (data.display_name?.trim()) return data.display_name.trim();
+    if (data.full_name?.trim()) return data.full_name.trim().split(" ")[0];
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * PWA actions: thin wrappers around src/lib/services/school.ts.
@@ -49,6 +76,8 @@ export async function createSchoolLog(formData: FormData) {
     eventTime: (formData.get("eventTime") as string) || null,
     subject: (formData.get("subject") as string) || null,
     score: (formData.get("score") as string) || null,
+    priority: parsePriority(formData.get("priority")),
+    actorDisplayName: await resolveActorName(supabase, user.id),
   });
 
   if (!result.success) {
@@ -118,6 +147,7 @@ export async function updateSchoolLog(formData: FormData) {
       childId: formData.has("childId") ? (formData.get("childId") as string) : undefined,
       logDate: formData.has("logDate") ? (formData.get("logDate") as string) : undefined,
       eventTime: formData.has("eventTime") ? ((formData.get("eventTime") as string) || null) : undefined,
+      priority: parsePriority(formData.get("priority")),
     },
     user.id,
   );
@@ -145,4 +175,35 @@ export async function toggleSchoolLogCompleted(logId: string) {
 
   revalidatePath("/escola");
   return { success: true, completed: result.data.completed };
+}
+
+/**
+ * Mark a school_log as read by the current user. Idempotent.
+ *
+ * Called ONLY when the user explicitly opens a record detail — never on
+ * list mount or scroll (see CLAUDE.md "Collaborative Records" — auto-read
+ * destroys the value of read receipts for the coparent).
+ *
+ * No redirect: this is called from client interaction and the UI
+ * optimistically updates. revalidatePath keeps the server-rendered
+ * dashboard badge in sync on next navigation.
+ */
+export async function markSchoolLogRead(logId: string): Promise<{ success: boolean; error?: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "Não autenticado." };
+
+  const { error } = await supabase.rpc("mark_collab_read", {
+    p_record_type: "school_log",
+    p_record_id: logId,
+  });
+  if (error) return { success: false, error: error.message };
+
+  // Telemetry — "the user actually opened the record". Drives the
+  // "engajamento real" metric Henrique asked for.
+  captureServerEvent(user.id, "school_log_read", { log_id: logId });
+
+  revalidatePath("/escola");
+  revalidatePath("/dashboard");
+  return { success: true };
 }

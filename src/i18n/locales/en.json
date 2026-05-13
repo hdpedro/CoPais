@@ -1246,6 +1246,18 @@
     "documentPlural": "documents",
     "confirmDeleteDoc": "Are you sure you want to delete this document?"
   },
+  "collab": {
+    "new": "New",
+    "seen": "Seen",
+    "priorityLabel": "Priority",
+    "priorityInfo": "Info",
+    "priorityImportant": "Important",
+    "priorityUrgent": "Urgent",
+    "priorityUrgentHint": "Urgent sends an immediate push to the other parent.",
+    "dashboardSchoolUnreadOne": "1 new school entry",
+    "dashboardSchoolUnreadOther": "{count} new school entries",
+    "dashboardTapHint": "Tap to see what the other parent logged."
+  },
   "schoolPage": {
     "subtitle": "Track school routine and children's development.",
     "registerChildFirst": "Register a child before logging school information.",

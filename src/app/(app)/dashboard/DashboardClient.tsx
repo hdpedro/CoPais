@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/i18n/provider";
 import ChildAvatarWeb from "@/components/ui/ChildAvatarWeb";
 import { EXPENSE_CATEGORIES, ACTIVITY_CATEGORIES } from "@/lib/constants";
 import type { ParentColorMap } from "@/lib/calendar-utils";
+import { trackEvent, EVENTS } from "@/lib/analytics";
 
 const ActivityReportModal = dynamic(() => import("@/app/(app)/atividades/ActivityReportModal"), { ssr: false });
 const QuickActionsModal = dynamic(() => import("@/components/QuickActionsModal"), { ssr: false });
@@ -254,6 +255,10 @@ export interface DashboardClientProps {
 
   // Context-aware section ordering (computed server-side)
   visibleSections: string[];
+
+  // Collab Foundation — Fase 1. Unread count of school_logs for the
+  // current user, used to surface "Escola · N novos" when > 0.
+  schoolUnreadCount: number;
 }
 
 /* ------------------------------------------------------------------ */
@@ -306,7 +311,16 @@ export default function DashboardClient(props: DashboardClientProps) {
     tomorrowDate,
     visibleSections,
     quickActionsConfig,
+    schoolUnreadCount,
   } = props;
+
+  // Snapshot the user's unread state on each dashboard mount. PostHog
+  // groups same-value events into a single funnel step, so this gives
+  // "% of days a user had pending school context" without instrumenting
+  // every screen. One event per render is fine — PostHog batches.
+  useEffect(() => {
+    trackEvent(EVENTS.UNREAD_COUNT, { record_type: "school_log", count: schoolUnreadCount });
+  }, [schoolUnreadCount]);
 
   // Resolve quick actions from user config or defaults
   const qaConfig = quickActionsConfig ?? { primary: DEFAULT_QUICK_ACTIONS.primary, secondary: [...DEFAULT_QUICK_ACTIONS.secondary] };
@@ -838,6 +852,29 @@ export default function DashboardClient(props: DashboardClientProps) {
             );
           })}
         </div>
+      )}
+
+      {/* === SCHOOL UNREAD (Collab Foundation — Fase 1) ===
+           Surface new school logs the user hasn't opened yet. Single line,
+           taps go to /escola where individual cards expand. Keep this tight
+           — multiple counters in the dashboard adds noise; one CTA suffices. */}
+      {show("schoolUnread") && schoolUnreadCount > 0 && (
+        <Link href="/escola" prefetch={false} className="block">
+          <div className="bg-[#FFF8F4] border border-[#C07055]/30 rounded-2xl p-3.5 flex items-center gap-3 hover:bg-[#FBEFE7] transition-colors">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg bg-[#C07055]/15">
+              🎒
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-[#2C2C2C]">
+                {schoolUnreadCount === 1 ? "1 registro escolar novo" : `${schoolUnreadCount} registros escolares novos`}
+              </p>
+              <p className="text-[11px] text-[#7A8C8B]">Toque pra ver o que o outro responsável registrou.</p>
+            </div>
+            <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#C07055] text-white text-[11px] font-bold flex-shrink-0">
+              {schoolUnreadCount}
+            </span>
+          </div>
+        </Link>
       )}
 
       {/* === PENDING ACTIVITY REPORTS === */}

@@ -1246,6 +1246,18 @@
     "documentPlural": "Dokumente",
     "confirmDeleteDoc": "Sind Sie sicher, dass Sie dieses Dokument loschen mochten?"
   },
+  "collab": {
+    "new": "Neu",
+    "seen": "Gesehen",
+    "priorityLabel": "Priorität",
+    "priorityInfo": "Info",
+    "priorityImportant": "Wichtig",
+    "priorityUrgent": "Dringend",
+    "priorityUrgentHint": "Dringend sendet eine sofortige Benachrichtigung an die andere Bezugsperson.",
+    "dashboardSchoolUnreadOne": "1 neuer Schuleintrag",
+    "dashboardSchoolUnreadOther": "{count} neue Schuleinträge",
+    "dashboardTapHint": "Tippen Sie, um zu sehen, was die andere Bezugsperson eingetragen hat."
+  },
   "schoolPage": {
     "subtitle": "Begleitung der Schulroutine und Entwicklung der Kinder.",
     "registerChildFirst": "Registrieren Sie ein Kind, bevor Sie Schulinformationen erfassen.",

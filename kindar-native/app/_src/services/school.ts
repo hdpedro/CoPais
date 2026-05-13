@@ -62,6 +62,8 @@ export const SUBTYPE_HINT: Partial<Record<SchoolLogType, string>> = {
   absence: 'Ausência registrada',
 };
 
+export type SchoolPriority = 'info' | 'important' | 'urgent';
+
 export interface SchoolLog {
   id: string;
   group_id: string;
@@ -74,16 +76,25 @@ export interface SchoolLog {
   logged_by: string;
   subject: string | null;
   score: string | null;
+  priority: SchoolPriority;
   created_at?: string;
   child_full_name?: string | null;
   logged_by_name?: string | null;
+}
+
+/** Read receipt from collab_reads — used by EscolaScreen to render
+ *  "Visto por Amanda · 14:32" + drive unread badges. */
+export interface SchoolLogRead {
+  log_id: string;
+  user_id: string;
+  read_at: string;
 }
 
 export async function fetchSchoolLogs(groupId: string, limit = 50): Promise<SchoolLog[]> {
   const { data, error } = await supabase
     .from('school_logs')
     .select(
-      'id, group_id, child_id, log_type, title, description, log_date, completed, logged_by, subject, score, created_at, children(full_name), profiles!school_logs_logged_by_fkey(full_name)',
+      'id, group_id, child_id, log_type, title, description, log_date, completed, logged_by, subject, score, priority, created_at, children(full_name), profiles!school_logs_logged_by_fkey(full_name)',
     )
     .eq('group_id', groupId)
     .order('log_date', { ascending: false })
@@ -108,6 +119,7 @@ export async function fetchSchoolLogs(groupId: string, limit = 50): Promise<Scho
       logged_by: row.logged_by as string,
       subject: (row.subject as string | null) ?? null,
       score: (row.score as string | null) ?? null,
+      priority: (row.priority as SchoolPriority) ?? 'info',
       created_at: row.created_at as string | undefined,
       child_full_name: child?.full_name ?? null,
       logged_by_name: profile?.full_name ?? null,
@@ -119,7 +131,7 @@ export async function fetchSchoolLogById(logId: string): Promise<SchoolLog | nul
   const { data, error } = await supabase
     .from('school_logs')
     .select(
-      'id, group_id, child_id, log_type, title, description, log_date, completed, logged_by, subject, score, created_at, children(full_name), profiles!school_logs_logged_by_fkey(full_name)',
+      'id, group_id, child_id, log_type, title, description, log_date, completed, logged_by, subject, score, priority, created_at, children(full_name), profiles!school_logs_logged_by_fkey(full_name)',
     )
     .eq('id', logId)
     .maybeSingle();
@@ -139,6 +151,7 @@ export async function fetchSchoolLogById(logId: string): Promise<SchoolLog | nul
     logged_by: row.logged_by as string,
     subject: (row.subject as string | null) ?? null,
     score: (row.score as string | null) ?? null,
+    priority: (row.priority as SchoolPriority) ?? 'info',
     created_at: row.created_at as string | undefined,
     child_full_name: child?.full_name ?? null,
     logged_by_name: profile?.full_name ?? null,
@@ -162,6 +175,7 @@ export async function createSchoolLog(params: {
   eventTime?: string | null;
   subject?: string | null;
   score?: string | null;
+  priority?: SchoolPriority;
 }): Promise<{ success: true; schoolLogId: string; eventId: string | null } | { success: false; error: string }> {
   const r = await apiFetch<{ success: true; schoolLogId: string; eventId: string | null }>('/api/school', {
     method: 'POST',
@@ -171,10 +185,16 @@ export async function createSchoolLog(params: {
       subtype: params.subtype,
       title: params.title,
       description: params.description ?? null,
-      logDate: params.logDate || new Date().toISOString().split('T')[0],
+      logDate: params.logDate || (() => {
+        // Data LOCAL — toISOString() retornaria UTC e salvaria o dia
+        // seguinte depois das 21h no Brasil (UTC-3).
+        const d = new Date();
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      })(),
       eventTime: params.eventTime ?? null,
       subject: params.subject ?? null,
       score: params.score ?? null,
+      priority: params.priority ?? 'info',
     },
   });
   if (!r.ok || !r.data) return { success: false, error: r.error || 'Falha ao salvar' };
@@ -192,6 +212,7 @@ export async function updateSchoolLog(
     childId?: string;
     logDate?: string;
     eventTime?: string | null;
+    priority?: SchoolPriority;
   },
 ) {
   // Route through API so the calendar mirror stays in sync with all edits
@@ -239,4 +260,50 @@ export async function toggleSchoolLogCompleted(logId: string, currentCompleted: 
     operation: 'update',
     payload: { id: logId, completed: !currentCompleted },
   });
+}
+
+/**
+ * Fetch all collab_reads receipts for the school logs in a group. One
+ * round-trip per render — list of `(log_id, user_id, read_at)`.
+ *
+ * Both the current user's reads (drives "unread" badge) and coparents'
+ * reads (drives "Visto por X" rows) come from this query. The collab_reads
+ * RLS policy `collab_reads coparent read` makes the latter visible.
+ */
+export async function fetchSchoolLogReads(groupId: string): Promise<SchoolLogRead[]> {
+  // Two-step: first list this group's school_log ids, then read receipts
+  // for those ids. A direct join on collab_reads → school_logs would need
+  // a FK + view; the two-step is cheaper to maintain.
+  const { data: logs } = await supabase
+    .from('school_logs')
+    .select('id')
+    .eq('group_id', groupId);
+  const ids = (logs || []).map((r) => r.id as string);
+  if (ids.length === 0) return [];
+
+  const { data } = await supabase
+    .from('collab_reads')
+    .select('record_id, user_id, read_at')
+    .eq('record_type', 'school_log')
+    .in('record_id', ids);
+
+  return (data || []).map((r: { record_id: string; user_id: string; read_at: string }) => ({
+    log_id: r.record_id,
+    user_id: r.user_id,
+    read_at: r.read_at,
+  }));
+}
+
+/**
+ * Mark a school_log as read by the current user. Idempotent (DB has the
+ * (record_type, record_id, user_id) PK). Called ONLY on explicit "open
+ * detail" — never on list mount/scroll (see CLAUDE.md).
+ */
+export async function markSchoolLogRead(logId: string): Promise<{ success: boolean; error?: string }> {
+  const { error } = await supabase.rpc('mark_collab_read', {
+    p_record_type: 'school_log',
+    p_record_id: logId,
+  });
+  if (error) return { success: false, error: error.message };
+  return { success: true };
 }

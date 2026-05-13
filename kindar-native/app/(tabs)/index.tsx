@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Linking, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import ActivityReportModal from 'src/components/activities/ActivityReportModal';
 import ActivityDetailSheet from 'src/components/activities/ActivityDetailSheet';
 import QuickActionsModal from 'src/components/QuickActionsModal';
 import ChildAvatar from 'src/components/ui/ChildAvatar';
+import { track, EVENTS } from 'src/lib/analytics';
 
 // i18n keys for greetings — same keys the PWA uses
 // (`dashboard.goodMorning` / `goodAfternoon` / `goodEvening`).
@@ -76,11 +77,18 @@ export default function DashboardScreen() {
   } | null>(null);
 
   // Reused for activity card → checklist modal (occurrenceDate).
-  const todayIso = new Date().toISOString().split('T')[0];
+  // IMPORTANTE: data LOCAL, nunca toISOString() (que retorna UTC).
+  // Em horario noturno no Brasil (UTC-3), UTC vira o dia seguinte e o
+  // report era salvo com occurrence_date errada, fazendo o card "Atualizar"
+  // nunca sumir mesmo apos salvar. useDashboard.ts:formatDateKey usa a
+  // mesma logica — paridade com o que foi fetched.
+  const formatLocalDate = (d: Date) =>
+    `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const todayIso = formatLocalDate(new Date());
   const tomorrowIso = (() => {
     const d = new Date();
     d.setDate(d.getDate() + 1);
-    return d.toISOString().split('T')[0];
+    return formatLocalDate(d);
   })();
 
   const onRefresh = useCallback(async () => {
@@ -89,6 +97,15 @@ export default function DashboardScreen() {
     await refresh();
     setRefreshing(false);
   }, [refresh]);
+
+  // Snapshot the user's unread state on each dashboard load. Mirrors
+  // the PWA DashboardClient — same event name, same shape, so PostHog
+  // can chart both surfaces together.
+  useEffect(() => {
+    if (typeof data?.schoolUnreadCount === 'number') {
+      track(EVENTS.UNREAD_COUNT, { record_type: 'school_log', count: data.schoolUnreadCount });
+    }
+  }, [data?.schoolUnreadCount]);
 
   // Estado pra desabilitar botoes durante respostas a swap requests.
   // Espelha o calendar.tsx — paridade na UX de aprovar/rejeitar.
@@ -679,6 +696,44 @@ export default function DashboardScreen() {
                 );
               })}
             </View>
+          </Animated.View>
+        ) : null}
+
+        {/* === SCHOOL UNREAD (Collab Foundation — Fase 1) ===
+             Single-line CTA when the other responsável criou registros
+             escolares que voce nao abriu ainda. Tap → /escola. */}
+        {(data?.schoolUnreadCount || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(215).duration(400)}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/escola'); }}
+              style={{
+                backgroundColor: 'rgba(192,112,85,0.08)',
+                borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
+                flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                borderWidth: 1, borderColor: 'rgba(192,112,85,0.3)',
+              }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(192,112,85,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 18 }}>🎒</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
+                  {data!.schoolUnreadCount === 1 ? '1 registro escolar novo' : `${data!.schoolUnreadCount} registros escolares novos`}
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
+                  Toque pra ver o que o outro responsável registrou.
+                </Text>
+              </View>
+              <View style={{
+                backgroundColor: colors.brand, paddingHorizontal: 8, paddingVertical: 2,
+                borderRadius: radius.full, minWidth: 22, alignItems: 'center',
+              }}>
+                <Text style={{ color: '#fff', fontSize: 11, fontWeight: font.weights.bold }}>
+                  {data!.schoolUnreadCount}
+                </Text>
+              </View>
+            </TouchableOpacity>
           </Animated.View>
         ) : null}
 

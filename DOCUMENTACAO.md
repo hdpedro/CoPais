@@ -482,6 +482,26 @@ Audit trail completo de todas as alteracoes em eventos.
 #### 32-38. Tabelas adicionais
 Incluem: `push_subscriptions`, `chat_channel_reads`, `agreements`, `school_logs`, `appointments`, `medications`, `medication_doses`, `illness_episodes`, `allergies`, `medical_info`, `vaccination_records`, `growth_records`, `professionals`, entre outras criadas nas migrations de saude e financeiro.
 
+#### 39. collab_reads (Foundation: Collaborative Records — Fase 1)
+Tabela única polimórfica de read receipts. Uma linha por `(record_type, record_id, user_id)` quando o user abre o detalhe do record.
+- `record_type` (TEXT — ex: `'school_log'`, futuro: `'decision'`, `'health_event'`)
+- `record_id` (UUID — points to the row in that module's table)
+- `user_id` (FK profiles ON DELETE CASCADE)
+- `read_at` (TIMESTAMPTZ, default `now()`)
+- **PK**: `(record_type, record_id, user_id)` — idempotente, INSERT ... ON CONFLICT DO NOTHING via RPC
+- **RLS**: user só insere a sua linha; user + coparentes do mesmo grupo conseguem ler ("Visto por Amanda · 14:32")
+- **Group lookup**: função `collab_record_group(record_type, record_id)` resolve o grupo via WHEN branch por tipo (cada adoção adiciona uma branch)
+- **RPC**: `mark_collab_read(p_record_type, p_record_id)` é o único caminho de escrita do client
+- **Auto-mark creator**: cada tabela colaborativa tem um trigger `<table>_auto_mark_creator_read` que insere row pro `logged_by`/`created_by` na criação — o autor não vê o próprio registro como "novo"
+- Migration: `00077_collab_foundation.sql`
+- Consumido por: `src/lib/services/collab.ts` (notifyCollabCreate + unreadCollabCount) + `src/actions/school.ts:markSchoolLogRead` + `kindar-native/app/_src/services/school.ts:fetchSchoolLogReads,markSchoolLogRead`
+- Ver `.claude/CLAUDE.md` seção "Foundation: Collaborative Records" pro pattern de adoção.
+
+#### 39b. school_logs (extensão Fase 1)
+- Coluna nova: `priority public.collab_priority NOT NULL DEFAULT 'info'` — enum `('info','important','urgent')` compartilhado entre todos os módulos colaborativos
+- Index: `idx_school_logs_priority (group_id, priority)`
+- Trigger: `school_logs_auto_mark_creator_read` AFTER INSERT — popula `collab_reads` pro `logged_by` automaticamente
+
 #### 43-47. Tabelas usadas pelo Kindar Native (mapeadas agora no native)
 
 **43. custody_schedules** — Pattern da escala de guarda quinzenal (2 semanas = 14 dias), `UNIQUE(group_id, child_id)`.
@@ -674,6 +694,7 @@ Politicas garantem que:
 | `00052_cron_logs.sql` | **Observabilidade de CRONs**: tabela `cron_logs` (name, success, processed, sent, errors JSONB, started_at, finished_at, duration_ms) + indices |
 | `00064_birthday_notification_type.sql` | **Lembrete de aniversario**: adiciona valor `birthday_reminder` ao enum `notification_type` (consumido por `/api/cron/birthday-reminders`, dispara D-7) |
 | `00065_whatsapp_v2_views.sql` | **WhatsApp v2**: views read-only `child_current_status` (snapshot de saude por crianca derivado de illness_episodes + active_medications + child_allergies) e `expense_balance_per_user` (saldo pendente derivado de expenses.split_ratio). Usadas pelas tools `get_child_status` e `get_balance`. |
+| `00077_collab_foundation.sql` | **Foundation: Collaborative Records — Fase 1**: tabela polimórfica `collab_reads` + enum `collab_priority` + função `collab_record_group()` + RPC `mark_collab_read()` + trigger `school_logs_auto_mark_creator_read`. Adiciona coluna `priority` em `school_logs`. Primeira camada do "sistema de sincronização familiar" — read receipts, unread state, prioridade compartilhados entre coparentes. |
 
 ---
 

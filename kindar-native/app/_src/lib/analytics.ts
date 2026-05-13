@@ -56,6 +56,12 @@ export const EVENTS = {
   // Referral
   REFERRAL_LINK_COPIED: 'referral_link_copied',
   REFERRAL_LINK_SHARED: 'referral_link_shared',
+
+  // Collaborative Records Foundation — Fase 1.
+  NOTIFICATION_OPENED: 'notification_opened',
+  SCHOOL_LOG_READ: 'school_log_read',
+  UNREAD_COUNT: 'unread_count',
+  URGENT_CREATED: 'urgent_created',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
