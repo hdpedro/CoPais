@@ -23,27 +23,27 @@
  */
 
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { notifyCollabCreate, type CollabPriority } from "./collab";
+// Types + client-safe utilities live in school-shared.ts so that client
+// code (EscolaClient, native) can import them WITHOUT pulling this
+// server-only file (which transitively depends on next/headers and Node
+// crypto via collab.ts). Re-export here for ergonomic server-side import.
+import {
+  type SchoolSubtype,
+  type SchoolKind,
+  type SchoolPriority,
+  getKind,
+  isValidSubtype,
+} from "./school-shared";
 
-// ── Types ────────────────────────────────────────────────────────────────
+export type { SchoolSubtype, SchoolKind, SchoolPriority } from "./school-shared";
+export { EVENT_SUBTYPES, NOTE_SUBTYPES, getKind, isValidSubtype } from "./school-shared";
 
-export type SchoolSubtype =
-  | "exam" | "meeting" | "event" | "homework" | "absence"      // events
-  | "grade" | "behavior" | "achievement" | "concern" | "other"; // notes
+// notifyCollabCreate is server-only (uses next/headers, Node crypto).
+// Imported statically here — fine because school.ts is itself server-only
+// (it only ships server-side; clients import from school-shared.ts).
+import { notifyCollabCreate } from "./collab";
 
-export type SchoolKind = "event" | "note";
-
-// Re-export so callers (actions, api routes) import priority from school
-// without needing to know about the collab layer. Tight coupling at the
-// boundary, loose elsewhere.
-export type SchoolPriority = CollabPriority;
-
-export const EVENT_SUBTYPES: SchoolSubtype[] = ["exam", "meeting", "event", "homework", "absence"];
-export const NOTE_SUBTYPES: SchoolSubtype[] = ["grade", "behavior", "achievement", "concern", "other"];
-
-export function getKind(subtype: SchoolSubtype): SchoolKind {
-  return EVENT_SUBTYPES.includes(subtype) ? "event" : "note";
-}
+// ── Server-only types ───────────────────────────────────────────────────
 
 export interface CreateSchoolLogInput {
   groupId: string;
@@ -75,13 +75,8 @@ export interface CreateSchoolLogResult {
 
 export type ServiceResult<T> = { success: true; data: T } | { success: false; error: string };
 
-// ── Validation ───────────────────────────────────────────────────────────
-
-const VALID_SUBTYPES: SchoolSubtype[] = [...EVENT_SUBTYPES, ...NOTE_SUBTYPES];
-
-export function isValidSubtype(s: unknown): s is SchoolSubtype {
-  return typeof s === "string" && (VALID_SUBTYPES as string[]).includes(s);
-}
+// ── Validation regexes ───────────────────────────────────────────────────
+// `isValidSubtype` lives in school-shared.ts (used by both client and server).
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const HHMM = /^\d{2}:\d{2}$/;
@@ -219,6 +214,9 @@ export async function createSchoolLog(
   // Coalesces in a 60s burst so creating multiple records back-to-back
   // shows as one aggregated push ("Amanda adicionou N registros escolares")
   // instead of N separate alerts. Edit doesn't notify (default rule).
+  // notifyCollabCreate is server-only and never throws (silent failure),
+  // so we don't need a try/catch here. Imported statically — safe because
+  // this file is server-only and clients use school-shared.ts.
   const actorName = input.actorDisplayName?.trim() || "Um responsável";
   const pushTitle = `${actorName} adicionou um registro escolar`;
   await notifyCollabCreate({

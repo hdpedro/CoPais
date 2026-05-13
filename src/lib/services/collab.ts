@@ -20,7 +20,14 @@
  * Read receipts are written by the CLIENT calling the `mark_collab_read`
  * RPC when the user opens a record detail. Server doesn't auto-mark on
  * list fetch — that defeats the purpose of read receipts.
+ *
+ * SERVER-ONLY: this module imports next/headers (via posthog-server) and
+ * Node-only crypto (via push). The `server-only` marker fails fast at
+ * build time if a Client Component ever imports it directly; callers
+ * (school.ts service etc.) reach this via dynamic import so the bundler
+ * doesn't pull it into client chunks.
  */
+import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser } from "@/lib/push";
 import { captureServerEvent } from "@/lib/posthog-server";
