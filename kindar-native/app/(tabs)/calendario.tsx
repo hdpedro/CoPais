@@ -892,8 +892,12 @@ export default function CalendarScreen() {
                       // ou rota — RN nao stacka <Modal> sobrepostos limpa.
                       // Bug reportado: atividades pareciam nao responder.
                       if (isSchool && e.schoolLogId) {
+                        // Tap em evento Escola → detalhe específico (igual /atividades/[id]
+                        // e /eventos/[id]). Bug Barata 2026-05-14: antes ia pra /escola com
+                        // ?highlight=<id>, mas UX esperada é abrir o card cheio com todos
+                        // os campos. /escola/[id] espelha o pattern de saude/detalhe.
                         setSelectedDay(null);
-                        router.push({ pathname: '/escola', params: { highlight: e.schoolLogId } } as never);
+                        router.push({ pathname: '/escola/[id]', params: { id: e.schoolLogId } } as never);
                         return;
                       }
                       if (e.type === 'activity' && day) {

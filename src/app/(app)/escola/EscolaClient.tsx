@@ -223,23 +223,28 @@ export default function EscolaClient({ groupId, isReadonly, currentUserId, child
 
   /* ─ Filtered + sorted list ───────────────────────────────────── */
 
-  // Sort: unread first → highest priority next → newest date last.
-  // Inside each tier, preserve the input order (which is already date DESC
-  // from the page query). This matches the "premium feed" feeling — what
-  // needs attention is at the top, but you can still browse by date below.
+  // Sort: data da atividade DESC (chronológico, mais recente primeiro)
+  // → priority DESC → unread first (tiebreaks dentro do mesmo dia).
+  //
+  // Bug Barata 2026-05-14: sort anterior era "unread first → priority → date"
+  // e parecia bagunçado pro user porque scrambla a ordem chronológica.
+  // Os chips "Novo" + borda colorida já destacam o status visualmente; reordenar
+  // por isso confunde a expectativa "ordenado por data da atividade pra fazer
+  // sentido". Paridade com Native escola/index.tsx.
   const filteredLogs = useMemo(() => {
     const base = logs.filter((l) => {
       if (filterKind === "all") return true;
       return getKind(l.log_type as SchoolSubtype) === filterKind;
     });
     return [...base].sort((a, b) => {
-      const unreadA = isUnread(a) ? 1 : 0;
-      const unreadB = isUnread(b) ? 1 : 0;
-      if (unreadA !== unreadB) return unreadB - unreadA;
+      const dateCmp = b.log_date.localeCompare(a.log_date);
+      if (dateCmp !== 0) return dateCmp;
       const prioA = PRIORITY_META[a.priority]?.rank ?? 0;
       const prioB = PRIORITY_META[b.priority]?.rank ?? 0;
       if (prioA !== prioB) return prioB - prioA;
-      return b.log_date.localeCompare(a.log_date);
+      const unreadA = isUnread(a) ? 1 : 0;
+      const unreadB = isUnread(b) ? 1 : 0;
+      return unreadB - unreadA;
     });
     // isUnread depends on optimisticReads + readsByLog — re-sort when those change.
     // eslint-disable-next-line react-hooks/exhaustive-deps

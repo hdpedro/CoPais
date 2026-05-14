@@ -8,7 +8,7 @@
  * Antes do 2026-04-27 essa tela so editava `child_education`. A timeline
  * de `school_logs` era PWA-only — fechado por essa migracao.
  */
-import { useState, useCallback, useEffect, useMemo } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput,
   KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
@@ -101,8 +101,10 @@ export default function EscolaScreen() {
 
   // Deep link from calendar: tap on event with school_log_id sets ?highlight=<id>
   // → land directly on Registros tab.
-  const { highlight } = useLocalSearchParams<{ highlight?: string }>();
-  const [tab, setTab] = useState<Tab>(highlight ? 'logs' : 'info');
+  // Deep link from /escola/[id] detail page: ?openEditFor=<id> auto-abre o
+  // editor pra esse log assim que a lista carregar.
+  const { highlight, openEditFor } = useLocalSearchParams<{ highlight?: string; openEditFor?: string }>();
+  const [tab, setTab] = useState<Tab>(highlight || openEditFor ? 'logs' : 'info');
 
   // Info tab state
   const [schools, setSchools] = useState<ChildSchool[]>([]);
@@ -169,6 +171,20 @@ export default function EscolaScreen() {
     // and bail; the second pass picks up the loaded target.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [highlight, logs.length]);
+
+  // Deep link de /escola/[id] detail page: ?openEditFor=<id> → abre editor.
+  // Fires UMA vez quando o log da lista é carregado. Sem isso, o user voltava
+  // do detalhe sem o editor abrir — UX quebrada.
+  const editTriggered = useRef(false);
+  useEffect(() => {
+    if (!openEditFor || editTriggered.current) return;
+    const target = logs.find((l) => l.id === openEditFor);
+    if (target) {
+      editTriggered.current = true;
+      void openEditLog(target);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [openEditFor, logs.length]);
 
   const load = useCallback(async () => {
     if (!groupId) return;
@@ -547,16 +563,24 @@ export default function EscolaScreen() {
             ) : (
               logs
                 .filter(l => filterKind === 'all' || getKind(l.log_type) === filterKind)
-                // Sort: unread first → highest priority → newest date. Mirrors PWA EscolaClient.
+                // Sort: data da atividade DESC (chronológico, mais recente primeiro)
+                // → priority DESC → unread first (tiebreaks dentro do mesmo dia).
+                //
+                // Bug Barata 2026-05-14: sort anterior era "unread first → priority
+                // → date" e parecia bagunçado pro user porque scrambla a ordem
+                // chronológica. Os chips "Novo" + borda colorida já destacam o
+                // status; reordenar por isso confunde a expectativa "ordenado por
+                // data da atividade pra fazer sentido".
                 .slice()
                 .sort((a, b) => {
-                  const ua = isUnread(a) ? 1 : 0;
-                  const ub = isUnread(b) ? 1 : 0;
-                  if (ua !== ub) return ub - ua;
+                  const dateCmp = b.log_date.localeCompare(a.log_date);
+                  if (dateCmp !== 0) return dateCmp;
                   const pa = PRIORITY_META[a.priority]?.rank ?? 0;
                   const pb = PRIORITY_META[b.priority]?.rank ?? 0;
                   if (pa !== pb) return pb - pa;
-                  return b.log_date.localeCompare(a.log_date);
+                  const ua = isUnread(a) ? 1 : 0;
+                  const ub = isUnread(b) ? 1 : 0;
+                  return ub - ua;
                 })
                 .map((log) => {
                 const isHomework = log.log_type === 'homework';
