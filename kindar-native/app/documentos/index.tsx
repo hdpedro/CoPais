@@ -335,6 +335,18 @@ export default function DocumentosScreen() {
                         })}
                       </Text>
                     </View>
+                    {/* Botão lixeira visível — bug Mauricio 2026-05-14:
+                        antes só long-press, usuário não descobria. */}
+                    <TouchableOpacity
+                      onPress={(ev) => {
+                        ev.stopPropagation();
+                        handleDelete(doc);
+                      }}
+                      hitSlop={10}
+                      style={{ padding: 6, marginRight: -4 }}
+                    >
+                      <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
                     <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                   </TouchableOpacity>
                 );
@@ -350,7 +362,7 @@ export default function DocumentosScreen() {
               marginTop: spacing.md,
             }}
           >
-            Toque para abrir · Pressionar para excluir
+            Toque para abrir · Lixeira ou pressione para excluir
           </Text>
         </ScrollView>
       )}

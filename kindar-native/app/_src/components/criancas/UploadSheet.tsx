@@ -155,9 +155,16 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    // Bug Aline/Mauricio 2026-05-14: usuária reclamou que "envia mas não
+    // fica salvo" — na realidade o documento é gravado, mas o feedback
+    // visual era SILENCIOSO (modal fecha sem confirmação) e a tela atrás
+    // ainda tem o state antigo enquanto load() refetch acontece em background.
+    // Alert explícito de sucesso elimina a ambiguidade.
     reset();
     onClose();
     onUploaded();
+    // Setembro do alert pós-fechamento — UX comum em iOS apps premium.
+    Alert.alert('Documento enviado', 'O arquivo foi salvo e já está disponível pra todos do grupo.');
   }
 
   function handleClose() {

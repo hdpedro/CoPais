@@ -199,7 +199,24 @@ export default function TabDocumentos({
               {isDeleting ? (
                 <ActivityIndicator size="small" color={colors.error} />
               ) : (
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                <>
+                  {/* Botão de excluir visível (não só long-press) — bug
+                      Mauricio 2026-05-14: usuário não descobria que dava pra
+                      excluir porque o long-press não era sugestivo. Ícone
+                      lixeira em cinza-vermelho ao lado do chevron resolve sem
+                      remover o long-press (que continua funcionando). */}
+                  <TouchableOpacity
+                    onPress={(ev) => {
+                      ev.stopPropagation();
+                      handleDelete(doc);
+                    }}
+                    hitSlop={10}
+                    style={{ padding: 6, marginRight: -4 }}
+                  >
+                    <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+                  </TouchableOpacity>
+                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                </>
               )}
             </TouchableOpacity>
           );
@@ -215,7 +232,7 @@ export default function TabDocumentos({
             marginTop: spacing.md,
           }}
         >
-          Toque para abrir · Pressionar para excluir
+          Toque para abrir · Lixeira ou pressione para excluir
         </Text>
       ) : null}
     </ScrollView>

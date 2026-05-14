@@ -175,6 +175,17 @@ export async function uploadChildDocument(formData: FormData) {
   redirect("/criancas/" + childId + "?tab=documentos&success=" + encodeURIComponent("Documento enviado com sucesso."));
 }
 
+/**
+ * Apaga documento não associado a criança específica (seção "Geral" da
+ * tela /documentos). Reuso de deleteChildDocument passando childId="" —
+ * a função aceita childId vazio (só pula o revalidatePath específico
+ * da criança). Bug Mauricio 2026-05-14: PWA não tinha botão de delete
+ * em generalDocs, só "Baixar". Esta action habilita o fluxo.
+ */
+export async function deleteGroupDocument(documentId: string) {
+  return deleteChildDocument(documentId, "");
+}
+
 export async function deleteChildDocument(documentId: string, childId: string) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -230,7 +241,9 @@ export async function deleteChildDocument(documentId: string, childId: string) {
 
   captureServerEvent(user.id, "child_document_deleted");
 
-  revalidatePath("/criancas/" + childId);
+  // childId vazio = chamada via deleteGroupDocument (doc sem criança).
+  // Só revalida o path específico da criança se foi passado.
+  if (childId) revalidatePath("/criancas/" + childId);
   revalidatePath("/documentos");
   return { success: true };
 }
