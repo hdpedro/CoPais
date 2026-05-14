@@ -13,6 +13,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
+import {
+  resolveTodayCustody,
+  findNextCustodyHandover,
+  type CustodyEvent as CustodyEventInput,
+} from '../lib/custody-resolve';
 import { signChildAvatar } from '../services/children';
 import { PARENT_COLORS, getDisplayName } from '../lib/constants';
 import { cacheGet, cacheSet, isOnline } from '../services/offline';
@@ -376,22 +381,25 @@ export function useDashboard() {
         color: i === 0 ? PARENT_COLORS.primary : PARENT_COLORS.secondary,
       }));
 
-      // Resolve duplicate today-coverage (regular range + swap single-day).
-      // When both rows are returned for the same child + date, the swap row
-      // is the source of truth. Reduce to one entry per child where swap
-      // wins over regular (matches PWA `buildCustodyMap` precedence rule).
-      const customSorted = ((custodyEvents || []) as any[]).slice().sort((a, b) => {
-        const aSwap = a.custody_type === 'swap' ? 1 : 0;
-        const bSwap = b.custody_type === 'swap' ? 1 : 0;
-        return bSwap - aSwap; // swap first
-      });
-      const seenChild = new Set<string>();
+      // Bug Barata 2026-05-14 (iOS native): a versão antiga aqui só
+      // priorizava swap > regular pelo sort, ignorando exception e
+      // created_at. E o cálculo de nextSwap mais abaixo era heurístico
+      // (endDate + 1 day + "outro pai"), sem considerar swaps futuros
+      // aprovados.
+      //
+      // Fix: usar src/lib/custody-resolve.ts (mesmo módulo do PWA) que
+      // espelha a view SQL custody_resolved da migration 00079:
+      //   swap > exception > regular, tie-break created_at DESC.
+      // E pra próxima troca, iterar dia-a-dia até achar handover real.
+      const allCustodyForResolve = ((custodyEvents || []) as unknown) as CustodyEventInput[];
+      const todayWinnerMap = resolveTodayCustody(allCustodyForResolve, today);
+      // Re-localizar evento original (com joins de profiles/children) já
+      // que o helper trabalha com tipo enxuto. Mantém compat com código
+      // abaixo que lê e.children.full_name, e.profiles.full_name, etc.
       const dedupedToday: any[] = [];
-      for (const ev of customSorted) {
-        const cid = ev.child_id || '__no_child__';
-        if (seenChild.has(cid)) continue;
-        seenChild.add(cid);
-        dedupedToday.push(ev);
+      for (const winner of todayWinnerMap.values()) {
+        const full = (custodyEvents || []).find((c: any) => c.id === winner.id) || winner;
+        dedupedToday.push(full);
       }
 
       // Build custody children
@@ -419,18 +427,31 @@ export function useDashboard() {
         streakDays = Math.max(1, Math.floor((todayDate.getTime() - startDate.getTime()) / 86400000) + 1);
         streakTotal = Math.max(1, Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
 
-        // end_date + 1 day = next swap day
-        const next = new Date(endDate);
-        next.setDate(next.getDate() + 1);
         const weekdays = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
         const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-        nextSwapLabel = `${weekdays[next.getDay()]} ${next.getDate()}/${months[next.getMonth()]}`;
 
-        // Find who takes custody after end_date by looking at the next event
-        // (heuristic: the OTHER parent — we only show the name of whoever isn't current)
-        const currentResponsible = ce.responsible_user_id;
-        const otherMember = memberList.find(m => m.user_id !== currentResponsible);
-        if (otherMember) nextSwapPerson = otherMember.name.toUpperCase();
+        // Próxima troca: PROPER via custody-resolve helper. A versão antiga
+        // usava `endDate + 1 day` + "outro pai" como heurística, ignorando
+        // swaps futuros aprovados. Bug Barata: swap aprovado pra próximo
+        // fim de semana fazia ele continuar com Bernardo, mas o card mostrava
+        // a próxima troca como "AMANDA" (heurística do "outro pai" — errado
+        // porque o swap segura ele com Bernardo, troca real só na segunda).
+        const childId = ce.child_id;
+        const currentResp = ce.responsible_user_id;
+        const handover = findNextCustodyHandover(
+          allCustodyForResolve,
+          childId,
+          today,
+          currentResp,
+        );
+        if (handover) {
+          const next = new Date(handover.dateKey + 'T12:00:00');
+          nextSwapLabel = `${weekdays[next.getDay()]} ${next.getDate()}/${months[next.getMonth()]}`;
+          const memberOfHandover = memberList.find(
+            (m) => m.user_id === handover.event.responsible_user_id,
+          );
+          nextSwapPerson = memberOfHandover?.name?.toUpperCase() ?? null;
+        }
 
         const custodyType = ce.custody_type || 'regular';
         const dayOfWeekPt = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'][endDate.getDay()];

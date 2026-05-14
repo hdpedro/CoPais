@@ -1,5 +1,10 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/supabase/auth-helper";
+import {
+  resolveTodayCustody,
+  findNextCustodyHandover,
+  type CustodyEvent as CustodyEventRow,
+} from "@/lib/custody-resolve";
 import { getCachedProfileByUser, getCachedMembers, getCachedChildren } from "@/lib/cached-queries";
 import { getSignedFileUrl } from "@/lib/storage-signed-url";
 import { getActiveGroup } from "@/lib/group-utils";
@@ -326,9 +331,12 @@ export default async function DashboardPage() {
   const todayEvents = safeAllCustody.filter(
     (e) => e.start_date <= today && e.end_date >= today
   );
-  const futureEvents = safeAllCustody
-    .filter((e) => e.start_date > today)
-    .slice(0, 5);
+  // `futureEvents` removido — antes era usado pelo bloco `nextSwapEvent`
+  // que iterava por start_date ASC sem aplicar prioridade swap>regular
+  // (bug Barata 2026-05-14). Substituído por findNextCustodyHandover do
+  // helper custody-resolve, que itera dia-a-dia resolvendo o winner por
+  // dia. Type pra renderização vem de `safeAllCustody[number]`.
+  type FutureCustodyEvent = typeof safeAllCustody[number];
   const upcomingEvents = safeAllCustody.filter(
     (e) => e.start_date >= today && e.start_date <= formatDateKey(fourteenDays) && e.custody_type !== "regular"
   ).slice(0, 4);
@@ -499,12 +507,21 @@ export default async function DashboardPage() {
     );
   }
 
-  // Process today custody
+  // Process today custody — bug Barata 2026-05-14: o loop antigo pegava
+  // o PRIMEIRO event por start_date ASC, ignorando que swap > regular.
+  // Quando há swap+regular pro mesmo dia/criança, regular vencia (tem
+  // start_date mais antigo do range) — retornava Amanda em vez de Barata.
+  //
+  // Fix: aplicar regra do view custody_resolved (00079) em memória via
+  // resolveTodayCustody → pickCustodyWinner (swap>exception>regular,
+  // tie-break created_at DESC).
   const todayCustodyByChild: Record<string, { responsibleId: string; responsibleName: string; isWithMe: boolean; endDate: string; custodyType: string }> = {};
   if (todayEvents.length > 0) {
-    for (const event of todayEvents) {
-      const childId = event.child_id;
-      if (!childId || todayCustodyByChild[childId]) continue;
+    const winnerByChild = resolveTodayCustody(todayEvents as unknown as CustodyEventRow[], today);
+    for (const [childId, ev] of winnerByChild.entries()) {
+      // Re-localizar o event original (com profiles populado) já que o
+      // helper trabalha com tipo enxuto que não inclui o join.
+      const event = (todayEvents as typeof todayEvents).find((e) => e.id === (ev as { id: string }).id) ?? (ev as unknown as (typeof todayEvents)[number]);
       const responsibleName = getDisplayName((event.profiles as unknown as { full_name: string | null } | null)?.full_name, true);
       todayCustodyByChild[childId] = {
         responsibleId: event.responsible_user_id,
@@ -545,10 +562,35 @@ export default async function DashboardPage() {
     }
   }
 
-  const nextSwapEvent = futureEvents?.find((e) => {
-    const todayInfo = todayCustodyByChild[e.child_id];
-    return todayInfo ? e.responsible_user_id !== todayInfo.responsibleId : true;
-  });
+  // Bug Barata 2026-05-14 (iOS): a versão antiga deste find() retornava o
+  // primeiro futureEvent (ordenado por start_date) com responsible≠hoje,
+  // SEM aplicar swap>regular. Resultado: pra próximo final de semana com
+  // swap aprovado (sex 15 → Barata) + regular (sex 15→qui 21 → Amanda),
+  // o card mostrava "PRÓXIMA TROCA · AMANDA" porque o regular tem
+  // start_date mais antigo e a iteração encontrava ele primeiro.
+  //
+  // Fix: itera dia-a-dia (até +60d) resolvendo o winner por dia via
+  // pickCustodyWinner. Primeira data com winner.responsible ≠ current é
+  // a próxima troca real. findNextCustodyHandover encapsula isso.
+  let nextSwapEvent: FutureCustodyEvent | undefined;
+  for (const childId of Object.keys(todayCustodyByChild)) {
+    const todayInfo = todayCustodyByChild[childId];
+    const handover = findNextCustodyHandover(
+      safeAllCustody as CustodyEventRow[],
+      childId,
+      today,
+      todayInfo.responsibleId,
+    );
+    if (handover) {
+      const ev = handover.event as FutureCustodyEvent;
+      // Pra renderizar o "PRÓXIMA TROCA · NAME" precisamos do start_date
+      // do dia em que a troca acontece (não do range completo do event).
+      // O `formatSwapDate` consome `start_date`, então passamos a data
+      // exata do handover. Evento winner mantém profiles populado.
+      nextSwapEvent = { ...ev, start_date: handover.dateKey };
+      break;
+    }
+  }
 
   // Process financial (exclude rejected expenses, consistent with Financeiro page)
   let myTotal = 0;
