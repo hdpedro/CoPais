@@ -711,8 +711,10 @@ export default async function DashboardPage() {
 
   const hasAnyCriticalChild = childHealthSummaries.some(c => c.status === "treatment");
 
-  // UI constants
-  const displayFullName = getDisplayName(profile?.full_name);
+  // UI constants — prefere display_name (coluna gerada do banco, migration 00081)
+  // sobre full_name. getDisplayName é defensiva final: vazio → "Usuário".
+  const profileRow = profile as ({ display_name?: string | null; full_name?: string | null } | null);
+  const displayFullName = getDisplayName(profileRow?.display_name || profileRow?.full_name);
   const nameParts = displayFullName.split(" ");
   // Handle prefixes like "Dr.", "Dra.", "Sr.", "Sra." — use prefix + next word
   const prefixes = ["dr.", "dra.", "sr.", "sra.", "prof."];
@@ -735,10 +737,19 @@ export default async function DashboardPage() {
     ? `${firstChild!.full_name?.split(" ")[0]} com ${firstCustody.isWithMe ? "voce" : firstCustody.responsibleName} hoje`
     : null;
 
-  // End date label for hero
+  // End date label for hero — bug Barata 2026-05-14: antes mostrava
+  // "swap - qua" / "regular - qua" literal (termo técnico do banco vazando
+  // pro user). Friendly:
+  //   - regular → "até <dia>" (omite o tipo, escala normal não merece destaque)
+  //   - swap    → "troca · <dia>"
+  //   - exception → "ajuste · <dia>"
   const endDateLabel = firstCustody ? (() => {
     const end = new Date(firstCustody.endDate + "T12:00:00");
-    return `${firstCustody.custodyType === "regular" ? "regular" : firstCustody.custodyType} - ${dayNamesShort[end.getDay()].toLowerCase()}`;
+    const day = dayNamesShort[end.getDay()].toLowerCase();
+    const t = firstCustody.custodyType;
+    if (t === "swap") return `troca · ${day}`;
+    if (t === "exception") return `ajuste · ${day}`;
+    return `até ${day}`;
   })() : "";
 
   // Week view

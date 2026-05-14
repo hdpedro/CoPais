@@ -453,9 +453,20 @@ export function useDashboard() {
           nextSwapPerson = memberOfHandover?.name?.toUpperCase() ?? null;
         }
 
-        const custodyType = ce.custody_type || 'regular';
+        // Label amigável do subtítulo do hero ("Bernardo · troca · qua").
+        // Bug Barata 2026-05-14: antes era `${custody_type} - ${dia}` → o
+        // user via "swap - qua" literal, termo técnico vazando do banco.
+        // - regular: omite o tipo (escala normal não merece destaque)
+        // - swap: "troca" (linguagem do produto)
+        // - exception: "ajuste" (caso único, fora da escala)
         const dayOfWeekPt = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'][endDate.getDay()];
-        endDateLabel = `${custodyType} - ${dayOfWeekPt}`;
+        const custodyType = ce.custody_type || 'regular';
+        const typeLabel = custodyType === 'swap'
+          ? 'troca'
+          : custodyType === 'exception'
+            ? 'ajuste'
+            : null;
+        endDateLabel = typeLabel ? `${typeLabel} · ${dayOfWeekPt}` : `até ${dayOfWeekPt}`;
       }
 
       // Custody summary for greeting subtitle. Suporta multiplos filhos:
