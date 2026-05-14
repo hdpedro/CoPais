@@ -88,8 +88,27 @@ export const useI18n = create<I18nState>((set, get) => ({
     const value = getNestedValue(get().translations, key);
     if (!value) return key;
     if (!params) return value;
-    return value.replace(/\{\{(\w+)\}\}/g, (_, k) =>
-      params[k] !== undefined ? String(params[k]) : `{{${k}}}`,
-    );
+    // Bug Aline 2026-05-13 (iOS): a regex original procurava SÓ `{{count}}`
+    // (double braces, sintaxe i18next), mas TODAS as locale files JSON têm
+    // uma mistura:
+    //   - Strings antigas / migradas do PWA usam `{{var}}` (i18next-style)
+    //   - Strings novas (adicionadas em sessões recentes) usam `{var}`
+    //     (single brace, ICU/MessageFormat-style)
+    // Resultado pré-fix: STRINGS com `{var}` apareciam literais (bug
+    // visível "21 registros... {count}"); strings com `{{var}}` funcionavam.
+    //
+    // Fix defensivo: passar pelas DUAS sintaxes na ordem
+    //   1. {{var}} primeiro (i18next legacy)
+    //   2. {var} depois (single brace moderna)
+    // Garante que o user nunca veja `{...}` literal independente do estilo
+    // da string. O drift guard em tests/unit/i18n-native-interpolation.test.ts
+    // alerta sobre estilos misturados pra migração gradual ser tracked.
+    return value
+      .replace(/\{\{(\w+)\}\}/g, (_, k) =>
+        params[k] !== undefined ? String(params[k]) : `{{${k}}}`,
+      )
+      .replace(/\{(\w+)\}/g, (_, k) =>
+        params[k] !== undefined ? String(params[k]) : `{${k}}`,
+      );
   },
 }));
