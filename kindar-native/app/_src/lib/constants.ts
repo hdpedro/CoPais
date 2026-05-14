@@ -81,9 +81,33 @@ export const CHECKIN_CATEGORIES = [
   { value: 'other', icon: '📝' },
 ] as const;
 
-export function getDisplayName(fullName: string | null | undefined): string {
-  if (!fullName) return '';
-  return fullName.split(' ')[0];
+/**
+ * Normaliza nome pra exibir na UI. Espelha `src/lib/constants.ts:getDisplayName`
+ * (PWA) — mesma assinatura, mesmo comportamento.
+ *
+ * Por que `firstOnly` default `false`:
+ *   Bug Fernanda 2026-05-14: criança chamada "Julio Cesar" aparecia só como
+ *   "Julio" porque o helper antigo SEMPRE quebrava no primeiro espaço. Nomes
+ *   compostos PT-BR (Julio Cesar, Maria Eduarda, Ana Clara) são comuns e
+ *   parte do nome próprio — não devem ser truncados. Default agora é nome
+ *   completo; chamadas que precisam compacto (greeting, lista de membros,
+ *   expense paid-by) passam `, true` explicitamente.
+ *
+ * Retorna `''` pra entrada vazia (não "Usuário") porque vários callers usam
+ * o padrão `getDisplayName(x) || 'Fallback'` — mantém compat.
+ *
+ * Defensivo pra email acidental: `henrique.de.pedro@gmail.com` →
+ * "Henrique De Pedro" (mesma lógica do PWA).
+ */
+export function getDisplayName(fullName: string | null | undefined, firstOnly = false): string {
+  if (!fullName || !fullName.trim()) return '';
+  let normalized = fullName.trim();
+  if (normalized.includes('@')) {
+    normalized = normalized.split('@')[0]
+      .replace(/[._-]/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+  return firstOnly ? normalized.split(' ')[0] : normalized;
 }
 
 // ---------- Quick Actions ----------

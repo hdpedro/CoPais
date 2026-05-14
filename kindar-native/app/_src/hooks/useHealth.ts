@@ -145,9 +145,10 @@ export function useHealth(selectedChildId?: string) {
         'useHealth:members',
       );
 
+      // memberMap usado em chips compactos "Adicionado por X", firstOnly
       const memberMap: Record<string, string> = {};
       (members || []).forEach((m: any) => {
-        memberMap[m.user_id] = getDisplayName(m.profiles?.full_name);
+        memberMap[m.user_id] = getDisplayName(m.profiles?.full_name, true);
       });
 
       // All queries in parallel (com timeout: se uma travar, a tela libera)

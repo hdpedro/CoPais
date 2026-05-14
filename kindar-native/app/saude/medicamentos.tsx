@@ -212,7 +212,8 @@ export default function MedicamentosScreen() {
       id: d.id,
       administered_at: d.administered_at,
       administered_by: d.administered_by,
-      administeredByName: getDisplayName(d.profiles?.full_name),
+      // "Administrado por X" — chip compacto na timeline, firstOnly
+      administeredByName: getDisplayName(d.profiles?.full_name, true),
       notes: d.notes,
     })));
     setHistoryLoading(false);

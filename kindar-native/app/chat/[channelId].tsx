@@ -201,8 +201,9 @@ export default function ChatRoomScreen() {
         const memberMap: Record<string, string> = {};
         (members || []).forEach((m: any) => {
           const p = m.profiles || {};
+          // Nome compacto pra header de mensagens — firstOnly
           memberMap[m.user_id] = p.display_name
-            || getDisplayName(p.full_name)
+            || getDisplayName(p.full_name, true)
             || (p.email ? p.email.split('@')[0].split('.')[0] : 'Usuario');
         });
         membersRef.current = memberMap;
@@ -607,9 +608,10 @@ export default function ChatRoomScreen() {
       const memberList: string[] = [];
       (members || []).forEach((m: any) => {
         const p = m.profiles || {};
+        // Lista compacta pra cabeçalho/seletor de membros — firstOnly
         const name =
           p.display_name
-          || getDisplayName(p.full_name)
+          || getDisplayName(p.full_name, true)
           || (p.email ? p.email.split('@')[0].split('.')[0] : 'Usuário');
         memberMap[m.user_id] = name;
         memberList.push(name);

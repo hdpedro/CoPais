@@ -83,9 +83,11 @@ export default function EditEventScreen() {
       const memList: Member[] = ((memRows || []) as { user_id: string; profiles: { full_name: string | null; display_name: string | null; email: string | null } | { full_name: string | null; display_name: string | null; email: string | null }[] | null }[]).map((m) => {
         const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
         const raw = p?.display_name || p?.full_name || (p?.email ? p.email.split('@')[0] : 'Membro');
-        return { user_id: m.user_id, name: getDisplayName(raw) };
+        // Seletor de responsável — chip compacto, firstOnly
+        return { user_id: m.user_id, name: getDisplayName(raw, true) };
       });
       setMembers(memList);
+      // Seletor de criança — nome COMPLETO (composed PT-BR como "Julio Cesar")
       setChildren(((childRows || []) as { id: string; full_name: string }[]).map((c) => ({
         id: c.id,
         name: getDisplayName(c.full_name),

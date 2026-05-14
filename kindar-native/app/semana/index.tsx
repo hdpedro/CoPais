@@ -244,10 +244,11 @@ export default function SemanaScreen() {
       ]);
 
       // Members + colors (sage / terracota — same convention as calendário)
+      // firstOnly: chip de membro com cor é compacto, primeiro nome basta.
       const members: Member[] = (memberRows || []).map((m: any, i: number) => {
         const p = m.profiles || {};
         const raw = p.display_name
-          || getDisplayName(p.full_name)
+          || getDisplayName(p.full_name, true)
           || (p.email ? p.email.split('@')[0].split('.')[0] : '')
           || 'Parceiro';
         const name = raw.charAt(0).toUpperCase() + raw.slice(1);

@@ -128,10 +128,11 @@ export function useCalendar() {
 
       // Members — display name cascade: display_name → full_name.first →
       // email prefix. Never surface raw email (fixes screenshot complaint).
+      // firstOnly=true: chip de membro com cor é compacto, mostra só 1ª palavra.
       const memberList: MemberColor[] = (memberData || []).map((m: any, i: number) => {
         const p = m.profiles || {};
         const raw = p.display_name
-          || getDisplayName(p.full_name)
+          || getDisplayName(p.full_name, true)
           || (p.email ? p.email.split('@')[0].split('.')[0] : '')
           || 'Parceiro';
         const name = raw.charAt(0).toUpperCase() + raw.slice(1);

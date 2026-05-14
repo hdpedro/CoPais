@@ -71,7 +71,8 @@ export default function DetalheScreen() {
         if (result.created_by) {
           const { data: profile } = await supabase.from('profiles')
             .select('full_name').eq('id', result.created_by).single();
-          if (profile) setAuthorName(getDisplayName(profile.full_name));
+          // "Registrado por X" — chip compacto, firstOnly
+          if (profile) setAuthorName(getDisplayName(profile.full_name, true));
         }
       }
       setLoading(false);

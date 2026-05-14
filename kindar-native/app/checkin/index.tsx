@@ -59,7 +59,8 @@ export default function CheckinScreen() {
       id: d.id, category: d.category, title: d.title, notes: d.notes,
       checkin_date: d.checkin_date, child_id: d.child_id,
       childName: getDisplayName(d.children?.full_name) || 'Geral',
-      loggedByName: getDisplayName(d.profiles?.full_name),
+      // "Registrado por X" em lista compacta, firstOnly
+      loggedByName: getDisplayName(d.profiles?.full_name, true),
     })));
     setLoading(false);
   }, [activeGroup]);

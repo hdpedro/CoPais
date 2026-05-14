@@ -390,10 +390,10 @@ export function useDashboard() {
           : Promise.resolve({ data: [] as never[] }),
       ]), FETCH_TIMEOUT_MS, 'useDashboard:mainQueries');
 
-      // Build member color map
+      // Build member color map — chip de cor + nome curto, firstOnly=true
       const memberList = (members || []).map((m: any, i: number) => ({
         user_id: m.user_id,
-        name: getDisplayName(m.profiles?.full_name),
+        name: getDisplayName(m.profiles?.full_name, true),
         color: i === 0 ? PARENT_COLORS.primary : PARENT_COLORS.secondary,
       }));
 
@@ -419,11 +419,13 @@ export function useDashboard() {
       }
 
       // Build custody children
+      // childFirstName: nome COMPLETO da criança (composed PT-BR como "Julio Cesar"
+      // não pode ser truncado). responsibleName: nome curto do coparente.
       const custodyChildren: CustodyChild[] = dedupedToday.map((e: any) => {
         const member = memberList.find((m: any) => m.user_id === e.responsible_user_id);
         return {
           childFirstName: getDisplayName(e.children?.full_name),
-          responsibleName: member?.name || getDisplayName(e.profiles?.full_name),
+          responsibleName: member?.name || getDisplayName(e.profiles?.full_name, true),
           isWithMe: e.responsible_user_id === userId,
           color: member?.color || PARENT_COLORS.primary,
         };
@@ -817,11 +819,11 @@ export function useDashboard() {
         else otherTotal += e.amount;
       });
 
-      // Build actionable pending lists
+      // Build actionable pending lists — requester/target em chip compacto, firstOnly
       const pendingSwapsList: PendingSwap[] = (pendingSwapsData || []).map((s: any) => ({
         id: s.id,
         requesterId: s.requester_id,
-        requesterName: getDisplayName(s.profiles?.full_name) || 'Co-responsavel',
+        requesterName: getDisplayName(s.profiles?.full_name, true) || 'Co-responsavel',
         originalDate: s.original_date,
         proposedDate: s.proposed_date,
         reason: s.reason,
@@ -833,7 +835,7 @@ export function useDashboard() {
       const mySentSwapsList: MySentSwap[] = (mySentSwapsData || []).map((s: any) => ({
         id: s.id,
         targetUserId: s.target_user_id,
-        targetName: getDisplayName(s.profiles?.full_name) || 'Co-responsavel',
+        targetName: getDisplayName(s.profiles?.full_name, true) || 'Co-responsavel',
         originalDate: s.original_date,
         proposedDate: s.proposed_date,
         reason: s.reason,
@@ -913,14 +915,17 @@ export function useDashboard() {
         amount: Number(e.amount) || 0,
         category: e.category,
         expenseDate: e.expense_date,
-        paidByName: getDisplayName(e.profiles?.full_name) || 'Co-responsavel',
+        // Lista de pendências mostra "Pago por NOME" em chip compacto, firstOnly
+        paidByName: getDisplayName(e.profiles?.full_name, true) || 'Co-responsavel',
       }));
 
       const hasAnyCriticalChild = childHealthSummaries.some(s => s.status === 'treatment');
 
-      // Prefer display_name → full_name's first word → email prefix (never the raw email)
-      const displayFirst = profile?.display_name
-        || getDisplayName(profile?.full_name)
+      // Greeting "Bom dia, X" — sempre primeira palavra (do display_name override
+      // ou do full_name). Se display_name é "Barata" (override curto), respeita;
+      // se é "Angelino Silva Barata" (derived), pega só "Angelino".
+      const displayFirst = getDisplayName(profile?.display_name, true)
+        || getDisplayName(profile?.full_name, true)
         || (profile?.email ? profile.email.split('@')[0].split('.')[0] : '')
         || '';
       const firstName = displayFirst.charAt(0).toUpperCase() + displayFirst.slice(1);
