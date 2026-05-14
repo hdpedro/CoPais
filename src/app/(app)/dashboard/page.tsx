@@ -3,6 +3,7 @@ import { getSessionUser } from "@/lib/supabase/auth-helper";
 import {
   resolveTodayCustody,
   findNextCustodyHandover,
+  computeCustodyStreak,
   type CustodyEvent as CustodyEventRow,
 } from "@/lib/custody-resolve";
 import { getCachedProfileByUser, getCachedMembers, getCachedChildren } from "@/lib/cached-queries";
@@ -534,30 +535,34 @@ export default async function DashboardPage() {
   }
   const hasTodayCustody = Object.keys(todayCustodyByChild).length > 0;
 
-  // Streak (uses todayCustody result — one extra query only if needed)
+  // Streak — agora calcula sobre o BLOCO consecutivo de dias com o mesmo
+  // responsável (aplicando swap > exception > regular dia a dia), não só
+  // sobre o range do evento winner.
+  //
+  // Bug Barata 2026-05-14: cálculo antigo pegava o evento mais recente
+  // que tinha `responsible_user_id = current` cobrindo HOJE. Quando o
+  // current vem de um swap unicelular (start=end=hoje), retornava 1/1.
+  // Mas se há swaps emendados (qui+sex+sáb+dom), o usuário enxerga 1
+  // bloco de 4 dias, não 4 swaps de 1 dia. Critério ANTIGO falhava em
+  // capturar a sequência.
+  //
+  // Fix: computeCustodyStreak itera backward + forward aplicando winner
+  // por dia. Não precisa de query extra — usa allCustodyEvents já em
+  // memória.
   let streakDays = 0;
   let streakTotal = 0;
   if (hasTodayCustody && children && children.length > 0) {
     const firstChild = children[0];
     const custody = todayCustodyByChild[firstChild.id];
     if (custody) {
-      const { data: streakEvents } = await supabase
-        .from("custody_events")
-        .select("start_date, end_date")
-        .eq("group_id", groupId)
-        .eq("child_id", firstChild.id)
-        .eq("responsible_user_id", custody.responsibleId)
-        .lte("start_date", today)
-        .gte("end_date", today)
-        .order("start_date", { ascending: false })
-        .limit(1);
-
-      if (streakEvents && streakEvents.length > 0) {
-        const startDate = new Date(streakEvents[0].start_date + "T12:00:00");
-        const endDate = new Date(streakEvents[0].end_date + "T12:00:00");
-        const todayDate = new Date(today + "T12:00:00");
-        streakTotal = Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1;
-        streakDays = Math.round((todayDate.getTime() - startDate.getTime()) / 86400000) + 1;
+      const streak = computeCustodyStreak(
+        safeAllCustody as CustodyEventRow[],
+        firstChild.id,
+        today,
+      );
+      if (streak) {
+        streakDays = streak.streakDays;
+        streakTotal = streak.streakTotal;
       }
     }
   }

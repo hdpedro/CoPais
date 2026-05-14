@@ -16,6 +16,7 @@ import {
   resolveCustodyOnDate,
   findNextCustodyHandover,
   resolveTodayCustody,
+  computeCustodyStreak,
   type CustodyEvent,
 } from "@/lib/custody-resolve";
 
@@ -167,6 +168,124 @@ describe("findNextCustodyHandover — regression do bug Barata", () => {
     });
     const handover = findNextCustodyHandover([onlyBarata], "c1", TODAY, "barata");
     expect(handover).toBeNull();
+  });
+});
+
+describe("computeCustodyStreak — regression bug Barata 'estar 1/4'", () => {
+  // Cenário: Barata tem 4 swaps consecutivos aprovados (qui 14 a dom 17).
+  // Regular escala: 14-18 = Amanda. Hoje (qui 14) é o DIA 1 de 4 dias
+  // consecutivos com Barata (porque swap > regular pros 4 dias).
+  //
+  // Bug original: cálculo antigo usava só start/end do swap winner de hoje
+  // (14-14 = 1 dia) → "Dia 1 de 1". Card sem streak bar visível.
+  // Fix: backward + forward iteration aplicando priority por dia.
+  const TODAY = "2026-05-14"; // qui
+  const REGULAR_AMANDA = (id: string): CustodyEvent => ev({
+    id,
+    custody_type: "regular",
+    start_date: "2026-05-14",
+    end_date: "2026-05-18",
+    responsible_user_id: "amanda",
+  });
+  const swapBarata = (id: string, dateKey: string): CustodyEvent => ev({
+    id,
+    custody_type: "swap",
+    start_date: dateKey,
+    end_date: dateKey,
+    responsible_user_id: "barata",
+  });
+
+  it("4 swaps emendados pra Barata (qui-dom) + regular Amanda atrás → streak 1/4", () => {
+    const events: CustodyEvent[] = [
+      REGULAR_AMANDA("reg"),
+      swapBarata("s14", "2026-05-14"),
+      swapBarata("s15", "2026-05-15"),
+      swapBarata("s16", "2026-05-16"),
+      swapBarata("s17", "2026-05-17"),
+    ];
+    const r = computeCustodyStreak(events, "c1", TODAY);
+    expect(r).not.toBeNull();
+    expect(r!.streakDays).toBe(1);     // hoje é o primeiro dia
+    expect(r!.streakTotal).toBe(4);    // qui-dom = 4 dias
+    expect(r!.streakStartKey).toBe("2026-05-14");
+    expect(r!.streakEndKey).toBe("2026-05-17");
+  });
+
+  it("no 3º dia do bloco (sáb 16) → 3/4", () => {
+    const events: CustodyEvent[] = [
+      REGULAR_AMANDA("reg"),
+      swapBarata("s14", "2026-05-14"),
+      swapBarata("s15", "2026-05-15"),
+      swapBarata("s16", "2026-05-16"),
+      swapBarata("s17", "2026-05-17"),
+    ];
+    const r = computeCustodyStreak(events, "c1", "2026-05-16");
+    expect(r!.streakDays).toBe(3);
+    expect(r!.streakTotal).toBe(4);
+  });
+
+  it("último dia do bloco (dom 17) → 4/4", () => {
+    const events: CustodyEvent[] = [
+      REGULAR_AMANDA("reg"),
+      swapBarata("s14", "2026-05-14"),
+      swapBarata("s15", "2026-05-15"),
+      swapBarata("s16", "2026-05-16"),
+      swapBarata("s17", "2026-05-17"),
+    ];
+    const r = computeCustodyStreak(events, "c1", "2026-05-17");
+    expect(r!.streakDays).toBe(4);
+    expect(r!.streakTotal).toBe(4);
+  });
+
+  it("escala normal sem swap — streak igual ao range do evento regular", () => {
+    // Bloco regular de 5 dias (qua-dom). Hoje qui = dia 2 de 5.
+    const events: CustodyEvent[] = [
+      ev({
+        id: "reg",
+        custody_type: "regular",
+        start_date: "2026-05-13",
+        end_date: "2026-05-17",
+        responsible_user_id: "amanda",
+      }),
+    ];
+    const r = computeCustodyStreak(events, "c1", TODAY);
+    expect(r!.streakDays).toBe(2);
+    expect(r!.streakTotal).toBe(5);
+  });
+
+  it("sem custódia hoje → null", () => {
+    const events: CustodyEvent[] = [
+      ev({
+        id: "x",
+        custody_type: "regular",
+        start_date: "2026-06-01",
+        end_date: "2026-06-10",
+        responsible_user_id: "amanda",
+      }),
+    ];
+    const r = computeCustodyStreak(events, "c1", TODAY);
+    expect(r).toBeNull();
+  });
+
+  it("swap pro outro pai no meio do bloco quebra o streak (volta no dia seguinte)", () => {
+    // Cenário: regular Amanda 14-21, mas há swap pro Barata em 17 e 18.
+    // Hoje qui 14 = está com Amanda. streak Amanda termina em qua 16 (dia
+    // antes do swap pro Barata).
+    const events: CustodyEvent[] = [
+      ev({
+        id: "reg",
+        custody_type: "regular",
+        start_date: "2026-05-14",
+        end_date: "2026-05-21",
+        responsible_user_id: "amanda",
+      }),
+      swapBarata("s17", "2026-05-17"),
+      swapBarata("s18", "2026-05-18"),
+    ];
+    const r = computeCustodyStreak(events, "c1", TODAY);
+    expect(r!.streakDays).toBe(1);
+    expect(r!.streakTotal).toBe(3); // qui 14 + sex 15 + sáb 16 = 3 dias com Amanda
+    expect(r!.streakEndKey).toBe("2026-05-16");
   });
 });
 

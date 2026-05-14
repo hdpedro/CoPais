@@ -167,3 +167,81 @@ export function resolveTodayCustody<E extends CustodyEvent>(
   }
   return out;
 }
+
+/**
+ * Helper interno: avança/recua N dias a partir de uma date key.
+ * Adicionados como function declaration pra evitar problemas de timezone
+ * com strings YYYY-MM-DD que algumas libs tratam como UTC (dia -1 em
+ * timezones negativos como UTC-3/BRT).
+ */
+function shiftDateKey(dateKey: string, days: number): string {
+  const d = new Date(dateKey + "T12:00:00");
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/**
+ * Computa o "streak" de custódia: por quantos dias consecutivos o
+ * responsável atual está/vai estar com a criança, e em qual posição
+ * desse bloco hoje cai.
+ *
+ * # Por que existe
+ *
+ * Bug Barata 2026-05-14: o cálculo antigo de streakDays/streakTotal
+ * usava só `start_date`/`end_date` do EVENTO winner de hoje. Pra um
+ * cenário com SWAP de 1 dia (start=end=hoje), streakDays=1 streakTotal=1
+ * — mas se há swaps EMENDADOS (qui+sex+sáb+dom todos pra Barata), o
+ * usuário enxerga 1 bloco contínuo de 4 dias, não 4 swaps de 1 dia.
+ *
+ * # Algoritmo
+ *
+ * 1. Pra trás: a partir de hoje, ir dia a dia até achar um dia em que
+ *    o responsável MUDA. Marca o `streakStart`.
+ * 2. Pra frente: idem até o `streakEnd`.
+ * 3. streakDays = today - streakStart + 1
+ * 4. streakTotal = streakEnd - streakStart + 1
+ *
+ * Cada lookup usa `resolveCustodyOnDate` (aplica swap > exception >
+ * regular). Horizonte padrão de 60 dias cobre escala quinzenal
+ * normalmente e blocos de troca esticados.
+ *
+ * Retorna `null` se não há custódia hoje pra essa criança.
+ */
+export function computeCustodyStreak(
+  events: readonly CustodyEvent[],
+  childId: string,
+  todayKey: string,
+  horizonDays = 60,
+): { streakDays: number; streakTotal: number; streakStartKey: string; streakEndKey: string } | null {
+  const todayWinner = resolveCustodyOnDate(events, childId, todayKey);
+  if (!todayWinner) return null;
+  const currentResp = todayWinner.responsible_user_id;
+
+  // Backward: encontra o primeiro dia em que o responsável passa a ser
+  // o atual (sem volta).
+  let streakStartKey = todayKey;
+  for (let i = 1; i <= horizonDays; i++) {
+    const prev = shiftDateKey(todayKey, -i);
+    const winner = resolveCustodyOnDate(events, childId, prev);
+    if (!winner || winner.responsible_user_id !== currentResp) break;
+    streakStartKey = prev;
+  }
+
+  // Forward: encontra o último dia ainda com o responsável atual.
+  let streakEndKey = todayKey;
+  for (let i = 1; i <= horizonDays; i++) {
+    const next = shiftDateKey(todayKey, i);
+    const winner = resolveCustodyOnDate(events, childId, next);
+    if (!winner || winner.responsible_user_id !== currentResp) break;
+    streakEndKey = next;
+  }
+
+  // Calcula dias entre as datas inclusivo.
+  const t = new Date(todayKey + "T12:00:00");
+  const s = new Date(streakStartKey + "T12:00:00");
+  const e = new Date(streakEndKey + "T12:00:00");
+  const streakDays = Math.round((t.getTime() - s.getTime()) / 86400000) + 1;
+  const streakTotal = Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+
+  return { streakDays, streakTotal, streakStartKey, streakEndKey };
+}

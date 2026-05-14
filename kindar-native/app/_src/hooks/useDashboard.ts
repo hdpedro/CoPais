@@ -16,6 +16,7 @@ import { useAuth } from '../store/auth';
 import {
   resolveTodayCustody,
   findNextCustodyHandover,
+  computeCustodyStreak,
   type CustodyEvent as CustodyEventInput,
 } from '../lib/custody-resolve';
 import { signChildAvatar } from '../services/children';
@@ -436,11 +437,28 @@ export function useDashboard() {
       let endDateLabel: string | null = null;
       if (dedupedToday.length > 0) {
         const ce = dedupedToday[0];
-        const startDate = new Date(ce.start_date + 'T12:00:00');
         const endDate = new Date(ce.end_date + 'T12:00:00');
-        const todayDate = new Date(today + 'T12:00:00');
-        streakDays = Math.max(1, Math.floor((todayDate.getTime() - startDate.getTime()) / 86400000) + 1);
-        streakTotal = Math.max(1, Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
+
+        // Streak: usa o BLOCO consecutivo de dias com o mesmo responsável,
+        // aplicando swap > exception > regular dia-a-dia. Bug Barata 2026-05-14:
+        // cálculo antigo usava só start/end do evento winner. Quando winner é
+        // swap unicelular (1 dia), mostrava "1/1" mesmo quando havia 4 swaps
+        // emendados (qui+sex+sáb+dom todos pro mesmo pai).
+        const streak = computeCustodyStreak(
+          allCustodyForResolve,
+          ce.child_id,
+          today,
+        );
+        if (streak) {
+          streakDays = streak.streakDays;
+          streakTotal = streak.streakTotal;
+        } else {
+          // Fallback ao range do evento se algo inesperado (não deve cair aqui).
+          const startDate = new Date(ce.start_date + 'T12:00:00');
+          const todayDate = new Date(today + 'T12:00:00');
+          streakDays = Math.max(1, Math.floor((todayDate.getTime() - startDate.getTime()) / 86400000) + 1);
+          streakTotal = Math.max(1, Math.floor((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
+        }
 
         const weekdays = ['DOM', 'SEG', 'TER', 'QUA', 'QUI', 'SEX', 'SÁB'];
         const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];

@@ -109,3 +109,55 @@ export function resolveTodayCustody<E extends CustodyEvent>(
   }
   return out;
 }
+
+function shiftDateKey(dateKey: string, days: number): string {
+  const d = new Date(dateKey + 'T12:00:00');
+  d.setDate(d.getDate() + days);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Streak da custódia atual (espelho do PWA src/lib/custody-resolve.ts).
+ * Encontra o bloco consecutivo de dias com o mesmo responsável.
+ *
+ * Bug Barata 2026-05-14: cálculo antigo usava só start/end do evento
+ * winner de HOJE (swap 1 dia → 1/1). Pra 4 swaps emendados, ele via
+ * só o swap de hoje e mostrava "Dia 1 de 1" em vez de "Dia 1 de 4".
+ *
+ * Algoritmo: backward + forward até achar dias em que o responsável
+ * muda. Aplica swap > exception > regular em cada lookup.
+ */
+export function computeCustodyStreak(
+  events: readonly CustodyEvent[],
+  childId: string,
+  todayKey: string,
+  horizonDays = 60,
+): { streakDays: number; streakTotal: number; streakStartKey: string; streakEndKey: string } | null {
+  const todayWinner = resolveCustodyOnDate(events, childId, todayKey);
+  if (!todayWinner) return null;
+  const currentResp = todayWinner.responsible_user_id;
+
+  let streakStartKey = todayKey;
+  for (let i = 1; i <= horizonDays; i++) {
+    const prev = shiftDateKey(todayKey, -i);
+    const winner = resolveCustodyOnDate(events, childId, prev);
+    if (!winner || winner.responsible_user_id !== currentResp) break;
+    streakStartKey = prev;
+  }
+
+  let streakEndKey = todayKey;
+  for (let i = 1; i <= horizonDays; i++) {
+    const next = shiftDateKey(todayKey, i);
+    const winner = resolveCustodyOnDate(events, childId, next);
+    if (!winner || winner.responsible_user_id !== currentResp) break;
+    streakEndKey = next;
+  }
+
+  const t = new Date(todayKey + 'T12:00:00');
+  const s = new Date(streakStartKey + 'T12:00:00');
+  const e = new Date(streakEndKey + 'T12:00:00');
+  const streakDays = Math.round((t.getTime() - s.getTime()) / 86400000) + 1;
+  const streakTotal = Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+
+  return { streakDays, streakTotal, streakStartKey, streakEndKey };
+}
