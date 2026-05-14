@@ -36,7 +36,11 @@ const require = createRequire(import.meta.url);
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const APP_JSON = resolve(__dirname, "..", "app.json");
-const TARGET_VERSIONS = ["1.0.2", "1.0.3", "1.0.4"];
+// Runtimes em produção que recebem OTA. Atualizar quando novo binário for
+// promovido pra Play Store / App Store. O script publica EXCETO a versão
+// atual de app.json (essa já é servida pelo `eas update --branch production`
+// padrão, sem precisar trocar a version aqui).
+const TARGET_VERSIONS = ["1.0.2", "1.0.3", "1.0.4", "1.0.5"];
 
 const args = process.argv.slice(2);
 const messageIdx = args.indexOf("--message");
