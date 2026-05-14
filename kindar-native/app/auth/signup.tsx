@@ -65,24 +65,38 @@ export default function SignupScreen() {
   }
 
   if (success) {
+    // Copy melhorado a pedido do Angelino Barata 2026-05-14 16:11: user
+    // Fernanda criou conta mas a tela "Conta criada!" não foi suficiente
+    // pra ela entender que precisava confirmar email. Resultado: tentou
+    // login e ficou clicando até aparecer erro vermelho. Mensagem agora é
+    // mais explícita e usa ícone + body + email da pessoa pra dar contexto.
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: spacing['3xl'] }}>
         <View style={{
-          width: 72, height: 72, borderRadius: 36,
-          backgroundColor: 'rgba(76,175,80,0.12)',
+          width: 80, height: 80, borderRadius: 40,
+          backgroundColor: 'rgba(91,158,133,0.12)',
           alignItems: 'center', justifyContent: 'center', marginBottom: spacing.xl,
         }}>
-          <Ionicons name="checkmark-circle" size={40} color={colors.success} />
+          <Ionicons name="mail-unread-outline" size={44} color={colors.brand} />
         </View>
         <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text, textAlign: 'center' }}>
-          Conta criada!
+          Confirme seu e-mail
         </Text>
         <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md, lineHeight: 22 }}>
-          Verifique seu email para confirmar a conta. Depois, faça login.
+          Enviamos um link de verificação para{' '}
+          <Text style={{ color: colors.text, fontWeight: font.weights.semibold }}>{email}</Text>
+          .{'\n'}Clique no link pra ativar sua conta e voltar aqui pra entrar.
         </Text>
-        <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, textAlign: 'center', marginTop: spacing.sm }}>
-          Não encontrou? Confira a caixa de spam.
-        </Text>
+        <View style={{
+          backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: radius.md,
+          padding: spacing.md, marginTop: spacing.xl,
+          flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm,
+        }}>
+          <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} style={{ marginTop: 2 }} />
+          <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, flex: 1, lineHeight: 19 }}>
+            Não encontrou? Verifique a pasta de <Text style={{ fontWeight: font.weights.semibold }}>spam ou lixo eletrônico</Text>. O e-mail pode levar até 1 minuto pra chegar.
+          </Text>
+        </View>
         <TouchableOpacity
           onPress={() => router.replace('/auth/login')}
           style={{
@@ -92,9 +106,12 @@ export default function SignupScreen() {
           }}
         >
           <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-            Ir para Login
+            Já confirmei, entrar
           </Text>
         </TouchableOpacity>
+        <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textAlign: 'center', marginTop: spacing.md }}>
+          Você pode reenviar o e-mail pela tela de login se precisar.
+        </Text>
       </View>
     );
   }
