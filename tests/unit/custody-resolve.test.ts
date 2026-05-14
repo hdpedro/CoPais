@@ -289,6 +289,173 @@ describe("computeCustodyStreak — regression bug Barata 'estar 1/4'", () => {
   });
 });
 
+describe("custody-resolve — cenários adicionais (correção definitiva)", () => {
+  // Estes testes existem pra GARANTIR que o helper funciona em CENÁRIOS
+  // além do Barata específico (4 swaps emendados). Cobre o pedido do user
+  // 2026-05-14 16:01: "correção definitiva pra qualquer usuário em qualquer
+  // sistema". Inclui cenários edge e multi-criança.
+
+  it("EXCEPTION (não swap) também tem prioridade sobre regular", () => {
+    // Exception é raro mas válido (ex: pai adoecer, mãe pega criança fora
+    // da escala). Mesma regra de priority que swap.
+    const events: CustodyEvent[] = [
+      ev({
+        id: "reg",
+        custody_type: "regular",
+        start_date: "2026-05-14",
+        end_date: "2026-05-18",
+        responsible_user_id: "amanda",
+      }),
+      ev({
+        id: "exc",
+        custody_type: "exception",
+        start_date: "2026-05-15",
+        end_date: "2026-05-15",
+        responsible_user_id: "barata",
+      }),
+    ];
+    // 15/mai = exception Barata vence regular Amanda
+    expect(resolveCustodyOnDate(events, "c1", "2026-05-15")?.responsible_user_id).toBe("barata");
+  });
+
+  it("Streak isolado (today == start == end do bloco)", () => {
+    // Único dia com swap pra Barata. Streak deve ser 1/1.
+    const events: CustodyEvent[] = [
+      ev({
+        id: "reg",
+        custody_type: "regular",
+        start_date: "2026-05-10",
+        end_date: "2026-05-20",
+        responsible_user_id: "amanda",
+      }),
+      ev({
+        id: "swp",
+        custody_type: "swap",
+        start_date: "2026-05-14",
+        end_date: "2026-05-14",
+        responsible_user_id: "barata",
+      }),
+    ];
+    const r = computeCustodyStreak(events, "c1", "2026-05-14");
+    expect(r!.streakDays).toBe(1);
+    expect(r!.streakTotal).toBe(1);
+  });
+
+  it("Streak longo (escala regular de 7 dias)", () => {
+    // Pai com a criança a semana inteira (dom-sáb). Hoje é qua = dia 4.
+    const events: CustodyEvent[] = [
+      ev({
+        id: "reg",
+        custody_type: "regular",
+        start_date: "2026-05-10", // domingo
+        end_date: "2026-05-16",   // sábado
+        responsible_user_id: "barata",
+      }),
+    ];
+    const r = computeCustodyStreak(events, "c1", "2026-05-13"); // quarta
+    expect(r!.streakDays).toBe(4); // dom, seg, ter, qua = 4
+    expect(r!.streakTotal).toBe(7);
+  });
+
+  it("Multi-criança: cada uma tem seu próprio streak independente", () => {
+    const events: CustodyEvent[] = [
+      // Criança A com Amanda (3 dias)
+      ev({
+        id: "a-reg",
+        child_id: "child-a",
+        custody_type: "regular",
+        start_date: "2026-05-14",
+        end_date: "2026-05-16",
+        responsible_user_id: "amanda",
+      }),
+      // Criança B com Barata (5 dias)
+      ev({
+        id: "b-reg",
+        child_id: "child-b",
+        custody_type: "regular",
+        start_date: "2026-05-12",
+        end_date: "2026-05-16",
+        responsible_user_id: "barata",
+      }),
+    ];
+    const a = computeCustodyStreak(events, "child-a", "2026-05-14");
+    const b = computeCustodyStreak(events, "child-b", "2026-05-14");
+    expect(a!.streakDays).toBe(1);
+    expect(a!.streakTotal).toBe(3);
+    expect(b!.streakDays).toBe(3); // 12,13,14 = 3
+    expect(b!.streakTotal).toBe(5);
+  });
+
+  it("Swap regenerado: created_at mais recente vence (Hailla pattern)", () => {
+    // Bug histórico: swap antigo + regenerado mais recente coexistiam.
+    // tie-break por created_at DESC garante que o regenerado vence.
+    const events: CustodyEvent[] = [
+      ev({
+        id: "swp-old",
+        custody_type: "swap",
+        start_date: "2026-05-14",
+        end_date: "2026-05-14",
+        responsible_user_id: "amanda",
+        created_at: "2026-05-01T10:00:00Z",
+      }),
+      ev({
+        id: "swp-new",
+        custody_type: "swap",
+        start_date: "2026-05-14",
+        end_date: "2026-05-14",
+        responsible_user_id: "barata",
+        created_at: "2026-05-13T10:00:00Z",
+      }),
+    ];
+    expect(resolveCustodyOnDate(events, "c1", "2026-05-14")?.id).toBe("swp-new");
+  });
+
+  it("Handover entre 2 blocos de swap (cenário Barata + amanha vira Amanda)", () => {
+    // Barata tem swap pra qui-dom (4 dias). Próxima troca: SEG.
+    const events: CustodyEvent[] = [
+      ev({
+        id: "reg",
+        custody_type: "regular",
+        start_date: "2026-05-14",
+        end_date: "2026-05-25",
+        responsible_user_id: "amanda",
+      }),
+      ev({ id: "s14", custody_type: "swap", start_date: "2026-05-14", end_date: "2026-05-14", responsible_user_id: "barata" }),
+      ev({ id: "s15", custody_type: "swap", start_date: "2026-05-15", end_date: "2026-05-15", responsible_user_id: "barata" }),
+      ev({ id: "s16", custody_type: "swap", start_date: "2026-05-16", end_date: "2026-05-16", responsible_user_id: "barata" }),
+      ev({ id: "s17", custody_type: "swap", start_date: "2026-05-17", end_date: "2026-05-17", responsible_user_id: "barata" }),
+    ];
+    const handover = findNextCustodyHandover(events, "c1", "2026-05-14", "barata");
+    expect(handover!.dateKey).toBe("2026-05-18"); // segunda
+    expect(handover!.event.responsible_user_id).toBe("amanda");
+  });
+
+  it("Sem evento amanhã (escala incompleta) ainda detecta handover", () => {
+    // Escala parcial: hoje qui Barata, sex amanhã sem evento (gap), seg
+    // Amanda. findNextCustodyHandover deve pular dias sem evento e achar
+    // a primeira mudança.
+    const events: CustodyEvent[] = [
+      ev({
+        id: "t",
+        custody_type: "regular",
+        start_date: "2026-05-14",
+        end_date: "2026-05-14",
+        responsible_user_id: "barata",
+      }),
+      ev({
+        id: "n",
+        custody_type: "regular",
+        start_date: "2026-05-18",
+        end_date: "2026-05-18",
+        responsible_user_id: "amanda",
+      }),
+    ];
+    const h = findNextCustodyHandover(events, "c1", "2026-05-14", "barata");
+    expect(h!.dateKey).toBe("2026-05-18");
+    expect(h!.event.responsible_user_id).toBe("amanda");
+  });
+});
+
 describe("resolveTodayCustody — multi-criança", () => {
   it("resolve winner por criança aplicando prioridade", () => {
     const TODAY = "2026-05-14";
