@@ -242,6 +242,12 @@ export function useDashboard() {
       const tomorrow = new Date();
       tomorrow.setDate(tomorrow.getDate() + 1);
       const tomorrowStr = formatDateKey(tomorrow);
+      // Horizonte de 60 dias pro custody fetch — bug Barata 2026-05-14:
+      // query antiga só pegava events de HOJE, então findNextCustodyHandover
+      // não enxergava swaps futuros e devolvia a "próxima troca" errada.
+      const sixtyDaysFromToday = new Date();
+      sixtyDaysFromToday.setDate(sixtyDaysFromToday.getDate() + 60);
+      const sixtyDaysFromTodayStr = formatDateKey(sixtyDaysFromToday);
 
       // All queries in parallel (resilient — each with fallback).
       // Envolto em withTimeout: se qualquer query do Supabase pendurar
@@ -272,12 +278,21 @@ export function useDashboard() {
           .select('id, full_name, birth_date, photo_url')
           .eq('group_id', groupId)
           .then(r => r, () => ({ data: [] as never[] })),
+        // Range expandido até +60 dias pra findNextCustodyHandover ter
+        // visibilidade dos swaps futuros. Antes a query filtrava só HOJE
+        // (.lte start <= today .gte end >= today), mascarando o bug Barata:
+        // pra calcular a "próxima troca", o helper precisa enxergar o swap
+        // aprovado pra sex 15/16/17 (não só o regular Amanda 14-18). Sem o
+        // range expandido, helper achava handover errado em sex 15 (regular
+        // Amanda) em vez de seg 18 (Amanda assume após fim dos swaps).
+        // Filtro: events que TERMINAM em hoje ou depois, COMEÇAM em até 60d.
         activeGroup.custodyEnabled
           ? supabase.from('custody_events')
               .select('id, start_date, end_date, responsible_user_id, child_id, custody_type, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)')
               .eq('group_id', groupId)
-              .lte('start_date', today)
               .gte('end_date', today)
+              .lte('start_date', sixtyDaysFromTodayStr)
+              .order('start_date')
               .then(r => r, () => ({ data: [] as never[] }))
           : Promise.resolve({ data: [] as never[] }),
         // calendar_occurrences has NO status column (migration 00038); filtering
