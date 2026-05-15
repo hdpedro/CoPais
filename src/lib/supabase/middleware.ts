@@ -65,6 +65,9 @@ export async function updateSession(request: NextRequest) {
     "/api/calendar", "/api/setup-db", "/api/auth", "/pricing",
     "/suporte", "/privacidade", "/termos",
     "/api/stripe/webhook", "/api/whatsapp/webhook", "/api/discord", "/api/log-error",
+    // Vercel cron routes — handlers validam CRON_SECRET via Bearer header.
+    // Sem isso, middleware redireciona pra /session-recovery e cron nunca executa.
+    "/api/cron",
     // Native-callable routes that authenticate via Bearer header. Each
     // route validates the Bearer token internally with the admin client.
     "/api/create-group",
