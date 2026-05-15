@@ -20,13 +20,22 @@ export type CustodyEvent = {
   created_at?: string | null;
 };
 
+/**
+ * Migration 00082 (2026-05-14): `vacation` virou prio 2 (antes era 3 =
+ * igual regular). Pra que férias realmente sobreponham a escala regular
+ * no calendário, agenda, streak e próxima-troca. Mantém paridade com
+ * `src/lib/custody-resolve.ts` PWA + view SQL `custody_resolved`.
+ */
 export function custodyPriority(type: string): number {
   switch (type) {
     case 'swap':
       return 1;
     case 'exception':
+    case 'vacation':
       return 2;
     case 'regular':
+    case 'holiday':
+    case 'special':
       return 3;
     default:
       return 4;

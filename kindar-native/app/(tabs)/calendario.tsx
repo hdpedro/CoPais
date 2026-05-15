@@ -233,6 +233,21 @@ export default function CalendarScreen() {
                 <Ionicons name="calendar" size={20} color={colors.text} />
               </TouchableOpacity>
             ) : null}
+            {!activeGroup?.isReadonly ? (
+              <TouchableOpacity
+                onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/ferias'); }}
+                hitSlop={6}
+                testID="calendar-fab-ferias"
+                accessibilityLabel="Adicionar período de férias"
+                style={{
+                  width: 40, height: 40, borderRadius: 12,
+                  backgroundColor: colors.bgElevated, ...shadows.sm,
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="airplane-outline" size={20} color={colors.text} />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/novo'); }}
               hitSlop={6}
@@ -865,7 +880,11 @@ export default function CalendarScreen() {
                         {e.title}
                       </Text>
                       <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                        {e.type === 'custody' ? 'Guarda'
+                        {e.type === 'custody'
+                          ? (e.custodyType === 'vacation' ? '✈️ Férias'
+                              : e.custodyType === 'swap' ? '🔄 Troca'
+                              : e.custodyType === 'holiday' ? '🎉 Feriado'
+                              : 'Guarda')
                           : e.type === 'activity' ? 'Atividade'
                           : e.type === 'appointment' ? 'Consulta'
                           : isSchool ? 'Escola'

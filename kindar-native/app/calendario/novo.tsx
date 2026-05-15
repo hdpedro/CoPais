@@ -351,8 +351,10 @@ export default function NovoEventoScreen() {
             </View>
 
             <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 16 }}>
-              Deixe em branco para eventos sem responsável fixo (ex: férias,
-              feriados). O calendário usa a cor da escala vigente nesse caso.
+              Deixe em branco para eventos sem responsável fixo (ex: reunião
+              de pais, festa). Pra <Text style={{ fontWeight: font.weights.semibold }}>férias / recesso prolongado</Text>{' '}
+              use o botão <Text style={{ fontStyle: 'italic' }}>✈️ Férias</Text> no calendário —
+              esse fluxo sobrepõe a escala regular automaticamente.
             </Text>
 
             {/* Color preview — events are tinted by responsavel on calendar */}

@@ -33,10 +33,47 @@ function ev(p: Partial<CustodyEvent> & { id: string; custody_type: string }): Cu
 }
 
 describe("custodyPriority", () => {
-  it("swap < exception < regular < outro", () => {
+  it("swap < (exception, vacation) < (regular, holiday, special) < outro", () => {
     expect(custodyPriority("swap")).toBeLessThan(custodyPriority("exception"));
+    expect(custodyPriority("swap")).toBeLessThan(custodyPriority("vacation"));
     expect(custodyPriority("exception")).toBeLessThan(custodyPriority("regular"));
-    expect(custodyPriority("regular")).toBeLessThan(custodyPriority("special"));
+    expect(custodyPriority("vacation")).toBeLessThan(custodyPriority("regular"));
+    // Migration 00082: vacation e exception têm mesma prio (2)
+    expect(custodyPriority("vacation")).toBe(custodyPriority("exception"));
+    // regular/holiday/special todos prio 3
+    expect(custodyPriority("regular")).toBe(custodyPriority("holiday"));
+    expect(custodyPriority("regular")).toBe(custodyPriority("special"));
+    expect(custodyPriority("regular")).toBeLessThan(custodyPriority("desconhecido"));
+  });
+});
+
+describe("pickCustodyWinner — vacation vs regular (Bug Amanda 2026-05-14)", () => {
+  it("vacation vence regular pro mesmo dia (férias sobrepõem escala)", () => {
+    const vac = ev({ id: "v", custody_type: "vacation", responsible_user_id: "amanda" });
+    const reg = ev({ id: "r", custody_type: "regular", responsible_user_id: "barata" });
+    expect(pickCustodyWinner([reg, vac])?.id).toBe("v");
+    expect(pickCustodyWinner([vac, reg])?.id).toBe("v");
+  });
+
+  it("swap vence vacation (acordo pontual sobrepõe férias planejadas)", () => {
+    const swap = ev({ id: "s", custody_type: "swap", responsible_user_id: "barata" });
+    const vac = ev({ id: "v", custody_type: "vacation", responsible_user_id: "amanda" });
+    expect(pickCustodyWinner([vac, swap])?.id).toBe("s");
+    expect(pickCustodyWinner([swap, vac])?.id).toBe("s");
+  });
+
+  it("vacation > holiday > regular (holiday não sobrepõe)", () => {
+    const vac = ev({ id: "v", custody_type: "vacation" });
+    const hol = ev({ id: "h", custody_type: "holiday" });
+    const reg = ev({ id: "r", custody_type: "regular" });
+    expect(pickCustodyWinner([reg, hol, vac])?.id).toBe("v");
+  });
+
+  it("vacation tie-break com exception por created_at DESC", () => {
+    const old_exc = ev({ id: "e", custody_type: "exception", created_at: "2026-05-01T10:00:00Z" });
+    const new_vac = ev({ id: "v", custody_type: "vacation", created_at: "2026-05-12T10:00:00Z" });
+    // Mesma prio (2) — newest wins
+    expect(pickCustodyWinner([old_exc, new_vac])?.id).toBe("v");
   });
 });
 
@@ -478,5 +515,124 @@ describe("resolveTodayCustody — multi-criança", () => {
     // today=14/mai, evento termina 13 → não cobre
     const today = resolveTodayCustody(events, "2026-05-14");
     expect(today.size).toBe(0);
+  });
+});
+
+describe("vacation — Bug Amanda 2026-05-14 (férias sobrepõem escala regular)", () => {
+  // Migration 00082 elevou vacation pra prio 2. Estes testes garantem que
+  // férias REALMENTE sobrepõem a escala no streak, próxima-troca, e resolução
+  // de dia — Amanda não fica mais com "escala regular" valendo durante
+  // o período que ela cadastrou como férias.
+
+  it("vacation 10 dias com Amanda sobrepõe regular do Barata", () => {
+    // Escala regular: Barata cobre 10-25/mai
+    // Férias: Amanda cobre 12-21/mai (10 dias, no meio do range do Barata)
+    // Expectativa: dias 12-21 são da Amanda, dias 10-11 e 22-25 são do Barata
+    const events: CustodyEvent[] = [
+      ev({
+        id: "reg",
+        custody_type: "regular",
+        start_date: "2026-05-10",
+        end_date: "2026-05-25",
+        responsible_user_id: "barata",
+      }),
+      ev({
+        id: "vac",
+        custody_type: "vacation",
+        start_date: "2026-05-12",
+        end_date: "2026-05-21",
+        responsible_user_id: "amanda",
+      }),
+    ];
+
+    // Dia antes do início das férias: Barata
+    expect(resolveCustodyOnDate(events, "c1", "2026-05-11")?.responsible_user_id).toBe("barata");
+    // Primeiro dia das férias: Amanda
+    expect(resolveCustodyOnDate(events, "c1", "2026-05-12")?.responsible_user_id).toBe("amanda");
+    // Meio das férias: Amanda
+    expect(resolveCustodyOnDate(events, "c1", "2026-05-15")?.responsible_user_id).toBe("amanda");
+    // Último dia das férias: Amanda
+    expect(resolveCustodyOnDate(events, "c1", "2026-05-21")?.responsible_user_id).toBe("amanda");
+    // Dia depois das férias: Barata
+    expect(resolveCustodyOnDate(events, "c1", "2026-05-22")?.responsible_user_id).toBe("barata");
+  });
+
+  it("computeCustodyStreak captura período inteiro de férias", () => {
+    const events: CustodyEvent[] = [
+      ev({
+        id: "reg",
+        custody_type: "regular",
+        start_date: "2026-05-01",
+        end_date: "2026-05-31",
+        responsible_user_id: "barata",
+      }),
+      ev({
+        id: "vac",
+        custody_type: "vacation",
+        start_date: "2026-05-10",
+        end_date: "2026-05-20",
+        responsible_user_id: "amanda",
+        created_at: "2026-04-01T10:00:00Z",
+      }),
+    ];
+    // Hoje 15/mai, no meio das férias
+    const r = computeCustodyStreak(events, "c1", "2026-05-15");
+    expect(r).toBeTruthy();
+    expect(r!.streakStartKey).toBe("2026-05-10");
+    expect(r!.streakEndKey).toBe("2026-05-20");
+    expect(r!.streakTotal).toBe(11); // 10 ao 20 = 11 dias
+    expect(r!.streakDays).toBe(6); // 10 11 12 13 14 15 = 6 dias passados (incluindo hoje)
+  });
+
+  it("findNextCustodyHandover detecta volta da escala após férias", () => {
+    const events: CustodyEvent[] = [
+      ev({
+        id: "reg",
+        custody_type: "regular",
+        start_date: "2026-05-01",
+        end_date: "2026-05-31",
+        responsible_user_id: "barata",
+      }),
+      ev({
+        id: "vac",
+        custody_type: "vacation",
+        start_date: "2026-05-10",
+        end_date: "2026-05-20",
+        responsible_user_id: "amanda",
+      }),
+    ];
+    // Hoje 14/mai, no meio das férias com Amanda. Próxima troca = dia 21
+    // (volta pro Barata pela escala regular). Passa currentResponsibleId='amanda'
+    // pra função saber qual mudança detectar.
+    const next = findNextCustodyHandover(events, "c1", "2026-05-14", "amanda");
+    expect(next).toBeTruthy();
+    expect(next!.dateKey).toBe("2026-05-21");
+    expect(next!.event.responsible_user_id).toBe("barata");
+  });
+
+  it("swap aprovado vence vacation pro mesmo dia (acordo pontual > férias)", () => {
+    const events: CustodyEvent[] = [
+      ev({
+        id: "vac",
+        custody_type: "vacation",
+        start_date: "2026-05-10",
+        end_date: "2026-05-20",
+        responsible_user_id: "amanda",
+      }),
+      ev({
+        id: "swap",
+        custody_type: "swap",
+        start_date: "2026-05-15",
+        end_date: "2026-05-15",
+        responsible_user_id: "barata",
+        created_at: "2026-05-12T10:00:00Z",
+      }),
+    ];
+    // Dia normal de férias: Amanda
+    expect(resolveCustodyOnDate(events, "c1", "2026-05-14")?.responsible_user_id).toBe("amanda");
+    // Dia 15: swap explícito vence
+    expect(resolveCustodyOnDate(events, "c1", "2026-05-15")?.responsible_user_id).toBe("barata");
+    // Dia 16: volta pra vacation
+    expect(resolveCustodyOnDate(events, "c1", "2026-05-16")?.responsible_user_id).toBe("amanda");
   });
 });

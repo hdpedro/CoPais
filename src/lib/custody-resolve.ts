@@ -40,17 +40,24 @@ export type CustodyEvent = {
 
 /**
  * Prioridade do tipo de evento — menor número vence. Mirrors o CASE do
- * SQL view custody_resolved.
+ * SQL view custody_resolved (migration 00079 + 00082).
  *
- * swap (1) > exception (2) > regular (3) > tudo o resto (4)
+ * swap (1) > vacation/exception (2) > regular/holiday/special (3) > resto (4)
+ *
+ * Migration 00082 (2026-05-14) elevou `vacation` pra prio 2 pra que férias
+ * realmente sobreponham a escala regular no calendário, agenda, streak e
+ * próxima-troca. Antes vacation valia 3 = igual regular (bug Amanda).
  */
 export function custodyPriority(type: string): number {
   switch (type) {
     case "swap":
       return 1;
     case "exception":
+    case "vacation":
       return 2;
     case "regular":
+    case "holiday":
+    case "special":
       return 3;
     default:
       return 4;

@@ -29,6 +29,9 @@ export interface CalendarEvent {
   time?: string;
   /** When set, this is a calendar mirror of a school_logs row; tap → /escola */
   schoolLogId?: string | null;
+  /** Para eventos de custódia, qual tipo (regular/swap/vacation/holiday/special).
+   *  UI usa pra mostrar "Férias com X" em vez de "Com X" quando type=vacation. */
+  custodyType?: string | null;
 }
 
 export interface MemberColor {
@@ -182,10 +185,13 @@ export function useCalendar() {
         end_date: ce.end_date,
         custody_type: ce.custody_type,
       })));
+      // Ordem reflete prioridade do `custody_resolved` view (migration 00079 + 00082):
+      // swap > vacation/exception > regular/holiday/special. "Primeiro ganha"
+      // via dedup abaixo — então o vacation entra antes do regular.
       const orderedCustody = [
         ...stable.filter((ce) => ce.custody_type === 'swap'),
-        ...stable.filter((ce) => ce.custody_type === 'exception'),
-        ...stable.filter((ce) => ce.custody_type !== 'swap' && ce.custody_type !== 'exception'),
+        ...stable.filter((ce) => ce.custody_type === 'exception' || ce.custody_type === 'vacation'),
+        ...stable.filter((ce) => !['swap', 'exception', 'vacation'].includes(ce.custody_type)),
       ];
       // Dedup: garante UM custody event por (date, child). O loop processa
       // swap primeiro, depois exception, depois regular — entao o que entra
@@ -211,6 +217,7 @@ export function useCalendar() {
             title: getDisplayName(ce.children?.full_name),
             color: member?.color || PARENT_COLORS.primary,
             responsibleId: ce.responsible_user_id,
+            custodyType: ce.custody_type,
           });
         }
       });
