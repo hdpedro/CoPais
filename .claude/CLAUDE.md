@@ -17,12 +17,50 @@
 
 Cada caller só faz: auth + parsing + adaptação do retorno (NextResponse vs redirect vs ToolResult). Lógica de negócio e side-effects (push, chat, notify) ficam **somente** no service.
 
+### Adoção `vaccine` (Motor de Saúde Preventiva — migration 00082)
+
+Vacinação é o primeiro pilar de uma futura Central de Saúde da Criança. **Não é puxadinho de Saúde** — integra na arquitetura de Saúde existente (Foundation Collab, calendar_occurrences, services, push) e estende.
+
+Padrões consolidados nessa adoção (referência pra próximos módulos de saúde):
+
+1. **"Banco como source of truth" para dados derivados** (mesmo de calendar_occurrences 00074):
+   - `vaccine_catalog` (21 vacinas PNI 2026 + SBIm 2026 BR, com `source_url`+`source_version` por linha), `vaccine_schedule_rules` (42 regras com `valid_until_age_months` separado de `tolerance_months`), `vaccine_recommended_doses` (derivada por trigger).
+   - Função `compute_vaccine_recommendations(child_id)` PL/pgSQL SECURITY DEFINER, idempotente (DELETE+INSERT). Re-disparada por triggers em `children` (birth_date/sex/calendar_preference) e `vaccination_records` (insert/update/delete) e `medical_appointments` (cancel reabre pendência).
+   - **UNIQUE inclui `rule_id`** (não só vaccine_id+dose_number) pra permitir HPV PNI (network=public, 1 dose) + HPV SBIm (network=private, 2 doses) coexistirem quando user tem `vaccination_calendar_preference='both'`.
+
+2. **`equivalence_group`** pra famílias intercambiáveis (`dtpa_family`: Penta+Hexa+DTPa+dTpa; `scr_family`: SCR+SCRV; `polio_family`: VIP+VOP). Registrar Hexa dose 1 conta como Penta dose 1 (motor cruza no match).
+
+3. **Status estável `historical_gap`** — criança com <3 vaccination_records E idade >6m e overdue_days >180 marca doses antigas como gap (não como overdue). **Nunca dispara push** pra esse status. Quando criança ganha 3+ registros (pais usando o app), doses novas overdue viram overdue real.
+
+4. **Status `out_of_window`** — passou de `valid_until_age_months`. UI mostra "Janela passou — converse com pediatra". Sem push.
+
+5. **Service consolidado** `src/lib/services/vaccines.ts` — `getVaccineStatus`, `recordVaccination` (inferência dose_number via equivalence_group + detecção duplicata + cria `child_activity` kind=health pra aparecer no calendário compartilhado), `markRecommendedDoseTaken`, `dismissPendingDose`, `setVaccinationCalendarPreference`, `inferCatalogMatch`. Três callers finos: `src/actions/vaccines.ts` (PWA), `src/app/api/health/vaccines/route.ts` (native), `src/lib/ai/tools.ts` (`record_vaccination`, `get_vaccine_status`).
+
+6. **Tom premium**: linguagem CALMA (statusLabel pré-formatado: "Em dia", "1 reforço pendente", "Complete o histórico"); coverage_pct vive em segunda camada (tap no hero); paleta verde aconchegante / âmbar suave / cinza neutro — **nunca vermelho**. Push: "ainda não está marcada" / "está na hora", nunca "atrasada/vencida/em risco".
+
+7. **Cron premium**: dois jobs Vercel (`/api/cron/vaccine-due-notify` 12 UTC = 09 BRT; `/api/cron/vaccine-snooze-reentry` 11 UTC = 08 BRT). Trigger fino:
+   - `upcoming` (pre-due) com daysUntil ∈ {30,7,1}
+   - `due_soon` (dentro tolerance) com daysUntil = 0
+   - `overdue` (pós-tolerance) com overdueDays ∈ {1,7,30}
+   - + contextual: 24h antes de medical_appointment futuro com pendência da criança → "leve a carteirinha"
+   - Filtra `vaccine_notification_dismissals` ativos. TTL reentrada: `already_scheduled` expira em 30d, push suave se ainda não registrado.
+
+8. **Dashboard tile premium** (PWA `DashboardClient.tsx` + Native `(tabs)/index.tsx`): "Saúde preventiva · N reforços pendentes" — paleta âmbar-suave, mostra `nextDue` em linguagem calma. Separada da `saudeUnread` (que é awareness Foundation Collab) porque essa é ACAO motor-driven.
+
+9. **`/saude` (hub) integrado**: card "Saúde preventiva" como pilar logo após hero/alergias, usa `getVaccineStatus()` direto. Bloco antigo `compareVaccinations()` foi removido — `sbp-vaccine-calendar.ts` está deprecado (mantém export por compat).
+
+10. **Telemetria PostHog**: `vaccine_recommendation_computed`, `vaccine_status_viewed`, `vaccine_timeline_scrolled`, `vaccine_marked_taken`, `vaccine_due_push_sent` / `opened`, `vaccine_pending_dismissed`, `vaccine_calendar_preference_changed`.
+
+11. **NÃO somos assistente médico**. Sem contraindicação, diagnóstico, juízo clínico. OCR Fase 2 (futuro) só `confidence_score` + duplicate detection. Modo Escola (Fase 3) PDF mostra APENAS registros brutos — sem cobertura/status/pendências. Kindar = transportador.
+
 Pares já consolidados via service:
 - `services/swap.ts` ← `actions/calendar.ts:{createSwapRequest,respondToSwapRequest}` + `api/swaps/route.ts:{POST,PATCH}` + tools `create_swap_request`/`respond_swap_request`/`get_pending_approvals`
 - `services/expenses.ts` ← `actions/expenses.ts:{createExpense,updateExpenseStatus,deleteExpense}` + tool `create_expense`. Native (`kindar-native/src/services/expenses.ts`) ainda escreve direto via `safeWrite` para suporte offline — divergência conhecida que requer refactor offline-first separado para fechar.
 - `services/notes.ts` ← `actions/notes.ts:{createNote,updateNote,deleteNote}` + tool `create_note`.
 - `services/checkin.ts` ← `actions/checkin.ts:createCheckin` + tool `create_checkin` (broadcast no chat para o coparente).
 - `services/decisions.ts` ← `actions/decisions.ts:{createDecision,castVote,addArgument}` + tool `create_decision` (resolução automática quando todos votam).
+- `services/vaccines.ts` ← `actions/vaccines.ts:{registerVaccination,markDoseTaken,dismissDose,updateCalendarPreference}` + `api/health/vaccines/route.ts` (GET/POST/PATCH) + tools `record_vaccination` + `get_vaccine_status`. Motor consome `vaccine_recommended_doses` mantida por trigger (00082) e dispara push via Foundation Collab + cria `child_activity` kind='health' pra integrar calendário compartilhado.
+- `services/vaccine-notifier.ts` (server-only) ← cron rotas `/api/cron/vaccine-due-notify` + `/api/cron/vaccine-snooze-reentry`. Lógica de identificação de candidates + fan-out de push via `createNotificationWithPush`. Reentrada de snooze `already_scheduled` 30d.
 
 Pares ainda em paridade direta (a migrar para services):
 - `actions/subscription-split.ts:enableSubscriptionSplit` ↔ `api/subscription/split/route.ts:POST`

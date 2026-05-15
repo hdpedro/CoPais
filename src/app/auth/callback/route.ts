@@ -60,7 +60,22 @@ export async function GET(request: Request) {
           const createdAt = new Date(user.created_at);
           const isNewUser = (Date.now() - createdAt.getTime()) < 60000; // Created less than 60s ago
           if (isNewUser) {
-            const fullName = user.user_metadata?.full_name || user.email?.split("@")[0] || "";
+            // Resolução em camadas: metadata do provider (cobre Google `name`,
+            // `given_name`+`family_name`, `full_name`); fallback final pro
+            // prefixo do email já capitalizado pelo split-replace, NUNCA o
+            // user.id. Espelha a lógica do trigger SQL handle_new_user
+            // (migration 00081). O `display_name` da row recém-criada só
+            // estaria disponível depois do trigger rodar — pra welcome email
+            // não esperamos, montamos aqui mesmo a partir da metadata.
+            const meta = user.user_metadata ?? {};
+            const givenFamily = [meta.given_name, meta.family_name].filter(Boolean).join(" ").trim();
+            const emailLocal = user.email?.split("@")[0] ?? "";
+            const fullName =
+              meta.full_name?.trim() ||
+              meta.name?.trim() ||
+              givenFamily ||
+              emailLocal.replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) ||
+              "";
             captureServerEvent(user.id, "user_signup", { provider: "oauth" });
             void sendWelcomeEmail(user.email!, fullName);
           }

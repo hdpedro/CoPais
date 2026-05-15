@@ -2,6 +2,23 @@
 
 > Eventos de analytics para PostHog. Guia de instrumentacao e definicao de funis.
 > Integracao via `captureServerEvent()` (server-side) e `posthog.capture()` (client-side).
+> Atualizado: 14/05/2026.
+>
+> **Cross-platform desde Maio/2026:** PostHog instrumentado em PWA + iOS + Android + server. Super-property `platform` (`web` | `ios` | `android` | `server`) carimba todo evento — permite breakdown de DAU/MAU e funis por plataforma. distinctId: `auth.users.id` em todas as superficies (mesmo user em PWA + native).
+>
+> **Eventos da Foundation Collab (Fases 1, 1B, 3) — adicionados pos-2026-05:**
+> - `notification_sent` (server, recipient distinctId) — props: `record_type`, `actor_user_id`, `priority`, `coalesced` (bool), `coalesced_count`
+> - `notification_opened` (client, ao abrir via deep link `?highlight=`) — props: `record_type`, `record_id`
+> - `<module>_read` (server, no markRead) — props especificas por modulo (`log_id`, `expense_id`, etc.)
+> - `unread_count` (client, dashboard mount) — props: `record_type`, `count`. Saude usa `record_type: 'saude_aggregate'` (tile consolidada).
+> - `urgent_created` (server, priority='urgent' no create) — props: `record_type`
+>
+> **Eventos novos de Despesas (Fase 1B):**
+> - `expense_edited` — props: `expense_id`, `status_was`, `reverted_to_pending`
+> - `expense_cancelled` (cancel direto pre-aprovacao) — props: `expense_id`, `from_status`
+> - `expense_cancel_requested` (approved → cancel_pending) — props: `expense_id`
+> - `expense_cancel_approved` / `expense_cancel_rejected` (server, respondToCancelRequest)
+> - `expense_reopened` (server, reopenApproval) — props: `expense_id`
 
 ---
 

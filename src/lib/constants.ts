@@ -254,18 +254,23 @@ export const DEFAULT_QUICK_ACTIONS = {
 } as const;
 
 /**
- * Returns a display-friendly name from full_name.
- * If full_name looks like an email, extracts the part before '@' and capitalizes it.
- * Returns first name only when firstOnly is true.
+ * Retorna nome amigável a partir de qualquer string de nome (idealmente
+ * `profiles.display_name`, que já vem normalizado do banco — migration 00081).
+ *
+ * Defensivo pra inputs problemáticos:
+ *   - null/empty → "Usuário"
+ *   - email "henrique.de.pedro@gmail.com" → "Henrique De Pedro"
+ *   - já normalizado → retorna como está
+ *
+ * NUNCA retorna UUID, email cru nem string vazia.
  */
-export function getDisplayName(fullName: string | null | undefined, firstOnly = false): string {
-  if (!fullName) return "Usuario";
-  let name = fullName;
-  // If looks like email, extract before @
-  if (name.includes("@")) {
-    name = name.split("@")[0]
+export function getDisplayName(name: string | null | undefined, firstOnly = false): string {
+  if (!name || !name.trim()) return "Usuário";
+  let normalized = name.trim();
+  if (normalized.includes("@")) {
+    normalized = normalized.split("@")[0]
       .replace(/[._-]/g, " ")
       .replace(/\b\w/g, (c) => c.toUpperCase());
   }
-  return firstOnly ? name.split(" ")[0] : name;
+  return firstOnly ? normalized.split(" ")[0] : normalized;
 }

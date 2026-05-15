@@ -1,7 +1,15 @@
 # Arquitetura do Sistema - Kindar
 
 > Visao completa da arquitetura tecnica da plataforma Kindar.
-> Versao: 1.0 | Atualizado: Marco 2026
+> Versao: 1.3 | Atualizado: 14/05/2026
+>
+> **Mudancas estruturais pos-versao 1.0 (Abril-Maio/2026):**
+> - **Arquitetura dual**: PWA (`src/`) + Kindar Native (`kindar-native/`) compartilhando 100% do backend Supabase (mesmo schema, RLS, storage, push).
+> - **Camada `src/lib/services/<dominio>.ts`**: fonte unica de regra de negocio chamada por actions (PWA), API routes (native), e tools (assistente/WhatsApp). Pares consolidados: `swap.ts`, `expenses.ts`, `notes.ts`, `checkin.ts`, `decisions.ts`, `collab.ts`, `health-collab.ts`.
+> - **Banco como fonte de verdade para side-effects derivados**: `calendar_occurrences` (migration 00074), `custody_resolved` view (00079), trigger `illness_episodes_grave_to_urgent` (00080). Client/JS continua existindo como UI otimista mas o banco garante.
+> - **Foundation polimorfica**: tabela `collab_reads (record_type, record_id, user_id, read_at)` + funcao `collab_record_group()` resolve grupo por modulo via WHEN branches. Adocao por novo modulo custa ~20 linhas.
+> - **Pipeline auto-fix**: `app_errors` → Claude API (claude-sonnet) → GitHub PR (Contents API) → Discord (interactions).
+> - **WebView hibrida**: telas com forms 1000+ LOC reaproveitadas em native via session injection Supabase (`localStorage.setItem('sb-...auth-token', ...)`). Hoje cobre `/criancas/[id]` e `/calendario/novo`.
 
 ---
 

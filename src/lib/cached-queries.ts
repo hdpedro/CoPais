@@ -67,7 +67,7 @@ export function getCachedMembers(groupId: string) {
       const supabase = getAdminClient();
       const { data } = await supabase
         .from("group_members")
-        .select("user_id, role, joined_at, profiles(id, full_name, email)")
+        .select("user_id, role, joined_at, profiles(id, full_name, display_name, email)")
         .eq("group_id", groupId)
         .order("joined_at");
       return data || [];

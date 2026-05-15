@@ -191,6 +191,10 @@ interface DashboardData {
   // (appointments scheduled + illness active + medications active +
   // allergies + vaccines). Drives "Saúde · N novos" row no dashboard.
   saudeUnreadCount: number;
+  // Saúde Preventiva (migration 00082): pendências reais (overdue+due_soon)
+  // somadas em todas crianças do grupo via view child_vaccine_coverage.
+  vaccinePendingCount: number;
+  vaccineNextDue: { dueDate: string; vaccineName: string } | null;
 }
 
 function formatDate(): string {
@@ -706,6 +710,34 @@ export function useDashboard() {
           countUnread('vaccination_record', vacRows);
       } catch { /* idem */ }
 
+      // Saúde Preventiva: agrega overdue+due_soon de todas crianças.
+      let vaccinePendingCount = 0;
+      let vaccineNextDue: { dueDate: string; vaccineName: string } | null = null;
+      try {
+        const { data: coverageRows } = await withTimeout(
+          supabase
+            .from('child_vaccine_coverage')
+            .select('overdue_count, due_soon_count, next_due_date, next_due_vaccine_name')
+            .eq('group_id', activeGroup.groupId),
+          5_000,
+          'useDashboard:vaccinePending',
+        );
+        for (const r of (coverageRows || []) as Array<{
+          overdue_count: number | null;
+          due_soon_count: number | null;
+          next_due_date: string | null;
+          next_due_vaccine_name: string | null;
+        }>) {
+          vaccinePendingCount += Number(r.overdue_count || 0) + Number(r.due_soon_count || 0);
+          if (r.next_due_date && (!vaccineNextDue || r.next_due_date < vaccineNextDue.dueDate)) {
+            vaccineNextDue = {
+              dueDate: r.next_due_date,
+              vaccineName: r.next_due_vaccine_name || '',
+            };
+          }
+        }
+      } catch { /* idem */ }
+
       // Map occurrences to ActivityItems. Para hoje, classificamos o estado
       // (upcoming / ended-unreported / ended-reported) pra a UI distinguir
       // visualmente e oferecer "Relatar" inline em encerradas-sem-relato.
@@ -965,6 +997,8 @@ export function useDashboard() {
         schoolUnreadCount,
         expensesUnreadCount,
         saudeUnreadCount,
+        vaccinePendingCount,
+        vaccineNextDue,
       };
       setData(dashData);
       cacheSet(cacheKey, dashData);

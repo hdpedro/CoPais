@@ -10,6 +10,7 @@ import { I18nProvider } from "@/i18n/provider";
 import { SubscriptionProvider } from "@/components/SubscriptionProvider";
 import { getUserSubscription } from "@/lib/subscription";
 import { getCachedProfileByUser } from "@/lib/cached-queries";
+import { getDisplayName } from "@/lib/constants";
 
 export default async function AppLayout({
   children,
@@ -33,8 +34,14 @@ export default async function AppLayout({
     getUserSubscription(supabase, user.id),
   ]);
 
-  const initial = profile?.full_name?.[0]?.toUpperCase() || user.email?.[0]?.toUpperCase() || "U";
-  const fullName = profile?.full_name || user.email || "User";
+  // Banco é fonte única de verdade — `profile.display_name` é coluna gerada
+  // (migration 00081) que já normaliza full_name → INITCAP do prefixo do email
+  // → vazio. `getDisplayName` faz a defesa final: vazio → "Usuário", e
+  // sanitiza inputs problemáticos (ex: full_name que veio com "@"). Caller
+  // NUNCA expõe user.id nem email cru.
+  const profileRow = profile as ({ display_name?: string | null; full_name?: string | null } | null);
+  const fullName = getDisplayName(profileRow?.display_name || profileRow?.full_name);
+  const initial = fullName[0]?.toUpperCase() || "U";
 
   // Fetch group memberships for multi-group support
   const activeGroup = await getActiveGroup(supabase, user.id);

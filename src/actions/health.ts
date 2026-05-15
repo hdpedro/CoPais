@@ -261,6 +261,11 @@ export async function createAppointment(formData: FormData) {
   const appointmentType = formData.get("appointmentType") as string;
   const returnDate = formData.get("returnDate") as string;
   const returnNotes = sanitizeText(formData.get("returnNotes") as string, 2000);
+  // Vínculo com pendência vacinal — quando o user veio do CTA "Agendar pediatra"
+  // de um VaccinePendingCard. Server-side validamos que a dose pertence ao mesmo
+  // grupo. Trigger trg_medical_appointments_vaccine_cancel reabre a pendência
+  // se a consulta for cancelada.
+  const vaccineDoseId = (formData.get("vaccineDoseId") as string) || null;
 
   // Combine date + time into a TIMESTAMPTZ value (Brazil timezone)
   const appointmentDatetime = `${appointmentDate}T${appointmentTime}:00-03:00`;
@@ -279,6 +284,17 @@ export async function createAppointment(formData: FormData) {
   if (appointmentType) insertData.appointment_type = appointmentType;
   if (returnDate) insertData.return_date = returnDate;
   if (returnNotes) insertData.return_notes = returnNotes;
+  if (vaccineDoseId) {
+    // Valida que a recomendação pertence ao mesmo grupo + criança
+    const { data: dose } = await supabase
+      .from("vaccine_recommended_doses")
+      .select("id, group_id, child_id")
+      .eq("id", vaccineDoseId)
+      .maybeSingle();
+    if (dose && dose.group_id === groupId && dose.child_id === childId) {
+      insertData.related_vaccine_dose_id = vaccineDoseId;
+    }
+  }
 
   const { data: appointment, error } = await supabase
     .from("medical_appointments")

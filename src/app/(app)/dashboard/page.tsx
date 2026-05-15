@@ -315,6 +315,33 @@ export default async function DashboardPage() {
     _countUnreadFor("child_allergy", allergyIdsForUnread) +
     _countUnreadFor("vaccination_record", vaccineIdsForUnread);
 
+  // === SAÚDE PREVENTIVA — pendências vacinais reais (motor 00082) ===
+  // Diferente de saudeUnread (awareness colaborativa). Aqui agregamos
+  // overdue + due_soon de TODAS as crianças do grupo via view
+  // `child_vaccine_coverage`. Tile aparece quando há pendência calma.
+  const { data: vaccineCoverageRows } = await supabase
+    .from("child_vaccine_coverage")
+    .select("child_id, overdue_count, due_soon_count, next_due_date, next_due_vaccine_name")
+    .eq("group_id", groupId);
+  const vaccinePending = (vaccineCoverageRows || []).reduce<{
+    total: number;
+    nextDueDate: string | null;
+    nextDueVaccineName: string | null;
+  }>(
+    (acc, row) => {
+      const overdue = Number(row.overdue_count || 0);
+      const dueSoon = Number(row.due_soon_count || 0);
+      acc.total += overdue + dueSoon;
+      const rowDate = row.next_due_date as string | null;
+      if (rowDate && (!acc.nextDueDate || rowDate < acc.nextDueDate)) {
+        acc.nextDueDate = rowDate;
+        acc.nextDueVaccineName = (row.next_due_vaccine_name as string | null) || null;
+      }
+      return acc;
+    },
+    { total: 0, nextDueDate: null, nextDueVaccineName: null },
+  );
+
   // Filter decisions where user hasn't voted yet
   const openDecisionIds = (openDecisions || []).map(d => d.id);
   const { data: decisionVotesForUser } = openDecisionIds.length > 0
@@ -1072,6 +1099,13 @@ export default async function DashboardPage() {
     schoolUnreadCount,
     expensesUnreadCount,
     saudeUnreadCount,
+    vaccinePendingCount: vaccinePending.total,
+    vaccineNextDue: vaccinePending.nextDueDate
+      ? {
+          dueDate: vaccinePending.nextDueDate,
+          vaccineName: vaccinePending.nextDueVaccineName || "",
+        }
+      : null,
   };
 
   // Billing/trial widgets — only fetched after the group is resolved so

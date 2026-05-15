@@ -1,7 +1,15 @@
 # Roadmap de Produto - Kindar
 
-> Ultima atualizacao: Março 2026
+> Ultima atualizacao: 14/05/2026
 > Horizonte: Q2 2026 - Q1 2027 (4 trimestres)
+>
+> **Status real de Q2 2026 (midway):**
+> - ✅ WhatsApp MVP — implementado (`/api/whatsapp/webhook`, parser PT-BR, OCR de recibos, multi-grupo, 4 tabelas migration 00043 + views v2 em 00065)
+> - ✅ Performance — `Promise.all()` paralelos, indexes (00025), queries com colunas especificas + `.limit()` em todas as paginas criticas
+> - ✅ Offline basics — `safeWrite` queue native (AsyncStorage), `returnInsertedId: true` para chain de notify pos-write
+> - ✅ Push improvements — Foundation Collab com coalescing 60s (FCM `tag`, APNs `thread-id`, web-push `tag`), APNs nativo via expo-notifications + endpoint `/api/native/notify`
+> - 🟡 AI Mediator — `tone-moderator.ts` no chat ja existe (analise de tom + sugestao). IA conversacional in-app e WhatsApp 100% funcional
+> - ➕ **Bonus entregue em Q2 (nao estava no plano original):** Foundation Collab (Fases 1/1B/3), Billing multi-provider (Stripe + IAP + RevenueCat), Google Sign-In Android, custody_events integrity hardening (00079), calendar_occurrences via trigger (00074), onboarding wizard premium, PostHog cross-platform com super-property `platform`
 
 ---
 

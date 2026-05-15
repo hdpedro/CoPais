@@ -93,6 +93,41 @@ Me conta o que achou!
 
 ---
 
+## VERSAO WHATSAPP (amigos proximos, pessoal)
+
+> Tom de amigo de verdade pedindo opiniao sincera. Assume que a pessoa conhece o
+> contexto e ouviu falar da ideia. Pede feedback honesto, nao review bonitinho.
+
+```
+Oi!
+
+Lembra daquela ideia de app pra pais separados não enlouquecerem com a logística da guarda? Saiu do papel — chama *Kindar* e tá rodando.
+
+Filho legítimo do meu próprio caos: cansei de planilha que ninguém atualiza, "quem ia buscar hoje?", "essa consulta quem pagou?", "era chuteira ou tênis amanhã?" — então construí o que eu queria ter.
+
+- Calendário de guarda compartilhado
+- Atividades dos filhos com checklist do que levar
+- Despesas divididas sem planilha
+- Chat dos pais com tudo registrado
+
+Tô chamando os amigos mais próximos antes de abrir pra geral. *Não quero review bonitinho — quero opinião sincera de amigo.* Achou tosco, achou lento, abriu uma vez e não voltou — me fala. É isso que vai fazer o app ficar bom.
+
+100% gratuito, sempre vai ser na base.
+
+Web (abre direto no navegador):
+https://www.kindar.com.br
+
+iPhone (App Store):
+https://apps.apple.com/br/app/kindar/id6762701916
+
+Android (Play Store):
+https://play.google.com/apps/test/RQdV_uz1j2U/ahAO29uNSvPZbUYiznHCBieYa9MCQ4D_9hl6kHxwbImYuQ1qWqlodE_7eNpne7UgWvfgryoTCobSohqTya0hNwr5Ra
+
+Abraço, e brigado por topar.
+```
+
+---
+
 ## VERSAO EMAIL (formal, para grupos de pais / escolas / mediadores)
 
 ```

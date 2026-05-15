@@ -183,6 +183,10 @@ function getRecordedDoses(
 }
 
 /**
+ * @deprecated Use `getVaccineStatus(supabase, childId)` de `@/lib/services/vaccines`.
+ * Esta função está mantida apenas pra compat com código legado. Motor real está em
+ * `vaccine_recommended_doses` mantido por trigger (migration 00082). Será removida.
+ *
  * Compare a child's vaccination records against the SBP calendar.
  *
  * @param birthDate - Child's birth date string (YYYY-MM-DD)

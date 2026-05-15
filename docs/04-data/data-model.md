@@ -1,7 +1,16 @@
 # Modelo de Dados — Kindar
 
 > Documento de referencia para o esquema completo do banco de dados PostgreSQL (Supabase).
-> Atualizado em: Março 2026 | Versao: 1.0
+> Atualizado em: 14/05/2026 | Versao: 1.4
+>
+> **Adicoes pos-versao 1.0:**
+> - **Foundation Collab** (migrations 00077, 00078, 00080): tabela polimorfica `collab_reads (record_type, record_id, user_id, read_at)`, enum `collab_priority (info|important|urgent)`, audit trail imutavel `expense_history`, funcao `collab_record_group(record_type, record_id)`, RPC `mark_collab_read(record_type, record_id)`. Adocoes: `school_logs`, `expenses`, `medical_appointments`, `illness_episodes`, `active_medications`, `child_allergies`, `vaccination_records`.
+> - **Integridade `custody_events`** (00079): view `custody_resolved` (swap > exception > regular), trigger `custody_events_prevent_overlap`, EXCLUDE constraint `no_overlap_same_type` via daterange &&.
+> - **Billing multi-provider** (00039, 00051, 00053-00063): `subscriptions` escopada por GRUPO, `plans` com IDs Stripe/Apple/Google, `coupons`, `webhook_events` (idempotencia), `referral_clicks`/`referral_rewards`, `onboarding_quests`, `early_bird_counter` atomico, `subscription_split` entre coparentes.
+> - **Calendar occurrences via trigger** (00074): banco vira fonte de verdade pra `calendar_occurrences` — trigger AFTER INSERT/UPDATE em `child_activities` chama `generate_activity_occurrences()` PL/pgSQL. Independe do client.
+> - **Assistente IA persistente** (00072): tabela `assistant_session_state` mantem contexto entre turns.
+> - **Views read-only para WhatsApp v2** (00065): `child_current_status` (snapshot saude), `expense_balance_per_user` (saldo pendente derivado de split_ratio).
+> - **Total atual: ~68 tabelas em origin/main, 83 migrations (ate 00080).**
 
 ---
 

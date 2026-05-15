@@ -1,8 +1,10 @@
 # Kindar - Manual de Desenvolvimento
 
 > Manual completo para desenvolvedores que vao trabalhar no projeto Kindar.
-> Ultima atualizacao: **24/04/2026 (v1.1.19)**
+> Ultima atualizacao: **14/05/2026** (PWA pos-v1.1.19 + Native v1.0.5)
 > Repositorio: **https://github.com/hdpedro/CoPais** (publico desde 24/04/2026)
+>
+> **Janela coberta nesta passada:** Foundation (Fases 1/1B/3), integridade de `custody_events`, calendar_occurrences via trigger, billing multi-provider, Google Sign-In Android, PostHog cross-platform, dashboard "Saude · N novos" agregada. Detalhes em `README.md` > "O que mudou desde a ultima passada de doc".
 
 ---
 
@@ -56,15 +58,17 @@
 | Estilizacao | Tailwind CSS | ^4 | Utility-first, produtividade, zero CSS custom |
 | Backend/BaaS | Supabase (PostgreSQL) | ^2.99.2 | Auth + DB + RLS em um unico servico |
 | Auth | Supabase Auth + SSR | ^0.9.0 | Session management com cookies no server |
-| i18n | Custom (I18nProvider + useI18n) | — | 5 idiomas, ~1488 chaves, 40 secoes |
+| i18n | Custom (I18nProvider + useI18n) | — | 5 idiomas, ~1982 chaves em pt.json (namespaces incluindo `collab` da Foundation) |
 | Deploy | Vercel | Hobby | Zero-config para Next.js, auto-deploy |
-| IA | Multi-provider Router: Groq → Together → Gemini | Cloud API | Assistente conversacional com function calling (12 tools, multi-round), parsers robustos PT-BR; Invite Parser. Vision: llama-4-scout / Llama-Vision-Free / gemini-2.0-flash. Text: llama-3.3-70b / Llama-3.3-70B-Turbo-Free / gemini-2.0-flash |
+| IA | Multi-provider Router: Groq → Together → Gemini | Cloud API | Assistente conversacional com function calling (12 tools, multi-round), parsers robustos PT-BR; Invite Parser; Vaccine Parser; Prescription Parser. Vision: llama-4-scout / Llama-Vision-Free / gemini-2.0-flash. Text: llama-3.3-70b / Llama-3.3-70B-Turbo-Free / gemini-2.0-flash |
 | OCR | Tesseract.js | local (browser/Node) | Extracao de texto de imagens/PDFs para o Invite Parser (100% free tier) |
-| Analytics | PostHog | — | 30+ eventos rastreados, cross-platform PWA+iOS+Android, super-property `platform` para breakdown |
-| Error Tracking | Sentry | — | Monitoramento de erros em producao |
+| Analytics | PostHog | — | Eventos rastreados cross-platform (PWA + iOS + Android + server) com super-property `platform` para breakdown DAU/MAU. Foundation acrescenta `notification_sent/opened`, `<module>_read`, `unread_count`, `urgent_created` |
+| Error Tracking | Sentry | — | Monitoramento de erros em producao + pipeline auto-fix (`app_errors` → Claude API → GitHub PR → Discord) |
+| Billing | Stripe + Apple StoreKit + Google Play Billing + RevenueCat | server + plugin | Escopo por GRUPO, idempotencia via `webhook_events`, cupons, Early Bird counter atomico, split entre coparentes |
 | Testes E2E | Playwright | — | 34 testes |
-| Testes Unitarios | Vitest | — | 50 testes (AI parser) |
-| Mobile | Capacitor | ^7 | Hybrid app iOS/Android via webview nativa |
+| Testes Unitarios | Vitest | — | 36 arquivos de teste (~286+ casos) |
+| Mobile (legado) | Capacitor | ^7 | Hybrid wrapper PWA (deprecado em favor de Expo/`kindar-native/`) |
+| Mobile (atual) | Expo SDK 54 (React Native 0.76) | — | App iOS + Android nativo com 134 arquivos de rota em `kindar-native/app/`, WebView hibrida para telas complexas |
 
 ### Capacitor (iOS App Store)
 
@@ -448,7 +452,7 @@ Kindar/
     ├── i18n/                        # === INTERNACIONALIZACAO ===
     │   ├── index.ts                 # I18nProvider, useI18n hook
     │   └── locales/
-    │       ├── pt.json              # Portugues (~1488 chaves, 40 secoes)
+    │       ├── pt.json              # Portugues (~1982 chaves)
     │       ├── en.json              # Ingles
     │       ├── es.json              # Espanhol
     │       ├── fr.json              # Frances
@@ -1821,6 +1825,23 @@ SELECT * FROM group_members WHERE user_id = 'UUID_DO_USUARIO';
 - Clientes nativos chamam isso antes de mostrar botao de compra; o Stripe webhook + RevenueCat webhook (a implementar) atualizam o mesmo `subscriptions` row.
 - Enforcement duplo: `payer.ts` (app-level: so `parent` paga) + trigger Postgres (DB-level: Early Bird capacity com advisory lock para prevenir oversell cross-platform).
 
+### Por que Foundation: Collaborative Records (em vez de awareness por modulo)?
+- Cada modulo colaborativo (Escola, Despesas, Saude, Decisoes, etc.) precisa de **read receipts, prioridade e push fan-out**. Reimplementar isso em cada um geraria divergencia inevitavel.
+- Tabela polimorfica `collab_reads (record_type, record_id, user_id, read_at)` resolve isso com 1 row por (record, user). Polimorfica **por convencao** (nao FK), porque os record_types vivem em tabelas diferentes — RLS resolve grupo via funcao `collab_record_group(record_type, record_id)` com WHEN branches.
+- Enum `collab_priority` ∈ (`info`, `important`, `urgent`) compartilhado entre todos. Cada modulo adota com `ADD COLUMN priority collab_priority NOT NULL DEFAULT '<default>'`. Default reflete urgencia natural do modulo: appointments/illness/medications/allergies → `important`; vaccines/school_logs → `info`.
+- Triggers `<modulo>_auto_mark_creator_read` mantem o invariante "criador ja viu o que criou" automaticamente — sem isso a UI ficaria mostrando "Novo" pro proprio autor.
+- **Adocao por novo modulo custa ~20 linhas** (1 ALTER, 1 trigger, 1 WHEN branch, 1 chamada de `notifyCollabCreate`, 1 chip de UI). Foundation entrega 80% do valor; UI inline ganha por iteracao.
+
+### Por que push coalescing 60s (e nao 1 push por record)?
+- Sem coalescing, criar 5 registros escolares em sequencia disparava 5 pushes — usuario muda o telefone pra silencioso e perde TUDO. Pior pro nosso valor central de transparencia.
+- Coalescing usa **tag estavel** por (recipient, type, actor) com TTL 60s — pushes seguintes substituem o anterior no device. FCM `tag`, APNs `thread-id`, web-push `tag` fazem isso nativamente.
+- Mensagem agrega: "Amanda adicionou 1 registro escolar" → "Amanda adicionou 3 registros escolares" (atualiza in-place).
+- **In-app notification row sempre criada** (inbox nao coalesce — perderia historico).
+
+### Por que `urgent` ainda usa push normal (e nao time-sensitive)?
+- Time-sensitive entitlement Apple requer capability change + rebuild EAS + review review. Trade-off: ate justificar custo via dados, `urgent` apenas tem visual emphasis (chip vermelho, ordenacao no topo).
+- Trigger `illness_episodes_grave_to_urgent` promove `severity='grave' + priority='important'` (default) para `urgent` server-side, mas respeita override explicito.
+
 ### Por que 1 assinatura por grupo e nao por usuario?
 - Para co-parentalidade funcionar, ambos os responsaveis precisam ter acesso ao mesmo calendar/saude/despesas. Per-user exigiria que cada pai tivesse sua propria sub — se um recusa pagar, o outro perde valor.
 - Per-group elimina a briga "quem paga" e permite split automatico via modulo Despesas existente.
@@ -2115,7 +2136,10 @@ Disparado em push de tag `v*`. Serializado via `concurrency: ios-release-all` (e
 - `IOS_P12_BASE64`, `IOS_P12_PASSWORD`, `IOS_PROVISIONING_PROFILE_BASE64` (gerados pelo `scripts/setup-ios-credentials.mjs`)
 
 ### Runs/build tracking
-- Tag `v1.1.19` → build 32 (TestFlight)
+- Tag `v1.1.19` → build 32 (TestFlight) — PWA original
+- Native: `kindar-native/app.json` version 1.0.5 (~build 68+ TestFlight em 2026-05-07)
+- Bug EAS iOS resolvido em 2026-05-07: causa = worker EAS so populava `app/` e `assets/`, demais pastas vinham vazias. Fix: `git mv src/ app/_src/` + Metro `extraNodeModules.src` + bulk rewrite de 337 imports (commit `9c8506d`)
+- Android: build #15 promovido para internal/alpha (Play Console) — Internal App Sharing link valido 60 dias, mesma assinatura do Play Store
 - Proximas tags auto-distribuem para Angelino (external tester)
 - Pipeline corre gratis — repo **publico** = Actions ilimitadas
 

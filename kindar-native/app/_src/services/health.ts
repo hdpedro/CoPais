@@ -639,3 +639,158 @@ export async function regenerateEmergencyToken(params: {
     ? { success: true as const, emergency_token: r.data.emergency_token }
     : { success: false as const, error: r.error || 'Falha ao regenerar' };
 }
+
+// ── Motor de Saúde Preventiva (Vacinas) ────────────────────────────────────
+// Reflete `src/lib/services/vaccines.ts` no PWA. Fonte de verdade = banco
+// (triggers regeneram `vaccine_recommended_doses`). Native chama a API REST
+// pra obter o status agregado e disparar ações com inferência server-side.
+
+export type VaccineStatus =
+  | 'taken'
+  | 'overdue'
+  | 'due_soon'
+  | 'upcoming'
+  | 'future'
+  | 'historical_gap'
+  | 'out_of_window';
+
+export type CalendarPreference = 'public' | 'private' | 'both';
+
+export interface VaccineDoseStatus {
+  id: string;
+  vaccineId: string;
+  vaccineCode: string;
+  vaccineName: string;
+  doseNumber: number;
+  doseLabel: string;
+  status: VaccineStatus;
+  dueDate: string;
+  validUntilDate: string | null;
+  overdueDays: number | null;
+  takenRecordId: string | null;
+  takenDate: string | null;
+  ruleNetwork: string;
+  isBooster: boolean;
+}
+
+export interface TimelineGroup {
+  ageBucket: string;
+  doses: VaccineDoseStatus[];
+}
+
+export interface VaccineStatusResult {
+  childId: string;
+  coveragePct: number;
+  statusLabel: string;
+  totals: {
+    recommended: number;
+    taken: number;
+    overdue: number;
+    dueSoon: number;
+    upcoming: number;
+    historicalGap: number;
+    outOfWindow: number;
+  };
+  nextDue: { doseId: string; vaccineName: string; dueDate: string } | null;
+  overdue: VaccineDoseStatus[];
+  dueSoon: VaccineDoseStatus[];
+  upcoming: VaccineDoseStatus[];
+  taken: VaccineDoseStatus[];
+  historicalGaps: VaccineDoseStatus[];
+  timelineByAge: TimelineGroup[];
+}
+
+export async function getVaccineStatus(childId: string): Promise<VaccineStatusResult | null> {
+  const r = await apiFetch<VaccineStatusResult>(`/api/health/vaccines`, {
+    method: 'GET',
+    query: { childId },
+  });
+  return r.ok && r.data ? r.data : null;
+}
+
+export async function recordVaccinationViaEngine(input: {
+  groupId: string;
+  childId: string;
+  vaccineName: string;
+  catalogId?: string | null;
+  doseLabel?: string | null;
+  doseNumber?: number | null;
+  administeredDate: string;
+  batchNumber?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  source?: 'manual' | 'ocr' | 'imported';
+  confidenceScore?: number | null;
+  forceDuplicate?: boolean;
+}) {
+  const r = await apiFetch<{
+    success: boolean;
+    id?: string;
+    catalogId?: string | null;
+    doseNumber?: number | null;
+    warning?: 'duplicate_dose';
+    inferredDose?: boolean;
+    equivalenceMatch?: boolean;
+  }>(`/api/health/vaccines`, {
+    method: 'POST',
+    body: { action: 'record', ...input },
+  });
+  if (!r.ok || !r.data) {
+    return { success: false as const, error: r.error || 'Falha ao registrar vacina' };
+  }
+  // Server returns `success` field which conflicts with our wrapper — drop it.
+  const { success: _ignored, ...rest } = r.data;
+  return { success: true as const, ...rest };
+}
+
+export async function markRecommendedDoseTaken(input: {
+  doseRecommendationId: string;
+  administeredDate: string;
+  batchNumber?: string | null;
+  location?: string | null;
+  notes?: string | null;
+}) {
+  const r = await apiFetch<{ success: boolean; id?: string }>(`/api/health/vaccines`, {
+    method: 'POST',
+    body: { action: 'mark', ...input },
+  });
+  return r.ok && r.data
+    ? { success: true as const, id: r.data.id || null }
+    : { success: false as const, error: r.error || 'Falha ao marcar dose' };
+}
+
+export async function dismissPendingDose(input: {
+  childId: string;
+  vaccineId: string;
+  doseNumber: number;
+  reason: 'snoozed_7d' | 'snoozed_30d' | 'already_scheduled';
+}) {
+  const r = await apiFetch<{ success: boolean; dismissedUntil?: string }>(`/api/health/vaccines`, {
+    method: 'POST',
+    body: { action: 'dismiss', ...input },
+  });
+  return r.ok && r.data
+    ? { success: true as const, dismissedUntil: r.data.dismissedUntil }
+    : { success: false as const, error: r.error || 'Falha ao adiar' };
+}
+
+export async function setVaccinationCalendarPreference(input: {
+  childId: string;
+  preference: CalendarPreference;
+}) {
+  const r = await apiFetch<{ success: boolean }>(`/api/health/vaccines`, {
+    method: 'PATCH',
+    body: input,
+  });
+  return r.ok && r.data
+    ? { success: true as const }
+    : { success: false as const, error: r.error || 'Falha ao atualizar calendário' };
+}
+
+export async function matchVaccineCatalog(name: string): Promise<Array<{ id: string; code: string; name: string; similarity: number }>> {
+  const r = await apiFetch<{ matches: Array<{ id: string; code: string; name: string; similarity: number }> }>(
+    `/api/health/vaccines`,
+    { method: 'GET', query: { match: name } },
+  );
+  return r.ok && r.data ? r.data.matches : [];
+}

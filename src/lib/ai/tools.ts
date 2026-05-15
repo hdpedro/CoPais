@@ -13,6 +13,10 @@ import { createExpense as createExpenseService } from "@/lib/services/expenses";
 import { createNote as createNoteService } from "@/lib/services/notes";
 import { createCheckin as createCheckinService } from "@/lib/services/checkin";
 import { createDecision as createDecisionService } from "@/lib/services/decisions";
+import {
+  getVaccineStatus as getVaccineStatusService,
+  recordVaccination as recordVaccinationService,
+} from "@/lib/services/vaccines";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -382,6 +386,48 @@ export const AI_TOOLS = [
     },
   },
 
+  /* ---------- VACCINE ENGINE (Motor de Saúde Preventiva) ---------- */
+  {
+    type: "function" as const,
+    function: {
+      name: "record_vaccination",
+      description:
+        "Registrar vacina aplicada em uma crianca. Usar quando o usuario disser 'a Maria tomou tetraviral', 'vacinei o Otto hoje contra gripe', 'aplicaram hepatite B no Joaquim'. Service infere dose_number automaticamente a partir dos registros anteriores.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          child_name: { type: "string", description: "Nome da crianca" },
+          vaccine_name: {
+            type: "string",
+            description: "Nome da vacina (BCG, Penta, SCR/Triplice Viral, HPV, Influenza, etc).",
+          },
+          date: {
+            type: "string",
+            description: "Data da aplicacao YYYY-MM-DD ou DD/MM/YYYY (omita = hoje)",
+          },
+          batch_number: { type: "string", description: "Lote (opcional)" },
+          location: { type: "string", description: "Local da aplicacao (UBS, clinica, opcional)" },
+        },
+        required: ["child_name", "vaccine_name"],
+      },
+    },
+  },
+  {
+    type: "function" as const,
+    function: {
+      name: "get_vaccine_status",
+      description:
+        "Snapshot calmo do status vacinal de uma crianca: pendencias, proxima vacina, cobertura, historico. Usar para 'o Otto esta em dia com as vacinas?', 'que vacinas a Maria precisa tomar?', 'qual a proxima vacina do Joaquim?'.",
+      parameters: {
+        type: "object" as const,
+        properties: {
+          child_name: { type: "string", description: "Nome da crianca" },
+        },
+        required: ["child_name"],
+      },
+    },
+  },
+
   /* ---------- TWO-PARTY ACTION TOOLS (require approval) ---------- */
   {
     type: "function" as const,
@@ -539,6 +585,8 @@ export async function executeTool(
       case "create_note":          return await execCreateNote(params, ctx);
       case "create_activity":      return await execCreateActivity(params, ctx);
       case "create_decision":      return await execCreateDecision(params, ctx);
+      case "record_vaccination":   return await execRecordVaccination(params, ctx);
+      case "get_vaccine_status":   return await execGetVaccineStatus(params, ctx);
       case "get_custody_info":     return await execGetCustody(params, ctx);
       case "get_expenses_summary": return await execGetExpenses(params, ctx);
       case "get_upcoming_events":  return await execGetUpcoming(params, ctx);
@@ -1381,5 +1429,91 @@ async function execGetPendingApprovals(ctx: ToolContext): Promise<ToolResult> {
     success: true,
     message: `Voce tem ${swaps.length} aprovacao(oes) pendente(s):\n${lines.join("\n")}\n\nResponda com 'aprovar <numero>' ou 'recusar <numero>' (use os botoes quando aparecerem).`,
     data: { swaps },
+  };
+}
+
+/* ------------------------------------------------------------------ */
+/* VACCINE ENGINE — Motor de Saúde Preventiva                         */
+/* ------------------------------------------------------------------ */
+
+async function execRecordVaccination(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const child = resolveChild(String(p.child_name || ""), ctx.children);
+  if (!child) return { success: false, message: "Nao encontrei essa crianca. Qual o nome?" };
+
+  const vaccineName = String(p.vaccine_name || "").trim();
+  if (!vaccineName) return { success: false, message: "Qual o nome da vacina?" };
+
+  const date = parseDate(p.date, todayISO());
+
+  const result = await recordVaccinationService(ctx.supabase, {
+    groupId: ctx.groupId,
+    childId: child.id,
+    createdBy: ctx.userId,
+    vaccineName,
+    administeredDate: date,
+    batchNumber: p.batch_number ? String(p.batch_number) : null,
+    location: p.location ? String(p.location) : null,
+    source: "manual",
+    forceDuplicate: false,
+  });
+
+  if (!result.ok) {
+    return { success: false, message: result.error };
+  }
+
+  if (result.data.warning === "duplicate_dose") {
+    return {
+      success: false,
+      message: `Parece que ${child.name.split(" ")[0]} ja tem essa dose registrada. Voce confirma que e uma dose nova? Se sim, registre direto no app pra dar ok.`,
+      data: { warning: "duplicate_dose", doseNumber: result.data.doseNumber },
+    };
+  }
+
+  const childFirst = child.name.split(" ")[0];
+  const doseLabel = result.data.doseNumber ? ` (dose ${result.data.doseNumber})` : "";
+  const dateBr = date.split("-").reverse().join("/");
+  return {
+    success: true,
+    message: `Vacina registrada: ${vaccineName}${doseLabel} — ${childFirst} em ${dateBr}.`,
+    data: { id: result.data.id, doseNumber: result.data.doseNumber, inferred: result.data.inferredDose },
+  };
+}
+
+async function execGetVaccineStatus(p: Record<string, unknown>, ctx: ToolContext): Promise<ToolResult> {
+  const child = resolveChild(String(p.child_name || ""), ctx.children);
+  if (!child) return { success: false, message: "Nao encontrei essa crianca. Qual o nome?" };
+
+  const result = await getVaccineStatusService(ctx.supabase, child.id);
+  if (!result.ok) {
+    return { success: false, message: result.error };
+  }
+  const s = result.data;
+  const first = child.name.split(" ")[0];
+
+  // Tom calmo — espelha o statusLabel pro hero, NUNCA "atrasada/vencida"
+  const parts: string[] = [];
+  parts.push(`${first}: ${s.statusLabel}.`);
+  if (s.nextDue) {
+    const dueBr = s.nextDue.dueDate.split("-").reverse().join("/");
+    parts.push(`Proxima: ${s.nextDue.vaccineName} (${dueBr}).`);
+  }
+  if (s.overdue.length > 0) {
+    const names = s.overdue.slice(0, 3).map((d) => d.vaccineName).join(", ");
+    parts.push(`Esta na hora de: ${names}${s.overdue.length > 3 ? ` e mais ${s.overdue.length - 3}` : ""}.`);
+  }
+  if (s.historicalGaps.length > 0) {
+    parts.push(`${s.historicalGaps.length} registro(s) podem estar faltando no historico — vale completar.`);
+  }
+  return {
+    success: true,
+    message: parts.join(" "),
+    data: {
+      coveragePct: s.coveragePct,
+      statusLabel: s.statusLabel,
+      overdueCount: s.totals.overdue,
+      dueSoonCount: s.totals.dueSoon,
+      historicalGapCount: s.totals.historicalGap,
+      nextDue: s.nextDue,
+    },
   };
 }

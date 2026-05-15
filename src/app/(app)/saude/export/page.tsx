@@ -1,9 +1,20 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
-import { compareVaccinations } from "@/lib/sbp-vaccine-calendar";
+import { getVaccineStatus } from "@/lib/services/vaccines";
 import { getBrazilToday } from "@/lib/calendar-utils";
 import HealthReportClient, { type MedicalInfo, type Illness, type Appointment } from "./HealthReportClient";
+
+// Idade-aproximada por dose recomendada, usado pelo PDF pra render
+// "DTPa (Reforço — 4 anos)". Idade-meses → label humano.
+function ageLabelFromMonths(months: number | null): string {
+  if (months === null || months === 0) return "Ao nascer";
+  if (months < 24) return `${months} ${months === 1 ? "mês" : "meses"}`;
+  const y = Math.floor(months / 12);
+  const m = months % 12;
+  if (m === 0) return `${y} anos`;
+  return `${y} anos e ${m} ${m === 1 ? "mês" : "meses"}`;
+}
 
 export default async function HealthExportPage({
   searchParams,
@@ -99,11 +110,50 @@ export default async function HealthExportPage({
       ? `${totalMonths} meses`
       : `${Math.floor(totalMonths / 12)} anos e ${totalMonths % 12} meses`;
 
-  // Vaccine comparison
-  const vaccineComparison = compareVaccinations(
-    child.birth_date,
-    vaccinations || [],
-  );
+  // Vaccine comparison — agora vem do Motor de Saúde Preventiva (banco),
+  // não mais da lib JS hardcoded. Mapeia shape pra preservar compat com
+  // HealthReportClient (espera arrays {vaccineName, dose:{label, ageLabel}}).
+  // Precisamos das ages das rules pra montar ageLabel — query separada.
+  const engineStatus = await getVaccineStatus(supabase, child.id);
+  const ruleAgeMap = new Map<string, number | null>();
+  if (engineStatus.ok) {
+    const ruleIds = Array.from(
+      new Set(
+        [...engineStatus.data.overdue, ...engineStatus.data.upcoming, ...engineStatus.data.dueSoon].map(
+          (d) => d.id,
+        ),
+      ),
+    );
+    if (ruleIds.length > 0) {
+      const { data: rules } = await supabase
+        .from("vaccine_recommended_doses")
+        .select("id, vaccine_schedule_rules!inner(recommended_age_months)")
+        .in("id", ruleIds);
+      for (const r of (rules || []) as Array<{
+        id: string;
+        vaccine_schedule_rules: { recommended_age_months: number | null } | Array<{ recommended_age_months: number | null }>;
+      }>) {
+        const rule = Array.isArray(r.vaccine_schedule_rules)
+          ? r.vaccine_schedule_rules[0]
+          : r.vaccine_schedule_rules;
+        ruleAgeMap.set(r.id, rule?.recommended_age_months ?? null);
+      }
+    }
+  }
+  const vaccineComparison = {
+    overdue: engineStatus.ok
+      ? engineStatus.data.overdue.map((d) => ({
+          vaccineName: d.vaccineName,
+          dose: { label: d.doseLabel, ageLabel: ageLabelFromMonths(ruleAgeMap.get(d.id) ?? null) },
+        }))
+      : [],
+    upcoming: engineStatus.ok
+      ? [...engineStatus.data.upcoming, ...engineStatus.data.dueSoon].map((d) => ({
+          vaccineName: d.vaccineName,
+          dose: { label: d.doseLabel, ageLabel: ageLabelFromMonths(ruleAgeMap.get(d.id) ?? null) },
+        }))
+      : [],
+  };
 
   const generatedDate = now.toLocaleDateString("pt-BR", {
     day: "2-digit",

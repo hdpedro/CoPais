@@ -2,6 +2,25 @@
 
 > Referencia completa de todas as Server Actions (Next.js 16).
 > Todas as actions usam `"use server"` e recebem `FormData` ou parametros tipados.
+> Atualizado: 14/05/2026.
+>
+> **Total em origin/main:** 126 funcoes em 30 arquivos (`src/actions/*.ts`).
+>
+> **Novos arquivos desde a versao inicial deste catalogo:**
+> - `admin-coupons.ts` — CRUD de cupons (admin-only)
+> - `balance-operations.ts` — operacoes de saldo (waive / gift / forgive / reset / manual_adjustment) com aprovacao bilateral
+> - `birthdays.ts` — `sendBirthdayReminders` (cron D-7)
+> - `onboarding-quest.ts` — gamificacao do onboarding
+> - `subscription.ts` — assinatura: status, cancelar, retomar
+> - `subscription-split.ts` — split de assinatura entre coparentes
+> - `whatsapp.ts` — vinculacao de numero, preferencias de notificacao
+>
+> **Funcoes novas em arquivos existentes:**
+> - `expenses.ts`: `editExpense`, `requestCancelExpense`, `respondToCancelRequest`, `reopenApproval` (Foundation Fase 1B + audit trail `expense_history`)
+> - `school.ts`: `markSchoolLogRead` (RPC wrapper de `mark_collab_read`)
+> - `calendar.ts`: `clearCustodySchedule` + helpers de integridade pos-migration 00079
+>
+> **Padrao canonico:** logica de negocio extraida pra `src/lib/services/<dominio>.ts` (vide CLAUDE.md > "Regra critica: paridade PWA ↔ Nativo ↔ WhatsApp"). Actions sao wrappers finos. Pares consolidados: `swap.ts`, `expenses.ts`, `notes.ts`, `checkin.ts`, `decisions.ts`. Pares em paridade direta a migrar: `subscription-split.ts`.
 
 ---
 

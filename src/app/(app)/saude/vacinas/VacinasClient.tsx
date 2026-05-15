@@ -1,308 +1,408 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
+import { trackEvent, EVENTS } from "@/lib/analytics";
+import VaccineHero from "@/components/saude/VaccineHero";
+import VaccinePendingCard from "@/components/saude/VaccinePendingCard";
+import VaccineTimeline from "@/components/saude/VaccineTimeline";
+import VaccineCalendarSettings from "@/components/saude/VaccineCalendarSettings";
+import PostVaccineChecklistModal from "@/components/saude/PostVaccineChecklistModal";
+import type { CalendarPreference, VaccineStatusResult } from "@/lib/services/vaccines";
 
-interface Child {
+interface ChildItem {
   id: string;
   full_name: string;
-  birth_date: string;
+  birth_date: string | null;
+  calendarPreference: CalendarPreference;
 }
 
-interface ComparisonItem {
-  vaccineName: string;
-  dose: { label: string; ageLabel: string };
-  monthsDiff?: number;
-  administeredDate?: string;
-}
-
-interface CalendarGroup {
-  age: string;
-  ageMonths: number;
-  vaccines: { name: string; doses: number; status: "taken" | "overdue" | "future"; date?: string }[];
+interface HistoryRecord {
+  id: string;
+  vaccine_name: string;
+  dose_label: string | null;
+  dose_number: number | null;
+  administered_date: string;
+  location: string | null;
+  batch_number: string | null;
 }
 
 interface Props {
-  childrenList: Child[];
+  childrenList: ChildItem[];
   selectedChildId: string;
-  selectedChild: Child;
-  ageDisplay: string;
-  takenCount: number;
-  overdueCount: number;
-  upcomingCount: number;
-  futureCount: number;
-  overdueItems: ComparisonItem[];
-  upcomingItems: ComparisonItem[];
-  onTimeItems: ComparisonItem[];
-  calendarStatus: CalendarGroup[];
-  vaccineRecordsCount: number;
+  selectedChild: ChildItem | null;
+  status: VaccineStatusResult | null;
+  recentRecords: HistoryRecord[];
+  nextAppointment: { id: string; title: string; appointment_date: string; related_vaccine_dose_id: string | null } | null;
   isReadonly: boolean;
-  success?: string;
-  error?: string;
+  duplicate: { vaccineName: string; doseNumber: number | null } | null;
+  postVaccineRecordId: string | null;
+  postVaccineDone: boolean;
+  successMessage: string | null;
+  errorMessage: string | null;
 }
 
-export default function VacinasClient({
-  childrenList,
-  selectedChildId,
-  selectedChild,
-  ageDisplay,
-  takenCount,
-  overdueCount,
-  upcomingCount,
-  futureCount,
-  overdueItems,
-  upcomingItems,
-  onTimeItems,
-  calendarStatus,
-  vaccineRecordsCount,
-  isReadonly,
-  success,
-  error: errorMsg,
-}: Props) {
+function formatBrDate(iso: string): string {
+  return iso.split("-").reverse().join("/");
+}
+
+export default function VacinasClient(props: Props) {
   const { t } = useI18n();
+  const {
+    childrenList,
+    selectedChildId,
+    selectedChild,
+    status,
+    recentRecords,
+    nextAppointment,
+    isReadonly,
+    duplicate,
+    postVaccineRecordId,
+    postVaccineDone,
+    successMessage,
+    errorMessage,
+  } = props;
 
-  function formatDate(dateStr: string) {
-    return new Date(dateStr + "T12:00:00").toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "2-digit" });
-  }
+  const [showSettings, setShowSettings] = useState(false);
 
-  function formatMonthsDiff(months: number): string {
-    if (months < 12) return `${months} ${months === 1 ? t("health.month") : t("health.months")}`;
-    const years = Math.floor(months / 12);
-    const rem = months % 12;
-    let str = `${years} ${years !== 1 ? t("health.years") : t("health.year")}`;
-    if (rem > 0) str += ` ${t("health.and")} ${rem} ${rem === 1 ? t("health.month") : t("health.months")}`;
-    return str;
-  }
+  const childFirstName = selectedChild?.full_name.split(" ")[0] || "";
 
-  if (!childrenList || childrenList.length === 0) {
+  // Telemetria — evento de visualização (validação dos 4 gates da Fase 2)
+  useEffect(() => {
+    if (status && selectedChild) {
+      trackEvent(EVENTS.VACCINE_STATUS_VIEWED, {
+        coverage_pct: status.coveragePct,
+        overdue_count: status.totals.overdue,
+        due_soon_count: status.totals.dueSoon,
+        historical_gap_count: status.totals.historicalGap,
+        calendar_preference: selectedChild.calendarPreference,
+      });
+    }
+  }, [status, selectedChild]);
+
+  // ─── Empty / no-children state ───
+  if (childrenList.length === 0) {
     return (
       <div className="max-w-lg mx-auto pb-20">
-        <div className="flex items-center gap-3 mb-6">
-          <Link href="/saude" className="text-muted hover:text-dark" aria-label={t("health.backToHealth")}>
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </Link>
-          <h1 className="text-2xl font-bold text-dark">{t("health.vaccination")}</h1>
+        <Header showSettings={false} onSettings={() => {}} />
+        <div className="bg-white rounded-2xl p-8 text-center shadow-sm">
+          <p className="text-4xl mb-3">👶</p>
+          <p className="text-muted mb-4">{t("health.addChildFirst")}</p>
+          {!isReadonly && (
+            <Link
+              href="/criancas/nova"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg"
+            >
+              {t("health.addChild")}
+            </Link>
+          )}
         </div>
-        <div className="bg-white rounded-xl p-8 shadow-sm text-center">
-          <p className="text-4xl mb-3" aria-hidden="true">💉</p>
-          <p className="text-muted text-sm mb-1">{t("health.noChildRegistered")}</p>
-          <p className="text-muted text-xs">{t("health.addChildToManageVaccines")}</p>
+      </div>
+    );
+  }
+
+  // Child without birth_date — motor needs birth_date
+  if (selectedChild && !selectedChild.birth_date) {
+    return (
+      <div className="max-w-lg mx-auto pb-20">
+        <Header showSettings={false} onSettings={() => {}} />
+        <ChildSelector list={childrenList} selectedId={selectedChildId} />
+        <div className="bg-white rounded-2xl p-8 text-center shadow-sm mt-4">
+          <p className="text-4xl mb-3">📅</p>
+          <p className="text-sm text-dark font-semibold mb-2">
+            {t("health.vaccineEngine.statusEmpty")}
+          </p>
+          <p className="text-xs text-muted">
+            Adicione a data de nascimento de {selectedChild.full_name.split(" ")[0]} no perfil
+          </p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="max-w-lg mx-auto pb-20">
-      <div className="flex items-center gap-3 mb-6">
-        <Link href="/saude" className="text-muted hover:text-dark" aria-label={t("health.backToHealth")}>
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-          </svg>
-        </Link>
-        <div>
-          <h1 className="text-2xl font-bold text-dark">{t("health.vaccination")}</h1>
-          <p className="text-sm text-muted">{selectedChild.full_name} &middot; {ageDisplay}</p>
-        </div>
-      </div>
+    <div className="max-w-lg mx-auto pb-24">
+      <Header
+        showSettings={showSettings}
+        onSettings={() => setShowSettings((v) => !v)}
+      />
 
-      {success && <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 mb-4 text-sm">{decodeURIComponent(success)}</div>}
-      {errorMsg && <div className="bg-red-50 border border-error/20 text-error rounded-lg p-3 mb-4 text-sm">{decodeURIComponent(errorMsg)}</div>}
-
-      {childrenList.length > 1 && (
-        <div className="flex gap-2 overflow-x-auto pb-1 mb-6 scrollbar-hide">
-          {childrenList.map((child) => (
-            <Link key={child.id} href={`/saude/vacinas?crianca=${child.id}`} className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${child.id === selectedChildId ? "bg-primary text-white border-2 border-primary" : "bg-white text-dark border-2 border-gray-200 hover:border-primary/40"}`}>
-              {child.full_name.split(" ")[0]}
-            </Link>
-          ))}
+      {/* Alerts */}
+      {successMessage && (
+        <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg p-3 mb-4 text-sm">
+          {successMessage}
         </div>
       )}
-
-      {/* Summary Stats */}
-      <div className="grid grid-cols-4 gap-2 mb-6">
-        <div className="bg-green-50 rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-green-700">{takenCount}</p>
-          <p className="text-[10px] font-semibold text-green-600 uppercase tracking-wide">{t("health.onTime")}</p>
-        </div>
-        <div className="bg-red-50 rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-red-700">{overdueCount}</p>
-          <p className="text-[10px] font-semibold text-red-600 uppercase tracking-wide">{t("health.overdue")}</p>
-        </div>
-        <div className="bg-amber-50 rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-amber-700">{upcomingCount}</p>
-          <p className="text-[10px] font-semibold text-amber-600 uppercase tracking-wide">{t("health.upcoming")}</p>
-        </div>
-        <div className="bg-gray-50 rounded-xl p-3 text-center">
-          <p className="text-2xl font-bold text-gray-600">{futureCount}</p>
-          <p className="text-[10px] font-semibold text-gray-500 uppercase tracking-wide">{t("health.future")}</p>
-        </div>
-      </div>
-
-      {/* Alert banners */}
-      {overdueCount > 0 && takenCount === 0 && (
-        <div className="bg-amber-50 border-l-4 border-amber-400 rounded-xl p-4 shadow-sm mb-4">
-          <div className="flex items-start gap-3">
-            <span className="text-lg mt-0.5" aria-hidden="true">&#x1F4CB;</span>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-amber-700">{t("health.noVaccineRegisteredYet")}</p>
-              <p className="text-xs text-amber-600 mt-0.5">
-                {t("health.registerVaccinesForChild", { name: selectedChild.full_name.split(" ")[0], count: overdueCount })}
-              </p>
-            </div>
-          </div>
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">
+          {errorMessage}
         </div>
       )}
-      {overdueCount > 0 && takenCount > 0 && (
-        <div className="bg-red-50 border-l-4 border-red-400 rounded-xl p-4 shadow-sm mb-4">
-          <div className="flex items-start gap-3">
-            <span className="text-lg mt-0.5" aria-hidden="true">&#x26A0;&#xFE0F;</span>
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-red-700">{t("health.overdueVaccinesAlert", { count: overdueCount })}</p>
-              <p className="text-xs text-red-600 mt-0.5">{t("health.consultPediatrician")}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Overdue */}
-      {overdueItems.length > 0 && (
-        <section className="mb-4">
-          <h2 className="text-xs font-semibold text-red-600 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-red-500" aria-hidden="true" />
-            {t("health.overdueVaccinesSection")}
-          </h2>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100">
-            {overdueItems.map((item, idx) => (
-              <div key={`overdue-${idx}`} className="flex items-center gap-3 px-4 py-3">
-                <span className="w-6 h-6 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-bold flex-shrink-0" aria-label={t("health.overdueLabelShort")}><span aria-hidden="true">!</span></span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-red-700">{item.vaccineName}</p>
-                  <p className="text-[11px] text-red-500">{item.dose.label} &middot; {t("health.recommendedAt", { age: item.dose.ageLabel })}</p>
-                </div>
-                <span className="text-[10px] text-red-500 font-medium flex-shrink-0 text-right">
-                  {item.monthsDiff ? formatMonthsDiff(item.monthsDiff) + " " + t("health.monthsAgo", { count: 0 }).replace("0 ", "").replace(t("health.monthsAgo", { count: 0 }).split(" ").pop()!, "").trim() : t("health.overdueLabelShort")}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Upcoming */}
-      {upcomingItems.length > 0 && (
-        <section className="mb-4">
-          <h2 className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-amber-500" aria-hidden="true" />
-            {t("health.upcomingVaccines")}
-          </h2>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100">
-            {upcomingItems.map((item, idx) => (
-              <div key={`upcoming-${idx}`} className="flex items-center gap-3 px-4 py-3">
-                <span className="w-6 h-6 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-amber-700">{item.vaccineName}</p>
-                  <p className="text-[11px] text-amber-500">{item.dose.label} &middot; {t("health.recommendedAt", { age: item.dose.ageLabel })}</p>
-                </div>
-                <span className="text-[10px] text-amber-600 font-medium flex-shrink-0 text-right">
-                  {item.monthsDiff === 0 ? t("health.thisMonth") : t("health.inMonths", { count: item.monthsDiff || 0 })}
-                </span>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* On-time */}
-      {onTimeItems.length > 0 && (
-        <section className="mb-6">
-          <h2 className="text-xs font-semibold text-green-600 uppercase tracking-wider mb-2 px-1 flex items-center gap-1.5">
-            <span className="w-2 h-2 rounded-full bg-green-500" aria-hidden="true" />
-            {t("health.onTimeVaccines")}
-          </h2>
-          <div className="bg-white rounded-xl shadow-sm overflow-hidden divide-y divide-gray-100">
-            {onTimeItems.map((item, idx) => (
-              <div key={`ontime-${idx}`} className="flex items-center gap-3 px-4 py-3">
-                <span className="w-6 h-6 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0">
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
-                </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-dark">{item.vaccineName}</p>
-                  <p className="text-[11px] text-muted">{item.dose.label}</p>
-                </div>
-                {item.administeredDate && <span className="text-[10px] text-green-600 font-medium flex-shrink-0">{formatDate(item.administeredDate)}</span>}
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Full Calendar */}
-      <section className="mb-6">
-        <h2 className="text-sm font-semibold text-dark mb-3 px-1">{t("health.fullVaccineCalendar")}</h2>
-        <div className="space-y-4">
-          {calendarStatus.map((group) => (
-            <div key={group.age} className="bg-white rounded-xl p-4 shadow-sm">
-              <h3 className="text-xs font-bold text-dark uppercase tracking-wide mb-3 flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-primary" />
-                {group.age}
-              </h3>
-              <div className="space-y-2.5">
-                {group.vaccines.map((vaccine, idx) => (
-                  <div key={idx} className="flex items-center gap-3">
-                    {vaccine.status === "taken" ? (
-                      <span className="w-5 h-5 rounded-full bg-green-100 text-green-600 flex items-center justify-center text-xs font-bold flex-shrink-0" aria-label={t("health.applied")}><span aria-hidden="true">&#10003;</span></span>
-                    ) : vaccine.status === "overdue" ? (
-                      <span className="w-5 h-5 rounded-full bg-red-100 text-red-600 flex items-center justify-center text-xs font-bold flex-shrink-0" aria-label={t("health.overdueLabelShort")}><span aria-hidden="true">!</span></span>
-                    ) : (
-                      <span className="w-5 h-5 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center text-xs flex-shrink-0" aria-label={t("health.futureLabel")}><span aria-hidden="true">&#x25CB;</span></span>
-                    )}
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm ${vaccine.status === "taken" ? "text-dark" : vaccine.status === "overdue" ? "text-red-700 font-medium" : "text-gray-400"}`}>{vaccine.name}</p>
-                    </div>
-                    {vaccine.status === "taken" && vaccine.date && <span className="text-[10px] text-green-600 font-medium flex-shrink-0">{formatDate(vaccine.date)}</span>}
-                    {vaccine.status === "overdue" && <span className="text-[10px] text-red-500 font-medium flex-shrink-0">{t("health.overdueLabelShort")}</span>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {vaccineRecordsCount > 0 && (
-        <div className="mb-4 px-1">
-          <p className="text-[10px] text-muted/70 italic flex items-center gap-1">
-            <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            {t("health.vaccineRecordsNotEditable")}
+      {duplicate && (
+        <div className="bg-amber-50 border border-amber-200 text-amber-800 rounded-2xl p-4 mb-4 text-sm">
+          <p className="font-semibold">{t("health.vaccineEngine.duplicateModalTitle")}</p>
+          <p className="text-xs text-amber-700 mt-1">
+            {t("health.vaccineEngine.duplicateModalBody", {
+              vaccineName: duplicate.vaccineName,
+              doseNumber: String(duplicate.doseNumber ?? "?"),
+            })}
+          </p>
+          <p className="text-xs text-amber-700 mt-2">
+            Se for outra dose, registre novamente marcando explicitamente como nova.
           </p>
         </div>
       )}
 
-      <div className="bg-blue-50 rounded-xl p-3 mb-6">
-        <p className="text-[11px] text-blue-600">
-          <span className="font-semibold">{t("health.sbpReference").split(":")[0]}:</span> {t("health.sbpReference").split(":").slice(1).join(":")}
-        </p>
-      </div>
+      {/* Child selector */}
+      <ChildSelector list={childrenList} selectedId={selectedChildId} />
 
-      {!isReadonly && (
-        <div className="fixed bottom-24 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
-          <Link href={`/saude/vacinas/carteirinha?crianca=${selectedChildId}`} className="inline-flex items-center gap-2 px-4 py-3 bg-white text-[#C07055] text-sm font-semibold rounded-full shadow-lg hover:shadow-xl transition-all border border-[#C07055]">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" /><circle cx="12" cy="13" r="3" stroke="currentColor" strokeWidth={2} /></svg>
-            Ler carteirinha
-          </Link>
-          <Link href="/saude/vacinas/nova" className="inline-flex items-center gap-2 px-5 py-3 bg-accent text-white text-sm font-semibold rounded-full shadow-lg hover:shadow-xl transition-all">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
-            {t("health.registerVaccine")}
-          </Link>
+      {/* Settings panel (collapsible) */}
+      {showSettings && selectedChild ? (
+        <div className="mb-4">
+          <VaccineCalendarSettings
+            childId={selectedChild.id}
+            current={selectedChild.calendarPreference}
+            isReadonly={isReadonly}
+          />
         </div>
-      )}
+      ) : null}
+
+      {/* Hero */}
+      {status && selectedChild ? (
+        <div className="mb-4">
+          <VaccineHero status={status} childFirstName={childFirstName} />
+        </div>
+      ) : null}
+
+      {/* Historical gap banner */}
+      {status && status.totals.historicalGap > 0 && selectedChild ? (
+        <div className="mb-4 rounded-2xl bg-gray-50 border border-gray-200 p-4">
+          <div className="flex items-start gap-3">
+            <span className="text-xl mt-0.5">📋</span>
+            <div className="flex-1">
+              <p className="text-sm text-dark">{t("health.vaccineEngine.historicalGapBanner")}</p>
+              <p className="text-xs text-muted mt-1">
+                {t("health.vaccineEngine.historicalGapCount", {
+                  count: String(status.totals.historicalGap),
+                })}
+              </p>
+              {!isReadonly && (
+                <div className="mt-3 flex gap-2">
+                  <Link
+                    href={`/saude/vacinas/nova?crianca=${selectedChild.id}`}
+                    className="text-xs font-semibold text-primary bg-primary/10 hover:bg-primary/20 px-3 py-2 rounded-lg"
+                  >
+                    {t("health.vaccineEngine.addHistoricalRecord")}
+                  </Link>
+                  <Link
+                    href={`/saude/vacinas/carteirinha?crianca=${selectedChild.id}`}
+                    className="text-xs font-semibold text-muted bg-white border border-gray-200 hover:bg-gray-50 px-3 py-2 rounded-lg"
+                  >
+                    📷 {t("health.vaccineEngine.historyCta")}
+                  </Link>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {/* Next appointment with vaccine linked */}
+      {nextAppointment && nextAppointment.related_vaccine_dose_id ? (
+        <Link
+          href={`/saude/consultas?crianca=${selectedChildId}`}
+          className="flex items-center gap-3 p-3 mb-4 rounded-2xl bg-primary/5 border border-primary/20 hover:bg-primary/10 transition-colors"
+        >
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <span>📅</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-dark">{nextAppointment.title}</p>
+            <p className="text-[11px] text-muted">
+              {formatBrDate(nextAppointment.appointment_date.slice(0, 10))} ·{" "}
+              {t("health.vaccineEngine.appointmentCreatedFromPending")}
+            </p>
+          </div>
+        </Link>
+      ) : null}
+
+      {/* Pending section */}
+      {status && selectedChild ? (
+        <section className="mb-5">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1">
+            {t("health.vaccineEngine.pendingSectionTitle")}
+          </h2>
+          {[...status.overdue, ...status.dueSoon].length === 0 ? (
+            <div className="rounded-2xl bg-emerald-50/50 border border-emerald-100 p-4 text-sm text-emerald-800 text-center">
+              {t("health.vaccineEngine.pendingSectionEmpty")} 🛡️
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              {[...status.overdue, ...status.dueSoon].map((dose) => (
+                <VaccinePendingCard
+                  key={dose.id}
+                  dose={dose}
+                  childId={selectedChild.id}
+                  childFirstName={childFirstName}
+                  isReadonly={isReadonly}
+                />
+              ))}
+            </div>
+          )}
+        </section>
+      ) : null}
+
+      {/* CTA group — Registrar / Importar */}
+      {!isReadonly && selectedChild ? (
+        <section className="mb-5 grid grid-cols-2 gap-3">
+          <Link
+            href={`/saude/vacinas/nova?crianca=${selectedChild.id}`}
+            className="bg-gradient-to-br from-primary to-teal-600 rounded-2xl p-4 shadow-md hover:shadow-lg hover:scale-[1.01] active:scale-[0.99] transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl">+</div>
+              <div className="text-left">
+                <p className="text-sm font-bold text-white">{t("health.vaccineEngine.registerCta")}</p>
+                <p className="text-[11px] text-white/70 mt-0.5">{t("health.vaccineEngine.registerTitle")}</p>
+              </div>
+            </div>
+          </Link>
+          <Link
+            href={`/saude/vacinas/carteirinha?crianca=${selectedChild.id}`}
+            className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 hover:border-primary/40 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-xl">📷</div>
+              <div className="text-left">
+                <p className="text-sm font-bold text-dark">{t("health.vaccineEngine.historyCta")}</p>
+                <p className="text-[11px] text-muted mt-0.5">{t("health.vaccineEngine.historyHint")}</p>
+              </div>
+            </div>
+          </Link>
+        </section>
+      ) : null}
+
+      {/* Timeline */}
+      {status && status.timelineByAge.length > 0 ? (
+        <section className="mb-6">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1">
+            {t("health.vaccineEngine.timelineTitle")}
+          </h2>
+          <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm">
+            <VaccineTimeline timeline={status.timelineByAge} />
+          </div>
+        </section>
+      ) : null}
+
+      {/* History */}
+      {recentRecords.length > 0 ? (
+        <section className="mb-5">
+          <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1">
+            {t("health.vaccineEngine.historyTitle")}
+          </h2>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+            {recentRecords.map((r, i) => (
+              <div
+                key={r.id}
+                className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-gray-100" : ""}`}
+              >
+                <span className="text-base">💉</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-dark truncate">{r.vaccine_name}</p>
+                  <p className="text-[11px] text-muted">
+                    {formatBrDate(r.administered_date)}
+                    {r.dose_label ? ` · ${r.dose_label}` : ""}
+                    {r.location ? ` · ${r.location}` : ""}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
+      {/* Voltar pra Saúde */}
+      <Link
+        href="/saude"
+        className="block text-center text-xs text-muted py-3"
+      >
+        ← {t("health.backToHealth")}
+      </Link>
+
+      {/* Modal pós-vacina (opt-in 48h reminder) */}
+      {postVaccineRecordId && !postVaccineDone ? (
+        <PostVaccineChecklistModal
+          vaccineRecordId={postVaccineRecordId}
+          childFirstName={childFirstName}
+        />
+      ) : null}
+      {postVaccineDone ? (
+        <div className="fixed bottom-4 left-1/2 -translate-x-1/2 bg-emerald-600 text-white text-sm px-4 py-2 rounded-full shadow-lg z-50">
+          ✓ Lembrete de 48h criado no calendário
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function Header({
+  showSettings,
+  onSettings,
+}: {
+  showSettings: boolean;
+  onSettings: () => void;
+}) {
+  const { t } = useI18n();
+  return (
+    <div className="flex items-center gap-3 mb-5">
+      <Link href="/saude" className="text-muted hover:text-dark" aria-label={t("health.backToHealth")}>
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        </svg>
+      </Link>
+      <div className="flex-1">
+        <h1 className="text-xl font-bold text-dark">{t("health.vaccineEngine.preventiveCareTitle")}</h1>
+        <p className="text-[10px] text-muted">{t("health.vaccineEngine.preventiveCareSubtitle")}</p>
+      </div>
+      <button
+        type="button"
+        onClick={onSettings}
+        className={`p-2 rounded-lg transition-colors ${showSettings ? "bg-primary/10 text-primary" : "text-muted hover:text-dark"}`}
+        aria-label={t("health.vaccineEngine.settingsTitle")}
+        aria-pressed={showSettings}
+      >
+        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function ChildSelector({ list, selectedId }: { list: ChildItem[]; selectedId: string }) {
+  if (list.length <= 1) {
+    return null;
+  }
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-1 mb-5 scrollbar-hide">
+      {list.map((child) => {
+        const isActive = child.id === selectedId;
+        return (
+          <Link
+            key={child.id}
+            href={`/saude/vacinas?crianca=${child.id}`}
+            className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors ${
+              isActive
+                ? "bg-primary text-white shadow-sm"
+                : "bg-white text-dark border border-gray-200 hover:border-primary/40"
+            }`}
+          >
+            {child.full_name.split(" ")[0]}
+          </Link>
+        );
+      })}
     </div>
   );
 }

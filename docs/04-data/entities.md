@@ -1,7 +1,10 @@
 # Entidades — Schema Detalhado
 
-> Esquema completo das 15 tabelas mais importantes do Kindar.
+> Esquema detalhado das 15 tabelas centrais do Kindar.
 > Referencia para desenvolvimento, integracao e auditoria.
+> Atualizado: 14/05/2026.
+>
+> **Nota:** o banco total tem ~68 tabelas em `origin/main`. Este doc cobre o nucleo historico (profiles, groups, children, custody_events, expenses, chat_messages, etc.). Para o catalogo completo ver `DOCUMENTACAO.md > Banco de Dados`. Para detalhes da Foundation Collab ver `DOCUMENTACAO.md > Foundation: Collaborative Records` e `data-model.md`.
 
 ---
 

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
-import { compareVaccinations } from "@/lib/sbp-vaccine-calendar";
+import { getVaccineStatus } from "@/lib/services/vaccines";
 import { getBrazilToday } from "@/lib/calendar-utils";
 import { getDisplayName } from "@/lib/constants";
 import dynamic from "next/dynamic";
@@ -61,6 +61,7 @@ export default async function SaudePage({
       appointmentCount: 0,
       professionalsCount: 0,
       overdueVaccineCount: 0,
+      preventiveCare: null,
       lastUpdateRelative: null,
       healthViews: [],
       timeline: [],
@@ -94,6 +95,7 @@ export default async function SaudePage({
     { count: appointmentCount },
     { count: professionalsCount },
     { data: vaccineRecordsForComparison },
+    vaccineStatusResult,
     { data: healthViews },
     { data: recentSymptoms },
     { data: recentCompletedApts },
@@ -151,6 +153,8 @@ export default async function SaudePage({
     supabase.from("medical_appointments").select("id", { count: "exact", head: true }).eq("child_id", selectedChildId),
     supabase.from("medical_professionals").select("id", { count: "exact", head: true }).eq("group_id", groupId),
     supabase.from("vaccination_records").select("vaccine_name, dose_label, administered_date").eq("child_id", selectedChildId).order("administered_date", { ascending: false }),
+    // Motor de Saúde Preventiva — status calmo + nextDue (banco já mantém via triggers)
+    getVaccineStatus(supabase, selectedChildId),
     // Health views — moved into parallel batch (was a sequential query after Promise.all)
     supabase
       .from("health_views")
@@ -190,12 +194,23 @@ export default async function SaudePage({
       .limit(5),
   ]);
 
-  // SBP Vaccine Comparison for overdue badge
-  const vaccineComparison = compareVaccinations(
-    selectedChild.birth_date,
-    vaccineRecordsForComparison || []
-  );
-  const overdueVaccineCount = vaccineComparison.overdue.length;
+  // Motor de Saúde Preventiva — fonte de verdade vem do banco via getVaccineStatus.
+  // vaccineRecordsForComparison continua disponível pra outros consumidores legados,
+  // mas overdueVaccineCount agora vem do motor (com `historical_gap` excluído).
+  const preventiveCare = vaccineStatusResult.ok
+    ? {
+        statusLabel: vaccineStatusResult.data.statusLabel,
+        overdueCount: vaccineStatusResult.data.totals.overdue,
+        dueSoonCount: vaccineStatusResult.data.totals.dueSoon,
+        upcomingCount: vaccineStatusResult.data.totals.upcoming,
+        historicalGapCount: vaccineStatusResult.data.totals.historicalGap,
+        coveragePct: vaccineStatusResult.data.coveragePct,
+        nextDue: vaccineStatusResult.data.nextDue,
+      }
+    : null;
+  // Backwards compat — outros consumers leem só overdueVaccineCount.
+  const overdueVaccineCount = preventiveCare?.overdueCount ?? 0;
+  void vaccineRecordsForComparison;
 
   const appointment = nextAppointment?.[0] || null;
   const hasActiveIllness = (activeIllnesses?.length ?? 0) > 0;
@@ -528,6 +543,7 @@ export default async function SaudePage({
     appointmentCount: appointmentCount ?? 0,
     professionalsCount: professionalsCount ?? 0,
     overdueVaccineCount,
+    preventiveCare,
     lastUpdateRelative,
     healthViews: processedHealthViews,
     timeline,

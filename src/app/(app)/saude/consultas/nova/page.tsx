@@ -7,7 +7,12 @@ import { getBrazilToday } from "@/lib/calendar-utils";
 import AppointmentFormClient from "./AppointmentFormClient";
 import { getActiveGroup } from "@/lib/group-utils";
 
-export default async function NewAppointmentPage() {
+export default async function NewAppointmentPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ crianca?: string; vaccineDoseId?: string; type?: string }>;
+}) {
+  const params = await searchParams;
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
@@ -29,6 +34,29 @@ export default async function NewAppointmentPage() {
     .order("name", { ascending: true });
 
   const today = getBrazilToday();
+
+  // Quando user veio do CTA "Agendar pediatra" de uma pendência vacinal, pré-popula
+  // child + título "Vacina: {nome}" e passa vaccineDoseId pro action gravar
+  // `related_vaccine_dose_id` no medical_appointment criado.
+  let prefilledChildId: string | null = params.crianca || null;
+  let prefilledTitle: string | null = null;
+  let vaccineDoseId: string | null = null;
+  if (params.vaccineDoseId) {
+    const { data: dose } = await supabase
+      .from("vaccine_recommended_doses")
+      .select("id, child_id, group_id, vaccine_catalog!inner(name), vaccine_schedule_rules!inner(dose_label)")
+      .eq("id", params.vaccineDoseId)
+      .maybeSingle();
+    if (dose && (dose as { group_id: string }).group_id === groupId) {
+      vaccineDoseId = (dose as { id: string }).id;
+      prefilledChildId = prefilledChildId || (dose as { child_id: string }).child_id;
+      const cat = (dose as { vaccine_catalog: { name: string } | { name: string }[] }).vaccine_catalog;
+      const catName = Array.isArray(cat) ? cat[0]?.name : cat?.name;
+      const rule = (dose as { vaccine_schedule_rules: { dose_label: string } | { dose_label: string }[] }).vaccine_schedule_rules;
+      const ruleLabel = Array.isArray(rule) ? rule[0]?.dose_label : rule?.dose_label;
+      prefilledTitle = `Vacina: ${catName || ""}${ruleLabel ? ` (${ruleLabel})` : ""}`.trim();
+    }
+  }
 
   const whatsappProfessionals = (professionals || []).map((p) => ({
     id: p.id,
@@ -59,6 +87,9 @@ export default async function NewAppointmentPage() {
         professionals={professionals || []}
         today={today}
         createAction={createAppointment}
+        prefilledChildId={prefilledChildId}
+        prefilledTitle={prefilledTitle}
+        vaccineDoseId={vaccineDoseId}
       />
 
       {/* WhatsApp scheduling section */}

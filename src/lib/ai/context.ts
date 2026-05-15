@@ -22,7 +22,7 @@ export async function buildGroupContext(
   const memberIds = (membersRes.data || []).map((m) => m.user_id);
   const { data: profiles } = await supabase
     .from("profiles")
-    .select("id, full_name")
+    .select("id, full_name, display_name")
     .in("id", memberIds);
 
   const children = (childrenRes.data || []).map((c) => {
@@ -33,9 +33,11 @@ export async function buildGroupContext(
     return `${c.full_name} (${age} anos)`;
   });
 
-  const members = (profiles || []).map(
-    (p) => `${p.full_name}${p.id === userId ? " (você)" : ""}`
-  );
+  const members = (profiles || []).map((p) => {
+    const row = p as { id: string; full_name: string | null; display_name?: string | null };
+    const name = row.display_name?.trim() || row.full_name?.trim() || "Usuário";
+    return `${name}${row.id === userId ? " (você)" : ""}`;
+  });
 
   const today = new Date().toLocaleDateString("pt-BR", {
     weekday: "long",

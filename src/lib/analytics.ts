@@ -80,6 +80,17 @@ export const EVENTS = {
   EXPENSE_CANCEL_APPROVED: "expense_cancel_approved",   // reviewer confirmed cancel
   EXPENSE_CANCEL_REJECTED: "expense_cancel_rejected",   // reviewer refused cancel
   EXPENSE_REOPENED: "expense_reopened",            // reviewer reopened within 24h
+
+  // Vaccine Engine — Motor de Saúde Preventiva (migration 00082)
+  VACCINE_STATUS_VIEWED: "vaccine_status_viewed",          // user mounted /saude/vacinas
+  VACCINE_TIMELINE_SCROLLED: "vaccine_timeline_scrolled",  // proxy de engajamento âncora
+  VACCINE_MARKED_TAKEN: "vaccine_marked_taken",            // server-side, recordVaccination
+  VACCINE_PENDING_DISMISSED: "vaccine_pending_dismissed",  // server-side, dismissPendingDose
+  VACCINE_DUE_PUSH_SENT: "vaccine_due_push_sent",          // server-side, cron
+  VACCINE_DUE_PUSH_OPENED: "vaccine_due_push_opened",      // client, deep link arrived
+  VACCINE_CALENDAR_PREFERENCE_CHANGED: "vaccine_calendar_preference_changed", // server
+  VACCINE_APPOINTMENT_LINKED: "vaccine_appointment_linked",// "Agendar pediatra" do pendência
+  VACCINE_RECOMMENDATION_COMPUTED: "vaccine_recommendation_computed", // server (futuro telemetry)
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

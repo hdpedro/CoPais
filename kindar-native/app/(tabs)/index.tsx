@@ -827,6 +827,47 @@ export default function DashboardScreen() {
           </Animated.View>
         ) : null}
 
+        {/* === SAÚDE PREVENTIVA — Motor Vacinal (migration 00082) ===
+             Tile calma estilo Apple Health quando há pendência REAL
+             (overdue+due_soon). Tap → /saude/vacinas. */}
+        {(data?.vaccinePendingCount || 0) > 0 ? (
+          <Animated.View entering={FadeInDown.delay(229).duration(400)}>
+            <TouchableOpacity
+              activeOpacity={0.85}
+              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/vacinas' as never); }}
+              style={{
+                backgroundColor: '#FFFBEB',
+                borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
+                flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                borderWidth: 1, borderColor: '#FCD34D',
+              }}
+            >
+              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: '#FFFFFFcc', alignItems: 'center', justifyContent: 'center' }}>
+                <Text style={{ fontSize: 18 }}>💉</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
+                  {data!.vaccinePendingCount === 1
+                    ? t('health.vaccineEngine.statusOnePending')
+                    : t('health.vaccineEngine.statusManyPending', { count: data!.vaccinePendingCount })}
+                </Text>
+                <Text style={{ fontSize: 11, color: '#92400E', marginTop: 2 }}>
+                  {data?.vaccineNextDue
+                    ? (() => {
+                        // eslint-disable-next-line react-hooks/purity
+                        const nowMs = Date.now();
+                        const d = Math.ceil((new Date(data.vaccineNextDue.dueDate + 'T12:00:00').getTime() - nowMs) / 86400000);
+                        if (d <= 0) return t('health.vaccineEngine.nextDueToday', { name: data.vaccineNextDue.vaccineName });
+                        if (d === 1) return t('health.vaccineEngine.nextDueTomorrow', { name: data.vaccineNextDue.vaccineName });
+                        return t('health.vaccineEngine.nextDueInDays', { name: data.vaccineNextDue.vaccineName, count: String(d) });
+                      })()
+                    : t('health.vaccineEngine.preventiveCareSubtitle')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+          </Animated.View>
+        ) : null}
+
         {/* === PENDING ACTIVITY REPORTS === */}
         {(data?.pendingReports?.length || 0) > 0 ? (
           <Animated.View entering={FadeInDown.delay(220).duration(400)}>

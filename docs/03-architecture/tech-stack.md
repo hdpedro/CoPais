@@ -1,7 +1,15 @@
 # Tech Stack - Kindar
 
 > Cada tecnologia escolhida com justificativa. Nada e por acaso.
-> Versao: 1.0 | Atualizado: Marco 2026
+> Versao: 1.3 | Atualizado: 14/05/2026
+>
+> **Adicoes pos-versao 1.0 (Abril-Maio/2026):**
+> - **Mobile principal:** Expo SDK 54 (React Native 0.76 New Architecture) em `kindar-native/` — Capacitor entrou em modo legado/deprecado
+> - **Billing:** Stripe + Apple StoreKit IAP + Google Play Billing + RevenueCat (unifica mobile)
+> - **PostHog cross-platform** com super-property `platform` (web/ios/android/server) — `posthog-react-native` no native, `posthog-node` no server
+> - **Foundation Collab:** padrao polimorfico (`collab_reads`) compartilhado, push coalescing 60s via tag estavel (FCM `tag`, APNs `thread-id`, web-push `tag`)
+> - **Vision AI estendida:** Vaccine Card Parser e Prescription Parser (alem do Invite Parser)
+> - **Native version atual:** v1.0.5
 
 ---
 

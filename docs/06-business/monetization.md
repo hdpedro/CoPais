@@ -1,6 +1,21 @@
 # Modelo de Monetizacao — Kindar
 
 > Estrategia freemium, projecoes de receita e unit economics.
+> Atualizado: 14/05/2026.
+>
+> ⚠️ **Doc de referencia operacional vigente:** `MONETIZACAO.md` na raiz do repositorio (Abril/2026, alinhado com a implementacao da Fase 1). Substitui a versao anterior (Premium R$29,90 / Elite R$49,90).
+> Este doc preserva o framework freemium e unit economics; precos e tiers vivem em `MONETIZACAO.md`.
+>
+> **Implementacao tecnica:**
+> - Backend multi-provider (Stripe + Apple StoreKit IAP + Google Play Billing + RevenueCat) via migrations 00039, 00051, 00053-00063
+> - Subscription escopada por **GRUPO** (nao por user) — migration 00054, evita briga "quem paga"
+> - Idempotencia via `webhook_events` (00061)
+> - Cupons admin-only com limite global atomico (00060)
+> - Early Bird counter atomico com advisory lock (00056, 00062)
+> - Split entre coparentes (00058) — `enableSubscriptionSplit`/`disableSubscriptionSplit` em `subscription-split.ts`
+> - Referrals: `referral_clicks` + `referral_rewards` (00061)
+> - Onboarding gamificado: `onboarding_quests` (00057) + componente `OnboardingQuest.tsx`
+> - Componentes UI: `TrialBanner.tsx`, `EarlyBirdBadge.tsx`, `PremiumGate.tsx`, `SubscriptionProvider.tsx`, `ReferralCard.tsx`
 
 ---
 

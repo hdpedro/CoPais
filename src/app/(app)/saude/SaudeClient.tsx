@@ -155,6 +155,17 @@ export interface SaudeClientProps {
   professionalsCount: number;
   overdueVaccineCount: number;
 
+  // Motor de Saúde Preventiva — pilar, não puxadinho.
+  preventiveCare: {
+    statusLabel: string;
+    overdueCount: number;
+    dueSoonCount: number;
+    upcomingCount: number;
+    historicalGapCount: number;
+    coveragePct: number;
+    nextDue: { doseId: string; vaccineName: string; dueDate: string } | null;
+  } | null;
+
   // Last update
   lastUpdateRelative: string | null;
 
@@ -205,6 +216,7 @@ export default function SaudeClient(props: SaudeClientProps) {
     appointment,
     pendingReturns,
     overdueVaccineCount,
+    preventiveCare,
     lastUpdateRelative,
     healthViews,
     timeline,
@@ -625,28 +637,66 @@ export default function SaudeClient(props: SaudeClientProps) {
       {/* Hero */}
       {renderHero()}
 
-      {/* Overdue vaccines warning */}
-      {overdueVaccineCount > 0 && (
-        <Link
-          href={`/saude/vacinas?crianca=${selectedChildId}`}
-          className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-200 mb-4 hover:bg-amber-100 transition-colors"
-        >
-          <div className="w-9 h-9 rounded-lg bg-amber-100 flex items-center justify-center flex-shrink-0">
-            <span className="text-base">💉</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-amber-800">
-              {t("health.overdueVaccinesAlert", { count: overdueVaccineCount })}
-            </p>
-            <p className="text-[11px] text-amber-600">
-              {t("health.consultPediatrician")}
-            </p>
-          </div>
-          <svg className="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-          </svg>
-        </Link>
-      )}
+      {/* Saúde Preventiva — pilar de Saúde, paleta calma estilo Apple Health.
+          - Em dia + nextDue → verde aconchegante
+          - Pendência → laranja-suave (nunca vermelho)
+          - Histórico vazio + crianças cadastradas → cinza neutro
+          Esconde quando não há criança (ou seja, sem motor de cálculo). */}
+      {preventiveCare && (() => {
+        const totalPending = preventiveCare.overdueCount + preventiveCare.dueSoonCount;
+        const onTrack = totalPending === 0 && preventiveCare.coveragePct > 0;
+        const palette = onTrack
+          ? "from-emerald-50 to-emerald-100/40 border-emerald-200"
+          : totalPending > 0
+          ? "from-amber-50 to-orange-50/40 border-amber-200"
+          : "from-gray-50 to-gray-100/40 border-gray-200";
+        const icon = onTrack ? "🛡️" : totalPending > 0 ? "💉" : "📋";
+        const nextLine = preventiveCare.nextDue
+          ? (() => {
+              const d = preventiveCare.nextDue!;
+              const daysAhead = Math.ceil(
+                (new Date(d.dueDate + "T12:00:00").getTime() - Date.now()) / 86400000,
+              );
+              if (daysAhead <= 0) return t("health.vaccineEngine.nextDueToday", { name: d.vaccineName });
+              if (daysAhead === 1) return t("health.vaccineEngine.nextDueTomorrow", { name: d.vaccineName });
+              if (daysAhead < 60)
+                return t("health.vaccineEngine.nextDueInDays", { name: d.vaccineName, count: String(daysAhead) });
+              return t("health.vaccineEngine.nextDueLine", {
+                name: d.vaccineName,
+                date: d.dueDate.split("-").reverse().join("/"),
+              });
+            })()
+          : null;
+        return (
+          <Link
+            href={`/saude/vacinas?crianca=${selectedChildId}`}
+            className={`flex items-start gap-3 p-4 mb-4 rounded-2xl bg-gradient-to-br ${palette} border shadow-sm hover:shadow-md transition-all`}
+          >
+            <div className="w-11 h-11 rounded-2xl bg-white/80 flex items-center justify-center text-2xl flex-shrink-0">
+              {icon}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] uppercase tracking-wider font-semibold text-muted">
+                {t("health.vaccineEngine.preventiveCareTitle")}
+              </p>
+              <p className="text-base font-bold text-dark mt-0.5">{preventiveCare.statusLabel}</p>
+              {nextLine ? (
+                <p className="text-[11px] text-muted mt-1">
+                  {t("health.vaccineEngine.nextDue")}: {nextLine}
+                </p>
+              ) : null}
+            </div>
+            <svg
+              className="w-4 h-4 text-muted/60 flex-shrink-0 mt-2"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        );
+      })()}
 
       {/* Allergies alert */}
       {hasAllergies && (

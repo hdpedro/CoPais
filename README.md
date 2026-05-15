@@ -4,9 +4,10 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 
 **Producao (PWA):** https://kindar.com.br
 **iOS Native:** Kindar Native (Expo/React Native) — TestFlight / App Store
+**Android Native:** Kindar Native (Expo) — Internal App Sharing / Play Store (alpha)
 **Dominio:** kindar.com.br
 **Repositorio:** https://github.com/hdpedro/CoPais (publico)
-**Ultima atualizacao:** 24/04/2026 (v1.1.19)
+**Ultima atualizacao:** 14/05/2026 (PWA pos-v1.1.19, Native v1.0.5)
 
 > 🏗️ **Arquitetura dual**: este repo contem **2 apps** que compartilham o mesmo backend (Supabase):
 > - **PWA** (Next.js 16, `src/`) — web + Capacitor wrapper legado
@@ -27,8 +28,10 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **Deploy:** Vercel (Hobby — free, repo publico)
 - **Analytics:** PostHog (30+ eventos rastreados) — cross-platform (PWA + iOS + Android + backend), super-property `platform` stamps every event para breakdown DAU/MAU por plataforma
 - **Error Tracking:** Sentry
-- **i18n:** 5 idiomas (PT, EN, ES, FR, DE) — ~1488 chaves por locale, 40 secoes
-- **Testes:** Playwright E2E (34 testes) + Vitest unitarios (286 testes totais)
+- **i18n:** 5 idiomas (PT, EN, ES, FR, DE) — ~1982 chaves em pt.json
+- **Testes:** Playwright E2E (34 testes) + Vitest unitarios (36 arquivos de teste, ~286+ casos)
+- **Billing:** Stripe (web) + Apple StoreKit IAP (iOS) + Google Play Billing (Android) + RevenueCat (unifica mobile) — escopo por GRUPO (nao por user), idempotencia via tabela `webhook_events`, cupons admin-only, Early Bird counter atomico
+- **Foundation Collab:** infraestrutura compartilhada para records colaborativos (`collab_reads`, `collab_priority`, push coalescing 60s, audit trail). Adocoes: Escola (Fase 1), Despesas + Edit/Cancel/Reopen (Fase 1B), Saude — 5 record types (Fase 3)
 
 ### Kindar Native (`kindar-native/`)
 - **Framework:** Expo SDK 54 (React Native 0.76, New Architecture)
@@ -44,21 +47,36 @@ Aplicativo de coparentalidade para familias com guarda compartilhada. Ajuda pais
 - **Submit:** EAS Submit → App Store Connect API (via `kindar-asc.mjs` local + GitHub Actions)
 - **Distribuicao:** Auto-distribute do build para testers individuais + grupos externos (`distributeBuildToTesters` em `kindar-asc.mjs`)
 
-## Numeros do Projeto
+## O que mudou desde a ultima passada de doc (24/04 → 14/05/2026)
+
+Janela coberta por esta auditoria (commits em `origin/main`):
+
+- **Foundation: Collaborative Records** — infraestrutura compartilhada (`collab_reads`, `collab_priority`, push coalescing). Adocoes: Escola (Fase 1, migration 00077), Despesas + Edit/Cancel/Reopen + audit trail `expense_history` (Fase 1B, 00078), Saude — 5 record types com dashboard tile consolidada (Fase 3, 00080).
+- **Calendario: integridade definitiva de `custody_events`** (Hailla bug) — view canonica `custody_resolved`, trigger `prevent_overlap`, EXCLUDE constraint `no_overlap_same_type`, cleanup de duplicatas (migration 00079) + dedup defensivo no consumidor (4 camadas).
+- **Native v1.0.4 → v1.0.5** — fixes Android (tab bar respeita system bars, UploadSheet respeita status bar, t() interpola single + double brace, expo-dev-client compativel SDK 54).
+- **PostHog cross-platform** — super-property `platform` em PWA + iOS + Android + server, breakdown DAU/MAU por plataforma.
+- **Google Sign-In Android end-to-end** — `lares-490817` Android client com SHA-1 Play App Signing, ACCEPTED_AUDIENCES, eas.json atualizado.
+- **Onboarding wizard premium** — loop multi-crianca + convite inline single-screen (gamificacao via `onboarding_quests`).
+- **Calendar occurrences via trigger** (Aline bug 2026-05-07) — banco vira fonte de verdade. Lib JS no PWA + native continua como UI otimista com `ON CONFLICT DO NOTHING`.
+- **Dashboard fixes** — copy tecnico ("swap"/"regular") vazando, card "PROXIMA TROCA" aplica swap>regular, cards acionaveis de troca de guarda.
+- **Hardening RLS multiplas tabelas** — invitations (00069), growth_records (00070), swap_requests (00071), storage buckets (00062 lockdown), security definer views convertidas pra invoker (00076).
+
+## Numeros do Projeto (origin/main, 14/05/2026)
 
 | Metrica | Quantidade |
 |---------|-----------|
-| Rotas PWA (paginas + API) | 66 |
-| Rotas Native (expo-router) | 56 telas |
-| Server Actions | 86 funcoes em 24 arquivos |
-| API routes `/api/native/*` | 2 (notify, whatsapp) |
-| Tabelas no banco | 45+ (inclui custody_schedules, custody_balance_operations, activity_reports, medication_doses, checklist_completions, whatsapp_phone_links, clinical_context_inferences) |
-| Migrations | 52 |
-| Client Components PWA | 36+ |
-| Componentes Native | 22 (ui, calendar, activities, profile) |
-| Chaves de traducao | ~1488 por idioma (PT/EN/ES/FR/DE) |
-| Testes Vitest | 286 passando |
-| Builds iOS (TestFlight) | v1.0.1 (32+) |
+| Paginas PWA (Server Components) | 60 (54 protegidas + 6 publicas) |
+| API routes PWA | 74 endpoints (IA, auth, billing, cron, health, push, stripe, whatsapp, native shell, etc.) |
+| Arquivos de rota Native (expo-router) | 134 (.tsx em `kindar-native/app/`) |
+| Server Actions | 126 funcoes em 30 arquivos |
+| API routes `/api/native/*` | 2 (notify, whatsapp) — bridge para o app nativo |
+| Tabelas no banco | ~68 (~47 nucleo historico + 21 pos-Foundation: cron_logs, webhook_events, coupons, referrals, onboarding_quests, early_bird_counter, assistant_session_state, calendar_occurrences, collab_reads, expense_history, etc.) |
+| Migrations | 83 em origin/main (numeracao ate 00080 com gaps 00034 e pares 00060/00061/00062/00076) |
+| Client Components PWA globais | 36 (inclui subpastas analytics, billing, landing, referral, ui) |
+| Componentes Native | 22+ (ui, calendar, activities, profile) |
+| Chaves de traducao pt.json | ~1982 |
+| Testes Vitest (arquivos) | 36 |
+| Native version atual | v1.0.5 (`kindar-native/app.json`) |
 
 ## Kindar Native (iOS/Android app)
 
@@ -146,11 +164,12 @@ O app suporta **5 idiomas** completos:
 - **Alemao (DE)**
 
 **Arquitetura i18n:**
-- ~1488 chaves de traducao por idioma, organizadas em 40 secoes
+- ~1982 chaves de traducao em `pt.json` (idiomas paralelos: en/es/fr/de)
 - Arquivos de traducao em `src/i18n/locales/{pt,en,es,fr,de}.json`
 - `I18nProvider` envolvendo o layout do app
 - Hook `useI18n()` usado em todos os Client Components
 - `LanguageSelector` na pagina de perfil para troca de idioma
+- Namespace `collab` (Foundation) compartilhado entre os 5 idiomas — priority labels ("Novo", "Importante", "Urgente"), "Visto por X · time", "Saude · N novos"
 
 ## Modulos e Funcionalidades (20 modulos)
 

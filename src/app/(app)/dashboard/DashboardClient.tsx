@@ -266,6 +266,12 @@ export interface DashboardClientProps {
   // de Saúde — consultas, doenças, medicamentos, alergias, vacinas.
   // Tile consolidada "Saúde · N novos" no dashboard.
   saudeUnreadCount: number;
+
+  // === SAÚDE PREVENTIVA (Motor de Vacinas — migration 00082) ===
+  // Pendências reais agregadas (overdue + due_soon) somando todas crianças do grupo.
+  // Tile separada da saudeUnread porque essa é AÇÃO (motor), aquela é AWARENESS.
+  vaccinePendingCount: number;
+  vaccineNextDue: { dueDate: string; vaccineName: string } | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -321,6 +327,8 @@ export default function DashboardClient(props: DashboardClientProps) {
     schoolUnreadCount,
     expensesUnreadCount,
     saudeUnreadCount,
+    vaccinePendingCount,
+    vaccineNextDue,
   } = props;
 
   // Snapshot the user's unread state on each dashboard mount. PostHog
@@ -938,6 +946,54 @@ export default function DashboardClient(props: DashboardClientProps) {
             <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#C07055] text-white text-[11px] font-bold flex-shrink-0">
               {saudeUnreadCount}
             </span>
+          </div>
+        </Link>
+      )}
+
+      {/* === SAÚDE PREVENTIVA — Motor Vacinal (migration 00082) ===
+           Aparece quando há pendência REAL (overdue+due_soon). Paleta calma
+           âmbar-suave (Apple Health-like), nunca alarmista. Tap → /saude/vacinas. */}
+      {vaccinePendingCount > 0 && (
+        <Link href="/saude/vacinas" prefetch={false} className="block">
+          <div className="bg-gradient-to-br from-amber-50 to-orange-50/40 border border-amber-200/70 rounded-2xl p-3.5 flex items-center gap-3 hover:shadow-md transition-all">
+            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg bg-white/80">
+              💉
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-semibold text-[#2C2C2C]">
+                {vaccinePendingCount === 1
+                  ? t("health.vaccineEngine.statusOnePending")
+                  : t("health.vaccineEngine.statusManyPending", { count: vaccinePendingCount })}
+              </p>
+              <p className="text-[11px] text-amber-700">
+                {vaccineNextDue
+                  ? (() => {
+                      // Reutiliza nowMs já capturado em linha 419 (Date.now() é
+                      // impure-no-render; o disable está só onde ela é lida).
+                      const d = Math.ceil(
+                        (new Date(vaccineNextDue.dueDate + "T12:00:00").getTime() - nowMs) / 86400000,
+                      );
+                      if (d <= 0)
+                        return t("health.vaccineEngine.nextDueToday", { name: vaccineNextDue.vaccineName });
+                      if (d === 1)
+                        return t("health.vaccineEngine.nextDueTomorrow", { name: vaccineNextDue.vaccineName });
+                      return t("health.vaccineEngine.nextDueInDays", {
+                        name: vaccineNextDue.vaccineName,
+                        count: String(d),
+                      });
+                    })()
+                  : t("health.vaccineEngine.preventiveCareSubtitle")}
+              </p>
+            </div>
+            <svg
+              className="w-4 h-4 text-amber-600/60 flex-shrink-0"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              strokeWidth={2}
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
           </div>
         </Link>
       )}

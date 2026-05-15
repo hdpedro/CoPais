@@ -6,9 +6,10 @@
 
 **URL de producao:** https://kindar.com.br
 **iOS App:** Kindar Native (Expo) — TestFlight + App Store
+**Android App:** Kindar Native (Expo) — Internal App Sharing / Play Store (alpha)
 **Dominio:** kindar.com.br
 **Repositorio:** https://github.com/hdpedro/CoPais (**PUBLICO** desde 24/04/2026 para CI grátis)
-**Ultima atualizacao:** 24/04/2026 (v1.1.19)
+**Ultima atualizacao:** 14/05/2026 (PWA pos-v1.1.19 + Native v1.0.5)
 
 > **Arquitetura dual**: este monorepo tem 2 apps compartilhando o mesmo backend Supabase:
 > - `src/` → **PWA** (Next.js)
@@ -52,7 +53,7 @@
 ### Testes
 | Tipo | Tecnologia | Qtd |
 |------|-----------|-----|
-| Unitarios | Vitest | **286 testes passando** |
+| Unitarios | Vitest | **36 arquivos de teste** (~286+ casos, contagem exata varia por execucao) |
 | E2E | Playwright | 34 testes |
 | Lint | ESLint --max-warnings 0 | — |
 | Typecheck | tsc --noEmit | — |
@@ -70,19 +71,27 @@
 
 ```
 src/
-├── actions/          # Server Actions (23 arquivos, 84 funcoes)
+├── actions/          # Server Actions (30 arquivos, 126 funcoes — inclui admin-coupons, balance-operations, birthdays, onboarding-quest, subscription, subscription-split, whatsapp)
 ├── app/
-│   ├── (auth)/       # Rotas publicas (login, signup, etc.)
-│   ├── (app)/        # Rotas protegidas (dashboard, calendario, etc.)
-│   └── api/          # API Routes (14 endpoints, inclui /api/whatsapp/webhook)
-├── components/       # Componentes globais (13 arquivos)
-│   ├── BottomNav.tsx, Sidebar.tsx, ResponsiveShell.tsx
-│   ├── GroupSelector.tsx, LanguageSelector.tsx
-│   ├── NotificationBadge.tsx, AIAssistant.tsx, KindarLogo.tsx
-│   ├── PushNotificationManager.tsx
-│   └── PWAInstallBanner.tsx   # Banner iOS "Adicionar a Tela de Inicio" (PWA standalone)
+│   ├── (auth)/       # Rotas publicas (login, signup, etc.) — 6 paginas
+│   ├── (app)/        # Rotas protegidas (dashboard, calendario, etc.) — 54 paginas
+│   └── api/          # API Routes (74 endpoints — IA, auth, billing, cron, health, push, stripe, whatsapp, native shell, etc.)
+├── components/       # Componentes globais (36 arquivos, inclui subpastas: analytics/, billing/, landing/, referral/, ui/)
+│   ├── BottomNav.tsx, Sidebar.tsx, ResponsiveShell.tsx, NativeShellGuard.tsx
+│   ├── GroupSelector.tsx, LanguageSelector.tsx, QuickActionsModal.tsx
+│   ├── NotificationBadge.tsx, AIAssistant.tsx, KindarLogo.tsx, PageSkeleton.tsx
+│   ├── PushNotificationManager.tsx, PWAInstallBanner.tsx
+│   ├── PostHogProvider.tsx, PostHogAnonymousInit.tsx, AuthSessionProvider.tsx
+│   ├── SubscriptionProvider.tsx, PremiumGate.tsx, SocialLoginButtons.tsx
+│   ├── CustodyActivationCard.tsx, EnableCustodyLink.tsx, FeatureTooltip.tsx
+│   ├── OnboardingChecklist.tsx, ShareActivityButton.tsx
+│   ├── analytics/PageViewTracker.tsx
+│   ├── billing/  # EarlyBirdBadge, OnboardingQuest, TrialBanner
+│   ├── landing/  # AppStoreBadges, ExperimentHeadline, LandingFaq, LandingPricingPreview, LandingSocialProof, LandingWhatsAppHero
+│   ├── referral/ReferralCard.tsx
+│   └── ui/ChildAvatarWeb.tsx
 ├── i18n/             # Sistema de internacionalizacao
-│   └── locales/      # pt.json, en.json, es.json, fr.json, de.json (~1488 chaves, 40 secoes)
+│   └── locales/      # pt.json, en.json, es.json, fr.json, de.json (~1982 chaves em pt.json)
 ├── lib/
 │   ├── supabase/     # Client, Server, Middleware, Admin (service role)
 │   ├── ai/                # Modulo AI centralizado
@@ -299,7 +308,9 @@ common, nav, dashboard, calendar, chat, checkin, expenses, financial, health, ch
 | notification_type | expense_new, expense_approved, expense_rejected, swap_request, swap_response, chat_message, document_uploaded, custody_change, invitation, system, activity, activity_reminder, event_request, event_response, event_changed, birthday_reminder |
 | invitation_status | pending, accepted, expired, revoked |
 
-### Tabelas (35+ total)
+### Tabelas (~68 em origin/main, 14/05/2026)
+
+> Aos numeros desta secao: este indice cobre o nucleo historico (47 numeradas no schema original). As tabelas adicionadas pos-24/04/2026 estao listadas na sub-secao "Tabelas Pos-Foundation" no final desta secao.
 
 #### 1. profiles
 Extensao da tabela `auth.users` do Supabase. Criado automaticamente via trigger no signup.
@@ -667,11 +678,39 @@ Ordem de processamento de uma mensagem inbound:
 
 Logs em `whatsapp_message_logs` (inbound + outbound). Historico recente filtrado por TTL de 30min e excluindo mensagens-ruido (G5).
 
+### Tabelas Pos-Foundation (introduzidas apos 24/04/2026)
+
+| # | Tabela | Migration | Funcao |
+|---|--------|-----------|--------|
+| 48 | `cron_logs` | 00052 | Logs de execucao de CRONs (name, success, processed, sent, errors JSONB, duration_ms) |
+| 49 | `webhook_events` | 00061 | Idempotencia de webhooks Stripe/RevenueCat (event_id UNIQUE + processed_at) |
+| 50 | `coupons` | 00060 | Cupons de desconto (code UNIQUE, max_uses, uses, valid_until) |
+| 51 | `referral_clicks` | 00061 | Cliques em links de indicacao (referrer_user_id, clicked_at, ip_hash) |
+| 52 | `referral_rewards` | 00061 | Recompensas dadas apos conversao (referrer_user_id, referred_user_id, reward_amount, status) |
+| 53 | `onboarding_quests` | 00057 | Gamificacao: etapas individuais do onboarding marcadas como concluidas |
+| 54 | `early_bird_counter` | 00056 | Counter atomico (current_count, max_count) — limite global do desconto Early Bird |
+| 55 | `assistant_session_state` | 00072 | Estado persistente do Assistente IA in-app (memoria curta entre turns) |
+| 56 | `calendar_occurrences` | 00038, 00074 | Ocorrencias derivadas de `child_activities` — geradas via trigger AFTER INSERT/UPDATE (banco como fonte de verdade) |
+| 57 | `clinical_context_inferences` | 00050 | Inferencias de contexto clinico (medicacoes/episodios relacionados via heuristica de proximidade temporal) |
+| 58 | `app_errors` | 00044 | Error tracking com classificacao por pasta + pipeline auto-fix (Claude → GitHub PR → Discord) |
+| 59 | `retention_events` | 00041 | Eventos de retencao D+1/3/7/14 disparados pelo cron |
+| 60 | `user_health_score` (view) | 00042 | View agregada: score de saude do user (frequencia de updates, doses confirmadas, etc.) |
+| 61 | `child_current_status` (view) | 00065 | Snapshot de saude por crianca (illness_episodes + active_medications + child_allergies) — usado pela tool `get_child_status` |
+| 62 | `expense_balance_per_user` (view) | 00065 | Saldo pendente derivado de expenses.split_ratio — usado pela tool `get_balance` |
+| 63 | `custody_resolved` (view) | 00079 | View canonica de custodia (swap > exception > regular + created_at DESC tie-break) — defesa contra duplicacao |
+| 64 | `collab_reads` | 00077 | Foundation: polimorfica (record_type, record_id, user_id, read_at) — read receipts compartilhados |
+| 65 | `expense_history` | 00078 | Audit trail imutavel de despesas (Fase 1B): action ('edited'/'cancelled'/'cancel_requested'/'restored'/'reopened'), before/after JSONB, reason |
+| 66 | `decision_votes` | 00020 | Votos em decisoes (concordo/discordo/vou pensar) — separado pra normalizacao |
+| 67 | `decision_arguments` | 00020 | Argumentos pro/contra em decisoes |
+| 68 | `subscriptions` (estendido) | 00039, 00053, 00054 | Assinatura escopada por GRUPO (nao por user), suporte multi-provider (Stripe + Apple IAP + Google + RevenueCat) |
+| 69 | `plans` | 00039, 00051, 00055 | Catalogo de planos com IDs por provider (`apple_product_id`, `google_product_id`, `stripe_price_id`) |
+
 ### Seguranca (Row Level Security)
 
 Todas as tabelas possuem RLS habilitado. Funcoes auxiliares:
 - `is_group_member(group_id)` - verifica se o usuario pertence ao grupo
 - `is_group_admin(group_id)` - verifica se o usuario e admin do grupo
+- `collab_record_group(record_type, record_id)` — Foundation: resolve `group_id` polimorficamente por modulo (WHEN branch) para RLS de `collab_reads`
 
 Politicas garantem que:
 - Usuarios so veem dados dos seus proprios grupos
@@ -692,7 +731,10 @@ Politicas garantem que:
 - Alergias usam service role para query (workaround de RLS)
 - Temas sensiveis requerem dupla aprovacao para exclusao
 
-### Migrations (29 total)
+### Migrations (83 em origin/main, ate 00080)
+
+> Numeracao tem alguns gaps reservados/abandonados (00034) e dois pares com mesmo prefixo (00060, 00061, 00062, 00076) — sequencia foi paralelizada entre branches durante Fase 1/1B/3 da Foundation e mesclada com colisao deliberada (cada par cobre dominio distinto). Total fisico em main = 83 arquivos.
+
 
 | Arquivo | Conteudo |
 |---------|----------|
@@ -747,8 +789,33 @@ Politicas garantem que:
 | `00050_clinical_context_inferences.sql` | Inferencias de contexto clinico |
 | `00051_apple_product_ids.sql` | **Apple IAP**: seta `apple_product_id` nos planos + indices para lookup por product_id e transaction_id |
 | `00052_cron_logs.sql` | **Observabilidade de CRONs**: tabela `cron_logs` (name, success, processed, sent, errors JSONB, started_at, finished_at, duration_ms) + indices |
+| `00053_subscriptions_multi_provider.sql` | **Billing multi-provider**: suporte a Stripe + Apple IAP + Google Play Billing + RevenueCat na mesma tabela `subscriptions` |
+| `00054_subscriptions_per_group.sql` | Subscription escopada por grupo (em vez de por usuario) — todo o grupo herda o plano |
+| `00055_plans_reprice_and_rename.sql` | Reprecificacao + rename de planos (Free / Premium / Elite → estrutura nova alinhada com `MONETIZACAO.md`) |
+| `00056_early_bird_counter.sql` | Contador atomico de cupons Early Bird (limite global de N assinaturas com desconto) |
+| `00057_onboarding_quest.sql` | Tabela `onboarding_quests`: gamificacao do onboarding com etapas marcadas individualmente |
+| `00058_subscription_split.sql` | Split de subscription entre coparentes (dividir custo do plano 50/50, com aprovacao bilateral) |
+| `00059_pix_payment_method_hint.sql` | Hint de metodo de pagamento Pix (Brasil) na escolha de plano |
+| `00060_align_prices_with_providers.sql` | Sync de precos entre Stripe / Apple / Google (manter paridade visivel ao usuario) |
+| `00060_coupons_and_admin.sql` | Tabela `coupons` + RLS admin-only + endpoint `/api/coupons/validate` |
+| `00061_referrals.sql` | Sistema de indicacoes: `referral_clicks`, `referral_rewards`, codigo unico por user, reward apos conversao |
+| `00061_webhook_events_idempotency.sql` | Tabela `webhook_events` com chave de idempotencia — Stripe/RevenueCat webhooks nao processam o mesmo evento 2x |
+| `00062_early_bird_check_on_update.sql` | Trigger que reforca limite Early Bird tambem em UPDATE (nao so INSERT) |
+| `00062_storage_rls_lockdown.sql` | Hardening RLS nos buckets `documents` e `receipts` (path-based isolation por grupo) |
+| `00063_push_tokens_cleanup.sql` | Garbage collection de push tokens invalidados (APNs/FCM unregistered) |
 | `00064_birthday_notification_type.sql` | **Lembrete de aniversario**: adiciona valor `birthday_reminder` ao enum `notification_type` (consumido por `/api/cron/birthday-reminders`, dispara D-7) |
 | `00065_whatsapp_v2_views.sql` | **WhatsApp v2**: views read-only `child_current_status` (snapshot de saude por crianca derivado de illness_episodes + active_medications + child_allergies) e `expense_balance_per_user` (saldo pendente derivado de expenses.split_ratio). Usadas pelas tools `get_child_status` e `get_balance`. |
+| `00066_whatsapp_phone_format.sql` | Normalizacao E.164 + indice unico em `whatsapp_phone_links.phone_number` |
+| `00067_quick_actions_profile.sql` | Campo `quick_actions` JSONB em `profiles` (configuracao de acoes rapidas — primary + secondary) |
+| `00068_custody_enabled_default_true.sql` | **Reversao critica**: `coparenting_groups.custody_enabled` volta a default `true` (revertido em 2026-05-05 apos bug de ativacao iOS que escondia toda a UI de guarda em grupos novos) |
+| `00069_invitations_rls_coparents_can_cancel_delete.sql` | RLS: coparentes (nao so o convidador) podem cancelar/deletar convites pendentes do grupo |
+| `00070_growth_records_rls_update_delete.sql` | RLS: permite UPDATE/DELETE de growth_records pelos membros do grupo (antes era insert-only) |
+| `00071_swap_requests_requester_can_cancel.sql` | RLS: o solicitante de uma troca pode cancela-la enquanto status='pending' |
+| `00072_assistant_session_state.sql` | Tabela `assistant_session_state`: contexto persistente do Assistente IA in-app (memoria curta entre turns) |
+| `00074_calendar_occurrences_trigger.sql` | **Solucao definitiva** (Aline bug 2026-05-07): trigger AFTER INSERT/UPDATE em `child_activities` chama `generate_activity_occurrences()` PL/pgSQL — geracao de ocorrencias deixa de depender do client. Banco vira fonte de verdade. Lib JS no PWA+native continua como defesa em profundidade (UI otimista) com `ON CONFLICT DO NOTHING`. |
+| `00075_calendar_occurrences_monthly_day_fix_and_cron.sql` | Fix de recorrencia mensal (dia 31 em meses curtos) + cron de regeneracao programada de occurrences distantes |
+| `00076_custody_events_dedup_and_unique.sql` | Defesa parcial contra duplicacao de `custody_events` (predecessor do hardening total em 00079) |
+| `00076_security_definer_views_invoker.sql` | Reduz risk surface das views SECURITY DEFINER — convertidas pra SECURITY INVOKER quando RLS do caller ja garante isolamento |
 | `00077_collab_foundation.sql` | **Foundation: Collaborative Records — Fase 1**: tabela polimórfica `collab_reads` + enum `collab_priority` + função `collab_record_group()` + RPC `mark_collab_read()` + trigger `school_logs_auto_mark_creator_read`. Adiciona coluna `priority` em `school_logs`. Primeira camada do "sistema de sincronização familiar" — read receipts, unread state, prioridade compartilhados entre coparentes. |
 | `00078_collab_expenses_edit_audit.sql` | **Foundation Fase 1B — Despesas**: adoption da foundation pra expenses (priority + trigger auto-mark + WHEN branch em `collab_record_group()`) + status enum estendido (`cancelled`, `cancel_pending`) + colunas de tracking (rejected_by/at, cancel_requested_*, cancelled_*, edited_at, edit_count) + tabela `expense_history` imutável com RLS scopeada por grupo + indexes (group_id, status, created_at DESC) pra perf. Habilita Edit/Cancel/Reopen com audit trail. |
 | `00079_custody_integrity.sql` | **Calendário: integridade definitiva de `custody_events`** (Hailla bug 2026-05-13): view canônica `custody_resolved` (swap > exception > regular + created_at DESC tie-break) + função `custody_has_same_type_overlap()` + trigger BEFORE INSERT/UPDATE `custody_events_prevent_overlap` (rejeita overlap mesmo tipo) + cleanup de 43 dias de duplicatas em 7 grupos + EXCLUDE constraint `custody_events_no_overlap_same_type` (defesa em profundidade via daterange &&). 4 camadas. |
@@ -1185,7 +1252,109 @@ Sistema para ajustes consensuais de saldo entre coparentes, alem da divida autom
 
 ---
 
-## Server Actions (86 funcoes em 24 arquivos)
+### Foundation: Collaborative Records (Fases 1, 1B, 3) — migrations 00077, 00078, 00080
+
+Camada compartilhada para **records colaborativos**: qualquer registro onde os coparentes precisam de awareness, read receipts e prioridade. Trata-se da espinha dorsal do "sistema de sincronizacao familiar" do Kindar.
+
+**Conceitos:**
+- Tabela polimorfica `collab_reads (record_type, record_id, user_id, read_at)` — uma linha por (record, user) quando o user explicitamente abre o detalhe. PRIMARY KEY composto.
+- Enum `collab_priority` ∈ (`info`, `important`, `urgent`). Tabelas opt-in com `ADD COLUMN priority collab_priority NOT NULL DEFAULT 'info'`.
+- Funcao `collab_record_group(record_type, record_id)` → resolve o `group_id` pra RLS (WHEN branch por modulo).
+- RPC `mark_collab_read(record_type, record_id)` — chamada pelo client (PWA + native) ao abrir detail.
+- Triggers `<modulo>_auto_mark_creator_read` — criador auto-marca como lido na insercao.
+
+**Servico canonico (`src/lib/services/collab.ts`):**
+- `notifyCollabCreate({recordType, recordId, groupId, actorUserId, priority, title, message, link})` — fan-out de push pros membros (role admin/member), com **coalescing 60s**: pushes do mesmo (recipient, type, actor) em 60s usam tag estavel e mensagem agregada ("Amanda adicionou 3 registros escolares"). In-app notification row sempre criada (inbox nao coalesce).
+- `unreadCollabCount({userId, groupId, recordType})` — count de records nao lidos, drives badges no dashboard.
+
+**Regras de UX firmadas (Fase 1):**
+1. **Read receipt sempre ON** — Kindar vende transparencia, sem opt-out por user.
+2. **`urgent` usa push normal por enquanto** — time-sensitive entitlement Apple requer capability change + rebuild (Fase 2).
+3. **Edit nao dispara push** — so create.
+4. **Criador auto-marcado como lido** — via trigger.
+5. **Marcar lido APENAS no detalhe** — nunca em scroll/list-mount/preload. O "Visto por Amanda · 14:32" depende dessa disciplina.
+6. **Anti-spam de notificacao** — coalescing 60s via tag estavel (FCM `tag`, APNs `thread-id`, web-push `tag`).
+
+**Adocoes consolidadas:**
+- `school_log` (00077) — pioneer da Fase 1: badges, visto-por, priority chips, push coalescing.
+- `expense` (00078) — Fase 1B: TUDO + Edit/Cancel/Reopen + `expense_history` (audit imutavel: id, expense_id, actor_id, action, before/after JSONB, reason, at). Endpoints novos em `services/expenses.ts`: `editExpense`, `requestCancelExpense`, `respondToCancelRequest`, `reopenApproval`. Janela de reopen rigida: 24h apos `approved_at`. Edit em status=approved REVERTE pra pending (qualquer mudanca invalida aprovacao). Cancelamento de despesa aprovada exige concordancia do reviewer original (`cancel_pending`).
+- `medical_appointment`, `illness_episode`, `active_medication`, `child_allergy`, `vaccination_record` (00080) — Fase 3 Saude:
+  - 5 ALTERs com `priority` (appointments/illness/medications/allergies default `important`, vaccines default `info`)
+  - Trigger generico `saude_auto_mark_creator_read` (1 funcao, 5 instancias via TG_ARGV)
+  - Trigger `illness_episodes_grave_to_urgent` BEFORE INSERT/UPDATE: `severity='grave'` + `priority='important'` (default) → promove pra `'urgent'` server-side. Respeita override explicito.
+  - Wrapper `src/lib/services/health-collab.ts:notifySaudeCreate(...)` — resolve priority efetivo pos-trigger + monta titulo PT-BR por record_type + body com crianca + deep link `/saude/<modulo>?highlight=<id>`.
+  - Endpoint `POST /api/health/notify-create` — wrapper compacto pro native chamar apos `safeWrite` (offline-first).
+  - Flag `safeWrite({ returnInsertedId: true })` — backward-compatible, retorna `id` via `.select('id').single()` pra disparar `notifySaudeCreateNative` apos sucesso.
+  - Dashboard tile **consolidada** (PWA + Native): "Saude · N novos" agregando os 5 record_types (em vez de 5 tiles separadas — principio "dashboard tight"). Telemetria PostHog `unread_count` com `record_type: 'saude_aggregate'` (1 event por mount).
+  - i18n nos 5 idiomas: `collab.dashboardSaudeUnreadOne/Other/Hint`.
+  - **Fora da adocao (deliberado, anti-spam):** `medication_doses`, `symptom_entries`, `growth_records`, `child_medical_info`, `medical_professionals`.
+  - **Pendencia conhecida (Fase 3.5):** UI inline em cada uma das 5 telas individuais com chip "Novo" + chip de priority + linha "Visto por X · time" + `mark_collab_read` no tap-to-expand.
+
+**Eventos PostHog (Foundation):**
+- `notification_sent` (server, recipient distinctId) — props: `record_type`, `actor_user_id`, `priority`, `coalesced`, `coalesced_count`
+- `notification_opened` (client, deep link `?highlight=`) — props: `record_type`, `record_id`
+- `<modulo>_read` (server, no markRead) — props: `log_id` ou `expense_id`
+- `unread_count` (client, dashboard mount) — props: `record_type`, `count`
+- `urgent_created` (server, priority='urgent' no create) — props: `record_type`
+- `expense_edited`, `expense_cancelled`, `expense_cancel_requested`, `expense_cancel_approved`, `expense_cancel_rejected`, `expense_reopened` (server)
+
+---
+
+### Billing: Stripe + Apple IAP + Google Play Billing + RevenueCat
+
+A monetizacao mudou de "Premium R$29,90 / Elite R$49,90" (Marco/2026) para a estrutura nova de Abril/2026 (ver `MONETIZACAO.md`). Backend suporta 4 providers simultaneos via `subscriptions` com `provider` enum + tabelas auxiliares.
+
+**Tabelas (migrations 00039, 00051, 00053-00063):**
+- `plans` — catalogo de planos com `apple_product_id`, `google_product_id`, `stripe_price_id` + indices p/ lookup por product_id e transaction_id
+- `subscriptions` — assinatura escopada por grupo (migration 00054), com provider, status, current_period_end, cancel_at_period_end
+- `coupons` — cupons de desconto com limite global de uso e RLS admin-only (00060)
+- `webhook_events` — idempotencia: Stripe/RevenueCat nao processam o mesmo evento 2x (00061)
+- `referral_clicks` + `referral_rewards` — sistema de indicacao (00061)
+- `onboarding_quests` — etapas individuais da gamificacao do onboarding (00057)
+
+**Endpoints (8):**
+- `/api/billing/status` (GET) — status atual da assinatura do grupo
+- `/api/stripe/checkout` (POST) — cria sessao de checkout
+- `/api/stripe/portal` (POST) — cria sessao do portal do cliente Stripe
+- `/api/stripe/webhook` (POST) — recebe eventos Stripe com idempotencia via `webhook_events`
+- `/api/iap/verify` (POST) — verifica receipt da Apple StoreKit
+- `/api/revenuecat/webhook` (POST) — webhook RevenueCat (unifica Apple + Google)
+- `/api/coupons/validate` (POST) — valida cupom em tempo real
+- `/api/subscription/split` (POST/DELETE) — split entre coparentes
+
+**Crons:**
+- `/api/cron/trial-reminder` — D-3 antes do fim do trial
+- `/api/cron/trial-expiry` — no dia do fim do trial
+- `/api/cron/renewal-reminder` — D-7 antes da renovacao
+- `/api/cron/iap-pending-cleanup` — limpa receipts IAP "pending" antigas
+- `/api/cron/webhook-events-prune` — purge de webhook_events processados (> 90d)
+
+**Componentes UI:**
+- `src/components/billing/TrialBanner.tsx` — banner com countdown do trial
+- `src/components/billing/EarlyBirdBadge.tsx` — badge Early Bird (limite global de N cupons)
+- `src/components/billing/OnboardingQuest.tsx` — checklist gamificada
+- `src/components/PremiumGate.tsx` — gate de paywall em features premium
+- `src/components/SubscriptionProvider.tsx` — context React global pro plano atual
+
+---
+
+## Server Actions (126 funcoes em 30 arquivos)
+
+> Cresceu de 86/24 (24/04/2026) para 126/30 com a entrada de billing/IAP, Foundation Collab (Fase 1/1B/3), onboarding-quest, balance-operations, birthdays, admin-coupons, whatsapp-actions e edit/cancel/reopen de despesas. Tabela abaixo cobre o nucleo historico; novos modulos detalhados em sub-secoes proprias.
+
+### Arquivos novos (apos 24/04/2026)
+- `admin-coupons.ts` — CRUD de cupons (admin-only)
+- `balance-operations.ts` — operacoes de saldo (waive/gift/forgive/reset/manual_adjustment) com aprovacao bilateral
+- `birthdays.ts` — `sendBirthdayReminders` (cron D-7 antes do aniversario)
+- `onboarding-quest.ts` — gamificacao do onboarding (marcar etapas, ler progresso)
+- `subscription.ts` — assinatura: status, cancelamento, retomada
+- `subscription-split.ts` — split de assinatura entre coparentes (`enableSubscriptionSplit`, `disableSubscriptionSplit`)
+- `whatsapp.ts` — actions de vinculacao de numero, preferencias de notificacao, opt-in/out
+- `expenses.ts` (estendido): `editExpense`, `requestCancelExpense`, `respondToCancelRequest`, `reopenApproval` — fluxo Edit/Cancel/Reopen com audit trail (Foundation Fase 1B)
+- `school.ts` (estendido): `markSchoolLogRead` (RPC `mark_collab_read` wrapper) + adoption Foundation Fase 1
+
+### Tabela (nucleo historico)
+
 
 | Action | Arquivo | Funcao |
 |--------|---------|--------|
@@ -1290,7 +1459,26 @@ Sistema para ajustes consensuais de saldo entre coparentes, alem da divida autom
 
 ---
 
-## API Routes (14 endpoints)
+## API Routes (74 endpoints em origin/main)
+
+> Cresceu de 14 endpoints (cobertura inicial: IA + auth + cron) para 74 com a entrada de billing (Stripe + IAP + RevenueCat), saude collab, native shell, expense audit, push APNs, onboarding-quest, referrals e coupons. Tabela abaixo segue agrupada por dominio.
+
+### Inventario completo por dominio (origin/main, 14/05/2026)
+- **IA (6)** — `ai/assistant`, `ai/context`, `ai/parse-invite`, `ai/parse-vaccines`, `ai/parse-prescription`, `backfill-occurrences`
+- **Auth nativo + delete (5)** — `auth/apple-native`, `auth/google-native`, `auth/delete-account`, `auth/signout`, `auth/test-login`
+- **Onboarding + grupo (8)** — `create-group`, `children`, `children/[childId]`, `children/education`, `invitations`, `family/members`, `onboarding-quest/mark-step`, `onboarding/auto-accept-invitation`
+- **Saude (8)** — `health/allergies`, `health/medical-info`, `health/medication-doses`, `health/vaccines-bulk`, `health/save-prescription`, `health/emergency/[childId]`, `health/emergency/[childId]/regenerate`, `health/notify-create` (push collab Fase 3)
+- **Despesas + Calendario + Atividades (7)** — `expenses`, `expenses/[id]/sign`, `swaps`, `event-requests`, `calendar/[token]`, `calendar/generate-schedule`, `activities/overrides`
+- **Decisoes + Documentos + Escola + Sensitive (5)** — `decisions/vote`, `documents`, `documents/[id]/sign`, `school`, `sensitive-notes`, `settlements`
+- **Chat (4)** — `chat/export`, `chat/messages`, `chat/read`, `chat/seed-channels`
+- **Push (3)** — `push/subscribe`, `push/register-apns`, `push/chat`
+- **Billing (8)** — `billing/status`, `iap/verify`, `stripe/checkout`, `stripe/portal`, `stripe/webhook`, `revenuecat/webhook`, `coupons/validate`, `subscription/split`
+- **Cron (9)** — `cron/activity-reminders`, `cron/birthday-reminders`, `cron/custody-change`, `cron/daily-report`, `cron/monthly-report`, `cron/retention`, `cron/trial-reminder`, `cron/trial-expiry`, `cron/renewal-reminder`, `cron/iap-pending-cleanup`, `cron/webhook-events-prune`
+- **Notificacoes + Ops (5)** — `notifications/mark-read`, `notifications/mark-all-read`, `log-error`, `discord/interactions`, `discord/feedback`
+- **WhatsApp + Native bridge (3)** — `whatsapp/webhook`, `native/whatsapp`, `native/notify`
+
+### Endpoints historicos detalhados
+
 
 | Rota | Metodo | Funcao |
 |------|--------|--------|

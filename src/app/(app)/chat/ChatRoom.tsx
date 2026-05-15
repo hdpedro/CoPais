@@ -860,9 +860,10 @@ export default function ChatRoom({
             }
             const msg = item.msg;
             const isOwn = msg.sender_id === userId;
-            const name = getDisplayName(msg.profiles?.full_name) !== "Usuario"
-              ? getDisplayName(msg.profiles?.full_name)
-              : memberNames[msg.sender_id] || "Usuario";
+            const resolved = getDisplayName(msg.profiles?.full_name);
+            const name = resolved !== "Usuário"
+              ? resolved
+              : memberNames[msg.sender_id] || "Usuário";
             return (
               <MessageBubble
                 key={msg.id}

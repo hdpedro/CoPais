@@ -11,6 +11,11 @@ interface AppointmentFormClientProps {
   professionals: { id: string; name: string; specialty: string | null; whatsapp: string | null }[];
   today: string;
   createAction: (formData: FormData) => Promise<void>;
+  // Quando o user veio do CTA "Agendar pediatra" de uma pendência vacinal,
+  // pré-popula campos e envia vaccineDoseId pra o action gravar o link bidirecional.
+  prefilledChildId?: string | null;
+  prefilledTitle?: string | null;
+  vaccineDoseId?: string | null;
 }
 
 export default function AppointmentFormClient({
@@ -19,6 +24,9 @@ export default function AppointmentFormClient({
   professionals,
   today,
   createAction,
+  prefilledChildId,
+  prefilledTitle,
+  vaccineDoseId,
 }: AppointmentFormClientProps) {
   const { t } = useI18n();
   const [appointmentType, setAppointmentType] = useState("rotina");
@@ -39,6 +47,15 @@ export default function AppointmentFormClient({
   return (
     <form action={handleSubmit} className="space-y-4">
       <input type="hidden" name="groupId" value={groupId} />
+      {vaccineDoseId ? <input type="hidden" name="vaccineDoseId" value={vaccineDoseId} /> : null}
+      {vaccineDoseId ? (
+        <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-[12px] text-amber-800 flex items-start gap-2">
+          <span className="mt-0.5">💉</span>
+          <span>
+            Vinculando essa consulta a uma vacina pendente. Quando salvar, a pendência some até a consulta acontecer; se for cancelada, ela reabre.
+          </span>
+        </div>
+      ) : null}
 
       {/* Step 1: Tipo da consulta */}
       <div className="bg-white rounded-xl p-4 shadow-sm">
@@ -79,6 +96,7 @@ export default function AppointmentFormClient({
             <select
               name="childId"
               required
+              defaultValue={prefilledChildId || (children.length === 1 ? children[0].id : "")}
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             >
               {children.length === 1 ? (
@@ -128,6 +146,7 @@ export default function AppointmentFormClient({
             type="text"
             name="title"
             required
+            defaultValue={prefilledTitle || undefined}
             placeholder={
               appointmentType === "rotina" ? t("health.appointmentForm.placeholderRoutine") :
               appointmentType === "emergencia" ? t("health.appointmentForm.placeholderEmergency") :
