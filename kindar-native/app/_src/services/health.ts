@@ -701,11 +701,169 @@ export interface VaccineStatusResult {
 }
 
 export async function getVaccineStatus(childId: string): Promise<VaccineStatusResult | null> {
+  // Resiliência: tenta primeiro consulta direta via supabase client.
+  // - PWA usa o mesmo padrão server-side (services/vaccines.ts).
+  // - Evita 401 silencioso quando cookie de cross-domain falha no Native.
+  // - Fallback pro apiFetch se a consulta direta der erro (offline cache, etc).
+  try {
+    const direct = await fetchVaccineStatusDirect(childId);
+    if (direct) return direct;
+  } catch (e) {
+    console.warn('[vaccines] direct fetch failed, falling back to apiFetch:', e);
+  }
   const r = await apiFetch<VaccineStatusResult>(`/api/health/vaccines`, {
     method: 'GET',
     query: { childId },
   });
   return r.ok && r.data ? r.data : null;
+}
+
+/**
+ * Consulta direta no banco — espelha `src/lib/services/vaccines.ts:getVaccineStatus`
+ * sem passar pela layer REST. RLS continua aplicada (user logado via supabase.auth).
+ */
+async function fetchVaccineStatusDirect(childId: string): Promise<VaccineStatusResult | null> {
+  const [coverageRes, dosesRes] = await Promise.all([
+    supabase
+      .from('child_vaccine_coverage')
+      .select(
+        'total_recommended, total_taken, overdue_count, due_soon_count, upcoming_count, historical_gap_count, out_of_window_count, coverage_pct, next_due_date, next_due_vaccine_name, next_due_dose_id',
+      )
+      .eq('child_id', childId)
+      .maybeSingle(),
+    supabase
+      .from('vaccine_recommended_doses')
+      .select(
+        // eslint-disable-next-line @typescript-eslint/quotes
+        `id, vaccine_id, dose_number, due_date, valid_until_date, status, taken_record_id, overdue_days,
+         vaccine_catalog!inner(code, name, is_annual),
+         vaccine_schedule_rules!inner(dose_label, network, is_booster, recommended_age_months)`,
+      )
+      .eq('child_id', childId)
+      .order('due_date', { ascending: true }),
+  ]);
+  if (coverageRes.error && coverageRes.error.code !== 'PGRST116') {
+    throw coverageRes.error;
+  }
+  if (dosesRes.error) throw dosesRes.error;
+  // Se a view não retornou (criança sem birth_date ou sem permissão), bail.
+  if (!coverageRes.data || !dosesRes.data || dosesRes.data.length === 0) return null;
+
+  /* eslint-disable @typescript-eslint/no-explicit-any */
+  function unwrap<T>(v: any): T | null {
+    if (Array.isArray(v)) return v[0] ?? null;
+    return v ?? null;
+  }
+  const rawDoses = (dosesRes.data as any[]).map((r) => ({
+    id: r.id,
+    vaccine_id: r.vaccine_id,
+    dose_number: r.dose_number,
+    due_date: r.due_date,
+    valid_until_date: r.valid_until_date,
+    status: r.status as VaccineStatus,
+    taken_record_id: r.taken_record_id,
+    overdue_days: r.overdue_days,
+    catalog: unwrap<{ code: string; name: string; is_annual: boolean }>(r.vaccine_catalog) || { code: '', name: '', is_annual: false },
+    rule: unwrap<{ dose_label: string; network: string; is_booster: boolean; recommended_age_months: number | null }>(r.vaccine_schedule_rules) || { dose_label: '', network: 'both', is_booster: false, recommended_age_months: null },
+  }));
+
+  // Resolve takenDate em batch
+  const takenIds = rawDoses.map((d) => d.taken_record_id).filter((v): v is string => !!v);
+  let takenDateById: Record<string, string> = {};
+  if (takenIds.length > 0) {
+    const { data: takenRecs } = await supabase
+      .from('vaccination_records')
+      .select('id, administered_date')
+      .in('id', takenIds);
+    if (takenRecs) {
+      takenDateById = Object.fromEntries(takenRecs.map((r: any) => [r.id, r.administered_date]));
+    }
+  }
+
+  const doses: VaccineDoseStatus[] = rawDoses.map((d) => ({
+    id: d.id,
+    vaccineId: d.vaccine_id,
+    vaccineCode: d.catalog.code,
+    vaccineName: d.catalog.name,
+    doseNumber: d.dose_number,
+    doseLabel: d.rule.dose_label,
+    status: d.status,
+    dueDate: d.due_date,
+    validUntilDate: d.valid_until_date,
+    overdueDays: d.overdue_days,
+    takenRecordId: d.taken_record_id,
+    takenDate: d.taken_record_id ? takenDateById[d.taken_record_id] ?? null : null,
+    ruleNetwork: d.rule.network,
+    isBooster: d.rule.is_booster,
+  }));
+
+  // Buckets idade
+  const BUCKET_ORDER = ['0-2m', '2-4m', '4-6m', '6-12m', '1-2a', '2-4a', '4-6a', '6-9a', '9-14a', 'anual'];
+  function bucketForAge(ageMonths: number | null, isAnnual: boolean): string {
+    if (isAnnual) return 'anual';
+    if (ageMonths === null) return 'anual';
+    if (ageMonths < 2) return '0-2m';
+    if (ageMonths < 4) return '2-4m';
+    if (ageMonths < 6) return '4-6m';
+    if (ageMonths < 12) return '6-12m';
+    if (ageMonths < 24) return '1-2a';
+    if (ageMonths < 48) return '2-4a';
+    if (ageMonths < 72) return '4-6a';
+    if (ageMonths < 108) return '6-9a';
+    return '9-14a';
+  }
+  const buckets: Record<string, VaccineDoseStatus[]> = {};
+  doses.forEach((d, i) => {
+    const key = bucketForAge(rawDoses[i].rule.recommended_age_months, rawDoses[i].catalog.is_annual);
+    if (!buckets[key]) buckets[key] = [];
+    buckets[key].push(d);
+  });
+  const timelineByAge: TimelineGroup[] = BUCKET_ORDER.filter((b) => buckets[b]?.length).map((b) => ({
+    ageBucket: b,
+    doses: buckets[b],
+  }));
+
+  const cov: any = coverageRes.data;
+  const totals = {
+    recommended: cov?.total_recommended || 0,
+    taken: cov?.total_taken || 0,
+    overdue: cov?.overdue_count || 0,
+    dueSoon: cov?.due_soon_count || 0,
+    upcoming: cov?.upcoming_count || 0,
+    historicalGap: cov?.historical_gap_count || 0,
+    outOfWindow: cov?.out_of_window_count || 0,
+  };
+  // statusLabel mesma lógica do PWA. (i18n keys aplicados pelo render)
+  const actionable = totals.overdue + totals.dueSoon;
+  let statusLabel: string;
+  if (actionable === 0 && totals.recommended === 0) statusLabel = 'Complete a carteirinha';
+  else if (actionable === 0 && totals.historicalGap > 0 && totals.taken === 0) statusLabel = 'Complete o histórico';
+  else if (actionable === 0) statusLabel = 'Em dia';
+  else if (actionable === 1) statusLabel = '1 reforço pendente';
+  else statusLabel = `${actionable} reforços pendentes`;
+
+  const nextDue = cov?.next_due_dose_id
+    ? {
+        doseId: cov.next_due_dose_id,
+        vaccineName: cov.next_due_vaccine_name || '',
+        dueDate: cov.next_due_date || '',
+      }
+    : null;
+
+  return {
+    childId,
+    coveragePct: cov?.coverage_pct || 0,
+    statusLabel,
+    totals,
+    nextDue,
+    overdue: doses.filter((d) => d.status === 'overdue'),
+    dueSoon: doses.filter((d) => d.status === 'due_soon'),
+    upcoming: doses.filter((d) => d.status === 'upcoming'),
+    taken: doses.filter((d) => d.status === 'taken'),
+    historicalGaps: doses.filter((d) => d.status === 'historical_gap'),
+    timelineByAge,
+  };
+  /* eslint-enable @typescript-eslint/no-explicit-any */
 }
 
 export async function recordVaccinationViaEngine(input: {
