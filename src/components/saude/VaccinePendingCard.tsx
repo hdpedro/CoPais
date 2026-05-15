@@ -66,12 +66,18 @@ export default function VaccinePendingCard({ dose, childId, childFirstName, isRe
               {dose.vaccineName}
             </p>
             {dose.ruleNetwork === "public" ? (
-              <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700">
-                PNI
+              <span
+                title="PNI — Programa Nacional de Imunizações (SUS)"
+                className="text-[10px] font-semibold tracking-wide px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-700"
+              >
+                {t("health.vaccineEngine.networkPublicChip")}
               </span>
             ) : dose.ruleNetwork === "private" ? (
-              <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sky-100 text-sky-700">
-                SBIm
+              <span
+                title="SBIm — Sociedade Brasileira de Imunizações"
+                className="text-[10px] font-semibold tracking-wide px-1.5 py-0.5 rounded bg-sky-100 text-sky-700"
+              >
+                {t("health.vaccineEngine.networkPrivateChip")}
               </span>
             ) : null}
           </div>

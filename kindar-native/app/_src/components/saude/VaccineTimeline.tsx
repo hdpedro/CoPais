@@ -139,14 +139,14 @@ export default function VaccineTimeline({ timeline }: Props) {
                 </Text>
                 {d.ruleNetwork === 'public' ? (
                   <View style={{ paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, backgroundColor: '#ECFDF5' }}>
-                    <Text style={{ fontSize: 9, fontWeight: font.weights.semibold, color: '#047857', letterSpacing: 0.5 }}>
-                      PNI
+                    <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: '#047857', letterSpacing: 0.3 }}>
+                      {t('health.vaccineEngine.networkPublicChip')}
                     </Text>
                   </View>
                 ) : d.ruleNetwork === 'private' ? (
                   <View style={{ paddingHorizontal: 5, paddingVertical: 1, borderRadius: 4, backgroundColor: '#F0F9FF' }}>
-                    <Text style={{ fontSize: 9, fontWeight: font.weights.semibold, color: '#0369A1', letterSpacing: 0.5 }}>
-                      SBIm
+                    <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: '#0369A1', letterSpacing: 0.3 }}>
+                      {t('health.vaccineEngine.networkPrivateChip')}
                     </Text>
                   </View>
                 ) : null}

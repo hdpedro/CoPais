@@ -918,14 +918,14 @@ function PendingCard({
             </Text>
             {dose.ruleNetwork === 'public' ? (
               <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: '#D1FAE5' }}>
-                <Text style={{ fontSize: 9, fontWeight: font.weights.semibold, color: '#047857', letterSpacing: 0.5 }}>
-                  PNI
+                <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: '#047857', letterSpacing: 0.3 }}>
+                  {t('health.vaccineEngine.networkPublicChip')}
                 </Text>
               </View>
             ) : dose.ruleNetwork === 'private' ? (
               <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: '#E0F2FE' }}>
-                <Text style={{ fontSize: 9, fontWeight: font.weights.semibold, color: '#0369A1', letterSpacing: 0.5 }}>
-                  SBIm
+                <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: '#0369A1', letterSpacing: 0.3 }}>
+                  {t('health.vaccineEngine.networkPrivateChip')}
                 </Text>
               </View>
             ) : null}
