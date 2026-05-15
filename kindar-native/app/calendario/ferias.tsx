@@ -33,21 +33,21 @@
  * | Local/Horário       | Sim                        | Não (range puro)       |
  */
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator,
   KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
-import { router, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from 'src/store/auth';
 import { supabase } from 'src/lib/supabase';
-import { createVacationPeriod } from 'src/services/vacation';
+import { createVacationPeriod, listUpcomingVacations, deleteVacationPeriod } from 'src/services/vacation';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
-import { colors, spacing, radius, font } from 'src/design-system/tokens';
+import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { getDisplayName } from 'src/lib/constants';
 
 interface ChildOption { id: string; full_name: string }
@@ -80,6 +80,30 @@ export default function NovaFeriasScreen() {
 
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<{ date?: string; responsible?: string; general?: string }>({});
+
+  // Lista de férias existentes (próximas + em andamento)
+  interface VacationItem {
+    id: string;
+    childId: string | null;
+    childName: string | null;
+    responsibleUserId: string;
+    responsibleName: string;
+    startDate: string;
+    endDate: string;
+    notes: string | null;
+  }
+  const [existingVacations, setExistingVacations] = useState<VacationItem[]>([]);
+  const [loadingList, setLoadingList] = useState(true);
+
+  const loadVacations = useCallback(async () => {
+    if (!activeGroup) return;
+    setLoadingList(true);
+    const list = await listUpcomingVacations(activeGroup.groupId, 10);
+    setExistingVacations(list as VacationItem[]);
+    setLoadingList(false);
+  }, [activeGroup]);
+
+  useFocusEffect(useCallback(() => { void loadVacations(); }, [loadVacations]));
 
   useEffect(() => {
     if (!activeGroup || !userId) return;
@@ -177,6 +201,30 @@ export default function NovaFeriasScreen() {
     ? RESPONSIBLE_COLORS[responsibleIndex % RESPONSIBLE_COLORS.length]
     : colors.textMuted;
 
+  function handleDeleteVacation(v: VacationItem) {
+    Alert.alert(
+      'Remover este período?',
+      `${v.childName || 'Família'} · ${formatRangeLabel(v.startDate, v.endDate)}`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Remover',
+          style: 'destructive',
+          onPress: async () => {
+            const res = await deleteVacationPeriod(v.id);
+            if (res.success) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await loadVacations();
+            } else {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              Alert.alert('Erro', (res as { error?: string }).error || 'Não consegui remover.');
+            }
+          },
+        },
+      ],
+    );
+  }
+
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -192,7 +240,7 @@ export default function NovaFeriasScreen() {
         <View style={{
           backgroundColor: `${colors.brand}10`, borderRadius: radius.lg,
           borderWidth: 1, borderColor: `${colors.brand}30`,
-          padding: spacing.lg, marginTop: spacing.md, marginBottom: spacing.xl,
+          padding: spacing.lg, marginTop: spacing.md, marginBottom: spacing.lg,
           flexDirection: 'row', gap: spacing.sm,
         }}>
           <Ionicons name="airplane-outline" size={20} color={colors.brand} style={{ marginTop: 2 }} />
@@ -202,6 +250,69 @@ export default function NovaFeriasScreen() {
             Use isto pra viagens, recesso escolar, ou qualquer período onde o coparente padrão da escala não estará com a criança.
           </Text>
         </View>
+
+        {/* ── Próximas férias (lista existente) ──────────────── */}
+        {loadingList ? (
+          <View style={{ paddingVertical: spacing.lg, alignItems: 'center' }}>
+            <ActivityIndicator color={colors.brand} size="small" />
+          </View>
+        ) : existingVacations.length > 0 ? (
+          <View style={{ marginBottom: spacing.xl }}>
+            <Text style={{
+              fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.semibold,
+              textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.sm,
+            }}>
+              Próximas / em andamento ({existingVacations.length})
+            </Text>
+            {existingVacations.map((v) => (
+              <View key={v.id} style={{
+                backgroundColor: colors.bgElevated, borderRadius: radius.lg,
+                padding: spacing.md, marginBottom: spacing.sm,
+                flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                ...shadows.sm,
+              }}>
+                <View style={{
+                  width: 36, height: 36, borderRadius: 18,
+                  backgroundColor: `${colors.brand}15`,
+                  alignItems: 'center', justifyContent: 'center',
+                }}>
+                  <Text style={{ fontSize: 18 }}>✈️</Text>
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
+                    {v.childName || 'Família'} · com {v.responsibleName || 'Coparente'}
+                  </Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
+                    {formatRangeLabel(v.startDate, v.endDate)} · {daysBetween(v.startDate, v.endDate)} {daysBetween(v.startDate, v.endDate) === 1 ? 'dia' : 'dias'}
+                  </Text>
+                  {v.notes ? (
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2, fontStyle: 'italic' }} numberOfLines={1}>
+                      {v.notes}
+                    </Text>
+                  ) : null}
+                </View>
+                <TouchableOpacity
+                  onPress={() => handleDeleteVacation(v)}
+                  hitSlop={8}
+                  accessibilityLabel="Remover este período"
+                  style={{ padding: spacing.xs }}
+                >
+                  <Ionicons name="trash-outline" size={18} color={colors.error} />
+                </TouchableOpacity>
+              </View>
+            ))}
+          </View>
+        ) : null}
+
+        {/* Section divider pra Novo registro */}
+        {existingVacations.length > 0 ? (
+          <Text style={{
+            fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.semibold,
+            textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.sm,
+          }}>
+            Cadastrar novas férias
+          </Text>
+        ) : null}
 
         {/* ── Children selector ──────────────────────────────── */}
         {children.length > 0 ? (
@@ -397,4 +508,21 @@ function Chip({ selected, color, label, onPress }: { selected: boolean; color: s
       </Text>
     </TouchableOpacity>
   );
+}
+
+function formatRangeLabel(startIso: string, endIso: string): string {
+  const s = new Date(startIso + 'T12:00:00');
+  const e = new Date(endIso + 'T12:00:00');
+  const sLabel = s.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+  if (startIso === endIso) return sLabel;
+  const eOpts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
+  if (s.getFullYear() !== e.getFullYear()) eOpts.year = 'numeric';
+  const eLabel = e.toLocaleDateString('pt-BR', eOpts);
+  return `${sLabel} – ${eLabel}`;
+}
+
+function daysBetween(startIso: string, endIso: string): number {
+  const s = new Date(startIso + 'T12:00:00').getTime();
+  const e = new Date(endIso + 'T12:00:00').getTime();
+  return Math.round((e - s) / 86400000) + 1;
 }

@@ -16,6 +16,9 @@ export interface CustodyDayInfo {
   userId: string;
   userName: string;
   color: string;
+  /** Tipo de evento de custódia (regular/swap/vacation/holiday/special).
+   *  Permite UI distinguir "Férias com X" vs "Com X" no dia. Migration 00082. */
+  custodyType?: string;
 }
 
 export interface WeekendInfo {
@@ -102,12 +105,13 @@ export function buildCustodyMap(
 ): Map<string, CustodyDayInfo> {
   const map = new Map<string, CustodyDayInfo>();
 
-  // Stable partition — regular first, swap last. Other custody_type values
-  // (e.g. future "exception") sit between the two so they neither override
-  // swaps nor are overridden by regulars.
+  // Stable partition (lowest priority FIRST, highest LAST — map.set
+  // overwrites, so later wins). Reflete view custody_resolved 00079+00082:
+  //   regular/holiday/special (3) → vacation/exception (2) → swap (1, vence)
+  // Vacation 2026-05-14 (migration 00082): férias agora sobrepõem regular.
   const ordered = [
-    ...events.filter((e) => e.custody_type !== "swap" && e.custody_type !== "exception"),
-    ...events.filter((e) => e.custody_type === "exception"),
+    ...events.filter((e) => !["swap", "exception", "vacation"].includes(e.custody_type)),
+    ...events.filter((e) => e.custody_type === "exception" || e.custody_type === "vacation"),
     ...events.filter((e) => e.custody_type === "swap"),
   ];
 
@@ -123,6 +127,7 @@ export function buildCustodyMap(
         userId: event.responsible_user_id,
         userName: parentInfo.name,
         color: parentInfo.color,
+        custodyType: event.custody_type,
       });
       current.setDate(current.getDate() + 1);
     }

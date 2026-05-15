@@ -475,7 +475,17 @@ export default memo(function DayDetailSheet({
                   {dayInfo.userName.charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <p className="text-sm text-muted">{t("calendar.responsible")}</p>
+                  {/* Migration 00082: vacation/swap/holiday têm labels específicas pra
+                      diferenciar visualmente de "responsável regular". */}
+                  <p className="text-sm text-muted">
+                    {dayInfo.custodyType === "vacation"
+                      ? "✈️ Em férias com"
+                      : dayInfo.custodyType === "swap"
+                        ? "🔄 Troca aprovada — com"
+                        : dayInfo.custodyType === "holiday"
+                          ? "🎉 Feriado — com"
+                          : t("calendar.responsible")}
+                  </p>
                   <p className="font-semibold text-dark">{dayInfo.userName}</p>
                   {dayInfo.userId === currentUserId && (
                     <span className="text-xs text-primary font-medium">{t("calendar.you")}</span>
