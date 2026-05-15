@@ -787,6 +787,34 @@ export async function setVaccinationCalendarPreference(input: {
     : { success: false as const, error: r.error || 'Falha ao atualizar calendário' };
 }
 
+export async function updateVaccinationRecordViaEngine(input: {
+  recordId: string;
+  vaccineName?: string;
+  doseLabel?: string | null;
+  administeredDate?: string;
+  batchNumber?: string | null;
+  location?: string | null;
+  notes?: string | null;
+}) {
+  const r = await apiFetch<{ success: boolean; id?: string }>(`/api/health/vaccines`, {
+    method: 'PUT',
+    body: input,
+  });
+  return r.ok && r.data
+    ? { success: true as const, id: r.data.id || null }
+    : { success: false as const, error: r.error || 'Falha ao atualizar' };
+}
+
+export async function deleteVaccinationRecordViaEngine(recordId: string) {
+  const r = await apiFetch<{ success: boolean; childId?: string }>(`/api/health/vaccines`, {
+    method: 'DELETE',
+    query: { recordId },
+  });
+  return r.ok && r.data
+    ? { success: true as const, childId: r.data.childId || null }
+    : { success: false as const, error: r.error || 'Falha ao excluir' };
+}
+
 export async function matchVaccineCatalog(name: string): Promise<Array<{ id: string; code: string; name: string; similarity: number }>> {
   const r = await apiFetch<{ matches: Array<{ id: string; code: string; name: string; similarity: number }> }>(
     `/api/health/vaccines`,

@@ -18,6 +18,7 @@
  */
 
 import { useState } from "react";
+import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import type { TimelineGroup, VaccineDoseStatus, VaccineStatus } from "@/lib/services/vaccines";
 
@@ -83,6 +84,48 @@ export default function VaccineTimeline({ timeline }: Props) {
           <ul className="space-y-1.5">
             {group.doses.map((dose) => {
               const isOpen = expanded === dose.id;
+              // Doses 'taken' tem registro associado — clique abre detalhe.
+              // Doses pendentes (overdue/due_soon/upcoming) abrem expand inline.
+              if (dose.status === "taken" && dose.takenRecordId) {
+                return (
+                  <li key={dose.id}>
+                    <Link
+                      href={`/saude/vacinas/${dose.takenRecordId}`}
+                      className="flex items-start gap-2.5 py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                    >
+                      <span className={`w-3 h-3 rounded-full mt-1.5 border ${STATUS_DOT[dose.status]} flex-shrink-0`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-sm font-medium text-dark truncate">
+                            {dose.vaccineName}
+                            {dose.doseLabel ? <span className="text-muted font-normal"> · {dose.doseLabel}</span> : null}
+                          </p>
+                          {dose.ruleNetwork === "public" ? (
+                            <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-emerald-50 text-emerald-700">
+                              PNI
+                            </span>
+                          ) : dose.ruleNetwork === "private" ? (
+                            <span className="text-[9px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded bg-sky-50 text-sky-700">
+                              SBIm
+                            </span>
+                          ) : null}
+                        </div>
+                        <p className={`text-[11px] mt-0.5 ${STATUS_LINE[dose.status]}`}>
+                          {statusLabel(dose)}
+                        </p>
+                      </div>
+                      <svg
+                        className="w-3.5 h-3.5 text-muted/50 flex-shrink-0 mt-1.5"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                      >
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </Link>
+                  </li>
+                );
+              }
               return (
                 <li key={dose.id}>
                   <button

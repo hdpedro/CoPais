@@ -779,3 +779,104 @@ export async function setVaccinationCalendarPreference(
 
   return { ok: true, data: { childId: input.childId, preference: input.preference } };
 }
+
+/* ------------------------------------------------------------------ */
+/* updateVaccinationRecord — editar registro existente                 */
+/* ------------------------------------------------------------------ */
+
+export interface UpdateVaccinationInput {
+  recordId: string;
+  actorUserId: string;
+  vaccineName?: string;
+  doseLabel?: string | null;
+  administeredDate?: string;
+  batchNumber?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  catalogId?: string | null;
+  doseNumber?: number | null;
+}
+
+export async function updateVaccinationRecord(
+  supabase: SupabaseClient,
+  input: UpdateVaccinationInput,
+): Promise<ServiceResult<{ id: string }>> {
+  // RLS já filtra por membro do grupo. Aqui só validamos que o record existe.
+  const { data: existing } = await supabase
+    .from("vaccination_records")
+    .select("id, child_id, group_id")
+    .eq("id", input.recordId)
+    .maybeSingle();
+  if (!existing) {
+    return { ok: false, error: "Registro não encontrado.", status: 404 };
+  }
+
+  // Patch apenas campos enviados — preserva resto.
+  const patch: Record<string, unknown> = {};
+  if (input.vaccineName !== undefined) patch.vaccine_name = input.vaccineName.trim().slice(0, 200);
+  if (input.doseLabel !== undefined) patch.dose_label = input.doseLabel?.trim().slice(0, 100) || null;
+  if (input.administeredDate !== undefined) patch.administered_date = input.administeredDate;
+  if (input.batchNumber !== undefined) patch.batch_number = input.batchNumber?.trim().slice(0, 100) || null;
+  if (input.location !== undefined) patch.location = input.location?.trim().slice(0, 200) || null;
+  if (input.notes !== undefined) patch.notes = input.notes?.trim().slice(0, 2000) || null;
+  if (input.catalogId !== undefined) patch.catalog_id = input.catalogId;
+  if (input.doseNumber !== undefined) patch.dose_number = input.doseNumber;
+
+  if (Object.keys(patch).length === 0) {
+    return { ok: true, data: { id: input.recordId } };
+  }
+
+  const { error } = await supabase
+    .from("vaccination_records")
+    .update(patch)
+    .eq("id", input.recordId);
+  if (error) return { ok: false, error: error.message, status: 400 };
+
+  captureServerEvent(input.actorUserId, "vaccine_record_edited", {
+    record_id: input.recordId,
+    fields_changed: Object.keys(patch),
+  });
+
+  // Trigger trg_vaccination_records_recompute roda automaticamente após UPDATE.
+  return { ok: true, data: { id: input.recordId } };
+}
+
+/* ------------------------------------------------------------------ */
+/* deleteVaccinationRecord — excluir registro + recompute              */
+/* ------------------------------------------------------------------ */
+
+export interface DeleteVaccinationInput {
+  recordId: string;
+  actorUserId: string;
+}
+
+export async function deleteVaccinationRecord(
+  supabase: SupabaseClient,
+  input: DeleteVaccinationInput,
+): Promise<ServiceResult<{ id: string; childId: string }>> {
+  const { data: existing } = await supabase
+    .from("vaccination_records")
+    .select("id, child_id, group_id, vaccine_name")
+    .eq("id", input.recordId)
+    .maybeSingle();
+  if (!existing) {
+    return { ok: false, error: "Registro não encontrado.", status: 404 };
+  }
+
+  const { error } = await supabase
+    .from("vaccination_records")
+    .delete()
+    .eq("id", input.recordId);
+  if (error) return { ok: false, error: error.message, status: 400 };
+
+  captureServerEvent(input.actorUserId, "vaccine_record_deleted", {
+    record_id: input.recordId,
+    vaccine_name: existing.vaccine_name,
+  });
+
+  // Trigger trg_vaccination_records_recompute reabre pendência (taken → overdue/due_soon).
+  return {
+    ok: true,
+    data: { id: input.recordId, childId: existing.child_id as string },
+  };
+}

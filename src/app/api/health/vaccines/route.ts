@@ -29,6 +29,8 @@ import {
   dismissPendingDose,
   setVaccinationCalendarPreference,
   inferCatalogMatch,
+  updateVaccinationRecord,
+  deleteVaccinationRecord,
 } from "@/lib/services/vaccines";
 
 /* ------------------------------------------------------------------ */
@@ -267,6 +269,69 @@ export async function PATCH(request: Request) {
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }
+  revalidatePath("/saude/vacinas");
+  return NextResponse.json({ success: true, ...result.data });
+}
+
+/* ------------------------------------------------------------------ */
+/* PUT — editar vaccination_record                                     */
+/* ------------------------------------------------------------------ */
+
+interface PutBody {
+  recordId?: string;
+  vaccineName?: string;
+  doseLabel?: string | null;
+  administeredDate?: string;
+  batchNumber?: string | null;
+  location?: string | null;
+  notes?: string | null;
+  catalogId?: string | null;
+  doseNumber?: number | null;
+}
+
+export async function PUT(request: Request) {
+  const user = await resolveAuthenticatedUser(request);
+  if (!user) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
+  const body = (await request.json().catch(() => ({}))) as PutBody;
+  if (!body.recordId) {
+    return NextResponse.json({ error: "recordId obrigatório." }, { status: 400 });
+  }
+  const supabase = await createClient();
+  const result = await updateVaccinationRecord(supabase, {
+    recordId: body.recordId,
+    actorUserId: user.id,
+    vaccineName: body.vaccineName,
+    doseLabel: body.doseLabel,
+    administeredDate: body.administeredDate,
+    batchNumber: body.batchNumber,
+    location: body.location,
+    notes: body.notes,
+    catalogId: body.catalogId,
+    doseNumber: body.doseNumber,
+  });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
+  revalidatePath("/saude/vacinas");
+  return NextResponse.json({ success: true, ...result.data });
+}
+
+/* ------------------------------------------------------------------ */
+/* DELETE — excluir vaccination_record (reabre pendência via trigger)  */
+/* ------------------------------------------------------------------ */
+
+export async function DELETE(request: Request) {
+  const user = await resolveAuthenticatedUser(request);
+  if (!user) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
+  const url = new URL(request.url);
+  const recordId = url.searchParams.get("recordId");
+  if (!recordId) {
+    return NextResponse.json({ error: "recordId obrigatório." }, { status: 400 });
+  }
+  const supabase = await createClient();
+  const result = await deleteVaccinationRecord(supabase, {
+    recordId,
+    actorUserId: user.id,
+  });
+  if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   revalidatePath("/saude/vacinas");
   return NextResponse.json({ success: true, ...result.data });
 }

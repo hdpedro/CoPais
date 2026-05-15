@@ -10,6 +10,8 @@ import {
   markRecommendedDoseTaken as markRecommendedDoseTakenService,
   dismissPendingDose as dismissPendingDoseService,
   setVaccinationCalendarPreference as setVaccinationCalendarPreferenceService,
+  updateVaccinationRecord as updateVaccinationRecordService,
+  deleteVaccinationRecord as deleteVaccinationRecordService,
   type CalendarPreference,
 } from "@/lib/services/vaccines";
 
@@ -303,4 +305,75 @@ export async function updateCalendarPreference(formData: FormData) {
   revalidatePath("/saude/vacinas");
   revalidatePath("/saude");
   redirect("/saude/vacinas");
+}
+
+/* ------------------------------------------------------------------ */
+/* editVaccinationRecord — form de editar registro existente           */
+/* ------------------------------------------------------------------ */
+
+export async function editVaccinationRecord(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const recordId = formData.get("recordId") as string;
+  if (!recordId) {
+    redirect("/saude/vacinas?error=" + encodeURIComponent("ID do registro obrigatório."));
+  }
+
+  const vaccineName = (formData.get("vaccineName") as string) || "";
+  const doseLabel = (formData.get("doseLabel") as string) || "";
+  const administeredDate = formData.get("administeredDate") as string;
+  const batchNumber = (formData.get("batchNumber") as string) || "";
+  const location = (formData.get("location") as string) || "";
+  const notes = (formData.get("notes") as string) || "";
+
+  const result = await updateVaccinationRecordService(supabase, {
+    recordId,
+    actorUserId: user.id,
+    vaccineName: vaccineName.trim() || undefined,
+    doseLabel: doseLabel.trim() || null,
+    administeredDate: administeredDate || undefined,
+    batchNumber: batchNumber.trim() || null,
+    location: location.trim() || null,
+    notes: notes.trim() || null,
+  });
+
+  if (!result.ok) {
+    redirect(`/saude/vacinas/${recordId}?error=` + encodeURIComponent(result.error));
+  }
+
+  revalidateTag(`health-${recordId}`, "max");
+  revalidatePath("/saude/vacinas");
+  revalidatePath("/saude");
+  revalidatePath(`/saude/vacinas/${recordId}`);
+  redirect(`/saude/vacinas/${recordId}?success=` + encodeURIComponent("Registro atualizado"));
+}
+
+/* ------------------------------------------------------------------ */
+/* deleteVaccinationRecord — excluir registro                          */
+/* ------------------------------------------------------------------ */
+
+export async function deleteVaccinationRecord(formData: FormData) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const recordId = formData.get("recordId") as string;
+  if (!recordId) {
+    redirect("/saude/vacinas?error=" + encodeURIComponent("ID do registro obrigatório."));
+  }
+
+  const result = await deleteVaccinationRecordService(supabase, {
+    recordId,
+    actorUserId: user.id,
+  });
+
+  if (!result.ok) {
+    redirect(`/saude/vacinas/${recordId}?error=` + encodeURIComponent(result.error));
+  }
+
+  revalidatePath("/saude/vacinas");
+  revalidatePath("/saude");
+  redirect(`/saude/vacinas?crianca=${result.data.childId}&success=` + encodeURIComponent("Registro excluído"));
 }

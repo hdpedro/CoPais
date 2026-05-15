@@ -439,8 +439,10 @@ export default function VacinasScreen() {
           }}
         >
           {history.map((r, i) => (
-            <View
+            <TouchableOpacity
               key={r.id}
+              onPress={() => router.push(`/saude/vacinas/${r.id}` as never)}
+              activeOpacity={0.7}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -461,7 +463,8 @@ export default function VacinasScreen() {
                   {r.location ? ` · ${r.location}` : ''}
                 </Text>
               </View>
-            </View>
+              <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+            </TouchableOpacity>
           ))}
         </View>
       </View>
@@ -642,6 +645,54 @@ export default function VacinasScreen() {
         {renderHero()}
         {renderHistGap()}
         {renderPending()}
+
+        {/* Fallback gracioso quando o motor não respondeu (timeout / offline).
+            Sem isso, a tela mostrava só CTAs+Histórico — confuso pro user. */}
+        {selectedChild && !status ? (
+          <View
+            style={{
+              marginHorizontal: spacing.lg,
+              marginBottom: spacing.md,
+              padding: spacing.lg,
+              borderRadius: radius.xl,
+              borderWidth: 1,
+              borderColor: colors.borderLight,
+              backgroundColor: colors.bgSurface,
+              flexDirection: 'row',
+              gap: spacing.md,
+              alignItems: 'flex-start',
+            }}
+          >
+            <Text style={{ fontSize: 22 }}>📡</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
+                Não consegui carregar o calendário vacinal agora
+              </Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 4 }}>
+                Verifique sua conexão e tente novamente. Seu histórico continua disponível abaixo.
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  Haptics.selectionAsync();
+                  setLoading(true);
+                  load();
+                }}
+                style={{
+                  marginTop: spacing.sm,
+                  alignSelf: 'flex-start',
+                  paddingVertical: spacing.xs + 2,
+                  paddingHorizontal: spacing.md,
+                  borderRadius: radius.md,
+                  backgroundColor: colors.brand,
+                }}
+              >
+                <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>
+                  Tentar novamente
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        ) : null}
 
         {/* CTAs Registrar + Carteirinha — paridade premium com PWA */}
         {selectedChild ? (

@@ -295,7 +295,7 @@ export default function VacinasClient(props: Props) {
         </section>
       ) : null}
 
-      {/* History */}
+      {/* History — cards clicáveis abrem /saude/vacinas/[id] */}
       {recentRecords.length > 0 ? (
         <section className="mb-5">
           <h2 className="text-xs font-semibold text-muted uppercase tracking-wider mb-3 px-1">
@@ -303,9 +303,10 @@ export default function VacinasClient(props: Props) {
           </h2>
           <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
             {recentRecords.map((r, i) => (
-              <div
+              <Link
                 key={r.id}
-                className={`flex items-center gap-3 px-4 py-3 ${i > 0 ? "border-t border-gray-100" : ""}`}
+                href={`/saude/vacinas/${r.id}`}
+                className={`flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors ${i > 0 ? "border-t border-gray-100" : ""}`}
               >
                 <span className="text-base">💉</span>
                 <div className="flex-1 min-w-0">
@@ -316,7 +317,15 @@ export default function VacinasClient(props: Props) {
                     {r.location ? ` · ${r.location}` : ""}
                   </p>
                 </div>
-              </div>
+                <svg
+                  className="w-4 h-4 text-muted/60 flex-shrink-0"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </Link>
             ))}
           </div>
         </section>

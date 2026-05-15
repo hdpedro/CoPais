@@ -9,6 +9,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 import { useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { router } from 'expo-router';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 import type { TimelineGroup, VaccineDoseStatus, VaccineStatus } from 'src/services/health';
@@ -92,10 +93,19 @@ export default function VaccineTimeline({ timeline }: Props) {
         }
         const d = item.dose;
         const isOpen = expanded === d.id;
+        // Doses taken com record_id → tap abre detalhe.
+        // Doses pendentes/futuras → tap expande inline com janela info.
+        const isLinkable = d.status === 'taken' && d.takenRecordId;
         return (
           <TouchableOpacity
             accessibilityRole="button"
-            onPress={() => setExpanded(isOpen ? null : d.id)}
+            onPress={() => {
+              if (isLinkable && d.takenRecordId) {
+                router.push(`/saude/vacinas/${d.takenRecordId}` as never);
+              } else {
+                setExpanded(isOpen ? null : d.id);
+              }
+            }}
             activeOpacity={0.7}
             style={{
               flexDirection: 'row',
