@@ -93,6 +93,7 @@ export async function updateSession(request: NextRequest) {
     "/api/documents",
     "/api/swaps",
     "/api/health/vaccines-bulk",
+    "/api/health/vaccines",
     "/api/health/medication-doses",
     "/api/health/allergies",
     "/api/children/education",
