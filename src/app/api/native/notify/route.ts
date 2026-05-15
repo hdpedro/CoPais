@@ -46,7 +46,8 @@ type ActionType =
   | "event_request_created"
   | "event_request_approved"
   | "event_request_rejected"
-  | "event_request_cancelled";
+  | "event_request_cancelled"
+  | "vacation_created";
 
 interface NotifyRequest {
   action: ActionType;
@@ -291,6 +292,27 @@ const ACTION_CONFIGS: Record<ActionType, {
     messageFn: (name) => `${name} cancelou um pedido de alteracao`,
     link: "/eventos",
     analyticsEvent: "event_request_cancelled",
+  },
+  // Bug Amanda 2026-05-14: férias como cidadão de primeira classe.
+  // Native dispara este action após criar custody_events com type='vacation'.
+  // PWA tem seu próprio fluxo via services/vacation.ts (chama
+  // createNotificationWithPush direto, não passa por aqui).
+  vacation_created: {
+    notificationType: "custody_change",
+    titleFn: () => "✈️ Novo período de férias",
+    messageFn: (name, d) => {
+      const child = (d.childName as string) || "a família";
+      const start = (d.startLabel as string) || "?";
+      const end = (d.endLabel as string) || "?";
+      const days = Number(d.days || 0);
+      return `${name} marcou férias de ${child}: ${start} – ${end} (${days} ${days === 1 ? "dia" : "dias"})`;
+    },
+    chatMessageFn: (name, d) => {
+      const child = (d.childName as string) || "a família";
+      return `✈️ ${name} marcou férias de ${child}`;
+    },
+    link: "/calendario",
+    analyticsEvent: "vacation_created",
   },
 };
 

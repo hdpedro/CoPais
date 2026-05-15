@@ -12,7 +12,9 @@
 
 export type CustodyEvent = {
   id: string;
-  child_id: string;
+  /** child_id é nullable — NULL = evento de grupo (família toda). Paridade
+   *  com src/lib/custody-resolve.ts (PWA). Migration vacation 00082. */
+  child_id: string | null;
   start_date: string;
   end_date: string;
   responsible_user_id: string;
@@ -107,9 +109,11 @@ export function resolveTodayCustody<E extends CustodyEvent>(
   const byChild = new Map<string, E[]>();
   for (const e of todayEvents) {
     if (!eventCoversDate(e, todayKey)) continue;
-    const arr = byChild.get(e.child_id) || [];
+    // child_id nullable (eventos grupais) — chave especial "__group__"
+    const key = e.child_id ?? '__group__';
+    const arr = byChild.get(key) || [];
     arr.push(e);
-    byChild.set(e.child_id, arr);
+    byChild.set(key, arr);
   }
   const out = new Map<string, E>();
   for (const [childId, events] of byChild.entries()) {

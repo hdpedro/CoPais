@@ -41,18 +41,28 @@ function userMessage(code: string): string {
   return ERR_MESSAGES[code] || code;
 }
 
-export async function createVacation(formData: FormData) {
+/**
+ * Estado retornado pela action em caso de erro. Permite o form
+ * cliente rehydratar os valores que o user digitou, em vez de
+ * perder tudo na navegação (fix crítico Bug Amanda 2026-05-14).
+ */
+export interface CreateVacationState {
+  error?: string;
+}
+
+export async function createVacation(
+  _prev: CreateVacationState | undefined,
+  formData: FormData,
+): Promise<CreateVacationState> {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
 
   const groupId = formData.get("groupId") as string;
-  if (!groupId) redirect("/dashboard?error=" + encodeURIComponent("Grupo não informado"));
+  if (!groupId) return { error: "Grupo não informado" };
 
   const membership = await verifyGroupMembership(supabase, groupId, user.id);
-  if (!membership) {
-    redirect("/dashboard?error=" + encodeURIComponent("Sem permissão para este grupo."));
-  }
+  if (!membership) return { error: "Sem permissão para este grupo." };
 
   const childIdRaw = (formData.get("childId") as string | null) ?? "";
   const childId = childIdRaw && childIdRaw !== "none" ? childIdRaw : null;
@@ -72,7 +82,8 @@ export async function createVacation(formData: FormData) {
   });
 
   if (!result.ok) {
-    redirect("/calendario/ferias?error=" + encodeURIComponent(userMessage(result.error)));
+    // Retorna o erro pro form retentar SEM perder o que o user digitou.
+    return { error: userMessage(result.error) };
   }
 
   revalidatePath("/calendario");

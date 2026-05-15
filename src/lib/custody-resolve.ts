@@ -30,7 +30,13 @@
 
 export type CustodyEvent = {
   id: string;
-  child_id: string;
+  /** `child_id` é nullable no schema — NULL representa evento grupal (vale
+   *  pra família toda). Tipo era `string` mas isso era impreciso. Atualizado
+   *  2026-05-15 ao introduzir vacation (que aceita NULL no fluxo "férias da
+   *  família toda"). Helpers como `resolveCustodyOnDate` continuam filtrando
+   *  por string equality — events com child_id=null não batem com um childId
+   *  específico, mas DO match com null. */
+  child_id: string | null;
   start_date: string;
   end_date: string;
   responsible_user_id: string;
@@ -163,9 +169,13 @@ export function resolveTodayCustody<E extends CustodyEvent>(
   const byChild = new Map<string, E[]>();
   for (const e of todayEvents) {
     if (!eventCoversDate(e, todayKey)) continue;
-    const arr = byChild.get(e.child_id) || [];
+    // child_id pode ser NULL (evento de grupo). Usamos "__group__"
+    // como chave estável pra esses casos — caller pode distinguir
+    // pelo string especial.
+    const key = e.child_id ?? "__group__";
+    const arr = byChild.get(key) || [];
     arr.push(e);
-    byChild.set(e.child_id, arr);
+    byChild.set(key, arr);
   }
   const out = new Map<string, E>();
   for (const [childId, events] of byChild.entries()) {

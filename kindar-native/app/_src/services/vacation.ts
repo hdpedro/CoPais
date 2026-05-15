@@ -43,9 +43,7 @@
 
 import { supabase } from '../lib/supabase';
 import { safeWrite } from './offline';
-// notifyAction (push pros coparentes) é Fase 2 — precisa extender
-// NotifyAction type + endpoint /api/native/notify pra reconhecer 'vacation_*'.
-// Por enquanto, refresh do calendário do coparente captura via realtime.
+import { notifyAction } from './notify';
 
 export interface VacationParams {
   groupId: string;
@@ -96,6 +94,32 @@ export async function createVacationPeriod(params: VacationParams) {
       // created_by não é coluna padrão de custody_events; auditoria via created_at + responsible.
     },
   });
+
+  if (result.success && !result.queued) {
+    // Notifica coparentes via PWA endpoint /api/native/notify.
+    // Fire-and-forget — não bloqueia a UI.
+    let childName: string | null = null;
+    if (params.childId) {
+      const { data: child } = await supabase
+        .from('children')
+        .select('full_name')
+        .eq('id', params.childId)
+        .maybeSingle();
+      childName = child?.full_name?.split(' ')[0] ?? null;
+    }
+    const startLabel = new Date(params.startDate + 'T12:00:00').toLocaleDateString('pt-BR', {
+      day: '2-digit', month: 'short',
+    });
+    const endLabel = new Date(params.endDate + 'T12:00:00').toLocaleDateString('pt-BR', {
+      day: '2-digit', month: 'short',
+    });
+    notifyAction('vacation_created', params.groupId, {
+      childName,
+      startLabel,
+      endLabel,
+      days,
+    });
+  }
 
   return result;
 }

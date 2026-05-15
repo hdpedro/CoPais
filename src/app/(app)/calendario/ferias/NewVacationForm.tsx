@@ -3,15 +3,15 @@
 /**
  * NewVacationForm — formulário PWA pra criar período de férias.
  *
- * Submete via server action `createVacation` (src/actions/vacation.ts).
- *
- * Validações client-side servem só pra UX (mensagens inline). A validação
- * autoritativa fica no service src/lib/services/vacation.ts — server vê
- * o FormData, valida, e redireciona com `?error=...` se algo errado.
+ * Submete via server action `createVacation` (src/actions/vacation.ts) usando
+ * useActionState (React 19). Em caso de erro server-side (overlap, validação),
+ * a action retorna `{ error: '...' }` em vez de redirecionar — assim o
+ * formulário PRESERVA tudo que a usuária digitou (bug crítico anterior:
+ * redirect com ?error= recriava o componente do zero perdendo notes etc).
  */
 
-import { useState } from "react";
-import { createVacation } from "@/actions/vacation";
+import { useState, useActionState } from "react";
+import { createVacation, type CreateVacationState } from "@/actions/vacation";
 
 interface Props {
   groupId: string;
@@ -41,6 +41,14 @@ export default function NewVacationForm({ groupId, children, members, currentUse
   const [endDate, setEndDate] = useState<string>(today);
   const [notes, setNotes] = useState<string>("");
 
+  // useActionState (React 19) — server action retorna { error?: string },
+  // form mantém valores quando dá erro. Tudo que a usuária digitou
+  // (datas, criança, responsável, notas) fica preservado pra retentar.
+  const [actionState, formAction, isPending] = useActionState<CreateVacationState | undefined, FormData>(
+    createVacation,
+    undefined,
+  );
+
   const days = daysBetween(startDate, endDate);
   const tooLong = days > 90;
   const invalidRange = !!endDate && !!startDate && endDate < startDate;
@@ -50,11 +58,18 @@ export default function NewVacationForm({ groupId, children, members, currentUse
     !!endDate &&
     !invalidRange &&
     !tooLong &&
-    !!responsibleUserId;
+    !!responsibleUserId &&
+    !isPending;
 
   return (
-    <form action={createVacation} className="space-y-5 bg-white rounded-xl border border-gray-100 p-5">
+    <form action={formAction} className="space-y-5 bg-white rounded-xl border border-gray-100 p-5">
       <input type="hidden" name="groupId" value={groupId} />
+
+      {actionState?.error ? (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700">
+          {actionState.error}
+        </div>
+      ) : null}
 
       {/* Criança */}
       {children.length > 0 ? (
@@ -175,7 +190,7 @@ export default function NewVacationForm({ groupId, children, members, currentUse
         disabled={!canSubmit}
         className="w-full py-3 px-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
       >
-        Salvar férias
+        {isPending ? "Salvando..." : "Salvar férias"}
       </button>
     </form>
   );
