@@ -5,7 +5,7 @@
  * Espelha o PWA `/saude/vacinas`. Banco como fonte de verdade — chama
  * apiFetch via `getVaccineStatus`.
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -15,7 +15,7 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
-import { useFocusEffect, router } from 'expo-router';
+import { useFocusEffect, router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from 'src/lib/supabase';
@@ -35,6 +35,7 @@ import {
   type CalendarPreference,
 } from 'src/services/health';
 import VaccineTimeline from 'src/components/saude/VaccineTimeline';
+import PostVaccineChecklistModal from 'src/components/saude/PostVaccineChecklistModal';
 
 interface Child {
   id: string;
@@ -63,6 +64,7 @@ function daysUntil(iso: string): number {
 export default function VacinasScreen() {
   const t = useI18n((s) => s.t);
   const { activeGroup } = useAuth();
+  const params = useLocalSearchParams<{ crianca?: string; postVaccine?: string }>();
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string>('');
   const [status, setStatus] = useState<VaccineStatusResult | null>(null);
@@ -71,6 +73,8 @@ export default function VacinasScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [savingPref, setSavingPref] = useState(false);
+  const [heroExpanded, setHeroExpanded] = useState(false);
+  const [postVaccineRecordId, setPostVaccineRecordId] = useState<string | null>(null);
 
   const selectedChild = useMemo(
     () => children.find((c) => c.id === selectedChildId) || null,
@@ -131,6 +135,19 @@ export default function VacinasScreen() {
   }, [activeGroup, selectedChildId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Pickup ?crianca=<id> e ?postVaccine=<id> (deep links + redirect do form).
+  // Sched as setStates async pra evitar cascading render do eslint-react.
+  useEffect(() => {
+    const wantedChild = params.crianca as string | undefined;
+    const wantedPost = params.postVaccine as string | undefined;
+    if (!wantedChild && !wantedPost) return;
+    const handle = setTimeout(() => {
+      if (wantedChild && wantedChild !== selectedChildId) setSelectedChildId(wantedChild);
+      if (wantedPost && wantedPost !== postVaccineRecordId) setPostVaccineRecordId(wantedPost);
+    }, 0);
+    return () => clearTimeout(handle);
+  }, [params.crianca, params.postVaccine, selectedChildId, postVaccineRecordId]);
 
   const handleRefresh = () => {
     setRefreshing(true);
@@ -224,7 +241,14 @@ export default function VacinasScreen() {
     }
 
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityHint={t('health.vaccineEngine.openDetails')}
+        onPress={() => {
+          Haptics.selectionAsync();
+          setHeroExpanded((v) => !v);
+        }}
         style={{
           marginHorizontal: spacing.lg,
           marginBottom: spacing.md,
@@ -271,13 +295,24 @@ export default function VacinasScreen() {
               {t('health.vaccineEngine.nextDue')}: {nextLine}
             </Text>
           ) : null}
-          {!onlyHistGap && status.coveragePct > 0 ? (
-            <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 6 }}>
-              {t('health.vaccineEngine.coverageDetail', { pct: String(status.coveragePct) })}
-            </Text>
+          {heroExpanded && !onlyHistGap && status.coveragePct > 0 ? (
+            <View style={{ marginTop: spacing.sm, paddingTop: spacing.sm, borderTopWidth: 0.5, borderTopColor: colors.borderLight }}>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
+                {t('health.vaccineEngine.coverageDetail', { pct: String(status.coveragePct) })}
+              </Text>
+              <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>
+                {t('health.vaccineEngine.coverageHint')}
+              </Text>
+            </View>
           ) : null}
         </View>
-      </View>
+        <Ionicons
+          name={heroExpanded ? 'chevron-down' : 'chevron-forward'}
+          size={16}
+          color={colors.textMuted}
+          style={{ marginTop: 4 }}
+        />
+      </TouchableOpacity>
     );
   }
 
@@ -608,11 +643,43 @@ export default function VacinasScreen() {
         {renderHistGap()}
         {renderPending()}
 
-        {/* CTAs Registrar + Carteirinha */}
+        {/* CTAs Registrar + Carteirinha — paridade premium com PWA */}
         {selectedChild ? (
           <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.lg, flexDirection: 'row', gap: spacing.sm }}>
             <TouchableOpacity
-              onPress={() => router.push(`/saude/vacinas/carteirinha?crianca=${selectedChild.id}`)}
+              onPress={() => router.push(`/saude/vacinas/nova?crianca=${selectedChild.id}` as never)}
+              activeOpacity={0.85}
+              style={{
+                flex: 1,
+                padding: spacing.md,
+                borderRadius: radius.lg,
+                backgroundColor: colors.brand,
+                flexDirection: 'row',
+                gap: spacing.sm,
+                alignItems: 'center',
+                ...shadows.sm,
+              }}
+            >
+              <View
+                style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  backgroundColor: 'rgba(255,255,255,0.22)',
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="add" size={20} color="#fff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.bold, color: '#fff' }}>
+                  {t('health.vaccineEngine.registerCta')}
+                </Text>
+                <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)', marginTop: 1 }}>
+                  {t('health.vaccineEngine.registerTitle')}
+                </Text>
+              </View>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => router.push(`/saude/vacinas/carteirinha?crianca=${selectedChild.id}` as never)}
               activeOpacity={0.85}
               style={{
                 flex: 1,
@@ -627,12 +694,20 @@ export default function VacinasScreen() {
                 ...shadows.sm,
               }}
             >
-              <Ionicons name="camera-outline" size={20} color={colors.brand} />
+              <View
+                style={{
+                  width: 32, height: 32, borderRadius: 8,
+                  backgroundColor: colors.brandLight,
+                  alignItems: 'center', justifyContent: 'center',
+                }}
+              >
+                <Ionicons name="camera-outline" size={20} color={colors.brand} />
+              </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
                   {t('health.vaccineEngine.historyCta')}
                 </Text>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 1 }}>
+                <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 1 }}>
                   {t('health.vaccineEngine.historyHint')}
                 </Text>
               </View>
@@ -672,6 +747,21 @@ export default function VacinasScreen() {
 
         {renderHistory()}
       </ScrollView>
+
+      {/* Modal pós-vacina (opt-in 48h reminder) — paridade premium com PWA */}
+      <PostVaccineChecklistModal
+        visible={!!postVaccineRecordId}
+        vaccineRecordId={postVaccineRecordId || ''}
+        childFirstName={selectedChild?.full_name.split(' ')[0] || ''}
+        onDone={() => {
+          setPostVaccineRecordId(null);
+          router.replace(`/saude/vacinas?crianca=${selectedChildId}` as never);
+        }}
+        onSkip={() => {
+          setPostVaccineRecordId(null);
+          router.replace(`/saude/vacinas?crianca=${selectedChildId}` as never);
+        }}
+      />
     </View>
   );
 }
@@ -771,9 +861,24 @@ function PendingCard({
           <Text>💉</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
-            {dose.vaccineName}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
+              {dose.vaccineName}
+            </Text>
+            {dose.ruleNetwork === 'public' ? (
+              <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: '#D1FAE5' }}>
+                <Text style={{ fontSize: 9, fontWeight: font.weights.semibold, color: '#047857', letterSpacing: 0.5 }}>
+                  PNI
+                </Text>
+              </View>
+            ) : dose.ruleNetwork === 'private' ? (
+              <View style={{ paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, backgroundColor: '#E0F2FE' }}>
+                <Text style={{ fontSize: 9, fontWeight: font.weights.semibold, color: '#0369A1', letterSpacing: 0.5 }}>
+                  SBIm
+                </Text>
+              </View>
+            ) : null}
+          </View>
           <Text style={{ fontSize: font.sizes.xs, color: '#92400E', marginTop: 2 }}>
             {dose.doseLabel}
             {timeLine ? ` · ${timeLine}` : ''}
