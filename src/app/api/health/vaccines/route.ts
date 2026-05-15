@@ -18,7 +18,6 @@
 
 import { NextResponse } from "next/server";
 import { revalidateTag, revalidatePath } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { notifySaudeCreate } from "@/lib/services/health-collab";
@@ -46,7 +45,9 @@ export async function GET(request: Request) {
   const childId = url.searchParams.get("childId");
   const match = url.searchParams.get("match");
 
-  const supabase = await createClient();
+  // Bearer auth (Native) → cookieClient não tem session → RLS bloqueia tudo.
+  // Usamos admin client + validamos membership manualmente via group_members.
+  const supabase = createAdminClient();
 
   if (match) {
     const result = await inferCatalogMatch(supabase, match);
@@ -61,6 +62,26 @@ export async function GET(request: Request) {
       { error: "childId obrigatório." },
       { status: 400 },
     );
+  }
+
+  // Valida membership ANTES da query — admin client skips RLS, então sem
+  // este check qualquer user logado poderia ler vacinas de qualquer criança.
+  const { data: child } = await supabase
+    .from("children")
+    .select("group_id")
+    .eq("id", childId)
+    .maybeSingle();
+  if (!child) {
+    return NextResponse.json({ error: "Criança não encontrada." }, { status: 404 });
+  }
+  const { data: member } = await supabase
+    .from("group_members")
+    .select("user_id")
+    .eq("group_id", child.group_id as string)
+    .eq("user_id", user.id)
+    .maybeSingle();
+  if (!member) {
+    return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
   }
 
   const result = await getVaccineStatus(supabase, childId);
@@ -103,7 +124,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
   }
   const body = (await request.json().catch(() => ({}))) as PostBody;
-  const supabase = await createClient();
+  // ADMIN client porque Bearer auth (Native) não tem cookie pra RLS server-side.
+  // Service `vaccines.ts` valida membership manualmente via `actorUserId/userId`
+  // (verifyChildMembership consulta `group_members.user_id`). Sem isso, queries
+  // `.from('children').select(...)` retornavam 0 rows → "Criança não encontrada".
+  const supabase = createAdminClient();
 
   if (body.action === "record") {
     if (!body.groupId || !body.childId || !body.vaccineName || !body.administeredDate) {
@@ -260,7 +285,7 @@ export async function PATCH(request: Request) {
       { status: 400 },
     );
   }
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const result = await setVaccinationCalendarPreference(supabase, {
     childId: body.childId,
     preference: body.preference,
@@ -296,7 +321,7 @@ export async function PUT(request: Request) {
   if (!body.recordId) {
     return NextResponse.json({ error: "recordId obrigatório." }, { status: 400 });
   }
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const result = await updateVaccinationRecord(supabase, {
     recordId: body.recordId,
     actorUserId: user.id,
@@ -326,7 +351,7 @@ export async function DELETE(request: Request) {
   if (!recordId) {
     return NextResponse.json({ error: "recordId obrigatório." }, { status: 400 });
   }
-  const supabase = await createClient();
+  const supabase = createAdminClient();
   const result = await deleteVaccinationRecord(supabase, {
     recordId,
     actorUserId: user.id,

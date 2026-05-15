@@ -801,7 +801,8 @@ export async function updateVaccinationRecord(
   supabase: SupabaseClient,
   input: UpdateVaccinationInput,
 ): Promise<ServiceResult<{ id: string }>> {
-  // RLS já filtra por membro do grupo. Aqui só validamos que o record existe.
+  // Quando chamado via admin client (Native Bearer), RLS não filtra — validamos
+  // membership manualmente via actorUserId + group_members.
   const { data: existing } = await supabase
     .from("vaccination_records")
     .select("id, child_id, group_id")
@@ -809,6 +810,15 @@ export async function updateVaccinationRecord(
     .maybeSingle();
   if (!existing) {
     return { ok: false, error: "Registro não encontrado.", status: 404 };
+  }
+  const { data: member } = await supabase
+    .from("group_members")
+    .select("user_id")
+    .eq("group_id", existing.group_id as string)
+    .eq("user_id", input.actorUserId)
+    .maybeSingle();
+  if (!member) {
+    return { ok: false, error: "Sem permissão para este grupo.", status: 403 };
   }
 
   // Patch apenas campos enviados — preserva resto.
@@ -854,6 +864,7 @@ export async function deleteVaccinationRecord(
   supabase: SupabaseClient,
   input: DeleteVaccinationInput,
 ): Promise<ServiceResult<{ id: string; childId: string }>> {
+  // Mesmo pattern do update — admin client + validação manual via actorUserId.
   const { data: existing } = await supabase
     .from("vaccination_records")
     .select("id, child_id, group_id, vaccine_name")
@@ -861,6 +872,15 @@ export async function deleteVaccinationRecord(
     .maybeSingle();
   if (!existing) {
     return { ok: false, error: "Registro não encontrado.", status: 404 };
+  }
+  const { data: member } = await supabase
+    .from("group_members")
+    .select("user_id")
+    .eq("group_id", existing.group_id as string)
+    .eq("user_id", input.actorUserId)
+    .maybeSingle();
+  if (!member) {
+    return { ok: false, error: "Sem permissão para este grupo.", status: 403 };
   }
 
   const { error } = await supabase
