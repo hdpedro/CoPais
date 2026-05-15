@@ -113,9 +113,11 @@ export default function NovoEventoScreen() {
           || 'Co-responsavel'),
       }));
       setMembers(memberList);
-      // Default assignedTo = current user (matches PWA defaulting to members[0])
-      const me = memberList.find(m => m.user_id === userId);
-      if (me) setAssignedToId(me.user_id);
+      // assignedTo começa null. UX antiga auto-selecionava o user atual, o que
+      // forçava Amanda (admin) a aparecer como responsável de FÉRIAS do filho —
+      // não fazia sentido. Bug Amanda 2026-05-14: agora "Quem leva" é
+      // opcional. Pra eventos onde o responsável segue a escala (férias, feriados
+      // recorrentes), basta deixar em branco.
     })();
     return () => { cancelled = true; };
   }, [activeGroup, userId]);
@@ -323,24 +325,35 @@ export default function NovoEventoScreen() {
           </View>
         ) : null}
 
-        {/* ── Responsavel selector ────────────────────────────── */}
+        {/* ── Responsavel selector ──────────────────────────────
+             Bug Amanda 2026-05-14: o seletor era visualmente
+             "obrigatório" (chips sem opção de limpar). Agora é
+             explicitamente opcional: chip selecionado vira toggle off
+             ao tocar de novo, e helper text explica quando deixar vazio.
+             Pra férias / feriados, o responsável segue a escala vigente. */}
         {members.length > 1 ? (
           <View style={{ marginTop: spacing.xl }}>
-            <FieldLabel>Quem leva / responsavel</FieldLabel>
+            <FieldLabel>Quem leva / responsável (opcional)</FieldLabel>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs }}>
               {members.map((m, idx) => {
                 const c = RESPONSIBLE_COLORS[idx % RESPONSIBLE_COLORS.length];
+                const isSelected = assignedToId === m.user_id;
                 return (
                   <Chip
                     key={m.user_id}
-                    selected={assignedToId === m.user_id}
+                    selected={isSelected}
                     color={c}
                     label={m.name}
-                    onPress={() => setAssignedToId(m.user_id)}
+                    onPress={() => setAssignedToId(isSelected ? null : m.user_id)}
                   />
                 );
               })}
             </View>
+
+            <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 16 }}>
+              Deixe em branco para eventos sem responsável fixo (ex: férias,
+              feriados). O calendário usa a cor da escala vigente nesse caso.
+            </Text>
 
             {/* Color preview — events are tinted by responsavel on calendar */}
             <View style={{
@@ -351,7 +364,7 @@ export default function NovoEventoScreen() {
             }}>
               <View style={{ width: 18, height: 18, borderRadius: 4, backgroundColor: previewColor }} />
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, flex: 1 }}>
-                Cor no calendario (definida pelo responsavel)
+                {assignedToId ? 'Cor no calendário (definida pelo responsável)' : 'Sem responsável fixo — cor neutra'}
               </Text>
             </View>
           </View>

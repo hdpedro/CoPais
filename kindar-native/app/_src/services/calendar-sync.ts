@@ -17,14 +17,51 @@ import type { CalendarEvent } from '../hooks/useCalendar';
 
 const KINDAR_CALENDAR_TITLE = 'Kindar';
 
-async function getDefaultSource(): Promise<Calendar.Source | null> {
-  if (Platform.OS === 'ios') {
-    // Prefer the default calendar source (iCloud or Local)
-    const defaultCal = await Calendar.getDefaultCalendarAsync();
-    return (defaultCal?.source as Calendar.Source) || null;
-  }
-  // Android: create via local account
+/**
+ * Acha a source de calendário ONDE PODEMOS ESCREVER.
+ *
+ * Bug Amanda 2026-05-14: o default era usar `Calendar.getDefaultCalendarAsync()`
+ * + `.source`, mas se a conta default for SUBSCRIBED (assinaturas tipo
+ * holidays, equipes) ou BIRTHDAYS (aniversários do contatos), o iOS retorna
+ * "Esta conta não permite que calendários sejam adicionados ou removidos."
+ * ao tentar criar.
+ *
+ * Estratégia agora: lista todas as sources e prefere por ordem:
+ *   1. iCloud (CalDAV com "icloud" no nome)
+ *   2. Qualquer CalDAV (Google, Yahoo, etc. — geralmente escrevíveis)
+ *   3. LOCAL (sempre escrevível, mas só fica no device)
+ *   4. EXCHANGE, MOBILEME
+ *
+ * Skip explícito de SUBSCRIBED e BIRTHDAYS (sempre read-only).
+ */
+async function getWritableSource(): Promise<Calendar.Source | null> {
   const sources = await Calendar.getSourcesAsync();
+
+  if (Platform.OS === 'ios') {
+    // 1. iCloud (CALDAV com "icloud" no nome — caso mais comum em iOS)
+    const icloud = sources.find(s =>
+      s.type === Calendar.SourceType.CALDAV &&
+      (s.name || '').toLowerCase().includes('icloud'),
+    );
+    if (icloud) return icloud;
+
+    // 2. Qualquer CALDAV (Google Calendar, Yahoo, etc.)
+    const caldav = sources.find(s => s.type === Calendar.SourceType.CALDAV);
+    if (caldav) return caldav;
+
+    // 3. LOCAL (sempre escrevível)
+    const local = sources.find(s => s.type === Calendar.SourceType.LOCAL);
+    if (local) return local;
+
+    // 4. Exchange / MobileMe / outros, mas NUNCA SUBSCRIBED nem BIRTHDAYS
+    const writable = sources.find(s =>
+      s.type !== Calendar.SourceType.SUBSCRIBED &&
+      s.type !== Calendar.SourceType.BIRTHDAYS,
+    );
+    return writable || null;
+  }
+
+  // Android: criar via local account
   const local = sources.find(s => s.type === Calendar.SourceType.LOCAL);
   return local || sources[0] || null;
 }
@@ -34,8 +71,8 @@ async function findOrCreateKindarCalendar(): Promise<string> {
   const existing = cals.find(c => c.title === KINDAR_CALENDAR_TITLE);
   if (existing) return existing.id;
 
-  const source = await getDefaultSource();
-  if (!source) throw new Error('Nao foi possivel localizar calendar source no dispositivo');
+  const source = await getWritableSource();
+  if (!source) throw new Error('Não foi possível localizar uma conta de calendário escrevível no dispositivo. Verifique em Ajustes > Calendário > Contas se há iCloud ou Google habilitado.');
 
   const id = await Calendar.createCalendarAsync({
     title: KINDAR_CALENDAR_TITLE,
@@ -161,8 +198,16 @@ export async function syncEventsToDeviceCalendar(
 
     return { success: true, created };
   } catch (err: unknown) {
-    const msg = (err as { message?: string })?.message || 'Falha ao sincronizar';
-    return { success: false, error: msg };
+    const raw = (err as { message?: string })?.message || 'Falha ao sincronizar';
+    // Mensagens iOS específicas — traduz pra orientação acionável.
+    // Bug Amanda 2026-05-14: usuário viu o erro técnico do iOS sem contexto.
+    if (/não permite que calendários sejam adicionados|does not allow modifying calendars|calendar.*read-only/i.test(raw)) {
+      return {
+        success: false,
+        error: 'Sua conta de calendário não permite criar novos calendários. Vá em Ajustes > Apps > Calendário > Contas e ative iCloud (ou outra conta com permissão de escrita), depois tente de novo.',
+      };
+    }
+    return { success: false, error: raw };
   }
 }
 
