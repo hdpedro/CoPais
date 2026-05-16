@@ -7,6 +7,7 @@ import ResponsiveShell from "@/components/ResponsiveShell";
 import PushNotificationManager from "@/components/PushNotificationManager";
 import PostHogProvider from "@/components/PostHogProvider";
 import { I18nProvider } from "@/i18n/provider";
+import { getRequestLocale } from "@/i18n/server";
 import { SubscriptionProvider } from "@/components/SubscriptionProvider";
 import { getUserSubscription } from "@/lib/subscription";
 import { getCachedProfileByUser } from "@/lib/cached-queries";
@@ -43,6 +44,11 @@ export default async function AppLayout({
   const fullName = getDisplayName(profileRow?.display_name || profileRow?.full_name);
   const initial = fullName[0]?.toUpperCase() || "U";
 
+  // Resolve locale once on the server (cookie + Accept-Language fallback)
+  // and pass to the client provider. This eliminates the brief pt-BR flash
+  // that happened when the provider initialized only client-side.
+  const locale = await getRequestLocale();
+
   // Fetch group memberships for multi-group support
   const activeGroup = await getActiveGroup(supabase, user.id);
   const groups = activeGroup
@@ -55,7 +61,7 @@ export default async function AppLayout({
 
   return (
     <Suspense fallback={null}>
-      <I18nProvider>
+      <I18nProvider initialLocale={locale}>
         <PostHogProvider userId={user.id} userEmail={user.email}>
           <SubscriptionProvider subscription={subscription}>
           <div className="min-h-screen bg-[#EEECEA]">

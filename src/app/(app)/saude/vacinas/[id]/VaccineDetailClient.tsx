@@ -76,7 +76,7 @@ export default function VaccineDetailClient({
           </svg>
         </Link>
         <div className="flex-1">
-          <h1 className="text-xl font-bold text-dark">Detalhe da vacina</h1>
+          <h1 className="text-xl font-bold text-dark">{t("health.vaccineDetail.pageTitle")}</h1>
           <p className="text-[10px] text-muted">{childName}</p>
         </div>
       </div>
@@ -125,13 +125,13 @@ export default function VaccineDetailClient({
             <Row label="Local" value={record.location} />
           )}
           {record.dose_number && (
-            <Row label="Dose número" value={String(record.dose_number)} />
+            <Row label={t("health.vaccineDetail.doseNumberLabel")} value={String(record.dose_number)} />
           )}
           {ageBucketHint && (
-            <Row label="Catálogo" value={ageBucketHint} muted />
+            <Row label={t("health.vaccineDetail.catalogLabel")} value={ageBucketHint} muted />
           )}
           {record.notes && (
-            <Row label="Observações" value={record.notes} />
+            <Row label={t("health.vaccineDetail.notesLabel")} value={record.notes} />
           )}
           <Row
             label="Registrado"
@@ -144,7 +144,7 @@ export default function VaccineDetailClient({
         <form action={editAction} className="space-y-3 mb-4">
           <input type="hidden" name="recordId" value={record.id} />
 
-          <FieldCard label="Nome da vacina" required>
+          <FieldCard label={t("health.vaccineDetail.vaccineNameLabel")} required>
             <input
               type="text"
               name="vaccineName"
@@ -159,7 +159,7 @@ export default function VaccineDetailClient({
               type="text"
               name="doseLabel"
               defaultValue={record.dose_label || ""}
-              placeholder="Ex: 1ª dose, reforço"
+              placeholder={t("health.vaccineDetail.dosePlaceholder")}
               className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
           </FieldCard>
@@ -193,7 +193,7 @@ export default function VaccineDetailClient({
             />
           </FieldCard>
 
-          <FieldCard label="Observações">
+          <FieldCard label={t("health.vaccineDetail.notesLabel")}>
             <textarea
               name="notes"
               rows={3}
@@ -207,7 +207,7 @@ export default function VaccineDetailClient({
               type="submit"
               className="flex-1 py-3 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90"
             >
-              Salvar mudanças
+              {t("health.vaccineDetail.saveChanges")}
             </button>
             <button
               type="button"
@@ -249,8 +249,9 @@ export default function VaccineDetailClient({
             <div className="rounded-2xl border border-red-200 bg-red-50/50 p-4">
               <p className="text-sm font-semibold text-red-900">Excluir esta dose?</p>
               <p className="text-xs text-red-700 mt-1">
-                Se essa vacina estava cobrindo uma pendência, ela será reaberta como
-                {' '}<em>disponível</em> no calendário.
+                {t("health.vaccineDetail.deletePromptIntro")}
+                {' '}<em>{t("health.vaccineDetail.deletePromptAvailable")}</em>{' '}
+                {t("health.vaccineDetail.deletePromptInCalendar")}
               </p>
               <div className="flex gap-2 mt-3">
                 <form action={deleteAction} className="flex-1">
@@ -259,7 +260,7 @@ export default function VaccineDetailClient({
                     type="submit"
                     className="w-full py-2.5 rounded-lg bg-red-600 text-white text-sm font-semibold hover:bg-red-700"
                   >
-                    Sim, excluir
+                    {t("health.vaccineDetail.deleteConfirm")}
                   </button>
                 </form>
                 <button

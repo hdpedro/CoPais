@@ -7,17 +7,30 @@ import { signIn } from "@/actions/auth";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import KindarLogo from "@/components/KindarLogo";
 import { createClient } from "@/lib/supabase/client";
+import { useI18n } from "@/i18n/provider";
 import type { Session } from "@supabase/supabase-js";
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="bg-white rounded-2xl shadow-lg p-8 text-center min-h-[500px] flex items-center justify-center"><p className="text-muted">Carregando...</p></div>}>
+    <Suspense
+      fallback={
+        <div className="bg-white rounded-2xl shadow-lg p-8 text-center min-h-[500px] flex items-center justify-center">
+          {/* Suspense fallback runs before provider hydrates with current
+              locale dict — use a neutral spinner. Translated copy comes once
+              the inner component renders. */}
+          <p className="text-muted" aria-busy="true">
+            ...
+          </p>
+        </div>
+      }
+    >
       <LoginForm />
     </Suspense>
   );
 }
 
 function LoginForm() {
+  const { t } = useI18n();
   const searchParams = useSearchParams();
   const router = useRouter();
   const conviteToken = searchParams.get("convite");
@@ -27,8 +40,8 @@ function LoginForm() {
     urlError && urlError !== "auth"
       ? decodeURIComponent(urlError)
       : urlError === "auth"
-        ? "Erro de autenticação. Tente novamente."
-        : null
+        ? t("auth.authError")
+        : null,
   );
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -63,7 +76,7 @@ function LoginForm() {
   if (checking) {
     return (
       <div className="bg-white rounded-2xl shadow-lg p-8 text-center min-h-[500px] flex items-center justify-center">
-        <p className="text-muted">Carregando...</p>
+        <p className="text-muted">{t("auth.loading")}</p>
       </div>
     );
   }
@@ -73,13 +86,15 @@ function LoginForm() {
       <div className="flex flex-col items-center mb-8">
         <KindarLogo size={64} background="sand" />
         <h1 className="mt-4 text-2xl font-light text-[#0E0C0A] tracking-tight">Kindar</h1>
-        <p className="mt-1 text-xs text-[#9A8878] tracking-widest uppercase">a rotina organizada &middot; para toda a fam&iacute;lia</p>
+        <p className="mt-1 text-xs text-[#9A8878] tracking-widest uppercase">
+          {t("auth.tagline")}
+        </p>
       </div>
 
       {conviteToken && (
         <div className="text-center mb-6">
-          <p className="text-[#C07055] font-medium">Voce foi convidado!</p>
-          <p className="text-[#9A8878] text-sm mt-1">Entre para aceitar o convite</p>
+          <p className="text-[#C07055] font-medium">{t("auth.invited")}</p>
+          <p className="text-[#9A8878] text-sm mt-1">{t("auth.invitedLoginHint")}</p>
         </div>
       )}
 
@@ -91,7 +106,7 @@ function LoginForm() {
 
       <SocialLoginButtons
         redirectPath={conviteToken ? `/convite/${conviteToken}` : undefined}
-        label="Entrar"
+        label={t("auth.loginButton")}
       />
 
       <div className="relative my-6">
@@ -99,7 +114,7 @@ function LoginForm() {
           <div className="w-full border-t border-[#E8E0D4]" />
         </div>
         <div className="relative flex justify-center text-sm">
-          <span className="bg-white px-4 text-[#9A8878]">ou entre com e-mail</span>
+          <span className="bg-white px-4 text-[#9A8878]">{t("auth.orEmailLogin")}</span>
         </div>
       </div>
 
@@ -108,28 +123,30 @@ function LoginForm() {
 
         <div>
           <label htmlFor="email" className="block text-sm font-medium text-[#0E0C0A] mb-1">
-            E-mail
+            {t("auth.email")}
           </label>
           <input
             id="email"
             name="email"
             type="email"
             required
-            placeholder="seu@email.com"
+            placeholder={t("auth.emailPlaceholder")}
+            aria-label={t("auth.email")}
             className="w-full px-4 py-3 rounded-lg border border-[#E8E0D4] focus:outline-none focus:ring-2 focus:ring-[#C07055]/40 focus:border-[#C07055] text-[#0E0C0A] bg-white"
           />
         </div>
 
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-[#0E0C0A] mb-1">
-            Senha
+            {t("auth.password")}
           </label>
           <input
             id="password"
             name="password"
             type="password"
             required
-            placeholder="Sua senha"
+            placeholder={t("auth.passwordPlaceholder")}
+            aria-label={t("auth.password")}
             className="w-full px-4 py-3 rounded-lg border border-[#E8E0D4] focus:outline-none focus:ring-2 focus:ring-[#C07055]/40 focus:border-[#C07055] text-[#0E0C0A] bg-white"
           />
         </div>
@@ -143,10 +160,10 @@ function LoginForm() {
               defaultChecked
               className="h-4 w-4 rounded border-[#E8E0D4] text-[#C07055] focus:ring-[#C07055]/40 accent-[#C07055]"
             />
-            <span className="text-sm text-[#2C2C2C]">Lembrar-me</span>
+            <span className="text-sm text-[#2C2C2C]">{t("auth.rememberMe")}</span>
           </label>
           <Link href="/forgot-password" className="text-sm text-[#C07055] hover:underline">
-            Esqueceu a senha?
+            {t("auth.forgotPassword")}
           </Link>
         </div>
 
@@ -155,17 +172,17 @@ function LoginForm() {
           disabled={loading}
           className="w-full py-3 px-4 bg-[#C07055] text-white font-semibold rounded-lg hover:bg-[#A85D47] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Entrando..." : "Entrar"}
+          {loading ? t("auth.loggingIn") : t("auth.loginButton")}
         </button>
       </form>
 
       <p className="text-center mt-6 text-sm text-[#9A8878]">
-        Ainda nao tem conta?{" "}
+        {t("auth.noAccount")}{" "}
         <Link
           href={conviteToken ? `/signup?convite=${conviteToken}` : "/signup"}
           className="text-[#C07055] font-medium hover:underline"
         >
-          Criar conta
+          {t("auth.createAccountLink")}
         </Link>
       </p>
     </div>

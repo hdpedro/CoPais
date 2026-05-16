@@ -1,5 +1,9 @@
 import { redirect } from "next/navigation";
 import { getSessionUser } from "@/lib/supabase/auth-helper";
+// Server-side i18n — reads cookie (set by middleware on first visit from
+// Accept-Language, or by LanguageSelector when user explicitly chooses).
+// Without this, every label fabricated below would default to pt-BR forever.
+import { getRequestLocale, getServerT } from "@/i18n/server";
 import {
   resolveTodayCustody,
   findNextCustodyHandover,
@@ -16,7 +20,7 @@ import TrialBanner from "@/components/billing/TrialBanner";
 import OnboardingQuest from "@/components/billing/OnboardingQuest";
 import { formatDateKey, computeSwapBalance, getBrazilNow, getBrazilToday, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
 // getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
-import { PARENT_COLORS, DAY_NAMES, MONTH_NAMES, getDisplayName } from "@/lib/constants";
+import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
 import dynamic from "next/dynamic";
 import type { DashboardClientProps } from "./DashboardClient";
 
@@ -35,9 +39,23 @@ const DashboardClient = dynamic(() => import("./DashboardClient"), {
 });
 
 export default async function DashboardPage() {
-  const nowMs = Date.now(); // eslint-disable-line react-hooks/purity
+  const nowMs = Date.now();
   const { supabase, user } = await getSessionUser();
   if (!user) redirect("/login");
+
+  // Locale resolution — runs once per request. `t` is synchronous below.
+  // Date/number formatting downstream uses `intlLocale` (BCP 47 region tag,
+  // e.g. "pt-BR" for "pt") for proper Intl.DateTimeFormat output.
+  const locale = await getRequestLocale();
+  const t = await getServerT(locale);
+  const intlLocale: Record<string, string> = {
+    pt: "pt-BR",
+    en: "en-US",
+    es: "es-ES",
+    fr: "fr-FR",
+    de: "de-DE",
+  };
+  const bcp47 = intlLocale[locale] ?? "pt-BR";
 
   // === BATCH 1: profile (cached) + activeGroup (parallel) ===
   const [profile, activeGroup] = await Promise.all([
@@ -440,7 +458,7 @@ export default async function DashboardPage() {
       tomorrowActivities.push(dashAct);
     } else if (dateKey >= dayAfterTomorrowKey) {
       const d = new Date(dateKey + "T12:00:00");
-      upcomingActivities.push({ act: dashAct, date: dateKey, dayLabel: `${DAY_NAMES[d.getDay()]} ${d.getDate()}` });
+      upcomingActivities.push({ act: dashAct, date: dateKey, dayLabel: `${dayNamesShort[d.getDay()]} ${d.getDate()}` });
     }
   }
 
@@ -475,7 +493,7 @@ export default async function DashboardPage() {
       else if (evt.event_date === tomorrowKey) tomorrowActivities.push(fakeAct);
       else {
         const d = new Date(evt.event_date + "T12:00:00");
-        upcomingActivities.push({ act: fakeAct, date: evt.event_date, dayLabel: `${DAY_NAMES[d.getDay()]} ${d.getDate()}` });
+        upcomingActivities.push({ act: fakeAct, date: evt.event_date, dayLabel: `${dayNamesShort[d.getDay()]} ${d.getDate()}` });
       }
     }
   }
@@ -649,7 +667,7 @@ export default async function DashboardPage() {
   }
   if (!otherName) {
     const otherMember = members?.find((m) => m.user_id !== user.id);
-    otherName = parentColors[otherMember?.user_id || ""]?.name || "Outro";
+    otherName = parentColors[otherMember?.user_id || ""]?.name || t("dashboard.serverFallbacks.otherParent");
   }
   const totalMonth = myTotal + otherTotal;
   const balance = myTotal - myShouldPay;
@@ -673,7 +691,7 @@ export default async function DashboardPage() {
   }
 
   const childHealthSummaries: ChildHealthSummary[] = (children || []).map((child) => {
-    const childName = child.full_name?.split(" ")[0] || "Criança";
+    const childName = child.full_name?.split(" ")[0] || t("dashboard.serverFallbacks.childGeneric");
     const childMeds = (activeMedications || []).filter(m => m.child_id === child.id);
     const childIllnesses = (activeIllnesses || []).filter(i => i.child_id === child.id);
     const childAppts = (upcomingAppointments || []).filter(a => a.child_id === child.id);
@@ -683,7 +701,7 @@ export default async function DashboardPage() {
     });
 
     let status: "healthy" | "monitoring" | "treatment" = "healthy";
-    let detail = "Sem registros recentes";
+    let detail = t("dashboard.healthDetail.noRecentRecords");
     let activeMedication: string | null = null;
     let nextAction: string | null = null;
 
@@ -694,23 +712,26 @@ export default async function DashboardPage() {
       const medFreq = med.frequency || "";
       activeMedication = medName;
       detail = `${medName} ${medFreq}`;
-      nextAction = "Confirmar dose";
+      nextAction = t("dashboard.healthDetail.confirmDose");
     } else if (childIllnesses.length > 0) {
       status = "monitoring";
       const illness = childIllnesses[0];
       const symptoms = (illness.symptoms as string[])?.slice(0, 2).join(", ") || "";
       detail = illness.title + (symptoms ? ` · ${symptoms}` : "");
-      nextAction = "Atualizar estado";
+      nextAction = t("dashboard.healthDetail.updateStatus");
     } else if (childCheckin && childCheckin.checkin_date >= formatDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() - 2))) {
       status = "monitoring";
-      detail = childCheckin.title || "Check-in recente";
+      detail = childCheckin.title || t("dashboard.healthDetail.recentCheckin");
     } else if (childAppts.length > 0) {
       status = "monitoring";
       const appt = childAppts[0];
       const apptDate = new Date(appt.appointment_date);
-      const timeStr = apptDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-      detail = `Consulta ${appt.title || ""} · ${timeStr}`;
-      nextAction = "Ver consulta";
+      // Locale-aware time format (Regra Canônica 11). pt-BR → "14:30",
+      // en-US → "2:30 PM", de-DE → "14:30". Replaces the previous "pt-BR"
+      // hardcoded format that ignored the user's chosen locale.
+      const timeStr = new Intl.DateTimeFormat(bcp47, { hour: "2-digit", minute: "2-digit" }).format(apptDate);
+      detail = t("dashboard.healthDetail.appointmentWithTime", { title: appt.title || "", time: timeStr });
+      nextAction = t("dashboard.healthDetail.viewAppointment");
     }
 
     return {
@@ -720,7 +741,12 @@ export default async function DashboardPage() {
       // (em paralelo) abaixo pra nao bloquear a query principal.
       childPhotoUrl: (child as { photo_url?: string | null }).photo_url ?? null,
       status,
-      statusLabel: status === "treatment" ? "Em tratamento" : status === "monitoring" ? "Em acompanhamento" : "Saudável",
+      statusLabel:
+        status === "treatment"
+          ? t("dashboard.healthStatus.treatment")
+          : status === "monitoring"
+            ? t("dashboard.healthStatus.monitoring")
+            : t("dashboard.healthStatus.healthy"),
       detail, activeMedication, nextAction,
     };
   });
@@ -752,36 +778,54 @@ export default async function DashboardPage() {
   const prefixes = ["dr.", "dra.", "sr.", "sra.", "prof."];
   const firstName = nameParts.length > 1 && prefixes.includes(nameParts[0].toLowerCase())
     ? `${nameParts[0]} ${nameParts[1]}`
-    : nameParts[0] || "Pai";
+    : nameParts[0] || t("dashboard.serverFallbacks.parentGeneric");
   const hour = brazilNow.getHours();
   const greetingKey: "morning" | "afternoon" | "evening" = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
 
-  const dayNamesShort = [...DAY_NAMES];
+  // Locale-aware short weekday list (used by various downstream date labels:
+  // upcoming events, swaps, agenda). Was previously hardcoded ["S","T","Q",...]
+  // — now derives from CLDR via Intl. Width "short" gives 3-letter forms
+  // ("seg", "Mon", "lun", "Mo." etc) which we slice/uppercase per consumer.
+  // Anchor on a known Sunday (Jan 4 1970) to enumerate Sun-Sat in order.
+  const weekdayFormatterShort = new Intl.DateTimeFormat(bcp47, { weekday: "short" });
+  const dayNamesShort = Array.from({ length: 7 }, (_, i) => {
+    const anchor = new Date(Date.UTC(1970, 0, 4 + i, 12)); // Sunday + i
+    return weekdayFormatterShort.format(anchor);
+  });
 
-  const dayNames = ["Domingo", "Segunda", "Terca", "Quarta", "Quinta", "Sexta", "Sabado"];
-  const monthNames = MONTH_NAMES.map((m) => m.toLowerCase());
+  // Locale-aware date "Sunday, 14 May" formatting (Regra Canônica 11).
+  // Replaces hardcoded ["Domingo", "Segunda"...] / MONTH_NAMES — those broke
+  // anyone whose chosen locale wasn't pt-BR and were the most visible
+  // symptom of the "trocar idioma e nada mudou" bug Henrique reported.
   const todayDateObj = brazilNow;
-  const formattedDate = `${dayNames[todayDateObj.getDay()]}, ${todayDateObj.getDate()} de ${monthNames[todayDateObj.getMonth()]}`;
+  const formattedDate = new Intl.DateTimeFormat(bcp47, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(todayDateObj);
 
   const firstChild = children && children.length > 0 ? children[0] : null;
   const firstCustody = firstChild ? todayCustodyByChild[firstChild.id] : null;
   const custodySummary = firstCustody
-    ? `${firstChild!.full_name?.split(" ")[0]} com ${firstCustody.isWithMe ? "voce" : firstCustody.responsibleName} hoje`
+    ? t("dashboard.custodyServer.summaryWithChild", {
+        child: firstChild!.full_name?.split(" ")[0] || "",
+        parent: firstCustody.isWithMe
+          ? t("dashboard.custodyServer.withYou")
+          : firstCustody.responsibleName,
+      })
     : null;
 
-  // End date label for hero — bug Barata 2026-05-14: antes mostrava
-  // "swap - qua" / "regular - qua" literal (termo técnico do banco vazando
-  // pro user). Friendly:
-  //   - regular → "até <dia>" (omite o tipo, escala normal não merece destaque)
-  //   - swap    → "troca · <dia>"
-  //   - exception → "ajuste · <dia>"
+  // End date label for hero — bug Barata 2026-05-14 still applies (don't
+  // leak technical types "swap"/"regular"/"exception" to user). Now also
+  // locale-aware: the day-of-week label comes from Intl, and the surround
+  // template comes from translations.
   const endDateLabel = firstCustody ? (() => {
     const end = new Date(firstCustody.endDate + "T12:00:00");
-    const day = dayNamesShort[end.getDay()].toLowerCase();
-    const t = firstCustody.custodyType;
-    if (t === "swap") return `troca · ${day}`;
-    if (t === "exception") return `ajuste · ${day}`;
-    return `até ${day}`;
+    const day = new Intl.DateTimeFormat(bcp47, { weekday: "short" }).format(end);
+    const custodyType = firstCustody.custodyType;
+    if (custodyType === "swap") return t("dashboard.custodyServer.endLabelSwap", { day });
+    if (custodyType === "exception") return t("dashboard.custodyServer.endLabelException", { day });
+    return t("dashboard.custodyServer.endLabelRegular", { day });
   })() : "";
 
   // Week view
@@ -860,7 +904,7 @@ export default async function DashboardPage() {
 
   // Illnesses
   const illnessProps: DashboardClientProps["activeIllnesses"] = (activeIllnesses || []).map((illness) => {
-    const childName = (illness.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Criança";
+    const childName = (illness.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || t("dashboard.serverFallbacks.childGeneric");
     const startDate = new Date(illness.start_date + "T12:00:00");
     const daysAgo = Math.round((nowMs - startDate.getTime()) / 86400000);
     const symptoms = (illness.symptoms as string[])?.slice(0, 3).join(", ") || "";
@@ -889,7 +933,7 @@ export default async function DashboardPage() {
     const apptDate = new Date(appt.appointment_date);
     const isToday = formatDateKey(apptDate) === today;
     const isTomorrow = formatDateKey(apptDate) === tomorrowKey;
-    const timeStr = apptDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+    const timeStr = new Intl.DateTimeFormat(bcp47, { hour: "2-digit", minute: "2-digit" }).format(apptDate);
     return {
       id: appt.id,
       title: appt.title || specialty,
@@ -960,7 +1004,13 @@ export default async function DashboardPage() {
   });
 
   // Child cards
-  const birthMonthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  // Locale-aware short month names (3 chars typically) via CLDR. Replaces
+  // hardcoded ["Jan","Fev",...] which forced pt-BR forever.
+  const monthFormatterShort = new Intl.DateTimeFormat(bcp47, { month: "short" });
+  const birthMonthNames = Array.from({ length: 12 }, (_, i) => {
+    const anchor = new Date(Date.UTC(2024, i, 15));
+    return monthFormatterShort.format(anchor);
+  });
   const childCards: DashboardClientProps["childCards"] = (children || []).map((child) => {
     const custody = todayCustodyByChild[child.id];
     const age = Math.floor((nowMs - new Date(child.birth_date).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
@@ -1092,7 +1142,7 @@ export default async function DashboardPage() {
         category: pr.category,
         childName: pr.childName,
         occurrenceDate: pr.occurrenceDate,
-        dateLabel: `${DAY_NAMES[occDate.getDay()]} ${occDate.getDate()}/${occDate.getMonth() + 1}`,
+        dateLabel: `${dayNamesShort[occDate.getDay()]} ${occDate.getDate()}/${occDate.getMonth() + 1}`,
         daysAgo,
       };
     }),

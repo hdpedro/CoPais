@@ -1,0 +1,69 @@
+{
+  "health.vaccineDetail": {
+    "pt": {
+      "pageTitle": "Detalhe da vacina",
+      "doseNumberLabel": "Dose número",
+      "catalogLabel": "Catálogo",
+      "notesLabel": "Observações",
+      "vaccineNameLabel": "Nome da vacina",
+      "dosePlaceholder": "Ex: 1ª dose, reforço",
+      "saveChanges": "Salvar mudanças",
+      "deletePromptIntro": "Se essa vacina estava cobrindo uma pendência, ela será reaberta e ficará",
+      "deletePromptAvailable": "disponível",
+      "deletePromptInCalendar": "no calendário.",
+      "deleteConfirm": "Sim, excluir"
+    },
+    "en": {
+      "pageTitle": "Vaccine details",
+      "doseNumberLabel": "Dose number",
+      "catalogLabel": "Catalog",
+      "notesLabel": "Notes",
+      "vaccineNameLabel": "Vaccine name",
+      "dosePlaceholder": "e.g. 1st dose, booster",
+      "saveChanges": "Save changes",
+      "deletePromptIntro": "If this vaccine was covering a pending dose, it will be reopened and become",
+      "deletePromptAvailable": "available",
+      "deletePromptInCalendar": "in the calendar.",
+      "deleteConfirm": "Yes, delete"
+    },
+    "es": {
+      "pageTitle": "Detalle de la vacuna",
+      "doseNumberLabel": "Número de dosis",
+      "catalogLabel": "Catálogo",
+      "notesLabel": "Observaciones",
+      "vaccineNameLabel": "Nombre de la vacuna",
+      "dosePlaceholder": "Ej: 1ª dosis, refuerzo",
+      "saveChanges": "Guardar cambios",
+      "deletePromptIntro": "Si esta vacuna cubría una dosis pendiente, se reabrirá y quedará",
+      "deletePromptAvailable": "disponible",
+      "deletePromptInCalendar": "en el calendario.",
+      "deleteConfirm": "Sí, eliminar"
+    },
+    "fr": {
+      "pageTitle": "Détails du vaccin",
+      "doseNumberLabel": "Numéro de dose",
+      "catalogLabel": "Catalogue",
+      "notesLabel": "Notes",
+      "vaccineNameLabel": "Nom du vaccin",
+      "dosePlaceholder": "Ex : 1re dose, rappel",
+      "saveChanges": "Enregistrer les modifications",
+      "deletePromptIntro": "Si ce vaccin couvrait une dose en attente, elle sera rouverte et redeviendra",
+      "deletePromptAvailable": "disponible",
+      "deletePromptInCalendar": "dans le calendrier.",
+      "deleteConfirm": "Oui, supprimer"
+    },
+    "de": {
+      "pageTitle": "Impfdetails",
+      "doseNumberLabel": "Dosis-Nummer",
+      "catalogLabel": "Katalog",
+      "notesLabel": "Notizen",
+      "vaccineNameLabel": "Impfstoffname",
+      "dosePlaceholder": "z. B. 1. Dosis, Auffrischung",
+      "saveChanges": "Änderungen speichern",
+      "deletePromptIntro": "Falls diese Impfung eine offene Dosis abdeckte, wird sie wieder geöffnet und steht",
+      "deletePromptAvailable": "zur Verfügung",
+      "deletePromptInCalendar": "im Kalender.",
+      "deleteConfirm": "Ja, löschen"
+    }
+  }
+}

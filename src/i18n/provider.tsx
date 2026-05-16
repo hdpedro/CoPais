@@ -12,7 +12,36 @@ interface I18nContextType {
 
 const I18nContext = createContext<I18nContextType | null>(null);
 
+/**
+ * Cookie/localStorage key — KEEP IN SYNC with:
+ *   - src/lib/supabase/middleware.ts (LOCALE_COOKIE)
+ *   - src/i18n/server.ts (LOCALE_COOKIE)
+ *
+ * Cookie is the source of truth (server reads it via getRequestLocale).
+ * localStorage kept as legacy fallback during transition; will be removed
+ * once all clients have visited at least once and middleware seeded the cookie.
+ */
 const LOCALE_STORAGE_KEY = "kindar-locale";
+const LOCALE_COOKIE = "kindar-locale";
+
+/** Write the locale cookie with a 1-year lifetime, lax/secure. */
+function writeLocaleCookie(locale: Locale) {
+  if (typeof document === "undefined") return;
+  const oneYear = 60 * 60 * 24 * 365;
+  // Path=/ so every route sees it. SameSite=Lax matches middleware.
+  // Secure=true requires HTTPS — dev (localhost) browsers accept without it.
+  const secureFlag = window.location.protocol === "https:" ? "; Secure" : "";
+  document.cookie = `${LOCALE_COOKIE}=${locale}; Max-Age=${oneYear}; Path=/; SameSite=Lax${secureFlag}`;
+}
+
+/** Read the locale cookie. Returns null when absent. */
+function readLocaleCookie(): Locale | null {
+  if (typeof document === "undefined") return null;
+  const match = document.cookie.match(/(?:^|;\s*)kindar-locale=([^;]+)/);
+  if (!match) return null;
+  const value = decodeURIComponent(match[1]);
+  return SUPPORTED_LOCALES.includes(value as Locale) ? (value as Locale) : null;
+}
 
 export function I18nProvider({
   children,
@@ -22,14 +51,23 @@ export function I18nProvider({
   initialLocale?: Locale;
 }) {
   const [locale, setLocaleState] = useState<Locale>(() => {
+    // Priority: server-provided initialLocale (from cookie read in layout.tsx)
+    // > cookie read on hydration > localStorage (legacy) > browser > default.
     if (initialLocale) return initialLocale;
 
-    // Check localStorage
     if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
-      if (stored && SUPPORTED_LOCALES.includes(stored)) return stored;
+      // 1. Cookie (source of truth — same one middleware/server reads).
+      const fromCookie = readLocaleCookie();
+      if (fromCookie) return fromCookie;
 
-      // Detect from browser
+      // 2. localStorage (legacy). Migrate to cookie if found.
+      const stored = localStorage.getItem(LOCALE_STORAGE_KEY) as Locale | null;
+      if (stored && SUPPORTED_LOCALES.includes(stored)) {
+        writeLocaleCookie(stored);
+        return stored;
+      }
+
+      // 3. Browser preference (last resort — middleware should have set cookie).
       const browserLang = navigator.language?.split("-")[0]?.toLowerCase();
       if (browserLang && SUPPORTED_LOCALES.includes(browserLang as Locale)) {
         return browserLang as Locale;
@@ -48,8 +86,25 @@ export function I18nProvider({
       setLocaleState(newLocale);
       setDictVersion((v) => v + 1);
       if (typeof window !== "undefined") {
-        localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
+        // Cookie is the source of truth (server reads it). localStorage is
+        // kept in sync as a legacy fallback for environments where cookies
+        // are unreliable (some embedded webviews, etc.).
+        writeLocaleCookie(newLocale);
+        try {
+          localStorage.setItem(LOCALE_STORAGE_KEY, newLocale);
+        } catch {
+          /* Safari private mode / quota — non-fatal, cookie is enough. */
+        }
         document.documentElement.lang = newLocale;
+        // Force a full reload so Server Components re-render in the new
+        // locale (they read the cookie at request time). Without this, the
+        // user-visible mix would be: client strings translate immediately
+        // but server-rendered text stays in the previous language until
+        // next navigation. Reload is the simplest correct behavior.
+        // Skip reload in tests (jsdom) to avoid breaking unit tests.
+        if (process.env.NODE_ENV !== "test") {
+          window.location.reload();
+        }
       }
     });
   }, []);
@@ -71,8 +126,12 @@ export function I18nProvider({
     [locale]
   );
 
-  // Memoize dictionary to prevent child re-renders
-  // dictVersion ensures we re-memoize after async load completes
+  // Memoize dictionary to prevent child re-renders. dictVersion bumps after
+  // an async loadDictionary completes, so we include it as a dep even though
+  // getDictionary itself only reads from a module-level cache — without the
+  // bump, the memoized value would stay pointing at the pt fallback after
+  // the en/es/fr/de bundle resolves.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const dict = useMemo(() => getDictionary(locale), [locale, dictVersion]);
 
   const value = useMemo(() => ({ locale, setLocale, t, dict }), [locale, setLocale, t, dict]);

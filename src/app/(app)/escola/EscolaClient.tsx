@@ -419,15 +419,15 @@ export default function EscolaClient({ groupId, isReadonly, currentUserId, child
                         <span className="text-[11px] text-red-500">Excluir?</span>
                         <form action={deleteSchoolLog}>
                           <input type="hidden" name="logId" value={log.id} />
-                          <button type="submit" className="text-[11px] text-red-600 font-bold hover:underline">Sim</button>
+                          <button type="submit" className="text-[11px] text-red-600 font-bold hover:underline">{t("schoolPage.client.yes")}</button>
                         </form>
-                        <button type="button" onClick={() => setDeleteConfirmId(null)} className="text-[11px] text-gray-400 hover:underline">Não</button>
+                        <button type="button" onClick={() => setDeleteConfirmId(null)} className="text-[11px] text-gray-400 hover:underline">{t("schoolPage.client.no")}</button>
                       </div>
                     ) : (
-                      <button type="button" onClick={() => setDeleteConfirmId(log.id)} className="text-[11px] text-red-400 font-medium hover:underline">Excluir</button>
+                      <button type="button" onClick={() => setDeleteConfirmId(log.id)} className="text-[11px] text-red-400 font-medium hover:underline">{t("schoolPage.client.delete")}</button>
                     )}
                     {isHomework && log.completed && (
-                      <span className="ml-auto text-[10px] font-bold text-[#2E7268] px-2 py-0.5 bg-[#2E7268]/10 rounded-full">Concluído</span>
+                      <span className="ml-auto text-[10px] font-bold text-[#2E7268] px-2 py-0.5 bg-[#2E7268]/10 rounded-full">{t("schoolPage.client.completed")}</span>
                     )}
                   </div>
                 )}
@@ -437,13 +437,20 @@ export default function EscolaClient({ groupId, isReadonly, currentUserId, child
         </div>
       ) : logs.length > 0 ? (
         <div className="bg-white rounded-xl p-8 shadow-sm text-center text-sm text-muted">
-          Nenhum item neste filtro.
+          {t("schoolPage.client.noItemsInFilter")}
         </div>
       ) : (
         <div className="bg-white rounded-xl p-8 shadow-sm text-center">
           <p className="text-3xl mb-2">📚</p>
           <p className="text-dark font-medium">{t("schoolPage.noLogs")}</p>
-          <p className="text-sm text-muted mt-1">Toque em <strong>+ Novo</strong> para criar uma prova, reunião ou registro.</p>
+          {/* dangerouslySetInnerHTML keeps the <strong> tag inside the translated copy — the </strong>
+              wrapping makes the "+ Novo" CTA pop visually in the empty state.
+              The translated values in pt.json already contain the same <strong> markup
+              so cross-locale rendering stays consistent. */}
+          <p
+            className="text-sm text-muted mt-1"
+            dangerouslySetInnerHTML={{ __html: t("schoolPage.client.emptyHint") }}
+          />
         </div>
       )}
 
@@ -522,7 +529,7 @@ function PickKindStep({ onPick, onClose }: { onPick: (k: SchoolKind) => void; on
   return (
     <div className="p-5">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-bold text-dark">O que você quer registrar?</h3>
+        <h3 className="text-lg font-bold text-dark">{t("schoolPage.client.composerWhatRegister")}</h3>
         <button type="button" onClick={onClose} className="text-muted hover:text-dark text-xl leading-none">×</button>
       </div>
       <div className="grid grid-cols-1 gap-3">
@@ -604,7 +611,7 @@ function PickSubtypeStep({
       </div>
       {kind === "event" && (
         <div className="mt-3 p-3 bg-[#C07055]/5 border border-[#C07055]/20 rounded-lg">
-          <p className="text-xs text-[#C07055] font-medium">📅 Eventos vão automaticamente para o calendário da família.</p>
+          <p className="text-xs text-[#C07055] font-medium">{t("schoolPage.client.composerEventsAutoCalendar")}</p>
         </div>
       )}
     </div>
@@ -642,7 +649,7 @@ function FormStep({
       <input type="hidden" name="subtype" value={subtype} />
 
       <div>
-        <label className="block text-xs font-medium text-dark mb-1">Criança</label>
+        <label className="block text-xs font-medium text-dark mb-1">{t("schoolPage.client.childLabel")}</label>
         <select name="childId" required className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30">
           {childrenList.map((c) => <option key={c.id} value={c.id}>{c.full_name}</option>)}
         </select>
@@ -650,8 +657,8 @@ function FormStep({
 
       {isExam && (
         <div>
-          <label className="block text-xs font-medium text-dark mb-1">Matéria</label>
-          <input type="text" name="subject" required placeholder="Ex: Matemática"
+          <label className="block text-xs font-medium text-dark mb-1">{t("schoolPage.client.subjectLabel")}</label>
+          <input type="text" name="subject" required placeholder={t("schoolPage.client.subjectPlaceholder")}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
         </div>
       )}
@@ -671,7 +678,7 @@ function FormStep({
         </div>
         {kind === "event" && (
           <div>
-            <label className="block text-xs font-medium text-dark mb-1">Horário (opcional)</label>
+            <label className="block text-xs font-medium text-dark mb-1">{t("schoolPage.client.timeOptional")}</label>
             <input type="time" name="eventTime"
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
           </div>
@@ -680,14 +687,14 @@ function FormStep({
 
       {isExam && (
         <div>
-          <label className="block text-xs font-medium text-dark mb-1">Nota (opcional — preencha após a prova)</label>
+          <label className="block text-xs font-medium text-dark mb-1">{t("schoolPage.client.gradeOptional")}</label>
           <input type="text" name="score" placeholder='Ex: "8,5" ou "B+"'
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
         </div>
       )}
 
       <div>
-        <label className="block text-xs font-medium text-dark mb-1">Observação (opcional)</label>
+        <label className="block text-xs font-medium text-dark mb-1">{t("schoolPage.client.noteOptional")}</label>
         <textarea name="description" rows={2}
           placeholder="Detalhes adicionais"
           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
@@ -710,7 +717,7 @@ function FormStep({
 
       {kind === "event" && (
         <div className="p-3 bg-[#C07055]/5 border border-[#C07055]/20 rounded-lg">
-          <p className="text-xs text-[#C07055] font-medium">📅 Este item será adicionado ao calendário automaticamente.</p>
+          <p className="text-xs text-[#C07055] font-medium">{t("schoolPage.client.eventAutoCalendar")}</p>
         </div>
       )}
 
@@ -757,7 +764,7 @@ function EditFormStep({
       <input type="hidden" name="subtype" value={subtype} />
 
       <div>
-        <label className="block text-xs font-medium text-dark mb-1">Tipo</label>
+        <label className="block text-xs font-medium text-dark mb-1">{t("schoolPage.client.typeLabel")}</label>
         <div className="flex flex-wrap gap-1.5">
           {[...EVENT_SUBTYPES, ...NOTE_SUBTYPES].map((s) => {
             const m = SUBTYPE_META[s];
@@ -781,7 +788,7 @@ function EditFormStep({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-dark mb-1">Criança</label>
+        <label className="block text-xs font-medium text-dark mb-1">{t("schoolPage.client.childLabel")}</label>
         <select name="childId" required defaultValue={log.child_id || ""}
           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30">
           {childrenList.map((c) => <option key={c.id} value={c.id}>{c.full_name}</option>)}
@@ -790,8 +797,8 @@ function EditFormStep({
 
       {isExam && (
         <div>
-          <label className="block text-xs font-medium text-dark mb-1">Matéria</label>
-          <input type="text" name="subject" required defaultValue={log.subject || ""} placeholder="Ex: Matemática"
+          <label className="block text-xs font-medium text-dark mb-1">{t("schoolPage.client.subjectLabel")}</label>
+          <input type="text" name="subject" required defaultValue={log.subject || ""} placeholder={t("schoolPage.client.subjectPlaceholder")}
             className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
         </div>
       )}
@@ -811,7 +818,7 @@ function EditFormStep({
         </div>
         {kind === "event" && (
           <div>
-            <label className="block text-xs font-medium text-dark mb-1">Horário (opcional)</label>
+            <label className="block text-xs font-medium text-dark mb-1">{t("schoolPage.client.timeOptional")}</label>
             <input type="time" name="eventTime" defaultValue={log.event_time ? log.event_time.slice(0, 5) : ""}
               className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
           </div>
@@ -827,7 +834,7 @@ function EditFormStep({
       )}
 
       <div>
-        <label className="block text-xs font-medium text-dark mb-1">Observação (opcional)</label>
+        <label className="block text-xs font-medium text-dark mb-1">{t("schoolPage.client.noteOptional")}</label>
         <textarea name="description" rows={2} defaultValue={log.description || ""}
           placeholder="Detalhes adicionais"
           className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#2E7268]/30" />
@@ -849,11 +856,11 @@ function EditFormStep({
 
       {kind === "event" ? (
         <div className="p-3 bg-[#C07055]/5 border border-[#C07055]/20 rounded-lg">
-          <p className="text-xs text-[#C07055] font-medium">📅 Aparece no calendário na nova data{wasEvent ? "" : " (será adicionado agora)"}.</p>
+          <p className="text-xs text-[#C07055] font-medium">{t("schoolPage.client.editAppearsNewDate")}{wasEvent ? "" : " (será adicionado agora)"}.</p>
         </div>
       ) : wasEvent ? (
         <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
-          <p className="text-xs text-amber-700 font-medium">⚠️ Vai ser removido do calendário (virou um registro).</p>
+          <p className="text-xs text-amber-700 font-medium">{t("schoolPage.client.editRemovedFromCalendar")}</p>
         </div>
       ) : null}
 

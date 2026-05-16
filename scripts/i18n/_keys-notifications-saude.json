@@ -1,0 +1,59 @@
+{
+  "notifications.saude": {
+    "pt": {
+      "appointmentTitle": "{actor} agendou uma consulta",
+      "illnessTitle": "{actor} registrou um episódio de saúde",
+      "medicationTitle": "{actor} iniciou um medicamento",
+      "allergyTitle": "{actor} cadastrou uma alergia",
+      "vaccineTitle": "{actor} registrou uma vacina",
+      "bodyWithChild": "{description} · {child}",
+      "coalescedSaudeCount": "{actor} adicionou {count} registros de saúde",
+      "coalescedSchoolCount": "{actor} adicionou {count} registros escolares",
+      "coalescedExpenseCount": "{actor} adicionou {count} despesas"
+    },
+    "en": {
+      "appointmentTitle": "{actor} scheduled an appointment",
+      "illnessTitle": "{actor} logged a health episode",
+      "medicationTitle": "{actor} started a medication",
+      "allergyTitle": "{actor} added an allergy",
+      "vaccineTitle": "{actor} logged a vaccine",
+      "bodyWithChild": "{description} · {child}",
+      "coalescedSaudeCount": "{actor} added {count} health records",
+      "coalescedSchoolCount": "{actor} added {count} school records",
+      "coalescedExpenseCount": "{actor} added {count} expenses"
+    },
+    "es": {
+      "appointmentTitle": "{actor} agendó una cita",
+      "illnessTitle": "{actor} registró un episodio de salud",
+      "medicationTitle": "{actor} inició un medicamento",
+      "allergyTitle": "{actor} agregó una alergia",
+      "vaccineTitle": "{actor} registró una vacuna",
+      "bodyWithChild": "{description} · {child}",
+      "coalescedSaudeCount": "{actor} agregó {count} registros de salud",
+      "coalescedSchoolCount": "{actor} agregó {count} registros escolares",
+      "coalescedExpenseCount": "{actor} agregó {count} gastos"
+    },
+    "fr": {
+      "appointmentTitle": "{actor} a pris un rendez-vous",
+      "illnessTitle": "{actor} a enregistré un épisode de santé",
+      "medicationTitle": "{actor} a commencé un médicament",
+      "allergyTitle": "{actor} a ajouté une allergie",
+      "vaccineTitle": "{actor} a enregistré un vaccin",
+      "bodyWithChild": "{description} · {child}",
+      "coalescedSaudeCount": "{actor} a ajouté {count} entrées de santé",
+      "coalescedSchoolCount": "{actor} a ajouté {count} entrées scolaires",
+      "coalescedExpenseCount": "{actor} a ajouté {count} dépenses"
+    },
+    "de": {
+      "appointmentTitle": "{actor} hat einen Termin vereinbart",
+      "illnessTitle": "{actor} hat eine Gesundheitsepisode erfasst",
+      "medicationTitle": "{actor} hat ein Medikament begonnen",
+      "allergyTitle": "{actor} hat eine Allergie hinzugefügt",
+      "vaccineTitle": "{actor} hat eine Impfung erfasst",
+      "bodyWithChild": "{description} · {child}",
+      "coalescedSaudeCount": "{actor} hat {count} Gesundheitseinträge hinzugefügt",
+      "coalescedSchoolCount": "{actor} hat {count} Schuleinträge hinzugefügt",
+      "coalescedExpenseCount": "{actor} hat {count} Ausgaben hinzugefügt"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "auth.rememberMe": {
+    "pt": "Lembrar-me",
+    "en": "Remember me",
+    "es": "Recordarme",
+    "fr": "Se souvenir de moi",
+    "de": "Angemeldet bleiben"
+  },
+  "auth.loading": {
+    "pt": "Carregando...",
+    "en": "Loading...",
+    "es": "Cargando...",
+    "fr": "Chargement...",
+    "de": "Wird geladen..."
+  }
+}

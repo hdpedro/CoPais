@@ -12,6 +12,7 @@
 
 import { useState, useActionState } from "react";
 import { createVacation, type CreateVacationState } from "@/actions/vacation";
+import { useI18n } from "@/i18n/provider";
 
 interface Props {
   groupId: string;
@@ -34,6 +35,7 @@ function daysBetween(start: string, end: string): number {
 
 export default function NewVacationForm({ groupId, children, members, currentUserId: _currentUserId }: Props) {
   void _currentUserId; // reservado pra defaults futuros (ex: pré-seleção)
+  const { t } = useI18n();
   const today = todayIso();
   const [childId, setChildId] = useState<string>(children.length === 1 ? children[0].id : "");
   const [responsibleUserId, setResponsibleUserId] = useState<string>("");
@@ -41,9 +43,6 @@ export default function NewVacationForm({ groupId, children, members, currentUse
   const [endDate, setEndDate] = useState<string>(today);
   const [notes, setNotes] = useState<string>("");
 
-  // useActionState (React 19) — server action retorna { error?: string },
-  // form mantém valores quando dá erro. Tudo que a usuária digitou
-  // (datas, criança, responsável, notas) fica preservado pra retentar.
   const [actionState, formAction, isPending] = useActionState<CreateVacationState | undefined, FormData>(
     createVacation,
     undefined,
@@ -75,13 +74,13 @@ export default function NewVacationForm({ groupId, children, members, currentUse
       {children.length > 0 ? (
         <div>
           <label className="block text-sm font-semibold text-dark mb-2">
-            Para quem (opcional — vazio = família toda)
+            {t("calendar.vacations.formForLabel")}
           </label>
           <div className="flex flex-wrap gap-2">
             <Chip
               selected={childId === ""}
               onClick={() => setChildId("")}
-              label="Família"
+              label={t("calendar.vacations.familyFallback")}
             />
             {children.map((c) => (
               <Chip
@@ -96,9 +95,8 @@ export default function NewVacationForm({ groupId, children, members, currentUse
         </div>
       ) : null}
 
-      {/* Data início */}
       <div>
-        <label className="block text-sm font-semibold text-dark mb-2">Início *</label>
+        <label className="block text-sm font-semibold text-dark mb-2">{t("calendar.vacations.formStartLabel")}</label>
         <input
           type="date"
           name="startDate"
@@ -106,17 +104,16 @@ export default function NewVacationForm({ groupId, children, members, currentUse
           onChange={(e) => {
             const v = e.target.value;
             setStartDate(v);
-            // Auto-bump end se ficou menor
             if (endDate && endDate < v) setEndDate(v);
           }}
           required
+          aria-label={t("calendar.vacations.formStartLabel")}
           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
 
-      {/* Data fim */}
       <div>
-        <label className="block text-sm font-semibold text-dark mb-2">Fim *</label>
+        <label className="block text-sm font-semibold text-dark mb-2">{t("calendar.vacations.formEndLabel")}</label>
         <input
           type="date"
           name="endDate"
@@ -124,6 +121,7 @@ export default function NewVacationForm({ groupId, children, members, currentUse
           min={startDate}
           onChange={(e) => setEndDate(e.target.value)}
           required
+          aria-label={t("calendar.vacations.formEndLabel")}
           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
         />
       </div>
@@ -132,19 +130,24 @@ export default function NewVacationForm({ groupId, children, members, currentUse
       {days > 0 && !invalidRange ? (
         <div className={`text-xs ${tooLong ? "text-red-600" : "text-muted"}`}>
           {tooLong
-            ? `${days} dias — máximo permitido: 90 dias. Quebre em vários registros.`
-            : `${days} ${days === 1 ? "dia" : "dias"} de férias.`}
+            ? t("calendar.vacations.formTooLong", { days })
+            : t("calendar.vacations.formDaysSummary", {
+                days,
+                label: days === 1
+                  ? t("calendar.vacations.daysSingular")
+                  : t("calendar.vacations.daysPlural"),
+              })}
         </div>
       ) : null}
       {invalidRange ? (
-        <div className="text-xs text-red-600">A data final deve ser depois da inicial.</div>
+        <div className="text-xs text-red-600">{t("calendar.vacations.formInvalidRange")}</div>
       ) : null}
 
       {/* Responsável (obrigatório) */}
       {members.length > 0 ? (
         <div>
           <label className="block text-sm font-semibold text-dark mb-2">
-            Quem está com a criança *
+            {t("calendar.vacations.formResponsibleLabel")}
           </label>
           <div className="flex flex-wrap gap-2">
             {members.map((m) => (
@@ -160,26 +163,26 @@ export default function NewVacationForm({ groupId, children, members, currentUse
           <input type="hidden" name="responsibleUserId" value={responsibleUserId} />
           {!responsibleUserId ? (
             <p className="text-xs text-muted mt-2">
-              Férias sempre têm alguém com a criança. Escolha um responsável acima.
+              {t("calendar.vacations.formResponsibleHint")}
             </p>
           ) : null}
         </div>
       ) : (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-700">
-          Nenhum membro encontrado neste grupo. Convide um coparente primeiro.
+          {t("calendar.vacations.formNoMembers")}
         </div>
       )}
 
-      {/* Notes */}
       <div>
         <label className="block text-sm font-semibold text-dark mb-2">
-          Anotação (opcional)
+          {t("calendar.vacations.formNotesLabel")}
         </label>
         <textarea
           name="notes"
           value={notes}
           onChange={(e) => setNotes(e.target.value)}
-          placeholder="Ex: Viagem pra Caraguá, acampamento de inverno..."
+          placeholder={t("calendar.vacations.formNotesPlaceholder")}
+          aria-label={t("calendar.vacations.formNotesLabel")}
           rows={3}
           className="w-full px-4 py-3 bg-white border border-gray-200 rounded-lg text-dark focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent resize-none"
         />
@@ -190,7 +193,7 @@ export default function NewVacationForm({ groupId, children, members, currentUse
         disabled={!canSubmit}
         className="w-full py-3 px-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary/90 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
       >
-        {isPending ? "Salvando..." : "Salvar férias"}
+        {isPending ? t("calendar.vacations.formSaving") : t("calendar.vacations.formSave")}
       </button>
     </form>
   );

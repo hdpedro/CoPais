@@ -1,0 +1,135 @@
+{
+  "dashboard.serverFallbacks": {
+    "pt": {
+      "childGeneric": "Criança",
+      "parentGeneric": "Pai",
+      "otherParent": "Outro"
+    },
+    "en": {
+      "childGeneric": "Child",
+      "parentGeneric": "Parent",
+      "otherParent": "Other"
+    },
+    "es": {
+      "childGeneric": "Niño",
+      "parentGeneric": "Padre",
+      "otherParent": "Otro"
+    },
+    "fr": {
+      "childGeneric": "Enfant",
+      "parentGeneric": "Parent",
+      "otherParent": "Autre"
+    },
+    "de": {
+      "childGeneric": "Kind",
+      "parentGeneric": "Elternteil",
+      "otherParent": "Andere"
+    }
+  },
+  "dashboard.healthStatus": {
+    "pt": {
+      "healthy": "Saudável",
+      "monitoring": "Em acompanhamento",
+      "treatment": "Em tratamento"
+    },
+    "en": {
+      "healthy": "Healthy",
+      "monitoring": "Being monitored",
+      "treatment": "In treatment"
+    },
+    "es": {
+      "healthy": "Saludable",
+      "monitoring": "En seguimiento",
+      "treatment": "En tratamiento"
+    },
+    "fr": {
+      "healthy": "En bonne santé",
+      "monitoring": "Sous surveillance",
+      "treatment": "En traitement"
+    },
+    "de": {
+      "healthy": "Gesund",
+      "monitoring": "Wird beobachtet",
+      "treatment": "In Behandlung"
+    }
+  },
+  "dashboard.healthDetail": {
+    "pt": {
+      "noRecentRecords": "Sem registros recentes",
+      "confirmDose": "Confirmar dose",
+      "updateStatus": "Atualizar estado",
+      "recentCheckin": "Check-in recente",
+      "viewAppointment": "Ver consulta",
+      "appointmentWithTime": "Consulta {title} · {time}"
+    },
+    "en": {
+      "noRecentRecords": "No recent records",
+      "confirmDose": "Confirm dose",
+      "updateStatus": "Update status",
+      "recentCheckin": "Recent check-in",
+      "viewAppointment": "View appointment",
+      "appointmentWithTime": "Appointment {title} · {time}"
+    },
+    "es": {
+      "noRecentRecords": "Sin registros recientes",
+      "confirmDose": "Confirmar dosis",
+      "updateStatus": "Actualizar estado",
+      "recentCheckin": "Check-in reciente",
+      "viewAppointment": "Ver cita",
+      "appointmentWithTime": "Cita {title} · {time}"
+    },
+    "fr": {
+      "noRecentRecords": "Aucun enregistrement récent",
+      "confirmDose": "Confirmer la dose",
+      "updateStatus": "Mettre à jour l'état",
+      "recentCheckin": "Check-in récent",
+      "viewAppointment": "Voir le rendez-vous",
+      "appointmentWithTime": "Rendez-vous {title} · {time}"
+    },
+    "de": {
+      "noRecentRecords": "Keine aktuellen Einträge",
+      "confirmDose": "Dosis bestätigen",
+      "updateStatus": "Status aktualisieren",
+      "recentCheckin": "Aktueller Check-in",
+      "viewAppointment": "Termin ansehen",
+      "appointmentWithTime": "Termin {title} · {time}"
+    }
+  },
+  "dashboard.custodyServer": {
+    "pt": {
+      "withYou": "você",
+      "summaryWithChild": "{child} com {parent} hoje",
+      "endLabelSwap": "troca · {day}",
+      "endLabelException": "ajuste · {day}",
+      "endLabelRegular": "até {day}"
+    },
+    "en": {
+      "withYou": "you",
+      "summaryWithChild": "{child} with {parent} today",
+      "endLabelSwap": "swap · {day}",
+      "endLabelException": "adjustment · {day}",
+      "endLabelRegular": "until {day}"
+    },
+    "es": {
+      "withYou": "ti",
+      "summaryWithChild": "{child} con {parent} hoy",
+      "endLabelSwap": "intercambio · {day}",
+      "endLabelException": "ajuste · {day}",
+      "endLabelRegular": "hasta {day}"
+    },
+    "fr": {
+      "withYou": "toi",
+      "summaryWithChild": "{child} avec {parent} aujourd'hui",
+      "endLabelSwap": "échange · {day}",
+      "endLabelException": "ajustement · {day}",
+      "endLabelRegular": "jusqu'à {day}"
+    },
+    "de": {
+      "withYou": "dir",
+      "summaryWithChild": "{child} ist heute bei {parent}",
+      "endLabelSwap": "Tausch · {day}",
+      "endLabelException": "Anpassung · {day}",
+      "endLabelRegular": "bis {day}"
+    }
+  }
+}

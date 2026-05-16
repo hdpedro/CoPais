@@ -4,9 +4,20 @@ import { getActiveGroup } from "@/lib/group-utils";
 import { getVaccineStatus } from "@/lib/services/vaccines";
 import { getBrazilToday } from "@/lib/calendar-utils";
 import { getDisplayName } from "@/lib/constants";
+import { getRequestLocale } from "@/i18n/server";
 import dynamic from "next/dynamic";
 import { type SaudeClientProps } from "./SaudeClient";
 import { type TimelineEvent } from "./HealthTimeline";
+
+// Map app locale → BCP 47 region tag for Intl.DateTimeFormat. Falling back
+// to pt-BR matches the source language convention (Regra Canônica 4).
+const INTL_LOCALE: Record<string, string> = {
+  pt: "pt-BR",
+  en: "en-US",
+  es: "es-ES",
+  fr: "fr-FR",
+  de: "de-DE",
+};
 
 const SaudeClient = dynamic(() => import("./SaudeClient"), {
   loading: () => <div className="animate-pulse bg-gray-100 rounded-xl h-96" />,
@@ -21,6 +32,12 @@ export default async function SaudePage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/login");
+
+  // Resolve user locale once per request — drives all Intl.DateTimeFormat
+  // calls below (formatTime, formatted appointment dates, return dates).
+  // Without this, every appointment string would always render in pt-BR.
+  const locale = await getRequestLocale();
+  const bcp47 = INTL_LOCALE[locale] ?? "pt-BR";
 
   const activeGroup = await getActiveGroup(supabase, user.id);
   if (!activeGroup) redirect("/onboarding");
@@ -282,12 +299,15 @@ export default async function SaudePage({
     return { label: "Estável", icon: "➡️", color: "bg-white/20", textColor: "text-red-100" };
   }
 
+  // Locale-aware time formatter. Was hardcoded "pt-BR" before — now respects
+  // the user's chosen locale. Stays anchored to America/Sao_Paulo for clinic
+  // displays (timestamps in the DB are UTC; users expect local time).
   function formatTime(date: Date) {
-    return date.toLocaleTimeString("pt-BR", {
+    return new Intl.DateTimeFormat(bcp47, {
       timeZone: "America/Sao_Paulo",
       hour: "2-digit",
       minute: "2-digit",
-    });
+    }).format(date);
   }
 
   function formatRelativeTime(date: Date): string {
@@ -382,8 +402,8 @@ export default async function SaudePage({
     professionalName: (appointment.medical_professionals as any)?.name || null,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     professionalSpecialty: (appointment.medical_professionals as any)?.specialty || null,
-    formattedDate: new Date(appointment.appointment_date).toLocaleDateString("pt-BR", { timeZone: "America/Sao_Paulo", day: "2-digit", month: "short" }),
-    formattedTime: new Date(appointment.appointment_date).toLocaleTimeString("pt-BR", { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }),
+    formattedDate: new Intl.DateTimeFormat(bcp47, { timeZone: "America/Sao_Paulo", day: "2-digit", month: "short" }).format(new Date(appointment.appointment_date)),
+    formattedTime: new Intl.DateTimeFormat(bcp47, { timeZone: "America/Sao_Paulo", hour: "2-digit", minute: "2-digit" }).format(new Date(appointment.appointment_date)),
   } : null;
 
   // Process pending returns
@@ -398,7 +418,7 @@ export default async function SaudePage({
       appointment_type: apt.appointment_type,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       professionalSpecialty: (apt.medical_professionals as any)?.specialty || null,
-      formattedDate: returnD.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" }),
+      formattedDate: new Intl.DateTimeFormat(bcp47, { day: "2-digit", month: "short", year: "numeric" }).format(returnD),
       daysUntil,
       isUrgent: daysUntil <= 7,
     };

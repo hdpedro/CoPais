@@ -1,0 +1,59 @@
+{
+  "notifications.vaccine": {
+    "pt": {
+      "fallbackTitle": "Saúde preventiva",
+      "pushDue30d": "{childName} tem a vacina {vaccineName} em 30 dias",
+      "pushDue7d": "{childName}: {vaccineName} em 1 semana",
+      "pushDue1d": "Amanhã: {vaccineName} do {childName}",
+      "pushDueTodayCalm": "A {vaccineName} do {childName} pode ser tomada hoje",
+      "pushOverdue": "A {vaccineName} do {childName} ainda não está marcada",
+      "snoozeReentry": "Lembrete sobre a {vaccineName} do {childName} — você ia agendar",
+      "appointmentTakeCard": "Leve a carteirinha do {childName} para a consulta com {professional} — {count} reforço(s) pendente(s)",
+      "campaignBody": "Campanha disponível: {vaccineName} do {childName}"
+    },
+    "en": {
+      "fallbackTitle": "Preventive health",
+      "pushDue30d": "{childName} has the {vaccineName} vaccine in 30 days",
+      "pushDue7d": "{childName}: {vaccineName} in 1 week",
+      "pushDue1d": "Tomorrow: {childName}'s {vaccineName}",
+      "pushDueTodayCalm": "{childName}'s {vaccineName} can be taken today",
+      "pushOverdue": "{childName}'s {vaccineName} is not scheduled yet",
+      "snoozeReentry": "Reminder about {childName}'s {vaccineName} — you were going to schedule it",
+      "appointmentTakeCard": "Bring {childName}'s vaccination card to the appointment with {professional} — {count} pending dose(s)",
+      "campaignBody": "Campaign available: {childName}'s {vaccineName}"
+    },
+    "es": {
+      "fallbackTitle": "Salud preventiva",
+      "pushDue30d": "{childName} tiene la vacuna {vaccineName} en 30 días",
+      "pushDue7d": "{childName}: {vaccineName} en 1 semana",
+      "pushDue1d": "Mañana: {vaccineName} de {childName}",
+      "pushDueTodayCalm": "La {vaccineName} de {childName} se puede aplicar hoy",
+      "pushOverdue": "La {vaccineName} de {childName} aún no está agendada",
+      "snoozeReentry": "Recordatorio sobre la {vaccineName} de {childName} — ibas a agendarla",
+      "appointmentTakeCard": "Lleva la libreta de vacunación de {childName} a la cita con {professional} — {count} dosis pendiente(s)",
+      "campaignBody": "Campaña disponible: {vaccineName} de {childName}"
+    },
+    "fr": {
+      "fallbackTitle": "Santé préventive",
+      "pushDue30d": "{childName} a le vaccin {vaccineName} dans 30 jours",
+      "pushDue7d": "{childName} : {vaccineName} dans 1 semaine",
+      "pushDue1d": "Demain : {vaccineName} de {childName}",
+      "pushDueTodayCalm": "Le {vaccineName} de {childName} peut être fait aujourd'hui",
+      "pushOverdue": "Le {vaccineName} de {childName} n'est pas encore programmé",
+      "snoozeReentry": "Rappel concernant le {vaccineName} de {childName} — vous alliez le programmer",
+      "appointmentTakeCard": "Apportez le carnet de vaccination de {childName} pour le rendez-vous avec {professional} — {count} dose(s) en attente",
+      "campaignBody": "Campagne disponible : {vaccineName} de {childName}"
+    },
+    "de": {
+      "fallbackTitle": "Präventive Gesundheit",
+      "pushDue30d": "{childName} hat die Impfung {vaccineName} in 30 Tagen",
+      "pushDue7d": "{childName}: {vaccineName} in 1 Woche",
+      "pushDue1d": "Morgen: {vaccineName} von {childName}",
+      "pushDueTodayCalm": "Die {vaccineName} von {childName} kann heute verabreicht werden",
+      "pushOverdue": "Die {vaccineName} von {childName} ist noch nicht geplant",
+      "snoozeReentry": "Erinnerung an die {vaccineName} von {childName} — Sie wollten sie planen",
+      "appointmentTakeCard": "Bringen Sie den Impfpass von {childName} zum Termin mit {professional} mit — {count} ausstehende Dose(n)",
+      "campaignBody": "Kampagne verfügbar: {vaccineName} von {childName}"
+    }
+  }
+}

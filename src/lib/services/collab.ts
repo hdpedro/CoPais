@@ -31,6 +31,9 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser } from "@/lib/push";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { getServerT } from "@/i18n/server";
+import { getUsersLocale } from "@/lib/locale-utils";
+import type { Locale } from "@/i18n";
 
 export type CollabPriority = "info" | "important" | "urgent";
 
@@ -56,12 +59,33 @@ interface NotifyCollabCreateArgs {
   groupId: string;
   actorUserId: string;
   priority: CollabPriority;
-  /** Push title — "Amanda adicionou um registro escolar" */
-  title: string;
-  /** Push body — single-line description; "Prova de Inglês" */
-  message: string;
+  /**
+   * Push title — legacy string form. Use `titleKey` for localized pushes.
+   * If both `title` and `titleKey` are provided, `titleKey` wins.
+   */
+  title?: string;
+  /** Push body — legacy string form. Use `messageKey` for localized. */
+  message?: string;
   /** Deep link for tap action — e.g. "/escola?highlight=<id>" */
   link?: string;
+  /**
+   * Localized push title. Translated PER RECIPIENT using their profile.locale.
+   * Allows the same notification to fan out in different languages.
+   * Example: titleKey="notifications.saude.appointmentTitle",
+   *          titleVars={ actor: "Amanda" }
+   */
+  titleKey?: string;
+  titleVars?: Record<string, string | number>;
+  /** Localized push body. Same per-recipient resolution as titleKey. */
+  messageKey?: string;
+  messageVars?: Record<string, string | number>;
+  /**
+   * i18n key for the coalesced title (e.g.
+   * "notifications.saude.coalescedSaudeCount"). Receives variables
+   * { actor, count } at resolve time. When omitted, falls back to the
+   * built-in coalescedTitle() helper which is pt-only.
+   */
+  coalescedTitleKey?: string;
 }
 
 const COALESCE_WINDOW_SECONDS = 60;
@@ -117,36 +141,56 @@ export async function notifyCollabCreate(args: NotifyCollabCreateArgs): Promise<
     // de 60s compartilham bucket e se substituem no device; pushes em
     // janelas diferentes ganham buckets distintos e não se sobrescrevem.
     const bucket = Math.floor(Date.now() / (COALESCE_WINDOW_SECONDS * 1000));
-    // O caller passa um title constante por actor (ex: "Amanda adicionou
-    // um registro escolar") que serve tanto como dedup-key da contagem
-    // (eq exato abaixo) quanto como input pra coalescedTitle. Esse título
-    // é hardcoded em pt-BR no service do módulo (school, etc) — gap
-    // conhecido pra i18n do push body (Fase 2 quando precisar).
+
+    // i18n per recipient — resolves each user's locale once and renders
+    // the push title/body/coalesced title in their language. Falls back
+    // to legacy `title`/`message` strings when keys aren't provided.
+    const recipientIds = members.map((m) => m.user_id);
+    const localeByUser = await getUsersLocale(recipientIds);
+    // Cache t() per locale so we only build the dictionary closure once
+    // per locale, not once per recipient.
+    const tByLocale = new Map<Locale, Awaited<ReturnType<typeof getServerT>>>();
+    async function getT(locale: Locale) {
+      const cached = tByLocale.get(locale);
+      if (cached) return cached;
+      const fn = await getServerT(locale);
+      tByLocale.set(locale, fn);
+      return fn;
+    }
 
     await Promise.all(
       members.map(async (m) => {
-        // Count recent notifications to this recipient FROM THE SAME ACTOR.
-        // Matched por eq EXATO no title base (e.g. "Amanda adicionou um
-        // registro escolar") em vez de prefix-like — assim "Amanda" não
-        // colide com "Amanda Silva" quando ambas existem no grupo.
-        // Coalesced titles têm forma diferente ("Amanda adicionou 2
-        // registros escolares") e portanto não interferem na contagem.
-        // Counting BEFORE insert: count=0 → individual push; ≥1 → agregado.
+        const locale = localeByUser.get(m.user_id) ?? ("pt" as Locale);
+        const t = args.titleKey || args.messageKey || args.coalescedTitleKey
+          ? await getT(locale)
+          : null;
+
+        // Resolve per-recipient strings. Keys win over literal strings.
+        const recipientTitle = args.titleKey && t
+          ? t(args.titleKey, args.titleVars)
+          : (args.title ?? "");
+        const recipientMessage = args.messageKey && t
+          ? t(args.messageKey, args.messageVars)
+          : (args.message ?? "");
+
+        // Dedup key for coalescing — uses the LOCALIZED title so different
+        // languages don't share a count. (In practice same user gets pushes
+        // in same locale always, so this is correct.)
         const since = new Date(Date.now() - COALESCE_WINDOW_SECONDS * 1000).toISOString();
         const { count: recentCount } = await admin
           .from("notifications")
           .select("id", { count: "exact", head: true })
           .eq("user_id", m.user_id)
           .eq("type", notificationType)
-          .eq("title", args.title)
+          .eq("title", recipientTitle)
           .gte("created_at", since);
 
         // Always create the in-app notification row (inbox shows all).
         await admin.from("notifications").insert({
           user_id: m.user_id,
           type: notificationType,
-          title: args.title,
-          message: args.message,
+          title: recipientTitle,
+          message: recipientMessage,
           link: args.link || null,
           is_read: false,
         });
@@ -155,10 +199,18 @@ export async function notifyCollabCreate(args: NotifyCollabCreateArgs): Promise<
         // (recentCount + 1) recent notifications. Coalesce when >1.
         const totalRecent = (recentCount || 0) + 1;
         const isCoalesced = totalRecent > 1;
-        const pushTitle = isCoalesced
-          ? coalescedTitle(args.recordType, args.title, totalRecent)
-          : args.title;
-        const pushBody = isCoalesced ? "" : args.message;
+        let pushTitle = recipientTitle;
+        if (isCoalesced) {
+          if (args.coalescedTitleKey && t) {
+            pushTitle = t(args.coalescedTitleKey, {
+              ...(args.titleVars ?? {}),
+              count: totalRecent,
+            });
+          } else {
+            pushTitle = coalescedTitle(args.recordType, recipientTitle, totalRecent);
+          }
+        }
+        const pushBody = isCoalesced ? "" : recipientMessage;
         const pushLink = isCoalesced
           ? collabModuleHome(args.recordType)
           : (args.link || collabModuleHome(args.recordType));
@@ -177,6 +229,7 @@ export async function notifyCollabCreate(args: NotifyCollabCreateArgs): Promise<
           priority: args.priority,
           coalesced: isCoalesced,
           coalesced_count: totalRecent,
+          recipient_locale: locale,
         });
       }),
     );

@@ -1,4 +1,27 @@
 
+## Regras Canônicas (INEGOCIÁVEIS — leia antes de tocar qualquer texto)
+
+**18 regras** sobre português impecável + i18n obrigatória pra TODO texto visível ao usuário (JSX, atributos, push, email, OG images, a11y labels, mensagens de erro). Doc oficial: [`docs/03-architecture/REGRAS_CANONICAS.md`](../docs/03-architecture/REGRAS_CANONICAS.md).
+
+**Resumo do que NÃO pode passar em PR**:
+
+1. String literal em JSX/TSX visível ao usuário (sempre via `t('chave')`)
+2. Chave nova em pt-BR sem correspondência nos 5 locales
+3. Português com acento faltando (`voce`, `nao`, `acoes`) — texto é PRODUÇÃO, não rascunho
+4. Renomear chave existente (chaves são append-only — Regra 3)
+5. Mensagem de erro com termo técnico vazado (`PostgreSQL error 23505` etc.)
+6. `placeholder`, `alt`, `aria-label`, `accessibilityLabel/Hint` hardcoded
+7. Plural via `if (count === 1)` em vez de ICU MessageFormat
+8. Datas/números/moedas sem `Intl.*` respeitando locale
+9. Naming de chave fora da convenção: `<scope>.<entity>.<property>` / `action.<verb>` / `status.<entity>.<state>` / `error.<domain>.<specific>` / `empty.<screen>` / `a11y.<context>.<role>`
+10. Copy legal/médica/financeira/onboarding traduzida por LLM (essas DEVEM ser humano nativo)
+
+**Linguagem inclusiva** (Regra 12): "coparente"/"responsável" > "marido/esposa/pais"; sem pressupor número de pais; pronome neutro em EN; informal em DE/ES/FR (du/tú/tu).
+
+**Standards**: BCP 47 (`pt-BR`, não `pt_BR`), CLDR pra regras culturais, ISO 4217 pra moeda (`BRL`/`USD`/`EUR`).
+
+**Para IA neste projeto**: ao criar chave nova, sempre entregue snippets JSON pros 5 locales. Sem certeza da tradução? marque `// TODO: review translation`, nunca invente.
+
 ## Regra de Desenvolvimento
 
 **Após QUALQUER mudança no código, SEMPRE atualizar as documentações:**
@@ -6,7 +29,7 @@
 - `DOCUMENTACAO.md` — se tabelas, actions ou módulos mudaram  
 - `MANUAL_DEV.md` — se padrões, convenções ou stack mudaram
 - `docs/` — se algum documento específico foi afetado
-- Arquivos de tradução (`src/i18n/locales/*.json`) — todas as novas strings em 5 idiomas
+- Arquivos de tradução (`src/i18n/locales/*.json`) — todas as novas strings em 5 idiomas (ver Regras Canônicas acima)
 
 ## Regra crítica: paridade PWA ↔ Nativo ↔ WhatsApp
 

@@ -13,7 +13,15 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
-    "prepare": "husky"
+    "prepare": "husky",
+    "i18n:parity": "node scripts/i18n/validate-locale-parity.mjs",
+    "i18n:parity:pwa": "node scripts/i18n/validate-locale-parity.mjs --pwa",
+    "i18n:parity:native": "node scripts/i18n/validate-locale-parity.mjs --native",
+    "i18n:char-limits": "node scripts/i18n/validate-char-limits.mjs",
+    "i18n:orphans": "node scripts/i18n/validate-orphan-keys.mjs --warn-only",
+    "i18n:hardcoded": "node scripts/i18n/find-hardcoded-strings.mjs --warn-only",
+    "i18n:gen": "node scripts/i18n/generate-types.mjs",
+    "i18n:check": "npm run i18n:parity && npm run i18n:char-limits && npm run i18n:gen"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

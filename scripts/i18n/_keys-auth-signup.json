@@ -1,0 +1,37 @@
+{
+  "auth.termsOfUse": {
+    "pt": "Termos de Uso",
+    "en": "Terms of Use",
+    "es": "Términos de Uso",
+    "fr": "Conditions d'utilisation",
+    "de": "Nutzungsbedingungen"
+  },
+  "auth.privacyPolicy": {
+    "pt": "Política de Privacidade",
+    "en": "Privacy Policy",
+    "es": "Política de Privacidad",
+    "fr": "Politique de confidentialité",
+    "de": "Datenschutzerklärung"
+  },
+  "auth.lgpdConsentPrefix": {
+    "pt": "Li e concordo com os",
+    "en": "I have read and agree to the",
+    "es": "He leído y acepto los",
+    "fr": "J'ai lu et j'accepte les",
+    "de": "Ich habe gelesen und akzeptiere die"
+  },
+  "auth.lgpdConsentMiddle": {
+    "pt": "e a",
+    "en": "and the",
+    "es": "y la",
+    "fr": "et la",
+    "de": "und die"
+  },
+  "auth.lgpdConsentSuffix": {
+    "pt": ", conforme a LGPD.",
+    "en": ", per Brazilian data protection law (LGPD).",
+    "es": ", según la ley brasileña de protección de datos (LGPD).",
+    "fr": ", conformément à la loi brésilienne sur la protection des données (LGPD).",
+    "de": ", gemäß dem brasilianischen Datenschutzgesetz (LGPD)."
+  }
+}

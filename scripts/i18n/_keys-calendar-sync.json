@@ -1,0 +1,128 @@
+{
+  "health.appointmentForm.syncButton": {
+    "pt": "Sincronizar com o celular",
+    "en": "Sync with Phone",
+    "es": "Sincronizar con el móvil",
+    "fr": "Synchroniser avec le téléphone",
+    "de": "Mit dem Handy synchronisieren"
+  },
+  "health.appointmentForm.syncGenerating": {
+    "pt": "Gerando...",
+    "en": "Generating...",
+    "es": "Generando...",
+    "fr": "Génération...",
+    "de": "Wird erstellt..."
+  },
+  "health.appointmentForm.syncTitle": {
+    "pt": "Sincronizar calendário",
+    "en": "Sync Calendar",
+    "es": "Sincronizar calendario",
+    "fr": "Synchroniser le calendrier",
+    "de": "Kalender synchronisieren"
+  },
+  "health.appointmentForm.syncDescription": {
+    "pt": "Adicione este URL ao seu calendário (Google, Apple ou Outlook) para ver guarda, eventos e atividades automaticamente.",
+    "en": "Add this URL to your calendar (Google, Apple or Outlook) to see custody, events and activities automatically.",
+    "es": "Añade esta URL a tu calendario (Google, Apple u Outlook) para ver custodia, eventos y actividades automáticamente.",
+    "fr": "Ajoutez cette URL à votre calendrier (Google, Apple ou Outlook) pour voir la garde, les événements et les activités automatiquement.",
+    "de": "Fügen Sie diese URL zu Ihrem Kalender (Google, Apple oder Outlook) hinzu, um Sorgerecht, Termine und Aktivitäten automatisch zu sehen."
+  },
+  "health.appointmentForm.syncUrl": {
+    "pt": "URL de assinatura",
+    "en": "Subscription URL",
+    "es": "URL de suscripción",
+    "fr": "URL d'abonnement",
+    "de": "Abonnement-URL"
+  },
+  "health.appointmentForm.syncCopied": {
+    "pt": "Copiado!",
+    "en": "Copied!",
+    "es": "¡Copiado!",
+    "fr": "Copié !",
+    "de": "Kopiert!"
+  },
+  "health.appointmentForm.syncIphone1": {
+    "pt": "Abra Ajustes → Calendário → Contas",
+    "en": "Open Settings → Calendar → Accounts",
+    "es": "Abre Ajustes → Calendario → Cuentas",
+    "fr": "Ouvrez Réglages → Calendrier → Comptes",
+    "de": "Öffnen Sie Einstellungen → Kalender → Konten"
+  },
+  "health.appointmentForm.syncIphone2": {
+    "pt": "Toque em Adicionar conta → Outra",
+    "en": "Tap Add Account → Other",
+    "es": "Toca Añadir cuenta → Otra",
+    "fr": "Appuyez sur Ajouter un compte → Autre",
+    "de": "Tippen Sie auf Konto hinzufügen → Andere"
+  },
+  "health.appointmentForm.syncIphone3": {
+    "pt": "Toque em Assinar calendário",
+    "en": "Tap Subscribe to Calendar",
+    "es": "Toca Suscribirse a un calendario",
+    "fr": "Appuyez sur S'abonner à un calendrier",
+    "de": "Tippen Sie auf Kalender abonnieren"
+  },
+  "health.appointmentForm.syncIphone4": {
+    "pt": "Cole a URL acima e salve",
+    "en": "Paste the URL above and save",
+    "es": "Pega la URL de arriba y guarda",
+    "fr": "Collez l'URL ci-dessus et enregistrez",
+    "de": "Fügen Sie die obige URL ein und speichern Sie"
+  },
+  "health.appointmentForm.syncAndroid1": {
+    "pt": "Abra o Google Calendar no computador",
+    "en": "Open Google Calendar on computer",
+    "es": "Abre Google Calendar en el ordenador",
+    "fr": "Ouvrez Google Agenda sur l'ordinateur",
+    "de": "Öffnen Sie Google Kalender auf dem Computer"
+  },
+  "health.appointmentForm.syncAndroid2": {
+    "pt": "Clique em + ao lado de Outras agendas",
+    "en": "Click + next to Other calendars",
+    "es": "Haz clic en + junto a Otros calendarios",
+    "fr": "Cliquez sur + à côté d'Autres agendas",
+    "de": "Klicken Sie auf + neben Weitere Kalender"
+  },
+  "health.appointmentForm.syncAndroid3": {
+    "pt": "Selecione A partir do URL",
+    "en": "Select From URL",
+    "es": "Selecciona Desde URL",
+    "fr": "Sélectionnez À partir de l'URL",
+    "de": "Wählen Sie Per URL"
+  },
+  "health.appointmentForm.syncAndroid4": {
+    "pt": "Cole o URL e adicione",
+    "en": "Paste the URL and add",
+    "es": "Pega la URL y añade",
+    "fr": "Collez l'URL et ajoutez",
+    "de": "URL einfügen und hinzufügen"
+  },
+  "health.appointmentForm.syncOutlook1": {
+    "pt": "Abra o Outlook → Calendário → Adicionar calendário",
+    "en": "Open Outlook → Calendar → Add calendar",
+    "es": "Abre Outlook → Calendario → Añadir calendario",
+    "fr": "Ouvrez Outlook → Calendrier → Ajouter un calendrier",
+    "de": "Öffnen Sie Outlook → Kalender → Kalender hinzufügen"
+  },
+  "health.appointmentForm.syncOutlook2": {
+    "pt": "Selecione Assinar da web",
+    "en": "Select Subscribe from web",
+    "es": "Selecciona Suscribirse desde la web",
+    "fr": "Sélectionnez S'abonner depuis le web",
+    "de": "Wählen Sie Aus dem Web abonnieren"
+  },
+  "health.appointmentForm.syncOutlook3": {
+    "pt": "Cole o URL e clique em Importar",
+    "en": "Paste the URL and click Import",
+    "es": "Pega la URL y haz clic en Importar",
+    "fr": "Collez l'URL et cliquez sur Importer",
+    "de": "URL einfügen und auf Importieren klicken"
+  },
+  "health.appointmentForm.syncUnderstood": {
+    "pt": "Entendi",
+    "en": "Got it",
+    "es": "Entendido",
+    "fr": "Compris",
+    "de": "Verstanden"
+  }
+}

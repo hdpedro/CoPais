@@ -20,28 +20,38 @@ import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createNotificationWithPush } from "@/lib/push";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { getServerT } from "@/i18n/server";
+import { getUsersLocale } from "@/lib/locale-utils";
+import type { Locale } from "@/i18n";
 
 /**
- * Resolve fragmento i18n PT-BR. O cron roda server-side e push é entregue
- * ao device em qualquer locale — mantemos copy PT-BR aqui, idêntico aos
- * keys de `health.vaccineEngine.pushDue*`. Locale do device é detectado
- * pelo client; futuro: carregar tradução via lookup.
+ * Locale-aware push copy helper.
+ *
+ * Cron pushes can fan out to 100+ users in seconds, each potentially in a
+ * different locale. We resolve all recipients' locales in one bulk query
+ * (getUsersLocale) and cache the `t()` function per locale to avoid
+ * rebuilding the dictionary closure per user.
+ *
+ * Centralized in this module so the legacy {childName}/{vaccineName} variable
+ * names map cleanly to the JSON template variables.
  */
-function fmtPush(template: string, vars: Record<string, string>): string {
-  return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] ?? `{${k}}`);
+async function buildTByUser(userIds: string[]): Promise<
+  Map<string, Awaited<ReturnType<typeof getServerT>>>
+> {
+  const localeByUser = await getUsersLocale(userIds);
+  const tByLocale = new Map<Locale, Awaited<ReturnType<typeof getServerT>>>();
+  const tByUser = new Map<string, Awaited<ReturnType<typeof getServerT>>>();
+  for (const userId of userIds) {
+    const locale = localeByUser.get(userId) ?? ("pt" as Locale);
+    let t = tByLocale.get(locale);
+    if (!t) {
+      t = await getServerT(locale);
+      tByLocale.set(locale, t);
+    }
+    tByUser.set(userId, t);
+  }
+  return tByUser;
 }
-
-const COPY = {
-  pushDue30d: "{childName} tem a vacina {vaccineName} em 30 dias",
-  pushDue7d: "{childName}: {vaccineName} em 1 semana",
-  pushDue1d: "Amanhã: {vaccineName} do {childName}",
-  pushDueTodayCalm: "A {vaccineName} do {childName} pode ser tomada hoje",
-  pushOverdue: "A {vaccineName} do {childName} ainda não está marcada",
-  snoozeReentry: "Lembrete sobre a {vaccineName} do {childName} — você ia agendar",
-  appointmentTakeCard:
-    "Leve a carteirinha do {childName} para a consulta com {professional} — {count} reforço(s) pendente(s)",
-  fallbackTitle: "Saúde preventiva",
-};
 
 interface Candidate {
   recommendation_id: string;
@@ -172,24 +182,24 @@ export async function runDailyVaccineDueNotify(): Promise<NotifyResult> {
       skipped += 1;
       continue;
     }
-    const childFirst = c.child_name.split(" ")[0] || "criança";
-    // Seleciona copy baseado em quando o due_date está vs hoje (não em status).
-    // c.days_until: positivo = falta; negativo = passou.
-    let copy: string;
-    if (c.days_until === 30) {
-      copy = fmtPush(COPY.pushDue30d, { childName: childFirst, vaccineName: c.vaccine_name });
-    } else if (c.days_until === 7) {
-      copy = fmtPush(COPY.pushDue7d, { childName: childFirst, vaccineName: c.vaccine_name });
-    } else if (c.days_until === 1) {
-      copy = fmtPush(COPY.pushDue1d, { childName: childFirst, vaccineName: c.vaccine_name });
-    } else if (c.days_until === 0) {
-      copy = fmtPush(COPY.pushDueTodayCalm, { childName: childFirst, vaccineName: c.vaccine_name });
-    } else {
-      // days_until < 0 → passou (1, 7 ou 30d pós due_date) — copy calmo sem alarme
-      copy = fmtPush(COPY.pushOverdue, { childName: childFirst, vaccineName: c.vaccine_name });
-    }
-    const title = COPY.fallbackTitle;
+    const childFirst = c.child_name.split(" ")[0] || c.child_name;
+    // Map days_until → i18n key. Each recipient receives the copy in their
+    // own locale, resolved below.
+    const copyKey =
+      c.days_until === 30
+        ? "notifications.vaccine.pushDue30d"
+        : c.days_until === 7
+          ? "notifications.vaccine.pushDue7d"
+          : c.days_until === 1
+            ? "notifications.vaccine.pushDue1d"
+            : c.days_until === 0
+              ? "notifications.vaccine.pushDueTodayCalm"
+              : "notifications.vaccine.pushOverdue";
     const link = `/saude/vacinas?crianca=${c.child_id}&highlight=${c.recommendation_id}`;
+
+    // Resolve t() per recipient once. Skipped dismissals still count below
+    // so we don't fetch their locale needlessly.
+    const tByUser = await buildTByUser(recipients);
 
     for (const userId of recipients) {
       const key = `${userId}::${c.child_id}::${c.vaccine_id}::${c.dose_number}`;
@@ -197,6 +207,15 @@ export async function runDailyVaccineDueNotify(): Promise<NotifyResult> {
         skipped += 1;
         continue;
       }
+      const t = tByUser.get(userId);
+      // t should always be present for these recipients but defensive
+      // fallback to source pt template avoids crashing the cron if
+      // locale-utils returned an unexpected userId.
+      const copy = t
+        ? t(copyKey, { childName: childFirst, vaccineName: c.vaccine_name })
+        : `${childFirst}: ${c.vaccine_name}`;
+      const title = t ? t("notifications.vaccine.fallbackTitle") : "Saúde preventiva";
+
       try {
         await createNotificationWithPush(userId, "vaccine_due", title, copy, link);
         captureServerEvent(userId, "vaccine_due_push_sent", {
@@ -273,20 +292,26 @@ async function runAppointmentTakeCardReminder(): Promise<void> {
       : apt.medical_professionals;
     const professional = prof?.name ? `Dr(a). ${prof.name}` : apt.title;
 
-    const body = fmtPush(COPY.appointmentTakeCard, {
-      childName: childFirst,
-      professional,
-      count: String(pending),
-    });
-
     const { data: members } = await admin
       .from("group_members")
       .select("user_id")
       .eq("group_id", apt.group_id);
     const link = `/saude/vacinas?crianca=${apt.child_id}`;
-    for (const m of (members || []) as { user_id: string }[]) {
+    const recipientIds = ((members || []) as { user_id: string }[]).map((m) => m.user_id);
+    const tByUser = await buildTByUser(recipientIds);
+
+    for (const userId of recipientIds) {
+      const t = tByUser.get(userId);
+      const body = t
+        ? t("notifications.vaccine.appointmentTakeCard", {
+            childName: childFirst,
+            professional,
+            count: pending,
+          })
+        : `${childFirst}: ${pending}`;
+      const title = t ? t("notifications.vaccine.fallbackTitle") : "Saúde preventiva";
       try {
-        await createNotificationWithPush(m.user_id, "vaccine_take_card", "Saúde preventiva", body, link);
+        await createNotificationWithPush(userId, "vaccine_take_card", title, body, link);
       } catch (e) {
         console.error("[CRON vaccine-take-card] push fail:", e);
       }
@@ -350,14 +375,26 @@ export async function runMonthlyCampaignReminder(): Promise<{ pushes: number }> 
         .select("user_id")
         .eq("group_id", c.group_id);
 
-      const body = (codeToCopy[av.code] || `Vacina anual {childName}: ${av.name}`).replace(
-        "{childName}",
-        childFirst,
-      );
       const link = `/saude/vacinas?crianca=${c.child_id}`;
-      for (const m of (members || []) as { user_id: string }[]) {
+      const recipientIds = ((members || []) as { user_id: string }[]).map((m) => m.user_id);
+      const tByUser = await buildTByUser(recipientIds);
+      for (const userId of recipientIds) {
+        const t = tByUser.get(userId);
+        // Campaign copy uses the standard template now. The legacy
+        // codeToCopy variant strings (Influenza specific etc.) read very
+        // generically and translate well via the generic campaignBody key.
+        const body = t
+          ? t("notifications.vaccine.campaignBody", {
+              childName: childFirst,
+              vaccineName: av.name,
+            })
+          : (codeToCopy[av.code] || `${av.name}: ${childFirst}`).replace(
+              "{childName}",
+              childFirst,
+            );
+        const title = t ? t("notifications.vaccine.fallbackTitle") : "Saúde preventiva";
         try {
-          await createNotificationWithPush(m.user_id, "vaccine_campaign", "Saúde preventiva", body, link);
+          await createNotificationWithPush(userId, "vaccine_campaign", title, body, link);
           pushes += 1;
         } catch (e) {
           console.error("[CRON vaccine-campaign] push fail:", e);
@@ -419,10 +456,17 @@ export async function runDailyVaccineSnoozeReentry(): Promise<{ reentries: numbe
     }
     const childFirst = (child.full_name as string).split(" ")[0];
     const vaccineName = vac.name as string;
-    const body = fmtPush(COPY.snoozeReentry, { childName: childFirst, vaccineName });
+    // Reentry push localized to the dismisser's locale — single recipient,
+    // so we can resolve t() inline instead of using the bulk helper.
+    const tByUser = await buildTByUser([d.user_id]);
+    const t = tByUser.get(d.user_id);
+    const body = t
+      ? t("notifications.vaccine.snoozeReentry", { childName: childFirst, vaccineName })
+      : `${childFirst}: ${vaccineName}`;
+    const title = t ? t("notifications.vaccine.fallbackTitle") : "Saúde preventiva";
     const link = `/saude/vacinas?crianca=${d.child_id}`;
     try {
-      await createNotificationWithPush(d.user_id, "vaccine_due_reentry", "Saúde preventiva", body, link);
+      await createNotificationWithPush(d.user_id, "vaccine_due_reentry", title, body, link);
       reentries += 1;
     } catch (e) {
       console.error("[CRON vaccine-snooze-reentry] push fail:", e);

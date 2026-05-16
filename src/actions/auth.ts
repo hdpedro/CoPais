@@ -44,7 +44,7 @@ export async function signUp(formData: FormData) {
     callbackUrl.searchParams.set("next", `/convite/${convite}`);
   }
 
-  const { error } = await supabase.auth.signUp({
+  const { data, error } = await supabase.auth.signUp({
     email,
     password,
     options: {
@@ -60,16 +60,37 @@ export async function signUp(formData: FormData) {
     return { error: translateAuthError(error.message) };
   }
 
+  // Resolve user locale from the cookie middleware set on first visit
+  // (Accept-Language detection). Persist into profiles.locale so server-side
+  // jobs (push, email, WhatsApp) can localize when the user has no active
+  // request context. handle_new_user trigger created the row with default
+  // 'pt'; we upsert here using the actual browser preference.
+  const signupLocaleRaw = cookieStore.get("kindar-locale")?.value;
+  const signupLocale = (["pt", "en", "es", "fr", "de"] as const).includes(
+    signupLocaleRaw as never,
+  )
+    ? (signupLocaleRaw as "pt" | "en" | "es" | "fr" | "de")
+    : "pt";
+  if (data.user?.id && signupLocale !== "pt") {
+    // Best-effort. Locale column is non-critical; failure shouldn't block signup.
+    await supabase
+      .from("profiles")
+      .update({ locale: signupLocale })
+      .eq("id", data.user.id);
+  }
+
   captureServerEvent(email, "user_signup", { has_invite: !!convite });
   // Standardized funnel event — same data, name aligned with EVENTS.SIGNUP_COMPLETED
   captureServerEvent(email, "signup_completed", {
     has_invite: !!convite,
     has_referral: !!refCode,
     ref_code: refCode,
+    locale: signupLocale,
   });
 
-  // Fire-and-forget welcome email
-  void sendWelcomeEmail(email, fullName);
+  // Fire-and-forget welcome email — sent in the locale we just persisted so
+  // the user's first contact (their inbox) matches their browser preference.
+  void sendWelcomeEmail(email, fullName, { locale: signupLocale });
 
   redirect("/verify-email");
 }

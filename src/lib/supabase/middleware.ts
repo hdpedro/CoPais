@@ -1,10 +1,89 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+/**
+ * i18n locale cookie — server reads via getRequestLocale (src/i18n/server.ts).
+ * Client reads/writes via I18nProvider (src/i18n/provider.tsx).
+ * KEEP IN SYNC with both: cookie name "kindar-locale".
+ */
+const LOCALE_COOKIE = "kindar-locale";
+const SUPPORTED_LOCALES = ["pt", "en", "es", "fr", "de"] as const;
+type SupportedLocale = (typeof SUPPORTED_LOCALES)[number];
+
+/**
+ * Resolve preferred locale from Accept-Language header. Used to seed the
+ * cookie on first visit so server components can render in the user's
+ * language immediately (no client-side flicker). Honors RFC 7231 q-values.
+ */
+function detectLocaleFromHeader(header: string | null): SupportedLocale {
+  if (!header) return "pt";
+  const ranked = header
+    .split(",")
+    .map((tag) => {
+      const [lang, ...params] = tag.trim().split(";");
+      const q = params.find((p) => p.trim().startsWith("q="));
+      return {
+        primary: lang.split("-")[0]?.toLowerCase() || "",
+        q: q ? parseFloat(q.split("=")[1]) || 0 : 1,
+      };
+    })
+    .sort((a, b) => b.q - a.q);
+  for (const { primary } of ranked) {
+    if ((SUPPORTED_LOCALES as readonly string[]).includes(primary)) {
+      return primary as SupportedLocale;
+    }
+  }
+  return "pt";
+}
+
 export async function updateSession(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
   });
+
+  /* ------------------------------------------------------------------ */
+  /* i18n: seed locale cookie on first visit                              */
+  /*                                                                      */
+  /* Why here: middleware runs at the Edge BEFORE any Server Component    */
+  /* renders. If the cookie isn't set, the user's first dashboard render  */
+  /* would default to pt-BR even when their browser asks for en/es/fr/de. */
+  /* Setting the cookie now means src/i18n/server.ts:getRequestLocale     */
+  /* reads it on the same request and the page renders in the right      */
+  /* language with zero flicker.                                          */
+  /*                                                                      */
+  /* Fase 0 gate (ENABLE_LOCALE_SWITCH=0 default):                        */
+  /*   Force pt regardless of Accept-Language. This is the correct        */
+  /*   "stop the bleeding" — without it, a Chrome-en user would get       */
+  /*   the 3 refactored Server Components in EN and the other ~27 pages   */
+  /*   still in PT, producing a worse half-translated UX than pt-only.    */
+  /*   When the feature flag flips to "1" (post-cleanup), middleware      */
+  /*   resumes honoring Accept-Language for first-visit users.            */
+  /*                                                                      */
+  /* User can still override via LanguageSelector in /perfil when the     */
+  /* flag is ON; that path writes the same cookie client-side.            */
+  /* ------------------------------------------------------------------ */
+  const localeSwitchEnabled =
+    process.env.NEXT_PUBLIC_ENABLE_LOCALE_SWITCH === "1" ||
+    process.env.NEXT_PUBLIC_ENABLE_LOCALE_SWITCH === "true";
+
+  const existingLocale = request.cookies.get(LOCALE_COOKIE)?.value;
+  const needsCookie =
+    !existingLocale ||
+    (!localeSwitchEnabled && existingLocale !== "pt");
+
+  if (needsCookie) {
+    const target = localeSwitchEnabled
+      ? detectLocaleFromHeader(request.headers.get("accept-language"))
+      : "pt";
+    request.cookies.set(LOCALE_COOKIE, target);
+    supabaseResponse.cookies.set(LOCALE_COOKIE, target, {
+      maxAge: 60 * 60 * 24 * 365, // 1 year — preference, not session.
+      sameSite: "lax",
+      secure: true,
+      httpOnly: false, // Client needs to read it to keep provider in sync.
+      path: "/",
+    });
+  }
 
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,

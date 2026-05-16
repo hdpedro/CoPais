@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { regenerateEmergencyToken } from "@/actions/health";
+import { useI18n } from "@/i18n/provider";
 
 interface ChildInfo {
   id: string;
@@ -35,6 +36,7 @@ export default function EmergencyCardClient({
   groupId,
   healthSummary,
 }: Props) {
+  const { t } = useI18n();
   const router = useRouter();
   const [qrDataUrl, setQrDataUrl] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
@@ -61,11 +63,13 @@ export default function EmergencyCardClient({
 
   function handleShare() {
     if (navigator.share) {
-      navigator.share({
-        title: `Ficha de Emergência — ${selectedChild.full_name}`,
-        text: `Ficha de emergência com dados de saúde de ${selectedChild.full_name}`,
-        url: emergencyUrl,
-      }).catch(() => {});
+      navigator
+        .share({
+          title: t("health.emergency.shareDialogTitle", { name: selectedChild.full_name }),
+          text: t("health.emergency.shareDialogText", { name: selectedChild.full_name }),
+          url: emergencyUrl,
+        })
+        .catch(() => {});
     } else {
       handleCopy();
     }
@@ -93,9 +97,9 @@ export default function EmergencyCardClient({
       <div className="max-w-lg mx-auto pb-20">
         <div className="bg-white rounded-xl p-8 shadow-sm text-center">
           <p className="text-4xl mb-3">👶</p>
-          <p className="text-muted mb-4">Adicione uma criança para gerar a ficha de emergência.</p>
+          <p className="text-muted mb-4">{t("health.emergency.addChildPrompt")}</p>
           <Link href="/criancas/nova" className="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white text-sm font-semibold rounded-lg">
-            Adicionar criança
+            {t("health.emergency.addChildCta")}
           </Link>
         </div>
       </div>
@@ -126,7 +130,7 @@ export default function EmergencyCardClient({
       {/* QR Code Card */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-5">
         <div className="bg-gradient-to-br from-red-600 to-red-700 px-5 py-4 text-white text-center">
-          <p className="text-lg font-bold">Ficha de Emergência</p>
+          <p className="text-lg font-bold">{t("health.emergency.cardTitle")}</p>
           <p className="text-sm opacity-90">{selectedChild.full_name}</p>
         </div>
 
@@ -135,14 +139,14 @@ export default function EmergencyCardClient({
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={qrDataUrl}
-              alt="QR Code de Emergência"
+              alt={t("health.emergency.qrAlt")}
               className="w-64 h-64 rounded-xl border-2 border-gray-100"
             />
           ) : (
             <div className="w-64 h-64 rounded-xl bg-gray-100 animate-pulse" />
           )}
           <p className="text-xs text-muted mt-3 text-center">
-            Escaneie este QR Code para acessar a ficha de emergência
+            {t("health.emergency.qrInstructions")}
           </p>
         </div>
 
@@ -152,10 +156,10 @@ export default function EmergencyCardClient({
             onClick={handleShare}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-red-600 text-white text-sm font-semibold rounded-xl hover:bg-red-700 active:scale-[0.98] transition-all min-h-[44px]"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
             </svg>
-            Compartilhar
+            {t("health.emergency.shareButton")}
           </button>
           <button
             onClick={handleCopy}
@@ -163,17 +167,17 @@ export default function EmergencyCardClient({
           >
             {copied ? (
               <>
-                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                 </svg>
-                <span className="text-green-600">Link copiado!</span>
+                <span className="text-green-600">{t("health.emergency.copied")}</span>
               </>
             ) : (
               <>
-                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3" />
                 </svg>
-                Copiar link
+                {t("health.emergency.copyLink")}
               </>
             )}
           </button>
@@ -181,10 +185,10 @@ export default function EmergencyCardClient({
             onClick={() => setShowConfirm(true)}
             className="w-full flex items-center justify-center gap-2 px-4 py-3 text-gray-500 text-sm font-medium rounded-xl hover:bg-gray-50 active:scale-[0.98] transition-all min-h-[44px]"
           >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
-            Regenerar QR Code
+            {t("health.emergency.regenerate")}
           </button>
         </div>
       </div>
@@ -193,23 +197,23 @@ export default function EmergencyCardClient({
       {showConfirm && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl">
-            <p className="text-lg font-bold text-dark mb-2">Regenerar QR Code?</p>
+            <p className="text-lg font-bold text-dark mb-2">{t("health.emergency.regenerateConfirmTitle")}</p>
             <p className="text-sm text-muted mb-5">
-              O QR Code atual será invalidado. Qualquer pessoa que tenha o QR antigo não poderá mais acessar a ficha.
+              {t("health.emergency.regenerateConfirmBody")}
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirm(false)}
                 className="flex-1 px-4 py-2.5 text-sm font-semibold text-gray-700 bg-gray-100 rounded-xl hover:bg-gray-200 min-h-[44px]"
               >
-                Cancelar
+                {t("health.emergency.cancel")}
               </button>
               <button
                 onClick={handleRegenerate}
                 disabled={isPending}
                 className="flex-1 px-4 py-2.5 text-sm font-semibold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 min-h-[44px]"
               >
-                {isPending ? "Regenerando..." : "Confirmar"}
+                {isPending ? t("health.emergency.regenerating") : t("health.emergency.confirm")}
               </button>
             </div>
           </div>
@@ -218,40 +222,54 @@ export default function EmergencyCardClient({
 
       {/* Health Summary Checklist */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-5">
-        <h3 className="text-sm font-bold text-dark mb-3">Dados incluídos na ficha</h3>
+        <h3 className="text-sm font-bold text-dark mb-3">{t("health.emergency.summaryTitle")}</h3>
         <div className="space-y-2.5">
           <CheckItem
             filled={!!healthSummary.bloodType}
-            label="Tipo sanguíneo"
+            label={t("health.emergency.bloodType")}
             detail={healthSummary.bloodType || undefined}
             href={`/saude/alergias?crianca=${selectedChildId}`}
+            fillLabel={t("health.emergency.fill")}
           />
           <CheckItem
             filled={healthSummary.allergiesCount > 0}
-            label="Alergias"
-            detail={healthSummary.allergiesCount > 0 ? `${healthSummary.allergiesCount} registrada(s)` : "Nenhuma registrada"}
+            label={t("health.emergency.allergies")}
+            detail={
+              healthSummary.allergiesCount > 0
+                ? t("health.emergency.allergiesCount", { count: healthSummary.allergiesCount })
+                : t("health.emergency.allergiesNone")
+            }
             href={`/saude/alergias?crianca=${selectedChildId}`}
             warnIfEmpty
+            fillLabel={t("health.emergency.fill")}
           />
           <CheckItem
             filled
-            label="Medicações ativas"
-            detail={healthSummary.medicationsCount > 0 ? `${healthSummary.medicationsCount} ativa(s)` : "Nenhuma"}
+            label={t("health.emergency.medications")}
+            detail={
+              healthSummary.medicationsCount > 0
+                ? t("health.emergency.medicationsCount", { count: healthSummary.medicationsCount })
+                : t("health.emergency.medicationsNone")
+            }
+            fillLabel={t("health.emergency.fill")}
           />
           <CheckItem
             filled={healthSummary.hasInsurance || healthSummary.hasSus}
-            label="Convênio / SUS"
+            label={t("health.emergency.insurance")}
             href={`/saude/alergias?crianca=${selectedChildId}`}
+            fillLabel={t("health.emergency.fill")}
           />
           <CheckItem
             filled={healthSummary.contactsCount > 0}
-            label="Contatos de emergência"
-            detail={`${healthSummary.contactsCount} contato(s)`}
+            label={t("health.emergency.contacts")}
+            detail={t("health.emergency.contactsCount", { count: healthSummary.contactsCount })}
+            fillLabel={t("health.emergency.fill")}
           />
           <CheckItem
             filled={healthSummary.hasPediatrician}
-            label="Pediatra"
+            label={t("health.emergency.pediatrician")}
             href="/saude/profissionais"
+            fillLabel={t("health.emergency.fill")}
           />
         </div>
       </div>
@@ -265,12 +283,14 @@ function CheckItem({
   detail,
   href,
   warnIfEmpty,
+  fillLabel,
 }: {
   filled: boolean;
   label: string;
   detail?: string;
   href?: string;
   warnIfEmpty?: boolean;
+  fillLabel: string;
 }) {
   const showWarning = !filled && (warnIfEmpty || href);
   const icon = filled ? (
@@ -291,7 +311,7 @@ function CheckItem({
         {detail && <p className="text-[11px] text-muted">{detail}</p>}
       </div>
       {showWarning && href && (
-        <span className="text-xs text-amber-600 font-semibold">Preencher</span>
+        <span className="text-xs text-amber-600 font-semibold">{fillLabel}</span>
       )}
     </div>
   );

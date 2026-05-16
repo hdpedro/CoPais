@@ -1,0 +1,138 @@
+{
+  "auth.verifyEmail": {
+    "pt": {
+      "title": "Confirme seu e-mail",
+      "description": "Enviamos um link de verificação para sua caixa de entrada. Clique no link para ativar sua conta e voltar aqui para entrar.",
+      "spamHintTitle": "Não encontrou?",
+      "spamHintBody": "Verifique a pasta de spam ou lixo eletrônico. O e-mail pode levar até 1 minuto para chegar.",
+      "alreadyConfirmed": "Já confirmei, entrar",
+      "resendHint": "Você pode reenviar o e-mail pela tela de login se precisar."
+    },
+    "en": {
+      "title": "Confirm your email",
+      "description": "We've sent a verification link to your inbox. Click the link to activate your account and come back here to sign in.",
+      "spamHintTitle": "Didn't find it?",
+      "spamHintBody": "Check your spam or junk folder. The email can take up to 1 minute to arrive.",
+      "alreadyConfirmed": "I confirmed, sign in",
+      "resendHint": "You can resend the email from the login screen if needed."
+    },
+    "es": {
+      "title": "Confirma tu correo",
+      "description": "Hemos enviado un enlace de verificación a tu bandeja de entrada. Haz clic en el enlace para activar tu cuenta y vuelve aquí para entrar.",
+      "spamHintTitle": "¿No lo encontraste?",
+      "spamHintBody": "Revisa la carpeta de spam o correo no deseado. El correo puede tardar hasta 1 minuto en llegar.",
+      "alreadyConfirmed": "Ya confirmé, entrar",
+      "resendHint": "Puedes reenviar el correo desde la pantalla de inicio de sesión si lo necesitas."
+    },
+    "fr": {
+      "title": "Confirmez votre e-mail",
+      "description": "Nous avons envoyé un lien de vérification à votre boîte de réception. Cliquez sur le lien pour activer votre compte et revenez ici pour vous connecter.",
+      "spamHintTitle": "Vous ne le trouvez pas ?",
+      "spamHintBody": "Vérifiez votre dossier spam ou courrier indésirable. L'e-mail peut prendre jusqu'à 1 minute pour arriver.",
+      "alreadyConfirmed": "J'ai confirmé, se connecter",
+      "resendHint": "Vous pouvez renvoyer l'e-mail depuis l'écran de connexion si nécessaire."
+    },
+    "de": {
+      "title": "Bestätigen Sie Ihre E-Mail",
+      "description": "Wir haben einen Bestätigungslink an Ihren Posteingang gesendet. Klicken Sie auf den Link, um Ihr Konto zu aktivieren, und kommen Sie hierher zurück, um sich anzumelden.",
+      "spamHintTitle": "Nicht gefunden?",
+      "spamHintBody": "Prüfen Sie Ihren Spam- oder Junk-Ordner. Die E-Mail kann bis zu 1 Minute brauchen.",
+      "alreadyConfirmed": "Bestätigt, anmelden",
+      "resendHint": "Sie können die E-Mail bei Bedarf erneut über den Anmeldebildschirm senden."
+    }
+  },
+  "auth.forgot": {
+    "pt": {
+      "title": "Recuperar Senha",
+      "description": "Informe seu e-mail e enviaremos um link de recuperação.",
+      "submit": "Enviar Link",
+      "submitting": "Enviando...",
+      "backToLogin": "Voltar para o login"
+    },
+    "en": {
+      "title": "Recover Password",
+      "description": "Enter your email and we'll send you a recovery link.",
+      "submit": "Send Link",
+      "submitting": "Sending...",
+      "backToLogin": "Back to login"
+    },
+    "es": {
+      "title": "Recuperar Contraseña",
+      "description": "Ingresa tu correo y te enviaremos un enlace de recuperación.",
+      "submit": "Enviar Enlace",
+      "submitting": "Enviando...",
+      "backToLogin": "Volver al inicio de sesión"
+    },
+    "fr": {
+      "title": "Récupérer le mot de passe",
+      "description": "Saisissez votre e-mail et nous vous enverrons un lien de récupération.",
+      "submit": "Envoyer le lien",
+      "submitting": "Envoi...",
+      "backToLogin": "Retour à la connexion"
+    },
+    "de": {
+      "title": "Passwort wiederherstellen",
+      "description": "Geben Sie Ihre E-Mail ein und wir senden Ihnen einen Wiederherstellungslink.",
+      "submit": "Link senden",
+      "submitting": "Wird gesendet...",
+      "backToLogin": "Zurück zur Anmeldung"
+    }
+  },
+  "auth.reset": {
+    "pt": {
+      "title": "Nova Senha",
+      "description": "Escolha uma nova senha para sua conta.",
+      "newPasswordLabel": "Nova senha",
+      "newPasswordPlaceholder": "Mínimo 8 caracteres",
+      "confirmLabel": "Confirmar nova senha",
+      "confirmPlaceholder": "Repita a senha",
+      "submit": "Salvar Nova Senha",
+      "submitting": "Salvando...",
+      "checking": "Verificando autenticação..."
+    },
+    "en": {
+      "title": "New Password",
+      "description": "Choose a new password for your account.",
+      "newPasswordLabel": "New password",
+      "newPasswordPlaceholder": "At least 8 characters",
+      "confirmLabel": "Confirm new password",
+      "confirmPlaceholder": "Repeat the password",
+      "submit": "Save New Password",
+      "submitting": "Saving...",
+      "checking": "Verifying authentication..."
+    },
+    "es": {
+      "title": "Nueva Contraseña",
+      "description": "Elige una nueva contraseña para tu cuenta.",
+      "newPasswordLabel": "Nueva contraseña",
+      "newPasswordPlaceholder": "Mínimo 8 caracteres",
+      "confirmLabel": "Confirmar nueva contraseña",
+      "confirmPlaceholder": "Repite la contraseña",
+      "submit": "Guardar Nueva Contraseña",
+      "submitting": "Guardando...",
+      "checking": "Verificando autenticación..."
+    },
+    "fr": {
+      "title": "Nouveau mot de passe",
+      "description": "Choisissez un nouveau mot de passe pour votre compte.",
+      "newPasswordLabel": "Nouveau mot de passe",
+      "newPasswordPlaceholder": "Minimum 8 caractères",
+      "confirmLabel": "Confirmer le nouveau mot de passe",
+      "confirmPlaceholder": "Répétez le mot de passe",
+      "submit": "Enregistrer le nouveau mot de passe",
+      "submitting": "Enregistrement...",
+      "checking": "Vérification de l'authentification..."
+    },
+    "de": {
+      "title": "Neues Passwort",
+      "description": "Wählen Sie ein neues Passwort für Ihr Konto.",
+      "newPasswordLabel": "Neues Passwort",
+      "newPasswordPlaceholder": "Mindestens 8 Zeichen",
+      "confirmLabel": "Neues Passwort bestätigen",
+      "confirmPlaceholder": "Passwort wiederholen",
+      "submit": "Neues Passwort speichern",
+      "submitting": "Wird gespeichert...",
+      "checking": "Authentifizierung wird überprüft..."
+    }
+  }
+}

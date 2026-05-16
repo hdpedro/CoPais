@@ -1,1 +1,4 @@
 npx lint-staged
+# i18n parity (PWA + native) + char limits + type-gen. Fast (<2s). Blocks
+# commit when ANY locale JSON drifts or strings exceed channel limits.
+npm run i18n:check

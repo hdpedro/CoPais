@@ -62,11 +62,32 @@ function defaultPriority(rt: SaudeRecordType): CollabPriority {
 }
 
 /**
- * Verb usado na primeira pessoa do título do push. Mantém copys em PT-BR
- * aqui pra facilitar review/iteração — quando o time for i18n-izar os
- * pushes (Fase 2), substituir por i18n keys.
+ * i18n key for the push title per record type. Resolved per-recipient by
+ * notifyCollabCreate (each user sees the title in their own locale).
  */
-function actionVerb(rt: SaudeRecordType): string {
+function titleKeyFor(rt: SaudeRecordType): string {
+  switch (rt) {
+    case "medical_appointment":
+      return "notifications.saude.appointmentTitle";
+    case "illness_episode":
+      return "notifications.saude.illnessTitle";
+    case "active_medication":
+      return "notifications.saude.medicationTitle";
+    case "child_allergy":
+      return "notifications.saude.allergyTitle";
+    case "vaccination_record":
+      return "notifications.saude.vaccineTitle";
+  }
+}
+
+/**
+ * Pt-BR fallback verb. Sent as the legacy `title:` string in case the i18n
+ * resolution chain (getUserLocale → getServerT) fails for some reason. The
+ * recipient still gets a complete, readable pt sentence instead of just
+ * "Amanda" alone. Localized title (`titleKey`) takes precedence when
+ * resolution succeeds.
+ */
+function fallbackVerbPt(rt: SaudeRecordType): string {
   switch (rt) {
     case "medical_appointment":
       return "agendou uma consulta";
@@ -151,8 +172,18 @@ export async function notifySaudeCreate(args: NotifySaudeArgs): Promise<void> {
     const priority =
       args.priorityOverride ?? (await resolveEffectivePriority(args.recordType, args.recordId));
 
-    const title = `${args.actorFirstName} ${actionVerb(args.recordType)}`;
-    const message = args.childFirstName
+    // Localized push — notifyCollabCreate resolves the title/body in each
+    // recipient's locale via profiles.locale (migration 00083). Variables
+    // (actor name, description, child name) are passed as substitutions so
+    // the localized template fills them in.
+    //
+    // BOTH the localized key AND the legacy pt string are passed:
+    //   - `titleKey` is the new path — wins when getServerT resolves.
+    //   - `title` is the pt fallback — survives if i18n chain breaks
+    //     (locale-utils throws, deploy lost a JSON, etc.). Defense in depth
+    //     also makes existing tests pass without changes.
+    const fallbackTitle = `${args.actorFirstName} ${fallbackVerbPt(args.recordType)}`;
+    const fallbackBody = args.childFirstName
       ? `${args.description} · ${args.childFirstName}`
       : args.description;
 
@@ -162,8 +193,17 @@ export async function notifySaudeCreate(args: NotifySaudeArgs): Promise<void> {
       groupId: args.groupId,
       actorUserId: args.actorUserId,
       priority,
-      title,
-      message,
+      titleKey: titleKeyFor(args.recordType),
+      titleVars: { actor: args.actorFirstName },
+      messageKey: args.childFirstName
+        ? "notifications.saude.bodyWithChild"
+        : undefined,
+      messageVars: args.childFirstName
+        ? { description: args.description, child: args.childFirstName }
+        : undefined,
+      title: fallbackTitle,
+      message: fallbackBody,
+      coalescedTitleKey: "notifications.saude.coalescedSaudeCount",
       link: recordDeepLink(args.recordType, args.recordId),
     });
   } catch {

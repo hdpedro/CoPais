@@ -1,0 +1,74 @@
+{
+  "emails.welcome": {
+    "pt": {
+      "subject": "Bem-vindo ao Kindar, {name}!",
+      "tagline": "A rotina organizada para toda a família",
+      "greeting": "Oi, {name}! 👋",
+      "intro": "Sua conta no Kindar está pronta. Agora você pode organizar a rotina das crianças em um só lugar.",
+      "step1Title": "Crie seu grupo familiar",
+      "step1Body": "Dê um nome e cadastre sua primeira criança.",
+      "step2Title": "Convide o coparente",
+      "step2Body": "Compartilhe acesso para ver e atualizar tudo juntos.",
+      "step3Title": "Comece pela escala",
+      "step3Body": "Configure a guarda — quem cuida em quais dias.",
+      "ctaButton": "Abrir o Kindar",
+      "footer": "Você recebeu este e-mail porque criou uma conta no Kindar. Caso não tenha sido você, ignore esta mensagem."
+    },
+    "en": {
+      "subject": "Welcome to Kindar, {name}!",
+      "tagline": "Organized routine for the whole family",
+      "greeting": "Hi {name}! 👋",
+      "intro": "Your Kindar account is ready. Now you can organize the kids' routine all in one place.",
+      "step1Title": "Create your family group",
+      "step1Body": "Give it a name and register your first child.",
+      "step2Title": "Invite the co-parent",
+      "step2Body": "Share access to view and update everything together.",
+      "step3Title": "Start with the schedule",
+      "step3Body": "Set up custody — who cares on which days.",
+      "ctaButton": "Open Kindar",
+      "footer": "You received this email because you created a Kindar account. If it wasn't you, ignore this message."
+    },
+    "es": {
+      "subject": "Bienvenido a Kindar, {name}!",
+      "tagline": "La rutina organizada para toda la familia",
+      "greeting": "¡Hola {name}! 👋",
+      "intro": "Tu cuenta en Kindar está lista. Ahora puedes organizar la rutina de los niños en un solo lugar.",
+      "step1Title": "Crea tu grupo familiar",
+      "step1Body": "Dale un nombre y registra a tu primer hijo.",
+      "step2Title": "Invita al coparental",
+      "step2Body": "Comparte el acceso para ver y actualizar todo juntos.",
+      "step3Title": "Comienza por el horario",
+      "step3Body": "Configura la custodia — quién cuida en qué días.",
+      "ctaButton": "Abrir Kindar",
+      "footer": "Recibiste este correo porque creaste una cuenta en Kindar. Si no fuiste tú, ignora este mensaje."
+    },
+    "fr": {
+      "subject": "Bienvenue sur Kindar, {name} !",
+      "tagline": "La routine organisée pour toute la famille",
+      "greeting": "Bonjour {name} ! 👋",
+      "intro": "Votre compte Kindar est prêt. Vous pouvez maintenant organiser la routine des enfants en un seul endroit.",
+      "step1Title": "Créez votre groupe familial",
+      "step1Body": "Donnez-lui un nom et enregistrez votre premier enfant.",
+      "step2Title": "Invitez le co-parent",
+      "step2Body": "Partagez l'accès pour voir et mettre à jour tout ensemble.",
+      "step3Title": "Commencez par le planning",
+      "step3Body": "Configurez la garde — qui s'occupe quels jours.",
+      "ctaButton": "Ouvrir Kindar",
+      "footer": "Vous avez reçu cet e-mail parce que vous avez créé un compte Kindar. Si ce n'est pas vous, ignorez ce message."
+    },
+    "de": {
+      "subject": "Willkommen bei Kindar, {name}!",
+      "tagline": "Organisierte Routine für die ganze Familie",
+      "greeting": "Hallo {name}! 👋",
+      "intro": "Ihr Kindar-Konto ist bereit. Jetzt können Sie den Alltag der Kinder an einem Ort organisieren.",
+      "step1Title": "Erstellen Sie Ihre Familiengruppe",
+      "step1Body": "Geben Sie ihr einen Namen und registrieren Sie Ihr erstes Kind.",
+      "step2Title": "Laden Sie den Mitelternteil ein",
+      "step2Body": "Teilen Sie den Zugriff, um alles gemeinsam zu sehen und zu aktualisieren.",
+      "step3Title": "Beginnen Sie mit dem Plan",
+      "step3Body": "Richten Sie das Sorgerecht ein — wer wann betreut.",
+      "ctaButton": "Kindar öffnen",
+      "footer": "Sie erhalten diese E-Mail, weil Sie ein Kindar-Konto erstellt haben. Falls Sie das nicht waren, ignorieren Sie diese Nachricht."
+    }
+  }
+}

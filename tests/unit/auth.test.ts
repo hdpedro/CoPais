@@ -48,6 +48,14 @@ vi.mock("@/lib/posthog-server", () => ({
   captureServerEvent: vi.fn(),
 }));
 
+// Welcome email now imports a server-only locale resolver (_locale.ts ->
+// getServerT). Mocking it here stops the test runtime from crashing on
+// `server-only` (which throws by design when not in a Server Component
+// context). The signature still matches the actual export.
+vi.mock("@/lib/emails/welcome", () => ({
+  sendWelcomeEmail: vi.fn().mockResolvedValue(undefined),
+}));
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -83,7 +91,12 @@ beforeEach(() => {
 
 describe("signUp", () => {
   it("redirects to /verify-email on success", async () => {
-    mockSupabase.auth.signUp.mockResolvedValue({ error: null });
+    // signUp now reads `data.user.id` to persist locale onto profiles.
+    // Provide a stub user shape so the destructure doesn't blow up.
+    mockSupabase.auth.signUp.mockResolvedValue({
+      data: { user: { id: "user-stub" } },
+      error: null,
+    });
 
     await expect(
       signUp(makeFormData({ email: "a@b.com", password: "123456", fullName: "Test" }))
@@ -109,7 +122,12 @@ describe("signUp", () => {
   });
 
   it("includes convite token in callback URL when provided", async () => {
-    mockSupabase.auth.signUp.mockResolvedValue({ error: null });
+    // signUp now reads `data.user.id` to persist locale onto profiles.
+    // Provide a stub user shape so the destructure doesn't blow up.
+    mockSupabase.auth.signUp.mockResolvedValue({
+      data: { user: { id: "user-stub" } },
+      error: null,
+    });
 
     await expect(
       signUp(

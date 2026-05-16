@@ -4,38 +4,34 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { updatePassword } from "@/actions/auth";
+import { useI18n } from "@/i18n/provider";
 
 export default function ResetPasswordPage() {
+  const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Create a browser-side Supabase client to handle hash-based auth tokens
-    // (Supabase sometimes sends recovery tokens as URL hash fragments)
     const supabase = createClient();
 
-    // Listen for auth state changes (handles hash fragment tokens)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event: string) => {
       if (event === "PASSWORD_RECOVERY") {
-        // User arrived via recovery link — session is set, show the form
         setChecking(false);
       } else if (event === "SIGNED_IN" || event === "INITIAL_SESSION") {
-        // Already signed in (session from server callback), show the form
         setChecking(false);
       }
     });
 
-    // Fallback: if no auth event fires within 2s, check session directly
+    // Fallback: if no auth event fires within 2s, check session directly.
     const timeout = setTimeout(async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         setChecking(false);
       } else {
-        // No session at all — user shouldn't be on this page
         router.push("/forgot-password");
       }
     }, 2000);
@@ -54,13 +50,13 @@ export default function ResetPasswordPage() {
     const confirmPassword = formData.get("confirmPassword") as string;
 
     if (password !== confirmPassword) {
-      setError("As senhas não coincidem.");
+      setError(t("auth.passwordsMismatch"));
       setLoading(false);
       return;
     }
 
     if (password.length < 8) {
-      setError("A senha deve ter pelo menos 8 caracteres.");
+      setError(t("auth.passwordTooShort"));
       setLoading(false);
       return;
     }
@@ -75,7 +71,7 @@ export default function ResetPasswordPage() {
   if (checking) {
     return (
       <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
-        <p className="text-muted">Verificando autenticação...</p>
+        <p className="text-muted">{t("auth.reset.checking")}</p>
       </div>
     );
   }
@@ -83,8 +79,8 @@ export default function ResetPasswordPage() {
   return (
     <div className="bg-white rounded-2xl shadow-lg p-8">
       <div className="text-center mb-8">
-        <h1 className="text-2xl font-bold text-dark">Nova Senha</h1>
-        <p className="text-muted mt-2">Escolha uma nova senha para sua conta.</p>
+        <h1 className="text-2xl font-bold text-dark">{t("auth.reset.title")}</h1>
+        <p className="text-muted mt-2">{t("auth.reset.description")}</p>
       </div>
 
       {error && (
@@ -96,7 +92,7 @@ export default function ResetPasswordPage() {
       <form action={handleSubmit} className="space-y-4">
         <div>
           <label htmlFor="password" className="block text-sm font-medium text-dark mb-1">
-            Nova senha
+            {t("auth.reset.newPasswordLabel")}
           </label>
           <input
             id="password"
@@ -104,14 +100,15 @@ export default function ResetPasswordPage() {
             type="password"
             required
             minLength={8}
-            placeholder="Mínimo 8 caracteres"
+            placeholder={t("auth.reset.newPasswordPlaceholder")}
+            aria-label={t("auth.reset.newPasswordLabel")}
             className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-dark"
           />
         </div>
 
         <div>
           <label htmlFor="confirmPassword" className="block text-sm font-medium text-dark mb-1">
-            Confirmar nova senha
+            {t("auth.reset.confirmLabel")}
           </label>
           <input
             id="confirmPassword"
@@ -119,7 +116,8 @@ export default function ResetPasswordPage() {
             type="password"
             required
             minLength={8}
-            placeholder="Repita a senha"
+            placeholder={t("auth.reset.confirmPlaceholder")}
+            aria-label={t("auth.reset.confirmLabel")}
             className="w-full px-4 py-3 rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary text-dark"
           />
         </div>
@@ -129,7 +127,7 @@ export default function ResetPasswordPage() {
           disabled={loading}
           className="w-full py-3 px-4 bg-primary text-white font-semibold rounded-lg hover:bg-primary-dark transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {loading ? "Salvando..." : "Salvar Nova Senha"}
+          {loading ? t("auth.reset.submitting") : t("auth.reset.submit")}
         </button>
       </form>
     </div>

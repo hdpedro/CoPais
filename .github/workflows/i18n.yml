@@ -1,0 +1,66 @@
+name: i18n Gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Why a separate workflow:
+#   - Runs fast (<10s), so PRs get instant red/green on i18n correctness
+#     without waiting for the heavier unit-test or e2e jobs.
+#   - Required check on the branch protection rule → can't merge with broken
+#     i18n parity, char limits exceeded, or typed-keys drift.
+
+jobs:
+  i18n-gate:
+    name: i18n Parity + Limits + Types
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Regra Canônica 2 + 7: every locale JSON has the same structural keys.
+      # Source = pt-BR; missing keys in en/es/fr/de fail the build.
+      - name: Validate locale parity (PWA)
+        run: npm run i18n:parity:pwa
+
+      # Native parity. Drift was identical to PWA (19 orphan sync* keys +
+      # childDetail.confirmDelete missing in pt). Both fixed 2026-05-16 —
+      # native is now hard-fail same as PWA.
+      - name: Validate locale parity (Native)
+        run: npm run i18n:parity:native
+
+      # Regra Canônica 15: push titles, email subjects, a11y labels respect
+      # channel-specific char limits. Fails if any string exceeds.
+      - name: Validate char limits
+        run: npm run i18n:char-limits
+
+      # Regra Canônica 2 + 7: keys.generated.ts must be up to date with
+      # pt.json. If a developer adds a key to pt.json but forgets to run
+      # `npm run i18n:gen`, this catches it. The generator is idempotent
+      # and re-running it should be a no-op on green CI.
+      - name: Generate types (drift check)
+        run: |
+          npm run i18n:gen
+          if ! git diff --exit-code src/i18n/keys.generated.ts; then
+            echo "::error::keys.generated.ts is out of date. Run 'npm run i18n:gen' and commit."
+            exit 1
+          fi
+
+      # Informational only — high false-positive rate. Helps developers see
+      # how many hardcoded strings still need migration without blocking PRs.
+      - name: Find hardcoded strings (informational)
+        run: npm run i18n:hardcoded
+        continue-on-error: true
+
+      # Informational only — many orphans expected during cleanup phase.
+      - name: Find orphan keys (informational)
+        run: npm run i18n:orphans
+        continue-on-error: true

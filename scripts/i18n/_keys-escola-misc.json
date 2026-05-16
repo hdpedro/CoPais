@@ -1,0 +1,23 @@
+{
+  "schoolPage.client.eventAutoCalendar": {
+    "pt": "📅 Este item será adicionado ao calendário automaticamente.",
+    "en": "📅 This item will be added to the calendar automatically.",
+    "es": "📅 Este elemento se añadirá automáticamente al calendario.",
+    "fr": "📅 Cet élément sera ajouté automatiquement au calendrier.",
+    "de": "📅 Dieser Eintrag wird automatisch in den Kalender übernommen."
+  },
+  "schoolPage.client.editAppearsNewDate": {
+    "pt": "📅 Aparece no calendário na nova data",
+    "en": "📅 Appears in the calendar on the new date",
+    "es": "📅 Aparece en el calendario en la nueva fecha",
+    "fr": "📅 Apparaît dans le calendrier à la nouvelle date",
+    "de": "📅 Erscheint im Kalender am neuen Datum"
+  },
+  "schoolPage.client.editRemovedFromCalendar": {
+    "pt": "⚠️ Vai ser removido do calendário (virou um registro).",
+    "en": "⚠️ Will be removed from the calendar (becomes a log entry).",
+    "es": "⚠️ Se eliminará del calendario (se vuelve un registro).",
+    "fr": "⚠️ Sera retiré du calendrier (devient un enregistrement).",
+    "de": "⚠️ Wird aus dem Kalender entfernt (wird ein Eintrag)."
+  }
+}

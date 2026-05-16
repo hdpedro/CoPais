@@ -1,0 +1,9 @@
+{
+  "childDetail.confirmDelete": {
+    "pt": "Tem certeza que deseja excluir",
+    "en": "Are you sure you want to delete",
+    "es": "¿Está seguro de que desea eliminar",
+    "fr": "Êtes-vous sûr de vouloir supprimer",
+    "de": "Sind Sie sicher, dass Sie löschen möchten"
+  }
+}

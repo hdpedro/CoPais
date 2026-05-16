@@ -1,5 +1,17 @@
 "use client";
 
+/* i18n-ignore-block-start
+ *
+ * AssinaturaClient — copy financeira completa (preços, promoções, refund
+ * policy, ToS de cobrança). Regra Canônica 14 obriga revisão jurídica +
+ * marketing antes de qualquer tradução. PT-BR é a fonte autorizada.
+ *
+ * Quando localização for aprovada (Tier 2 — pós tradução jurídica), remover
+ * este bloco e migrar cada string pra `t("subscriptionPage.X")` via add-keys
+ * --target=both, com revisão humana de cada locale por advogado regional
+ * (LGPD-BR vs GDPR-EU vs CCPA-US etc.).
+ */
+
 import { useState, useTransition } from "react";
 import type { PlanTier } from "@/lib/billing";
 import { enableSubscriptionSplit, disableSubscriptionSplit } from "@/actions/subscription-split";
@@ -582,3 +594,5 @@ export default function AssinaturaClient({
     </div>
   );
 }
+
+/* i18n-ignore-block-end */
