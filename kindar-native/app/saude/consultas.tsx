@@ -153,6 +153,100 @@ export default function ConsultasScreen() {
     ]);
   }
 
+  // Hard-delete da consulta — usuário Angelino reportou 2026-05-16 não ter
+  // como excluir uma consulta criada por engano (ex: data errada salva no
+  // wizard de registrar.tsx antes do bug de appointment_date ser corrigido).
+  // Confirma com Alert.alert e remove via safeWrite('delete'). DELETE cascade
+  // é seguro porque medical_appointments não tem filhos referenciando-o por
+  // FK NOT NULL (return_notes / summary ficam no próprio row).
+  async function handleDelete(appt: Appt) {
+    Alert.alert(
+      'Excluir consulta',
+      `Excluir definitivamente "${appt.title}"? Esta ação não pode ser desfeita.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            const result = await safeWrite({
+              table: 'medical_appointments',
+              operation: 'delete',
+              payload: { id: appt.id },
+            });
+            if (result.success) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await load();
+            } else {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              Alert.alert('Erro', result.error || 'Falha ao excluir consulta');
+            }
+          },
+        },
+      ],
+    );
+  }
+
+  // Inline edit modal — permite ajustar título / data / hora / local / notas
+  // de uma consulta agendada. Reusa os mesmos campos do form de criação
+  // (DatePickerField / TimePickerField) pra UX consistente. Disponível só
+  // pra status='scheduled' — uma consulta já realizada/cancelada não deve
+  // ser "remarcada" sem antes voltar pro estado scheduled (caso de uso raro;
+  // por enquanto usar Excluir + criar nova).
+  const [editing, setEditing] = useState<Appt | null>(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDateIso, setEditDateIso] = useState<string>('');
+  const [editTimeHHMM, setEditTimeHHMM] = useState<string>('');
+  const [editLocation, setEditLocation] = useState('');
+  const [editNotes, setEditNotes] = useState('');
+  const [editSaving, setEditSaving] = useState(false);
+
+  function openEditModal(appt: Appt) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const dt = new Date(appt.appointment_date);
+    const iso = dateToIso(dt);
+    const hh = String(dt.getHours()).padStart(2, '0');
+    const mm = String(dt.getMinutes()).padStart(2, '0');
+    setEditTitle(appt.title);
+    setEditDateIso(iso);
+    setEditTimeHHMM(`${hh}:${mm}`);
+    setEditLocation(appt.location || '');
+    setEditNotes(appt.notes || '');
+    setEditing(appt);
+  }
+
+  async function handleConfirmEdit() {
+    if (!editing) return;
+    if (!editTitle.trim() || !editDateIso || !editTimeHHMM) {
+      Alert.alert('Erro', 'Preencha título, data e hora.');
+      return;
+    }
+    setEditSaving(true);
+    // BR timezone explícito — mesmo formato usado no INSERT em
+    // src/services/health.ts:createAppointment.
+    const appointmentIso = `${editDateIso}T${editTimeHHMM}:00-03:00`;
+    const result = await safeWrite({
+      table: 'medical_appointments',
+      operation: 'update',
+      payload: {
+        id: editing.id,
+        title: editTitle.trim(),
+        appointment_date: appointmentIso,
+        location: editLocation.trim() || null,
+        notes: editNotes.trim() || null,
+      },
+    });
+    setEditSaving(false);
+    if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setEditing(null);
+      await load();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', result.error || 'Falha ao salvar alterações');
+    }
+  }
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title="Consultas" rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => setShowForm(!showForm) }} />
@@ -278,25 +372,68 @@ export default function ConsultasScreen() {
                 </View>
               </View>
               {canComplete ? (
-                <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+                <>
+                  {/* Linha 1: ações primárias da consulta agendada */}
+                  <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
+                    <TouchableOpacity
+                      onPress={() => openCompleteModal(item)}
+                      style={{ flex: 1, backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' }}
+                    >
+                      <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                        Concluir
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleCancel(item.id)}
+                      style={{ paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight }}
+                    >
+                      <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
+                        Cancelar
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                  {/* Linha 2: ações secundárias (editar / excluir) — bug
+                      Angelino 2026-05-16: usuário não tinha como editar
+                      data/hora salva errada e nem excluir consulta criada
+                      por engano. Editar só pra scheduled (cancelada/realizada
+                      seguem regra anterior). */}
+                  <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
+                    <TouchableOpacity
+                      onPress={() => openEditModal(item)}
+                      style={{ flex: 1, paddingVertical: 8, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                    >
+                      <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
+                      <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
+                        Editar
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => handleDelete(item)}
+                      style={{ paddingVertical: 8, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: '#fee2e2', backgroundColor: '#fef2f2', alignItems: 'center', flexDirection: 'row', gap: 6 }}
+                    >
+                      <Ionicons name="trash-outline" size={14} color="#b91c1c" />
+                      <Text style={{ color: '#b91c1c', fontSize: font.sizes.sm }}>
+                        Excluir
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
+                </>
+              ) : (
+                // Realizada ou cancelada: só permite excluir (sem editar —
+                // editar exigiria reverter status, regra de negócio mais
+                // complexa que fica pra próxima PR).
+                <View style={{ flexDirection: 'row', marginTop: spacing.md }}>
                   <TouchableOpacity
-                    onPress={() => openCompleteModal(item)}
-                    style={{ flex: 1, backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' }}
+                    onPress={() => handleDelete(item)}
+                    style={{ paddingVertical: 8, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: '#fee2e2', backgroundColor: '#fef2f2', alignItems: 'center', flexDirection: 'row', gap: 6 }}
                   >
-                    <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                      Concluir
-                    </Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
-                    onPress={() => handleCancel(item.id)}
-                    style={{ paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight }}
-                  >
-                    <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
-                      Cancelar
+                    <Ionicons name="trash-outline" size={14} color="#b91c1c" />
+                    <Text style={{ color: '#b91c1c', fontSize: font.sizes.sm }}>
+                      Excluir
                     </Text>
                   </TouchableOpacity>
                 </View>
-              ) : null}
+              )}
               {item.status === 'completed' && item.notes ? (
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm, fontStyle: 'italic' }}>
                   Notas: {item.notes}
@@ -356,6 +493,78 @@ export default function ConsultasScreen() {
               >
                 <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
                   {completeSaving ? 'Salvando…' : 'Marcar como concluída'}
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+
+      {/* Edit modal — title / date / time / location / notes pra uma consulta
+          agendada. Reusa os mesmos pickers do form de criar pra UX consistente. */}
+      <Modal visible={!!editing} transparent animationType="slide" onRequestClose={() => setEditing(null)}>
+        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
+          <View style={{ flex: 1, backgroundColor: '#00000080' }} />
+          <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, maxHeight: '85%' }}>
+            <ScrollView keyboardShouldPersistTaps="handled">
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
+                <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
+                  Editar consulta
+                </Text>
+                <TouchableOpacity onPress={() => setEditing(null)} hitSlop={8}>
+                  <Ionicons name="close" size={24} color={colors.textSecondary} />
+                </TouchableOpacity>
+              </View>
+              {editing ? (
+                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.lg }}>
+                  {editing.childName}
+                </Text>
+              ) : null}
+
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Título *</Text>
+              <TextInput
+                value={editTitle}
+                onChangeText={setEditTitle}
+                placeholder="Ex: Pediatra, Dentista"
+                placeholderTextColor={colors.textDim}
+                style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg }}
+              />
+
+              <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
+                <View style={{ flex: 3 }}>
+                  <DatePickerField label="Data *" value={editDateIso || null} onChange={d => setEditDateIso(d || '')} placeholder="DD/MM/AAAA" />
+                </View>
+                <View style={{ flex: 2 }}>
+                  <TimePickerField label="Hora *" value={editTimeHHMM || null} onChange={t => setEditTimeHHMM(t || '')} placeholder="HH:MM" />
+                </View>
+              </View>
+
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Local</Text>
+              <TextInput
+                value={editLocation}
+                onChangeText={setEditLocation}
+                placeholder="Ex: Clínica São Lucas"
+                placeholderTextColor={colors.textDim}
+                style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg }}
+              />
+
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Observações</Text>
+              <TextInput
+                value={editNotes}
+                onChangeText={setEditNotes}
+                placeholder="Detalhes adicionais..."
+                placeholderTextColor={colors.textDim}
+                multiline
+                style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, minHeight: 80, textAlignVertical: 'top', marginBottom: spacing.lg }}
+              />
+
+              <TouchableOpacity
+                onPress={handleConfirmEdit}
+                disabled={editSaving}
+                style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.lg, opacity: editSaving ? 0.5 : 1 }}
+              >
+                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
+                  {editSaving ? 'Salvando…' : 'Salvar alterações'}
                 </Text>
               </TouchableOpacity>
             </ScrollView>

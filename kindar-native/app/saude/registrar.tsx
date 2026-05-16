@@ -20,6 +20,7 @@ import { safeWrite } from 'src/services/offline';
 import { notifyAction } from 'src/services/notify';
 import { getBrazilToday } from 'src/lib/constants';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
+import { DatePickerField, TimePickerField, isoDateToDisplay } from 'src/components/ui/DateTimeField';
 
 type EventType = 'illness' | 'medication' | 'appointment' | 'observation';
 
@@ -48,6 +49,21 @@ export default function RegistrarScreen() {
   const [frequency, setFrequency] = useState('');
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
+  // Appointment date+time — bug Angelino 2026-05-16 iOS: o wizard salvava
+  // `appointment_date: new Date().toISOString()` (data/hora atual) em vez
+  // da data que o usuário escolhia, fazendo a consulta aparecer no
+  // calendário no dia em que foi REGISTRADA, não no dia em que ACONTECE.
+  // Default: amanhã às 09:00 — heurística "consulta marcada provavelmente
+  // não é pra hoje", coerente com o PWA createAppointment.
+  const [apptDate, setApptDate] = useState<string | null>(() => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const y = tomorrow.getFullYear();
+    const m = String(tomorrow.getMonth() + 1).padStart(2, '0');
+    const d = String(tomorrow.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  });
+  const [apptTime, setApptTime] = useState<string | null>('09:00');
 
   const children = healthData?.children || [];
 
@@ -89,12 +105,17 @@ export default function RegistrarScreen() {
         },
       });
     } else if (eventType === 'appointment') {
+      // Compose appointment_date como timestamptz com timezone BR explícito.
+      // Igual ao service health.ts:createAppointment (linha 300) e PWA
+      // createAppointment. SEM esse fix o calendário mostrava a consulta
+      // no dia/hora em que ela foi REGISTRADA, não no dia em que acontece.
+      const datetime = `${apptDate}T${apptTime}:00-03:00`;
       result = await safeWrite({
         table: 'medical_appointments',
         operation: 'insert',
         payload: {
           group_id: groupId, child_id: selectedChildId, title,
-          appointment_date: new Date().toISOString(),
+          appointment_date: datetime,
           location: location || null, status: 'scheduled',
           notes: notes || null, created_by: userId,
         },
@@ -126,7 +147,11 @@ export default function RegistrarScreen() {
   }
 
   const canProceedStep2 = eventType !== null && selectedChildId !== null;
-  const canProceedStep3 = title.length > 0;
+  // Appointments require both date AND time so the calendar lands on the
+  // intended slot. Other event types only need a title.
+  const canProceedStep3 =
+    title.length > 0 &&
+    (eventType !== 'appointment' || (!!apptDate && !!apptTime));
 
   return (
     <KeyboardAvoidingView
@@ -357,6 +382,28 @@ export default function RegistrarScreen() {
 
             {eventType === 'appointment' ? (
               <>
+                {/* Data + Hora — campos obrigatórios para appointment.
+                    DatePickerField/TimePickerField usam o picker nativo
+                    iOS/Android e armazenam ISO/HH:MM strings. */}
+                <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
+                  <View style={{ flex: 3 }}>
+                    <DatePickerField
+                      label="Data da consulta *"
+                      value={apptDate}
+                      onChange={setApptDate}
+                      placeholder="DD/MM/AAAA"
+                    />
+                  </View>
+                  <View style={{ flex: 2 }}>
+                    <TimePickerField
+                      label="Hora *"
+                      value={apptTime}
+                      onChange={setApptTime}
+                      placeholder="HH:MM"
+                    />
+                  </View>
+                </View>
+
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
                   Local
                 </Text>
@@ -433,6 +480,10 @@ export default function RegistrarScreen() {
                 eventType === 'illness' && symptoms ? { label: 'Sintomas', value: symptoms } : null,
                 eventType === 'medication' && dosage ? { label: 'Dosagem', value: dosage } : null,
                 eventType === 'medication' && frequency ? { label: 'Frequencia', value: frequency } : null,
+                // Appointment summary: show the scheduled slot the user picked.
+                // Critical for catching mistakes BEFORE saving (e.g. defaulting
+                // to "amanhã 09:00" when intended next Friday 18:00).
+                eventType === 'appointment' ? { label: 'Data', value: `${isoDateToDisplay(apptDate)} às ${apptTime || '—'}` } : null,
                 eventType === 'appointment' && location ? { label: 'Local', value: location } : null,
                 notes ? { label: 'Observacoes', value: notes } : null,
               ].filter(Boolean).map((row, i) => (
