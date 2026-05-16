@@ -12,6 +12,8 @@ import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
+import ChildPicker from 'src/components/ui/ChildPicker';
+import SwipeToDelete from 'src/components/ui/SwipeToDelete';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Allergy { id: string; name: string; allergy_type: string; severity: string; reaction: string | null; childName: string; child_id: string; }
@@ -74,13 +76,10 @@ export default function AlergiasScreen() {
   }
 
   async function handleDelete(id: string) {
-    Alert.alert('Remover', 'Tem certeza?', [
-      { text: 'Cancelar' },
-      { text: 'Remover', style: 'destructive', onPress: async () => {
-        await safeWrite({ table: 'child_allergies', operation: 'delete', payload: { id } });
-        load();
-      }},
-    ]);
+    // Confirmação fica no SwipeToDelete (Alert.alert ali). Aqui executamos
+    // direto. Mantém compat com long-press caller (sem swipe).
+    await safeWrite({ table: 'child_allergies', operation: 'delete', payload: { id } });
+    load();
   }
 
   return (
@@ -89,16 +88,13 @@ export default function AlergiasScreen() {
 
       {showForm ? (
         <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-          {children.length > 1 ? (
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, flexWrap: 'wrap' }}>
-              {children.map(c => (
-                <TouchableOpacity key={c.id} onPress={() => setSelectedChild(c.id)}
-                  style={{ paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.full, backgroundColor: selectedChild === c.id ? colors.brand : colors.bgSurface }}>
-                  <Text style={{ fontSize: font.sizes.sm, color: selectedChild === c.id ? '#fff' : colors.text }}>{c.full_name.split(' ')[0]}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
+          <ChildPicker
+            items={children}
+            selectedId={selectedChild}
+            onSelect={(id) => setSelectedChild(id ?? '')}
+            containerStyle={{ marginBottom: spacing.md }}
+            testID="alergia-form-child-picker"
+          />
           <TextInput value={name} onChangeText={setName} placeholder="Nome da alergia" placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
 
@@ -155,17 +151,24 @@ export default function AlergiasScreen() {
         renderItem={({ item }) => {
           const sev = SEV_ICONS[item.severity] || SEV_ICONS.mild;
           return (
-            <TouchableOpacity onLongPress={() => handleDelete(item.id)} activeOpacity={0.7}
-              style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
-                flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderLeftWidth: 3, borderLeftColor: sev.color }}>
-              <Text style={{ fontSize: 18 }}>{sev.icon}</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.name}</Text>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                  {item.childName} · {item.allergy_type}{item.reaction ? ` · ${item.reaction}` : ''}
-                </Text>
-              </View>
-            </TouchableOpacity>
+            <View style={{ marginBottom: spacing.sm }}>
+              <SwipeToDelete
+                onDelete={() => handleDelete(item.id)}
+                confirmTitle="Apagar alergia"
+                confirmMessage={`Remover "${item.name}" do registro de ${item.childName}? Esta ação não pode ser desfeita.`}
+              >
+                <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm,
+                  flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderLeftWidth: 3, borderLeftColor: sev.color }}>
+                  <Text style={{ fontSize: 18 }}>{sev.icon}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.name}</Text>
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
+                      {item.childName} · {item.allergy_type}{item.reaction ? ` · ${item.reaction}` : ''}
+                    </Text>
+                  </View>
+                </View>
+              </SwipeToDelete>
+            </View>
           );
         }}
       />

@@ -9,7 +9,7 @@ interface EmptyStateProps {
   /** @deprecated use `description` */
   subtitle?: string;
   description?: string;
-  action?: { label: string; onPress: () => void };
+  action?: { label: string; onPress: () => void; accessibilityHint?: string };
 }
 
 function isIoniconName(s: string): boolean {
@@ -68,11 +68,16 @@ export default function EmptyState({ icon, title, subtitle, description, action 
         <TouchableOpacity
           onPress={action.onPress}
           activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={action.label}
+          accessibilityHint={action.accessibilityHint}
           style={{
             marginTop: spacing.lg,
             backgroundColor: colors.brand,
             paddingHorizontal: spacing.lg,
-            paddingVertical: spacing.sm,
+            paddingVertical: 12,            // 12 + ~18 line-height = ~44pt
+            minHeight: 44,
+            justifyContent: 'center',
             borderRadius: radius.md,
           }}
         >

@@ -17,8 +17,10 @@ import { safeWrite } from 'src/services/offline';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
-import Toast from 'src/components/ui/Toast';
+import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
+import ChildPicker from 'src/components/ui/ChildPicker';
+import SwipeToDelete from 'src/components/ui/SwipeToDelete';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -45,7 +47,7 @@ export default function CrescimentoScreen() {
   const [dateIso, setDateIso] = useState<string>(dateToIso(new Date()));
   const [saving, setSaving] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
-  const [toast, setToast] = useState<{ msg: string; variant?: 'success' | 'error' } | null>(null);
+  const toast = useToast();
 
   // Synchronous guard against double-tap duplication. setState is async,
   // so disabled={saving} alone allows ~2-3 taps to slip through before
@@ -164,36 +166,29 @@ export default function CrescimentoScreen() {
     }
   }
 
-  function handleDelete(record: GrowthRecord) {
-    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+  // Mantido como `confirmMessage` builder pra passar ao SwipeToDelete + delete
+  // direto (Alert.alert vive no componente). Antes era Alert + execute aqui.
+  function buildDeleteConfirmMessage(record: GrowthRecord): string {
     const summary = [
       record.weight_kg ? `${record.weight_kg}kg` : null,
       record.height_cm ? `${record.height_cm}cm` : null,
       record.head_cm ? `PC ${record.head_cm}cm` : null,
     ].filter(Boolean).join(' · ');
     const dateBr = record.measured_date.split('-').reverse().join('/');
-    Alert.alert(
-      'Excluir registro de crescimento?',
-      `${record.childName} · ${dateBr}${summary ? `\n${summary}` : ''}\n\nEsta acao nao pode ser desfeita.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            const r = await safeWrite({ table: 'growth_records', operation: 'delete', payload: { id: record.id } });
-            if (r.success) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              setToast({ msg: `Registro de ${dateBr} removido`, variant: 'success' });
-              await load();
-            } else {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              setToast({ msg: r.error || 'Nao consegui excluir. Tente de novo.', variant: 'error' });
-            }
-          },
-        },
-      ],
-    );
+    return `${record.childName} · ${dateBr}${summary ? `\n${summary}` : ''}\n\nEsta ação não pode ser desfeita.`;
+  }
+
+  async function performDelete(record: GrowthRecord) {
+    const dateBr = record.measured_date.split('-').reverse().join('/');
+    const r = await safeWrite({ table: 'growth_records', operation: 'delete', payload: { id: record.id } });
+    if (r.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast.show({ message: `Registro de ${dateBr} removido`, variant: 'success' });
+      await load();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.show({ message: r.error || 'Não consegui excluir. Tente de novo.', variant: 'error' });
+    }
   }
 
   function toggleForm() {
@@ -216,25 +211,13 @@ export default function CrescimentoScreen() {
               </Text>
             </View>
           ) : null}
-          {children.length > 1 ? (
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, flexWrap: 'wrap' }}>
-              {children.map(c => (
-                <TouchableOpacity
-                  key={c.id}
-                  onPress={() => setSelectedChild(c.id)}
-                  style={{
-                    paddingVertical: spacing.xs, paddingHorizontal: spacing.md,
-                    borderRadius: radius.full,
-                    backgroundColor: selectedChild === c.id ? colors.brand : colors.bgSurface,
-                  }}
-                >
-                  <Text style={{ fontSize: font.sizes.sm, color: selectedChild === c.id ? '#fff' : colors.text }}>
-                    {c.full_name.split(' ')[0]}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
+          <ChildPicker
+            items={children}
+            selectedId={selectedChild}
+            onSelect={(id) => setSelectedChild(id ?? '')}
+            containerStyle={{ marginBottom: spacing.md }}
+            testID="crescimento-form-child-picker"
+          />
           <View style={{ marginBottom: spacing.sm }}>
             <DatePickerField value={dateIso} onChange={setDateIso} placeholder="Data da medida" maximumDate={new Date()} />
           </View>
@@ -275,40 +258,47 @@ export default function CrescimentoScreen() {
         )}
         ListHeaderComponent={records.length > 0 ? (
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: spacing.sm, textAlign: 'center' }}>
-            Toque para editar · Pressione e segure para excluir
+            Toque para editar · Deslize pra esquerda para apagar
           </Text>
         ) : null}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            onPress={() => startEdit(item)}
-            onLongPress={() => handleDelete(item)}
-            delayLongPress={400}
-            activeOpacity={0.7}
-            style={{
-              backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg,
-              marginBottom: spacing.sm, ...shadows.sm,
-              flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-              borderWidth: editingId === item.id ? 2 : 0,
-              borderColor: editingId === item.id ? colors.brand : 'transparent',
-            }}
-          >
-            <Text style={{ fontSize: 20 }}>📏</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
-                {item.childName} — {item.measured_date?.split('-').reverse().join('/')}
-              </Text>
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-                {item.weight_kg ? `${item.weight_kg}kg` : ''}
-                {item.weight_kg && item.height_cm ? ' · ' : ''}
-                {item.height_cm ? `${item.height_cm}cm` : ''}
-                {item.head_cm ? `${(item.weight_kg || item.height_cm) ? ' · ' : ''}PC ${item.head_cm}cm` : ''}
-              </Text>
-            </View>
-            <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
-          </TouchableOpacity>
+          <View style={{ marginBottom: spacing.sm }}>
+            <SwipeToDelete
+              onDelete={() => performDelete(item)}
+              onEdit={() => startEdit(item)}
+              confirmTitle="Excluir registro de crescimento?"
+              confirmMessage={buildDeleteConfirmMessage(item)}
+            >
+              <TouchableOpacity
+                onPress={() => startEdit(item)}
+                activeOpacity={0.7}
+                style={{
+                  backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg,
+                  ...shadows.sm,
+                  flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                  borderWidth: editingId === item.id ? 2 : 0,
+                  borderColor: editingId === item.id ? colors.brand : 'transparent',
+                }}
+              >
+                <Text style={{ fontSize: 20 }}>📏</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
+                    {item.childName} — {item.measured_date?.split('-').reverse().join('/')}
+                  </Text>
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
+                    {item.weight_kg ? `${item.weight_kg}kg` : ''}
+                    {item.weight_kg && item.height_cm ? ' · ' : ''}
+                    {item.height_cm ? `${item.height_cm}cm` : ''}
+                    {item.head_cm ? `${(item.weight_kg || item.height_cm) ? ' · ' : ''}PC ${item.head_cm}cm` : ''}
+                  </Text>
+                </View>
+                <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+              </TouchableOpacity>
+            </SwipeToDelete>
+          </View>
         )}
       />
-      <Toast value={toast} onClear={() => setToast(null)} />
+      {/* Toast agora é global via ToastProvider em _layout.tsx */}
     </View>
   );
 }

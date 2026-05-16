@@ -21,6 +21,7 @@ import { notifyAction } from 'src/services/notify';
 import { getBrazilToday } from 'src/lib/constants';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { DatePickerField, TimePickerField, isoDateToDisplay } from 'src/components/ui/DateTimeField';
+import ChildPicker from 'src/components/ui/ChildPicker';
 
 type EventType = 'illness' | 'medication' | 'appointment' | 'observation';
 
@@ -230,30 +231,15 @@ export default function RegistrarScreen() {
             {children.length > 1 ? (
               <View style={{ marginTop: spacing.xl }}>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textSecondary, marginBottom: spacing.md }}>
-                  Crianca
+                  Criança
                 </Text>
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
-                  {children.map(c => (
-                    <TouchableOpacity
-                      key={c.id}
-                      onPress={() => setSelectedChildId(c.id)}
-                      style={{
-                        paddingVertical: spacing.sm, paddingHorizontal: spacing.lg,
-                        borderRadius: radius.full,
-                        backgroundColor: selectedChildId === c.id ? colors.brand : colors.bgElevated,
-                        borderWidth: 1,
-                        borderColor: selectedChildId === c.id ? colors.brand : colors.borderLight,
-                      }}
-                    >
-                      <Text style={{
-                        fontSize: font.sizes.sm, fontWeight: font.weights.medium,
-                        color: selectedChildId === c.id ? '#fff' : colors.text,
-                      }}>
-                        {c.full_name.split(' ')[0]}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
+                <ChildPicker
+                  items={children}
+                  selectedId={selectedChildId}
+                  onSelect={(id) => setSelectedChildId(id ?? '')}
+                  hideWhenSingle={false}
+                  testID="registrar-child-picker"
+                />
               </View>
             ) : null}
           </View>

@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { supabase } from 'src/lib/supabase';
 import { fetchChildren, type Child } from 'src/services/children';
+import ChildPicker from 'src/components/ui/ChildPicker';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -184,41 +185,30 @@ export default function ExportScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
           Export de saúde
         </Text>
-        <TouchableOpacity onPress={handleShare} hitSlop={12}>
+        <TouchableOpacity
+          onPress={handleShare}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Compartilhar export"
+          accessibilityHint="Abre o seletor de apps para enviar o relatório de saúde"
+        >
           <Ionicons name="share-outline" size={22} color={colors.brand} />
         </TouchableOpacity>
       </View>
 
-      {children.length > 1 ? (
-        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.sm }}>
-            {children.map(c => {
-              const active = selectedChildId === c.id;
-              return (
-                <TouchableOpacity
-                  key={c.id}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedChildId(c.id); setLoading(true); }}
-                  style={{
-                    paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
-                    backgroundColor: active ? colors.brand : colors.bgElevated,
-                    borderWidth: 1, borderColor: active ? colors.brand : colors.borderLight,
-                  }}
-                >
-                  <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text }}>
-                    {c.full_name.split(' ')[0]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      ) : null}
+      <ChildPicker
+        items={children}
+        selectedId={selectedChildId}
+        onSelect={(id) => { setSelectedChildId(id); setLoading(true); }}
+        containerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}
+        testID="export-child-picker"
+      />
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}>
         {/* Hero */}

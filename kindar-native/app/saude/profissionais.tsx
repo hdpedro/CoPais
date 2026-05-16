@@ -15,6 +15,7 @@ import { safeWrite } from 'src/services/offline';
 import { useAuth } from 'src/store/auth';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
+import SwipeToDelete from 'src/components/ui/SwipeToDelete';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { formatCRM } from 'src/lib/format';
 
@@ -122,18 +123,11 @@ export default function ProfissionaisScreen() {
   }
 
   async function handleDelete(p: Professional) {
-    Alert.alert('Remover profissional', `Remover ${p.name}? Consultas vinculadas a ele(a) ficam intactas.`, [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Remover',
-        style: 'destructive',
-        onPress: async () => {
-          await safeWrite({ table: 'medical_professionals', operation: 'delete', payload: { id: p.id } });
-          Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          load();
-        },
-      },
-    ]);
+    // Confirmação fica no SwipeToDelete. Aqui executa direto. Modal de
+    // detalhe ainda chama esse handler com Alert.alert próprio.
+    await safeWrite({ table: 'medical_professionals', operation: 'delete', payload: { id: p.id } });
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    load();
   }
 
   return (
@@ -219,29 +213,36 @@ export default function ProfissionaisScreen() {
         renderItem={({ item }) => {
           const cleanCrm = formatCRM(item.crm);
           return (
-            <TouchableOpacity
-              onPress={() => {
-                Haptics.selectionAsync();
-                setViewing(item);
-              }}
-              onLongPress={() => handleDelete(item)}
-              activeOpacity={0.85}
-              style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
-            >
-              <Text style={{ fontSize: 20 }}>👨‍⚕️</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.name}</Text>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                  {item.specialty}{cleanCrm ? ` · CRM ${cleanCrm}` : ''}
-                </Text>
-                {item.phone || item.address ? (
-                  <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }} numberOfLines={1}>
-                    {[item.phone, item.address].filter(Boolean).join(' · ')}
-                  </Text>
-                ) : null}
-              </View>
-              <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
-            </TouchableOpacity>
+            <View style={{ marginBottom: spacing.sm }}>
+              <SwipeToDelete
+                onDelete={() => handleDelete(item)}
+                confirmTitle="Remover profissional"
+                confirmMessage={`Remover ${item.name}? Consultas vinculadas ficam intactas.`}
+              >
+                <TouchableOpacity
+                  onPress={() => {
+                    Haptics.selectionAsync();
+                    setViewing(item);
+                  }}
+                  activeOpacity={0.85}
+                  style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
+                >
+                  <Text style={{ fontSize: 20 }}>👨‍⚕️</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.name}</Text>
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
+                      {item.specialty}{cleanCrm ? ` · CRM ${cleanCrm}` : ''}
+                    </Text>
+                    {item.phone || item.address ? (
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }} numberOfLines={1}>
+                        {[item.phone, item.address].filter(Boolean).join(' · ')}
+                      </Text>
+                    ) : null}
+                  </View>
+                  <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+                </TouchableOpacity>
+              </SwipeToDelete>
+            </View>
           );
         }}
       />

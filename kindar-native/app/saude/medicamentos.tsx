@@ -17,6 +17,7 @@ import { useAuth } from 'src/store/auth';
 import { getDisplayName, getBrazilToday } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
+import ChildPicker from 'src/components/ui/ChildPicker';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Med {
@@ -229,16 +230,13 @@ export default function MedicamentosScreen() {
 
       {showForm ? (
         <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-          {children.length > 1 ? (
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, flexWrap: 'wrap' }}>
-              {children.map(c => (
-                <TouchableOpacity key={c.id} onPress={() => setSelectedChild(c.id)}
-                  style={{ paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.full, backgroundColor: selectedChild === c.id ? colors.brand : colors.bgSurface }}>
-                  <Text style={{ fontSize: font.sizes.sm, color: selectedChild === c.id ? '#fff' : colors.text }}>{c.full_name.split(' ')[0]}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
+          <ChildPicker
+            items={children}
+            selectedId={selectedChild}
+            onSelect={(id) => setSelectedChild(id ?? '')}
+            containerStyle={{ marginBottom: spacing.md }}
+            testID="medicamento-form-child-picker"
+          />
           <TextInput value={name} onChangeText={setName} placeholder="Nome do medicamento" placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>

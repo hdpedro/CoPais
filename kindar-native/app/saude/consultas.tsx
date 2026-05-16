@@ -14,6 +14,7 @@ import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, TimePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import ChildPicker from 'src/components/ui/ChildPicker';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Appt { id: string; title: string; appointment_date: string; location: string | null; status: string; notes: string | null; childName: string; profName: string | null; child_id: string; }
@@ -253,16 +254,13 @@ export default function ConsultasScreen() {
 
       {showForm ? (
         <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-          {children.length > 1 ? (
-            <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md, flexWrap: 'wrap' }}>
-              {children.map(c => (
-                <TouchableOpacity key={c.id} onPress={() => setSelectedChild(c.id)}
-                  style={{ paddingVertical: spacing.xs, paddingHorizontal: spacing.md, borderRadius: radius.full, backgroundColor: selectedChild === c.id ? colors.brand : colors.bgSurface }}>
-                  <Text style={{ fontSize: font.sizes.sm, color: selectedChild === c.id ? '#fff' : colors.text }}>{c.full_name.split(' ')[0]}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          ) : null}
+          <ChildPicker
+            items={children}
+            selectedId={selectedChild}
+            onSelect={(id) => setSelectedChild(id ?? '')}
+            containerStyle={{ marginBottom: spacing.md }}
+            testID="consulta-form-child-picker"
+          />
           <TextInput value={title} onChangeText={setTitle} placeholder="Tipo (Pediatra, Dentista...)" placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>

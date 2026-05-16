@@ -29,6 +29,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/store/auth';
+import ChildPicker from 'src/components/ui/ChildPicker';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Child { id: string; full_name: string; birth_date: string; sex: 'M' | 'F' | null; }
@@ -270,44 +271,32 @@ export default function ResumoConsultaScreen() {
         flexDirection: 'row', alignItems: 'center', gap: spacing.md,
         borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
           Resumo de consulta
         </Text>
         {child && data ? (
-          <TouchableOpacity onPress={shareSummary} hitSlop={12}>
+          <TouchableOpacity
+            onPress={shareSummary}
+            hitSlop={12}
+            accessibilityRole="button"
+            accessibilityLabel="Compartilhar resumo"
+            accessibilityHint="Abre o seletor de apps para enviar o resumo de saúde"
+          >
             <Ionicons name="share-outline" size={22} color={colors.brand} />
           </TouchableOpacity>
         ) : null}
       </View>
 
-      {/* Child picker — flex-wrap em vez de scroll horizontal: famílias com 3+
-         filhos veem todos os chips sem precisar arrastar (replica padrão da
-         timeline `app/saude/timeline.tsx`, iteração 2). */}
-      {children.length > 1 ? (
-        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.sm }}>
-            {children.map(c => {
-              const active = c.id === selectedChildId;
-              return (
-                <TouchableOpacity key={c.id} onPress={() => setSelectedChildId(c.id)}
-                  style={{
-                    paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
-                    backgroundColor: active ? colors.brand : colors.bgElevated,
-                    borderWidth: 1, borderColor: active ? colors.brand : colors.borderLight,
-                  }}
-                >
-                  <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text }}>
-                    {c.full_name.split(' ')[0]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      ) : null}
+      <ChildPicker
+        items={children}
+        selectedId={selectedChildId}
+        onSelect={(id) => setSelectedChildId(id)}
+        containerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}
+        testID="consulta-resumo-child-picker"
+      />
 
       {loading ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>

@@ -34,6 +34,7 @@ import { withTimeout } from 'src/lib/with-timeout';
 import { recordVaccinationViaEngine, matchVaccineCatalog } from 'src/services/health';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import ChildPicker from 'src/components/ui/ChildPicker';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface CatalogMatch {
@@ -236,29 +237,13 @@ export default function NovaVacinaScreen() {
         {children.length > 1 ? (
           <View style={{ marginBottom: spacing.md }}>
             <Text style={styles.label}>{t('health.child')}</Text>
-            <View style={{ flexDirection: 'row', gap: spacing.sm, flexWrap: 'wrap' }}>
-              {children.map((c) => {
-                const active = c.id === selectedChildId;
-                return (
-                  <TouchableOpacity
-                    key={c.id}
-                    onPress={() => setSelectedChildId(c.id)}
-                    style={{
-                      paddingVertical: spacing.xs + 2,
-                      paddingHorizontal: spacing.md,
-                      borderRadius: radius.full,
-                      backgroundColor: active ? colors.brand : colors.bgElevated,
-                      borderWidth: 1,
-                      borderColor: active ? colors.brand : colors.borderLight,
-                    }}
-                  >
-                    <Text style={{ color: active ? '#fff' : colors.text, fontSize: font.sizes.sm }}>
-                      {c.full_name.split(' ')[0]}
-                    </Text>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+            <ChildPicker
+              items={children}
+              selectedId={selectedChildId}
+              onSelect={(id) => setSelectedChildId(id ?? '')}
+              hideWhenSingle={false}
+              testID="vacina-nova-child-picker"
+            />
           </View>
         ) : null}
 

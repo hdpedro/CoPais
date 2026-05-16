@@ -1,5 +1,5 @@
 /**
- * Nova Doenca — registrar episodio de doenca.
+ * Nova Doença — registrar episódio de doença.
  * Mirrors PWA /saude/doencas/nova.
  */
 import { useState, useEffect } from 'react';
@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { createIllness } from 'src/services/health';
 import { fetchChildren, type Child } from 'src/services/children';
+import ChildPicker from 'src/components/ui/ChildPicker';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 /**
@@ -127,7 +128,7 @@ export default function NovaDoencaScreen() {
       style={{ flex: 1, backgroundColor: colors.bg }}
     >
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
@@ -144,29 +145,17 @@ export default function NovaDoencaScreen() {
 
         {/* Child */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Criança *</Text>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
-          {children.map(c => {
-            const active = childId === c.id;
-            return (
-              <TouchableOpacity
-                key={c.id}
-                onPress={() => setChildId(c.id)}
-                style={{
-                  paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
-                  backgroundColor: active ? colors.brand : colors.bgElevated,
-                  borderWidth: 1, borderColor: active ? colors.brand : colors.borderLight,
-                }}
-              >
-                <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                  {c.full_name.split(' ')[0]}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
+        <ChildPicker
+          items={children}
+          selectedId={childId}
+          onSelect={(id) => setChildId(id ?? '')}
+          hideWhenSingle={false}
+          containerStyle={{ marginBottom: spacing.lg }}
+          testID="doenca-nova-child-picker"
+        />
 
         {/* Title */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Titulo *</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Título *</Text>
         <TextInput
           value={title} onChangeText={setTitle}
           placeholder="Ex: Gripe, Covid, Virose"

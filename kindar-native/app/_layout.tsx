@@ -21,6 +21,7 @@ import { colors } from 'src/design-system/tokens';
 import AIAssistantSheet from 'src/components/ai/AIAssistantSheet';
 import LockGate from 'src/components/LockGate';
 import AnalyticsTree from 'src/components/AnalyticsTree';
+import { ToastProvider } from 'src/components/ui/ToastProvider';
 
 export default function RootLayout() {
   const { isLoading, initialize, userId } = useAuth();
@@ -128,6 +129,7 @@ export default function RootLayout() {
   return (
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
+        <ToastProvider>
         <AnalyticsTree>
         <LockGate>
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -170,6 +172,7 @@ export default function RootLayout() {
         </View>
         </LockGate>
         </AnalyticsTree>
+        </ToastProvider>
         <StatusBar style="dark" />
       </GestureHandlerRootView>
     </ErrorBoundary>

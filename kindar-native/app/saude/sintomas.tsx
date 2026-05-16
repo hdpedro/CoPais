@@ -15,6 +15,7 @@ import { useAuth } from 'src/store/auth';
 import { fetchSymptoms, createSymptomEntry, type SymptomEntry } from 'src/services/health';
 import { fetchChildren, type Child } from 'src/services/children';
 import EmptyState from 'src/components/ui/EmptyState';
+import ChildPicker from 'src/components/ui/ChildPicker';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 /**
@@ -160,7 +161,7 @@ export default function SintomasScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Header */}
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
@@ -168,31 +169,14 @@ export default function SintomasScreen() {
         </Text>
       </View>
 
-      {/* Child selector — flex-wrap (3+ filhos não precisam de scroll horizontal) */}
-      {children.length > 1 ? (
-        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.sm }}>
-            {children.map(c => {
-              const active = selectedChildId === c.id;
-              return (
-                <TouchableOpacity
-                  key={c.id}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setSelectedChildId(c.id); setLoading(true); }}
-                  style={{
-                    paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
-                    backgroundColor: active ? colors.brand : colors.bgElevated,
-                    borderWidth: 1, borderColor: active ? colors.brand : colors.borderLight,
-                  }}
-                >
-                  <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                    {c.full_name.split(' ')[0]}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
-        </View>
-      ) : null}
+      {/* Seletor de criança (componente consolidado) */}
+      <ChildPicker
+        items={children}
+        selectedId={selectedChildId}
+        onSelect={(id) => { setSelectedChildId(id); setLoading(true); }}
+        containerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}
+        testID="sintomas-child-picker"
+      />
 
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
