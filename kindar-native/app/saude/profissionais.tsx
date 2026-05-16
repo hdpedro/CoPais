@@ -16,6 +16,7 @@ import { useAuth } from 'src/store/auth';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
 import SwipeToDelete from 'src/components/ui/SwipeToDelete';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { formatCRM } from 'src/lib/format';
 
@@ -48,6 +49,7 @@ export default function ProfissionaisScreen() {
   const { userId, activeGroup } = useAuth();
   const [profs, setProfs] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Professional | null>(null);
   const [viewing, setViewing] = useState<Professional | null>(null);
@@ -72,6 +74,12 @@ export default function ProfissionaisScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
 
   function resetForm() {
     setEditing(null);
@@ -201,13 +209,19 @@ export default function ProfissionaisScreen() {
         </ScrollView>
       ) : null}
 
-      <FlatList data={profs} keyExtractor={item => item.id} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
+      {loading && profs.length === 0 ? (
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={3} />
+        </View>
+      ) : null}
+      <FlatList data={loading && profs.length === 0 ? [] : profs} keyExtractor={item => item.id} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : (
           <EmptyState
             icon="👨‍⚕️"
-            title="Nenhum profissional cadastrado"
-            description="Adicione médicos, dentistas e terapeutas para ter os contatos sempre à mão."
+            title="Comece pelo pediatra"
+            description={'Com cada profissional cadastrado:\n• Contato direto em 1 toque (WhatsApp/ligação)\n• Vínculo com consultas pra rastrear histórico\n• Ficha de emergência traz o pediatra automaticamente'}
+            action={{ label: 'Adicionar profissional', onPress: () => setShowForm(true), accessibilityHint: 'Abre formulário pra cadastrar profissional' }}
           />
         )}
         renderItem={({ item }) => {

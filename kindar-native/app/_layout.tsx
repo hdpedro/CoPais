@@ -22,6 +22,7 @@ import AIAssistantSheet from 'src/components/ai/AIAssistantSheet';
 import LockGate from 'src/components/LockGate';
 import AnalyticsTree from 'src/components/AnalyticsTree';
 import { ToastProvider } from 'src/components/ui/ToastProvider';
+import OfflineBanner from 'src/components/ui/OfflineBanner';
 
 export default function RootLayout() {
   const { isLoading, initialize, userId } = useAuth();
@@ -169,6 +170,10 @@ export default function RootLayout() {
               Sheet permanece montado pra ser aberto via outros gatilhos
               (header sparkle button do dashboard, deep link /ai, etc.). */}
           <AIAssistantSheet />
+          {/* Banner global de offline/sync. Vive acima das telas via absolute
+              positioning + zIndex; gated por estar dentro de LockGate (não
+              mostra durante o lock screen). */}
+          <OfflineBanner />
         </View>
         </LockGate>
         </AnalyticsTree>

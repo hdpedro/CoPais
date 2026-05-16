@@ -21,6 +21,7 @@ import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import SwipeToDelete from 'src/components/ui/SwipeToDelete';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -38,6 +39,7 @@ export default function CrescimentoScreen() {
   const { userId, activeGroup } = useAuth();
   const [records, setRecords] = useState<GrowthRecord[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [children, setChildren] = useState<Array<{id: string; full_name: string}>>([]);
   const [selectedChild, setSelectedChild] = useState('');
@@ -69,6 +71,12 @@ export default function CrescimentoScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
 
   // Realtime: refletir mudancas vindas de outro dispositivo (ou do
   // co-pai) sem precisar refresh manual. Filtra por group_id pra nao
@@ -244,16 +252,22 @@ export default function CrescimentoScreen() {
           </TouchableOpacity>
         </View>
       ) : null}
+      {loading && records.length === 0 ? (
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={4} />
+        </View>
+      ) : null}
       <FlatList
-        data={records}
+        data={loading && records.length === 0 ? [] : records}
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : (
           <EmptyState
             icon="📏"
-            title="Nenhuma medida registrada"
-            description="Registre peso, altura e perímetro cefálico para acompanhar a curva de crescimento."
+            title="Comece registrando a última consulta"
+            description={'Cada medida vira:\n• Curva de crescimento ao longo do tempo\n• Comparação com a OMS por idade\n• Histórico exportável pro pediatra'}
+            action={{ label: 'Registrar medida', onPress: () => setShowForm(true), accessibilityHint: 'Abre formulário pra cadastrar peso/altura' }}
           />
         )}
         ListHeaderComponent={records.length > 0 ? (

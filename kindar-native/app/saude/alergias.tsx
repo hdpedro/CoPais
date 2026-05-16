@@ -14,6 +14,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import SwipeToDelete from 'src/components/ui/SwipeToDelete';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Allergy { id: string; name: string; allergy_type: string; severity: string; reaction: string | null; childName: string; child_id: string; }
@@ -42,6 +43,7 @@ export default function AlergiasScreen() {
   const [selectedChild, setSelectedChild] = useState('');
   const [children, setChildren] = useState<Array<{id: string; full_name: string}>>([]);
   const [saving, setSaving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const load = useCallback(async () => {
     if (!activeGroup) return;
@@ -58,6 +60,12 @@ export default function AlergiasScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
 
   async function handleCreate() {
     if (!name.trim() || !selectedChild || !userId || !activeGroup) return;
@@ -138,14 +146,20 @@ export default function AlergiasScreen() {
         </View>
       ) : null}
 
-      <FlatList data={allergies} keyExtractor={item => item.id}
+      {loading && allergies.length === 0 ? (
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={3} />
+        </View>
+      ) : null}
+      <FlatList data={loading && allergies.length === 0 ? [] : allergies} keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : (
           <EmptyState
             icon="⚠️"
-            title="Nenhuma alergia registrada"
-            description="Cadastre alergias para que ambos os responsáveis tenham acesso rápido em caso de emergência."
+            title="Comece pela alergia mais grave"
+            description={'Ela aparecerá automaticamente:\n• Na ficha de emergência compartilhável\n• Nos resumos antes de consultas\n• No app do co-responsável em tempo real'}
+            action={{ label: 'Adicionar alergia', onPress: () => setShowForm(true), accessibilityHint: 'Abre formulário pra cadastrar nova alergia' }}
           />
         )}
         renderItem={({ item }) => {

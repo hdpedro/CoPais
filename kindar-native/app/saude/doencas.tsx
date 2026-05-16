@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { fetchIllnesses, resolveIllness, addEvolutionQuick, type IllnessEpisode } from 'src/services/health';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const SEV_META: Record<string, { label: string; color: string }> = {
@@ -154,8 +155,8 @@ export default function DoencasScreen() {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color={colors.brand} />
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={3} />
         </View>
       ) : (
         <ScrollView
@@ -165,8 +166,10 @@ export default function DoencasScreen() {
           {filtered.length === 0 ? (
             <EmptyState
               icon="🩺"
-              title={filter === 'active' ? 'Nenhuma doença ativa' : 'Nenhum episódio registrado'}
-              description="Registre episódios para acompanhar a evolução de doenças e tratamentos."
+              title={filter === 'active' ? 'Tudo tranquilo por enquanto' : 'Comece pelo último episódio'}
+              description={filter === 'active'
+                ? 'Quando aparecer uma gripe, virose, alergia… registre aqui pra:\n• O co-responsável saber em tempo real\n• Ter histórico pro pediatra\n• Acompanhar evolução com fotos e sintomas'
+                : 'Cada episódio salvo vira:\n• Linha do tempo de saúde da criança\n• Insights de padrões (recorrência)\n• Contexto pro próximo médico'}
               action={{ label: 'Registrar episódio', onPress: () => router.push('/saude/doencas/nova') }}
             />
           ) : (

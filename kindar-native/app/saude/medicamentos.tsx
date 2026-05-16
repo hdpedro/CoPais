@@ -18,6 +18,7 @@ import { getDisplayName, getBrazilToday } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Med {
@@ -61,6 +62,7 @@ export default function MedicamentosScreen() {
   const { userId, activeGroup } = useAuth();
   const [meds, setMeds] = useState<Med[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [children, setChildren] = useState<Array<{id: string; full_name: string}>>([]);
   const [selectedChild, setSelectedChild] = useState('');
@@ -111,6 +113,12 @@ export default function MedicamentosScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  async function onRefresh() {
+    setRefreshing(true);
+    await load();
+    setRefreshing(false);
+  }
 
   async function handleCreate() {
     if (!name.trim() || !selectedChild || !userId || !activeGroup) return;
@@ -254,14 +262,20 @@ export default function MedicamentosScreen() {
         </View>
       ) : null}
 
-      <FlatList data={[...activeMeds, ...pastMeds]} keyExtractor={item => item.id}
+      {loading && meds.length === 0 ? (
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={3} />
+        </View>
+      ) : null}
+      <FlatList data={loading && meds.length === 0 ? [] : [...activeMeds, ...pastMeds]} keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : (
           <EmptyState
             icon="💊"
-            title="Nenhum medicamento"
-            description="Registre medicamentos para acompanhar doses e compartilhar tratamentos com o co-responsável."
+            title="Acompanhe doses sem decorar horários"
+            description={'Registrando um medicamento:\n• O app lembra você do próximo horário\n• O co-responsável vê o que já foi dado\n• Histórico fica salvo pro pediatra'}
+            action={{ label: 'Adicionar medicamento', onPress: () => setShowForm(true), accessibilityHint: 'Abre formulário pra cadastrar medicamento' }}
           />
         )}
         renderItem={({ item }) => {
