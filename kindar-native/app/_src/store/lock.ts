@@ -22,6 +22,7 @@
 import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
+import { authenticate as biometricAuthenticate, type AuthenticateResult } from '../services/biometric-lock';
 
 const KEY_ENABLED = 'kindar_lock_enabled';
 const KEY_TIMEOUT = 'kindar_lock_timeout';
@@ -54,12 +55,26 @@ interface LockState {
   lastUnlockAt: number | null;
   /** Quando o app foi pra background pela ultima vez (epoch ms). */
   lastBackgroundAt: number | null;
+  /**
+   * True enquanto o prompt biometrico nativo esta visivel. O iOS troca
+   * o AppState pra inactive/background transientemente durante o prompt
+   * — isso NAO e backgrounding genuino e nao deve disparar re-lock.
+   * markBackground e evaluateOnForeground sao no-op enquanto essa flag
+   * estiver ligada, eliminando a race condition entre o callback do
+   * AppState e a resolucao da Promise do authenticateAsync.
+   */
+  isAuthenticating: boolean;
 
   hydrate: () => Promise<void>;
   setEnabled: (enabled: boolean) => Promise<void>;
   setTimeout: (timeout: LockTimeout) => Promise<void>;
-  /** Marca como desbloqueado (apos sucesso na biometria). */
-  unlock: () => void;
+  /**
+   * Dispara o prompt biometrico nativo e, em sucesso, desbloqueia
+   * atomicamente. Re-entrante: chamadas concorrentes retornam
+   * `{ success: false, error: 'in_flight' }` sem efeito ate a anterior
+   * resolver.
+   */
+  requestUnlock: (promptMessage?: string) => Promise<AuthenticateResult>;
   /** Forca lock — usado quando app vai pra background. */
   lock: () => void;
   /** Registra timestamp do background — chamado no AppState change. */
@@ -115,6 +130,7 @@ export const useLock = create<LockState>((set, get) => ({
   isLocked: false,
   lastUnlockAt: null,
   lastBackgroundAt: null,
+  isAuthenticating: false,
 
   hydrate: async () => {
     const [enabled, timeout] = await Promise.all([
@@ -142,8 +158,22 @@ export const useLock = create<LockState>((set, get) => ({
     set({ timeout });
   },
 
-  unlock: () => {
-    set({ isLocked: false, lastUnlockAt: Date.now() });
+  requestUnlock: async (promptMessage = 'Desbloquear Kindar') => {
+    if (get().isAuthenticating) return { success: false, error: 'in_flight' };
+    set({ isAuthenticating: true });
+    try {
+      const result = await biometricAuthenticate(promptMessage);
+      if (result.success) {
+        // Limpa lastBackgroundAt junto com o unlock pra evitar que um
+        // evaluateOnForeground tardio (caso a flag isAuthenticating
+        // tenha sido limpa antes do callback) calcule elapsed contra
+        // um timestamp obsoleto e re-trave.
+        set({ isLocked: false, lastUnlockAt: Date.now(), lastBackgroundAt: null });
+      }
+      return result;
+    } finally {
+      set({ isAuthenticating: false });
+    }
   },
 
   lock: () => {
@@ -151,11 +181,17 @@ export const useLock = create<LockState>((set, get) => ({
   },
 
   markBackground: () => {
+    // O prompt biometrico do iOS troca o AppState transientemente.
+    // Ignorar essa transicao — nao e backgrounding genuino do usuario.
+    if (get().isAuthenticating) return;
     set({ lastBackgroundAt: Date.now() });
   },
 
   evaluateOnForeground: () => {
-    const { enabled, timeout, isLocked, lastBackgroundAt } = get();
+    const { enabled, timeout, isLocked, lastBackgroundAt, isAuthenticating } = get();
+    // Mesma razao do markBackground: durante autenticacao, o retorno
+    // ao foreground vem do fechamento do prompt, nao da volta do usuario.
+    if (isAuthenticating) return;
     if (!enabled) return;
     if (isLocked) return; // ja ta travado, nao precisa reavaliar
     const threshold = TIMEOUT_MS[timeout];

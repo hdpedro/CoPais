@@ -31,7 +31,7 @@ interface Props {
 }
 
 export default function LockGate({ children }: Props) {
-  const { hydrated, hydrate, enabled, isLocked, markBackground, evaluateOnForeground } = useLock();
+  const { hydrated, hydrate, enabled, isLocked, isAuthenticating, markBackground, evaluateOnForeground } = useLock();
   const isAuthenticated = useAuth(s => s.isAuthenticated);
   const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState);
   const lastStateRef = useRef<AppStateStatus>(AppState.currentState);
@@ -67,6 +67,13 @@ export default function LockGate({ children }: Props) {
   // PrivacyCover ficam por cima via absoluteFill — quando o user destrava,
   // some o overlay e ele volta exatamente pra tela onde estava.
   // Padrao usado por WhatsApp e apps bancarios serios.
+  //
+  // O cover SO aparece em backgrounding genuino. Durante o prompt biometrico
+  // o iOS pisca o AppState pra inactive/background; renderizar o cover
+  // nessa janela causa flicker visivel apos sucesso (transicao isLocked
+  // true→false acontece *antes* do AppState voltar pra 'active'). Suprimir
+  // via isAuthenticating elimina a janela.
+  const showCover = !isLocked && !isAuthenticating && appState !== 'active';
   return (
     <View style={{ flex: 1 }}>
       {children}
@@ -74,7 +81,7 @@ export default function LockGate({ children }: Props) {
         <View style={StyleSheet.absoluteFill}>
           <LockScreen />
         </View>
-      ) : appState !== 'active' ? (
+      ) : showCover ? (
         <View style={[StyleSheet.absoluteFill, styles.cover]}>
           <View style={styles.logoBox}><Text style={styles.logoEmoji}>🏠</Text></View>
           <Text style={styles.brand}>Kindar</Text>

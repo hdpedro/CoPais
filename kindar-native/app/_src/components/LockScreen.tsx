@@ -15,70 +15,79 @@
  * impede ligar lock sem biometria cadastrada.
  */
 
-import { useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useLock } from '../store/lock';
-import { authenticate, getBiometricCapability, type BiometricCapability } from '../services/biometric-lock';
+import { getBiometricCapability, type BiometricCapability } from '../services/biometric-lock';
 import { colors, spacing, radius, font } from '../design-system/tokens';
 
 export default function LockScreen() {
-  const unlock = useLock(s => s.unlock);
-  const [authenticating, setAuthenticating] = useState(false);
+  // O store e a fonte unica do estado de autenticacao: garante re-entrancia
+  // safe (chamadas concorrentes viram no-op) e sobrevive a remount do
+  // componente, que pode acontecer se isLocked oscilar.
+  const requestUnlock = useLock(s => s.requestUnlock);
+  const authenticating = useLock(s => s.isAuthenticating);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [capability, setCapability] = useState<BiometricCapability | null>(null);
   const insets = useSafeAreaInsets();
-  // Garante 1 prompt simultaneo (chamadas duplicadas em iOS empilham
-  // e geram comportamento inconsistente).
-  const inFlightRef = useRef(false);
+  // Em sucesso, a transicao isLocked=true→false desmonta este componente.
+  // Qualquer setState depois de um await que rode pos-desmonte e dead code.
+  // Guard explicito > dependerm do React 18 engolir silenciosamente.
+  const mountedRef = useRef(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
 
-  async function tryUnlock() {
-    if (inFlightRef.current) return;
-    inFlightRef.current = true;
-    setAuthenticating(true);
+  const tryUnlock = useCallback(async () => {
+    if (!mountedRef.current) return;
     setErrorMsg(null);
+
     const cap = capability ?? await getBiometricCapability();
+    if (!mountedRef.current) return;
     if (!capability) setCapability(cap);
 
     if (!cap.hasHardware) {
       setErrorMsg('Este dispositivo nao suporta biometria.');
-      setAuthenticating(false);
-      inFlightRef.current = false;
       return;
     }
     if (!cap.isEnrolled) {
       setErrorMsg(`Cadastre ${cap.label} nos Ajustes do dispositivo para desbloquear.`);
-      setAuthenticating(false);
-      inFlightRef.current = false;
       return;
     }
 
-    const result = await authenticate('Desbloquear Kindar');
-    setAuthenticating(false);
-    inFlightRef.current = false;
+    const result = await requestUnlock('Desbloquear Kindar');
+    if (!mountedRef.current) return;
 
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-      unlock();
       return;
     }
+    // in_flight = ja tem outro prompt rodando (re-entrancia bloqueada pelo store)
     // user_cancel = user clicou Cancelar no prompt — sem mensagem invasiva
     // user_fallback = user pediu passcode (mas disableDeviceFallback=false ja resolve)
     // lockout = biometria bloqueada por muitas tentativas
+    if (result.error === 'in_flight' || result.error === 'user_cancel' || result.error === 'cancel') {
+      return;
+    }
     if (result.error === 'lockout' || result.error?.includes('lock')) {
       setErrorMsg('Biometria bloqueada. Use a senha do dispositivo.');
-    } else if (result.error && result.error !== 'user_cancel' && result.error !== 'cancel') {
+    } else if (result.error) {
       setErrorMsg('Tente novamente.');
     }
-  }
+  }, [capability, requestUnlock]);
 
   useEffect(() => {
     // Auto-trigger no primeiro render. Pequeno delay pra UI aparecer
     // antes do prompt (UX mais suave que prompt instantaneo).
     const t = setTimeout(() => { tryUnlock(); }, 250);
     return () => clearTimeout(t);
+    // Dependencia intencionalmente vazia: auto-trigger e *uma vez por
+    // montagem*. Re-disparo acontece via remount (isLocked oscilando) ou
+    // toque manual no CTA.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
