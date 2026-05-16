@@ -39,7 +39,12 @@ const DashboardClient = dynamic(() => import("./DashboardClient"), {
 });
 
 export default async function DashboardPage() {
-  const nowMs = Date.now();
+  // Server-side timestamp; react-hooks/purity flags Date.now() during render
+  // but server components legitimately need a timestamp for relative-time
+  // computations. The disable kept being flagged as "unused" by older lint
+  // configs; if it errors again as unused, leave the comment and re-run —
+  // ESLint flat config can disagree across cache states.
+  const nowMs = Date.now(); // eslint-disable-line react-hooks/purity
   const { supabase, user } = await getSessionUser();
   if (!user) redirect("/login");
 
@@ -56,6 +61,16 @@ export default async function DashboardPage() {
     de: "de-DE",
   };
   const bcp47 = intlLocale[locale] ?? "pt-BR";
+
+  // Locale-aware short weekday list — declared early because activity-merge
+  // loops below (around L461/L496) need it for dayLabel formatting. Width
+  // "short" gives 3-letter forms via CLDR. Anchor on a known Sunday
+  // (Jan 4 1970) so getDay() returns 0..6 mapping into Sun..Sat.
+  const weekdayFormatterShort = new Intl.DateTimeFormat(bcp47, { weekday: "short" });
+  const dayNamesShort = Array.from({ length: 7 }, (_, i) => {
+    const anchor = new Date(Date.UTC(1970, 0, 4 + i, 12)); // Sunday + i
+    return weekdayFormatterShort.format(anchor);
+  });
 
   // === BATCH 1: profile (cached) + activeGroup (parallel) ===
   const [profile, activeGroup] = await Promise.all([
@@ -782,16 +797,8 @@ export default async function DashboardPage() {
   const hour = brazilNow.getHours();
   const greetingKey: "morning" | "afternoon" | "evening" = hour < 12 ? "morning" : hour < 18 ? "afternoon" : "evening";
 
-  // Locale-aware short weekday list (used by various downstream date labels:
-  // upcoming events, swaps, agenda). Was previously hardcoded ["S","T","Q",...]
-  // — now derives from CLDR via Intl. Width "short" gives 3-letter forms
-  // ("seg", "Mon", "lun", "Mo." etc) which we slice/uppercase per consumer.
-  // Anchor on a known Sunday (Jan 4 1970) to enumerate Sun-Sat in order.
-  const weekdayFormatterShort = new Intl.DateTimeFormat(bcp47, { weekday: "short" });
-  const dayNamesShort = Array.from({ length: 7 }, (_, i) => {
-    const anchor = new Date(Date.UTC(1970, 0, 4 + i, 12)); // Sunday + i
-    return weekdayFormatterShort.format(anchor);
-  });
+  // (dayNamesShort + weekdayFormatterShort are declared up top, near locale
+  // resolution, because activity merge loops above need them.)
 
   // Locale-aware date "Sunday, 14 May" formatting (Regra Canônica 11).
   // Replaces hardcoded ["Domingo", "Segunda"...] / MONTH_NAMES — those broke

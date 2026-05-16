@@ -125,7 +125,18 @@ export async function createSymptomEntry(params: {
 export async function fetchIllnesses(groupId: string, status?: 'active' | 'resolved'): Promise<IllnessEpisode[]> {
   let q = supabase
     .from('illness_episodes')
-    .select('id, child_id, title, start_date, end_date, status, symptoms, severity, notes, hospital, children(full_name)')
+    // Bug Aline 2026-05-16 iOS: o native estava selecionando + inserindo a
+    // coluna `hospital` (singular) que não existe no schema — Supabase
+    // retornava PGRST204 ("Could not find the 'hospital' column of
+    // 'illness_episodes' in the schema cache") e o INSERT falhava.
+    // Schema real (migration original + 00040) tem `hospital_name` (text),
+    // `hospital_visit` (bool) e `hospital_date` (date). O PWA já usa
+    // `hospital_name` em src/actions/health.ts. Aqui mantemos o nome
+    // externo do campo (IllnessEpisode.hospital) pra preservar o contrato
+    // pros callers atuais (detalhe.tsx, registrar.tsx, doencas.tsx,
+    // useHealth.ts) e só ajustamos o nome real da coluna na query +
+    // mapper + INSERT.
+    .select('id, child_id, title, start_date, end_date, status, symptoms, severity, notes, hospital_name, children(full_name)')
     .eq('group_id', groupId)
     .order('start_date', { ascending: false })
     .limit(100);
@@ -142,7 +153,10 @@ export async function fetchIllnesses(groupId: string, status?: 'active' | 'resol
     symptoms: i.symptoms,
     severity: i.severity,
     notes: i.notes,
-    hospital: i.hospital,
+    // Mantém o nome externo `hospital` pro contrato existente — o
+    // mapeamento server-side é `hospital_name` (schema), client-side é
+    // `hospital` (interface IllnessEpisode + UI form).
+    hospital: i.hospital_name,
     childName: i.children?.full_name?.split(' ')[0] || '',
   }));
 }
@@ -191,7 +205,9 @@ export async function createIllness(params: {
       symptoms: symptomsArray && symptomsArray.length > 0 ? symptomsArray : null,
       severity: params.severity || null,
       notes: params.notes?.trim() || null,
-      hospital: params.hospital?.trim() || null,
+      // Schema (migration original + 00040): coluna se chama `hospital_name`
+      // (não `hospital`). Vide comentário em fetchIllnesses acima.
+      hospital_name: params.hospital?.trim() || null,
       status: 'active',
     },
   });

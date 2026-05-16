@@ -526,6 +526,9 @@ function FilterChip({ active, onClick, label }: { active: boolean; onClick: () =
 }
 
 function PickKindStep({ onPick, onClose }: { onPick: (k: SchoolKind) => void; onClose: () => void }) {
+  // Sub-components live outside the main client closure, so they pull their
+  // own t() from the I18nProvider instead of capturing the parent's `t`.
+  const { t } = useI18n();
   return (
     <div className="p-5">
       <div className="flex items-center justify-between mb-4">
@@ -581,6 +584,7 @@ function PickSubtypeStep({
 }: {
   kind: SchoolKind; onPick: (s: SchoolSubtype) => void; onBack: () => void; onClose: () => void;
 }) {
+  const { t } = useI18n();
   const list = kind === "event" ? EVENT_SUBTYPES : NOTE_SUBTYPES;
   return (
     <div className="p-5">
