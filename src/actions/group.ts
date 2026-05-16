@@ -6,6 +6,7 @@ import { verifyGroupMembership } from "@/lib/auth-utils";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { grantTrialIfEligible } from "@/lib/billing";
 import { markQuestStep } from "@/actions/onboarding-quest";
+import { createChild, updateChild as updateChildService } from "@/lib/services/children";
 
 export async function createGroup(formData: FormData): Promise<{ error?: string; success?: boolean }> {
   const supabase = await createClient();
@@ -36,14 +37,25 @@ export async function createGroup(formData: FormData): Promise<{ error?: string;
 
   if (memberError) return { error: memberError.message };
 
-  // Add child if provided
+  // Add child if provided — usa o service consolidado pra surface erros
+  // PG (FK/check/RLS) de forma uniforme com Native e wizard de onboarding.
   if (childName && childBirthDate) {
-    const { error: childError } = await supabase.from("children").insert({
-      group_id: groupId,
-      full_name: childName,
-      birth_date: childBirthDate,
-    });
-    if (childError) return { error: childError.message };
+    const childResult = await createChild(
+      supabase,
+      {
+        groupId,
+        fullName: childName,
+        birthDate: childBirthDate,
+      },
+      {
+        actorId: user.id,
+        callerPath: "src/actions/group.ts:createGroup",
+        // Cookie client + RLS — não precisa membership check manual.
+        enforceMembership: false,
+        via: "createGroup",
+      },
+    );
+    if (!childResult.ok) return { error: childResult.error };
     // Quest step: first child added
     await markQuestStep("add_child", { via: "createGroup" });
   }
@@ -103,20 +115,33 @@ export async function addChild(formData: FormData) {
   const birthDate = formData.get("birthDate") as string;
   const allergies = formData.get("allergies") as string;
   const notes = formData.get("notes") as string;
-  const sex = formData.get("sex") as string | null;
+  const sexRaw = formData.get("sex") as string | null;
 
-  const { error } = await supabase.from("children").insert({
-    group_id: groupId,
-    full_name: fullName,
-    birth_date: birthDate,
-    allergies: allergies ? allergies.split(",").map(a => a.trim()) : null,
-    notes: notes || null,
-    sex: sex === "M" || sex === "F" ? sex : null,
-  });
+  // Delega pro service — surface erros PG (FK/check/RLS) uniforme com
+  // Native (api/children) e wizard onboarding (api/create-group).
+  const result = await createChild(
+    supabase,
+    {
+      groupId,
+      fullName,
+      birthDate,
+      sex: sexRaw === "M" || sexRaw === "F" ? sexRaw : null,
+      allergies: allergies ? allergies.split(",").map(a => a.trim()) : null,
+      notes: notes || null,
+    },
+    {
+      actorId: user.id,
+      callerPath: "src/actions/group.ts:addChild",
+      enforceMembership: false, // cookie client + RLS
+      via: "addChild",
+    },
+  );
 
-  if (error) redirect("/criancas/nova?error=" + encodeURIComponent(error.message));
+  if (!result.ok) {
+    redirect("/criancas/nova?error=" + encodeURIComponent(result.error));
+  }
 
-  captureServerEvent(user.id, "child_added");
+  // captureServerEvent já chamado pelo service.
   await markQuestStep("add_child", { via: "addChild" });
 
   redirect("/criancas");
@@ -129,7 +154,7 @@ export async function updateChild(formData: FormData) {
 
   const id = formData.get("id") as string;
 
-  // Verify user belongs to the child's group
+  // Pré-fetch só pra descobrir group_id (RLS cuida da permissão real).
   const { data: child } = await supabase
     .from("children")
     .select("group_id")
@@ -152,19 +177,32 @@ export async function updateChild(formData: FormData) {
   const cpf = formData.get("cpf") as string;
   const rg = formData.get("rg") as string;
 
-  const { error } = await supabase
-    .from("children")
-    .update({
-      full_name: fullName,
-      birth_date: birthDate,
-      allergies: allergies ? allergies.split(",").map(a => a.trim()) : null,
-      notes: notes || null,
-      cpf: cpf || null,
-      rg: rg || null,
-    })
-    .eq("id", id);
+  // Delega pro service — mapeamento PG → mensagem humana unificado.
+  const result = await updateChildService(
+    supabase,
+    {
+      childId: id,
+      groupId: child.group_id,
+      patch: {
+        fullName,
+        birthDate,
+        allergies: allergies ? allergies.split(",").map(a => a.trim()) : null,
+        notes: notes || null,
+        cpf: cpf || null,
+        rg: rg || null,
+      },
+    },
+    {
+      actorId: user.id,
+      callerPath: "src/actions/group.ts:updateChild",
+      enforceMembership: false, // cookie client + RLS
+      via: "edit_child_form",
+    },
+  );
 
-  if (error) redirect("/criancas/" + id + "?tab=geral&error=" + encodeURIComponent(error.message));
+  if (!result.ok) {
+    redirect("/criancas/" + id + "?tab=geral&error=" + encodeURIComponent(result.error));
+  }
   revalidatePath("/criancas/" + id);
   redirect("/criancas/" + id + "?tab=geral");
 }

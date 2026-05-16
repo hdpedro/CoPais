@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { createChild } from "@/lib/services/children";
 
 export async function POST(request: Request) {
   // Dual auth: Bearer (native) + cookie (PWA). Without Bearer support
@@ -99,27 +100,36 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: memberError.message }, { status: 400 });
   }
 
-  // 3) Adiciona a criança se fornecida. Schema check (`sex IN ('M','F')`)
-  //    vive em `children.sex` (migration 00036) — valores inválidos viram null.
+  // 3) Adiciona a criança se fornecida via service consolidado
+  //    (validações + PG → mensagem humana + reportServerError).
+  //    Membership já foi inserido logo acima — passamos enforceMembership=true
+  //    pro service detectar inconsistências (defesa em profundidade).
   let step = 1; // group created
   if (childId && childName && childBirthDate) {
-    const sex = childSex === "M" || childSex === "F" ? childSex : null;
-    const allergies =
-      Array.isArray(childAllergies) && childAllergies.length > 0
-        ? childAllergies.map(a => String(a).trim()).filter(Boolean)
-        : null;
-    const { error: childError } = await admin.from("children").insert({
-      id: childId,
-      group_id: groupId,
-      full_name: childName,
-      birth_date: childBirthDate,
-      sex,
-      allergies: allergies && allergies.length > 0 ? allergies : null,
-      notes: childNotes?.trim() || null,
-    });
-    if (childError) {
+    const childResult = await createChild(
+      admin,
+      {
+        childId,
+        groupId,
+        fullName: childName,
+        birthDate: childBirthDate,
+        sex: childSex,
+        allergies: childAllergies,
+        notes: childNotes,
+      },
+      {
+        actorId: userId,
+        callerPath: "src/app/api/create-group/route.ts",
+        enforceMembership: true,
+        via: "create_group",
+      },
+    );
+    if (!childResult.ok) {
       await rollback("child insert failed");
-      return NextResponse.json({ error: childError.message }, { status: 400 });
+      return NextResponse.json(
+        { error: childResult.error, code: childResult.errorCode, pgCode: childResult.pgCode },
+        { status: childResult.status },
+      );
     }
     step = 2; // child created
   }

@@ -2,59 +2,28 @@
  * PATCH /api/children/[childId] → edita criança.
  * DELETE /api/children/[childId] → remove criança.
  *
- * Dual-auth (Bearer + cookie). Usado pelo wizard de onboarding (PWA + native)
- * para edit/remove inline na tela "Resumo da família", e por qualquer outro
- * caller que precise mutar children de forma segura via API.
+ * Wrappers finos sobre `services/children.ts:updateChild` / `deleteChild`.
+ * Cada handler apenas:
+ *   - resolve auth (Bearer/cookie)
+ *   - parse parâmetros (params + body/query)
+ *   - adapta retorno pra NextResponse
  *
- * Por que aqui em vez de chamar `actions/group.ts:updateChild`/deleteChild?
- * O fluxo do wizard é client-side fetch (precisa retornar JSON, não fazer
- * redirect como server actions fazem). Esse handler é o paralelo REST do
- * action, com a mesma verificação de membership e os mesmos `captureServerEvent`.
+ * Lógica de negócio (mapeamento PG, reportServerError, captureServerEvent,
+ * FK humanization 23503) vive **somente** no service. Wizard de onboarding
+ * (PWA + Native) consome este endpoint via fetch para edit/remove inline
+ * na tela "Resumo da família".
  *
- * Body PATCH (todos opcionais — só atualiza o que vier):
- *   { groupId, fullName?, birthDate?, sex?, allergies?, notes? }
+ * Body PATCH:
+ *   { groupId, fullName?, birthDate?, sex?, allergies?, notes?, cpf?, rg? }
  *
- * Body DELETE: { groupId }
+ * Body/query DELETE: { groupId } ou ?groupId=
  */
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
-import { captureServerEvent } from "@/lib/posthog-server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
-
-function isIsoDate(value: unknown): value is string {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
-}
-
-async function verifyChildBelongsToUserGroup(
-  childId: string,
-  groupId: string,
-  userId: string,
-) {
-  const admin = createAdminClient();
-
-  const [membership, child] = await Promise.all([
-    admin
-      .from("group_members")
-      .select("role")
-      .eq("group_id", groupId)
-      .eq("user_id", userId)
-      .maybeSingle(),
-    admin
-      .from("children")
-      .select("id, group_id")
-      .eq("id", childId)
-      .maybeSingle(),
-  ]);
-
-  if (!membership.data) return { ok: false as const, status: 403, error: "Sem permissão para este grupo." };
-  if (!child.data) return { ok: false as const, status: 404, error: "Criança não encontrada." };
-  if (child.data.group_id !== groupId) {
-    return { ok: false as const, status: 403, error: "Criança não pertence ao grupo informado." };
-  }
-  return { ok: true as const, admin };
-}
+import { deleteChild, updateChild } from "@/lib/services/children";
 
 interface PatchBody {
   groupId?: string;
@@ -63,14 +32,14 @@ interface PatchBody {
   sex?: "M" | "F" | null;
   allergies?: string[] | null;
   notes?: string | null;
+  cpf?: string | null;
+  rg?: string | null;
 }
 
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ childId: string }> },
 ) {
-  // Bug investigation 2026-05-15: instrumentação igual à do POST/DELETE pra
-  // capturar erros silenciosos no edit de criança.
   let user: Awaited<ReturnType<typeof resolveAuthenticatedUser>> | null = null;
   let childId: string | undefined;
   let groupId: string | undefined;
@@ -82,78 +51,39 @@ export async function PATCH(
     childId = (await params).childId;
     const body = (await request.json().catch(() => ({}))) as PatchBody;
     groupId = body.groupId?.trim();
-    if (!childId || !groupId) {
-      return NextResponse.json({ error: "groupId e childId obrigatórios." }, { status: 400 });
-    }
 
-    const gate = await verifyChildBelongsToUserGroup(childId, groupId, user.id);
-    if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
-
-    const updates: Record<string, unknown> = {};
-  if (typeof body.fullName === "string") {
-    const v = body.fullName.trim();
-    if (!v) return NextResponse.json({ error: "fullName não pode ser vazio." }, { status: 400 });
-    updates.full_name = v;
-  }
-  if (typeof body.birthDate === "string") {
-    if (!isIsoDate(body.birthDate)) {
-      return NextResponse.json({ error: "birthDate deve estar em YYYY-MM-DD." }, { status: 400 });
-    }
-    if (new Date(`${body.birthDate}T12:00:00`) > new Date()) {
-      return NextResponse.json({ error: "Data de nascimento não pode ser futura." }, { status: 400 });
-    }
-    updates.birth_date = body.birthDate;
-  }
-  if (body.sex !== undefined) {
-    updates.sex = body.sex === "M" || body.sex === "F" ? body.sex : null;
-  }
-  if (body.allergies !== undefined) {
-    const arr = Array.isArray(body.allergies)
-      ? body.allergies.map((a) => String(a).trim()).filter(Boolean)
-      : null;
-    updates.allergies = arr && arr.length > 0 ? arr : null;
-  }
-  if (body.notes !== undefined) {
-    updates.notes = body.notes?.trim() || null;
-  }
-
-  if (Object.keys(updates).length === 0) {
-    return NextResponse.json({ error: "Nada para atualizar." }, { status: 400 });
-  }
-
-    const { data: child, error } = await gate.admin
-      .from("children")
-      .update(updates)
-      .eq("id", childId)
-      .select("id, full_name, birth_date, sex, photo_url, notes, allergies, cpf, rg")
-      .single();
-
-    if (error || !child) {
-      void reportServerError(
-        new Error(error?.message || "child_update_failed"),
-        {
-          filePath: "src/app/api/children/[childId]/route.ts",
-          severity: "error",
-          userId: user.id,
-          metadata: {
-            childId,
-            groupId,
-            pgCode: error?.code,
-            pgDetails: error?.details,
-            pgHint: error?.hint,
-            phase: "update_failed",
-          },
+    const result = await updateChild(
+      createAdminClient(),
+      {
+        childId: childId || "",
+        groupId: groupId || "",
+        patch: {
+          fullName: body.fullName,
+          birthDate: body.birthDate,
+          sex: body.sex,
+          allergies: body.allergies,
+          notes: body.notes,
+          cpf: body.cpf,
+          rg: body.rg,
         },
-      );
+      },
+      {
+        actorId: user.id,
+        callerPath: "src/app/api/children/[childId]/route.ts:PATCH",
+        enforceMembership: true,
+        via: "onboarding_wizard",
+      },
+    );
+
+    if (!result.ok) {
       return NextResponse.json(
-        { error: error?.message || "Falha ao atualizar.", code: error?.code },
-        { status: 400 },
+        { error: result.error, code: result.errorCode, pgCode: result.pgCode },
+        { status: result.status },
       );
     }
 
-    captureServerEvent(user.id, "child_updated", { via: "onboarding_wizard" });
     revalidateTag(`children-${groupId}`, "max");
-    return NextResponse.json({ success: true, child });
+    return NextResponse.json({ success: true, child: result.data });
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : "Erro inesperado.";
     void reportServerError(caught, {
@@ -173,11 +103,6 @@ export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ childId: string }> },
 ) {
-  // Bug investigation 2026-05-15: usuário Android viu "erro ao remover".
-  // Mesma vulnerability da rota POST — sem try/catch global, erros viram
-  // HTML que Native parseia como `{}` → fallback genérico sem contexto.
-  // Agora: try/catch + reportServerError com PG code/details/hint pra
-  // capturar FK violations (23503), constraints e exceptions inesperadas.
   let user: Awaited<ReturnType<typeof resolveAuthenticatedUser>> | null = null;
   let childId: string | undefined;
   let groupId: string | undefined;
@@ -192,45 +117,27 @@ export async function DELETE(
       await request.json().catch(() => ({} as { groupId?: string }))
     ).groupId;
 
-    if (!childId || !groupId) {
-      return NextResponse.json({ error: "groupId e childId obrigatórios." }, { status: 400 });
-    }
+    const result = await deleteChild(
+      createAdminClient(),
+      {
+        childId: childId || "",
+        groupId: groupId || "",
+      },
+      {
+        actorId: user.id,
+        callerPath: "src/app/api/children/[childId]/route.ts:DELETE",
+        enforceMembership: true,
+        via: "onboarding_wizard",
+      },
+    );
 
-    const gate = await verifyChildBelongsToUserGroup(childId, groupId, user.id);
-    if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
-
-    const { error } = await gate.admin.from("children").delete().eq("id", childId);
-    if (error) {
-      void reportServerError(
-        new Error(error.message || "child_delete_failed"),
-        {
-          filePath: "src/app/api/children/[childId]/route.ts",
-          severity: "error",
-          userId: user.id,
-          metadata: {
-            childId,
-            groupId,
-            pgCode: error.code,
-            pgDetails: error.details,
-            pgHint: error.hint,
-            phase: "delete_failed",
-          },
-        },
-      );
-      // PG code 23503 = foreign_key_violation — mensagem humanizada
-      const isFKBlocked = error.code === "23503";
+    if (!result.ok) {
       return NextResponse.json(
-        {
-          error: isFKBlocked
-            ? "Não consegui remover: a criança tem registros (despesas, documentos, eventos ou notas) vinculados. Apague-os antes."
-            : error.message,
-          code: error.code,
-        },
-        { status: 400 },
+        { error: result.error, code: result.errorCode, pgCode: result.pgCode },
+        { status: result.status },
       );
     }
 
-    captureServerEvent(user.id, "child_deleted", { via: "onboarding_wizard" });
     revalidateTag(`children-${groupId}`, "max");
     return NextResponse.json({ success: true });
   } catch (caught) {

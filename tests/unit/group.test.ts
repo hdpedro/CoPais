@@ -68,6 +68,11 @@ describe("group actions", () => {
 
   describe("createGroup", () => {
     it("success - returns { success: true }", async () => {
+      // services/children.createChild faz .single() pra retornar ChildRow
+      mockChain.single.mockResolvedValueOnce({
+        data: { id: "c1", full_name: "Alice", birth_date: "2020-01-15", sex: null, photo_url: null, notes: null, allergies: null, cpf: null, rg: null },
+        error: null,
+      });
       const result = await createGroup(fd({ name: "Family", childName: "Alice", childBirthDate: "2020-01-15" }));
       expect(result).toEqual({ success: true });
     });
@@ -87,6 +92,11 @@ describe("group actions", () => {
 
   describe("addChild", () => {
     it("success - redirects to /criancas", async () => {
+      // services/children.createChild faz .single() pra retornar ChildRow
+      mockChain.single.mockResolvedValueOnce({
+        data: { id: "c1", full_name: "Bob", birth_date: "2019-05-10", sex: null, photo_url: null, notes: null, allergies: ["peanuts"], cpf: null, rg: null },
+        error: null,
+      });
       await expect(addChild(fd({ groupId: "g1", fullName: "Bob", birthDate: "2019-05-10", allergies: "peanuts", notes: "" }))).rejects.toThrow("NEXT_REDIRECT");
       expect(mockRedirect).toHaveBeenCalledWith("/criancas");
     });
@@ -106,7 +116,13 @@ describe("group actions", () => {
 
   describe("updateChild", () => {
     it("success - redirects to /criancas/:id", async () => {
-      mockChain.single.mockResolvedValueOnce({ data: { group_id: "g1" }, error: null });
+      // 1ª .single(): pré-fetch do group_id da criança. 2ª: UPDATE retorna ChildRow.
+      mockChain.single
+        .mockResolvedValueOnce({ data: { group_id: "g1" }, error: null })
+        .mockResolvedValueOnce({
+          data: { id: "c1", full_name: "Bob", birth_date: "2019-05-10", sex: null, photo_url: null, notes: null, allergies: null, cpf: null, rg: null },
+          error: null,
+        });
       await expect(updateChild(fd({ id: "c1", fullName: "Bob", birthDate: "2019-05-10", allergies: "", notes: "", cpf: "", rg: "" }))).rejects.toThrow("NEXT_REDIRECT");
       expect(mockRedirect).toHaveBeenCalledWith("/criancas/c1?tab=geral");
     });
