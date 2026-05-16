@@ -1,4 +1,12 @@
+# Pre-commit (FAST gate — runs on every commit, <10s budget):
+#   1. lint-staged   — ESLint on staged files (autofix + max-warnings=0)
+#   2. i18n:check    — locale parity + char limits + types regen (~3s)
+#
+# tsc + tests + full lint live in pre-push (slower, run less often) to keep
+# the inner-loop responsive. CI re-runs everything on push.
+#
+# If a commit fails because of i18n:check, run `npm run i18n:gen` and stage
+# the regenerated keys.generated.ts. If lint-staged fails, fix the file(s)
+# it points at.
 npx lint-staged
-# i18n parity (PWA + native) + char limits + type-gen. Fast (<2s). Blocks
-# commit when ANY locale JSON drifts or strings exceed channel limits.
 npm run i18n:check

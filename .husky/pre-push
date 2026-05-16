@@ -1,1 +1,15 @@
+# Pre-push (THOROUGH gate — runs only when pushing, ~90s budget):
+#   1. typecheck — tsc --noEmit on the PWA (excludes kindar-native which
+#                  uses Metro extraNodeModules path aliasing; see
+#                  tsconfig.typecheck.json). Catches use-before-declaration,
+#                  out-of-scope identifiers, type mismatches that Next 16's
+#                  Turbopack build does NOT flag. Critical — the bug fix
+#                  4a83f02 (illness_episodes hospital_name) surfaced two TS
+#                  regressions that had slipped past `next build` + `lint` +
+#                  `test`.
+#   2. test     — full vitest suite (currently 1115 tests, ~35s).
+#
+# CI re-runs both jobs (plus build + lint) as required checks on PR.
+# Skipping this hook risks pushing a broken main; please don't `--no-verify`.
+npm run typecheck
 npm run test -- --run

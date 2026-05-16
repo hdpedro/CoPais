@@ -14,6 +14,8 @@
     "test:e2e": "npx playwright test",
     "test:e2e:ui": "npx playwright test --ui",
     "prepare": "husky",
+    "typecheck": "tsc --noEmit -p tsconfig.typecheck.json",
+    "validate:all": "npm run lint && npm run typecheck && npm run i18n:check && npm run test -- --run",
     "i18n:parity": "node scripts/i18n/validate-locale-parity.mjs",
     "i18n:parity:pwa": "node scripts/i18n/validate-locale-parity.mjs --pwa",
     "i18n:parity:native": "node scripts/i18n/validate-locale-parity.mjs --native",

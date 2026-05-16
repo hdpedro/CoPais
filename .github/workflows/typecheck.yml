@@ -1,0 +1,47 @@
+name: Typecheck
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Strict TypeScript gate. The default `next build` uses Turbopack which is
+# faster than tsc but does NOT enforce strict type-checking — it can compile
+# code with use-before-declaration errors, out-of-scope identifiers, or any
+# type mismatch that wouldn't break the JS bundle. tsc catches them.
+#
+# Two regressions slipped through `next build` + `lint` + `test` once
+# (commit 4a83f02): dashboard `dayNamesShort` use-before-declaration and
+# EscolaClient sub-components calling t() outside scope. Both would have
+# crashed at runtime. This workflow prevents it from happening again.
+#
+# Excludes kindar-native because it uses Metro extraNodeModules path
+# aliasing (`src/*` resolving to `app/_src/*`) that tsc cannot model; the
+# native app has its own type-check setup under kindar-native/.
+
+jobs:
+  typecheck:
+    name: tsc --noEmit (PWA)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # Restore TS incremental build cache for speed (~3-5x faster than cold).
+      - name: Cache TS incremental
+        uses: actions/cache@v4
+        with:
+          path: tsconfig.tsbuildinfo
+          key: tsc-${{ runner.os }}-${{ hashFiles('**/tsconfig.json', '**/tsconfig.typecheck.json', 'package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            tsc-${{ runner.os }}-${{ hashFiles('**/tsconfig.json', '**/tsconfig.typecheck.json', 'package-lock.json') }}-
+
+      - name: Run tsc
+        run: npm run typecheck

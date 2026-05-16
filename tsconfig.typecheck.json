@@ -1,0 +1,9 @@
+{
+  "//": "Typecheck-only config — strict tsc gate for PWA. The base tsconfig.json includes the native folder (so editors get IntelliSense across the monorepo), but kindar-native uses `src/*` path aliases that resolve via Metro's extraNodeModules at runtime, NOT via TS path mapping. tsc therefore reports thousands of false-positive TS2307 'cannot find module' errors on the native code that don't reflect real bugs. This config excludes the native folder so PWA typecheck stays meaningful in CI + pre-commit + pre-push. Native typecheck has its own setup under kindar-native/ and runs separately.",
+  "extends": "./tsconfig.json",
+  "exclude": [
+    "node_modules",
+    "kindar-native",
+    ".next"
+  ]
+}
