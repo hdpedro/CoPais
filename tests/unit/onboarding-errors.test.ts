@@ -84,13 +84,14 @@ describe("resolveFetchErrorMessage", () => {
     ).toBe("onboardingForm.errorConflict");
   });
 
-  it("500 → errorServer", () => {
+  it("500 → errorServer com código", () => {
+    // Bug investigation 2026-05-15: agora inclui status code pra debug
     expect(
       resolveFetchErrorMessage({ status: 500, fallbackKey: "x" }, mockT),
-    ).toBe("onboardingForm.errorServer");
+    ).toBe("onboardingForm.errorServer (500)");
     expect(
       resolveFetchErrorMessage({ status: 503, fallbackKey: "x" }, mockT),
-    ).toBe("onboardingForm.errorServer");
+    ).toBe("onboardingForm.errorServer (503)");
   });
 
   it("4xx genérico com serverMessage usa a mensagem do servidor", () => {
@@ -102,10 +103,12 @@ describe("resolveFetchErrorMessage", () => {
     ).toBe("Validation failed");
   });
 
-  it("4xx sem serverMessage cai no fallback", () => {
+  it("4xx sem serverMessage mostra fallback + HTTP status (não silencia info)", () => {
+    // Bug 2026-05-15: antes caía no fallback nu; user via "Não foi possível..."
+    // sem nenhuma pista. Agora inclui HTTP code pra debug.
     expect(
       resolveFetchErrorMessage({ status: 422, fallbackKey: "y.fallback" }, mockT),
-    ).toBe("y.fallback");
+    ).toBe("y.fallback (HTTP 422)");
   });
 
   it("sem status nem cause, mas com serverMessage → serverMessage", () => {

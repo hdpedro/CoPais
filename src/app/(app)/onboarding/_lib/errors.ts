@@ -41,6 +41,12 @@ export function isNetworkError(err: unknown): boolean {
 /**
  * Resolve mensagem i18n contextual a partir de status code + cause.
  * Retorna `null` quando o erro deve ser silenciado (AbortError de cleanup).
+ *
+ * Bug investigation 2026-05-15 (3 users): a versão anterior caía no
+ * fallback genérico ("Não foi possível adicionar a criança") quando
+ * status era 400 SEM serverMessage. UX perdia informação útil. Esta
+ * versão SEMPRE mostra status + algo informativo, e prioriza a
+ * exception (cause.message) quando ela existe.
  */
 export function resolveFetchErrorMessage(
   ctx: FetchErrorContext,
@@ -49,17 +55,20 @@ export function resolveFetchErrorMessage(
   if (isAbortError(ctx.cause)) return null;
   if (isNetworkError(ctx.cause)) return t("onboardingForm.errorNetwork");
 
+  // Server message do JSON tem prioridade — vem da action/route com contexto
+  if (ctx.serverMessage) return ctx.serverMessage;
+
   if (typeof ctx.status === "number") {
     if (ctx.status === 401) return t("common.sessionExpired");
     if (ctx.status === 403) return t("onboardingForm.errorPermission");
     if (ctx.status === 409) return t("onboardingForm.errorConflict");
-    if (ctx.status >= 500) return t("onboardingForm.errorServer");
-    // 4xx genérico — preferimos a mensagem do servidor se vier, mais útil
-    // pra debug e validation; ela é renderizada como vem.
-    if (ctx.status >= 400 && ctx.serverMessage) return ctx.serverMessage;
+    if (ctx.status >= 500) return `${t("onboardingForm.errorServer")} (${ctx.status})`;
+    if (ctx.status >= 400) return `${t(ctx.fallbackKey)} (HTTP ${ctx.status})`;
   }
 
-  // Server respondeu mas sem status conhecido + sem mensagem útil
-  if (ctx.serverMessage) return ctx.serverMessage;
+  if (ctx.cause instanceof Error && ctx.cause.message) {
+    return `${t(ctx.fallbackKey)}: ${ctx.cause.message}`;
+  }
+
   return t(ctx.fallbackKey);
 }
