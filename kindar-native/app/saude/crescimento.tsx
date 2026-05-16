@@ -18,6 +18,7 @@ import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import Toast from 'src/components/ui/Toast';
+import EmptyState from 'src/components/ui/EmptyState';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -266,10 +267,11 @@ export default function CrescimentoScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : (
-          <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'] }}>
-            <Text style={{ fontSize: 32, marginBottom: spacing.md }}>📏</Text>
-            <Text style={{ color: colors.textMuted }}>Nenhuma medida</Text>
-          </View>
+          <EmptyState
+            icon="📏"
+            title="Nenhuma medida registrada"
+            description="Registre peso, altura e perímetro cefálico para acompanhar a curva de crescimento."
+          />
         )}
         ListHeaderComponent={records.length > 0 ? (
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: spacing.sm, textAlign: 'center' }}>

@@ -32,7 +32,7 @@ function formatRelativeDate(iso: string): string {
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
   if (diffDays === 0) return 'Hoje';
   if (diffDays === 1) return 'Ontem';
-  if (diffDays < 7) return `${diffDays} dias atras`;
+  if (diffDays < 7) return `${diffDays} dias atrás`;
   return `${d.getDate()}/${d.getMonth() + 1}`;
 }
 
@@ -226,10 +226,10 @@ export default function SaudeScreen() {
               { icon: '💉', label: 'Vacinas', route: '/saude/vacinas', testID: 'saude-mod-vacinas' },
               { icon: '📏', label: 'Crescimento', route: '/saude/crescimento', testID: 'saude-mod-crescimento' },
               { icon: '👨‍⚕️', label: 'Profissionais', route: '/saude/profissionais', testID: 'saude-mod-profissionais' },
-              { icon: '🤒', label: 'Doencas', route: '/saude/doencas', testID: 'saude-mod-doencas' },
+              { icon: '🤒', label: 'Doenças', route: '/saude/doencas', testID: 'saude-mod-doencas' },
               { icon: '🩹', label: 'Sintomas', route: '/saude/sintomas', testID: 'saude-mod-sintomas' },
               { icon: '📸', label: 'Receita OCR', route: '/saude/receita', testID: 'saude-mod-receita' },
-              { icon: '🚨', label: 'Emergencia', route: '/saude/emergencia', testID: 'saude-mod-emergencia' },
+              { icon: '🚨', label: 'Emergência', route: '/saude/emergencia', testID: 'saude-mod-emergencia' },
               { icon: '📤', label: 'Exportar', route: '/saude/export', testID: 'saude-mod-exames' },
               { icon: '📋', label: 'Timeline', route: '/saude/timeline', testID: 'saude-mod-timeline' },
             ].map(mod => (

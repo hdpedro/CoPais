@@ -11,6 +11,7 @@ import { notifyAction } from 'src/services/notify';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import EmptyState from 'src/components/ui/EmptyState';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Allergy { id: string; name: string; allergy_type: string; severity: string; reaction: string | null; childName: string; child_id: string; }
@@ -145,10 +146,11 @@ export default function AlergiasScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : (
-          <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'] }}>
-            <Text style={{ fontSize: 32, marginBottom: spacing.md }}>⚠️</Text>
-            <Text style={{ color: colors.textMuted }}>Nenhuma alergia registrada</Text>
-          </View>
+          <EmptyState
+            icon="⚠️"
+            title="Nenhuma alergia registrada"
+            description="Cadastre alergias para que ambos os responsáveis tenham acesso rápido em caso de emergência."
+          />
         )}
         renderItem={({ item }) => {
           const sev = SEV_ICONS[item.severity] || SEV_ICONS.mild;

@@ -16,6 +16,7 @@ import { logMedicationDose } from 'src/services/health';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName, getBrazilToday } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import EmptyState from 'src/components/ui/EmptyState';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Med {
@@ -259,10 +260,11 @@ export default function MedicamentosScreen() {
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : (
-          <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'] }}>
-            <Text style={{ fontSize: 32, marginBottom: spacing.md }}>💊</Text>
-            <Text style={{ color: colors.textMuted }}>Nenhum medicamento</Text>
-          </View>
+          <EmptyState
+            icon="💊"
+            title="Nenhum medicamento"
+            description="Registre medicamentos para acompanhar doses e compartilhar tratamentos com o co-responsável."
+          />
         )}
         renderItem={({ item }) => {
           const isActive = item.status === 'active';

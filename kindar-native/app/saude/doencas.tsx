@@ -1,5 +1,5 @@
 /**
- * Doencas — lista de episodios de doenca.
+ * Doenças — lista de episódios de doença.
  * Mirrors PWA /saude/doencas.
  */
 import { useState, useCallback } from 'react';
@@ -10,6 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { fetchIllnesses, resolveIllness, addEvolutionQuick, type IllnessEpisode } from 'src/services/health';
+import EmptyState from 'src/components/ui/EmptyState';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const SEV_META: Record<string, { label: string; color: string }> = {
@@ -162,15 +163,12 @@ export default function DoencasScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         >
           {filtered.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: spacing['3xl'] }}>
-              <Text style={{ fontSize: 44, marginBottom: spacing.md }}>🩺</Text>
-              <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.xs }}>
-                {filter === 'active' ? 'Nenhuma doença ativa' : 'Nenhum episódio'}
-              </Text>
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center' }}>
-                Registre episódios para acompanhar a evolução de doenças e tratamentos
-              </Text>
-            </View>
+            <EmptyState
+              icon="🩺"
+              title={filter === 'active' ? 'Nenhuma doença ativa' : 'Nenhum episódio registrado'}
+              description="Registre episódios para acompanhar a evolução de doenças e tratamentos."
+              action={{ label: 'Registrar episódio', onPress: () => router.push('/saude/doencas/nova') }}
+            />
           ) : (
             filtered.map(i => {
               const sev = SEV_META[i.severity || ''];

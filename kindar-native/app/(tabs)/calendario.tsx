@@ -799,7 +799,7 @@ export default function CalendarScreen() {
                 color: colors.textMuted, fontSize: font.sizes.sm,
                 marginBottom: spacing.md,
               }}>
-                Nada agendado por aqui. O que voce quer registrar?
+                Nada agendado por aqui. O que você quer registrar?
               </Text>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                 <TouchableOpacity

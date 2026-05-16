@@ -283,12 +283,12 @@ export default function ResumoConsultaScreen() {
         ) : null}
       </View>
 
-      {/* Child picker */}
+      {/* Child picker — flex-wrap em vez de scroll horizontal: famílias com 3+
+         filhos veem todos os chips sem precisar arrastar (replica padrão da
+         timeline `app/saude/timeline.tsx`, iteração 2). */}
       {children.length > 1 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}
-          style={{ flexGrow: 0, paddingHorizontal: spacing.lg, paddingTop: spacing.md }}
-        >
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.sm }}>
             {children.map(c => {
               const active = c.id === selectedChildId;
               return (
@@ -306,7 +306,7 @@ export default function ResumoConsultaScreen() {
               );
             })}
           </View>
-        </ScrollView>
+        </View>
       ) : null}
 
       {loading ? (

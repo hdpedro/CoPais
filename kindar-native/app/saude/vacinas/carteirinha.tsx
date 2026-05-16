@@ -216,8 +216,8 @@ export default function CarteirinhaScreen() {
       </View>
 
       {children.length > 1 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, flexGrow: 0 }}>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.sm }}>
             {children.map(c => {
               const active = selectedChildId === c.id;
               return (
@@ -232,7 +232,7 @@ export default function CarteirinhaScreen() {
               );
             })}
           </View>
-        </ScrollView>
+        </View>
       ) : null}
 
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: insets.bottom + 120 }} keyboardShouldPersistTaps="handled">

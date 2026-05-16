@@ -325,7 +325,7 @@ export default function InviteParserScreen() {
 
             {children.length > 0 ? (
               <>
-                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Crianca</Text>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Criança</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
                   <TouchableOpacity
                     onPress={() => setChildId(null)}

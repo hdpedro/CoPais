@@ -180,7 +180,7 @@ export default function EscalaScreen() {
   async function handleGenerate() {
     if (!activeGroup || !userId || !childId) return;
     if (pattern.every(p => p === null)) {
-      Alert.alert('Padrão vazio', 'Atribua ao menos alguns dias antes de gerar a escala');
+      Alert.alert('Padrão vazio', 'Atribua ao menos alguns dias antes de gerar a escala.');
       return;
     }
     const iso = parseDate(startDateDisplay);
@@ -238,16 +238,16 @@ export default function EscalaScreen() {
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
         <Text style={{ fontSize: 48, marginBottom: spacing.md }}>👥</Text>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, textAlign: 'center', marginBottom: spacing.sm }}>
-          Precisa de 2 responsaveis
+          Precisa de 2 responsáveis
         </Text>
         <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }}>
-          A escala de guarda requer o outro co-responsavel no grupo. Convide-o primeiro.
+          A escala de guarda requer o outro co-responsável no grupo. Convide-o primeiro.
         </Text>
         <TouchableOpacity
           onPress={() => router.push('/convite/enviar')}
           style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing['2xl'] }}
         >
-          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Convidar co-responsavel</Text>
+          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Convidar co-responsável</Text>
         </TouchableOpacity>
       </View>
     );
@@ -268,7 +268,7 @@ export default function EscalaScreen() {
         {/* Child selector */}
         {children.length > 1 ? (
           <>
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Crianca</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Criança</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               {children.map(c => {
                 const active = childId === c.id;
@@ -292,8 +292,9 @@ export default function EscalaScreen() {
           </>
         ) : null}
 
-        {/* Legend */}
-        <View style={{ flexDirection: 'row', gap: spacing.lg, marginBottom: spacing.md }}>
+        {/* Legend — flex-wrap protege o layout quando o grupo tiver 3+
+            co-responsáveis (cenário futuro) e em telas estreitas. */}
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.lg, rowGap: spacing.sm, marginBottom: spacing.md }}>
           {members.map(m => (
             <View key={m.userId} style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <View style={{ width: 14, height: 14, borderRadius: 4, backgroundColor: m.color }} />
@@ -363,7 +364,7 @@ export default function EscalaScreen() {
         ))}
 
         {/* Start date */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginTop: spacing.lg, marginBottom: spacing.xs }}>Comecar em</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginTop: spacing.lg, marginBottom: spacing.xs }}>Começar em</Text>
         <TextInput
           value={startDateDisplay} onChangeText={handleDateChange}
           placeholder="DD/MM/AAAA"
@@ -377,7 +378,7 @@ export default function EscalaScreen() {
         />
 
         {/* Months */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Duracao</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Duração</Text>
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
           {[3, 6, 12].map(m => {
             const active = months === m;
@@ -393,7 +394,7 @@ export default function EscalaScreen() {
                 }}
               >
                 <Text style={{ fontSize: font.sizes.md, color: active ? '#fff' : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                  {m} {m === 1 ? 'mes' : 'meses'}
+                  {m} {m === 1 ? 'mês' : 'meses'}
                 </Text>
               </TouchableOpacity>
             );
@@ -410,10 +411,10 @@ export default function EscalaScreen() {
             {'\n'}
             {members[1].name}: <Text style={{ fontWeight: font.weights.semibold }}>{pattern.filter(p => p === members[1].userId).length}</Text> de 14 dias
             {'\n'}
-            Nao atribuido: {pattern.filter(p => p === null).length}
+            Não atribuído: {pattern.filter(p => p === null).length}
           </Text>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm }}>
-            A partir de {displayDate(startDateIso)} · gerando ate {(() => { const d = new Date(startDateIso + 'T12:00:00'); d.setMonth(d.getMonth() + months); return `${d.getDate()} de ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`; })()}
+            A partir de {displayDate(startDateIso)} · gerando até {(() => { const d = new Date(startDateIso + 'T12:00:00'); d.setMonth(d.getMonth() + months); return `${d.getDate()} de ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`; })()}
           </Text>
         </View>
 

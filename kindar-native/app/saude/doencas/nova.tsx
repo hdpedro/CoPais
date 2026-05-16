@@ -143,7 +143,7 @@ export default function NovaDoencaScreen() {
         ) : null}
 
         {/* Child */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Crianca *</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Criança *</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           {children.map(c => {
             const active = childId === c.id;

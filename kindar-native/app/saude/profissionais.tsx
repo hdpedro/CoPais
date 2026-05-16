@@ -14,6 +14,7 @@ import { supabase } from 'src/lib/supabase';
 import { safeWrite } from 'src/services/offline';
 import { useAuth } from 'src/store/auth';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import EmptyState from 'src/components/ui/EmptyState';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { formatCRM } from 'src/lib/format';
 
@@ -209,10 +210,11 @@ export default function ProfissionaisScreen() {
       <FlatList data={profs} keyExtractor={item => item.id} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : (
-          <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'] }}>
-            <Text style={{ fontSize: 32, marginBottom: spacing.md }}>👨‍⚕️</Text>
-            <Text style={{ color: colors.textMuted }}>Nenhum profissional</Text>
-          </View>
+          <EmptyState
+            icon="👨‍⚕️"
+            title="Nenhum profissional cadastrado"
+            description="Adicione médicos, dentistas e terapeutas para ter os contatos sempre à mão."
+          />
         )}
         renderItem={({ item }) => {
           const cleanCrm = formatCRM(item.crm);

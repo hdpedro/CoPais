@@ -100,7 +100,7 @@ export default function EditActivityScreen() {
 
   async function handleSave() {
     if (!name.trim()) {
-      Alert.alert('Nome obrigatorio', 'Da um nome pra atividade.');
+      Alert.alert('Nome obrigatório', 'Dá um nome pra atividade.');
       return;
     }
     setSaving(true);
@@ -253,8 +253,8 @@ export default function EditActivityScreen() {
           </View>
         </View>
 
-        {/* Responsavel */}
-        <Label>Responsavel pela atividade</Label>
+        {/* Responsável */}
+        <Label>Responsável pela atividade</Label>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           <TouchableOpacity
             onPress={() => { Haptics.selectionAsync(); setResponsibleId(null); }}

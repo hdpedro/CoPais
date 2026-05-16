@@ -1,5 +1,5 @@
 /**
- * Diario de Sintomas — timeline de sintomas dos ultimos 14 dias + registro rapido.
+ * Diário de Sintomas — timeline de sintomas dos últimos 14 dias + registro rápido.
  * Mirrors PWA /saude/sintomas.
  */
 import { useState, useCallback, useEffect } from 'react';
@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { fetchSymptoms, createSymptomEntry, type SymptomEntry } from 'src/services/health';
 import { fetchChildren, type Child } from 'src/services/children';
+import EmptyState from 'src/components/ui/EmptyState';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 /**
@@ -167,10 +168,10 @@ export default function SintomasScreen() {
         </Text>
       </View>
 
-      {/* Child selector */}
+      {/* Child selector — flex-wrap (3+ filhos não precisam de scroll horizontal) */}
       {children.length > 1 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, flexGrow: 0 }}>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.sm }}>
             {children.map(c => {
               const active = selectedChildId === c.id;
               return (
@@ -190,7 +191,7 @@ export default function SintomasScreen() {
               );
             })}
           </View>
-        </ScrollView>
+        </View>
       ) : null}
 
       {loading ? (
@@ -203,15 +204,11 @@ export default function SintomasScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         >
           {grouped.length === 0 ? (
-            <View style={{ alignItems: 'center', paddingVertical: spacing['3xl'] }}>
-              <Text style={{ fontSize: 44, marginBottom: spacing.md }}>🩹</Text>
-              <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.xs }}>
-                Nenhum sintoma registrado
-              </Text>
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center' }}>
-                Registre sintomas para acompanhar a saúde da criança ao longo do tempo
-              </Text>
-            </View>
+            <EmptyState
+              icon="🩹"
+              title="Nenhum sintoma registrado"
+              description="Registre sintomas para acompanhar a saúde da criança ao longo do tempo."
+            />
           ) : (
             grouped.map(group => (
               <View key={group.date} style={{ marginBottom: spacing.lg }}>

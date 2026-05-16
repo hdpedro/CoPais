@@ -167,14 +167,14 @@ export default function EmergenciaScreen() {
     const child = children.find(c => c.id === selectedChildId);
     if (!child) return;
     if (!child.emergency_token) {
-      Alert.alert('Token ausente', 'Esta crianca ainda nao tem token de emergencia. Edite os dados da crianca na PWA pra gerar um.');
+      Alert.alert('Token ausente', 'Esta criança ainda não tem token de emergência. Edite os dados da criança na versão web para gerar um.');
       return;
     }
     const url = `${WEB_URL}/saude/emergencia/publico?childId=${child.id}&token=${child.emergency_token}`;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await Share.share({
-        message: `Ficha de emergencia de ${child.full_name}: ${url}\n\nNao precisa de login. Expira apos uso ou em 24h.`,
+        message: `Ficha de emergência de ${child.full_name}: ${url}\n\nNão precisa de login. Expira após uso ou em 24h.`,
         url,
       });
     } catch {
@@ -192,13 +192,13 @@ export default function EmergenciaScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Ficha de emergencia
+          Ficha de emergência
         </Text>
       </View>
 
       {children.length > 1 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md, flexGrow: 0 }}>
-          <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.sm }}>
             {children.map(c => {
               const active = selectedChildId === c.id;
               return (
@@ -218,7 +218,7 @@ export default function EmergenciaScreen() {
               );
             })}
           </View>
-        </ScrollView>
+        </View>
       ) : null}
 
       {loading ? (
@@ -229,7 +229,7 @@ export default function EmergenciaScreen() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
           <Text style={{ fontSize: 44, marginBottom: spacing.md }}>🚨</Text>
           <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center' }}>
-            Adicione uma crianca para criar a ficha de emergencia
+            Adicione uma criança para criar a ficha de emergência
           </Text>
         </View>
       ) : (
@@ -257,7 +257,7 @@ export default function EmergenciaScreen() {
           <InfoCard
             icon="🩸"
             label="Tipo sanguineo"
-            value={summary.bloodType || 'Nao informado'}
+            value={summary.bloodType || 'Não informado'}
             highlight={!summary.bloodType}
           />
 
@@ -309,14 +309,14 @@ export default function EmergenciaScreen() {
                 ) : null}
               </>
             ) : (
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>Nao informado</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>Não informado</Text>
             )}
           </InfoCard>
 
           {/* Insurance */}
-          <InfoCard icon="🏥" label="Plano de saude">
+          <InfoCard icon="🏥" label="Plano de saúde">
             <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>
-              {summary.insurance || 'Nao informado'}
+              {summary.insurance || 'Não informado'}
             </Text>
             {summary.sus ? (
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>SUS: {summary.sus}</Text>
