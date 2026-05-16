@@ -21,6 +21,7 @@ import { revalidateTag } from "next/cache";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 
 function isIsoDate(value: unknown): value is string {
   return typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value);
@@ -68,20 +69,27 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ childId: string }> },
 ) {
-  const user = await resolveAuthenticatedUser(request);
-  if (!user) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
+  // Bug investigation 2026-05-15: instrumentação igual à do POST/DELETE pra
+  // capturar erros silenciosos no edit de criança.
+  let user: Awaited<ReturnType<typeof resolveAuthenticatedUser>> | null = null;
+  let childId: string | undefined;
+  let groupId: string | undefined;
 
-  const { childId } = await params;
-  const body = (await request.json().catch(() => ({}))) as PatchBody;
-  const groupId = body.groupId?.trim();
-  if (!childId || !groupId) {
-    return NextResponse.json({ error: "groupId e childId obrigatórios." }, { status: 400 });
-  }
+  try {
+    user = await resolveAuthenticatedUser(request);
+    if (!user) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
 
-  const gate = await verifyChildBelongsToUserGroup(childId, groupId, user.id);
-  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+    childId = (await params).childId;
+    const body = (await request.json().catch(() => ({}))) as PatchBody;
+    groupId = body.groupId?.trim();
+    if (!childId || !groupId) {
+      return NextResponse.json({ error: "groupId e childId obrigatórios." }, { status: 400 });
+    }
 
-  const updates: Record<string, unknown> = {};
+    const gate = await verifyChildBelongsToUserGroup(childId, groupId, user.id);
+    if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+
+    const updates: Record<string, unknown> = {};
   if (typeof body.fullName === "string") {
     const v = body.fullName.trim();
     if (!v) return NextResponse.json({ error: "fullName não pode ser vazio." }, { status: 400 });
@@ -113,50 +121,129 @@ export async function PATCH(
     return NextResponse.json({ error: "Nada para atualizar." }, { status: 400 });
   }
 
-  const { data: child, error } = await gate.admin
-    .from("children")
-    .update(updates)
-    .eq("id", childId)
-    .select("id, full_name, birth_date, sex, photo_url, notes, allergies, cpf, rg")
-    .single();
+    const { data: child, error } = await gate.admin
+      .from("children")
+      .update(updates)
+      .eq("id", childId)
+      .select("id, full_name, birth_date, sex, photo_url, notes, allergies, cpf, rg")
+      .single();
 
-  if (error || !child) {
-    return NextResponse.json({ error: error?.message || "Falha ao atualizar." }, { status: 400 });
+    if (error || !child) {
+      void reportServerError(
+        new Error(error?.message || "child_update_failed"),
+        {
+          filePath: "src/app/api/children/[childId]/route.ts",
+          severity: "error",
+          userId: user.id,
+          metadata: {
+            childId,
+            groupId,
+            pgCode: error?.code,
+            pgDetails: error?.details,
+            pgHint: error?.hint,
+            phase: "update_failed",
+          },
+        },
+      );
+      return NextResponse.json(
+        { error: error?.message || "Falha ao atualizar.", code: error?.code },
+        { status: 400 },
+      );
+    }
+
+    captureServerEvent(user.id, "child_updated", { via: "onboarding_wizard" });
+    revalidateTag(`children-${groupId}`, "max");
+    return NextResponse.json({ success: true, child });
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : "Erro inesperado.";
+    void reportServerError(caught, {
+      filePath: "src/app/api/children/[childId]/route.ts",
+      severity: "critical",
+      userId: user?.id,
+      metadata: { childId, groupId, phase: "unhandled_exception_patch" },
+    });
+    return NextResponse.json(
+      { error: `Erro ao atualizar criança: ${message}` },
+      { status: 500 },
+    );
   }
-
-  captureServerEvent(user.id, "child_updated", { via: "onboarding_wizard" });
-  revalidateTag(`children-${groupId}`, "max");
-  return NextResponse.json({ success: true, child });
 }
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ childId: string }> },
 ) {
-  const user = await resolveAuthenticatedUser(request);
-  if (!user) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
+  // Bug investigation 2026-05-15: usuário Android viu "erro ao remover".
+  // Mesma vulnerability da rota POST — sem try/catch global, erros viram
+  // HTML que Native parseia como `{}` → fallback genérico sem contexto.
+  // Agora: try/catch + reportServerError com PG code/details/hint pra
+  // capturar FK violations (23503), constraints e exceptions inesperadas.
+  let user: Awaited<ReturnType<typeof resolveAuthenticatedUser>> | null = null;
+  let childId: string | undefined;
+  let groupId: string | undefined;
 
-  const { childId } = await params;
-  // DELETE accepts groupId via query OR body — fetch() bodies on DELETE are
-  // not universally supported, so query is the safer default for the wizard.
-  const url = new URL(request.url);
-  const groupId = url.searchParams.get("groupId") || (
-    await request.json().catch(() => ({} as { groupId?: string }))
-  ).groupId;
+  try {
+    user = await resolveAuthenticatedUser(request);
+    if (!user) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
 
-  if (!childId || !groupId) {
-    return NextResponse.json({ error: "groupId e childId obrigatórios." }, { status: 400 });
+    childId = (await params).childId;
+    const url = new URL(request.url);
+    groupId = url.searchParams.get("groupId") || (
+      await request.json().catch(() => ({} as { groupId?: string }))
+    ).groupId;
+
+    if (!childId || !groupId) {
+      return NextResponse.json({ error: "groupId e childId obrigatórios." }, { status: 400 });
+    }
+
+    const gate = await verifyChildBelongsToUserGroup(childId, groupId, user.id);
+    if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+
+    const { error } = await gate.admin.from("children").delete().eq("id", childId);
+    if (error) {
+      void reportServerError(
+        new Error(error.message || "child_delete_failed"),
+        {
+          filePath: "src/app/api/children/[childId]/route.ts",
+          severity: "error",
+          userId: user.id,
+          metadata: {
+            childId,
+            groupId,
+            pgCode: error.code,
+            pgDetails: error.details,
+            pgHint: error.hint,
+            phase: "delete_failed",
+          },
+        },
+      );
+      // PG code 23503 = foreign_key_violation — mensagem humanizada
+      const isFKBlocked = error.code === "23503";
+      return NextResponse.json(
+        {
+          error: isFKBlocked
+            ? "Não consegui remover: a criança tem registros (despesas, documentos, eventos ou notas) vinculados. Apague-os antes."
+            : error.message,
+          code: error.code,
+        },
+        { status: 400 },
+      );
+    }
+
+    captureServerEvent(user.id, "child_deleted", { via: "onboarding_wizard" });
+    revalidateTag(`children-${groupId}`, "max");
+    return NextResponse.json({ success: true });
+  } catch (caught) {
+    const message = caught instanceof Error ? caught.message : "Erro inesperado.";
+    void reportServerError(caught, {
+      filePath: "src/app/api/children/[childId]/route.ts",
+      severity: "critical",
+      userId: user?.id,
+      metadata: { childId, groupId, phase: "unhandled_exception_delete" },
+    });
+    return NextResponse.json(
+      { error: `Erro ao remover criança: ${message}` },
+      { status: 500 },
+    );
   }
-
-  const gate = await verifyChildBelongsToUserGroup(childId, groupId, user.id);
-  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
-
-  const { error } = await gate.admin.from("children").delete().eq("id", childId);
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
-  }
-
-  captureServerEvent(user.id, "child_deleted", { via: "onboarding_wizard" });
-  revalidateTag(`children-${groupId}`, "max");
-  return NextResponse.json({ success: true });
 }
