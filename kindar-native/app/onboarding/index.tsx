@@ -301,11 +301,12 @@ export default function OnboardingScreen() {
           sex: form.sex || null,
         }),
       });
-      const body = await resp.json().catch(() => ({} as { child?: { id: string }; error?: string }));
+      const body = await resp.json().catch(() => ({} as { child?: { id: string }; error?: string; code?: string }));
       if (!resp.ok) {
         const message = resolveFetchErrorMessage({
           status: resp.status,
           serverMessage: body.error,
+          errorCode: body.code,
           fallbackKey: 'onboardingForm.errorAddingChild',
         }, t);
         if (message) dispatch({ type: 'FORM_SUBMIT_ERROR', message });
@@ -354,11 +355,12 @@ export default function OnboardingScreen() {
           sex: form.sex || null,
         }),
       });
-      const body = await resp.json().catch(() => ({} as { error?: string }));
+      const body = await resp.json().catch(() => ({} as { error?: string; code?: string }));
       if (!resp.ok) {
         const message = resolveFetchErrorMessage({
           status: resp.status,
           serverMessage: body.error,
+          errorCode: body.code,
           fallbackKey: 'onboardingForm.errorUpdatingChild',
         }, t);
         if (message) dispatch({ type: 'FORM_SUBMIT_ERROR', message });
@@ -422,10 +424,11 @@ export default function OnboardingScreen() {
                 },
               );
               if (!resp.ok) {
-                const body = await resp.json().catch(() => ({} as { error?: string }));
+                const body = await resp.json().catch(() => ({} as { error?: string; code?: string }));
                 const message = resolveFetchErrorMessage({
                   status: resp.status,
                   serverMessage: body.error,
+                  errorCode: body.code,
                   fallbackKey: 'onboardingForm.errorRemovingChild',
                 }, t) || t('onboardingForm.errorRemovingChild');
                 dispatch({ type: 'REMOVE_CHILD_REVERT' });

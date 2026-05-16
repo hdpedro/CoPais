@@ -183,12 +183,13 @@ export default function OnboardingForm() {
         }),
       });
       const result = (await res.json().catch(() => ({}))) as {
-        groupId?: string; childId?: string; error?: string;
+        groupId?: string; childId?: string; error?: string; code?: string;
       };
       if (!res.ok || result.error) {
         const message = resolveFetchErrorMessage({
           status: res.status,
           serverMessage: result.error,
+          errorCode: result.code,
           fallbackKey: "onboardingForm.errorCreating",
         }, t);
         if (message) dispatch({ type: "FORM_SUBMIT_ERROR", message });
@@ -232,12 +233,13 @@ export default function OnboardingForm() {
         }),
       });
       const result = (await res.json().catch(() => ({}))) as {
-        child?: { id: string }; error?: string;
+        child?: { id: string }; error?: string; code?: string;
       };
       if (!res.ok || result.error) {
         const message = resolveFetchErrorMessage({
           status: res.status,
           serverMessage: result.error,
+          errorCode: result.code,
           fallbackKey: "onboardingForm.errorAddingChild",
         }, t);
         if (message) dispatch({ type: "FORM_SUBMIT_ERROR", message });
@@ -280,11 +282,12 @@ export default function OnboardingForm() {
           sex: form.sex || null,
         }),
       });
-      const result = (await res.json().catch(() => ({}))) as { error?: string };
+      const result = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
       if (!res.ok || result.error) {
         const message = resolveFetchErrorMessage({
           status: res.status,
           serverMessage: result.error,
+          errorCode: result.code,
           fallbackKey: "onboardingForm.errorUpdatingChild",
         }, t);
         if (message) dispatch({ type: "FORM_SUBMIT_ERROR", message });
@@ -324,11 +327,12 @@ export default function OnboardingForm() {
         `/api/children/${childId}?groupId=${encodeURIComponent(groupId)}`,
         { method: "DELETE", signal: controller.signal },
       );
-      const result = (await res.json().catch(() => ({}))) as { error?: string };
+      const result = (await res.json().catch(() => ({}))) as { error?: string; code?: string };
       if (!res.ok || result.error) {
         const message = resolveFetchErrorMessage({
           status: res.status,
           serverMessage: result.error,
+          errorCode: result.code,
           fallbackKey: "onboardingForm.errorRemovingChild",
         }, t);
         dispatch({
