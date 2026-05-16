@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, RefreshControl,
+  View, Text, FlatList, TouchableOpacity, RefreshControl, ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -154,9 +154,13 @@ export default function TimelineScreen() {
         </Text>
       </View>
 
-      {/* Chips filter */}
+      {/* Chips filter — horizontal scroll necessário porque os 5 chips
+          (Todos / Doenças / Remédios / Consultas / Notas) somados não cabem
+          em telas pequenas (≤iPhone SE). Bug Angelino 2026-05-16 16:21:
+          o último chip "Notas" ficava cortado na borda direita sem nenhum
+          affordance de scroll — usuário não tinha como acessá-lo. */}
       <View style={{
-        paddingHorizontal: spacing.lg, paddingVertical: spacing.md,
+        paddingVertical: spacing.md,
         backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
       }}>
         <ScrollViewChips filter={filter} setFilter={setFilter} />
@@ -191,6 +195,21 @@ export default function TimelineScreen() {
 }
 
 // Chip filter bar
+//
+// Antes era uma <View flexDirection:"row"> simples — visualmente parecia ok
+// em iPhone Pro Max mas em telas menores o último chip ("Notas") era cortado
+// pela borda direita sem nenhuma indicação de scroll. Bug reportado por
+// Angelino 2026-05-16 16:21.
+//
+// Agora é um ScrollView horizontal real:
+//   - showsHorizontalScrollIndicator={false} → sem barrinha visual feia
+//   - contentContainerStyle.paddingHorizontal = spacing.lg → margens laterais
+//     consistentes mesmo durante scroll
+//   - gap entre chips via paddingRight de cada item (React Native ≥0.71
+//     suporta `gap` em ScrollView contentContainerStyle, mas mantenho
+//     paddingRight individual pra back-compat)
+//   - contentContainerStyle.paddingRight extra = spacing.lg garante que o
+//     último chip nunca cole na borda; affordance visual implícito
 function ScrollViewChips({ filter, setFilter }: { filter: string | null; setFilter: (f: string | null) => void }) {
   const chips = [
     { key: null, label: 'Todos' },
@@ -201,7 +220,15 @@ function ScrollViewChips({ filter, setFilter }: { filter: string | null; setFilt
   ];
 
   return (
-    <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{
+        paddingHorizontal: spacing.lg,
+        gap: spacing.sm,
+        alignItems: 'center',
+      }}
+    >
       {chips.map(c => (
         <TouchableOpacity
           key={c.key || 'all'}
@@ -223,6 +250,6 @@ function ScrollViewChips({ filter, setFilter }: { filter: string | null; setFilt
           </Text>
         </TouchableOpacity>
       ))}
-    </View>
+    </ScrollView>
   );
 }
