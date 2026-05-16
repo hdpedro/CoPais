@@ -3,7 +3,6 @@
  *
  * Source: src/i18n/locales/pt.json (Regra Canônica 4 — pt-BR is source).
  * Regenerate: `npm run i18n:gen`
- * Generated at: 2026-05-16T15:03:04.157Z
  *
  * Exports `TranslationKey` — the union of every dot-separated leaf path in
  * pt.json. Use as the key argument to `t()` for compile-time safety.

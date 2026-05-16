@@ -38,12 +38,14 @@ function leafPaths(obj, prefix = "") {
 const dict = JSON.parse(readFileSync(PT_FILE, "utf8"));
 const allKeys = leafPaths(dict).sort();
 
+// Header kept timestamp-free on purpose: re-running this script with the same
+// pt.json must produce a byte-identical file so pre-commit + CI gates pass
+// without spurious diffs. Source-of-truth is the key count + leaf set below.
 const header = `/**
  * AUTO-GENERATED — DO NOT EDIT by hand.
  *
  * Source: src/i18n/locales/pt.json (Regra Canônica 4 — pt-BR is source).
  * Regenerate: \`npm run i18n:gen\`
- * Generated at: ${new Date().toISOString()}
  *
  * Exports \`TranslationKey\` — the union of every dot-separated leaf path in
  * pt.json. Use as the key argument to \`t()\` for compile-time safety.
