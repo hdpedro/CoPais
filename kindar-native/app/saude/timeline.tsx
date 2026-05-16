@@ -5,7 +5,7 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, RefreshControl, ScrollView,
+  View, Text, FlatList, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,7 +43,8 @@ function formatDayLabel(dateStr: string): string {
   const diffDays = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays === 0) return 'Hoje';
   if (diffDays === 1) return 'Ontem';
-  const days = ['Domingo', 'Segunda', 'Terca', 'Quarta', 'Quinta', 'Sexta', 'Sabado'];
+  // Regra Canônica 1: acentos corretos — "Terça", "Sábado", "Sexta".
+  const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
   return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
 }
@@ -82,6 +83,20 @@ export default function TimelineScreen() {
         events,
       }));
   }, [data?.timeline, filter]);
+
+  // Pre-computed counts per filter — usado nos chips pra mostrar
+  // "Doenças · 3" e indicar quais filtros têm conteúdo. Sem isso, o user
+  // tinha que tatear cada chip pra descobrir se o filtro estava vazio.
+  const counts = useMemo(() => {
+    const all = data?.timeline || [];
+    return {
+      total: all.length,
+      illness: all.filter(e => e.type === 'illness').length,
+      medication: all.filter(e => e.type === 'medication').length,
+      appointment: all.filter(e => e.type === 'appointment').length,
+      observation: all.filter(e => e.type === 'observation').length,
+    };
+  }, [data?.timeline]);
 
   const renderEvent = (event: HealthEvent, isLast: boolean) => {
     const cfg = EVENT_ICONS[event.type] || EVENT_ICONS.observation;
@@ -150,20 +165,19 @@ export default function TimelineScreen() {
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text, flex: 1 }}>
-          Historico Clinico
+          Histórico Clínico
         </Text>
       </View>
 
-      {/* Chips filter — horizontal scroll necessário porque os 5 chips
-          (Todos / Doenças / Remédios / Consultas / Notas) somados não cabem
-          em telas pequenas (≤iPhone SE). Bug Angelino 2026-05-16 16:21:
-          o último chip "Notas" ficava cortado na borda direita sem nenhum
-          affordance de scroll — usuário não tinha como acessá-lo. */}
+      {/* Chips filter — flex-wrap em 2 linhas quando não cabem na largura.
+          Trocou de ScrollView horizontal pra wrap (Angelino reportou que o
+          scroll não era óbvio: o user passou batido pelo "Notas" cortado).
+          Wrap garante que TODOS os filtros são visíveis sem interação. */}
       <View style={{
-        paddingVertical: spacing.md,
+        paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
         backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
       }}>
-        <ScrollViewChips filter={filter} setFilter={setFilter} />
+        <FilterChips filter={filter} setFilter={setFilter} counts={counts} />
       </View>
 
       {/* List */}
@@ -172,12 +186,7 @@ export default function TimelineScreen() {
         keyExtractor={item => item.date}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
-        ListEmptyComponent={
-          <View style={{ alignItems: 'center', paddingVertical: spacing['5xl'] }}>
-            <Text style={{ fontSize: 32, marginBottom: spacing.md }}>📋</Text>
-            <Text style={{ fontSize: font.sizes.md, color: colors.textMuted }}>Nenhum registro encontrado</Text>
-          </View>
-        }
+        ListEmptyComponent={<EmptyState filter={filter} clearFilter={() => setFilter(null)} />}
         renderItem={({ item }) => (
           <View style={{ marginBottom: spacing.xl }}>
             <Text style={{
@@ -194,62 +203,164 @@ export default function TimelineScreen() {
   );
 }
 
-// Chip filter bar
-//
-// Antes era uma <View flexDirection:"row"> simples — visualmente parecia ok
-// em iPhone Pro Max mas em telas menores o último chip ("Notas") era cortado
-// pela borda direita sem nenhuma indicação de scroll. Bug reportado por
-// Angelino 2026-05-16 16:21.
-//
-// Agora é um ScrollView horizontal real:
-//   - showsHorizontalScrollIndicator={false} → sem barrinha visual feia
-//   - contentContainerStyle.paddingHorizontal = spacing.lg → margens laterais
-//     consistentes mesmo durante scroll
-//   - gap entre chips via paddingRight de cada item (React Native ≥0.71
-//     suporta `gap` em ScrollView contentContainerStyle, mas mantenho
-//     paddingRight individual pra back-compat)
-//   - contentContainerStyle.paddingRight extra = spacing.lg garante que o
-//     último chip nunca cole na borda; affordance visual implícito
-function ScrollViewChips({ filter, setFilter }: { filter: string | null; setFilter: (f: string | null) => void }) {
-  const chips = [
-    { key: null, label: 'Todos' },
-    { key: 'illness', label: '🤒 Doencas' },
-    { key: 'medication', label: '💊 Remedios' },
-    { key: 'appointment', label: '🏥 Consultas' },
-    { key: 'observation', label: '📝 Notas' },
+/**
+ * Filter chips — flex-wrap layout em 2 linhas.
+ *
+ * Iteração 1 (bug Angelino 2026-05-16 16:21): View → ScrollView horizontal.
+ *   Não resolveu a UX — o user não percebia o scroll, passou batido pelo
+ *   chip "Notas" parcialmente cortado.
+ *
+ * Iteração 2 (Angelino reportou de novo): ScrollView → flexWrap.
+ *   Agora TODOS os 5 chips são visíveis em 2 linhas sem nenhuma interação
+ *   necessária. Affordance zero: você vê o filtro, você toca.
+ *
+ * Plus:
+ *   - Cada chip mostra contagem entre parênteses ("Doenças · 3"), assim o
+ *     user sabe quais filtros vão render algo antes de tocar.
+ *   - Chip "Todos" agora também tem ícone (📋) pra consistência visual com
+ *     os demais.
+ *   - Estados disabled (count=0) ficam com opacidade reduzida — ainda
+ *     tocáveis (pode haver dados futuros) mas visualmente distintos.
+ *   - Acentos corretos: "Doenças", "Remédios" (Regra Canônica 1).
+ */
+function FilterChips({
+  filter,
+  setFilter,
+  counts,
+}: {
+  filter: string | null;
+  setFilter: (f: string | null) => void;
+  counts: { total: number; illness: number; medication: number; appointment: number; observation: number };
+}) {
+  const chips: Array<{ key: string | null; label: string; count: number }> = [
+    { key: null, label: '📋 Todos', count: counts.total },
+    { key: 'illness', label: '🤒 Doenças', count: counts.illness },
+    { key: 'medication', label: '💊 Remédios', count: counts.medication },
+    { key: 'appointment', label: '🏥 Consultas', count: counts.appointment },
+    { key: 'observation', label: '📝 Notas', count: counts.observation },
   ];
 
   return (
-    <ScrollView
-      horizontal
-      showsHorizontalScrollIndicator={false}
-      contentContainerStyle={{
-        paddingHorizontal: spacing.lg,
-        gap: spacing.sm,
-        alignItems: 'center',
-      }}
-    >
-      {chips.map(c => (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
+      {chips.map(c => {
+        const active = filter === c.key;
+        const empty = c.count === 0;
+        return (
+          <TouchableOpacity
+            key={c.key || 'all'}
+            onPress={() => {
+              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+              setFilter(c.key);
+            }}
+            activeOpacity={0.7}
+            style={{
+              paddingVertical: spacing.xs + 2,
+              paddingHorizontal: spacing.md,
+              borderRadius: radius.full,
+              backgroundColor: active ? colors.brand : colors.bgSurface,
+              borderWidth: active ? 0 : 1,
+              borderColor: colors.borderLight,
+              opacity: empty && !active ? 0.5 : 1,
+            }}
+          >
+            <Text
+              style={{
+                fontSize: font.sizes.xs,
+                fontWeight: font.weights.medium,
+                color: active ? '#fff' : colors.textSecondary,
+              }}
+            >
+              {c.label}
+              {c.count > 0 ? (
+                <Text
+                  style={{
+                    fontWeight: font.weights.bold,
+                    color: active ? '#fff' : colors.textMuted,
+                  }}
+                >
+                  {' · '}{c.count}
+                </Text>
+              ) : null}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </View>
+  );
+}
+
+/**
+ * Empty state — agora context-aware:
+ *   - Filtro ativo: explica que NESSE filtro não tem nada, oferece "Ver
+ *     todos" pra remover o filtro.
+ *   - Sem filtro (timeline 100% vazia): oferece CTA pra registrar o
+ *     primeiro evento. Antes era só "Nenhum registro encontrado" sem ação.
+ */
+function EmptyState({ filter, clearFilter }: { filter: string | null; clearFilter: () => void }) {
+  if (filter) {
+    const labelByKey: Record<string, string> = {
+      illness: 'doenças',
+      medication: 'remédios',
+      appointment: 'consultas',
+      observation: 'notas',
+    };
+    return (
+      <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'], paddingHorizontal: spacing.xl }}>
+        <Text style={{ fontSize: 40, marginBottom: spacing.md }}>🔍</Text>
+        <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, textAlign: 'center', marginBottom: spacing.xs }}>
+          Nenhum registro em {labelByKey[filter] || 'este filtro'}
+        </Text>
+        <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }}>
+          Toque em &quot;Todos&quot; para ver o histórico completo da família.
+        </Text>
         <TouchableOpacity
-          key={c.key || 'all'}
           onPress={() => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-            setFilter(c.key);
+            clearFilter();
           }}
           style={{
-            paddingVertical: spacing.xs + 2, paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm + 2,
+            paddingHorizontal: spacing.xl,
+            backgroundColor: colors.brand,
             borderRadius: radius.full,
-            backgroundColor: filter === c.key ? colors.brand : colors.bgSurface,
           }}
         >
-          <Text style={{
-            fontSize: font.sizes.xs, fontWeight: font.weights.medium,
-            color: filter === c.key ? '#fff' : colors.textSecondary,
-          }}>
-            {c.label}
+          <Text style={{ color: '#fff', fontWeight: font.weights.semibold, fontSize: font.sizes.sm }}>
+            Ver todos
           </Text>
         </TouchableOpacity>
-      ))}
-    </ScrollView>
+      </View>
+    );
+  }
+  return (
+    <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'], paddingHorizontal: spacing.xl }}>
+      <Text style={{ fontSize: 40, marginBottom: spacing.md }}>📋</Text>
+      <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, textAlign: 'center', marginBottom: spacing.xs }}>
+        Histórico vazio
+      </Text>
+      <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }}>
+        Quando você registrar uma consulta, remédio ou sintoma, ele aparece aqui em ordem cronológica.
+      </Text>
+      <TouchableOpacity
+        onPress={() => {
+          Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+          router.push('/saude/registrar');
+        }}
+        style={{
+          paddingVertical: spacing.sm + 2,
+          paddingHorizontal: spacing.xl,
+          backgroundColor: colors.brand,
+          borderRadius: radius.full,
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: spacing.xs,
+        }}
+      >
+        <Ionicons name="add" size={18} color="#fff" />
+        <Text style={{ color: '#fff', fontWeight: font.weights.semibold, fontSize: font.sizes.sm }}>
+          Registrar primeiro evento
+        </Text>
+      </TouchableOpacity>
+    </View>
   );
 }
