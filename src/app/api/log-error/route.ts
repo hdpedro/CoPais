@@ -12,7 +12,10 @@ interface LogErrorBody {
   stack?: string;
   filePath?: string;
   userId?: string;
-  severity?: "warning" | "error" | "critical";
+  // Severity expandido em 2026-05-17 (migration 00085) — 'info' usado pelo
+  // withTimeout wrapper do native pra telemetria de defesa-em-profundidade
+  // (timeouts que recuperam com empty-state). Antes era apenas warning+.
+  severity?: "info" | "warning" | "error" | "critical";
   sentryEventId?: string;
   metadata?: Record<string, unknown>;
 }
@@ -55,17 +58,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Fire-and-forget Discord notification
-    notifyDiscord({
-      id: data.id,
-      message: body.message,
-      stack: body.stack,
-      filePath: body.filePath,
-      folderCategory,
-      severity,
-    }).catch((err) =>
-      console.error("[log-error] Discord notification failed:", err)
-    );
+    // Fire-and-forget Discord notification.
+    // Skip Discord pra severity='info' (telemetria — não acorda ninguém).
+    // 34 timeouts do withTimeout em 7 dias antes desse filtro spammavam o
+    // Discord como se fossem bugs.
+    if (severity !== "info") {
+      notifyDiscord({
+        id: data.id,
+        message: body.message,
+        stack: body.stack,
+        filePath: body.filePath,
+        folderCategory,
+        severity,
+        sentryEventId: body.sentryEventId,
+      }).catch((err) =>
+        console.error("[log-error] Discord notification failed:", err)
+      );
+    }
 
     return NextResponse.json({ id: data.id });
   } catch (err) {

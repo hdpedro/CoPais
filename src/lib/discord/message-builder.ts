@@ -11,6 +11,8 @@ export interface ErrorNotification {
   filePath?: string;
   folderCategory: string;
   severity: string;
+  /** Sentry event id pra cross-link no embed (botão "Ver no Sentry"). */
+  sentryEventId?: string;
 }
 
 interface DiscordEmbed {
@@ -30,9 +32,17 @@ interface DiscordButton {
   emoji?: { name: string };
 }
 
+interface DiscordLinkButton {
+  type: 2;
+  style: 5; // Link
+  label: string;
+  url: string;
+  emoji?: { name: string };
+}
+
 export interface DiscordMessagePayload {
   embeds: DiscordEmbed[];
-  components: { type: 1; components: DiscordButton[] }[];
+  components: { type: 1; components: (DiscordButton | DiscordLinkButton)[] }[];
 }
 
 /** Truncate stack trace for embed field (max 1024 chars) */
@@ -101,7 +111,7 @@ export function buildErrorMessage(error: ErrorNotification): DiscordMessagePaylo
     footer: { text: `Error ID: ${error.id}` },
   };
 
-  const buttons: DiscordButton[] = [
+  const buttons: (DiscordButton | DiscordLinkButton)[] = [
     {
       type: 2,
       style: 1, // Primary (blurple)
@@ -124,6 +134,22 @@ export function buildErrorMessage(error: ErrorNotification): DiscordMessagePaylo
       emoji: { name: "\u274C" }, // ❌
     },
   ];
+
+  // Sentry cross-link (2026-05-17). report-server.ts captura via
+  // Sentry.captureException primeiro e popula sentry_event_id no app_errors.
+  // Botão style=5 (Link) abre o issue na sentry.io — stack simbolizado +
+  // breadcrumbs + session replay em 1 clique a partir do Discord.
+  if (error.sentryEventId) {
+    const sentryOrg = process.env.SENTRY_ORG ?? "kindar";
+    const sentryProject = process.env.SENTRY_PROJECT ?? "kindar-pwa";
+    buttons.push({
+      type: 2,
+      style: 5, // Link
+      label: "Ver no Sentry",
+      url: `https://sentry.io/organizations/${sentryOrg}/projects/${sentryProject}/events/${error.sentryEventId}/`,
+      emoji: { name: "\u{1F50D}" }, // 🔍
+    });
+  }
 
   return {
     embeds: [embed],

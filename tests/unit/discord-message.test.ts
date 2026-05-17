@@ -46,9 +46,20 @@ describe("buildErrorMessage", () => {
     const buttons = payload.components[0].components;
 
     expect(buttons).toHaveLength(3);
-    expect(buttons[0].custom_id).toBe("fix_error:abc-123");
-    expect(buttons[1].custom_id).toBe("ack_error:abc-123");
-    expect(buttons[2].custom_id).toBe("ignore_error:abc-123");
+    // Narrow os 3 primeiros como DiscordButton (style 1/2/4) pra TS.
+    // Quarto botão (Link style=5) só aparece quando sentryEventId está presente.
+    expect("custom_id" in buttons[0] && buttons[0].custom_id).toBe("fix_error:abc-123");
+    expect("custom_id" in buttons[1] && buttons[1].custom_id).toBe("ack_error:abc-123");
+    expect("custom_id" in buttons[2] && buttons[2].custom_id).toBe("ignore_error:abc-123");
+  });
+
+  it("adds 4th 'Ver no Sentry' link button when sentryEventId is provided", () => {
+    const payload = buildErrorMessage({ ...sampleError, sentryEventId: "evt-xyz-789" });
+    const buttons = payload.components[0].components;
+
+    expect(buttons).toHaveLength(4);
+    expect(buttons[3].style).toBe(5); // Link
+    expect("url" in buttons[3] && buttons[3].url).toContain("evt-xyz-789");
   });
 
   it("uses correct button styles", () => {

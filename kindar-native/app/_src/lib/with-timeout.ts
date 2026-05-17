@@ -31,7 +31,12 @@ export function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: strin
   const timeout = new Promise<T>((_, reject) => {
     timer = setTimeout(() => {
       const err = new TimeoutError(label, ms);
-      reportError(err, { severity: 'warning', filePath: `with-timeout:${label}` }).catch(() => {});
+      // Severity downgraded warning→info em 2026-05-17: timeouts são defesa
+      // em profundidade funcionando (hook recupera com empty-state + retry).
+      // Telemetria útil pra dashboard de "internet ruim do user" mas NÃO
+      // acordam alguém na madrugada. Antes: 13 timeouts/7d poluíam Discord
+      // como 'warning' (cor amarela, parece bug).
+      reportError(err, { severity: 'info', filePath: `with-timeout:${label}` }).catch(() => {});
       reject(err);
     }, ms);
   });

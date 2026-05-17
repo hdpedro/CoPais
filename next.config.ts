@@ -37,9 +37,21 @@ export default withSentryConfig(nextConfig, {
   // Suppress all Sentry logs during build
   silent: true,
 
-  // Disable source map upload (enable later with auth token)
+  // Org + project pra upload de source maps. Configurado em 2026-05-17 — sem
+  // isso stack traces em produção ficam minificados (impossível debugar).
+  // Requer SENTRY_AUTH_TOKEN em Vercel env vars (scope project:releases + org:read).
+  // Se o token não existir, build segue mas o upload falha silenciosamente — não
+  // bloqueia deploy. Verifique em sentry.io após o próximo deploy se issues
+  // têm stack traces legíveis.
+  org: "kindar",
+  project: "kindar-pwa",
+
+  // Habilitar upload de source maps. Antes desabilitado por falta de auth token.
+  // hideSourceMaps default true em next-sentry — não precisa passar.
   sourcemaps: {
-    disable: true,
+    disable: false,
+    // Não fazer upload em desenvolvimento — only on Vercel builds.
+    // (withSentryConfig já detecta NODE_ENV; sem flag adicional necessária.)
   },
 
   // Disable telemetry during build

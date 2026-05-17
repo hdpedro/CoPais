@@ -25,7 +25,13 @@ import { supabase } from './supabase';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
-type Severity = 'warning' | 'error' | 'critical';
+// Severity hierarchy (alinhada com app_errors.severity check constraint
+// migration 00085 + report-server.ts no PWA):
+//   info     — telemetria útil (timeouts, eventos rastreados) sem acordar ninguém
+//   warning  — degradação operacional não-bloqueante
+//   error    — operação falhou, user impactado
+//   critical — crash / data loss
+type Severity = 'info' | 'warning' | 'error' | 'critical';
 
 interface ReportContext {
   filePath?: string;
