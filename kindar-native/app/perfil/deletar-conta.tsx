@@ -29,13 +29,13 @@ const CONFIRM_WORD = 'DELETAR';
 
 const WHAT_GETS_DELETED = [
   'Seu perfil e dados pessoais',
-  'Todas as criancas cadastradas por voce',
-  'Eventos, calendario e escala de guarda',
-  'Despesas, comprovantes e historico financeiro',
+  'Todas as crianças cadastradas por você',
+  'Eventos, calendário e escala de guarda',
+  'Despesas, comprovantes e histórico financeiro',
   'Mensagens e anexos do chat',
   'Documentos enviados',
-  'Registros de saude (consultas, vacinas, medicamentos)',
-  'Decisoes, acordos e notas',
+  'Registros de saúde (consultas, vacinas, medicamentos)',
+  'Decisões, acordos e notas',
 ];
 
 export default function DeletarContaScreen() {

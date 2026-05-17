@@ -32,10 +32,10 @@ interface ChatMessage {
 }
 
 const SUGGESTIONS = [
-  'Quem esta com a guarda hoje?',
-  'Quais as proximas atividades?',
+  'Quem está com a guarda hoje?',
+  'Quais as próximas atividades?',
   'Qual meu saldo de despesas?',
-  'Ver historico de saude das criancas',
+  'Ver histórico de saúde das crianças',
 ];
 
 export default function AIAssistantSheet() {
@@ -55,7 +55,7 @@ export default function AIAssistantSheet() {
       setMessages([{
         id: 'welcome',
         role: 'assistant',
-        content: 'Oi! Sou o Kindar AI 👋\n\nPosso ajudar com despesas, eventos, consultas, resumos da familia e muito mais. O que voce precisa?',
+        content: 'Oi! Sou o Kindar AI 👋\n\nPosso ajudar com despesas, eventos, consultas, resumos da família e muito mais. O que você precisa?',
       }]);
     }
   }, [isOpen, messages.length]);
@@ -76,7 +76,7 @@ export default function AIAssistantSheet() {
 
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
-      if (!token) throw new Error('Sessao expirada');
+      if (!token) throw new Error('Sessão expirada');
 
       const res = await fetch(`${WEB_URL}/api/ai/assistant`, {
         method: 'POST',
@@ -99,7 +99,7 @@ export default function AIAssistantSheet() {
       ));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message || 'Nao consegui responder agora';
+      const msg = (err as { message?: string })?.message || 'Não consegui responder agora';
       setMessages(prev => prev.map(m =>
         m.id === pendingMsg.id
           ? { ...m, content: `⚠️ ${msg}`, pending: false }

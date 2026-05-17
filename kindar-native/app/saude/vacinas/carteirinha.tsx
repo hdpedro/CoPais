@@ -266,11 +266,15 @@ export default function CarteirinhaScreen() {
             </View>
 
             <TouchableOpacity onPress={() => pickImage('camera')} activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Tirar foto"
               style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
               <Ionicons name="camera-outline" size={20} color="#fff" />
               <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Tirar foto</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => pickImage('library')} activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Escolher da galeria"
               style={{ backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, paddingVertical: spacing.md + 2, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm }}>
               <Ionicons name="images-outline" size={20} color={colors.text} />
               <Text style={{ color: colors.text, fontSize: font.sizes.md, fontWeight: font.weights.medium }}>Escolher da galeria</Text>
@@ -367,6 +371,9 @@ export default function CarteirinhaScreen() {
             ))}
 
             <TouchableOpacity disabled={saving} onPress={handleSave} activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Salvar vacinas"
+              accessibilityState={{ disabled: saving, busy: saving }}
               style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', opacity: saving ? 0.5 : 1, marginTop: spacing.lg, marginBottom: spacing.sm }}>
               {saving ? <ActivityIndicator color="#fff" /> : (
                 <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
@@ -374,7 +381,7 @@ export default function CarteirinhaScreen() {
                 </Text>
               )}
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleRetry} style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
+            <TouchableOpacity onPress={handleRetry} accessibilityRole="button" accessibilityLabel="Tentar com outra foto" style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
               <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Tentar com outra foto</Text>
             </TouchableOpacity>
           </>

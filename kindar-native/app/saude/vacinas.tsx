@@ -244,7 +244,9 @@ export default function VacinasScreen() {
       <TouchableOpacity
         activeOpacity={0.85}
         accessibilityRole="button"
+        accessibilityLabel={`${t('health.vaccineEngine.preventiveCareTitle')} de ${selectedChild.full_name.split(' ')[0]}: ${status.statusLabel}`}
         accessibilityHint={t('health.vaccineEngine.openDetails')}
+        accessibilityState={{ expanded: heroExpanded }}
         onPress={() => {
           Haptics.selectionAsync();
           setHeroExpanded((v) => !v);
@@ -395,6 +397,8 @@ export default function VacinasScreen() {
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
             <TouchableOpacity
               onPress={() => router.push(`/saude/vacinas/carteirinha?crianca=${selectedChild.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={t('health.vaccineEngine.historyCta')}
               style={{
                 paddingVertical: spacing.xs + 2,
                 paddingHorizontal: spacing.md,
@@ -443,6 +447,8 @@ export default function VacinasScreen() {
               key={r.id}
               onPress={() => router.push(`/saude/vacinas/${r.id}` as never)}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={`${r.vaccine_name}, ${formatBrDate(r.administered_date)}${r.dose_label ? `, ${r.dose_label}` : ''}`}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -522,6 +528,10 @@ export default function VacinasScreen() {
               key={o.key}
               disabled={savingPref}
               onPress={() => handlePreference(o.key)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active, disabled: savingPref }}
+              accessibilityLabel={o.label}
+              accessibilityHint={o.hint}
               style={{
                 paddingVertical: spacing.sm + 2,
                 paddingHorizontal: spacing.md,
@@ -677,6 +687,8 @@ export default function VacinasScreen() {
                   setLoading(true);
                   load();
                 }}
+                accessibilityRole="button"
+                accessibilityLabel="Tentar novamente"
                 style={{
                   marginTop: spacing.sm,
                   alignSelf: 'flex-start',
@@ -700,6 +712,9 @@ export default function VacinasScreen() {
             <TouchableOpacity
               onPress={() => router.push(`/saude/vacinas/nova?crianca=${selectedChild.id}` as never)}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={t('health.vaccineEngine.registerCta')}
+              accessibilityHint={t('health.vaccineEngine.registerTitle')}
               style={{
                 flex: 1,
                 padding: spacing.md,
@@ -732,6 +747,9 @@ export default function VacinasScreen() {
             <TouchableOpacity
               onPress={() => router.push(`/saude/vacinas/carteirinha?crianca=${selectedChild.id}` as never)}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel={t('health.vaccineEngine.historyCta')}
+              accessibilityHint={t('health.vaccineEngine.historyHint')}
               style={{
                 flex: 1,
                 padding: spacing.md,
@@ -840,6 +858,9 @@ function ChildSelector({
           <TouchableOpacity
             key={c.id}
             onPress={() => onSelect(c.id)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={c.full_name.split(' ')[0]}
             style={{
               paddingVertical: spacing.xs + 2,
               paddingHorizontal: spacing.md,
@@ -941,6 +962,8 @@ function PendingCard({
       <View style={{ flexDirection: 'row', gap: 6, marginTop: spacing.sm }}>
         <TouchableOpacity
           onPress={onMark}
+          accessibilityRole="button"
+          accessibilityLabel={t('health.vaccineEngine.ctaMarkAsTaken')}
           style={{
             flex: 1,
             paddingVertical: spacing.sm,
@@ -958,6 +981,8 @@ function PendingCard({
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => router.push(`/saude/consultas?crianca=${childId}&vaccineDoseId=${dose.id}`)}
+          accessibilityRole="button"
+          accessibilityLabel={t('health.vaccineEngine.ctaScheduleAppointment')}
           style={{
             flex: 1,
             paddingVertical: spacing.sm,
@@ -975,6 +1000,9 @@ function PendingCard({
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => setShowSnooze((s) => !s)}
+          accessibilityRole="button"
+          accessibilityLabel={t('health.vaccineEngine.ctaSnooze')}
+          accessibilityState={{ expanded: showSnooze }}
           style={{
             paddingVertical: spacing.sm,
             paddingHorizontal: spacing.md,
@@ -994,18 +1022,24 @@ function PendingCard({
         <View style={{ flexDirection: 'row', gap: 6, marginTop: spacing.xs }}>
           <TouchableOpacity
             onPress={() => { onSnooze('snoozed_7d'); setShowSnooze(false); }}
+            accessibilityRole="button"
+            accessibilityLabel={t('health.vaccineEngine.ctaSnooze7d')}
             style={{ flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.borderLight }}
           >
             <Text style={{ fontSize: 11, color: colors.textMuted }}>{t('health.vaccineEngine.ctaSnooze7d')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => { onSnooze('snoozed_30d'); setShowSnooze(false); }}
+            accessibilityRole="button"
+            accessibilityLabel={t('health.vaccineEngine.ctaSnooze30d')}
             style={{ flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.borderLight }}
           >
             <Text style={{ fontSize: 11, color: colors.textMuted }}>{t('health.vaccineEngine.ctaSnooze30d')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => { onSnooze('already_scheduled'); setShowSnooze(false); }}
+            accessibilityRole="button"
+            accessibilityLabel={t('health.vaccineEngine.ctaAlreadyScheduled')}
             style={{ flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.borderLight }}
           >
             <Text style={{ fontSize: 11, color: colors.textMuted }}>{t('health.vaccineEngine.ctaAlreadyScheduled')}</Text>

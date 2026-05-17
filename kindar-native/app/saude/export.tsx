@@ -281,6 +281,8 @@ export default function ExportScreen() {
         <TouchableOpacity
           onPress={handleShare}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Compartilhar resumo"
           style={{
             backgroundColor: colors.brand, borderRadius: radius.md,
             paddingVertical: spacing.md + 2, alignItems: 'center',

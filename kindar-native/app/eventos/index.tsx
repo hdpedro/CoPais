@@ -85,14 +85,14 @@ export default function EventosScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Nao foi possivel salvar');
+      Alert.alert('Erro', result.error || 'Não foi possível salvar');
     }
   }
 
   function confirmDelete(ev: SocialEvent) {
     Alert.alert(
       'Remover evento',
-      `Remover "${ev.title}"? Esta acao nao pode ser desfeita.`,
+      `Remover "${ev.title}"? Esta ação não pode ser desfeita.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {

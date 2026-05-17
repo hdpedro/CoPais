@@ -2136,7 +2136,40 @@
     "removeActivity": "Remover atividade?",
     "removeConfirmText": "\"{name}\" sera removida junto com todo o checklist. Esta acao nao pode ser desfeita.",
     "removing": "Removendo...",
-    "remove": "Remover"
+    "remove": "Remover",
+    "title": "Atividades",
+    "editTitle": "Editar atividade",
+    "fields": {
+      "name": "Nome",
+      "category": "Categoria",
+      "start": "Início",
+      "end": "Fim",
+      "location": "Local",
+      "notes": "Observações"
+    },
+    "placeholders": {
+      "name": "Nome da atividade",
+      "location": "Onde acontece",
+      "notes": "Notas, material necessário..."
+    },
+    "timePlaceholder": "—",
+    "saveChanges": "Salvar alterações",
+    "checklist": "Checklist",
+    "report": "Relatar",
+    "errors": {
+      "saveTitle": "Erro",
+      "saveFallback": "Falha ao salvar",
+      "deleteTitle": "Erro",
+      "deleteFallback": "Falha"
+    },
+    "removeTitle": "Remover \"{name}\"?",
+    "consequences": {
+      "futureLabel": "próximas ocorrências no calendário",
+      "pastLabel": "ocorrências passadas no histórico",
+      "futureImpact": "apagado",
+      "pastImpact": "preservado"
+    },
+    "removeAction": "Remover"
   },
   "preSummary": {
     "title": "Resumo para Consulta",
@@ -2454,9 +2487,72 @@
       "title": "Sem dados de escola",
       "description": "Cadastre o nome da escola, série, professor(a) e horários para deixar a rotina mais clara.",
       "actionLabel": "Cadastrar escola"
+    },
+    "alergias": {
+      "title": "Comece pela alergia mais grave",
+      "description": "Ela aparecerá automaticamente:\n• Na ficha de emergência compartilhável\n• Nos resumos antes de consultas\n• No app do co-responsável em tempo real",
+      "actionLabel": "Adicionar alergia",
+      "actionHint": "Abre formulário pra cadastrar nova alergia"
+    },
+    "crescimento": {
+      "title": "Comece registrando a última consulta",
+      "description": "Cada medida vira:\n• Curva de crescimento ao longo do tempo\n• Comparação com a OMS por idade\n• Histórico exportável pro pediatra",
+      "actionLabel": "Registrar medida",
+      "actionHint": "Abre formulário pra cadastrar peso/altura"
+    },
+    "medicamentos": {
+      "title": "Acompanhe doses sem decorar horários",
+      "description": "Registrando um medicamento:\n• O app lembra você do próximo horário\n• O co-responsável vê o que já foi dado\n• Histórico fica salvo pro pediatra",
+      "actionLabel": "Adicionar medicamento",
+      "actionHint": "Abre formulário pra cadastrar medicamento"
+    },
+    "profissionais": {
+      "title": "Comece pelo pediatra",
+      "description": "Com cada profissional cadastrado:\n• Contato direto em 1 toque (WhatsApp/ligação)\n• Vínculo com consultas pra rastrear histórico\n• Ficha de emergência traz o pediatra automaticamente",
+      "actionLabel": "Adicionar profissional",
+      "actionHint": "Abre formulário pra cadastrar profissional"
+    },
+    "doencasActive": {
+      "title": "Tudo tranquilo por enquanto",
+      "description": "Quando aparecer uma gripe, virose, alergia… registre aqui pra:\n• O co-responsável saber em tempo real\n• Ter histórico pro pediatra\n• Acompanhar evolução com fotos e sintomas",
+      "actionLabel": "Registrar episódio",
+      "actionHint": "Abre a tela para registrar um novo episódio de doença"
+    },
+    "doencasAll": {
+      "title": "Comece pelo último episódio",
+      "description": "Cada episódio salvo vira:\n• Linha do tempo de saúde da criança\n• Insights de padrões (recorrência)\n• Contexto pro próximo médico",
+      "actionLabel": "Registrar episódio",
+      "actionHint": "Abre a tela para registrar um novo episódio de doença"
+    },
+    "sintomas": {
+      "title": "Nenhum sintoma registrado",
+      "description": "Registre sintomas para acompanhar a saúde da criança ao longo do tempo."
+    },
+    "atividades": {
+      "title": "Nenhuma atividade",
+      "description": "Crie atividades recorrentes para as crianças."
     }
   },
   "events": {
     "title": "Eventos"
+  },
+  "more": {
+    "title": "Mais",
+    "financial": "Financeiro",
+    "health": "Saúde",
+    "documents": "Documentos",
+    "events": "Eventos",
+    "activities": "Atividades",
+    "agreements": "Acordos",
+    "decisions": "Decisões",
+    "children": "Crianças",
+    "school": "Escola",
+    "sensitive": "Temas sensíveis",
+    "notes": "Notas",
+    "checkin": "Check-in",
+    "semana": "Semana",
+    "family": "Família",
+    "profile": "Perfil",
+    "openModule": "Abrir {label}"
   }
 }

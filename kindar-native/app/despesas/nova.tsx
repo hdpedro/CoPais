@@ -171,6 +171,9 @@ export default function NovaExpenseScreen() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           {EXPENSE_CATEGORIES.map(cat => (
             <TouchableOpacity key={cat.value} onPress={() => setCategory(cat.value)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: category === cat.value }}
+              accessibilityLabel={cat.label}
               style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.full,
                 backgroundColor: category === cat.value ? colors.brand : colors.bgElevated,
                 borderWidth: 1, borderColor: category === cat.value ? colors.brand : colors.borderLight }}>
@@ -189,6 +192,9 @@ export default function NovaExpenseScreen() {
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               <TouchableOpacity onPress={() => setSelectedChildId(null)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: selectedChildId === null }}
+                accessibilityLabel="Família"
                 style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.full,
                   backgroundColor: selectedChildId === null ? colors.brand : colors.bgElevated,
                   borderWidth: 1, borderColor: selectedChildId === null ? colors.brand : colors.borderLight }}>
@@ -198,6 +204,9 @@ export default function NovaExpenseScreen() {
               </TouchableOpacity>
               {children.map(c => (
                 <TouchableOpacity key={c.id} onPress={() => setSelectedChildId(c.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: selectedChildId === c.id }}
+                  accessibilityLabel={c.full_name.split(' ')[0]}
                   style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.full,
                     backgroundColor: selectedChildId === c.id ? colors.brand : colors.bgElevated,
                     borderWidth: 1, borderColor: selectedChildId === c.id ? colors.brand : colors.borderLight }}>
@@ -222,6 +231,9 @@ export default function NovaExpenseScreen() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
               {SPLIT_PRESETS.map(p => (
                 <TouchableOpacity key={p.id} onPress={() => setSplitPreset(p.id)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: splitPreset === p.id }}
+                  accessibilityLabel={`Divisão ${p.label}`}
                   style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md,
                     backgroundColor: splitPreset === p.id ? colors.brand : colors.bgElevated,
                     borderWidth: 1, borderColor: splitPreset === p.id ? colors.brand : colors.borderLight }}>
@@ -263,6 +275,8 @@ export default function NovaExpenseScreen() {
           <View style={{ position: 'relative', marginBottom: spacing.lg }}>
             <Image source={{ uri: receiptUri }} style={{ width: '100%', height: 200, borderRadius: radius.md, backgroundColor: colors.bgElevated }} />
             <TouchableOpacity onPress={() => setReceiptUri(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Remover comprovante"
               style={{ position: 'absolute', top: 8, right: 8, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="close" size={18} color="#fff" />
             </TouchableOpacity>
@@ -270,11 +284,15 @@ export default function NovaExpenseScreen() {
         ) : (
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing['2xl'] }}>
             <TouchableOpacity onPress={() => pickReceipt('camera')}
+              accessibilityRole="button"
+              accessibilityLabel="Tirar foto do comprovante"
               style={{ flex: 1, backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.borderLight, paddingVertical: spacing.lg, alignItems: 'center', gap: spacing.xs }}>
               <Ionicons name="camera-outline" size={24} color={colors.textSecondary} />
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Camera</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Câmera</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => pickReceipt('library')}
+              accessibilityRole="button"
+              accessibilityLabel="Escolher comprovante da galeria"
               style={{ flex: 1, backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.borderLight, paddingVertical: spacing.lg, alignItems: 'center', gap: spacing.xs }}>
               <Ionicons name="image-outline" size={24} color={colors.textSecondary} />
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Galeria</Text>

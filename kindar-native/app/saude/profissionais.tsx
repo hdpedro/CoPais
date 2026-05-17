@@ -21,6 +21,7 @@ import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import { PhoneInput } from 'src/components/ui/MaskedInputs';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { formatCRM } from 'src/lib/format';
 
@@ -50,6 +51,7 @@ const SPECIALTIES = [
 ];
 
 export default function ProfissionaisScreen() {
+  const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
   const [profs, setProfs] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
@@ -219,6 +221,9 @@ export default function ProfissionaisScreen() {
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {SPECIALTIES.map(s => (
                 <TouchableOpacity key={s} onPress={() => setSpecialty(s)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: specialty === s }}
+                  accessibilityLabel={`Especialidade ${s}`}
                   style={{
                     paddingHorizontal: spacing.sm + 2, paddingVertical: 6, borderRadius: radius.full,
                     backgroundColor: specialty === s ? colors.brandLight : colors.bg,
@@ -274,9 +279,9 @@ export default function ProfissionaisScreen() {
         ListEmptyComponent={loading ? null : (
           <EmptyState
             icon="👨‍⚕️"
-            title="Comece pelo pediatra"
-            description={'Com cada profissional cadastrado:\n• Contato direto em 1 toque (WhatsApp/ligação)\n• Vínculo com consultas pra rastrear histórico\n• Ficha de emergência traz o pediatra automaticamente'}
-            action={{ label: 'Adicionar profissional', onPress: () => setShowForm(true), accessibilityHint: 'Abre formulário pra cadastrar profissional' }}
+            title={t('empty.profissionais.title')}
+            description={t('empty.profissionais.description')}
+            action={{ label: t('empty.profissionais.actionLabel'), onPress: () => setShowForm(true), accessibilityHint: t('empty.profissionais.actionHint') }}
           />
         )}
         renderItem={({ item }) => {
@@ -294,6 +299,8 @@ export default function ProfissionaisScreen() {
                     setViewing(item);
                   }}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ver detalhes de ${item.name}${item.specialty ? `, ${item.specialty}` : ''}`}
                   style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
                 >
                   <Text style={{ fontSize: 20 }}>👨‍⚕️</Text>
@@ -354,7 +361,7 @@ function ProfessionalDetailModal({
         onPress={onClose}
         style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}
       >
-        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingBottom: spacing['2xl'] }}>
+        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} accessible={false} style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingBottom: spacing['2xl'] }}>
           {/* Drag handle */}
           <View style={{ alignItems: 'center', paddingTop: spacing.sm }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight }} />
@@ -369,7 +376,7 @@ function ProfessionalDetailModal({
                 <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 2 }}>{p.specialty}</Text>
               ) : null}
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={12}>
+            <TouchableOpacity onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Fechar">
               <Ionicons name="close" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
@@ -394,6 +401,8 @@ function ProfessionalDetailModal({
               {p.phone ? (
                 <TouchableOpacity
                   onPress={() => Linking.openURL(`tel:${p.phone!.replace(/\D/g, '')}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Ligar para ${p.name}`}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.borderLight }}
                 >
                   <Ionicons name="call" size={16} color={colors.brand} />
@@ -403,6 +412,8 @@ function ProfessionalDetailModal({
               {waNumber ? (
                 <TouchableOpacity
                   onPress={() => Linking.openURL(`https://wa.me/${waNumber}`)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Abrir WhatsApp de ${p.name}`}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: '#25D36615', borderWidth: 1, borderColor: '#25D366' }}
                 >
                   <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
@@ -416,12 +427,16 @@ function ProfessionalDetailModal({
           <View style={{ flexDirection: 'row', gap: spacing.sm, paddingHorizontal: spacing.xl }}>
             <TouchableOpacity
               onPress={() => onDelete(p)}
+              accessibilityRole="button"
+              accessibilityLabel={`Remover ${p.name}`}
               style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight }}
             >
               <Ionicons name="trash-outline" size={18} color={colors.error} />
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => onEdit(p)}
+              accessibilityRole="button"
+              accessibilityLabel={`Editar ${p.name}`}
               style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.brand }}
             >
               <Ionicons name="create-outline" size={18} color="#fff" />

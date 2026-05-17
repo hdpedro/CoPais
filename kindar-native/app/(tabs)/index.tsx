@@ -146,7 +146,7 @@ export default function DashboardScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     Alert.alert(
       'Cancelar pedido?',
-      'Voce vai retirar a solicitacao de troca. O outro responsavel sera avisado.',
+      'Você vai retirar a solicitação de troca. O outro responsável será avisado.',
       [
         { text: 'Manter pedido', style: 'cancel' },
         {

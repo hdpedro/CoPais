@@ -298,7 +298,7 @@ export default function ActivityDetailSheet({
         severity: 'error',
         metadata: { activityId, scope, occurrenceDate },
       });
-      Alert.alert('Erro', 'Nao foi possivel excluir agora. Verifique sua conexao e tente novamente.');
+      Alert.alert('Erro', 'Não foi possível excluir agora. Verifique sua conexão e tente novamente.');
     }
   }
 
@@ -319,8 +319,8 @@ export default function ActivityDetailSheet({
       ActionSheetIOS.showActionSheetWithOptions(
         {
           title: `Excluir "${activity.name}"`,
-          message: 'O que voce quer apagar?',
-          options: ['Apenas este dia', 'Esta e as proximas', 'Toda a serie', 'Cancelar'],
+          message: 'O que você quer apagar?',
+          options: ['Apenas este dia', 'Esta e as próximas', 'Toda a série', 'Cancelar'],
           destructiveButtonIndex: [0, 1, 2],
           cancelButtonIndex: 3,
         },
@@ -338,11 +338,11 @@ export default function ActivityDetailSheet({
     // + overflow vertical quando muitos).
     Alert.alert(
       `Excluir "${activity.name}"`,
-      'O que voce quer apagar?',
+      'O que você quer apagar?',
       [
         { text: 'Apenas este dia', onPress: () => performDelete('occurrence') },
-        { text: 'Esta e as proximas', style: 'destructive', onPress: () => performDelete('future') },
-        { text: 'Toda a serie', style: 'destructive', onPress: () => performDelete('all') },
+        { text: 'Esta e as próximas', style: 'destructive', onPress: () => performDelete('future') },
+        { text: 'Toda a série', style: 'destructive', onPress: () => performDelete('all') },
         { text: 'Cancelar', style: 'cancel' },
       ],
       { cancelable: true },

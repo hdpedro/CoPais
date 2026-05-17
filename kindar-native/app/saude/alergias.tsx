@@ -17,6 +17,7 @@ import SwipeToDelete from 'src/components/ui/SwipeToDelete';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Allergy { id: string; name: string; allergy_type: string; severity: string; reaction: string | null; childName: string; child_id: string; }
@@ -34,6 +35,7 @@ const TYPE_OPTIONS: { value: string; label: string; icon: string }[] = [
 ];
 
 export default function AlergiasScreen() {
+  const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +126,9 @@ export default function AlergiasScreen() {
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {TYPE_OPTIONS.map(t => (
                 <TouchableOpacity key={t.value} onPress={() => setType(t.value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: type === t.value }}
+                  accessibilityLabel={`Tipo ${t.label}`}
                   style={{
                     paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full,
                     backgroundColor: type === t.value ? colors.brand : colors.bgSurface,
@@ -139,17 +144,23 @@ export default function AlergiasScreen() {
           </ScrollView>
 
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
-            {['mild', 'moderate', 'severe'].map(s => (
-              <TouchableOpacity key={s} onPress={() => setSeverity(s)}
-                style={{ flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, alignItems: 'center',
-                  backgroundColor: severity === s ? `${(SEV_ICONS[s]?.color || colors.brand)}20` : colors.bgSurface,
-                  borderWidth: severity === s ? 1.5 : 0, borderColor: SEV_ICONS[s]?.color }}>
-                <Text style={{ fontSize: 14 }}>{SEV_ICONS[s]?.icon}</Text>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.text }}>{s === 'mild' ? 'Leve' : s === 'moderate' ? 'Moderada' : 'Grave'}</Text>
-              </TouchableOpacity>
-            ))}
+            {['mild', 'moderate', 'severe'].map(s => {
+              const sevLabel = s === 'mild' ? 'Leve' : s === 'moderate' ? 'Moderada' : 'Grave';
+              return (
+                <TouchableOpacity key={s} onPress={() => setSeverity(s)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: severity === s }}
+                  accessibilityLabel={`Severidade ${sevLabel}`}
+                  style={{ flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, alignItems: 'center',
+                    backgroundColor: severity === s ? `${(SEV_ICONS[s]?.color || colors.brand)}20` : colors.bgSurface,
+                    borderWidth: severity === s ? 1.5 : 0, borderColor: SEV_ICONS[s]?.color }}>
+                  <Text style={{ fontSize: 14 }}>{SEV_ICONS[s]?.icon}</Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.text }}>{sevLabel}</Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
-          <TextInput value={reaction} onChangeText={setReaction} placeholder="Reacao (opcional)" placeholderTextColor={colors.textDim}
+          <TextInput value={reaction} onChangeText={setReaction} placeholder="Reação (opcional)" placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
           <PrimaryButton
             label="Adicionar alergia"
@@ -172,9 +183,9 @@ export default function AlergiasScreen() {
         ListEmptyComponent={loading ? null : (
           <EmptyState
             icon="⚠️"
-            title="Comece pela alergia mais grave"
-            description={'Ela aparecerá automaticamente:\n• Na ficha de emergência compartilhável\n• Nos resumos antes de consultas\n• No app do co-responsável em tempo real'}
-            action={{ label: 'Adicionar alergia', onPress: () => setShowForm(true), accessibilityHint: 'Abre formulário pra cadastrar nova alergia' }}
+            title={t('empty.alergias.title')}
+            description={t('empty.alergias.description')}
+            action={{ label: t('empty.alergias.actionLabel'), onPress: () => setShowForm(true), accessibilityHint: t('empty.alergias.actionHint') }}
           />
         )}
         renderItem={({ item }) => {

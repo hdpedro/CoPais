@@ -322,6 +322,9 @@ export default function DespesasScreen() {
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={() => handleOpenCard(item)}
+        accessibilityRole="button"
+        accessibilityLabel={`${item.description}, ${formatBRL(item.amount)}, ${statusMeta.label}${unread ? ', não lida' : ''}`}
+        accessibilityState={{ expanded }}
         style={{
           backgroundColor: unread ? 'rgba(192,112,85,0.06)' : colors.bgElevated,
           borderRadius: radius.lg,
@@ -404,6 +407,9 @@ export default function DespesasScreen() {
             <TouchableOpacity
               disabled={responding === item.id}
               onPress={(e) => { e.stopPropagation(); handleDecision(item, 'rejected'); }}
+              accessibilityRole="button"
+              accessibilityLabel={`Rejeitar despesa ${item.description}`}
+              accessibilityState={{ disabled: responding === item.id, busy: responding === item.id }}
               style={{ flex: 1, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center', opacity: responding === item.id ? 0.5 : 1 }}
             >
               {responding === item.id ? <ActivityIndicator size="small" color={colors.textSecondary} /> : <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>Rejeitar</Text>}
@@ -411,6 +417,9 @@ export default function DespesasScreen() {
             <TouchableOpacity
               disabled={responding === item.id}
               onPress={(e) => { e.stopPropagation(); handleDecision(item, 'approved'); }}
+              accessibilityRole="button"
+              accessibilityLabel={`Aprovar despesa ${item.description}`}
+              accessibilityState={{ disabled: responding === item.id, busy: responding === item.id }}
               style={{ flex: 1, paddingVertical: 10, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', opacity: responding === item.id ? 0.5 : 1 }}
             >
               {responding === item.id ? <ActivityIndicator size="small" color="#fff" /> : <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>Aprovar</Text>}
@@ -422,6 +431,8 @@ export default function DespesasScreen() {
         {canRespondCancel && (
           <TouchableOpacity
             onPress={(e) => { e.stopPropagation(); setRespondingCancel(item); }}
+            accessibilityRole="button"
+            accessibilityLabel="Responder pedido de cancelamento"
             style={{ marginTop: spacing.md, paddingVertical: 10, borderRadius: radius.md, backgroundColor: '#E8A228', alignItems: 'center' }}
           >
             <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
@@ -445,27 +456,27 @@ export default function DespesasScreen() {
 
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
               {item.receipt_url && (
-                <TouchableOpacity onPress={(e) => { e.stopPropagation(); openReceipt(item); }} style={pillStyle('#374151', '#F3F4F6')}>
+                <TouchableOpacity onPress={(e) => { e.stopPropagation(); openReceipt(item); }} accessibilityRole="button" accessibilityLabel="Ver comprovante" style={pillStyle('#374151', '#F3F4F6')}>
                   <Text style={pillText('#374151')}>📎 Comprovante</Text>
                 </TouchableOpacity>
               )}
               {canEdit && (
-                <TouchableOpacity onPress={(e) => { e.stopPropagation(); setEditing(item); }} style={pillStyle('#2E7268', 'rgba(46,114,104,0.1)')}>
+                <TouchableOpacity onPress={(e) => { e.stopPropagation(); setEditing(item); }} accessibilityRole="button" accessibilityLabel={`Editar despesa${item.status === 'approved' ? ', reverte aprovação' : ''}`} style={pillStyle('#2E7268', 'rgba(46,114,104,0.1)')}>
                   <Text style={pillText('#2E7268')}>✏️ Editar{item.status === 'approved' ? ' (reverte aprovação)' : ''}</Text>
                 </TouchableOpacity>
               )}
               {canCancel && (
-                <TouchableOpacity onPress={(e) => { e.stopPropagation(); setCanceling(item); }} style={pillStyle('#B45309', 'rgba(232,162,40,0.1)')}>
+                <TouchableOpacity onPress={(e) => { e.stopPropagation(); setCanceling(item); }} accessibilityRole="button" accessibilityLabel="Cancelar despesa" style={pillStyle('#B45309', 'rgba(232,162,40,0.1)')}>
                   <Text style={pillText('#B45309')}>🚫 Cancelar</Text>
                 </TouchableOpacity>
               )}
               {canReopen && (
-                <TouchableOpacity onPress={(e) => { e.stopPropagation(); setReopening(item); }} style={pillStyle('#C07055', 'rgba(192,112,85,0.1)')}>
+                <TouchableOpacity onPress={(e) => { e.stopPropagation(); setReopening(item); }} accessibilityRole="button" accessibilityLabel="Reabrir aprovação" style={pillStyle('#C07055', 'rgba(192,112,85,0.1)')}>
                   <Text style={pillText('#C07055')}>🔄 Reabrir (24h)</Text>
                 </TouchableOpacity>
               )}
               {canDelete && (
-                <TouchableOpacity onPress={(e) => { e.stopPropagation(); confirmDelete(item); }} style={pillStyle('#E53935', 'rgba(229,57,53,0.1)')}>
+                <TouchableOpacity onPress={(e) => { e.stopPropagation(); confirmDelete(item); }} accessibilityRole="button" accessibilityLabel="Excluir despesa" style={pillStyle('#E53935', 'rgba(229,57,53,0.1)')}>
                   <Text style={pillText('#E53935')}>🗑️ Excluir</Text>
                 </TouchableOpacity>
               )}
@@ -516,24 +527,30 @@ export default function DespesasScreen() {
 
       {/* Filter chips */}
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.xs, paddingTop: spacing.md, paddingBottom: 2 }}>
-        {(['all', 'pending', 'approved', 'rejected', 'cancelled'] as const).map(f => (
-          <TouchableOpacity
-            key={f}
-            onPress={() => setFilter(f)}
-            style={{
-              paddingHorizontal: spacing.md,
-              paddingVertical: spacing.xs + 2,
-              borderRadius: 999,
-              backgroundColor: filter === f ? colors.brand : colors.bgElevated,
-              borderWidth: filter === f ? 0 : 1,
-              borderColor: colors.borderLight,
-            }}
-          >
-            <Text style={{ fontSize: 11, fontWeight: '600', color: filter === f ? '#fff' : colors.textSecondary }}>
-              {f === 'all' ? 'Tudo' : f === 'pending' ? 'Pendentes' : f === 'approved' ? 'Aprovadas' : f === 'rejected' ? 'Rejeitadas' : 'Canceladas'}
-            </Text>
-          </TouchableOpacity>
-        ))}
+        {(['all', 'pending', 'approved', 'rejected', 'cancelled'] as const).map(f => {
+          const filterLabel = f === 'all' ? 'Tudo' : f === 'pending' ? 'Pendentes' : f === 'approved' ? 'Aprovadas' : f === 'rejected' ? 'Rejeitadas' : 'Canceladas';
+          return (
+            <TouchableOpacity
+              key={f}
+              onPress={() => setFilter(f)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: filter === f }}
+              accessibilityLabel={`Filtrar por ${filterLabel}`}
+              style={{
+                paddingHorizontal: spacing.md,
+                paddingVertical: spacing.xs + 2,
+                borderRadius: 999,
+                backgroundColor: filter === f ? colors.brand : colors.bgElevated,
+                borderWidth: filter === f ? 0 : 1,
+                borderColor: colors.borderLight,
+              }}
+            >
+              <Text style={{ fontSize: 11, fontWeight: '600', color: filter === f ? '#fff' : colors.textSecondary }}>
+                {filterLabel}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
       </ScrollView>
     </View>
   ) : null;
@@ -571,7 +588,7 @@ export default function DespesasScreen() {
       <Modal visible={!!viewingReceipt} transparent animationType="fade" onRequestClose={() => setViewingReceipt(null)}>
         <Pressable onPress={() => setViewingReceipt(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.94)', alignItems: 'center', justifyContent: 'center' }}>
           {viewingReceipt && <Image source={{ uri: viewingReceipt }} style={{ width: '96%', height: '80%' }} resizeMode="contain" />}
-          <TouchableOpacity onPress={() => setViewingReceipt(null)} style={{ position: 'absolute', top: insets.top + 12, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
+          <TouchableOpacity onPress={() => setViewingReceipt(null)} accessibilityRole="button" accessibilityLabel="Fechar" style={{ position: 'absolute', top: insets.top + 12, right: 16, width: 36, height: 36, borderRadius: 18, backgroundColor: 'rgba(255,255,255,0.15)', alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="close" size={22} color="#fff" />
           </TouchableOpacity>
         </Pressable>
@@ -713,7 +730,7 @@ function EditExpenseModal({ expense, onClose, onSaved }: {
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+        <TouchableOpacity activeOpacity={1} onPress={onClose} accessibilityRole="button" accessibilityLabel="Fechar" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
         <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>Editar despesa</Text>
@@ -809,7 +826,7 @@ function ReasonModal({ title, description, onClose, onSubmit }: {
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+        <TouchableOpacity activeOpacity={1} onPress={onClose} accessibilityRole="button" accessibilityLabel="Fechar" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
         <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40 }}>
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm }}>{title}</Text>
@@ -827,6 +844,9 @@ function ReasonModal({ title, description, onClose, onSubmit }: {
           <TouchableOpacity
             disabled={saving || !reason.trim()}
             onPress={handleSubmit}
+            accessibilityRole="button"
+            accessibilityLabel="Confirmar"
+            accessibilityState={{ disabled: saving || !reason.trim(), busy: saving }}
             style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', opacity: saving || !reason.trim() ? 0.5 : 1, marginTop: spacing.md }}
           >
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Confirmar</Text>}
@@ -858,7 +878,7 @@ function CancelRespondModal({ expense, onClose, onResponded }: {
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+        <TouchableOpacity activeOpacity={1} onPress={onClose} accessibilityRole="button" accessibilityLabel="Fechar" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
         <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40 }}>
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.xs }}>Responder cancelamento</Text>
@@ -875,6 +895,9 @@ function CancelRespondModal({ expense, onClose, onResponded }: {
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
             <TouchableOpacity
               onPress={() => setApproved(true)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: approved === true }}
+              accessibilityLabel="Concordo, cancelar"
               style={{
                 flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                 borderWidth: 1, borderColor: approved === true ? '#2E7268' : colors.borderLight,
@@ -886,6 +909,9 @@ function CancelRespondModal({ expense, onClose, onResponded }: {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setApproved(false)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: approved === false }}
+              accessibilityLabel="Não concordo"
               style={{
                 flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                 borderWidth: 1, borderColor: approved === false ? '#E53935' : colors.borderLight,
@@ -915,6 +941,9 @@ function CancelRespondModal({ expense, onClose, onResponded }: {
           <TouchableOpacity
             disabled={saving || approved === null}
             onPress={handleSubmit}
+            accessibilityRole="button"
+            accessibilityLabel="Enviar resposta"
+            accessibilityState={{ disabled: saving || approved === null, busy: saving }}
             style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', opacity: saving || approved === null ? 0.5 : 1, marginTop: spacing.md }}
           >
             {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Enviar resposta</Text>}

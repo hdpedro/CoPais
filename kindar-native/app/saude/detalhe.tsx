@@ -153,7 +153,7 @@ export default function DetalheScreen() {
         </View>
       ) : !data ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: colors.textMuted }}>Registro nao encontrado</Text>
+          <Text style={{ color: colors.textMuted }}>Registro não encontrado</Text>
         </View>
       ) : (
         <ScrollView

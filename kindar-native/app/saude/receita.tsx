@@ -279,13 +279,15 @@ export default function ReceitaScreen() {
                 Fotografe a receita
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', maxWidth: 300, lineHeight: 20 }}>
-                A IA le a receita e extrai medicamentos com dose, frequencia e duracao. Revise antes de salvar.
+                A IA lê a receita e extrai medicamentos com dose, frequência e duração. Revise antes de salvar.
               </Text>
             </View>
 
             <TouchableOpacity
               onPress={() => pickImage('camera')}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Tirar foto"
               style={{
                 backgroundColor: colors.brand, borderRadius: radius.md,
                 paddingVertical: spacing.md + 2, alignItems: 'center',
@@ -300,6 +302,8 @@ export default function ReceitaScreen() {
             <TouchableOpacity
               onPress={() => pickImage('library')}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Escolher da galeria"
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.md,
                 borderWidth: 1, borderColor: colors.borderLight,
@@ -368,14 +372,14 @@ export default function ReceitaScreen() {
                 ✓ {medications.length} medicamento{medications.length > 1 ? 's' : ''} identificado{medications.length > 1 ? 's' : ''}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-                Revise os dados e ajuste se precisar. Desmarque medicamentos que nao quiser salvar.
+                Revise os dados e ajuste se precisar. Desmarque medicamentos que não quiser salvar.
               </Text>
             </View>
 
             {/* Doctor info */}
             <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
               <View style={{ flex: 2 }}>
-                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: 4 }}>Medico</Text>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: 4 }}>Médico</Text>
                 <TextInput
                   value={doctorName} onChangeText={setDoctorName}
                   placeholder="Dr. Fulano"
@@ -446,7 +450,7 @@ export default function ReceitaScreen() {
                 <TextInput
                   value={m.frequency || ''}
                   onChangeText={v => updateMed(i, 'frequency', v)}
-                  placeholder="Frequencia (ex: 8/8h, 2x ao dia)"
+                  placeholder="Frequência (ex: 8/8h, 2x ao dia)"
                   placeholderTextColor={colors.textMuted}
                   style={{
                     backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -457,7 +461,7 @@ export default function ReceitaScreen() {
                 <TextInput
                   value={m.duration || ''}
                   onChangeText={v => updateMed(i, 'duration', v)}
-                  placeholder="Duracao (ex: 7 dias)"
+                  placeholder="Duração (ex: 7 dias)"
                   placeholderTextColor={colors.textMuted}
                   style={{
                     backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -471,6 +475,9 @@ export default function ReceitaScreen() {
               disabled={saving}
               onPress={handleSave}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Salvar medicamentos"
+              accessibilityState={{ disabled: saving, busy: saving }}
               style={{
                 backgroundColor: colors.brand, borderRadius: radius.md,
                 paddingVertical: spacing.md + 2, alignItems: 'center',
@@ -483,7 +490,7 @@ export default function ReceitaScreen() {
                 </Text>
               )}
             </TouchableOpacity>
-            <TouchableOpacity onPress={handleRetry} style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
+            <TouchableOpacity onPress={handleRetry} accessibilityRole="button" accessibilityLabel="Tentar com outra foto" style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
               <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Tentar com outra foto</Text>
             </TouchableOpacity>
           </>

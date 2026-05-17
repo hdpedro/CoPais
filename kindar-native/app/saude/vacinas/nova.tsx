@@ -279,6 +279,8 @@ export default function NovaVacinaScreen() {
                 <TouchableOpacity
                   key={m.id}
                   onPress={() => pickCatalog(m)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Selecionar ${m.name} do catálogo`}
                   style={{
                     padding: spacing.sm + 2,
                     borderTopWidth: i > 0 ? 0.5 : 0,
@@ -359,6 +361,9 @@ export default function NovaVacinaScreen() {
           onPress={() => handleSave(false)}
           disabled={saving || !vaccineName.trim() || !selectedChildId}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={isDuplicateRetry ? t('health.vaccineEngine.duplicateModalConfirm') : t('health.vaccineEngine.registerSave')}
+          accessibilityState={{ disabled: saving || !vaccineName.trim() || !selectedChildId, busy: saving }}
           style={{
             backgroundColor: colors.brand,
             paddingVertical: spacing.md + 2,

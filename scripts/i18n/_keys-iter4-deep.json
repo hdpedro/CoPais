@@ -1,0 +1,546 @@
+{
+  "empty.alergias": {
+    "pt": {
+      "title": "Comece pela alergia mais grave",
+      "description": "Ela aparecerá automaticamente:\n• Na ficha de emergência compartilhável\n• Nos resumos antes de consultas\n• No app do co-responsável em tempo real",
+      "actionLabel": "Adicionar alergia",
+      "actionHint": "Abre formulário pra cadastrar nova alergia"
+    },
+    "en": {
+      "title": "Start with the most severe allergy",
+      "description": "It will show up automatically:\n• On the shareable emergency card\n• In summaries before appointments\n• On the co-caregiver's app in real time",
+      "actionLabel": "Add allergy",
+      "actionHint": "Opens the form to register a new allergy"
+    },
+    "es": {
+      "title": "Empieza por la alergia más grave",
+      "description": "Aparecerá automáticamente:\n• En la ficha de emergencia compartible\n• En los resúmenes antes de las consultas\n• En la app del corresponsable en tiempo real",
+      "actionLabel": "Añadir alergia",
+      "actionHint": "Abre el formulario para registrar una nueva alergia"
+    },
+    "fr": {
+      "title": "Commencez par l'allergie la plus grave",
+      "description": "Elle apparaîtra automatiquement :\n• Sur la fiche d'urgence partageable\n• Dans les résumés avant les consultations\n• Sur l'app du co-responsable en temps réel",
+      "actionLabel": "Ajouter une allergie",
+      "actionHint": "Ouvre le formulaire pour enregistrer une nouvelle allergie"
+    },
+    "de": {
+      "title": "Beginne mit der schwersten Allergie",
+      "description": "Sie erscheint automatisch:\n• Auf der teilbaren Notfallkarte\n• In den Zusammenfassungen vor Arztterminen\n• In der App der mitsorgenden Bezugsperson in Echtzeit",
+      "actionLabel": "Allergie hinzufügen",
+      "actionHint": "Öffnet das Formular für eine neue Allergie"
+    }
+  },
+  "empty.crescimento": {
+    "pt": {
+      "title": "Comece registrando a última consulta",
+      "description": "Cada medida vira:\n• Curva de crescimento ao longo do tempo\n• Comparação com a OMS por idade\n• Histórico exportável pro pediatra",
+      "actionLabel": "Registrar medida",
+      "actionHint": "Abre formulário pra cadastrar peso/altura"
+    },
+    "en": {
+      "title": "Start by logging the last visit",
+      "description": "Each measurement becomes:\n• A growth curve over time\n• A comparison with WHO standards by age\n• An exportable history for the pediatrician",
+      "actionLabel": "Log measurement",
+      "actionHint": "Opens the form to register weight/height"
+    },
+    "es": {
+      "title": "Empieza registrando la última consulta",
+      "description": "Cada medida se convierte en:\n• Una curva de crecimiento a lo largo del tiempo\n• Una comparación con la OMS por edad\n• Un historial exportable para el pediatra",
+      "actionLabel": "Registrar medida",
+      "actionHint": "Abre el formulario para registrar peso/altura"
+    },
+    "fr": {
+      "title": "Commencez par enregistrer la dernière consultation",
+      "description": "Chaque mesure devient :\n• Une courbe de croissance dans le temps\n• Une comparaison avec l'OMS par âge\n• Un historique exportable pour le pédiatre",
+      "actionLabel": "Enregistrer une mesure",
+      "actionHint": "Ouvre le formulaire pour enregistrer poids/taille"
+    },
+    "de": {
+      "title": "Beginne mit dem letzten Arztbesuch",
+      "description": "Jede Messung wird zu:\n• Einer Wachstumskurve im Zeitverlauf\n• Einem Vergleich mit den WHO-Werten nach Alter\n• Einer exportierbaren Übersicht für die Kinderärztin",
+      "actionLabel": "Messung erfassen",
+      "actionHint": "Öffnet das Formular für Gewicht/Größe"
+    }
+  },
+  "empty.medicamentos": {
+    "pt": {
+      "title": "Acompanhe doses sem decorar horários",
+      "description": "Registrando um medicamento:\n• O app lembra você do próximo horário\n• O co-responsável vê o que já foi dado\n• Histórico fica salvo pro pediatra",
+      "actionLabel": "Adicionar medicamento",
+      "actionHint": "Abre formulário pra cadastrar medicamento"
+    },
+    "en": {
+      "title": "Track doses without memorizing schedules",
+      "description": "By registering a medication:\n• The app reminds you of the next dose\n• The co-caregiver sees what was already given\n• The history is saved for the pediatrician",
+      "actionLabel": "Add medication",
+      "actionHint": "Opens the form to register a medication"
+    },
+    "es": {
+      "title": "Sigue las dosis sin memorizar horarios",
+      "description": "Al registrar un medicamento:\n• La app te recuerda el próximo horario\n• El corresponsable ve lo que ya se administró\n• El historial queda guardado para el pediatra",
+      "actionLabel": "Añadir medicamento",
+      "actionHint": "Abre el formulario para registrar un medicamento"
+    },
+    "fr": {
+      "title": "Suivez les doses sans mémoriser les horaires",
+      "description": "En enregistrant un médicament :\n• L'app vous rappelle la prochaine dose\n• Le co-responsable voit ce qui a déjà été donné\n• L'historique est conservé pour le pédiatre",
+      "actionLabel": "Ajouter un médicament",
+      "actionHint": "Ouvre le formulaire pour enregistrer un médicament"
+    },
+    "de": {
+      "title": "Behalte Dosen im Blick, ohne Zeiten zu merken",
+      "description": "Wenn du ein Medikament erfasst:\n• Erinnert dich die App an die nächste Gabe\n• Sieht die mitsorgende Bezugsperson, was bereits gegeben wurde\n• Bleibt der Verlauf für die Kinderärztin gespeichert",
+      "actionLabel": "Medikament hinzufügen",
+      "actionHint": "Öffnet das Formular für ein neues Medikament"
+    }
+  },
+  "empty.profissionais": {
+    "pt": {
+      "title": "Comece pelo pediatra",
+      "description": "Com cada profissional cadastrado:\n• Contato direto em 1 toque (WhatsApp/ligação)\n• Vínculo com consultas pra rastrear histórico\n• Ficha de emergência traz o pediatra automaticamente",
+      "actionLabel": "Adicionar profissional",
+      "actionHint": "Abre formulário pra cadastrar profissional"
+    },
+    "en": {
+      "title": "Start with the pediatrician",
+      "description": "With each professional saved:\n• Direct contact in 1 tap (WhatsApp/call)\n• Link to appointments to track history\n• The emergency card brings in the pediatrician automatically",
+      "actionLabel": "Add professional",
+      "actionHint": "Opens the form to register a professional"
+    },
+    "es": {
+      "title": "Empieza por el pediatra",
+      "description": "Con cada profesional registrado:\n• Contacto directo en 1 toque (WhatsApp/llamada)\n• Vínculo con las consultas para seguir el historial\n• La ficha de emergencia incluye al pediatra automáticamente",
+      "actionLabel": "Añadir profesional",
+      "actionHint": "Abre el formulario para registrar un profesional"
+    },
+    "fr": {
+      "title": "Commencez par le pédiatre",
+      "description": "Avec chaque professionnel enregistré :\n• Contact direct en 1 tap (WhatsApp/appel)\n• Lien avec les consultations pour suivre l'historique\n• La fiche d'urgence inclut le pédiatre automatiquement",
+      "actionLabel": "Ajouter un professionnel",
+      "actionHint": "Ouvre le formulaire pour enregistrer un professionnel"
+    },
+    "de": {
+      "title": "Beginne mit der Kinderärztin",
+      "description": "Mit jeder erfassten Fachperson:\n• Direktkontakt mit einem Tipp (WhatsApp/Anruf)\n• Verknüpfung mit Terminen für den Verlauf\n• Die Notfallkarte zeigt die Kinderärztin automatisch",
+      "actionLabel": "Fachperson hinzufügen",
+      "actionHint": "Öffnet das Formular für eine neue Fachperson"
+    }
+  },
+  "empty.doencasActive": {
+    "pt": {
+      "title": "Tudo tranquilo por enquanto",
+      "description": "Quando aparecer uma gripe, virose, alergia… registre aqui pra:\n• O co-responsável saber em tempo real\n• Ter histórico pro pediatra\n• Acompanhar evolução com fotos e sintomas",
+      "actionLabel": "Registrar episódio",
+      "actionHint": "Abre a tela para registrar um novo episódio de doença"
+    },
+    "en": {
+      "title": "All quiet for now",
+      "description": "When a cold, bug or allergy shows up, log it here to:\n• Let the co-caregiver know in real time\n• Keep a history for the pediatrician\n• Track progress with photos and symptoms",
+      "actionLabel": "Log episode",
+      "actionHint": "Opens the screen to log a new illness episode"
+    },
+    "es": {
+      "title": "Todo tranquilo por ahora",
+      "description": "Cuando aparezca un resfriado, virus o alergia… regístralo aquí para:\n• Que el corresponsable se entere en tiempo real\n• Tener historial para el pediatra\n• Acompañar la evolución con fotos y síntomas",
+      "actionLabel": "Registrar episodio",
+      "actionHint": "Abre la pantalla para registrar un nuevo episodio"
+    },
+    "fr": {
+      "title": "Tout est calme pour l'instant",
+      "description": "Quand un rhume, virus ou allergie apparaît, enregistre-le ici pour :\n• Que le co-responsable soit informé en temps réel\n• Avoir un historique pour le pédiatre\n• Suivre l'évolution avec photos et symptômes",
+      "actionLabel": "Enregistrer un épisode",
+      "actionHint": "Ouvre l'écran pour enregistrer un nouvel épisode"
+    },
+    "de": {
+      "title": "Gerade ist alles ruhig",
+      "description": "Wenn eine Erkältung, ein Virus oder eine Allergie auftritt, erfasse das hier, um:\n• Die mitsorgende Bezugsperson sofort zu informieren\n• Den Verlauf für die Kinderärztin festzuhalten\n• Den Verlauf mit Fotos und Symptomen zu begleiten",
+      "actionLabel": "Episode erfassen",
+      "actionHint": "Öffnet den Bildschirm für eine neue Episode"
+    }
+  },
+  "empty.doencasAll": {
+    "pt": {
+      "title": "Comece pelo último episódio",
+      "description": "Cada episódio salvo vira:\n• Linha do tempo de saúde da criança\n• Insights de padrões (recorrência)\n• Contexto pro próximo médico",
+      "actionLabel": "Registrar episódio",
+      "actionHint": "Abre a tela para registrar um novo episódio de doença"
+    },
+    "en": {
+      "title": "Start with the latest episode",
+      "description": "Each saved episode becomes:\n• A health timeline for the child\n• Insights into recurring patterns\n• Context for the next doctor",
+      "actionLabel": "Log episode",
+      "actionHint": "Opens the screen to log a new illness episode"
+    },
+    "es": {
+      "title": "Empieza por el último episodio",
+      "description": "Cada episodio guardado se convierte en:\n• Una línea de tiempo de salud del niño\n• Información sobre patrones (recurrencia)\n• Contexto para el próximo médico",
+      "actionLabel": "Registrar episodio",
+      "actionHint": "Abre la pantalla para registrar un nuevo episodio"
+    },
+    "fr": {
+      "title": "Commencez par le dernier épisode",
+      "description": "Chaque épisode enregistré devient :\n• Une chronologie de santé pour l'enfant\n• Des observations sur les schémas récurrents\n• Un contexte pour le prochain médecin",
+      "actionLabel": "Enregistrer un épisode",
+      "actionHint": "Ouvre l'écran pour enregistrer un nouvel épisode"
+    },
+    "de": {
+      "title": "Beginne mit der letzten Episode",
+      "description": "Jede gespeicherte Episode wird zu:\n• Einer Gesundheits-Timeline des Kindes\n• Hinweisen auf wiederkehrende Muster\n• Kontext für den nächsten Arzttermin",
+      "actionLabel": "Episode erfassen",
+      "actionHint": "Öffnet den Bildschirm für eine neue Episode"
+    }
+  },
+  "empty.sintomas": {
+    "pt": {
+      "title": "Nenhum sintoma registrado",
+      "description": "Registre sintomas para acompanhar a saúde da criança ao longo do tempo."
+    },
+    "en": {
+      "title": "No symptoms logged yet",
+      "description": "Log symptoms to follow the child's health over time."
+    },
+    "es": {
+      "title": "Sin síntomas registrados",
+      "description": "Registra síntomas para acompañar la salud del niño a lo largo del tiempo."
+    },
+    "fr": {
+      "title": "Aucun symptôme enregistré",
+      "description": "Enregistrez les symptômes pour suivre la santé de l'enfant dans le temps."
+    },
+    "de": {
+      "title": "Noch keine Symptome erfasst",
+      "description": "Erfasse Symptome, um die Gesundheit des Kindes über die Zeit zu verfolgen."
+    }
+  },
+  "empty.atividades": {
+    "pt": {
+      "title": "Nenhuma atividade",
+      "description": "Crie atividades recorrentes para as crianças."
+    },
+    "en": {
+      "title": "No activities yet",
+      "description": "Create recurring activities for the children."
+    },
+    "es": {
+      "title": "Sin actividades todavía",
+      "description": "Crea actividades recurrentes para los niños."
+    },
+    "fr": {
+      "title": "Aucune activité pour le moment",
+      "description": "Créez des activités récurrentes pour les enfants."
+    },
+    "de": {
+      "title": "Noch keine Aktivitäten",
+      "description": "Lege wiederkehrende Aktivitäten für die Kinder an."
+    }
+  },
+  "activities.title": {
+    "pt": "Atividades",
+    "en": "Activities",
+    "es": "Actividades",
+    "fr": "Activités",
+    "de": "Aktivitäten"
+  },
+  "activities.editTitle": {
+    "pt": "Editar atividade",
+    "en": "Edit activity",
+    "es": "Editar actividad",
+    "fr": "Modifier l'activité",
+    "de": "Aktivität bearbeiten"
+  },
+  "activities.fields": {
+    "pt": {
+      "name": "Nome",
+      "category": "Categoria",
+      "start": "Início",
+      "end": "Fim",
+      "location": "Local",
+      "notes": "Observações"
+    },
+    "en": {
+      "name": "Name",
+      "category": "Category",
+      "start": "Start",
+      "end": "End",
+      "location": "Location",
+      "notes": "Notes"
+    },
+    "es": {
+      "name": "Nombre",
+      "category": "Categoría",
+      "start": "Inicio",
+      "end": "Fin",
+      "location": "Lugar",
+      "notes": "Observaciones"
+    },
+    "fr": {
+      "name": "Nom",
+      "category": "Catégorie",
+      "start": "Début",
+      "end": "Fin",
+      "location": "Lieu",
+      "notes": "Observations"
+    },
+    "de": {
+      "name": "Name",
+      "category": "Kategorie",
+      "start": "Beginn",
+      "end": "Ende",
+      "location": "Ort",
+      "notes": "Notizen"
+    }
+  },
+  "activities.placeholders": {
+    "pt": {
+      "name": "Nome da atividade",
+      "location": "Onde acontece",
+      "notes": "Notas, material necessário..."
+    },
+    "en": {
+      "name": "Activity name",
+      "location": "Where it takes place",
+      "notes": "Notes, materials needed..."
+    },
+    "es": {
+      "name": "Nombre de la actividad",
+      "location": "Dónde ocurre",
+      "notes": "Notas, materiales necesarios..."
+    },
+    "fr": {
+      "name": "Nom de l'activité",
+      "location": "Où elle a lieu",
+      "notes": "Notes, matériel nécessaire..."
+    },
+    "de": {
+      "name": "Name der Aktivität",
+      "location": "Wo sie stattfindet",
+      "notes": "Notizen, benötigtes Material..."
+    }
+  },
+  "activities.timePlaceholder": {
+    "pt": "—",
+    "en": "—",
+    "es": "—",
+    "fr": "—",
+    "de": "—"
+  },
+  "activities.saveChanges": {
+    "pt": "Salvar alterações",
+    "en": "Save changes",
+    "es": "Guardar cambios",
+    "fr": "Enregistrer les modifications",
+    "de": "Änderungen speichern"
+  },
+  "activities.checklist": {
+    "pt": "Checklist",
+    "en": "Checklist",
+    "es": "Lista",
+    "fr": "Liste",
+    "de": "Checkliste"
+  },
+  "activities.report": {
+    "pt": "Relatar",
+    "en": "Report",
+    "es": "Reportar",
+    "fr": "Signaler",
+    "de": "Bericht"
+  },
+  "activities.errors": {
+    "pt": {
+      "saveTitle": "Erro",
+      "saveFallback": "Falha ao salvar",
+      "deleteTitle": "Erro",
+      "deleteFallback": "Falha"
+    },
+    "en": {
+      "saveTitle": "Error",
+      "saveFallback": "Failed to save",
+      "deleteTitle": "Error",
+      "deleteFallback": "Failed"
+    },
+    "es": {
+      "saveTitle": "Error",
+      "saveFallback": "No se pudo guardar",
+      "deleteTitle": "Error",
+      "deleteFallback": "Falló"
+    },
+    "fr": {
+      "saveTitle": "Erreur",
+      "saveFallback": "Échec de l'enregistrement",
+      "deleteTitle": "Erreur",
+      "deleteFallback": "Échec"
+    },
+    "de": {
+      "saveTitle": "Fehler",
+      "saveFallback": "Speichern fehlgeschlagen",
+      "deleteTitle": "Fehler",
+      "deleteFallback": "Fehlgeschlagen"
+    }
+  },
+  "activities.removeTitle": {
+    "pt": "Remover \"{name}\"?",
+    "en": "Remove \"{name}\"?",
+    "es": "¿Quitar \"{name}\"?",
+    "fr": "Supprimer « {name} » ?",
+    "de": "„{name}\" entfernen?"
+  },
+  "activities.consequences": {
+    "pt": {
+      "futureLabel": "próximas ocorrências no calendário",
+      "pastLabel": "ocorrências passadas no histórico",
+      "futureImpact": "apagado",
+      "pastImpact": "preservado"
+    },
+    "en": {
+      "futureLabel": "upcoming occurrences in the calendar",
+      "pastLabel": "past occurrences in the history",
+      "futureImpact": "removed",
+      "pastImpact": "preserved"
+    },
+    "es": {
+      "futureLabel": "próximas ocurrencias en el calendario",
+      "pastLabel": "ocurrencias pasadas en el historial",
+      "futureImpact": "eliminado",
+      "pastImpact": "preservado"
+    },
+    "fr": {
+      "futureLabel": "prochaines occurrences dans le calendrier",
+      "pastLabel": "occurrences passées dans l'historique",
+      "futureImpact": "supprimé",
+      "pastImpact": "préservé"
+    },
+    "de": {
+      "futureLabel": "kommende Vorkommen im Kalender",
+      "pastLabel": "vergangene Vorkommen im Verlauf",
+      "futureImpact": "entfernt",
+      "pastImpact": "erhalten"
+    }
+  },
+  "activities.removeAction": {
+    "pt": "Remover",
+    "en": "Remove",
+    "es": "Quitar",
+    "fr": "Supprimer",
+    "de": "Entfernen"
+  },
+  "more.title": {
+    "pt": "Mais",
+    "en": "More",
+    "es": "Más",
+    "fr": "Plus",
+    "de": "Mehr"
+  },
+  "more.financial": {
+    "pt": "Financeiro",
+    "en": "Financial",
+    "es": "Finanzas",
+    "fr": "Finances",
+    "de": "Finanzen"
+  },
+  "more.health": {
+    "pt": "Saúde",
+    "en": "Health",
+    "es": "Salud",
+    "fr": "Santé",
+    "de": "Gesundheit"
+  },
+  "more.documents": {
+    "pt": "Documentos",
+    "en": "Documents",
+    "es": "Documentos",
+    "fr": "Documents",
+    "de": "Dokumente"
+  },
+  "more.events": {
+    "pt": "Eventos",
+    "en": "Events",
+    "es": "Eventos",
+    "fr": "Événements",
+    "de": "Ereignisse"
+  },
+  "more.activities": {
+    "pt": "Atividades",
+    "en": "Activities",
+    "es": "Actividades",
+    "fr": "Activités",
+    "de": "Aktivitäten"
+  },
+  "more.agreements": {
+    "pt": "Acordos",
+    "en": "Agreements",
+    "es": "Acuerdos",
+    "fr": "Accords",
+    "de": "Vereinbarungen"
+  },
+  "more.decisions": {
+    "pt": "Decisões",
+    "en": "Decisions",
+    "es": "Decisiones",
+    "fr": "Décisions",
+    "de": "Entscheidungen"
+  },
+  "more.children": {
+    "pt": "Crianças",
+    "en": "Children",
+    "es": "Niños",
+    "fr": "Enfants",
+    "de": "Kinder"
+  },
+  "more.school": {
+    "pt": "Escola",
+    "en": "School",
+    "es": "Escuela",
+    "fr": "École",
+    "de": "Schule"
+  },
+  "more.sensitive": {
+    "pt": "Temas sensíveis",
+    "en": "Sensitive topics",
+    "es": "Temas sensibles",
+    "fr": "Sujets sensibles",
+    "de": "Sensible Themen"
+  },
+  "more.notes": {
+    "pt": "Notas",
+    "en": "Notes",
+    "es": "Notas",
+    "fr": "Notes",
+    "de": "Notizen"
+  },
+  "more.checkin": {
+    "pt": "Check-in",
+    "en": "Check-in",
+    "es": "Check-in",
+    "fr": "Check-in",
+    "de": "Check-in"
+  },
+  "more.semana": {
+    "pt": "Semana",
+    "en": "Week",
+    "es": "Semana",
+    "fr": "Semaine",
+    "de": "Woche"
+  },
+  "more.family": {
+    "pt": "Família",
+    "en": "Family",
+    "es": "Familia",
+    "fr": "Famille",
+    "de": "Familie"
+  },
+  "more.profile": {
+    "pt": "Perfil",
+    "en": "Profile",
+    "es": "Perfil",
+    "fr": "Profil",
+    "de": "Profil"
+  },
+  "more.openModule": {
+    "pt": "Abrir {label}",
+    "en": "Open {label}",
+    "es": "Abrir {label}",
+    "fr": "Ouvrir {label}",
+    "de": "{label} öffnen"
+  }
+}

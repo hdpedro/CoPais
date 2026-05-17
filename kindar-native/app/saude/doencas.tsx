@@ -13,6 +13,7 @@ import { fetchIllnesses, resolveIllness, addEvolutionQuick, type IllnessEpisode 
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const SEV_META: Record<string, { label: string; color: string }> = {
@@ -26,6 +27,7 @@ function daysSince(startDate: string): number {
 }
 
 export default function DoencasScreen() {
+  const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { activeGroup, profile } = useAuth();
   const [illnesses, setIllnesses] = useState<IllnessEpisode[]>([]);
@@ -149,6 +151,9 @@ export default function DoencasScreen() {
             <TouchableOpacity
               key={f}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilter(f); }}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: active }}
+              accessibilityLabel={`Filtrar por ${label}`}
               style={{
                 paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.md,
                 backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -175,11 +180,11 @@ export default function DoencasScreen() {
           {filtered.length === 0 ? (
             <EmptyState
               icon="🩺"
-              title={filter === 'active' ? 'Tudo tranquilo por enquanto' : 'Comece pelo último episódio'}
+              title={filter === 'active' ? t('empty.doencasActive.title') : t('empty.doencasAll.title')}
               description={filter === 'active'
-                ? 'Quando aparecer uma gripe, virose, alergia… registre aqui pra:\n• O co-responsável saber em tempo real\n• Ter histórico pro pediatra\n• Acompanhar evolução com fotos e sintomas'
-                : 'Cada episódio salvo vira:\n• Linha do tempo de saúde da criança\n• Insights de padrões (recorrência)\n• Contexto pro próximo médico'}
-              action={{ label: 'Registrar episódio', onPress: () => router.push('/saude/doencas/nova') }}
+                ? t('empty.doencasActive.description')
+                : t('empty.doencasAll.description')}
+              action={{ label: t('empty.doencasActive.actionLabel'), onPress: () => router.push('/saude/doencas/nova'), accessibilityHint: t('empty.doencasActive.actionHint') }}
             />
           ) : (
             filtered.map(i => {
@@ -250,6 +255,9 @@ export default function DoencasScreen() {
                         <TouchableOpacity
                           disabled={submittingEvolution}
                           onPress={submitEvolution}
+                          accessibilityRole="button"
+                          accessibilityLabel="Confirmar"
+                          accessibilityState={{ disabled: submittingEvolution, busy: submittingEvolution }}
                           style={{
                             flex: 1, paddingVertical: 8, borderRadius: radius.sm,
                             backgroundColor: expanded.type === 'improving' ? '#22c55e' : '#ef4444',
@@ -262,6 +270,8 @@ export default function DoencasScreen() {
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => { setExpanded(null); setEvolutionNote(''); }}
+                          accessibilityRole="button"
+                          accessibilityLabel="Cancelar"
                           style={{
                             paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.sm,
                             backgroundColor: colors.bgSurface, alignItems: 'center',
@@ -275,6 +285,8 @@ export default function DoencasScreen() {
                     <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
                       <TouchableOpacity
                         onPress={() => startEvolution(i.id, 'improving')}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Registrar melhora em ${i.title}`}
                         style={{
                           flex: 1, paddingVertical: 8, borderRadius: radius.sm,
                           backgroundColor: 'rgba(34,197,94,0.1)', alignItems: 'center',
@@ -286,6 +298,8 @@ export default function DoencasScreen() {
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => startEvolution(i.id, 'worsening')}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Registrar piora em ${i.title}`}
                         style={{
                           flex: 1, paddingVertical: 8, borderRadius: radius.sm,
                           backgroundColor: 'rgba(239,68,68,0.1)', alignItems: 'center',
@@ -297,6 +311,8 @@ export default function DoencasScreen() {
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleResolve(i)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Encerrar episódio ${i.title}`}
                         style={{
                           paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.sm,
                           borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
@@ -319,6 +335,8 @@ export default function DoencasScreen() {
       <TouchableOpacity
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/doencas/nova' as never); }}
         activeOpacity={0.85}
+        accessibilityRole="button"
+        accessibilityLabel="Registrar nova doença"
         style={{
           position: 'absolute', bottom: insets.bottom + 20, right: 20,
           width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand,

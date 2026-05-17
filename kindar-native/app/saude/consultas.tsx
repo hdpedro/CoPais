@@ -288,6 +288,9 @@ export default function ConsultasScreen() {
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   <TouchableOpacity
                     onPress={() => setSelectedProfessional(null)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: selectedProfessional === null }}
+                    accessibilityLabel="Sem profissional"
                     style={{
                       paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full,
                       backgroundColor: selectedProfessional === null ? colors.brand : colors.bgSurface,
@@ -301,6 +304,9 @@ export default function ConsultasScreen() {
                     <TouchableOpacity
                       key={p.id}
                       onPress={() => setSelectedProfessional(p.id)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: selectedProfessional === p.id }}
+                      accessibilityLabel={p.name}
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full,
                         backgroundColor: selectedProfessional === p.id ? colors.brand : colors.bgSurface,
@@ -334,6 +340,9 @@ export default function ConsultasScreen() {
         <TouchableOpacity
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/consultas/resumo'); }}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Resumo para a próxima consulta"
+          accessibilityHint="Briefing clínico desde a última consulta concluída"
           style={{
             margin: spacing.lg, marginBottom: 0,
             backgroundColor: colors.brandLight,
@@ -389,6 +398,8 @@ export default function ConsultasScreen() {
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
                     <TouchableOpacity
                       onPress={() => openCompleteModal(item)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Concluir consulta ${item.title}`}
                       style={{ flex: 1, backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' }}
                     >
                       <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
@@ -397,6 +408,8 @@ export default function ConsultasScreen() {
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => handleCancel(item.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Cancelar consulta ${item.title}`}
                       style={{ paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight }}
                     >
                       <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
@@ -479,7 +492,7 @@ export default function ConsultasScreen() {
                 <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
                   Concluir consulta
                 </Text>
-                <TouchableOpacity onPress={() => setCompleting(null)} hitSlop={8}>
+                <TouchableOpacity onPress={() => setCompleting(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fechar">
                   <Ionicons name="close" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -514,6 +527,9 @@ export default function ConsultasScreen() {
               <TouchableOpacity
                 onPress={handleConfirmComplete}
                 disabled={completeSaving}
+                accessibilityRole="button"
+                accessibilityLabel="Marcar como concluída"
+                accessibilityState={{ disabled: completeSaving, busy: completeSaving }}
                 style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.xl, opacity: completeSaving ? 0.5 : 1 }}
               >
                 <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
@@ -542,7 +558,7 @@ export default function ConsultasScreen() {
                 <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
                   Editar consulta
                 </Text>
-                <TouchableOpacity onPress={() => setEditing(null)} hitSlop={8}>
+                <TouchableOpacity onPress={() => setEditing(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fechar">
                   <Ionicons name="close" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -592,6 +608,9 @@ export default function ConsultasScreen() {
               <TouchableOpacity
                 onPress={handleConfirmEdit}
                 disabled={editSaving}
+                accessibilityRole="button"
+                accessibilityLabel="Salvar alterações"
+                accessibilityState={{ disabled: editSaving, busy: editSaving }}
                 style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.lg, opacity: editSaving ? 0.5 : 1 }}
               >
                 <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>

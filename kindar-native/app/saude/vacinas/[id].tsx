@@ -230,6 +230,8 @@ export default function VaccineDetailScreen() {
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar"
             style={{ marginTop: spacing.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}
           >
             <Text style={{ color: colors.brand, fontWeight: font.weights.semibold }}>← Voltar</Text>
@@ -360,6 +362,9 @@ export default function VaccineDetailScreen() {
               <TouchableOpacity
                 onPress={handleSave}
                 disabled={saving}
+                accessibilityRole="button"
+                accessibilityLabel="Salvar mudanças"
+                accessibilityState={{ disabled: saving, busy: saving }}
                 style={{
                   flex: 1,
                   backgroundColor: colors.brand,
@@ -379,6 +384,8 @@ export default function VaccineDetailScreen() {
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={() => setEditing(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Cancelar"
                 style={{
                   flex: 1,
                   backgroundColor: colors.bgSurface,
@@ -401,6 +408,8 @@ export default function VaccineDetailScreen() {
             <TouchableOpacity
               onPress={() => setEditing(true)}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Editar registro"
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -419,6 +428,8 @@ export default function VaccineDetailScreen() {
             <TouchableOpacity
               onPress={handleDelete}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Excluir registro"
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',

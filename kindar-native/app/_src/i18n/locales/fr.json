@@ -2136,7 +2136,40 @@
     "removeActivity": "Supprimer l'activite ?",
     "removeConfirmText": "\"{name}\" sera supprimee avec toute la checklist. Cette action est irreversible.",
     "removing": "Suppression...",
-    "remove": "Supprimer"
+    "remove": "Supprimer",
+    "title": "Activités",
+    "editTitle": "Modifier l'activité",
+    "fields": {
+      "name": "Nom",
+      "category": "Catégorie",
+      "start": "Début",
+      "end": "Fin",
+      "location": "Lieu",
+      "notes": "Observations"
+    },
+    "placeholders": {
+      "name": "Nom de l'activité",
+      "location": "Où elle a lieu",
+      "notes": "Notes, matériel nécessaire..."
+    },
+    "timePlaceholder": "—",
+    "saveChanges": "Enregistrer les modifications",
+    "checklist": "Liste",
+    "report": "Signaler",
+    "errors": {
+      "saveTitle": "Erreur",
+      "saveFallback": "Échec de l'enregistrement",
+      "deleteTitle": "Erreur",
+      "deleteFallback": "Échec"
+    },
+    "removeTitle": "Supprimer « {name} » ?",
+    "consequences": {
+      "futureLabel": "prochaines occurrences dans le calendrier",
+      "pastLabel": "occurrences passées dans l'historique",
+      "futureImpact": "supprimé",
+      "pastImpact": "préservé"
+    },
+    "removeAction": "Supprimer"
   },
   "preSummary": {
     "title": "Resume pre-consultation",
@@ -2454,9 +2487,72 @@
       "title": "Aucune info sur l'école",
       "description": "Renseigne le nom de l'école, le niveau, l'enseignant·e et les horaires pour clarifier la routine.",
       "actionLabel": "Renseigner l'école"
+    },
+    "alergias": {
+      "title": "Commencez par l'allergie la plus grave",
+      "description": "Elle apparaîtra automatiquement :\n• Sur la fiche d'urgence partageable\n• Dans les résumés avant les consultations\n• Sur l'app du co-responsable en temps réel",
+      "actionLabel": "Ajouter une allergie",
+      "actionHint": "Ouvre le formulaire pour enregistrer une nouvelle allergie"
+    },
+    "crescimento": {
+      "title": "Commencez par enregistrer la dernière consultation",
+      "description": "Chaque mesure devient :\n• Une courbe de croissance dans le temps\n• Une comparaison avec l'OMS par âge\n• Un historique exportable pour le pédiatre",
+      "actionLabel": "Enregistrer une mesure",
+      "actionHint": "Ouvre le formulaire pour enregistrer poids/taille"
+    },
+    "medicamentos": {
+      "title": "Suivez les doses sans mémoriser les horaires",
+      "description": "En enregistrant un médicament :\n• L'app vous rappelle la prochaine dose\n• Le co-responsable voit ce qui a déjà été donné\n• L'historique est conservé pour le pédiatre",
+      "actionLabel": "Ajouter un médicament",
+      "actionHint": "Ouvre le formulaire pour enregistrer un médicament"
+    },
+    "profissionais": {
+      "title": "Commencez par le pédiatre",
+      "description": "Avec chaque professionnel enregistré :\n• Contact direct en 1 tap (WhatsApp/appel)\n• Lien avec les consultations pour suivre l'historique\n• La fiche d'urgence inclut le pédiatre automatiquement",
+      "actionLabel": "Ajouter un professionnel",
+      "actionHint": "Ouvre le formulaire pour enregistrer un professionnel"
+    },
+    "doencasActive": {
+      "title": "Tout est calme pour l'instant",
+      "description": "Quand un rhume, virus ou allergie apparaît, enregistre-le ici pour :\n• Que le co-responsable soit informé en temps réel\n• Avoir un historique pour le pédiatre\n• Suivre l'évolution avec photos et symptômes",
+      "actionLabel": "Enregistrer un épisode",
+      "actionHint": "Ouvre l'écran pour enregistrer un nouvel épisode"
+    },
+    "doencasAll": {
+      "title": "Commencez par le dernier épisode",
+      "description": "Chaque épisode enregistré devient :\n• Une chronologie de santé pour l'enfant\n• Des observations sur les schémas récurrents\n• Un contexte pour le prochain médecin",
+      "actionLabel": "Enregistrer un épisode",
+      "actionHint": "Ouvre l'écran pour enregistrer un nouvel épisode"
+    },
+    "sintomas": {
+      "title": "Aucun symptôme enregistré",
+      "description": "Enregistrez les symptômes pour suivre la santé de l'enfant dans le temps."
+    },
+    "atividades": {
+      "title": "Aucune activité pour le moment",
+      "description": "Créez des activités récurrentes pour les enfants."
     }
   },
   "events": {
     "title": "Événements"
+  },
+  "more": {
+    "title": "Plus",
+    "financial": "Finances",
+    "health": "Santé",
+    "documents": "Documents",
+    "events": "Événements",
+    "activities": "Activités",
+    "agreements": "Accords",
+    "decisions": "Décisions",
+    "children": "Enfants",
+    "school": "École",
+    "sensitive": "Sujets sensibles",
+    "notes": "Notes",
+    "checkin": "Check-in",
+    "semana": "Semaine",
+    "family": "Famille",
+    "profile": "Profil",
+    "openModule": "Ouvrir {label}"
   }
 }

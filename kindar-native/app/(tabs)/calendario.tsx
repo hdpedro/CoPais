@@ -95,7 +95,7 @@ export default function CalendarScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       'Cancelar pedido?',
-      `Voce vai retirar a solicitacao de troca para ${formatSwapDate(originalDate)}. O outro responsavel sera avisado.`,
+      `Você vai retirar a solicitação de troca para ${formatSwapDate(originalDate)}. O outro responsável será avisado.`,
       [
         { text: 'Manter pedido', style: 'cancel' },
         {
@@ -164,7 +164,7 @@ export default function CalendarScreen() {
     const tmwPerson = members.find(m => m.userId === tmwCustody.responsibleId);
     return {
       childName: tmwCustody.title,
-      nextPerson: tmwPerson?.name || 'o outro responsavel',
+      nextPerson: tmwPerson?.name || 'o outro responsável',
       isWithMeTomorrow: tmwCustody.responsibleId === userId,
     };
   }, [eventMap, todayKey, tomorrowKey, members, userId, activeGroup?.custodyEnabled]);
@@ -368,13 +368,13 @@ export default function CalendarScreen() {
               </View>
               {mySentSwaps.map((s, i) => {
                 const targetMember = members.find(m => m.userId === s.targetUserId);
-                const targetName = targetMember?.name || 'Co-responsavel';
+                const targetName = targetMember?.name || 'Co-responsável';
                 const isVisit = s.type === 'visit' || (!s.proposedDate && s.reason?.toLowerCase().includes('visit'));
                 const isDebt = !s.proposedDate && !isVisit;
                 const summary = isVisit
                   ? `Pediu visita em ${formatSwapDate(s.originalDate)}`
                   : isDebt
-                    ? `Pediu o dia ${formatSwapDate(s.originalDate)} (ficara devendo)`
+                    ? `Pediu o dia ${formatSwapDate(s.originalDate)} (ficará devendo)`
                     : `Quer trocar ${formatSwapDate(s.originalDate)}${s.proposedDate ? ` por ${formatSwapDate(s.proposedDate)}` : ''}`;
                 return (
                   <View
@@ -1088,7 +1088,7 @@ export default function CalendarScreen() {
                 setSwapContext({
                   date: day,
                   targetUserId,
-                  targetUserName: targetMember?.name || 'Co-responsavel',
+                  targetUserName: targetMember?.name || 'Co-responsável',
                   targetColor: targetMember?.color || custodyEvent.color,
                   isVisit,
                 });

@@ -147,7 +147,7 @@ export default function EditActivityScreen() {
         borderBottomWidth: 0.5,
         borderBottomColor: colors.borderLight,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} testID="edit-activity-cancel">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} testID="edit-activity-cancel" accessibilityRole="button" accessibilityLabel="Voltar">
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="chevron-back" size={28} color={colors.brand} />
             <Text style={{ fontSize: font.sizes.md, color: colors.brand, marginLeft: -2, fontWeight: font.weights.medium }}>
@@ -158,7 +158,7 @@ export default function EditActivityScreen() {
         <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
           Editar atividade
         </Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving || !name.trim()} hitSlop={12} testID="edit-activity-save">
+        <TouchableOpacity onPress={handleSave} disabled={saving || !name.trim()} hitSlop={12} testID="edit-activity-save" accessibilityRole="button" accessibilityLabel="Salvar" accessibilityState={{ disabled: saving || !name.trim(), busy: saving }}>
           <Text style={{
             fontSize: font.sizes.md, fontWeight: font.weights.bold,
             color: (saving || !name.trim()) ? colors.textMuted : colors.brand,
@@ -188,6 +188,9 @@ export default function EditActivityScreen() {
               <TouchableOpacity
                 key={c.value}
                 onPress={() => { Haptics.selectionAsync(); setCategory(c.value); }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={CATEGORY_LABEL[c.value] || c.value}
                 style={{
                   paddingVertical: 8, paddingHorizontal: 14, borderRadius: radius.full,
                   backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -210,7 +213,7 @@ export default function EditActivityScreen() {
         {/* Horario */}
         <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
           <View style={{ flex: 1 }}>
-            <Label>Inicio</Label>
+            <Label>Início</Label>
             <TimePickerField value={timeStart} onChange={setTimeStart} placeholder="--:--" />
           </View>
           <View style={{ flex: 1 }}>
@@ -224,7 +227,7 @@ export default function EditActivityScreen() {
         <TextInput
           value={location}
           onChangeText={setLocation}
-          placeholder="Ex: Colegio CVS"
+          placeholder="Ex: Colégio CVS"
           placeholderTextColor={colors.textDim}
           style={inputStyle}
         />
@@ -258,6 +261,9 @@ export default function EditActivityScreen() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           <TouchableOpacity
             onPress={() => { Haptics.selectionAsync(); setResponsibleId(null); }}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: responsibleId === null }}
+            accessibilityLabel="Não definido"
             style={{
               paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.full,
               backgroundColor: responsibleId === null ? colors.brand : colors.bgElevated,
@@ -268,7 +274,7 @@ export default function EditActivityScreen() {
               fontSize: font.sizes.xs, fontWeight: font.weights.semibold,
               color: responsibleId === null ? '#fff' : colors.text,
             }}>
-              Nao definido
+              Não definido
             </Text>
           </TouchableOpacity>
           {members.map((m) => {
@@ -277,6 +283,9 @@ export default function EditActivityScreen() {
               <TouchableOpacity
                 key={m.user_id}
                 onPress={() => { Haptics.selectionAsync(); setResponsibleId(m.user_id); }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={m.name}
                 style={{
                   paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.full,
                   backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -294,8 +303,8 @@ export default function EditActivityScreen() {
           })}
         </View>
 
-        {/* Anotacoes */}
-        <Label>Anotacoes</Label>
+        {/* Anotações */}
+        <Label>Anotações</Label>
         <TextInput
           value={notes}
           onChangeText={setNotes}

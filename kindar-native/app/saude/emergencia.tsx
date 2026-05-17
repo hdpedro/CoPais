@@ -153,7 +153,7 @@ export default function EmergenciaScreen() {
             if (r.success) {
               setChildren(prev => prev.map(c => c.id === child.id ? { ...c, emergency_token: r.emergency_token } : c));
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('Token regenerado', 'O link antigo nao funciona mais.');
+              Alert.alert('Token regenerado', 'O link antigo não funciona mais.');
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
               Alert.alert('Erro', r.error || 'Nao consegui regenerar.');
@@ -312,6 +312,8 @@ export default function EmergenciaScreen() {
             <TouchableOpacity
               onPress={handleShare}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Compartilhar ficha"
               style={{
                 backgroundColor: colors.brand, borderRadius: radius.md,
                 paddingVertical: spacing.md, flexDirection: 'row',
@@ -328,6 +330,9 @@ export default function EmergenciaScreen() {
               onPress={handleRegenerate}
               activeOpacity={0.85}
               disabled={rotating}
+              accessibilityRole="button"
+              accessibilityLabel="Regenerar token e revogar link atual"
+              accessibilityState={{ disabled: rotating, busy: rotating }}
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.md,
                 paddingVertical: spacing.md, flexDirection: 'row',
@@ -348,7 +353,7 @@ export default function EmergenciaScreen() {
               )}
             </TouchableOpacity>
             <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs }}>
-              O link funciona sem login. Compartilhe apenas com quem cuida da crianca.
+              O link funciona sem login. Compartilhe apenas com quem cuida da criança.
             </Text>
           </View>
         </ScrollView>
@@ -382,5 +387,5 @@ function InfoCard({ icon, label, value, highlight, children, onPress }: {
       {children}
     </View>
   );
-  return onPress ? <TouchableOpacity onPress={onPress} activeOpacity={0.85}>{content}</TouchableOpacity> : content;
+  return onPress ? <TouchableOpacity onPress={onPress} activeOpacity={0.85} accessibilityRole="button" accessibilityLabel={`${label}${value ? `: ${value}` : ''}`}>{content}</TouchableOpacity> : content;
 }

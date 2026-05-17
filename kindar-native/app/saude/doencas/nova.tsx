@@ -133,7 +133,7 @@ export default function NovaDoencaScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Nova doenca
+          Nova doença
         </Text>
       </View>
 
@@ -191,6 +191,9 @@ export default function NovaDoencaScreen() {
               <TouchableOpacity
                 key={s.value}
                 onPress={() => setSeverity(s.value)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`Gravidade ${s.label}`}
                 style={{
                   flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                   backgroundColor: active ? `${s.color}20` : colors.bgElevated,
@@ -223,10 +226,10 @@ export default function NovaDoencaScreen() {
         />
 
         {/* Hospital */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Hospital/clinica</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Hospital/clínica</Text>
         <TextInput
           value={hospital} onChangeText={setHospital}
-          placeholder="Onde foi atendido (se aplicavel)"
+          placeholder="Onde foi atendido (se aplicável)"
           placeholderTextColor={colors.textMuted}
           style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -236,10 +239,10 @@ export default function NovaDoencaScreen() {
         />
 
         {/* Notes */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Observacoes</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Observações</Text>
         <TextInput
           value={notes} onChangeText={setNotes}
-          placeholder="Diagnostico, medicacao prescrita, evolucao..."
+          placeholder="Diagnóstico, medicação prescrita, evolução..."
           placeholderTextColor={colors.textMuted}
           multiline
           style={{

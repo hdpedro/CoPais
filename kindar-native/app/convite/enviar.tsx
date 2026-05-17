@@ -93,7 +93,7 @@ export default function EnviarConviteScreen() {
   async function handleCancel(inv: Invitation) {
     if (!activeGroup) return;
     Alert.alert('Cancelar convite', `Cancelar convite para ${inv.email}?`, [
-      { text: 'Nao', style: 'cancel' },
+      { text: 'Não', style: 'cancel' },
       {
         text: 'Cancelar convite',
         style: 'destructive',

@@ -76,7 +76,7 @@ export default function PricingScreen() {
   async function handlePurchase(pkg: PurchasesPackage) {
     const token = await getAccessToken();
     if (!token) {
-      Alert.alert('Erro', 'Sessao expirada. Faca login novamente.');
+      Alert.alert('Erro', 'Sessão expirada. Faça login novamente.');
       return;
     }
     setPurchasingId(pkg.identifier);
@@ -88,17 +88,17 @@ export default function PricingScreen() {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await loadSub();
-      Alert.alert('Bem-vindo(a) ao Premium!', 'Sua assinatura esta ativa. Aproveite todos os recursos.');
+      Alert.alert('Bem-vindo(a) ao Premium!', 'Sua assinatura está ativa. Aproveite todos os recursos.');
     } else if (result.error !== 'Compra cancelada') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Nao foi possivel completar a compra');
+      Alert.alert('Erro', result.error || 'Não foi possível completar a compra');
     }
   }
 
   async function handleRestore() {
     const token = await getAccessToken();
     if (!token) {
-      Alert.alert('Erro', 'Sessao expirada. Faca login novamente.');
+      Alert.alert('Erro', 'Sessão expirada. Faça login novamente.');
       return;
     }
     setRestoring(true);
@@ -112,7 +112,7 @@ export default function PricingScreen() {
     } else if (result.success) {
       Alert.alert('Info', 'Nenhuma assinatura ativa encontrada nesta conta Apple.');
     } else {
-      Alert.alert('Erro', result.error || 'Nao foi possivel restaurar');
+      Alert.alert('Erro', result.error || 'Não foi possível restaurar');
     }
   }
 
@@ -126,12 +126,12 @@ export default function PricingScreen() {
         <View style={{ alignItems: 'center', marginBottom: spacing['2xl'] }}>
           <Text style={{ fontSize: 44, marginBottom: spacing.md }}>{isPremium ? '👑' : '✨'}</Text>
           <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.text, textAlign: 'center' }}>
-            {isPremium ? 'Voce e Premium' : 'Kindar Premium'}
+            {isPremium ? 'Você é Premium' : 'Kindar Premium'}
           </Text>
           <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs, lineHeight: 22 }}>
             {isPremium
-              ? 'Aproveite todos os recursos da rede de apoio e colaboracao.'
-              : 'Desbloqueie a organizacao completa da familia.'}
+              ? 'Aproveite todos os recursos da rede de apoio e colaboração.'
+              : 'Desbloqueie a organização completa da família.'}
           </Text>
         </View>
 

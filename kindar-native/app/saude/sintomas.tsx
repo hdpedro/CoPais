@@ -16,6 +16,7 @@ import { fetchSymptoms, createSymptomEntry, type SymptomEntry } from 'src/servic
 import { fetchChildren, type Child } from 'src/services/children';
 import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 /**
@@ -74,6 +75,7 @@ function groupByDate(entries: SymptomEntry[]): { date: string; items: SymptomEnt
 }
 
 export default function SintomasScreen() {
+  const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
@@ -190,8 +192,8 @@ export default function SintomasScreen() {
           {grouped.length === 0 ? (
             <EmptyState
               icon="🩹"
-              title="Nenhum sintoma registrado"
-              description="Registre sintomas para acompanhar a saúde da criança ao longo do tempo."
+              title={t('empty.sintomas.title')}
+              description={t('empty.sintomas.description')}
             />
           ) : (
             grouped.map(group => (
@@ -250,6 +252,8 @@ export default function SintomasScreen() {
         <TouchableOpacity
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setComposerOpen(true); }}
           activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel="Registrar novo sintoma"
           style={{
             position: 'absolute', bottom: insets.bottom + 20, right: 20,
             width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand,
@@ -266,7 +270,7 @@ export default function SintomasScreen() {
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
           style={{ flex: 1, justifyContent: 'flex-end' }}
         >
-          <TouchableOpacity activeOpacity={1} onPress={() => setComposerOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+          <TouchableOpacity activeOpacity={1} onPress={() => setComposerOpen(false)} accessibilityRole="button" accessibilityLabel="Fechar" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
           <View style={{
             backgroundColor: colors.bgElevated,
             borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'],
@@ -286,6 +290,9 @@ export default function SintomasScreen() {
                     <TouchableOpacity
                       key={t.value}
                       onPress={() => setSymptomType(t.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={t.label}
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                         backgroundColor: active ? `${t.color}20` : colors.bg,
@@ -331,6 +338,9 @@ export default function SintomasScreen() {
                     <TouchableOpacity
                       key={i.value}
                       onPress={() => setIntensity(i.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={`Intensidade ${i.label}`}
                       style={{
                         flex: 1, paddingVertical: 10, borderRadius: radius.md,
                         backgroundColor: active ? i.color : 'transparent',
@@ -364,6 +374,9 @@ export default function SintomasScreen() {
               <TouchableOpacity
                 disabled={submitting}
                 onPress={handleSubmit}
+                accessibilityRole="button"
+                accessibilityLabel="Registrar"
+                accessibilityState={{ disabled: submitting, busy: submitting }}
                 style={{
                   backgroundColor: colors.brand, borderRadius: radius.md,
                   paddingVertical: spacing.md + 2, alignItems: 'center',

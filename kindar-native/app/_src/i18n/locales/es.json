@@ -2136,7 +2136,40 @@
     "removeActivity": "Eliminar actividad?",
     "removeConfirmText": "\"{name}\" sera eliminada junto con todo el checklist. Esta accion no se puede deshacer.",
     "removing": "Eliminando...",
-    "remove": "Eliminar"
+    "remove": "Eliminar",
+    "title": "Actividades",
+    "editTitle": "Editar actividad",
+    "fields": {
+      "name": "Nombre",
+      "category": "Categoría",
+      "start": "Inicio",
+      "end": "Fin",
+      "location": "Lugar",
+      "notes": "Observaciones"
+    },
+    "placeholders": {
+      "name": "Nombre de la actividad",
+      "location": "Dónde ocurre",
+      "notes": "Notas, materiales necesarios..."
+    },
+    "timePlaceholder": "—",
+    "saveChanges": "Guardar cambios",
+    "checklist": "Lista",
+    "report": "Reportar",
+    "errors": {
+      "saveTitle": "Error",
+      "saveFallback": "No se pudo guardar",
+      "deleteTitle": "Error",
+      "deleteFallback": "Falló"
+    },
+    "removeTitle": "¿Quitar \"{name}\"?",
+    "consequences": {
+      "futureLabel": "próximas ocurrencias en el calendario",
+      "pastLabel": "ocurrencias pasadas en el historial",
+      "futureImpact": "eliminado",
+      "pastImpact": "preservado"
+    },
+    "removeAction": "Quitar"
   },
   "preSummary": {
     "title": "Resumen para Consulta",
@@ -2454,9 +2487,72 @@
       "title": "Sin datos de escuela",
       "description": "Registra el nombre de la escuela, curso, profesor(a) y horarios para tener la rutina más clara.",
       "actionLabel": "Registrar escuela"
+    },
+    "alergias": {
+      "title": "Empieza por la alergia más grave",
+      "description": "Aparecerá automáticamente:\n• En la ficha de emergencia compartible\n• En los resúmenes antes de las consultas\n• En la app del corresponsable en tiempo real",
+      "actionLabel": "Añadir alergia",
+      "actionHint": "Abre el formulario para registrar una nueva alergia"
+    },
+    "crescimento": {
+      "title": "Empieza registrando la última consulta",
+      "description": "Cada medida se convierte en:\n• Una curva de crecimiento a lo largo del tiempo\n• Una comparación con la OMS por edad\n• Un historial exportable para el pediatra",
+      "actionLabel": "Registrar medida",
+      "actionHint": "Abre el formulario para registrar peso/altura"
+    },
+    "medicamentos": {
+      "title": "Sigue las dosis sin memorizar horarios",
+      "description": "Al registrar un medicamento:\n• La app te recuerda el próximo horario\n• El corresponsable ve lo que ya se administró\n• El historial queda guardado para el pediatra",
+      "actionLabel": "Añadir medicamento",
+      "actionHint": "Abre el formulario para registrar un medicamento"
+    },
+    "profissionais": {
+      "title": "Empieza por el pediatra",
+      "description": "Con cada profesional registrado:\n• Contacto directo en 1 toque (WhatsApp/llamada)\n• Vínculo con las consultas para seguir el historial\n• La ficha de emergencia incluye al pediatra automáticamente",
+      "actionLabel": "Añadir profesional",
+      "actionHint": "Abre el formulario para registrar un profesional"
+    },
+    "doencasActive": {
+      "title": "Todo tranquilo por ahora",
+      "description": "Cuando aparezca un resfriado, virus o alergia… regístralo aquí para:\n• Que el corresponsable se entere en tiempo real\n• Tener historial para el pediatra\n• Acompañar la evolución con fotos y síntomas",
+      "actionLabel": "Registrar episodio",
+      "actionHint": "Abre la pantalla para registrar un nuevo episodio"
+    },
+    "doencasAll": {
+      "title": "Empieza por el último episodio",
+      "description": "Cada episodio guardado se convierte en:\n• Una línea de tiempo de salud del niño\n• Información sobre patrones (recurrencia)\n• Contexto para el próximo médico",
+      "actionLabel": "Registrar episodio",
+      "actionHint": "Abre la pantalla para registrar un nuevo episodio"
+    },
+    "sintomas": {
+      "title": "Sin síntomas registrados",
+      "description": "Registra síntomas para acompañar la salud del niño a lo largo del tiempo."
+    },
+    "atividades": {
+      "title": "Sin actividades todavía",
+      "description": "Crea actividades recurrentes para los niños."
     }
   },
   "events": {
     "title": "Eventos"
+  },
+  "more": {
+    "title": "Más",
+    "financial": "Finanzas",
+    "health": "Salud",
+    "documents": "Documentos",
+    "events": "Eventos",
+    "activities": "Actividades",
+    "agreements": "Acuerdos",
+    "decisions": "Decisiones",
+    "children": "Niños",
+    "school": "Escuela",
+    "sensitive": "Temas sensibles",
+    "notes": "Notas",
+    "checkin": "Check-in",
+    "semana": "Semana",
+    "family": "Familia",
+    "profile": "Perfil",
+    "openModule": "Abrir {label}"
   }
 }

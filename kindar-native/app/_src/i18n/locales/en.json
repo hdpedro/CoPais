@@ -2136,7 +2136,40 @@
     "removeActivity": "Remove activity?",
     "removeConfirmText": "\"{name}\" will be removed along with the entire checklist. This action cannot be undone.",
     "removing": "Removing...",
-    "remove": "Remove"
+    "remove": "Remove",
+    "title": "Activities",
+    "editTitle": "Edit activity",
+    "fields": {
+      "name": "Name",
+      "category": "Category",
+      "start": "Start",
+      "end": "End",
+      "location": "Location",
+      "notes": "Notes"
+    },
+    "placeholders": {
+      "name": "Activity name",
+      "location": "Where it takes place",
+      "notes": "Notes, materials needed..."
+    },
+    "timePlaceholder": "—",
+    "saveChanges": "Save changes",
+    "checklist": "Checklist",
+    "report": "Report",
+    "errors": {
+      "saveTitle": "Error",
+      "saveFallback": "Failed to save",
+      "deleteTitle": "Error",
+      "deleteFallback": "Failed"
+    },
+    "removeTitle": "Remove \"{name}\"?",
+    "consequences": {
+      "futureLabel": "upcoming occurrences in the calendar",
+      "pastLabel": "past occurrences in the history",
+      "futureImpact": "removed",
+      "pastImpact": "preserved"
+    },
+    "removeAction": "Remove"
   },
   "preSummary": {
     "title": "Pre-Appointment Summary",
@@ -2454,9 +2487,72 @@
       "title": "No school details yet",
       "description": "Add the school name, grade, teacher and schedule to make the routine clearer.",
       "actionLabel": "Add school"
+    },
+    "alergias": {
+      "title": "Start with the most severe allergy",
+      "description": "It will show up automatically:\n• On the shareable emergency card\n• In summaries before appointments\n• On the co-caregiver's app in real time",
+      "actionLabel": "Add allergy",
+      "actionHint": "Opens the form to register a new allergy"
+    },
+    "crescimento": {
+      "title": "Start by logging the last visit",
+      "description": "Each measurement becomes:\n• A growth curve over time\n• A comparison with WHO standards by age\n• An exportable history for the pediatrician",
+      "actionLabel": "Log measurement",
+      "actionHint": "Opens the form to register weight/height"
+    },
+    "medicamentos": {
+      "title": "Track doses without memorizing schedules",
+      "description": "By registering a medication:\n• The app reminds you of the next dose\n• The co-caregiver sees what was already given\n• The history is saved for the pediatrician",
+      "actionLabel": "Add medication",
+      "actionHint": "Opens the form to register a medication"
+    },
+    "profissionais": {
+      "title": "Start with the pediatrician",
+      "description": "With each professional saved:\n• Direct contact in 1 tap (WhatsApp/call)\n• Link to appointments to track history\n• The emergency card brings in the pediatrician automatically",
+      "actionLabel": "Add professional",
+      "actionHint": "Opens the form to register a professional"
+    },
+    "doencasActive": {
+      "title": "All quiet for now",
+      "description": "When a cold, bug or allergy shows up, log it here to:\n• Let the co-caregiver know in real time\n• Keep a history for the pediatrician\n• Track progress with photos and symptoms",
+      "actionLabel": "Log episode",
+      "actionHint": "Opens the screen to log a new illness episode"
+    },
+    "doencasAll": {
+      "title": "Start with the latest episode",
+      "description": "Each saved episode becomes:\n• A health timeline for the child\n• Insights into recurring patterns\n• Context for the next doctor",
+      "actionLabel": "Log episode",
+      "actionHint": "Opens the screen to log a new illness episode"
+    },
+    "sintomas": {
+      "title": "No symptoms logged yet",
+      "description": "Log symptoms to follow the child's health over time."
+    },
+    "atividades": {
+      "title": "No activities yet",
+      "description": "Create recurring activities for the children."
     }
   },
   "events": {
     "title": "Events"
+  },
+  "more": {
+    "title": "More",
+    "financial": "Financial",
+    "health": "Health",
+    "documents": "Documents",
+    "events": "Events",
+    "activities": "Activities",
+    "agreements": "Agreements",
+    "decisions": "Decisions",
+    "children": "Children",
+    "school": "School",
+    "sensitive": "Sensitive topics",
+    "notes": "Notes",
+    "checkin": "Check-in",
+    "semana": "Week",
+    "family": "Family",
+    "profile": "Profile",
+    "openModule": "Open {label}"
   }
 }

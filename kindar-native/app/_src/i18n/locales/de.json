@@ -2136,7 +2136,40 @@
     "removeActivity": "Aktivitat entfernen?",
     "removeConfirmText": "\"{name}\" wird zusammen mit der gesamten Checkliste entfernt. Diese Aktion kann nicht ruckgangig gemacht werden.",
     "removing": "Wird entfernt...",
-    "remove": "Entfernen"
+    "remove": "Entfernen",
+    "title": "Aktivitäten",
+    "editTitle": "Aktivität bearbeiten",
+    "fields": {
+      "name": "Name",
+      "category": "Kategorie",
+      "start": "Beginn",
+      "end": "Ende",
+      "location": "Ort",
+      "notes": "Notizen"
+    },
+    "placeholders": {
+      "name": "Name der Aktivität",
+      "location": "Wo sie stattfindet",
+      "notes": "Notizen, benötigtes Material..."
+    },
+    "timePlaceholder": "—",
+    "saveChanges": "Änderungen speichern",
+    "checklist": "Checkliste",
+    "report": "Bericht",
+    "errors": {
+      "saveTitle": "Fehler",
+      "saveFallback": "Speichern fehlgeschlagen",
+      "deleteTitle": "Fehler",
+      "deleteFallback": "Fehlgeschlagen"
+    },
+    "removeTitle": "„{name}\" entfernen?",
+    "consequences": {
+      "futureLabel": "kommende Vorkommen im Kalender",
+      "pastLabel": "vergangene Vorkommen im Verlauf",
+      "futureImpact": "entfernt",
+      "pastImpact": "erhalten"
+    },
+    "removeAction": "Entfernen"
   },
   "preSummary": {
     "title": "Zusammenfassung vor dem Termin",
@@ -2454,9 +2487,72 @@
       "title": "Noch keine Schul-Daten",
       "description": "Trage Schulname, Klasse, Lehrkraft und Zeiten ein, damit der Alltag klarer wird.",
       "actionLabel": "Schule eintragen"
+    },
+    "alergias": {
+      "title": "Beginne mit der schwersten Allergie",
+      "description": "Sie erscheint automatisch:\n• Auf der teilbaren Notfallkarte\n• In den Zusammenfassungen vor Arztterminen\n• In der App der mitsorgenden Bezugsperson in Echtzeit",
+      "actionLabel": "Allergie hinzufügen",
+      "actionHint": "Öffnet das Formular für eine neue Allergie"
+    },
+    "crescimento": {
+      "title": "Beginne mit dem letzten Arztbesuch",
+      "description": "Jede Messung wird zu:\n• Einer Wachstumskurve im Zeitverlauf\n• Einem Vergleich mit den WHO-Werten nach Alter\n• Einer exportierbaren Übersicht für die Kinderärztin",
+      "actionLabel": "Messung erfassen",
+      "actionHint": "Öffnet das Formular für Gewicht/Größe"
+    },
+    "medicamentos": {
+      "title": "Behalte Dosen im Blick, ohne Zeiten zu merken",
+      "description": "Wenn du ein Medikament erfasst:\n• Erinnert dich die App an die nächste Gabe\n• Sieht die mitsorgende Bezugsperson, was bereits gegeben wurde\n• Bleibt der Verlauf für die Kinderärztin gespeichert",
+      "actionLabel": "Medikament hinzufügen",
+      "actionHint": "Öffnet das Formular für ein neues Medikament"
+    },
+    "profissionais": {
+      "title": "Beginne mit der Kinderärztin",
+      "description": "Mit jeder erfassten Fachperson:\n• Direktkontakt mit einem Tipp (WhatsApp/Anruf)\n• Verknüpfung mit Terminen für den Verlauf\n• Die Notfallkarte zeigt die Kinderärztin automatisch",
+      "actionLabel": "Fachperson hinzufügen",
+      "actionHint": "Öffnet das Formular für eine neue Fachperson"
+    },
+    "doencasActive": {
+      "title": "Gerade ist alles ruhig",
+      "description": "Wenn eine Erkältung, ein Virus oder eine Allergie auftritt, erfasse das hier, um:\n• Die mitsorgende Bezugsperson sofort zu informieren\n• Den Verlauf für die Kinderärztin festzuhalten\n• Den Verlauf mit Fotos und Symptomen zu begleiten",
+      "actionLabel": "Episode erfassen",
+      "actionHint": "Öffnet den Bildschirm für eine neue Episode"
+    },
+    "doencasAll": {
+      "title": "Beginne mit der letzten Episode",
+      "description": "Jede gespeicherte Episode wird zu:\n• Einer Gesundheits-Timeline des Kindes\n• Hinweisen auf wiederkehrende Muster\n• Kontext für den nächsten Arzttermin",
+      "actionLabel": "Episode erfassen",
+      "actionHint": "Öffnet den Bildschirm für eine neue Episode"
+    },
+    "sintomas": {
+      "title": "Noch keine Symptome erfasst",
+      "description": "Erfasse Symptome, um die Gesundheit des Kindes über die Zeit zu verfolgen."
+    },
+    "atividades": {
+      "title": "Noch keine Aktivitäten",
+      "description": "Lege wiederkehrende Aktivitäten für die Kinder an."
     }
   },
   "events": {
     "title": "Termine"
+  },
+  "more": {
+    "title": "Mehr",
+    "financial": "Finanzen",
+    "health": "Gesundheit",
+    "documents": "Dokumente",
+    "events": "Ereignisse",
+    "activities": "Aktivitäten",
+    "agreements": "Vereinbarungen",
+    "decisions": "Entscheidungen",
+    "children": "Kinder",
+    "school": "Schule",
+    "sensitive": "Sensible Themen",
+    "notes": "Notizen",
+    "checkin": "Check-in",
+    "semana": "Woche",
+    "family": "Familie",
+    "profile": "Profil",
+    "openModule": "{label} öffnen"
   }
 }

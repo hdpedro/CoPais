@@ -108,6 +108,9 @@ export default function TimelineScreen() {
           router.push(`/saude/detalhe?id=${event.id}&type=${event.type}`);
         }}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={`${event.title}${event.subtitle ? `, ${event.subtitle}` : ''}, ${event.childName}`}
+        accessibilityHint="Toque para ver detalhes"
         style={{ flexDirection: 'row', gap: spacing.md, paddingBottom: isLast ? 0 : spacing.md }}
       >
         {/* Timeline dot + line */}
@@ -253,6 +256,9 @@ function FilterChips({
               setFilter(c.key);
             }}
             activeOpacity={0.7}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: active, disabled: empty }}
+            accessibilityLabel={`${c.label}${c.count ? `, ${c.count}` : ''}`}
             style={{
               paddingVertical: spacing.xs + 2,
               paddingHorizontal: spacing.md,
@@ -318,6 +324,8 @@ function EmptyState({ filter, clearFilter }: { filter: string | null; clearFilte
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             clearFilter();
           }}
+          accessibilityRole="button"
+          accessibilityLabel="Ver todos"
           style={{
             paddingVertical: spacing.sm + 2,
             paddingHorizontal: spacing.xl,
@@ -346,6 +354,8 @@ function EmptyState({ filter, clearFilter }: { filter: string | null; clearFilte
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
           router.push('/saude/registrar');
         }}
+        accessibilityRole="button"
+        accessibilityLabel="Registrar primeiro evento"
         style={{
           paddingVertical: spacing.sm + 2,
           paddingHorizontal: spacing.xl,

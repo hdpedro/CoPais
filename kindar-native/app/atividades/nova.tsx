@@ -274,7 +274,7 @@ export default function NovaAtividadeScreen() {
       style={{ flex: 1, backgroundColor: colors.bg }}
     >
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
@@ -311,6 +311,9 @@ export default function NovaAtividadeScreen() {
               <TouchableOpacity
                 key={c.value}
                 onPress={() => handleCategoryChange(c.value)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={CAT_LABELS[c.value] || c.value}
                 style={{
                   paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                   backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -332,6 +335,9 @@ export default function NovaAtividadeScreen() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           <TouchableOpacity
             onPress={() => setChildId(null)}
+            accessibilityRole="radio"
+            accessibilityState={{ selected: childId === null }}
+            accessibilityLabel="Todas as crianças"
             style={{
               paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
               backgroundColor: childId === null ? colors.brand : colors.bgElevated,
@@ -348,6 +354,9 @@ export default function NovaAtividadeScreen() {
               <TouchableOpacity
                 key={c.id}
                 onPress={() => setChildId(c.id)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={c.full_name.split(' ')[0]}
                 style={{
                   paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                   backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -372,6 +381,9 @@ export default function NovaAtividadeScreen() {
                 key={r.value}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRecurrence(r.value); }}
                 testID={`atividade-recurrence-${r.value}`}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={`Recorrência ${r.label}`}
                 style={{
                   paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                   backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -397,6 +409,9 @@ export default function NovaAtividadeScreen() {
                   <TouchableOpacity
                     key={d.idx}
                     onPress={() => toggleDay(d.idx)}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: active }}
+                    accessibilityLabel={d.label}
                     style={{
                       flex: 1, paddingVertical: 10, borderRadius: radius.md, alignItems: 'center',
                       backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -477,6 +492,9 @@ export default function NovaAtividadeScreen() {
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               <TouchableOpacity
                 onPress={() => { Haptics.selectionAsync(); setResponsibleId(null); }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: responsibleId === null }}
+                accessibilityLabel="Sem responsável definido"
                 style={{
                   paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                   backgroundColor: responsibleId === null ? colors.brand : colors.bgElevated,
@@ -493,6 +511,9 @@ export default function NovaAtividadeScreen() {
                   <TouchableOpacity
                     key={m.user_id}
                     onPress={() => { Haptics.selectionAsync(); setResponsibleId(m.user_id); }}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={m.name}
                     style={{
                       paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                       backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -532,7 +553,7 @@ export default function NovaAtividadeScreen() {
                   borderWidth: 1.5, borderColor: colors.border,
                 }} />
                 <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.text }}>{item}</Text>
-                <TouchableOpacity onPress={() => removeChecklistItem(i)} hitSlop={8}>
+                <TouchableOpacity onPress={() => removeChecklistItem(i)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remover item ${item}`}>
                   <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
@@ -558,7 +579,9 @@ export default function NovaAtividadeScreen() {
             onPress={addChecklistItem}
             disabled={!newChecklistItem.trim()}
             testID="atividade-add-checklist-item"
+            accessibilityRole="button"
             accessibilityLabel="Adicionar item ao checklist"
+            accessibilityState={{ disabled: !newChecklistItem.trim() }}
             style={{
               paddingHorizontal: spacing.lg, justifyContent: 'center',
               backgroundColor: newChecklistItem.trim() ? colors.brand : colors.borderLight,

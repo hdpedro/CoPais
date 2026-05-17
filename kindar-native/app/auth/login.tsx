@@ -313,7 +313,7 @@ export default function LoginScreen() {
                 await promptGoogle();
                 // Result is handled by the useEffect on googleResponse above.
               } catch {
-                setError('Nao foi possivel iniciar o login com Google');
+                setError('Não foi possível iniciar o login com Google');
               }
             }}
             disabled={loading}

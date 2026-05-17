@@ -21,6 +21,7 @@ import ChildPicker from 'src/components/ui/ChildPicker';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Med {
@@ -61,6 +62,7 @@ function formatMinutes(min: number): string {
 }
 
 export default function MedicamentosScreen() {
+  const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
   const [meds, setMeds] = useState<Med[]>([]);
   const [loading, setLoading] = useState(true);
@@ -286,9 +288,9 @@ export default function MedicamentosScreen() {
         ListEmptyComponent={loading ? null : (
           <EmptyState
             icon="💊"
-            title="Acompanhe doses sem decorar horários"
-            description={'Registrando um medicamento:\n• O app lembra você do próximo horário\n• O co-responsável vê o que já foi dado\n• Histórico fica salvo pro pediatra'}
-            action={{ label: 'Adicionar medicamento', onPress: () => setShowForm(true), accessibilityHint: 'Abre formulário pra cadastrar medicamento' }}
+            title={t('empty.medicamentos.title')}
+            description={t('empty.medicamentos.description')}
+            action={{ label: t('empty.medicamentos.actionLabel'), onPress: () => setShowForm(true), accessibilityHint: t('empty.medicamentos.actionHint') }}
           />
         )}
         renderItem={({ item }) => {
@@ -307,6 +309,9 @@ export default function MedicamentosScreen() {
                 activeOpacity={0.7}
                 onPress={() => openHistory(item)}
                 onLongPress={() => isActive ? handleFinish(item.id) : undefined}
+                accessibilityRole="button"
+                accessibilityLabel={`Histórico de doses de ${item.name}, ${item.childName}, ${item.dosage}, ${isActive ? 'ativo' : 'finalizado'}`}
+                accessibilityHint={isActive ? 'Toque para ver histórico, toque longo para finalizar' : 'Toque para ver histórico'}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
               >
                 <Text style={{ fontSize: 22 }}>{isActive ? '💊' : '✅'}</Text>
@@ -338,6 +343,9 @@ export default function MedicamentosScreen() {
                   <TouchableOpacity
                     disabled={confirmingDose === item.id}
                     onPress={() => handleConfirmDose(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Confirmar dose de ${item.name}`}
+                    accessibilityState={{ disabled: confirmingDose === item.id, busy: confirmingDose === item.id }}
                     style={{
                       flex: 1, paddingVertical: 10, borderRadius: radius.md,
                       backgroundColor: isOverdue ? colors.warning : colors.brand,
@@ -358,6 +366,8 @@ export default function MedicamentosScreen() {
                   </TouchableOpacity>
                   <TouchableOpacity
                     onPress={() => handleFinish(item.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Finalizar ${item.name}`}
                     style={{
                       paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.md,
                       borderWidth: 1, borderColor: colors.borderLight,
@@ -378,7 +388,7 @@ export default function MedicamentosScreen() {
       {/* Dose history bottom sheet */}
       <Modal visible={!!historyMed} animationType="slide" transparent onRequestClose={() => setHistoryMed(null)}>
         <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setHistoryMed(null)} style={{ flex: 1 }} />
+          <TouchableOpacity activeOpacity={1} onPress={() => setHistoryMed(null)} accessibilityRole="button" accessibilityLabel="Fechar" style={{ flex: 1 }} />
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '80%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>

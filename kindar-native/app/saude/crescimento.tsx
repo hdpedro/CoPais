@@ -26,6 +26,7 @@ import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { DecimalInput } from 'src/components/ui/MaskedInputs';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface GrowthRecord {
@@ -39,6 +40,7 @@ interface GrowthRecord {
 }
 
 export default function CrescimentoScreen() {
+  const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
   const [records, setRecords] = useState<GrowthRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -272,9 +274,9 @@ export default function CrescimentoScreen() {
         ListEmptyComponent={loading ? null : (
           <EmptyState
             icon="📏"
-            title="Comece registrando a última consulta"
-            description={'Cada medida vira:\n• Curva de crescimento ao longo do tempo\n• Comparação com a OMS por idade\n• Histórico exportável pro pediatra'}
-            action={{ label: 'Registrar medida', onPress: () => setShowForm(true), accessibilityHint: 'Abre formulário pra cadastrar peso/altura' }}
+            title={t('empty.crescimento.title')}
+            description={t('empty.crescimento.description')}
+            action={{ label: t('empty.crescimento.actionLabel'), onPress: () => setShowForm(true), accessibilityHint: t('empty.crescimento.actionHint') }}
           />
         )}
         ListHeaderComponent={records.length > 0 ? (
@@ -293,6 +295,9 @@ export default function CrescimentoScreen() {
               <TouchableOpacity
                 onPress={() => startEdit(item)}
                 activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityLabel={`Editar medida de ${item.childName} em ${item.measured_date?.split('-').reverse().join('/')}`}
+                accessibilityState={{ selected: editingId === item.id }}
                 style={{
                   backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg,
                   ...shadows.sm,

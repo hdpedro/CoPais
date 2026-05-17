@@ -115,7 +115,7 @@ export default function DecisionDetailScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error || 'Nao foi possivel publicar o argumento');
+      Alert.alert('Erro', res.error || 'Não foi possível publicar o argumento');
     }
   }
 

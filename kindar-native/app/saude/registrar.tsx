@@ -166,7 +166,7 @@ export default function RegistrarScreen() {
         borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
         flexDirection: 'row', alignItems: 'center', gap: spacing.md,
       }}>
-        <TouchableOpacity onPress={() => step > 1 ? setStep(step - 1) : router.back()} hitSlop={8}>
+        <TouchableOpacity onPress={() => step > 1 ? setStep(step - 1) : router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel={step > 1 ? 'Voltar' : 'Fechar'}>
           <Ionicons name={step > 1 ? 'arrow-back' : 'close'} size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text, flex: 1 }}>
@@ -194,7 +194,7 @@ export default function RegistrarScreen() {
               O que aconteceu?
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.xl }}>
-              Selecione o tipo de evento e a crianca
+              Selecione o tipo de evento e a criança
             </Text>
 
             {/* Event type cards */}
@@ -206,6 +206,10 @@ export default function RegistrarScreen() {
                   setEventType(et.type);
                 }}
                 activeOpacity={0.7}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: eventType === et.type }}
+                accessibilityLabel={et.label}
+                accessibilityHint={et.desc}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: spacing.lg,
                   backgroundColor: eventType === et.type ? `${colors.brand}10` : colors.bgElevated,
@@ -252,15 +256,15 @@ export default function RegistrarScreen() {
               {eventType === 'illness' ? 'Descreva os sintomas'
                 : eventType === 'medication' ? 'Dados do medicamento'
                   : eventType === 'appointment' ? 'Dados da consulta'
-                    : 'Observacao'}
+                    : 'Observação'}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.xl }}>
-              Preencha as informacoes principais
+              Preencha as informações principais
             </Text>
 
             {/* Title (always) */}
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-              {eventType === 'medication' ? 'Nome do medicamento' : eventType === 'appointment' ? 'Titulo da consulta' : 'Titulo'}
+              {eventType === 'medication' ? 'Nome do medicamento' : eventType === 'appointment' ? 'Título da consulta' : 'Título'}
             </Text>
             <TextInput
               value={title}
@@ -268,7 +272,7 @@ export default function RegistrarScreen() {
               placeholder={eventType === 'illness' ? 'Ex: Febre, Gripe, Dor de garganta'
                 : eventType === 'medication' ? 'Ex: Paracetamol, Amoxicilina'
                   : eventType === 'appointment' ? 'Ex: Pediatra, Dentista'
-                    : 'Descreva a observacao'}
+                    : 'Descreva a observação'}
               placeholderTextColor={colors.textDim}
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -283,12 +287,12 @@ export default function RegistrarScreen() {
             {eventType === 'illness' ? (
               <>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-                  Sintomas (separados por virgula)
+                  Sintomas (separados por vírgula)
                 </Text>
                 <TextInput
                   value={symptoms}
                   onChangeText={setSymptoms}
-                  placeholder="Ex: febre, tosse, dor de cabeca"
+                  placeholder="Ex: febre, tosse, dor de cabeça"
                   placeholderTextColor={colors.textDim}
                   style={{
                     backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -311,6 +315,9 @@ export default function RegistrarScreen() {
                     <TouchableOpacity
                       key={s.val}
                       onPress={() => setSeverity(s.val)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: severity === s.val }}
+                      accessibilityLabel={`Gravidade ${s.label}`}
                       style={{
                         flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                         backgroundColor: severity === s.val ? `${colors.brand}10` : colors.bgElevated,
@@ -348,7 +355,7 @@ export default function RegistrarScreen() {
                   }}
                 />
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-                  Frequencia
+                  Frequência
                 </Text>
                 <TextInput
                   value={frequency}
@@ -396,7 +403,7 @@ export default function RegistrarScreen() {
                 <TextInput
                   value={location}
                   onChangeText={setLocation}
-                  placeholder="Ex: Clinica Sao Lucas, Hospital XYZ"
+                  placeholder="Ex: Clínica São Lucas, Hospital XYZ"
                   placeholderTextColor={colors.textDim}
                   style={{
                     backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -502,6 +509,9 @@ export default function RegistrarScreen() {
               setStep(step + 1);
             }}
             disabled={step === 1 ? !canProceedStep2 : !canProceedStep3}
+            accessibilityRole="button"
+            accessibilityLabel="Continuar"
+            accessibilityState={{ disabled: step === 1 ? !canProceedStep2 : !canProceedStep3 }}
             style={{
               backgroundColor: colors.brand, borderRadius: radius.md,
               paddingVertical: spacing.lg, alignItems: 'center',
@@ -516,6 +526,9 @@ export default function RegistrarScreen() {
           <TouchableOpacity
             onPress={handleSave}
             disabled={saving}
+            accessibilityRole="button"
+            accessibilityLabel="Salvar registro"
+            accessibilityState={{ disabled: saving, busy: saving }}
             style={{
               backgroundColor: colors.brand, borderRadius: radius.md,
               paddingVertical: spacing.lg, alignItems: 'center',
