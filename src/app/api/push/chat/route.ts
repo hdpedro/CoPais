@@ -63,13 +63,18 @@ export async function POST(request: NextRequest) {
     ? messageText.substring(0, 80) + "..."
     : messageText;
 
+  // FIX 2026-05-17: tag estática `"chat_message"` causava OVERWRITE global —
+  // FCM/APNs com mesma tag substituem a notificação anterior no shade. User
+  // que recebia 3 mensagens de coparentes diferentes via só a última. Agora
+  // tag por grupo+remetente+janela 60s coalesce intencional sem sumir geral.
+  const minuteBucket = Math.floor(Date.now() / 60000);
   await Promise.allSettled(
     members.map((member) =>
       sendPushToUser(member.user_id, {
         title: `${senderName} no Chat`,
         body: truncatedText,
         url: "/chat",
-        tag: "chat_message",
+        tag: `chat-${groupId}-${user.id}-${minuteBucket}`,
       })
     )
   );

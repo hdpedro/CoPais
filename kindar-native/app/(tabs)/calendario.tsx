@@ -2,7 +2,7 @@ import { useState, useMemo, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, RefreshControl, Modal, Pressable, Alert,
 } from 'react-native';
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -19,6 +19,7 @@ import SwapRequestModal from 'src/components/calendar/SwapRequestModal';
 import SwapBalanceCard from 'src/components/calendar/SwapBalanceCard';
 import { syncEventsToDeviceCalendar } from 'src/services/calendar-sync';
 import { useToast } from 'src/components/ui/ToastProvider';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useI18n } from 'src/i18n';
 
 function formatDateKey(d: Date): string {
@@ -41,7 +42,20 @@ export default function CalendarScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
+  // FIX 2026-05-17: Push de aniversário (birthdays cron) envia `?day=<YYYY-MM-DD>`
+  // mas a tela ignorava — abria mês corrente sem destacar o dia. Agora lê e
+  // sincroniza via "derived state" pattern (sem useEffect — evita
+  // react-hooks/set-state-in-effect lint rule).
+  const { day: dayParam } = useLocalSearchParams<{ day?: string }>();
+  const [selectedDay, setSelectedDay] = useState<string | null>(dayParam ?? null);
+  const [lastDayParam, setLastDayParam] = useState<string | undefined>(dayParam);
+  // Padrão React "derive state during render": compara prop com snapshot
+  // anterior. Se mudou, atualiza ambos. Não dispara cascading render
+  // (atualização inline durante render é estável).
+  if (dayParam !== lastDayParam) {
+    setLastDayParam(dayParam);
+    if (dayParam) setSelectedDay(dayParam);
+  }
   const [responding, setResponding] = useState<string | null>(null);
   // SwapContext: snapshot dos dados necessarios quando o user toca em
   // "Pedir troca" / "Oferecer troca" / "Pedir visita" no Day Sheet. Antes
@@ -802,7 +816,7 @@ export default function CalendarScreen() {
 
       {/* Day Detail Sheet */}
       <Modal visible={!!selectedDay} transparent animationType="slide" onRequestClose={() => setSelectedDay(null)}>
-        <Pressable style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)' }} onPress={() => setSelectedDay(null)} />
+        <ModalBackdrop onClose={() => setSelectedDay(null)} align="bottom" dim={0.3} padding={0}>
         <View style={{
           backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'],
           paddingHorizontal: spacing.xl, paddingTop: spacing.md, paddingBottom: 36,
@@ -1133,6 +1147,7 @@ export default function CalendarScreen() {
             );
           })()}
         </View>
+        </ModalBackdrop>
       </Modal>
 
       {/* Swap request modal — abre apos snapshot. Independente do

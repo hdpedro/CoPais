@@ -195,6 +195,9 @@ export default function SegurancaScreen() {
                 key={opt.value}
                 onPress={() => handleTimeoutChange(opt.value)}
                 testID={`seguranca-timeout-${opt.value}`}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: timeout === opt.value }}
+                accessibilityLabel={`${TIMEOUT_LABELS[opt.value]}. ${opt.description}`}
                 style={{
                   paddingHorizontal: spacing.xl,
                   paddingVertical: spacing.md,

@@ -293,7 +293,8 @@ function collabModuleHome(recordType: CollabRecordType): string {
     case "expense":
       return "/despesas";
     case "medical_appointment":
-      return "/saude/agenda";
+      // FIX 2026-05-17: era `/saude/agenda` (404). Rota correta: `/saude/consultas`.
+      return "/saude/consultas";
     case "illness_episode":
       return "/saude/doencas";
     case "active_medication":

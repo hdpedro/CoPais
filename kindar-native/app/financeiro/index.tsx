@@ -19,7 +19,7 @@
 import { useState, useCallback, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, RefreshControl, Modal,
-  TextInput, KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  TextInput, Alert,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,6 +33,8 @@ import {
   type Settlement,
 } from 'src/services/settlements';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -285,6 +287,9 @@ export default function FinanceiroScreen() {
                   key={opt.value}
                   onPress={() => { Haptics.selectionAsync(); setViewMode(opt.value); }}
                   testID={`finance-view-${opt.value}`}
+                  accessibilityRole="tab"
+                  accessibilityLabel={opt.label}
+                  accessibilityState={{ selected: active }}
                   style={{
                     flex: 1,
                     paddingVertical: spacing.sm,
@@ -357,6 +362,8 @@ export default function FinanceiroScreen() {
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/convite/enviar'); }}
               testID="finance-add-coparent"
+              accessibilityRole="button"
+              accessibilityLabel="Adicionar co-responsável"
               style={{
                 backgroundColor: colors.brand,
                 borderRadius: radius.md,
@@ -376,13 +383,23 @@ export default function FinanceiroScreen() {
           <>
             <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg, marginBottom: spacing.lg, ...shadows.sm }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
-                <TouchableOpacity onPress={() => navigateMonth(-1)} hitSlop={8}>
+                <TouchableOpacity
+                  onPress={() => navigateMonth(-1)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Mês anterior"
+                >
                   <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
                 <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
                   {MONTH_NAMES[selectedMonth]} {selectedYear}
                 </Text>
-                <TouchableOpacity onPress={() => navigateMonth(1)} hitSlop={8}>
+                <TouchableOpacity
+                  onPress={() => navigateMonth(1)}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Próximo mês"
+                >
                   <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -466,6 +483,8 @@ export default function FinanceiroScreen() {
               <TouchableOpacity
                 key={s.id}
                 onPress={() => handleConfirmSettlement(s)}
+                accessibilityRole="button"
+                accessibilityLabel={`Confirmar recebimento de R$ ${s.amount.toFixed(2)} de ${s.paidByName}`}
                 style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, borderWidth: 1, borderColor: `${colors.brand}40`, ...shadows.sm }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
@@ -491,6 +510,7 @@ export default function FinanceiroScreen() {
           <TouchableOpacity
             onPress={openSettlementModal}
             testID="finance-settlement-cta"
+            accessibilityRole="button"
             accessibilityLabel="Registrar pagamento"
             style={{ backgroundColor: colors.brand, borderRadius: radius.lg, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.md, marginBottom: spacing.sm }}
           >
@@ -505,6 +525,7 @@ export default function FinanceiroScreen() {
           <TouchableOpacity
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
             testID="finance-nova-despesa"
+            accessibilityRole="button"
             accessibilityLabel="Ver despesas"
             style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.sm, marginBottom: spacing.lg }}
           >
@@ -615,18 +636,16 @@ export default function FinanceiroScreen() {
 
       {/* Settlement modal — só renderiza se isShared (e mesmo assim modalOpen tem que ser true) */}
       <Modal visible={modalOpen && isShared} transparent animationType="slide" onRequestClose={() => setModalOpen(false)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity
-            activeOpacity={1}
-            accessibilityLabel="Fechar"
-            accessibilityRole="button"
-            onPress={() => setModalOpen(false)}
-            style={{ flex: 1, backgroundColor: '#00000080' }}
-          />
+        <ModalBackdrop onClose={() => setModalOpen(false)} align="bottom" dim={0.5} padding={0}>
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, paddingBottom: spacing.xl + insets.bottom }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg }}>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>Registrar pagamento</Text>
-              <TouchableOpacity onPress={() => setModalOpen(false)}>
+              <TouchableOpacity
+                onPress={() => setModalOpen(false)}
+                accessibilityRole="button"
+                accessibilityLabel="Fechar"
+                hitSlop={8}
+              >
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
@@ -638,6 +657,8 @@ export default function FinanceiroScreen() {
                   key={m.user_id}
                   onPress={() => changeRecipient(m.user_id)}
                   testID={`finance-member-${m.user_id}`}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: paidTo === m.user_id }}
                   accessibilityLabel={m.name}
                   style={{
                     paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
@@ -670,6 +691,7 @@ export default function FinanceiroScreen() {
               placeholder="0,00"
               placeholderTextColor={colors.textDim}
               keyboardType="decimal-pad"
+              accessibilityLabel="Valor em reais"
               style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.lg, fontSize: font.sizes.lg, color: colors.text, marginBottom: spacing.lg }}
             />
 
@@ -679,6 +701,9 @@ export default function FinanceiroScreen() {
                 <TouchableOpacity
                   key={pm.value}
                   onPress={() => setPaymentMethod(pm.value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: paymentMethod === pm.value }}
+                  accessibilityLabel={pm.label}
                   style={{
                     paddingVertical: spacing.sm, paddingHorizontal: spacing.md,
                     borderRadius: radius.md, borderWidth: 1,
@@ -699,20 +724,18 @@ export default function FinanceiroScreen() {
               onChangeText={setRefNote}
               placeholder="Ex: Aluguel março"
               placeholderTextColor={colors.textDim}
+              accessibilityLabel="Referência (opcional)"
               style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.lg, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.xl }}
             />
 
-            <TouchableOpacity
+            <PrimaryButton
+              label="Registrar pagamento"
               onPress={handleSubmitSettlement}
-              disabled={submitting}
-              style={{ backgroundColor: colors.brand, borderRadius: radius.md, padding: spacing.lg, alignItems: 'center', opacity: submitting ? 0.5 : 1 }}
-            >
-              {submitting ? <ActivityIndicator color="#fff" /> : (
-                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>Registrar pagamento</Text>
-              )}
-            </TouchableOpacity>
+              loading={submitting}
+              testID="financeiro-submit-settlement"
+            />
           </View>
-        </KeyboardAvoidingView>
+        </ModalBackdrop>
       </Modal>
     </View>
   );

@@ -47,6 +47,7 @@ function InviteSentCardImpl({ email, onShare, onAnother, t }: Props) {
 
       <TouchableOpacity
         onPress={onShare}
+        accessibilityRole="button"
         accessibilityLabel={t('onboardingForm.shareInviteLink')}
         activeOpacity={0.85}
         style={{
@@ -63,7 +64,13 @@ function InviteSentCardImpl({ email, onShare, onAnother, t }: Props) {
         </Text>
       </TouchableOpacity>
 
-      <TouchableOpacity onPress={onAnother} activeOpacity={0.7} style={{ paddingVertical: spacing.sm }}>
+      <TouchableOpacity
+        onPress={onAnother}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t('onboardingForm.sendAnotherInvite')}
+        style={{ paddingVertical: spacing.sm }}
+      >
         <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>
           {t('onboardingForm.sendAnotherInvite')}
         </Text>

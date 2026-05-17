@@ -5,8 +5,7 @@
 
 import { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, Modal, ScrollView, KeyboardAvoidingView, Platform,
-  ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, Modal, ScrollView,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -14,6 +13,8 @@ import {
   createBalanceOperation, type BalanceOperationType,
 } from '../../services/balance-operations';
 import { useToast } from '../ui/ToastProvider';
+import PrimaryButton from '../ui/PrimaryButton';
+import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
@@ -93,8 +94,7 @@ export default function ProposeBalanceAdjustmentSheet({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} onPress={close} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+      <ModalBackdrop onClose={close} align="bottom" dim={0.4} padding={0}>
         <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
@@ -201,40 +201,27 @@ export default function ProposeBalanceAdjustmentSheet({
             ) : null}
 
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <TouchableOpacity
-                onPress={close}
-                disabled={submitting}
-                style={{
-                  flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
-                  borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
-                  opacity: submitting ? 0.5 : 1,
-                }}
-              >
-                <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-                  Cancelar
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSubmit}
-                disabled={submitting}
-                testID="balance-propose-submit"
-                accessibilityLabel="Enviar proposta de ajuste de saldo"
-                style={{
-                  flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
-                  backgroundColor: colors.brand, alignItems: 'center',
-                  opacity: submitting ? 0.5 : 1,
-                }}
-              >
-                {submitting ? <ActivityIndicator size="small" color="#fff" /> : (
-                  <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                    Enviar proposta
-                  </Text>
-                )}
-              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Cancelar"
+                  onPress={close}
+                  loading={submitting}
+                  variant="secondary"
+                  testID="balance-propose-cancel"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Enviar proposta"
+                  onPress={handleSubmit}
+                  loading={submitting}
+                  testID="balance-propose-submit"
+                />
+              </View>
             </View>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </ModalBackdrop>
     </Modal>
   );
 }

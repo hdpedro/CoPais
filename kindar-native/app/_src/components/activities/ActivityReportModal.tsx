@@ -10,7 +10,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, Modal, KeyboardAvoidingView, Platform, ScrollView, TextInput,
+  View, Text, TouchableOpacity, Modal, ScrollView, TextInput,
   ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
@@ -20,6 +20,8 @@ import {
   type ActivityReportStatus, type ActivityReportMood,
 } from '../../services/activities';
 import { useToast } from '../ui/ToastProvider';
+import PrimaryButton from '../ui/PrimaryButton';
+import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
@@ -105,8 +107,7 @@ export default function ActivityReportModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} onPress={onClose} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+      <ModalBackdrop onClose={onClose} align="bottom" dim={0.4} padding={0}>
         <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
@@ -196,39 +197,28 @@ export default function ActivityReportModal({
               />
 
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-                <TouchableOpacity
-                  onPress={onClose}
-                  disabled={submitting}
-                  style={{
-                    flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
-                    borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
-                    opacity: submitting ? 0.5 : 1,
-                  }}
-                >
-                  <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-                    Cancelar
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  onPress={handleSubmit}
-                  disabled={submitting}
-                  style={{
-                    flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
-                    backgroundColor: colors.brand, alignItems: 'center',
-                    opacity: submitting ? 0.5 : 1,
-                  }}
-                >
-                  {submitting ? <ActivityIndicator size="small" color="#fff" /> : (
-                    <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                      Salvar relatorio
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                <View style={{ flex: 1 }}>
+                  <PrimaryButton
+                    label="Cancelar"
+                    onPress={onClose}
+                    loading={submitting}
+                    variant="secondary"
+                    testID="activity-report-cancel"
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <PrimaryButton
+                    label="Salvar relatório"
+                    onPress={handleSubmit}
+                    loading={submitting}
+                    testID="activity-report-submit"
+                  />
+                </View>
               </View>
             </ScrollView>
           )}
         </View>
-      </KeyboardAvoidingView>
+      </ModalBackdrop>
     </Modal>
   );
 }

@@ -69,6 +69,7 @@ function ChildFormImpl({
         <TouchableOpacity
           onPress={onBack}
           hitSlop={12}
+          accessibilityRole="button"
           accessibilityLabel={t('common.back')}
         >
           <Ionicons name="chevron-back" size={26} color={colors.text} />
@@ -166,6 +167,7 @@ function ChildFormImpl({
                 onSex(active ? '' : g.value);
               }}
               activeOpacity={0.8}
+              accessibilityRole="radio"
               accessibilityLabel={t(`onboardingForm.${g.key}`)}
               accessibilityState={{ selected: active }}
               style={{
@@ -203,6 +205,7 @@ function ChildFormImpl({
           onPress={onBack}
           disabled={saving}
           activeOpacity={0.7}
+          accessibilityRole="button"
           accessibilityLabel={t('common.cancel')}
           style={{ alignItems: 'center', paddingVertical: spacing.lg }}
         >

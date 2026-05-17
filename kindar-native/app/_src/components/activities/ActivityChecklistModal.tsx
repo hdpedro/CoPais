@@ -17,6 +17,7 @@ import {
   type ChecklistItem,
 } from '../../services/activities';
 import { useToast } from '../ui/ToastProvider';
+import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
@@ -88,8 +89,7 @@ export default function ActivityChecklistModal({ visible, onClose, activityId, a
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={onClose} />
+      <ModalBackdrop onClose={onClose} align="bottom" dim={0.4} padding={0}>
         <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '85%' }}>
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
 
@@ -174,7 +174,7 @@ export default function ActivityChecklistModal({ visible, onClose, activityId, a
             </ScrollView>
           )}
         </View>
-      </View>
+      </ModalBackdrop>
     </Modal>
   );
 }

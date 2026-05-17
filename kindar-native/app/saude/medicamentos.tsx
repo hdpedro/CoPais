@@ -21,6 +21,7 @@ import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -389,8 +390,7 @@ export default function MedicamentosScreen() {
 
       {/* Dose history bottom sheet */}
       <Modal visible={!!historyMed} animationType="slide" transparent onRequestClose={() => setHistoryMed(null)}>
-        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setHistoryMed(null)} accessibilityRole="button" accessibilityLabel="Fechar" style={{ flex: 1 }} />
+        <ModalBackdrop onClose={() => setHistoryMed(null)} align="bottom" dim={0.4} padding={0}>
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '80%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
@@ -434,7 +434,7 @@ export default function MedicamentosScreen() {
               </ScrollView>
             )}
           </View>
-        </View>
+        </ModalBackdrop>
       </Modal>
     </View>
   );

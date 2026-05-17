@@ -4,8 +4,8 @@
  */
 import { useState, useCallback, useEffect } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
-  Modal, TextInput, KeyboardAvoidingView, Platform,
+  View, Text, ScrollView, TouchableOpacity, RefreshControl,
+  Modal, TextInput,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -15,6 +15,8 @@ import { useAuth } from 'src/store/auth';
 import { fetchSymptoms, createSymptomEntry, type SymptomEntry } from 'src/services/health';
 import { fetchChildren, type Child } from 'src/services/children';
 import EmptyState from 'src/components/ui/EmptyState';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useToast } from 'src/components/ui/ToastProvider';
@@ -263,12 +265,8 @@ export default function SintomasScreen() {
       ) : null}
 
       {/* Composer modal */}
-      <Modal visible={composerOpen} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1, justifyContent: 'flex-end' }}
-        >
-          <TouchableOpacity activeOpacity={1} onPress={() => setComposerOpen(false)} accessibilityRole="button" accessibilityLabel="Fechar" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+      <Modal visible={composerOpen} animationType="slide" transparent onRequestClose={() => setComposerOpen(false)}>
+        <ModalBackdrop onClose={() => setComposerOpen(false)} align="bottom" dim={0.4} padding={0}>
           <View style={{
             backgroundColor: colors.bgElevated,
             borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'],
@@ -369,27 +367,15 @@ export default function SintomasScreen() {
                 }}
               />
 
-              <TouchableOpacity
-                disabled={submitting}
+              <PrimaryButton
+                label="Registrar"
                 onPress={handleSubmit}
-                accessibilityRole="button"
-                accessibilityLabel="Registrar"
-                accessibilityState={{ disabled: submitting, busy: submitting }}
-                style={{
-                  backgroundColor: colors.brand, borderRadius: radius.md,
-                  paddingVertical: spacing.md + 2, alignItems: 'center',
-                  opacity: submitting ? 0.6 : 1,
-                }}
-              >
-                {submitting ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                    Registrar
-                  </Text>
-                )}
-              </TouchableOpacity>
+                loading={submitting}
+                testID="saude-sintomas-submit"
+              />
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </ModalBackdrop>
       </Modal>
     </View>
   );

@@ -12,7 +12,7 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
   View, Text, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator,
-  Modal, Image, Pressable, TextInput, ScrollView, KeyboardAvoidingView, Platform,
+  Modal, Image, Pressable, TextInput, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -43,6 +43,7 @@ import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
@@ -745,8 +746,7 @@ function EditExpenseModal({ expense, onClose, onSaved }: {
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} onPress={onClose} accessibilityRole="button" accessibilityLabel="Fechar" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+      <ModalBackdrop onClose={onClose} align="bottom" dim={0.4} padding={0}>
         <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>Editar despesa</Text>
@@ -818,7 +818,7 @@ function EditExpenseModal({ expense, onClose, onSaved }: {
             />
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </ModalBackdrop>
     </Modal>
   );
 }
@@ -841,8 +841,7 @@ function ReasonModal({ title, description, onClose, onSubmit }: {
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} onPress={onClose} accessibilityRole="button" accessibilityLabel="Fechar" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+      <ModalBackdrop onClose={onClose} align="bottom" dim={0.4} padding={0}>
         <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40 }}>
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm }}>{title}</Text>
@@ -857,18 +856,17 @@ function ReasonModal({ title, description, onClose, onSubmit }: {
             placeholder="Explique brevemente"
             placeholderTextColor={colors.textMuted}
           />
-          <TouchableOpacity
-            disabled={saving || !reason.trim()}
-            onPress={handleSubmit}
-            accessibilityRole="button"
-            accessibilityLabel="Confirmar"
-            accessibilityState={{ disabled: saving || !reason.trim(), busy: saving }}
-            style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', opacity: saving || !reason.trim() ? 0.5 : 1, marginTop: spacing.md }}
-          >
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Confirmar</Text>}
-          </TouchableOpacity>
+          <View style={{ marginTop: spacing.md }}>
+            <PrimaryButton
+              label="Confirmar"
+              onPress={handleSubmit}
+              loading={saving}
+              disabled={!reason.trim()}
+              testID="despesa-reason-confirm"
+            />
+          </View>
         </View>
-      </KeyboardAvoidingView>
+      </ModalBackdrop>
     </Modal>
   );
 }
@@ -895,8 +893,7 @@ function CancelRespondModal({ expense, onClose, onResponded }: {
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} onPress={onClose} accessibilityRole="button" accessibilityLabel="Fechar" style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+      <ModalBackdrop onClose={onClose} align="bottom" dim={0.4} padding={0}>
         <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40 }}>
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.xs }}>Responder cancelamento</Text>
@@ -956,18 +953,17 @@ function CancelRespondModal({ expense, onClose, onResponded }: {
             </>
           )}
 
-          <TouchableOpacity
-            disabled={saving || approved === null}
-            onPress={handleSubmit}
-            accessibilityRole="button"
-            accessibilityLabel="Enviar resposta"
-            accessibilityState={{ disabled: saving || approved === null, busy: saving }}
-            style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', opacity: saving || approved === null ? 0.5 : 1, marginTop: spacing.md }}
-          >
-            {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Enviar resposta</Text>}
-          </TouchableOpacity>
+          <View style={{ marginTop: spacing.md }}>
+            <PrimaryButton
+              label="Enviar resposta"
+              onPress={handleSubmit}
+              loading={saving}
+              disabled={approved === null}
+              testID="despesa-cancel-respond"
+            />
+          </View>
         </View>
-      </KeyboardAvoidingView>
+      </ModalBackdrop>
     </Modal>
   );
 }

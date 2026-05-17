@@ -21,6 +21,7 @@ import { SkeletonList } from 'src/components/ui/Skeleton';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import { PhoneInput } from 'src/components/ui/MaskedInputs';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -356,14 +357,8 @@ function ProfessionalDetailModal({
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <TouchableOpacity
-        activeOpacity={1}
-        accessibilityLabel="Fechar"
-        accessibilityRole="button"
-        onPress={onClose}
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}
-      >
-        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} accessible={false} style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingBottom: spacing['2xl'] }}>
+      <ModalBackdrop onClose={onClose} align="bottom" dim={0.4} padding={0}>
+        <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingBottom: spacing['2xl'] }}>
           {/* Drag handle */}
           <View style={{ alignItems: 'center', paddingTop: spacing.sm }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight }} />
@@ -445,8 +440,8 @@ function ProfessionalDetailModal({
               <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>Editar</Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </ModalBackdrop>
     </Modal>
   );
 }

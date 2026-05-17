@@ -55,7 +55,8 @@ function ChildCardImpl({ kid, index, onEdit, onRemove, t }: Props) {
       </View>
       <TouchableOpacity
         onPress={() => onEdit(kid.id)}
-        accessibilityLabel={t('onboardingForm.editChild')}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('onboardingForm.editChild')} ${kid.fullName}`}
         hitSlop={8}
         style={{ padding: spacing.xs }}
       >
@@ -63,7 +64,8 @@ function ChildCardImpl({ kid, index, onEdit, onRemove, t }: Props) {
       </TouchableOpacity>
       <TouchableOpacity
         onPress={() => onRemove(kid.id)}
-        accessibilityLabel={t('onboardingForm.removeChild')}
+        accessibilityRole="button"
+        accessibilityLabel={`${t('onboardingForm.removeChild')} ${kid.fullName}`}
         hitSlop={8}
         style={{ padding: spacing.xs }}
       >

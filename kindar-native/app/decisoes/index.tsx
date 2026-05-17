@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator,
-  Modal, TextInput, KeyboardAvoidingView, Platform, ScrollView,
+  View, Text, FlatList, TouchableOpacity, RefreshControl,
+  Modal, TextInput, ScrollView,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -12,6 +12,8 @@ import {
   type Decision, type DecisionCategory, type VoteChoice,
 } from 'src/services/decisions';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
@@ -250,16 +252,8 @@ export default function DecisoesScreen() {
       <FAB onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setComposerOpen(true); }} />
 
       {/* Composer modal */}
-      <Modal visible={composerOpen} animationType="slide" transparent>
-        <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          style={{ flex: 1, justifyContent: 'flex-end' }}
-        >
-          <TouchableOpacity
-            activeOpacity={1}
-            onPress={() => setComposerOpen(false)}
-            style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
-          />
+      <Modal visible={composerOpen} animationType="slide" transparent onRequestClose={() => setComposerOpen(false)}>
+        <ModalBackdrop onClose={() => setComposerOpen(false)} align="bottom" dim={0.4} padding={0}>
           <View style={{
             backgroundColor: colors.bgElevated,
             borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'],
@@ -356,23 +350,15 @@ export default function DecisoesScreen() {
               </View>
             </ScrollView>
 
-            <TouchableOpacity
-              disabled={submitting || !newTitle.trim()}
+            <PrimaryButton
+              label="Abrir decisão"
               onPress={submitNew}
-              style={{
-                backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md,
-                alignItems: 'center',
-                opacity: submitting || !newTitle.trim() ? 0.5 : 1,
-              }}
-            >
-              {submitting ? <ActivityIndicator color="#fff" /> : (
-                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  Abrir decisão
-                </Text>
-              )}
-            </TouchableOpacity>
+              loading={submitting}
+              disabled={!newTitle.trim()}
+              testID="decisoes-submit"
+            />
           </View>
-        </KeyboardAvoidingView>
+        </ModalBackdrop>
       </Modal>
     </View>
   );

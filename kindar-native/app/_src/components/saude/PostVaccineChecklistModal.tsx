@@ -10,10 +10,12 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, Modal, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { supabase } from 'src/lib/supabase';
 import { useToast } from 'src/components/ui/ToastProvider';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useI18n } from 'src/i18n';
 import { useAuth } from 'src/store/auth';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -82,20 +84,8 @@ export default function PostVaccineChecklistModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onSkip}>
-      <TouchableOpacity
-        activeOpacity={1}
-        accessibilityLabel="Fechar"
-        accessibilityRole="button"
-        onPress={onSkip}
-        style={{
-          flex: 1,
-          backgroundColor: 'rgba(0,0,0,0.3)',
-          justifyContent: 'flex-end',
-        }}
-      >
-        <TouchableOpacity
-          activeOpacity={1}
-          onPress={(e) => e.stopPropagation()}
+      <ModalBackdrop onClose={onSkip} align="bottom" dim={0.3} padding={0}>
+        <View
           style={{
             backgroundColor: colors.bg,
             borderTopLeftRadius: radius.xl + 4,
@@ -144,25 +134,12 @@ export default function PostVaccineChecklistModal({
             </View>
           </View>
           <View style={{ marginTop: spacing.lg, gap: spacing.sm }}>
-            <TouchableOpacity
-              disabled={saving}
+            <PrimaryButton
+              label={t('health.vaccineEngine.checklistPostVaccineCreate')}
               onPress={handleCreate}
-              activeOpacity={0.85}
-              style={{
-                backgroundColor: colors.brand,
-                paddingVertical: spacing.md,
-                borderRadius: radius.md,
-                alignItems: 'center',
-              }}
-            >
-              {saving ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  {t('health.vaccineEngine.checklistPostVaccineCreate')}
-                </Text>
-              )}
-            </TouchableOpacity>
+              loading={saving}
+              testID="post-vaccine-create"
+            />
             <TouchableOpacity
               onPress={onSkip}
               activeOpacity={0.85}
@@ -178,8 +155,8 @@ export default function PostVaccineChecklistModal({
               </Text>
             </TouchableOpacity>
           </View>
-        </TouchableOpacity>
-      </TouchableOpacity>
+        </View>
+      </ModalBackdrop>
     </Modal>
   );
 }

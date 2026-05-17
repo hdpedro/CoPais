@@ -62,6 +62,7 @@ function FamilyStepImpl({ groupName, onChange, onContinue, t }: Props) {
 
       <TouchableOpacity
         testID="onboarding-continue"
+        accessibilityRole="button"
         accessibilityLabel={t('onboardingForm.continue')}
         accessibilityState={{ disabled: !canContinue }}
         onPress={onContinue}

@@ -126,6 +126,7 @@ function FamilySummaryImpl({
 
       <TouchableOpacity
         testID="onboarding-add-another"
+        accessibilityRole="button"
         accessibilityLabel={t('onboardingForm.addAnotherChild')}
         onPress={onAddAnother}
         activeOpacity={0.85}
@@ -167,6 +168,7 @@ function FamilySummaryImpl({
 
       <TouchableOpacity
         testID="onboarding-finish"
+        accessibilityRole="button"
         accessibilityLabel={t(inviteSent ? 'onboardingForm.finishOnboarding' : 'onboardingForm.goToAppInviteLater')}
         onPress={onFinish}
         activeOpacity={0.7}

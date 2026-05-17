@@ -52,6 +52,8 @@ export default function LoginScreen() {
   const { convite } = useLocalSearchParams<{ convite?: string }>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);
@@ -63,6 +65,20 @@ export default function LoginScreen() {
   const [resendStatus, setResendStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
   const { signIn, resendConfirmation } = useAuth();
   const t = useI18n(s => s.t);
+
+  // onBlur validation — feedback inline antes do submit (padrão premium
+  // Cash App / Robinhood / Linear). Não bloqueia o botão; o submit continua
+  // valendo com o gating `disabled={loading}` original.
+  function validateEmailField(value: string): string | null {
+    if (!value.trim()) return t('validation.field.emailRequired');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return t('validation.field.emailInvalid');
+    return null;
+  }
+  function validatePasswordField(value: string): string | null {
+    if (!value) return t('validation.field.passwordRequired');
+    if (value.length < 6) return t('validation.field.passwordTooShort');
+    return null;
+  }
 
   // Native Google sign-in via expo-auth-session.
   // Mirrors GripFlow's working setup (gripflow-native/app/auth/login.tsx):
@@ -227,6 +243,9 @@ export default function LoginScreen() {
                 Antes o user ficava preso sem saber o que fazer (Brenno 2026-05-12). */}
             {emailNotConfirmed && resendStatus !== 'sent' ? (
               <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel={resendStatus === 'sending' ? 'Reenviando e-mail de confirmação' : 'Reenviar e-mail de confirmação'}
+                accessibilityState={{ disabled: resendStatus === 'sending', busy: resendStatus === 'sending' }}
                 onPress={async () => {
                   if (!email) {
                     setError('Digite seu e-mail acima primeiro');
@@ -269,6 +288,8 @@ export default function LoginScreen() {
         {/* Social Login Buttons */}
         {Platform.OS === 'ios' ? (
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Entrar com Apple"
             onPress={async () => {
               setLoading(true);
               const result = await signInWithApple();
@@ -306,6 +327,9 @@ export default function LoginScreen() {
             EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID is set in EAS). */}
         {GOOGLE_SIGN_IN_CONFIGURED ? (
           <TouchableOpacity
+            accessibilityRole="button"
+            accessibilityLabel="Entrar com Google"
+            accessibilityState={{ disabled: loading }}
             onPress={async () => {
               try {
                 setError('');
@@ -352,9 +376,10 @@ export default function LoginScreen() {
         <TextInput
           nativeID="email"
           testID="email-input"
-          accessibilityLabel="E-mail"
+          accessibilityLabel={emailError ?? 'E-mail'}
           value={email}
-          onChangeText={setEmail}
+          onChangeText={(v) => { setEmail(v); if (emailError) setEmailError(null); }}
+          onBlur={() => setEmailError(validateEmailField(email))}
           placeholder={t('auth.emailPlaceholder')}
           placeholderTextColor={colors.authMuted}
           keyboardType="email-address"
@@ -362,12 +387,17 @@ export default function LoginScreen() {
           autoComplete="email"
           style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.md,
-            borderWidth: 1, borderColor: colors.authBorder,
+            borderWidth: 1, borderColor: emailError ? colors.error : colors.authBorder,
             paddingVertical: spacing.md + 2, paddingHorizontal: spacing.lg,
             fontSize: font.sizes.md, color: colors.authText,
-            marginBottom: spacing.lg,
+            marginBottom: emailError ? spacing.xs : spacing.lg,
           }}
         />
+        {emailError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing.lg }}>
+            {emailError}
+          </Text>
+        ) : null}
 
         {/* Password */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
@@ -375,16 +405,17 @@ export default function LoginScreen() {
         </Text>
         <View style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.md,
-          borderWidth: 1, borderColor: colors.authBorder,
+          borderWidth: 1, borderColor: passwordError ? colors.error : colors.authBorder,
           flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg,
-          marginBottom: spacing.lg,
+          marginBottom: passwordError ? spacing.xs : spacing.lg,
         }}>
           <TextInput
             nativeID="password"
             testID="password-input"
-            accessibilityLabel="Senha"
+            accessibilityLabel={passwordError ?? 'Senha'}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(v) => { setPassword(v); if (passwordError) setPasswordError(null); }}
+            onBlur={() => setPasswordError(validatePasswordField(password))}
             placeholder={t('auth.passwordPlaceholder')}
             placeholderTextColor={colors.authMuted}
             secureTextEntry={!showPassword}
@@ -394,15 +425,29 @@ export default function LoginScreen() {
               fontSize: font.sizes.md, color: colors.authText,
             }}
           />
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            accessibilityState={{ selected: showPassword }}
+            hitSlop={8}
+          >
             <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.authMuted} />
           </TouchableOpacity>
         </View>
+        {passwordError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing.lg }}>
+            {passwordError}
+          </Text>
+        ) : null}
 
         {/* Remember me + Forgot — matches PWA layout */}
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xl }}>
           <TouchableOpacity
             onPress={() => setRememberMe(!rememberMe)}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: rememberMe }}
+            accessibilityLabel="Lembrar-me"
             style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}
             activeOpacity={0.7}
           >
@@ -418,7 +463,11 @@ export default function LoginScreen() {
             <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>Lembrar-me</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity onPress={() => router.push('/auth/forgot-password')}>
+          <TouchableOpacity
+            onPress={() => router.push('/auth/forgot-password')}
+            accessibilityRole="link"
+            accessibilityLabel={t('auth.forgotPassword')}
+          >
             <Text style={{ fontSize: font.sizes.sm, color: colors.authPrimary }}>
               {t('auth.forgotPassword')}
             </Text>
@@ -428,7 +477,9 @@ export default function LoginScreen() {
         {/* Login Button — terracotta #C07055 to match PWA */}
         <TouchableOpacity
           testID="login-submit"
+          accessibilityRole="button"
           accessibilityLabel="Entrar"
+          accessibilityState={{ disabled: loading, busy: loading }}
           onPress={handleLogin}
           disabled={loading}
           activeOpacity={0.8}
@@ -452,7 +503,11 @@ export default function LoginScreen() {
           <Text style={{ color: colors.authMuted, fontSize: font.sizes.sm }}>
             {t('auth.noAccount')}
           </Text>
-          <TouchableOpacity onPress={() => router.push('/auth/signup')}>
+          <TouchableOpacity
+            onPress={() => router.push('/auth/signup')}
+            accessibilityRole="link"
+            accessibilityLabel={t('auth.createAccountLink')}
+          >
             <Text style={{ color: colors.authPrimary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
               {t('auth.createAccountLink')}
             </Text>

@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
-  Platform, ScrollView, ActivityIndicator, Share,
+  Platform, ScrollView, Share,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { createInvitation } from 'src/services/invitations';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -92,6 +93,8 @@ export default function OnboardingConviteScreen() {
           <TouchableOpacity
             onPress={handleShareLink}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Compartilhar link"
             style={{
               backgroundColor: colors.brand, borderRadius: radius.md,
               paddingVertical: spacing.md, paddingHorizontal: spacing['2xl'],
@@ -104,7 +107,13 @@ export default function OnboardingConviteScreen() {
               Compartilhar link
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity onPress={handleFinish} activeOpacity={0.7} style={{ paddingVertical: spacing.sm }}>
+          <TouchableOpacity
+            onPress={handleFinish}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel="Continuar sem compartilhar agora"
+            style={{ paddingVertical: spacing.sm }}
+          >
             <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Continuar sem compartilhar agora</Text>
           </TouchableOpacity>
         </View>
@@ -155,6 +164,7 @@ export default function OnboardingConviteScreen() {
           placeholder="email@exemplo.com"
           placeholderTextColor={colors.textMuted}
           keyboardType="email-address" autoCapitalize="none" autoComplete="email"
+          accessibilityLabel="E-mail do co-responsável"
           style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
             paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
@@ -172,6 +182,9 @@ export default function OnboardingConviteScreen() {
                 key={r.value}
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRole(r.value); }}
                 activeOpacity={0.85}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={r.label}
                 style={{
                   backgroundColor: active ? `${colors.brand}10` : colors.bgElevated,
                   borderRadius: radius.md,
@@ -190,24 +203,23 @@ export default function OnboardingConviteScreen() {
           })}
         </View>
 
-        <TouchableOpacity
-          disabled={loading || !email.trim()}
-          onPress={handleSend}
-          activeOpacity={0.85}
-          style={{
-            backgroundColor: colors.brand, borderRadius: radius.md,
-            paddingVertical: spacing.md + 2, alignItems: 'center',
-            opacity: loading || !email.trim() ? 0.5 : 1, marginBottom: spacing.md,
-          }}
-        >
-          {loading ? <ActivityIndicator color="#fff" /> : (
-            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Enviar convite
-            </Text>
-          )}
-        </TouchableOpacity>
+        <View style={{ marginBottom: spacing.md }}>
+          <PrimaryButton
+            label="Enviar convite"
+            onPress={handleSend}
+            loading={loading}
+            disabled={!email.trim()}
+            testID="onboarding-convite-submit"
+          />
+        </View>
 
-        <TouchableOpacity onPress={handleSkip} activeOpacity={0.7} style={{ alignItems: 'center', paddingVertical: spacing.md }}>
+        <TouchableOpacity
+          onPress={handleSkip}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel="Fazer isso depois"
+          style={{ alignItems: 'center', paddingVertical: spacing.md }}
+        >
           <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Fazer isso depois</Text>
         </TouchableOpacity>
       </ScrollView>

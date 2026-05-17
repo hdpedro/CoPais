@@ -87,7 +87,9 @@ export async function GET(request: NextRequest) {
         await sendPushToUser(row.user_id, {
           title: "Seu teste Premium acaba amanhã",
           body: "Escolha um plano para manter IA, leitura de receitas e agenda completa.",
-          url: "/configuracoes/assinatura",
+          // FIX 2026-05-17: era `/configuracoes/assinatura` (404, rota não
+          // existe). Rota correta é `/assinatura` (alinhado com renewal-reminder).
+          url: "/assinatura",
           tag: "trial-ending",
         });
         captureServerEvent(row.user_id, "trial_reminder_push_sent");

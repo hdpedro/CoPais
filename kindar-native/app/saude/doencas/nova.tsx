@@ -70,6 +70,13 @@ export default function NovaDoencaScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [titleError, setTitleError] = useState<string | null>(null);
+
+  // onBlur validation — feedback inline antes do submit (padrão premium).
+  function validateTitleField(value: string): string | null {
+    if (!value.trim()) return t('validation.field.titleRequired');
+    return null;
+  }
 
   useEffect(() => {
     if (activeGroup) {
@@ -157,15 +164,25 @@ export default function NovaDoencaScreen() {
         {/* Title */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Título *</Text>
         <TextInput
-          value={title} onChangeText={setTitle}
+          accessibilityLabel={titleError ?? 'Título do episódio'}
+          value={title}
+          onChangeText={(v) => { setTitle(v); if (titleError) setTitleError(null); }}
+          onBlur={() => setTitleError(validateTitleField(title))}
           placeholder="Ex: Gripe, Covid, Virose"
           placeholderTextColor={colors.textMuted}
           style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
+            backgroundColor: colors.bgElevated, borderRadius: radius.md,
+            borderWidth: 1, borderColor: titleError ? colors.error : colors.borderLight,
             paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
-            fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg,
+            fontSize: font.sizes.md, color: colors.text,
+            marginBottom: titleError ? spacing.xs : spacing.lg,
           }}
         />
+        {titleError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing.lg }}>
+            {titleError}
+          </Text>
+        ) : null}
 
         {/* Start date */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Inicio *</Text>

@@ -49,6 +49,28 @@ export default function NovaCriancaScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [fullNameError, setFullNameError] = useState<string | null>(null);
+  const [birthDateError, setBirthDateError] = useState<string | null>(null);
+
+  // onBlur validation — feedback inline antes do submit (padrão premium).
+  function validateFullNameField(value: string): string | null {
+    if (!value.trim()) return t('validation.field.childNameRequired');
+    return null;
+  }
+  function validateBirthDateField(value: string): string | null {
+    if (!value.trim()) return t('validation.field.birthDateRequired');
+    const m = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+    if (!m) return t('validation.field.birthDateInvalid');
+    const [, d, mo, y] = m;
+    const yNum = +y;
+    if (yNum < 1900) return t('validation.field.birthDateTooOld');
+    const dt = new Date(yNum, +mo - 1, +d);
+    if (dt.getFullYear() !== yNum || dt.getMonth() !== +mo - 1 || dt.getDate() !== +d) {
+      return t('validation.field.birthDateInvalid');
+    }
+    if (dt > new Date()) return t('validation.field.birthDateFuture');
+    return null;
+  }
 
   function handleBirthDateChange(value: string) {
     // auto-format DD/MM/YYYY while typing
@@ -120,35 +142,53 @@ export default function NovaCriancaScreen() {
           Nome completo *
         </Text>
         <TextInput
+          accessibilityLabel={fullNameError ?? 'Nome completo'}
           value={fullName}
-          onChangeText={setFullName}
+          onChangeText={(v) => { setFullName(v); if (fullNameError) setFullNameError(null); }}
+          onBlur={() => setFullNameError(validateFullNameField(fullName))}
           placeholder="Ex: Maria Silva"
           placeholderTextColor={colors.textMuted}
           autoCapitalize="words"
           style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
+            backgroundColor: colors.bgElevated, borderRadius: radius.md,
+            borderWidth: 1, borderColor: fullNameError ? colors.error : colors.borderLight,
             paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
-            fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg,
+            fontSize: font.sizes.md, color: colors.text,
+            marginBottom: fullNameError ? spacing.xs : spacing.lg,
           }}
         />
+        {fullNameError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing.lg }}>
+            {fullNameError}
+          </Text>
+        ) : null}
 
         {/* Birth date */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
           Data de nascimento *
         </Text>
         <TextInput
+          accessibilityLabel={birthDateError ?? 'Data de nascimento'}
           value={birthDate}
-          onChangeText={handleBirthDateChange}
+          onChangeText={(v) => { handleBirthDateChange(v); if (birthDateError) setBirthDateError(null); }}
+          onBlur={() => setBirthDateError(validateBirthDateField(birthDate))}
           placeholder="DD/MM/AAAA"
           placeholderTextColor={colors.textMuted}
           keyboardType="number-pad"
           maxLength={10}
           style={{
-            backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
+            backgroundColor: colors.bgElevated, borderRadius: radius.md,
+            borderWidth: 1, borderColor: birthDateError ? colors.error : colors.borderLight,
             paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
-            fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg,
+            fontSize: font.sizes.md, color: colors.text,
+            marginBottom: birthDateError ? spacing.xs : spacing.lg,
           }}
         />
+        {birthDateError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing.lg }}>
+            {birthDateError}
+          </Text>
+        ) : null}
 
         {/* Sex (matches DB CHECK constraint and PWA — M/F) */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>

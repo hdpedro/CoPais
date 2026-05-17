@@ -13,7 +13,7 @@
 
 import { useState } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator,
+  View, Text, TextInput, TouchableOpacity, ScrollView,
   KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
@@ -24,6 +24,7 @@ import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/store/auth';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -123,7 +124,13 @@ export default function DeletarContaScreen() {
         flexDirection: 'row', alignItems: 'center', gap: spacing.md,
         borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8} disabled={submitting}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={8}
+          disabled={submitting}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
@@ -230,6 +237,9 @@ export default function DeletarContaScreen() {
           onPress={() => setAcknowledged(!acknowledged)}
           activeOpacity={0.7}
           disabled={submitting}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: acknowledged }}
+          accessibilityLabel="Entendo que esta ação é irreversível e apagará permanentemente todos os meus dados no Kindar"
           style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.xl }}
         >
           <View style={{
@@ -247,29 +257,21 @@ export default function DeletarContaScreen() {
         </TouchableOpacity>
 
         {/* Delete button */}
-        <TouchableOpacity
+        <PrimaryButton
+          label="Deletar minha conta permanentemente"
           onPress={handleDelete}
-          disabled={!canSubmit}
-          activeOpacity={0.85}
-          style={{
-            backgroundColor: canSubmit ? colors.error : colors.borderLight,
-            borderRadius: radius.md,
-            paddingVertical: spacing.md + 2, alignItems: 'center',
-          }}
-        >
-          {submitting ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={{ color: canSubmit ? '#fff' : colors.textMuted, fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Deletar minha conta permanentemente
-            </Text>
-          )}
-        </TouchableOpacity>
+          loading={submitting}
+          disabled={!(confirmText === CONFIRM_WORD && acknowledged)}
+          variant="destructive"
+          testID="deletar-conta-submit"
+        />
 
         {/* Cancel */}
         <TouchableOpacity
           onPress={() => router.back()}
           disabled={submitting}
+          accessibilityRole="button"
+          accessibilityLabel="Cancelar e voltar"
           style={{ alignItems: 'center', paddingVertical: spacing.lg, marginTop: spacing.sm }}
         >
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>

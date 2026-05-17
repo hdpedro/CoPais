@@ -475,25 +475,14 @@ export default function ReceitaScreen() {
               </View>
             ))}
 
-            <TouchableOpacity
-              disabled={saving}
-              onPress={handleSave}
-              activeOpacity={0.85}
-              accessibilityRole="button"
-              accessibilityLabel="Salvar medicamentos"
-              accessibilityState={{ disabled: saving, busy: saving }}
-              style={{
-                backgroundColor: colors.brand, borderRadius: radius.md,
-                paddingVertical: spacing.md + 2, alignItems: 'center',
-                opacity: saving ? 0.5 : 1, marginTop: spacing.lg, marginBottom: spacing.sm,
-              }}
-            >
-              {saving ? <ActivityIndicator color="#fff" /> : (
-                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  Salvar medicamentos
-                </Text>
-              )}
-            </TouchableOpacity>
+            <View style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
+              <PrimaryButton
+                label="Salvar medicamentos"
+                onPress={handleSave}
+                loading={saving}
+                testID="saude-receita-save"
+              />
+            </View>
             <TouchableOpacity onPress={handleRetry} accessibilityRole="button" accessibilityLabel="Tentar com outra foto" style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
               <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Tentar com outra foto</Text>
             </TouchableOpacity>

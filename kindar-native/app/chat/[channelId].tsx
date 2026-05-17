@@ -18,6 +18,7 @@ import { notifyAction } from 'src/services/notify';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
 import { useToast } from 'src/components/ui/ToastProvider';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -1273,12 +1274,14 @@ export default function ChatRoomScreen() {
         animationType="slide"
         onRequestClose={() => !exporting && setShowExportModal(false)}
       >
-        <Pressable
-          onPress={() => !exporting && setShowExportModal(false)}
-          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'flex-end' }}
+        <ModalBackdrop
+          onClose={() => setShowExportModal(false)}
+          align="bottom"
+          dim={0.45}
+          padding={0}
+          tapToClose={!exporting}
         >
-          <Pressable
-            onPress={() => { /* swallow taps inside the sheet */ }}
+          <View
             style={{
               backgroundColor: colors.bgElevated,
               borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl,
@@ -1421,8 +1424,8 @@ export default function ChatRoomScreen() {
                 </Text>
               </TouchableOpacity>
             </View>
-          </Pressable>
-        </Pressable>
+          </View>
+        </ModalBackdrop>
       </Modal>
 
       {/* Image preview modal (tap-to-zoom) */}

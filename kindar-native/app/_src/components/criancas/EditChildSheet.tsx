@@ -33,6 +33,8 @@ import { updateChild, upsertChildMedicalInfo, uploadChildAvatar, signChildAvatar
 import { supabase } from '../../lib/supabase';
 import { DatePickerField, isoDateToDisplay } from '../ui/DateTimeField';
 import { useToast } from '../ui/ToastProvider';
+import PrimaryButton from '../ui/PrimaryButton';
+import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 
@@ -305,11 +307,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
   }
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      style={{ flex: 1, justifyContent: 'flex-end' }}
-    >
-      <Pressable onPress={onClose} style={{ flex: 1, backgroundColor: '#00000080' }} />
+    <ModalBackdrop onClose={onClose} align="bottom" dim={0.5} padding={0}>
       <View
         style={{
           backgroundColor: colors.bgElevated,
@@ -664,27 +662,19 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           />
 
           {/* Save button */}
-          <TouchableOpacity
-            testID="edit-child-save"
-            onPress={handleSave}
-            disabled={!canSave}
-            style={{
-              marginTop: spacing.xl,
-              backgroundColor: colors.brand,
-              borderRadius: radius.md,
-              paddingVertical: spacing.md + 2,
-              alignItems: 'center',
-              opacity: canSave ? 1 : 0.5,
-              ...shadows.sm,
-            }}
-          >
-            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-              {saving ? 'Salvando…' : 'Salvar alterações'}
-            </Text>
-          </TouchableOpacity>
+          <View style={{ marginTop: spacing.xl }}>
+            <PrimaryButton
+              label="Salvar alterações"
+              onPress={handleSave}
+              loading={saving}
+              disabled={!canSave && !saving}
+              style={shadows.sm}
+              testID="edit-child-save"
+            />
+          </View>
         </ScrollView>
       </View>
-    </KeyboardAvoidingView>
+    </ModalBackdrop>
   );
 }
 

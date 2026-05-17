@@ -16,6 +16,7 @@ import {
   type BalanceOperation,
 } from '../../services/balance-operations';
 import { useToast } from '../ui/ToastProvider';
+import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
@@ -64,8 +65,7 @@ export default function BalanceHistorySheet({ visible, onClose, operations, curr
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={onClose} />
+      <ModalBackdrop onClose={onClose} align="bottom" dim={0.4} padding={0}>
         <View style={{
           backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'],
           padding: spacing.xl, paddingBottom: 40, maxHeight: '88%',
@@ -164,7 +164,7 @@ export default function BalanceHistorySheet({ visible, onClose, operations, curr
             </ScrollView>
           )}
         </View>
-      </View>
+      </ModalBackdrop>
     </Modal>
   );
 }

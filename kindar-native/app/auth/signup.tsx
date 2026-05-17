@@ -20,6 +20,10 @@ export default function SignupScreen() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [fullNameError, setFullNameError] = useState<string | null>(null);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
   const [lgpdConsent, setLgpdConsent] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -27,6 +31,28 @@ export default function SignupScreen() {
   const [success, setSuccess] = useState(false);
   const { signUp } = useAuth();
   const t = useI18n(s => s.t);
+
+  // onBlur validation — feedback inline antes do submit (padrão premium).
+  // Não bloqueia o botão, apenas mostra erro per-campo quando o user sai dele.
+  function validateFullNameField(value: string): string | null {
+    if (!value.trim()) return t('validation.field.fullNameRequired');
+    return null;
+  }
+  function validateEmailField(value: string): string | null {
+    if (!value.trim()) return t('validation.field.emailRequired');
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim())) return t('validation.field.emailInvalid');
+    return null;
+  }
+  function validatePasswordField(value: string): string | null {
+    if (!value) return t('validation.field.passwordRequired');
+    if (value.length < 8) return t('validation.field.passwordTooShort8');
+    return null;
+  }
+  function validateConfirmPasswordField(value: string): string | null {
+    if (!value) return t('validation.field.passwordRequired');
+    if (value !== password) return t('validation.field.passwordsMismatch');
+    return null;
+  }
 
   async function handleSignup() {
     if (!fullName || !email || !password || !confirmPassword) {
@@ -99,6 +125,8 @@ export default function SignupScreen() {
         </View>
         <TouchableOpacity
           onPress={() => router.replace('/auth/login')}
+          accessibilityRole="button"
+          accessibilityLabel="Já confirmei, entrar"
           style={{
             backgroundColor: colors.brand, borderRadius: radius.md,
             paddingVertical: spacing.lg, paddingHorizontal: spacing['3xl'],
@@ -153,16 +181,17 @@ export default function SignupScreen() {
         </Text>
         <View style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.md,
-          borderWidth: 1, borderColor: colors.border,
+          borderWidth: 1, borderColor: fullNameError ? colors.error : colors.border,
           flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg,
-          marginBottom: spacing.lg,
+          marginBottom: fullNameError ? spacing.xs : spacing.lg,
         }}>
           <Ionicons name="person-outline" size={18} color={colors.textMuted} />
           <TextInput
             testID="signup-fullname-input"
-            accessibilityLabel="Nome completo"
+            accessibilityLabel={fullNameError ?? 'Nome completo'}
             value={fullName}
-            onChangeText={setFullName}
+            onChangeText={(v) => { setFullName(v); if (fullNameError) setFullNameError(null); }}
+            onBlur={() => setFullNameError(validateFullNameField(fullName))}
             placeholder="Seu nome"
             placeholderTextColor={colors.textDim}
             autoCapitalize="words"
@@ -173,6 +202,11 @@ export default function SignupScreen() {
             }}
           />
         </View>
+        {fullNameError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing.lg }}>
+            {fullNameError}
+          </Text>
+        ) : null}
 
         {/* Email */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textSecondary, marginBottom: spacing.xs }}>
@@ -180,16 +214,17 @@ export default function SignupScreen() {
         </Text>
         <View style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.md,
-          borderWidth: 1, borderColor: colors.border,
+          borderWidth: 1, borderColor: emailError ? colors.error : colors.border,
           flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg,
-          marginBottom: spacing.lg,
+          marginBottom: emailError ? spacing.xs : spacing.lg,
         }}>
           <Ionicons name="mail-outline" size={18} color={colors.textMuted} />
           <TextInput
             testID="signup-email-input"
-            accessibilityLabel="Email"
+            accessibilityLabel={emailError ?? 'Email'}
             value={email}
-            onChangeText={setEmail}
+            onChangeText={(v) => { setEmail(v); if (emailError) setEmailError(null); }}
+            onBlur={() => setEmailError(validateEmailField(email))}
             placeholder={t('auth.emailPlaceholder')}
             placeholderTextColor={colors.textDim}
             keyboardType="email-address"
@@ -201,6 +236,11 @@ export default function SignupScreen() {
             }}
           />
         </View>
+        {emailError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing.lg }}>
+            {emailError}
+          </Text>
+        ) : null}
 
         {/* Password */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textSecondary, marginBottom: spacing.xs }}>
@@ -208,16 +248,17 @@ export default function SignupScreen() {
         </Text>
         <View style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.md,
-          borderWidth: 1, borderColor: colors.border,
+          borderWidth: 1, borderColor: passwordError ? colors.error : colors.border,
           flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg,
-          marginBottom: spacing['2xl'],
+          marginBottom: passwordError ? spacing.xs : spacing['2xl'],
         }}>
           <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
           <TextInput
             testID="signup-password-input"
-            accessibilityLabel="Senha"
+            accessibilityLabel={passwordError ?? 'Senha'}
             value={password}
-            onChangeText={setPassword}
+            onChangeText={(v) => { setPassword(v); if (passwordError) setPasswordError(null); }}
+            onBlur={() => setPasswordError(validatePasswordField(password))}
             placeholder={t('auth.passwordMinLength')}
             placeholderTextColor={colors.textDim}
             secureTextEntry={!showPassword}
@@ -227,10 +268,21 @@ export default function SignupScreen() {
               fontSize: font.sizes.md, color: colors.text,
             }}
           />
-          <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+          <TouchableOpacity
+            onPress={() => setShowPassword(!showPassword)}
+            accessibilityRole="button"
+            accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            accessibilityState={{ selected: showPassword }}
+            hitSlop={8}
+          >
             <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
+        {passwordError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing['2xl'] }}>
+            {passwordError}
+          </Text>
+        ) : null}
 
         {/* Confirm Password */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textSecondary, marginBottom: spacing.xs }}>
@@ -238,14 +290,16 @@ export default function SignupScreen() {
         </Text>
         <View style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.md,
-          borderWidth: 1, borderColor: colors.border,
+          borderWidth: 1, borderColor: confirmPasswordError ? colors.error : colors.border,
           flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.lg,
-          marginBottom: spacing.lg,
+          marginBottom: confirmPasswordError ? spacing.xs : spacing.lg,
         }}>
           <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
           <TextInput
+            accessibilityLabel={confirmPasswordError ?? 'Confirmar senha'}
             value={confirmPassword}
-            onChangeText={setConfirmPassword}
+            onChangeText={(v) => { setConfirmPassword(v); if (confirmPasswordError) setConfirmPasswordError(null); }}
+            onBlur={() => setConfirmPasswordError(validateConfirmPasswordField(confirmPassword))}
             placeholder={t('auth.confirmPasswordPlaceholder')}
             placeholderTextColor={colors.textDim}
             secureTextEntry={!showPassword}
@@ -256,6 +310,11 @@ export default function SignupScreen() {
             }}
           />
         </View>
+        {confirmPasswordError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing.lg }}>
+            {confirmPasswordError}
+          </Text>
+        ) : null}
 
         {/* LGPD Consent — with CLICKABLE links to Termos + Privacidade
             (Apple Guideline 5.1.1 requires privacy policy link accessible
@@ -264,6 +323,10 @@ export default function SignupScreen() {
           <TouchableOpacity
             onPress={() => setLgpdConsent(!lgpdConsent)}
             activeOpacity={0.7}
+            accessibilityRole="checkbox"
+            accessibilityState={{ checked: lgpdConsent }}
+            accessibilityLabel="Concordo com os Termos de Uso e a Política de Privacidade"
+            hitSlop={8}
             style={{
               width: 18, height: 18, borderRadius: 4, marginTop: 2,
               borderWidth: 1.5,
@@ -297,7 +360,9 @@ export default function SignupScreen() {
         <TouchableOpacity
           onPress={handleSignup}
           testID="signup-submit"
+          accessibilityRole="button"
           accessibilityLabel="Criar conta"
+          accessibilityState={{ disabled: loading, busy: loading }}
           disabled={loading}
           activeOpacity={0.8}
           style={{
@@ -320,7 +385,11 @@ export default function SignupScreen() {
           <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
             {t('auth.hasAccount')}
           </Text>
-          <TouchableOpacity onPress={() => router.back()}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            accessibilityRole="link"
+            accessibilityLabel={t('auth.login')}
+          >
             <Text style={{ color: colors.brand, fontSize: font.sizes.sm, fontWeight: font.weights.bold }}>
               {t('auth.login')}
             </Text>

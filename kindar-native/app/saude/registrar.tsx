@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, TextInput,
-  KeyboardAvoidingView, Platform, ActivityIndicator,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -22,6 +22,7 @@ import { getBrazilToday } from 'src/lib/constants';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { DatePickerField, TimePickerField, isoDateToDisplay } from 'src/components/ui/DateTimeField';
 import ChildPicker from 'src/components/ui/ChildPicker';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 
 type EventType = 'illness' | 'medication' | 'appointment' | 'observation';
 
@@ -503,46 +504,19 @@ export default function RegistrarScreen() {
         borderTopWidth: 0.5, borderTopColor: colors.borderLight,
       }}>
         {step < 3 ? (
-          <TouchableOpacity
-            onPress={() => {
-              Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-              setStep(step + 1);
-            }}
+          <PrimaryButton
+            label="Continuar"
+            onPress={() => setStep(step + 1)}
             disabled={step === 1 ? !canProceedStep2 : !canProceedStep3}
-            accessibilityRole="button"
-            accessibilityLabel="Continuar"
-            accessibilityState={{ disabled: step === 1 ? !canProceedStep2 : !canProceedStep3 }}
-            style={{
-              backgroundColor: colors.brand, borderRadius: radius.md,
-              paddingVertical: spacing.lg, alignItems: 'center',
-              opacity: (step === 1 ? !canProceedStep2 : !canProceedStep3) ? 0.4 : 1,
-            }}
-          >
-            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-              Continuar
-            </Text>
-          </TouchableOpacity>
+            testID="saude-registrar-continuar"
+          />
         ) : (
-          <TouchableOpacity
+          <PrimaryButton
+            label="Salvar registro"
             onPress={handleSave}
-            disabled={saving}
-            accessibilityRole="button"
-            accessibilityLabel="Salvar registro"
-            accessibilityState={{ disabled: saving, busy: saving }}
-            style={{
-              backgroundColor: colors.brand, borderRadius: radius.md,
-              paddingVertical: spacing.lg, alignItems: 'center',
-              opacity: saving ? 0.5 : 1,
-            }}
-          >
-            {saving ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-                Salvar registro
-              </Text>
-            )}
-          </TouchableOpacity>
+            loading={saving}
+            testID="saude-registrar-salvar"
+          />
         )}
       </View>
     </KeyboardAvoidingView>

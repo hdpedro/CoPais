@@ -92,7 +92,9 @@ export default function PerfilScreen() {
             </Text>
             <TouchableOpacity
               testID={editing ? 'perfil-save' : 'perfil-edit'}
+              accessibilityRole="button"
               accessibilityLabel={editing ? t('common.save') : t('profile.editProfile')}
+              hitSlop={8}
               onPress={() => {
               if (editing) { handleSave(); } else {
                 setFullName(profile?.full_name || '');
@@ -167,6 +169,8 @@ export default function PerfilScreen() {
             {LANGUAGES.map(lang => (
               <TouchableOpacity key={lang.code} onPress={() => setLocale(lang.code)}
                 testID={`perfil-locale-${lang.code}`}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: locale === lang.code }}
                 accessibilityLabel={lang.label}
                 style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.lg, borderRadius: radius.full,
                   backgroundColor: locale === lang.code ? colors.brand : colors.bgSurface }}>
@@ -182,7 +186,8 @@ export default function PerfilScreen() {
             Protege o app inteiro com biometria do dispositivo. */}
         <TouchableOpacity onPress={() => router.push('/perfil/seguranca')}
           testID="perfil-seguranca"
-          accessibilityLabel="Seguranca e bloqueio do app"
+          accessibilityRole="button"
+          accessibilityLabel="Segurança e bloqueio do app"
           style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm,
             flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <Ionicons name="lock-closed-outline" size={20} color={colors.brand} />
@@ -197,6 +202,8 @@ export default function PerfilScreen() {
 
         {/* Subscription */}
         <TouchableOpacity onPress={() => router.push('/pricing')}
+          accessibilityRole="button"
+          accessibilityLabel="Assinatura"
           style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm,
             flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <Ionicons name="diamond-outline" size={20} color={colors.accent} />
@@ -210,7 +217,8 @@ export default function PerfilScreen() {
           <TouchableOpacity
             onPress={() => Linking.openURL(PRIVACY_URL)}
             testID="perfil-privacy"
-            accessibilityLabel="Politica de Privacidade"
+            accessibilityRole="link"
+            accessibilityLabel="Política de Privacidade"
             style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}
           >
             <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
@@ -220,6 +228,7 @@ export default function PerfilScreen() {
           <TouchableOpacity
             onPress={() => Linking.openURL(TERMS_URL)}
             testID="perfil-terms"
+            accessibilityRole="link"
             accessibilityLabel="Termos de Uso"
             style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}
           >
@@ -230,6 +239,7 @@ export default function PerfilScreen() {
           <TouchableOpacity
             onPress={() => Linking.openURL(SUPPORT_URL)}
             testID="perfil-support"
+            accessibilityRole="link"
             accessibilityLabel="Suporte"
             style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}
           >
@@ -240,6 +250,7 @@ export default function PerfilScreen() {
           <TouchableOpacity
             onPress={() => router.push('/perfil/deletar-conta')}
             testID="perfil-delete-account"
+            accessibilityRole="button"
             accessibilityLabel="Deletar conta"
             style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
           >
@@ -252,6 +263,7 @@ export default function PerfilScreen() {
         {/* Sign out */}
         <TouchableOpacity onPress={handleSignOut}
           testID="perfil-signout"
+          accessibilityRole="button"
           accessibilityLabel={t('auth.logout')}
           style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, ...shadows.sm,
             flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>

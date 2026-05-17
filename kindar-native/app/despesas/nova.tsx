@@ -34,12 +34,27 @@ export default function NovaExpenseScreen() {
   const { userId, activeGroup } = useAuth();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
+  const [descriptionError, setDescriptionError] = useState<string | null>(null);
+  const [amountError, setAmountError] = useState<string | null>(null);
   const [category, setCategory] = useState('other');
   const [dateIso, setDateIso] = useState(dateToIso(new Date()));
   const [receiptUri, setReceiptUri] = useState<string | null>(null);
   const [receiptMime, setReceiptMime] = useState<string>('image/jpeg');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // onBlur validation — feedback inline antes do submit (padrão premium).
+  function validateDescriptionField(value: string): string | null {
+    if (!value.trim()) return t('validation.field.descriptionRequired');
+    return null;
+  }
+  function validateAmountField(value: string): string | null {
+    if (!value || !value.trim()) return t('validation.field.amountRequired');
+    const val = parseFloat(value.replace(',', '.'));
+    if (isNaN(val)) return t('validation.field.amountInvalid');
+    if (val <= 0) return t('validation.field.amountMustBePositive');
+    return null;
+  }
 
   // Child + split ratio (P0 fields previously missing on native)
   const [children, setChildren] = useState<ChildOption[]>([]);
@@ -155,15 +170,46 @@ export default function NovaExpenseScreen() {
         {error ? <Text style={{ color: colors.error, marginBottom: spacing.md }}>{error}</Text> : null}
 
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Descrição</Text>
-        <TextInput value={description} onChangeText={setDescription} placeholder="O que foi comprado?" placeholderTextColor={colors.textDim}
-          style={{ backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.lg, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg }} />
+        <TextInput
+          value={description}
+          onChangeText={(v) => { setDescription(v); if (descriptionError) setDescriptionError(null); }}
+          onBlur={() => setDescriptionError(validateDescriptionField(description))}
+          accessibilityLabel={descriptionError ?? 'Descrição'}
+          placeholder="O que foi comprado?"
+          placeholderTextColor={colors.textDim}
+          style={{
+            backgroundColor: colors.bgElevated, borderRadius: radius.md,
+            borderWidth: 1, borderColor: descriptionError ? colors.error : colors.borderLight,
+            padding: spacing.lg, fontSize: font.sizes.md, color: colors.text,
+            marginBottom: descriptionError ? spacing.xs : spacing.lg,
+          }}
+        />
+        {descriptionError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing.lg }}>
+            {descriptionError}
+          </Text>
+        ) : null}
 
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Valor</Text>
         <CurrencyInput
+          accessibilityLabel={amountError ?? 'Valor'}
           value={parseFloat(amount.replace(',', '.')) || 0}
-          onChangeText={(reais) => setAmount(reais === 0 ? '' : String(reais).replace('.', ','))}
-          style={{ marginBottom: spacing.lg, fontSize: font.sizes.xl, fontWeight: font.weights.bold }}
+          onChangeText={(reais) => {
+            setAmount(reais === 0 ? '' : String(reais).replace('.', ','));
+            if (amountError) setAmountError(null);
+          }}
+          onBlur={() => setAmountError(validateAmountField(amount))}
+          style={{
+            marginBottom: amountError ? spacing.xs : spacing.lg,
+            fontSize: font.sizes.xl, fontWeight: font.weights.bold,
+            borderColor: amountError ? colors.error : undefined,
+          }}
         />
+        {amountError ? (
+          <Text style={{ color: colors.error, fontSize: font.sizes.xs, marginTop: 2, marginBottom: spacing.lg }}>
+            {amountError}
+          </Text>
+        ) : null}
 
         <View style={{ marginBottom: spacing.lg }}>
           <DatePickerField label="Data da despesa" value={dateIso} onChange={setDateIso} maximumDate={new Date()} />

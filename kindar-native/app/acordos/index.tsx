@@ -5,7 +5,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
+  ScrollView, Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -16,6 +16,8 @@ import {
   type Agreement, type AgreementCategory,
 } from 'src/services/agreements';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
@@ -174,24 +176,14 @@ export default function AcordosScreen() {
               </View>
 
               {canIAccept ? (
-                <TouchableOpacity
-                  disabled={accepting === a.id}
-                  onPress={() => handleAccept(a)}
-                  style={{
-                    marginTop: spacing.md,
-                    backgroundColor: colors.brand, borderRadius: radius.md,
-                    paddingVertical: 10, alignItems: 'center',
-                    opacity: accepting === a.id ? 0.5 : 1,
-                  }}
-                >
-                  {accepting === a.id ? (
-                    <ActivityIndicator size="small" color="#fff" />
-                  ) : (
-                    <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                      Aceitar acordo
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                <View style={{ marginTop: spacing.md }}>
+                  <PrimaryButton
+                    label="Aceitar acordo"
+                    onPress={() => handleAccept(a)}
+                    loading={accepting === a.id}
+                    testID={`acordos-accept-${a.id}`}
+                  />
+                </View>
               ) : null}
               {isMine ? (
                 <TouchableOpacity onPress={() => handleDelete(a)} style={{ alignSelf: 'flex-end', marginTop: spacing.sm, paddingVertical: 4, paddingHorizontal: 8 }}>
@@ -204,9 +196,8 @@ export default function AcordosScreen() {
       />
       <FAB onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setComposerOpen(true); }} />
 
-      <Modal visible={composerOpen} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setComposerOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+      <Modal visible={composerOpen} animationType="slide" transparent onRequestClose={() => setComposerOpen(false)}>
+        <ModalBackdrop onClose={() => setComposerOpen(false)} align="bottom" dim={0.4} padding={0}>
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
@@ -285,24 +276,16 @@ export default function AcordosScreen() {
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                disabled={submitting || !newTitle.trim() || !newDescription.trim()}
+              <PrimaryButton
+                label="Propor acordo"
                 onPress={submitNew}
-                style={{
-                  backgroundColor: colors.brand, borderRadius: radius.md,
-                  paddingVertical: spacing.md + 2, alignItems: 'center',
-                  opacity: submitting || !newTitle.trim() || !newDescription.trim() ? 0.5 : 1,
-                }}
-              >
-                {submitting ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                    Propor acordo
-                  </Text>
-                )}
-              </TouchableOpacity>
+                loading={submitting}
+                disabled={!newTitle.trim() || !newDescription.trim()}
+                testID="acordos-submit"
+              />
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </ModalBackdrop>
       </Modal>
     </View>
   );

@@ -5,7 +5,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
+  ScrollView, Alert,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +17,8 @@ import {
 } from 'src/services/sensitive';
 import { fetchChildren, type Child } from 'src/services/children';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
@@ -226,23 +228,25 @@ export default function TemasSensiveisScreen() {
                   </Text>
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                     {canIApprove ? (
-                      <TouchableOpacity
-                        disabled={acting === n.id}
-                        onPress={() => handleApproveDelete(n)}
-                        style={{ flex: 1, paddingVertical: 8, borderRadius: radius.md, backgroundColor: colors.error, alignItems: 'center' }}
-                      >
-                        {acting === n.id ? <ActivityIndicator size="small" color="#fff" /> : (
-                          <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>Aprovar exclusão</Text>
-                        )}
-                      </TouchableOpacity>
+                      <View style={{ flex: 1 }}>
+                        <PrimaryButton
+                          label="Aprovar exclusão"
+                          onPress={() => handleApproveDelete(n)}
+                          loading={acting === n.id}
+                          variant="destructive"
+                          testID={`temas-sensiveis-approve-delete-${n.id}`}
+                        />
+                      </View>
                     ) : null}
-                    <TouchableOpacity
-                      disabled={acting === n.id}
-                      onPress={() => handleCancelDelete(n)}
-                      style={{ flex: canIApprove ? 1 : undefined, paddingVertical: 8, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center' }}
-                    >
-                      <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>Cancelar pedido</Text>
-                    </TouchableOpacity>
+                    <View style={{ flex: canIApprove ? 1 : undefined }}>
+                      <PrimaryButton
+                        label="Cancelar pedido"
+                        onPress={() => handleCancelDelete(n)}
+                        loading={acting === n.id}
+                        variant="secondary"
+                        testID={`temas-sensiveis-cancel-delete-${n.id}`}
+                      />
+                    </View>
                   </View>
                 </View>
               ) : (
@@ -260,9 +264,8 @@ export default function TemasSensiveisScreen() {
       />
       <FAB onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setComposerOpen(true); }} />
 
-      <Modal visible={composerOpen} animationType="slide" transparent>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setComposerOpen(false)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+      <Modal visible={composerOpen} animationType="slide" transparent onRequestClose={() => setComposerOpen(false)}>
+        <ModalBackdrop onClose={() => setComposerOpen(false)} align="bottom" dim={0.4} padding={0}>
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
@@ -372,24 +375,16 @@ export default function TemasSensiveisScreen() {
                 </Text>
               </TouchableOpacity>
 
-              <TouchableOpacity
-                disabled={submitting || !newTitle.trim() || !newContent.trim()}
+              <PrimaryButton
+                label="Registrar"
                 onPress={submitNew}
-                style={{
-                  backgroundColor: colors.brand, borderRadius: radius.md,
-                  paddingVertical: spacing.md + 2, alignItems: 'center',
-                  opacity: submitting || !newTitle.trim() || !newContent.trim() ? 0.5 : 1,
-                }}
-              >
-                {submitting ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                    Registrar
-                  </Text>
-                )}
-              </TouchableOpacity>
+                loading={submitting}
+                disabled={!newTitle.trim() || !newContent.trim()}
+                testID="temas-sensiveis-submit"
+              />
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </ModalBackdrop>
       </Modal>
     </View>
   );

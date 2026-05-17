@@ -67,7 +67,9 @@ describe("notifySaudeCreate", () => {
     const args = mockNotifyCollabCreate.mock.calls[0][0];
     expect(args.title).toBe("Amanda agendou uma consulta");
     expect(args.message).toBe("Pediatra · 20/05 14:00 · Mia");
-    expect(args.link).toBe("/saude/agenda?highlight=apt-1");
+    // FIX iter 7 2026-05-17: era `/saude/agenda` (rota 404, bug em prod).
+    // Rota correta no native + PWA é `/saude/consultas`.
+    expect(args.link).toBe("/saude/consultas?highlight=apt-1");
     expect(args.priority).toBe("important");
   });
 
@@ -214,7 +216,8 @@ describe("drift guard: SQL ↔ TS record_type sync", () => {
       expect(mockNotifyCollabCreate).toHaveBeenCalledTimes(1);
       const args = mockNotifyCollabCreate.mock.calls[0][0];
       expect(args.recordType).toBe(rt);
-      expect(args.link).toMatch(/^\/saude\/(agenda|doencas|medicamentos|alergias|vacinas)\?highlight=/);
+      // FIX iter 7 2026-05-17: era `agenda` (rota 404). Correto: `consultas`.
+      expect(args.link).toMatch(/^\/saude\/(consultas|doencas|medicamentos|alergias|vacinas)\?highlight=/);
     }
   });
 });

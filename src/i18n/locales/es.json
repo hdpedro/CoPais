@@ -2482,5 +2482,26 @@
       "errorDetailsTitle": "Detalles del error",
       "errorNoMessage": "sin mensaje"
     }
+  },
+  "validation": {
+    "field": {
+      "emailRequired": "El correo es obligatorio",
+      "emailInvalid": "Correo no válido",
+      "passwordRequired": "La contraseña es obligatoria",
+      "passwordTooShort": "La contraseña debe tener al menos 6 caracteres",
+      "passwordTooShort8": "La contraseña debe tener al menos 8 caracteres",
+      "passwordsMismatch": "Las contraseñas no coinciden",
+      "fullNameRequired": "Indica el nombre completo",
+      "childNameRequired": "Indica el nombre del niño o niña",
+      "birthDateRequired": "Indica la fecha de nacimiento",
+      "birthDateInvalid": "Fecha no válida (DD/MM/AAAA)",
+      "birthDateFuture": "La fecha no puede ser futura",
+      "birthDateTooOld": "El año debe ser 1900 o posterior",
+      "descriptionRequired": "Escribe una descripción",
+      "amountRequired": "Indica el importe",
+      "amountInvalid": "Importe no válido",
+      "amountMustBePositive": "El importe debe ser mayor que cero",
+      "titleRequired": "Escribe un título"
+    }
   }
 }

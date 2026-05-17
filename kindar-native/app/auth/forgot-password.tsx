@@ -54,6 +54,8 @@ export default function ForgotPasswordScreen() {
         </Text>
         <TouchableOpacity
           onPress={() => router.replace('/auth/login')}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar ao Login"
           style={{
             backgroundColor: colors.brand, borderRadius: radius.md,
             paddingVertical: spacing.lg, paddingHorizontal: spacing['3xl'],
@@ -75,7 +77,13 @@ export default function ForgotPasswordScreen() {
     >
       <View style={{ flex: 1, justifyContent: 'center', padding: spacing['3xl'] }}>
         {/* Back */}
-        <TouchableOpacity onPress={() => router.back()} style={{ position: 'absolute', top: 60, left: spacing['2xl'] }}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+          hitSlop={10}
+          style={{ position: 'absolute', top: 60, left: spacing['2xl'] }}
+        >
           <Ionicons name="arrow-back" size={24} color={colors.text} />
         </TouchableOpacity>
 
@@ -112,6 +120,7 @@ export default function ForgotPasswordScreen() {
             keyboardType="email-address"
             autoCapitalize="none"
             autoComplete="email"
+            accessibilityLabel="E-mail"
             style={{
               flex: 1, paddingVertical: spacing.lg, paddingLeft: spacing.md,
               fontSize: font.sizes.md, color: colors.text,
@@ -123,6 +132,9 @@ export default function ForgotPasswordScreen() {
           onPress={handleReset}
           disabled={loading}
           activeOpacity={0.8}
+          accessibilityRole="button"
+          accessibilityLabel="Enviar link"
+          accessibilityState={{ disabled: loading, busy: loading }}
           style={{
             backgroundColor: colors.brand, borderRadius: radius.md,
             paddingVertical: spacing.lg, alignItems: 'center',

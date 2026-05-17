@@ -198,7 +198,12 @@ export default function EscolaDetailScreen() {
         borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
         flexDirection: 'row', alignItems: 'center', gap: spacing.md,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text, flex: 1 }}>
@@ -263,6 +268,9 @@ export default function EscolaDetailScreen() {
             {isHomework ? (
               <TouchableOpacity
                 onPress={handleToggleCompleted}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: log.completed }}
+                accessibilityLabel={log.completed ? 'Desmarcar concluída' : 'Marcar como concluída'}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
                   marginTop: spacing.md, paddingVertical: spacing.sm,
@@ -336,6 +344,8 @@ export default function EscolaDetailScreen() {
             <TouchableOpacity
               onPress={handleEdit}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Editar"
               style={{
                 flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
                 paddingVertical: spacing.md, borderRadius: radius.md,
@@ -350,6 +360,8 @@ export default function EscolaDetailScreen() {
             <TouchableOpacity
               onPress={handleDelete}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Excluir"
               style={{
                 flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
                 paddingVertical: spacing.md, borderRadius: radius.md,

@@ -11,7 +11,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput,
-  KeyboardAvoidingView, Platform, ActivityIndicator, Alert,
+  Alert,
 } from 'react-native';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -25,6 +25,8 @@ import {
   type SchoolLog, type SchoolLogType, type SchoolKind, type SchoolPriority, type SchoolLogRead,
 } from 'src/services/school';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
@@ -532,6 +534,8 @@ export default function EscolaScreen() {
                 key={s.childId}
                 activeOpacity={0.8}
                 onPress={() => openEditor(s)}
+                accessibilityRole="button"
+                accessibilityLabel={`Editar informações escolares de ${s.childName}`}
                 style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.md, ...shadows.sm }}
               >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
@@ -613,6 +617,9 @@ export default function EscolaScreen() {
                     key={log.id}
                     activeOpacity={0.85}
                     onPress={() => handleOpenCard(log)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${log.title}. ${TYPE_LABELS[log.log_type]}${log.child_full_name ? ` de ${log.child_full_name}` : ''}${unread ? '. Novo' : ''}`}
+                    accessibilityState={{ expanded, selected: unread }}
                     style={{
                       backgroundColor: unread ? 'rgba(192,112,85,0.06)' : colors.bgElevated,
                       borderRadius: radius.xl,
@@ -636,6 +643,10 @@ export default function EscolaScreen() {
                       {isHomework ? (
                         <TouchableOpacity
                           onPress={(e) => { e.stopPropagation(); handleToggleCompleted(log); }}
+                          accessibilityRole="checkbox"
+                          accessibilityState={{ checked: log.completed }}
+                          accessibilityLabel={log.completed ? `Desmarcar ${log.title}` : `Marcar ${log.title} como concluído`}
+                          hitSlop={8}
                           style={{ marginTop: 2 }}
                         >
                           <View
@@ -728,12 +739,22 @@ export default function EscolaScreen() {
                             style={{ flexDirection: 'row', gap: spacing.lg, marginTop: spacing.sm }}
                             onStartShouldSetResponder={() => true}
                           >
-                            <TouchableOpacity onPress={(e) => { e.stopPropagation(); openEditLog(log); }}>
+                            <TouchableOpacity
+                              onPress={(e) => { e.stopPropagation(); openEditLog(log); }}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Editar ${log.title}`}
+                              hitSlop={8}
+                            >
                               <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
                                 Editar
                               </Text>
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={(e) => { e.stopPropagation(); handleDeleteLog(log); }}>
+                            <TouchableOpacity
+                              onPress={(e) => { e.stopPropagation(); handleDeleteLog(log); }}
+                              accessibilityRole="button"
+                              accessibilityLabel={`Excluir ${log.title}`}
+                              hitSlop={8}
+                            >
                               <Text style={{ fontSize: font.sizes.xs, color: colors.error, fontWeight: font.weights.medium }}>
                                 Excluir
                               </Text>
@@ -751,6 +772,8 @@ export default function EscolaScreen() {
           <TouchableOpacity
             onPress={openCreateLog}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel="Novo registro"
             style={{
               position: 'absolute',
               bottom: spacing['3xl'],
@@ -775,8 +798,7 @@ export default function EscolaScreen() {
 
       {/* Editor de Informacoes (child_education) */}
       <Modal visible={!!editing} animationType="slide" transparent onRequestClose={() => setEditing(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setEditing(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+        <ModalBackdrop onClose={() => setEditing(null)} align="bottom" dim={0.4} padding={0}>
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
@@ -816,24 +838,17 @@ export default function EscolaScreen() {
               <Label>Atividades extras (separe por virgula)</Label>
               <Input value={extracurriculars} onChangeText={setExtracurriculars} placeholder="Natacao, ingles, balet" />
 
-              <TouchableOpacity
-                disabled={saving}
-                onPress={handleSave}
-                style={{
-                  backgroundColor: colors.brand, borderRadius: radius.md,
-                  paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.md,
-                  opacity: saving ? 0.5 : 1,
-                }}
-              >
-                {saving ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                    Salvar
-                  </Text>
-                )}
-              </TouchableOpacity>
+              <View style={{ marginTop: spacing.md }}>
+                <PrimaryButton
+                  label="Salvar"
+                  onPress={handleSave}
+                  loading={saving}
+                  testID="escola-save-info"
+                />
+              </View>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </ModalBackdrop>
       </Modal>
 
       {/* Composer 3-stage: pick-kind → pick-subtype → form */}
@@ -843,8 +858,7 @@ export default function EscolaScreen() {
         transparent
         onRequestClose={closeComposer}
       >
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={closeComposer} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+        <ModalBackdrop onClose={closeComposer} align="bottom" dim={0.4} padding={0}>
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
 
@@ -878,7 +892,12 @@ export default function EscolaScreen() {
             {composer.stage === 'pick-subtype' ? (
               <>
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
-                  <TouchableOpacity onPress={() => setComposer({ stage: 'pick-kind' })} hitSlop={8}>
+                  <TouchableOpacity
+                    onPress={() => setComposer({ stage: 'pick-kind' })}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Voltar"
+                  >
                     <Text style={{ fontSize: font.sizes.sm, color: colors.secondary, fontWeight: font.weights.medium }}>‹ Voltar</Text>
                   </TouchableOpacity>
                   <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
@@ -913,6 +932,8 @@ export default function EscolaScreen() {
                   <TouchableOpacity
                     onPress={() => setComposer({ stage: 'pick-subtype', kind: getKind(composer.subtype) })}
                     hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel="Voltar"
                   >
                     <Text style={{ fontSize: font.sizes.sm, color: colors.secondary, fontWeight: font.weights.medium }}>‹ Voltar</Text>
                   </TouchableOpacity>
@@ -991,32 +1012,24 @@ export default function EscolaScreen() {
                   </View>
                 ) : null}
 
-                <TouchableOpacity
-                  disabled={savingLog}
-                  onPress={handleSaveNewLog}
-                  style={{
-                    backgroundColor: colors.brand, borderRadius: radius.md,
-                    paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.lg,
-                    opacity: savingLog ? 0.5 : 1,
-                  }}
-                >
-                  {savingLog ? <ActivityIndicator color="#fff" /> : (
-                    <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                      Registrar
-                    </Text>
-                  )}
-                </TouchableOpacity>
+                <View style={{ marginTop: spacing.lg }}>
+                  <PrimaryButton
+                    label="Registrar"
+                    onPress={handleSaveNewLog}
+                    loading={savingLog}
+                    testID="escola-save-new-log"
+                  />
+                </View>
               </ScrollView>
             ) : null}
           </View>
-        </KeyboardAvoidingView>
+        </ModalBackdrop>
       </Modal>
 
       {/* Editar registro existente — todos os campos editáveis. Mudar
           subtype entre kind=event/note recria/remove o espelho do calendário. */}
       <Modal visible={!!editingLog} animationType="slide" transparent onRequestClose={() => setEditingLog(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity activeOpacity={1} onPress={() => setEditingLog(null)} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+        <ModalBackdrop onClose={() => setEditingLog(null)} align="bottom" dim={0.4} padding={0}>
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
@@ -1104,24 +1117,17 @@ export default function EscolaScreen() {
                 </View>
               ) : null}
 
-              <TouchableOpacity
-                disabled={savingLog}
-                onPress={handleSaveEditLog}
-                style={{
-                  backgroundColor: colors.brand, borderRadius: radius.md,
-                  paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.lg,
-                  opacity: savingLog ? 0.5 : 1,
-                }}
-              >
-                {savingLog ? <ActivityIndicator color="#fff" /> : (
-                  <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                    Salvar
-                  </Text>
-                )}
-              </TouchableOpacity>
+              <View style={{ marginTop: spacing.lg }}>
+                <PrimaryButton
+                  label="Salvar"
+                  onPress={handleSaveEditLog}
+                  loading={savingLog}
+                  testID="escola-save-edit-log"
+                />
+              </View>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </ModalBackdrop>
       </Modal>
     </View>
   );
@@ -1132,6 +1138,9 @@ function TabPill({ label, active, onPress }: { label: string; active: boolean; o
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
+      accessibilityRole="tab"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
       style={{
         paddingHorizontal: spacing.lg,
         paddingVertical: spacing.sm,
@@ -1159,6 +1168,9 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.8}
+      accessibilityRole="radio"
+      accessibilityLabel={label}
+      accessibilityState={{ selected: active }}
       style={{
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.xs + 2,
@@ -1205,6 +1217,8 @@ function KindCard({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={`${title}. ${description}`}
       style={{
         backgroundColor: accentBg,
         borderColor: accentBorder,
@@ -1234,6 +1248,8 @@ function SubtypeRow({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.85}
+      accessibilityRole="button"
+      accessibilityLabel={hint ? `${label}. ${hint}` : label}
       style={{
         flexDirection: 'row',
         alignItems: 'center',

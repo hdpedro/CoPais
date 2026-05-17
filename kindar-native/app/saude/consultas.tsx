@@ -3,7 +3,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, Modal, ScrollView, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, Modal, ScrollView } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +18,7 @@ import { DatePickerField, TimePickerField, dateToIso } from 'src/components/ui/D
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -480,14 +481,7 @@ export default function ConsultasScreen() {
       {/* Complete modal — diagnóstico + resumo + retorno.
           Tap no backdrop fecha (padrão iOS Mail/Notes). */}
       <Modal visible={!!completing} transparent animationType="slide" onRequestClose={() => setCompleting(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity
-            activeOpacity={1}
-            accessibilityLabel="Fechar"
-            accessibilityRole="button"
-            onPress={() => setCompleting(null)}
-            style={{ flex: 1, backgroundColor: '#00000080' }}
-          />
+        <ModalBackdrop onClose={() => setCompleting(null)} align="bottom" dim={0.5} padding={0}>
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, maxHeight: '85%' }}>
             <ScrollView keyboardShouldPersistTaps="handled">
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -526,34 +520,23 @@ export default function ConsultasScreen() {
               <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Data de retorno (opcional)</Text>
               <DatePickerField value={completeReturnDate || null} onChange={d => setCompleteReturnDate(d || '')} placeholder="DD/MM/AAAA" />
 
-              <TouchableOpacity
-                onPress={handleConfirmComplete}
-                disabled={completeSaving}
-                accessibilityRole="button"
-                accessibilityLabel="Marcar como concluída"
-                accessibilityState={{ disabled: completeSaving, busy: completeSaving }}
-                style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.xl, opacity: completeSaving ? 0.5 : 1 }}
-              >
-                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-                  {completeSaving ? 'Salvando…' : 'Marcar como concluída'}
-                </Text>
-              </TouchableOpacity>
+              <View style={{ marginTop: spacing.xl }}>
+                <PrimaryButton
+                  label="Marcar como concluída"
+                  onPress={handleConfirmComplete}
+                  loading={completeSaving}
+                  testID="consultas-complete-submit"
+                />
+              </View>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </ModalBackdrop>
       </Modal>
 
       {/* Edit modal — title / date / time / location / notes pra uma consulta
           agendada. Reusa os mesmos pickers do form de criar pra UX consistente. */}
       <Modal visible={!!editing} transparent animationType="slide" onRequestClose={() => setEditing(null)}>
-        <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <TouchableOpacity
-            activeOpacity={1}
-            accessibilityLabel="Fechar"
-            accessibilityRole="button"
-            onPress={() => setEditing(null)}
-            style={{ flex: 1, backgroundColor: '#00000080' }}
-          />
+        <ModalBackdrop onClose={() => setEditing(null)} align="bottom" dim={0.5} padding={0}>
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, maxHeight: '85%' }}>
             <ScrollView keyboardShouldPersistTaps="handled">
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -607,21 +590,17 @@ export default function ConsultasScreen() {
                 style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, minHeight: 80, textAlignVertical: 'top', marginBottom: spacing.lg }}
               />
 
-              <TouchableOpacity
-                onPress={handleConfirmEdit}
-                disabled={editSaving}
-                accessibilityRole="button"
-                accessibilityLabel="Salvar alterações"
-                accessibilityState={{ disabled: editSaving, busy: editSaving }}
-                style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.lg, opacity: editSaving ? 0.5 : 1 }}
-              >
-                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-                  {editSaving ? 'Salvando…' : 'Salvar alterações'}
-                </Text>
-              </TouchableOpacity>
+              <View style={{ marginTop: spacing.lg }}>
+                <PrimaryButton
+                  label="Salvar alterações"
+                  onPress={handleConfirmEdit}
+                  loading={editSaving}
+                  testID="consultas-edit-submit"
+                />
+              </View>
             </ScrollView>
           </View>
-        </KeyboardAvoidingView>
+        </ModalBackdrop>
       </Modal>
     </View>
   );

@@ -2617,5 +2617,26 @@
     "emergency": {
       "tokenMissing": "This child has no emergency token yet. Generate one on the web app."
     }
+  },
+  "validation": {
+    "field": {
+      "emailRequired": "Email is required",
+      "emailInvalid": "Invalid email",
+      "passwordRequired": "Password is required",
+      "passwordTooShort": "Password must be at least 6 characters",
+      "passwordTooShort8": "Password must be at least 8 characters",
+      "passwordsMismatch": "Passwords don't match",
+      "fullNameRequired": "Enter your full name",
+      "childNameRequired": "Enter the child's name",
+      "birthDateRequired": "Enter the birth date",
+      "birthDateInvalid": "Invalid date (DD/MM/YYYY)",
+      "birthDateFuture": "Date can't be in the future",
+      "birthDateTooOld": "Year must be 1900 or later",
+      "descriptionRequired": "Enter a description",
+      "amountRequired": "Enter the amount",
+      "amountInvalid": "Invalid amount",
+      "amountMustBePositive": "Amount must be greater than zero",
+      "titleRequired": "Enter a title"
+    }
   }
 }

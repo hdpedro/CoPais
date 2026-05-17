@@ -9,6 +9,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from 'src/store/auth';
 import { acceptInvitation } from 'src/services/invitations';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 export default function AceitarConviteScreen() {
@@ -116,23 +117,15 @@ export default function AceitarConviteScreen() {
               </View>
             ) : null}
 
-            <TouchableOpacity
-              disabled={loading || !userId}
-              onPress={handleAccept}
-              activeOpacity={0.85}
-              style={{
-                backgroundColor: colors.brand, borderRadius: radius.md,
-                paddingVertical: spacing.md + 2, paddingHorizontal: spacing['2xl'],
-                alignItems: 'center', width: '100%',
-                opacity: loading || !userId ? 0.5 : 1, marginBottom: spacing.sm,
-              }}
-            >
-              {loading ? <ActivityIndicator color="#fff" /> : (
-                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  Aceitar e entrar
-                </Text>
-              )}
-            </TouchableOpacity>
+            <View style={{ width: '100%', marginBottom: spacing.sm }}>
+              <PrimaryButton
+                label="Aceitar e entrar"
+                onPress={handleAccept}
+                loading={loading}
+                disabled={!userId}
+                testID="convite-accept"
+              />
+            </View>
 
             <TouchableOpacity onPress={handleDecline} style={{ paddingVertical: spacing.sm }} accessibilityRole="button" accessibilityLabel="Agora não">
               <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>

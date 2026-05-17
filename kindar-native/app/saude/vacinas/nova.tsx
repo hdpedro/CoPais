@@ -25,7 +25,6 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
-import { Ionicons } from '@expo/vector-icons';
 import { supabase } from 'src/lib/supabase';
 import { useI18n } from 'src/i18n';
 import { useAuth } from 'src/store/auth';
@@ -33,6 +32,7 @@ import { reportError } from 'src/lib/error-reporter';
 import { withTimeout } from 'src/lib/with-timeout';
 import { recordVaccinationViaEngine, matchVaccineCatalog } from 'src/services/health';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import ChildPicker from 'src/components/ui/ChildPicker';
@@ -359,35 +359,16 @@ export default function NovaVacinaScreen() {
           />
         </View>
 
-        <TouchableOpacity
+        <PrimaryButton
+          label={isDuplicateRetry
+            ? t('health.vaccineEngine.duplicateModalConfirm')
+            : t('health.vaccineEngine.registerSave')}
           onPress={() => handleSave(false)}
-          disabled={saving || !vaccineName.trim() || !selectedChildId}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel={isDuplicateRetry ? t('health.vaccineEngine.duplicateModalConfirm') : t('health.vaccineEngine.registerSave')}
-          accessibilityState={{ disabled: saving || !vaccineName.trim() || !selectedChildId, busy: saving }}
-          style={{
-            backgroundColor: colors.brand,
-            paddingVertical: spacing.md + 2,
-            borderRadius: radius.md,
-            alignItems: 'center',
-            opacity: saving || !vaccineName.trim() || !selectedChildId ? 0.5 : 1,
-            ...shadows.sm,
-          }}
-        >
-          {saving ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
-              {isDuplicateRetry ? <Ionicons name="checkmark" size={18} color="#fff" /> : null}
-              <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                {isDuplicateRetry
-                  ? t('health.vaccineEngine.duplicateModalConfirm')
-                  : t('health.vaccineEngine.registerSave')}
-              </Text>
-            </View>
-          )}
-        </TouchableOpacity>
+          loading={saving}
+          disabled={!vaccineName.trim() || !selectedChildId}
+          style={shadows.sm}
+          testID="vacinas-nova-save"
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

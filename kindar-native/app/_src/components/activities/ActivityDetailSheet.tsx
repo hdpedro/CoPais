@@ -35,6 +35,7 @@ import {
 } from '../../services/activities';
 import { ACTIVITY_CATEGORIES } from '../../lib/constants';
 import { useToast } from '../ui/ToastProvider';
+import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -550,10 +551,9 @@ export default function ActivityDetailSheet({
   // chamado inline (ex: home dashboard).
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} style={{ flex: 1 }} onPress={onClose} />
+      <ModalBackdrop onClose={onClose} align="bottom" dim={0.4} padding={0}>
         {Body}
-      </View>
+      </ModalBackdrop>
     </Modal>
   );
 }

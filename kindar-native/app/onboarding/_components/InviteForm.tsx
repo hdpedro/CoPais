@@ -86,6 +86,7 @@ function InviteFormImpl({ email, role, sending, error, onEmail, onRole, onSend, 
         keyboardType="email-address"
         autoCapitalize="none"
         autoComplete="email"
+        accessibilityLabel={t('onboarding.otherParentEmail')}
         style={{
           backgroundColor: colors.bgSurface, borderRadius: radius.md,
           borderWidth: 1, borderColor: colors.borderLight,
@@ -104,6 +105,7 @@ function InviteFormImpl({ email, role, sending, error, onEmail, onRole, onSend, 
             <TouchableOpacity
               key={r.value}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); onRole(r.value); }}
+              accessibilityRole="radio"
               accessibilityLabel={t(`onboarding.${r.key}`)}
               accessibilityState={{ selected: active }}
               activeOpacity={0.85}
@@ -130,6 +132,7 @@ function InviteFormImpl({ email, role, sending, error, onEmail, onRole, onSend, 
 
       <TouchableOpacity
         testID="onboarding-invite-send"
+        accessibilityRole="button"
         accessibilityLabel={t('onboardingForm.sendInviteNow')}
         accessibilityState={{ busy: sending, disabled: !canSend }}
         onPress={onSend}

@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { createInvitation, listInvitations, cancelInvitation, type Invitation } from 'src/services/invitations';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -209,23 +210,15 @@ export default function EnviarConviteScreen() {
             </View>
 
             {/* Submit */}
-            <TouchableOpacity
-              disabled={sending || !email.trim()}
-              onPress={handleSend}
-              activeOpacity={0.85}
-              style={{
-                backgroundColor: colors.brand, borderRadius: radius.md,
-                paddingVertical: spacing.md + 2, alignItems: 'center',
-                opacity: sending || !email.trim() ? 0.5 : 1,
-                marginBottom: spacing['2xl'],
-              }}
-            >
-              {sending ? <ActivityIndicator color="#fff" /> : (
-                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  Enviar convite
-                </Text>
-              )}
-            </TouchableOpacity>
+            <View style={{ marginBottom: spacing['2xl'] }}>
+              <PrimaryButton
+                label="Enviar convite"
+                onPress={handleSend}
+                loading={sending}
+                disabled={!email.trim()}
+                testID="convite-enviar-submit"
+              />
+            </View>
           </>
         )}
 

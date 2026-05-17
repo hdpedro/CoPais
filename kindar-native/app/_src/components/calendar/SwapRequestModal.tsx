@@ -8,14 +8,16 @@
 
 import { useState } from 'react';
 import {
-  View, Text, TouchableOpacity, Modal, KeyboardAvoidingView, Platform,
-  ScrollView, TextInput, ActivityIndicator,
+  View, Text, TouchableOpacity, Modal,
+  ScrollView, TextInput,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { createSwap } from '../../services/swaps';
 import { DatePickerField, dateToIso } from '../ui/DateTimeField';
 import { useToast } from '../ui/ToastProvider';
+import PrimaryButton from '../ui/PrimaryButton';
+import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
@@ -91,8 +93,7 @@ export default function SwapRequestModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-        <TouchableOpacity activeOpacity={1} onPress={close} style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }} />
+      <ModalBackdrop onClose={close} align="bottom" dim={0.4} padding={0}>
         <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
@@ -173,40 +174,27 @@ export default function SwapRequestModal({
             />
 
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
-              <TouchableOpacity
-                onPress={close}
-                disabled={submitting}
-                style={{
-                  flex: 1, paddingVertical: spacing.md + 2, borderRadius: radius.md,
-                  borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
-                  opacity: submitting ? 0.5 : 1,
-                }}
-              >
-                <Text style={{ color: colors.textSecondary, fontSize: font.sizes.md, fontWeight: font.weights.medium }}>
-                  Cancelar
-                </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={handleSubmit}
-                disabled={submitting}
-                style={{
-                  flex: 1, paddingVertical: spacing.md + 2, borderRadius: radius.md,
-                  backgroundColor: colors.brand, alignItems: 'center',
-                  opacity: submitting ? 0.5 : 1,
-                }}
-              >
-                {submitting
-                  ? <ActivityIndicator size="small" color="#fff" />
-                  : (
-                    <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                      {submitLabel}
-                    </Text>
-                  )}
-              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Cancelar"
+                  onPress={close}
+                  loading={submitting}
+                  variant="secondary"
+                  testID="swap-request-cancel"
+                />
+              </View>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label={submitLabel}
+                  onPress={handleSubmit}
+                  loading={submitting}
+                  testID="swap-request-submit"
+                />
+              </View>
             </View>
           </ScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </ModalBackdrop>
     </Modal>
   );
 }

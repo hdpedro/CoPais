@@ -183,13 +183,25 @@ function SplashScreen() {
   // Lazy init via useState — evita ESLint react-hooks/refs (acessar .current
   // durante render). Animated.Value é mutável, então o estado nunca muda.
   const [opacity] = useState(() => new Animated.Value(0));
+  const [logoScale] = useState(() => new Animated.Value(0.85));
   useEffect(() => {
-    Animated.timing(opacity, {
-      toValue: 1,
-      duration: 280,
-      useNativeDriver: true,
-    }).start();
-  }, [opacity]);
+    // Container fade-in 280ms (timing) + logo spring (overshoot suave).
+    // Spring config calibrada: tension 80 + friction 8 = bounce sutil (~2%),
+    // não exagerado tipo iMessage. Apple HIG-style microinteraction.
+    Animated.parallel([
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 280,
+        useNativeDriver: true,
+      }),
+      Animated.spring(logoScale, {
+        toValue: 1,
+        tension: 80,
+        friction: 8,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, [opacity, logoScale]);
   return (
     <Animated.View
       style={{
@@ -200,7 +212,7 @@ function SplashScreen() {
         opacity,
       }}
     >
-      <View
+      <Animated.View
         style={{
           width: 64,
           height: 64,
@@ -211,10 +223,11 @@ function SplashScreen() {
           alignItems: 'center',
           justifyContent: 'center',
           marginBottom: 16,
+          transform: [{ scale: logoScale }],
         }}
       >
         <Text style={{ fontSize: 32 }}>🏠</Text>
-      </View>
+      </Animated.View>
       <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text, letterSpacing: -0.5 }}>
         Kindar
       </Text>

@@ -110,7 +110,11 @@ function recordDeepLink(rt: SaudeRecordType, recordId: string): string {
   const base = (() => {
     switch (rt) {
       case "medical_appointment":
-        return "/saude/agenda";
+        // FIX 2026-05-17: era `/saude/agenda` que não existe no PWA nem no
+        // native. Rota canônica é `/saude/consultas`. Bug em prod desde
+        // Foundation Saúde Fase 3 (migration 00080) — todo push de consulta
+        // médica criada abria 404. Audit Iter 7 detectou.
+        return "/saude/consultas";
       case "illness_episode":
         return "/saude/doencas";
       case "active_medication":

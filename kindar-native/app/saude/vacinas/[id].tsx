@@ -31,6 +31,7 @@ import {
   deleteVaccinationRecordViaEngine,
 } from 'src/services/health';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { DatePickerField } from 'src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -361,29 +362,14 @@ export default function VaccineDetailScreen() {
             </FieldCard>
 
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
-              <TouchableOpacity
-                onPress={handleSave}
-                disabled={saving}
-                accessibilityRole="button"
-                accessibilityLabel="Salvar mudanças"
-                accessibilityState={{ disabled: saving, busy: saving }}
-                style={{
-                  flex: 1,
-                  backgroundColor: colors.brand,
-                  paddingVertical: spacing.md,
-                  borderRadius: radius.md,
-                  alignItems: 'center',
-                  opacity: saving ? 0.6 : 1,
-                }}
-              >
-                {saving ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                    Salvar mudanças
-                  </Text>
-                )}
-              </TouchableOpacity>
+              <View style={{ flex: 1 }}>
+                <PrimaryButton
+                  label="Salvar mudanças"
+                  onPress={handleSave}
+                  loading={saving}
+                  testID="vacinas-id-save"
+                />
+              </View>
               <TouchableOpacity
                 onPress={() => setEditing(false)}
                 accessibilityRole="button"
