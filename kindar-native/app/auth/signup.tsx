@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
-  Platform, ScrollView, ActivityIndicator, Linking,
+  Platform, ScrollView, Linking,
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -9,6 +9,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 const PRIVACY_URL = `${WEB_URL}/privacidade`;
@@ -123,20 +124,12 @@ export default function SignupScreen() {
             Não encontrou? Verifique a pasta de <Text style={{ fontWeight: font.weights.semibold }}>spam ou lixo eletrônico</Text>. O e-mail pode levar até 1 minuto pra chegar.
           </Text>
         </View>
-        <TouchableOpacity
+        <PrimaryButton
           onPress={() => router.replace('/auth/login')}
-          accessibilityRole="button"
-          accessibilityLabel="Já confirmei, entrar"
-          style={{
-            backgroundColor: colors.brand, borderRadius: radius.md,
-            paddingVertical: spacing.lg, paddingHorizontal: spacing['3xl'],
-            marginTop: spacing['3xl'],
-          }}
-        >
-          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-            Já confirmei, entrar
-          </Text>
-        </TouchableOpacity>
+          label="Já confirmei, entrar"
+          fullWidth={false}
+          style={{ marginTop: spacing['3xl'], paddingHorizontal: spacing['3xl'] }}
+        />
         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textAlign: 'center', marginTop: spacing.md }}>
           Você pode reenviar o e-mail pela tela de login se precisar.
         </Text>
@@ -357,28 +350,12 @@ export default function SignupScreen() {
         </View>
 
         {/* Signup Button */}
-        <TouchableOpacity
+        <PrimaryButton
           onPress={handleSignup}
           testID="signup-submit"
-          accessibilityRole="button"
-          accessibilityLabel="Criar conta"
-          accessibilityState={{ disabled: loading, busy: loading }}
-          disabled={loading}
-          activeOpacity={0.8}
-          style={{
-            backgroundColor: colors.brand, borderRadius: radius.md,
-            paddingVertical: spacing.lg, alignItems: 'center',
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-              {t('auth.createAccount')}
-            </Text>
-          )}
-        </TouchableOpacity>
+          label={t('auth.createAccount')}
+          loading={loading}
+        />
 
         {/* Back to Login */}
         <View style={{ flexDirection: 'row', justifyContent: 'center', marginTop: spacing['3xl'], gap: spacing.xs }}>

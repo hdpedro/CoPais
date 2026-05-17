@@ -2302,6 +2302,23 @@ export type TranslationKey =
   | "trial.expiredBody"
   | "trial.expiredTitle"
   | "trial.statusDaysRemaining"
+  | "validation.field.amountInvalid"
+  | "validation.field.amountMustBePositive"
+  | "validation.field.amountRequired"
+  | "validation.field.birthDateFuture"
+  | "validation.field.birthDateInvalid"
+  | "validation.field.birthDateRequired"
+  | "validation.field.birthDateTooOld"
+  | "validation.field.childNameRequired"
+  | "validation.field.descriptionRequired"
+  | "validation.field.emailInvalid"
+  | "validation.field.emailRequired"
+  | "validation.field.fullNameRequired"
+  | "validation.field.passwordRequired"
+  | "validation.field.passwordTooShort"
+  | "validation.field.passwordTooShort8"
+  | "validation.field.passwordsMismatch"
+  | "validation.field.titleRequired"
   | "whatsapp.changeNumber"
   | "whatsapp.codeSent"
   | "whatsapp.codeSentTo"
@@ -4613,6 +4630,23 @@ export const TRANSLATION_KEYS = [
   "trial.expiredBody",
   "trial.expiredTitle",
   "trial.statusDaysRemaining",
+  "validation.field.amountInvalid",
+  "validation.field.amountMustBePositive",
+  "validation.field.amountRequired",
+  "validation.field.birthDateFuture",
+  "validation.field.birthDateInvalid",
+  "validation.field.birthDateRequired",
+  "validation.field.birthDateTooOld",
+  "validation.field.childNameRequired",
+  "validation.field.descriptionRequired",
+  "validation.field.emailInvalid",
+  "validation.field.emailRequired",
+  "validation.field.fullNameRequired",
+  "validation.field.passwordRequired",
+  "validation.field.passwordTooShort",
+  "validation.field.passwordTooShort8",
+  "validation.field.passwordsMismatch",
+  "validation.field.titleRequired",
   "whatsapp.changeNumber",
   "whatsapp.codeSent",
   "whatsapp.codeSentTo",

@@ -160,6 +160,9 @@ export default function CheckinScreen() {
                     <TouchableOpacity
                       key={c.value}
                       onPress={() => setCategory(c.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={CAT_LABELS[c.value] || c.value}
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                         backgroundColor: active ? colors.brand : colors.bg,
@@ -182,6 +185,9 @@ export default function CheckinScreen() {
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                     <TouchableOpacity
                       onPress={() => setChildId(null)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: childId === null }}
+                      accessibilityLabel="Geral (sem criança específica)"
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                         backgroundColor: childId === null ? colors.brand : colors.bg,
@@ -196,6 +202,9 @@ export default function CheckinScreen() {
                         <TouchableOpacity
                           key={c.id}
                           onPress={() => setChildId(c.id)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: active }}
+                          accessibilityLabel={c.full_name}
                           style={{
                             paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                             backgroundColor: active ? colors.brand : colors.bg,

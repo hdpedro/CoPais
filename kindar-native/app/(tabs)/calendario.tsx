@@ -241,6 +241,7 @@ export default function CalendarScreen() {
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/escala'); }}
                 hitSlop={6}
+                accessibilityRole="button"
                 accessibilityLabel="Configurar escala de guarda"
                 style={{
                   width: 40, height: 40, borderRadius: 12,
@@ -256,6 +257,7 @@ export default function CalendarScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/ferias'); }}
                 hitSlop={6}
                 testID="calendar-fab-ferias"
+                accessibilityRole="button"
                 accessibilityLabel="Adicionar período de férias"
                 style={{
                   width: 40, height: 40, borderRadius: 12,
@@ -270,6 +272,7 @@ export default function CalendarScreen() {
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/novo'); }}
               hitSlop={6}
               testID="calendar-fab-novo"
+              accessibilityRole="button"
               accessibilityLabel="Novo evento"
               style={{
                 width: 40, height: 40, borderRadius: 12,
@@ -968,6 +971,7 @@ export default function CalendarScreen() {
                 return (
                   <Pressable
                     key={e.id + '-' + i}
+                    accessibilityRole="button"
                     accessibilityLabel={`Abrir ${e.title}`}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -1056,6 +1060,7 @@ export default function CalendarScreen() {
                   width: 50, backgroundColor: colors.bgSurface, borderRadius: radius.md,
                   paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center',
                 }}
+                accessibilityRole="button"
                 accessibilityLabel="Nova atividade recorrente"
               >
                 <Ionicons name="repeat" size={18} color={colors.text} />
@@ -1071,7 +1076,8 @@ export default function CalendarScreen() {
                   width: 50, backgroundColor: colors.bgSurface, borderRadius: radius.md,
                   paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center',
                 }}
-                accessibilityLabel="Registrar evento de saude"
+                accessibilityRole="button"
+                accessibilityLabel="Registrar evento de saúde"
               >
                 <Ionicons name="medkit-outline" size={18} color={colors.text} />
               </TouchableOpacity>

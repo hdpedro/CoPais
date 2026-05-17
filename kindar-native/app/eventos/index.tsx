@@ -124,6 +124,9 @@ export default function EventosScreen() {
       activeOpacity={0.7}
       onPress={() => openEditor(item)}
       onLongPress={() => confirmDelete(item)}
+      accessibilityRole="button"
+      accessibilityLabel={`Editar evento: ${item.title}`}
+      accessibilityHint="Toque para editar, pressione para remover"
       style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
     >
       <View style={{ width: 40, height: 40, borderRadius: 12, backgroundColor: `${colors.secondary}15`, alignItems: 'center', justifyContent: 'center' }}>
@@ -163,7 +166,11 @@ export default function EventosScreen() {
                 Editar evento
               </Text>
               {editing ? (
-                <TouchableOpacity onPress={() => confirmDelete(editing)}>
+                <TouchableOpacity
+                  onPress={() => confirmDelete(editing)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remover evento"
+                >
                   <Ionicons name="trash-outline" size={22} color={colors.error} />
                 </TouchableOpacity>
               ) : null}
@@ -192,10 +199,12 @@ export default function EventosScreen() {
               {timeHHMM ? (
                 <TouchableOpacity
                   onPress={() => setTimeHHMM(null)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remover horário, marcar como dia inteiro"
                   style={{ alignSelf: 'flex-start', marginBottom: spacing.md }}
                 >
                   <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>
-                    Remover horario (evento de dia inteiro)
+                    Remover horário (evento de dia inteiro)
                   </Text>
                 </TouchableOpacity>
               ) : null}

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView,
-  Platform, ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -10,6 +10,7 @@ import { supabase } from 'src/lib/supabase';
 import { translateAuthError } from 'src/lib/auth-errors';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
@@ -52,20 +53,12 @@ export default function ForgotPasswordScreen() {
         <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md, lineHeight: 22 }}>
           Verifique sua caixa de entrada para redefinir a senha.
         </Text>
-        <TouchableOpacity
+        <PrimaryButton
           onPress={() => router.replace('/auth/login')}
-          accessibilityRole="button"
-          accessibilityLabel="Voltar ao Login"
-          style={{
-            backgroundColor: colors.brand, borderRadius: radius.md,
-            paddingVertical: spacing.lg, paddingHorizontal: spacing['3xl'],
-            marginTop: spacing['3xl'],
-          }}
-        >
-          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-            Voltar ao Login
-          </Text>
-        </TouchableOpacity>
+          label="Voltar ao Login"
+          fullWidth={false}
+          style={{ marginTop: spacing['3xl'], paddingHorizontal: spacing['3xl'] }}
+        />
       </View>
     );
   }
@@ -128,27 +121,11 @@ export default function ForgotPasswordScreen() {
           />
         </View>
 
-        <TouchableOpacity
+        <PrimaryButton
           onPress={handleReset}
-          disabled={loading}
-          activeOpacity={0.8}
-          accessibilityRole="button"
-          accessibilityLabel="Enviar link"
-          accessibilityState={{ disabled: loading, busy: loading }}
-          style={{
-            backgroundColor: colors.brand, borderRadius: radius.md,
-            paddingVertical: spacing.lg, alignItems: 'center',
-            opacity: loading ? 0.7 : 1,
-          }}
-        >
-          {loading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-              Enviar link
-            </Text>
-          )}
-        </TouchableOpacity>
+          label="Enviar link"
+          loading={loading}
+        />
       </View>
     </KeyboardAvoidingView>
   );

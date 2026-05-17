@@ -145,6 +145,9 @@ export default function NotasScreen() {
               activeOpacity={0.8}
               onPress={() => openEdit(item)}
               onLongPress={() => handleDelete(item)}
+              accessibilityRole="button"
+              accessibilityLabel={`Editar nota: ${item.title}`}
+              accessibilityHint="Toque para editar, pressione para remover"
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.lg,
                 padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
@@ -183,7 +186,11 @@ export default function NotasScreen() {
                 {editing ? 'Editar nota' : 'Nova nota'}
               </Text>
               {editing ? (
-                <TouchableOpacity onPress={() => { setComposerOpen(false); handleDelete(editing); }}>
+                <TouchableOpacity
+                  onPress={() => { setComposerOpen(false); handleDelete(editing); }}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remover nota"
+                >
                   <Ionicons name="trash-outline" size={22} color={colors.error} />
                 </TouchableOpacity>
               ) : null}
@@ -198,6 +205,9 @@ export default function NotasScreen() {
                     <TouchableOpacity
                       key={c.value}
                       onPress={() => setCategory(c.value)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={c.label}
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                         backgroundColor: active ? `${c.color}20` : colors.bg,

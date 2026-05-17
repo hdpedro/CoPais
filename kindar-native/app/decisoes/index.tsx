@@ -142,6 +142,8 @@ export default function DecisoesScreen() {
       <TouchableOpacity
         activeOpacity={0.85}
         onPress={() => router.push({ pathname: '/decisoes/[id]', params: { id: d.id } } as never)}
+        accessibilityRole="button"
+        accessibilityLabel={`Abrir decisão: ${d.title}`}
         style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.xl,
           padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
@@ -218,6 +220,8 @@ export default function DecisoesScreen() {
         {isMine && isOpen && ((d.yesCount || 0) + (d.noCount || 0) + (d.abstainCount || 0) > 0) ? (
           <TouchableOpacity
             onPress={() => handleClose(d)}
+            accessibilityRole="button"
+            accessibilityLabel="Encerrar votação"
             style={{
               marginTop: spacing.sm, alignSelf: 'flex-start',
               paddingVertical: 4, paddingHorizontal: spacing.sm,
@@ -307,6 +311,9 @@ export default function DecisoesScreen() {
                   <TouchableOpacity
                     key={p.id}
                     onPress={() => setNewDeadline(computed)}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={p.label}
                     style={{
                       paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
                       borderRadius: radius.md,
@@ -332,6 +339,9 @@ export default function DecisoesScreen() {
                     <TouchableOpacity
                       key={k}
                       onPress={() => setNewCategory(k)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={m.label}
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
                         borderRadius: radius.md,
@@ -369,6 +379,9 @@ function VoteButton({ label, color, filled, onPress, disabled }: { label: string
     <TouchableOpacity
       disabled={disabled}
       onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`Votar ${label}`}
+      accessibilityState={{ disabled }}
       style={{
         flex: 1, paddingVertical: 10, borderRadius: radius.md,
         backgroundColor: filled ? color : 'transparent',

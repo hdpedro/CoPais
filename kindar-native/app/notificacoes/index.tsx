@@ -109,6 +109,9 @@ export default function NotificacoesScreen() {
     <TouchableOpacity
       onPress={() => handleTap(item)}
       activeOpacity={0.75}
+      accessibilityRole="button"
+      accessibilityLabel={`${item.is_read ? 'Notificação lida' : 'Notificação não lida'}: ${item.title}`}
+      accessibilityHint={item.message || undefined}
       style={{
         backgroundColor: item.is_read ? colors.bgElevated : 'rgba(59,130,246,0.06)',
         borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm,
@@ -170,7 +173,12 @@ export default function NotificacoesScreen() {
         flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
       }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flex: 1 }}>
-          <TouchableOpacity onPress={() => router.back()} hitSlop={8}>
+          <TouchableOpacity
+            onPress={() => router.back()}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar"
+          >
             <Ionicons name="chevron-back" size={24} color={colors.text} />
           </TouchableOpacity>
           <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text }}>
@@ -178,7 +186,14 @@ export default function NotificacoesScreen() {
           </Text>
         </View>
         {hasUnread ? (
-          <TouchableOpacity onPress={handleMarkAllRead} disabled={markingAll} hitSlop={8}>
+          <TouchableOpacity
+            onPress={handleMarkAllRead}
+            disabled={markingAll}
+            hitSlop={8}
+            accessibilityRole="button"
+            accessibilityLabel={t('notifications.markAllRead')}
+            accessibilityState={{ disabled: markingAll, busy: markingAll }}
+          >
             <Text style={{
               fontSize: 13, color: colors.brand,
               fontWeight: font.weights.semibold,

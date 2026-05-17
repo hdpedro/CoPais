@@ -173,6 +173,8 @@ export default function PricingScreen() {
             {Platform.OS === 'ios' ? (
               <TouchableOpacity
                 onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}
+                accessibilityRole="link"
+                accessibilityLabel="Gerenciar assinatura nas configurações da Apple"
                 style={{ marginTop: spacing.md }}
               >
                 <Text style={{ fontSize: font.sizes.sm, color: colors.brand, textDecorationLine: 'underline' }}>
@@ -210,6 +212,9 @@ export default function PricingScreen() {
                   onPress={() => handlePurchase(pkg)}
                   disabled={!!purchasingId}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Assinar plano ${product.title.replace(' (Kindar)', '')} por ${product.priceString} ${isAnnual ? 'por ano' : 'por mês'}`}
+                  accessibilityState={{ disabled: !!purchasingId, busy: buying }}
                   style={{
                     backgroundColor: colors.bgElevated,
                     borderRadius: radius.lg,
@@ -262,6 +267,9 @@ export default function PricingScreen() {
           <TouchableOpacity
             onPress={handleRestore}
             disabled={restoring || !!purchasingId}
+            accessibilityRole="button"
+            accessibilityLabel="Restaurar compras"
+            accessibilityState={{ disabled: restoring || !!purchasingId, busy: restoring }}
             style={{ alignItems: 'center', paddingVertical: spacing.md, marginBottom: spacing.sm }}
           >
             <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
@@ -279,12 +287,20 @@ export default function PricingScreen() {
             Apple ID &gt; Assinaturas. O pagamento sera cobrado na conta Apple ID na confirmacao da compra.
           </Text>
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.md, marginTop: spacing.sm }}>
-            <TouchableOpacity onPress={() => Linking.openURL(`${WEB_URL}/termos`)}>
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`${WEB_URL}/termos`)}
+              accessibilityRole="link"
+              accessibilityLabel="Termos de Uso"
+            >
               <Text style={{ fontSize: 11, color: colors.brand, textDecorationLine: 'underline' }}>
                 Termos de Uso
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => Linking.openURL(`${WEB_URL}/privacidade`)}>
+            <TouchableOpacity
+              onPress={() => Linking.openURL(`${WEB_URL}/privacidade`)}
+              accessibilityRole="link"
+              accessibilityLabel="Política de Privacidade"
+            >
               <Text style={{ fontSize: 11, color: colors.brand, textDecorationLine: 'underline' }}>
                 Privacidade
               </Text>

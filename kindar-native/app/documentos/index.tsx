@@ -193,7 +193,11 @@ export default function DocumentosScreen() {
             }}
           />
           {search ? (
-            <TouchableOpacity onPress={() => setSearch('')}>
+            <TouchableOpacity
+              onPress={() => setSearch('')}
+              accessibilityRole="button"
+              accessibilityLabel="Limpar busca"
+            >
               <Ionicons name="close-circle" size={16} color={colors.textMuted} />
             </TouchableOpacity>
           ) : null}
@@ -299,6 +303,9 @@ export default function DocumentosScreen() {
                     onPress={() => handleOpen(doc)}
                     onLongPress={() => handleDelete(doc)}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Abrir documento ${doc.name}`}
+                    accessibilityHint="Toque para abrir, pressione para excluir"
                     style={{
                       backgroundColor: colors.bgElevated,
                       borderRadius: radius.lg,
@@ -347,6 +354,8 @@ export default function DocumentosScreen() {
                         handleDelete(doc);
                       }}
                       hitSlop={10}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Excluir ${doc.name}`}
                       style={{ padding: 6, marginRight: -4 }}
                     >
                       <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
@@ -400,6 +409,9 @@ function Chip({
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
       style={{
         paddingHorizontal: spacing.md,
         paddingVertical: 6,

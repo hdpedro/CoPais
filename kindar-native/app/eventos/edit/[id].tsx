@@ -153,7 +153,7 @@ export default function EditEventScreen() {
         borderBottomWidth: 0.5,
         borderBottomColor: colors.borderLight,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="chevron-back" size={28} color={colors.brand} />
             <Text style={{ fontSize: font.sizes.md, color: colors.brand, marginLeft: -2, fontWeight: font.weights.medium }}>
@@ -164,7 +164,14 @@ export default function EditEventScreen() {
         <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
           Editar evento
         </Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving || !title.trim()} hitSlop={12}>
+        <TouchableOpacity
+          onPress={handleSave}
+          disabled={saving || !title.trim()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Salvar"
+          accessibilityState={{ disabled: saving || !title.trim(), busy: saving }}
+        >
           <Text style={{
             fontSize: font.sizes.md, fontWeight: font.weights.bold,
             color: (saving || !title.trim()) ? colors.textMuted : colors.brand,
@@ -283,6 +290,9 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
   return (
     <TouchableOpacity
       onPress={onPress}
+      accessibilityRole="radio"
+      accessibilityState={{ selected: active }}
+      accessibilityLabel={label}
       style={{
         paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.full,
         backgroundColor: active ? colors.brand : colors.bgElevated,

@@ -250,6 +250,8 @@ export default function FamiliaScreen() {
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/convite/enviar'); }}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Convidar alguém"
                 style={{
                   backgroundColor: colors.brand, borderRadius: radius.md,
                   paddingVertical: spacing.md, flexDirection: 'row',
@@ -259,7 +261,7 @@ export default function FamiliaScreen() {
               >
                 <Ionicons name="person-add-outline" size={18} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  Convidar alguem
+                  Convidar alguém
                 </Text>
               </TouchableOpacity>
 
@@ -309,6 +311,8 @@ export default function FamiliaScreen() {
                         setRoleModalMember(m);
                       }}
                       hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Mudar papel de ${m.fullName}`}
                       style={{ padding: 6 }}
                     >
                       <Ionicons name="swap-vertical-outline" size={20} color={colors.textSecondary} />
@@ -317,6 +321,8 @@ export default function FamiliaScreen() {
                       disabled={acting === m.userId}
                       onPress={() => handleRemoveMember(m)}
                       hitSlop={8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Remover ${m.fullName} do grupo`}
                       style={{ padding: 6 }}
                     >
                       <Ionicons name="remove-circle-outline" size={22} color={colors.error} />
@@ -339,6 +345,8 @@ export default function FamiliaScreen() {
                       key={c.id}
                       onPress={() => router.push({ pathname: '/criancas/[id]', params: { id: c.id } } as never)}
                       activeOpacity={0.8}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Abrir perfil de ${c.full_name}`}
                       style={{
                         backgroundColor: colors.bgElevated, borderRadius: radius.lg,
                         padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
@@ -395,6 +403,8 @@ export default function FamiliaScreen() {
                           disabled={acting === inv.id}
                           onPress={() => handleCancelInvite(inv)}
                           hitSlop={12}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Cancelar convite para ${inv.email}`}
                           style={{ padding: 4 }}
                         >
                           <Ionicons name="close-circle-outline" size={22} color={colors.error} />
@@ -439,6 +449,8 @@ export default function FamiliaScreen() {
               {!amAdmin || members.length > 1 ? (
                 <TouchableOpacity
                   onPress={handleLeaveGroup}
+                  accessibilityRole="button"
+                  accessibilityLabel="Sair do grupo"
                   style={{ marginTop: spacing.xl, paddingVertical: spacing.md, alignItems: 'center' }}
                 >
                   <Text style={{ color: colors.error, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
@@ -471,6 +483,10 @@ export default function FamiliaScreen() {
                   disabled={isCurrent}
                   onPress={() => roleModalMember && handleChangeRole(roleModalMember, r)}
                   activeOpacity={0.85}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: isCurrent, disabled: isCurrent }}
+                  accessibilityLabel={meta.label}
+                  accessibilityHint={ROLE_DESCRIPTIONS[r]}
                   style={{
                     flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md,
                     paddingVertical: spacing.md, paddingHorizontal: spacing.md,
@@ -505,6 +521,8 @@ export default function FamiliaScreen() {
 
             <TouchableOpacity
               onPress={() => setRoleModalMember(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Cancelar"
               style={{ marginTop: spacing.md, paddingVertical: spacing.md, alignItems: 'center' }}
             >
               <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>Cancelar</Text>

@@ -186,7 +186,12 @@ export default function AcordosScreen() {
                 </View>
               ) : null}
               {isMine ? (
-                <TouchableOpacity onPress={() => handleDelete(a)} style={{ alignSelf: 'flex-end', marginTop: spacing.sm, paddingVertical: 4, paddingHorizontal: 8 }}>
+                <TouchableOpacity
+                  onPress={() => handleDelete(a)}
+                  accessibilityRole="button"
+                  accessibilityLabel="Remover acordo"
+                  style={{ alignSelf: 'flex-end', marginTop: spacing.sm, paddingVertical: 4, paddingHorizontal: 8 }}
+                >
                   <Text style={{ fontSize: font.sizes.xs, color: colors.error }}>Remover</Text>
                 </TouchableOpacity>
               ) : null}
@@ -213,6 +218,9 @@ export default function AcordosScreen() {
                     <TouchableOpacity
                       key={k}
                       onPress={() => setNewCategory(k)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: active }}
+                      accessibilityLabel={m.label}
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                         backgroundColor: active ? `${m.color}20` : colors.bg,
@@ -254,6 +262,9 @@ export default function AcordosScreen() {
 
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setNewNonNegotiable(!newNonNegotiable); }}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: newNonNegotiable }}
+                accessibilityLabel="Marcar como inegociável"
                 style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg }}
                 activeOpacity={0.7}
               >

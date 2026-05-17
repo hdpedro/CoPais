@@ -56,7 +56,7 @@ export default function DeletarContaScreen() {
 
     Alert.alert(
       'Tem certeza absoluta?',
-      'Essa acao e irreversivel. Todos os seus dados serao apagados permanentemente.',
+      'Essa ação é irreversível. Todos os seus dados serão apagados permanentemente.',
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -155,14 +155,14 @@ export default function DeletarContaScreen() {
             fontSize: font.sizes.xl, fontWeight: font.weights.bold,
             color: colors.text, textAlign: 'center', marginBottom: spacing.sm,
           }}>
-            Esta acao e permanente
+            Esta ação é permanente
           </Text>
           <Text style={{
             fontSize: font.sizes.sm, color: colors.textSecondary,
             textAlign: 'center', lineHeight: 20,
           }}>
-            Depois de confirmada, nao e possivel reverter. Considere exportar seus dados antes
-            pelo email suporte@kindar.com.br.
+            Depois de confirmada, não é possível reverter. Considere exportar seus dados antes
+            pelo e-mail suporte@kindar.com.br.
           </Text>
         </View>
 
@@ -176,7 +176,7 @@ export default function DeletarContaScreen() {
             color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1,
             marginBottom: spacing.md,
           }}>
-            O que sera apagado
+            O que será apagado
           </Text>
           {WHAT_GETS_DELETED.map((item, i) => (
             <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.xs }}>
@@ -202,8 +202,8 @@ export default function DeletarContaScreen() {
                   Assinaturas Apple
                 </Text>
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, lineHeight: 18 }}>
-                  Se voce tem uma assinatura ativa via App Store, ela NAO e cancelada automaticamente
-                  com a delecao da conta. Cancele manualmente em Ajustes &gt; Apple ID &gt; Assinaturas
+                  Se você tem uma assinatura ativa via App Store, ela NÃO é cancelada automaticamente
+                  com a deleção da conta. Cancele manualmente em Ajustes &gt; Apple ID &gt; Assinaturas
                   &gt; Kindar.
                 </Text>
               </View>
@@ -252,7 +252,7 @@ export default function DeletarContaScreen() {
             {acknowledged ? <Ionicons name="checkmark" size={12} color="#fff" /> : null}
           </View>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, flex: 1, lineHeight: 18 }}>
-            Entendo que esta acao e irreversivel e apagara permanentemente todos os meus dados no Kindar.
+            Entendo que esta ação é irreversível e apagará permanentemente todos os meus dados no Kindar.
           </Text>
         </TouchableOpacity>
 

@@ -116,7 +116,12 @@ export default function EnviarConviteScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12}>
+        <TouchableOpacity
+          onPress={() => router.back()}
+          hitSlop={12}
+          accessibilityRole="button"
+          accessibilityLabel="Voltar"
+        >
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
@@ -138,6 +143,8 @@ export default function EnviarConviteScreen() {
             <TouchableOpacity
               onPress={() => handleShare(successToken)}
               activeOpacity={0.85}
+              accessibilityRole="button"
+              accessibilityLabel="Compartilhar link de convite"
               style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm }}
             >
               <Ionicons name="share-outline" size={20} color="#fff" />
@@ -147,6 +154,8 @@ export default function EnviarConviteScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setSuccessToken(null)}
+              accessibilityRole="button"
+              accessibilityLabel="Enviar outro convite"
               style={{ alignItems: 'center', marginTop: spacing.md }}
             >
               <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>
@@ -186,6 +195,10 @@ export default function EnviarConviteScreen() {
                     key={r.value}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setRole(r.value); }}
                     activeOpacity={0.85}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: active }}
+                    accessibilityLabel={r.label}
+                    accessibilityHint={r.desc}
                     style={{
                       backgroundColor: active ? `${colors.brand}10` : colors.bgElevated,
                       borderRadius: radius.md,
@@ -279,12 +292,16 @@ function InviteRow({ inv, onShare, onCancel, readonly }: { inv: Invitation; onSh
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
           <TouchableOpacity
             onPress={onShare}
+            accessibilityRole="button"
+            accessibilityLabel={`Compartilhar convite para ${inv.email}`}
             style={{ flex: 1, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: colors.brand, alignItems: 'center' }}
           >
             <Text style={{ color: '#fff', fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>Compartilhar</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onCancel}
+            accessibilityRole="button"
+            accessibilityLabel={`Cancelar convite para ${inv.email}`}
             style={{ paddingVertical: 8, paddingHorizontal: spacing.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderLight }}
           >
             <Text style={{ color: colors.textSecondary, fontSize: font.sizes.xs, fontWeight: font.weights.medium }}>Cancelar</Text>
