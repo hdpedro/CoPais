@@ -44,6 +44,12 @@ export default function LockScreen() {
 
   const tryUnlock = useCallback(async () => {
     if (!mountedRef.current) return;
+    // Guard reforçado em 2026-05-17: se já tem um prompt em voo (flag do
+    // store), nem chama requestUnlock — o store retornaria 'in_flight' mas
+    // assim evitamos até o overhead do call. Defesa contra cenários onde
+    // AppState piscadas (PostHog SDK, push register listener) podem
+    // disparar re-render do LockScreen com remount do useEffect.
+    if (useLock.getState().isAuthenticating) return;
     setErrorMsg(null);
 
     const cap = capability ?? await getBiometricCapability();

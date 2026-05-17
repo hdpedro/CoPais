@@ -161,6 +161,20 @@ export const useLock = create<LockState>((set, get) => ({
   requestUnlock: async (promptMessage = 'Desbloquear Kindar') => {
     if (get().isAuthenticating) return { success: false, error: 'in_flight' };
     set({ isAuthenticating: true });
+
+    // Failsafe timeout (60s): se algo travar a Promise de
+    // biometricAuthenticate (PostHog AppState side-effect, app suspendido
+    // pelo iOS sem callback, native bridge stale, etc.), force-reset a flag
+    // pra evitar lock permanente. Padrão de "circuit breaker" pra prompts
+    // nativos. 60s é generoso — prompt biométrico raramente passa 10s.
+    const failsafeTimer = setTimeout(() => {
+      if (get().isAuthenticating) {
+        // eslint-disable-next-line no-console
+        console.warn('[lock] requestUnlock failsafe: 60s elapsed without resolve, force-resetting isAuthenticating');
+        set({ isAuthenticating: false });
+      }
+    }, 60_000);
+
     try {
       const result = await biometricAuthenticate(promptMessage);
       if (result.success) {
@@ -172,6 +186,7 @@ export const useLock = create<LockState>((set, get) => ({
       }
       return result;
     } finally {
+      clearTimeout(failsafeTimer);
       set({ isAuthenticating: false });
     }
   },

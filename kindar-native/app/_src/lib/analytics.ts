@@ -119,9 +119,18 @@ export function initAnalytics(): PostHog | null {
   try {
     const instance = new PostHog(key, {
       host,
-      // Lifecycle events ($app_opened / $app_backgrounded) give us DAU
-      // and MAU for free without instrumenting every screen.
-      captureAppLifecycleEvents: true,
+      // captureAppLifecycleEvents DESABILITADO em 2026-05-17 (regressão Face ID).
+      // O PostHog SDK adicionava AppState listener interno que disparava captura
+      // de $app_opened/$app_backgrounded em cada transição. Durante o prompt
+      // biométrico do iOS, o AppState pisca active→inactive→background→active.
+      // O listener interno do PostHog despertava flushes assíncronos que entravam
+      // em race com o auth dialog do LocalAuthentication, fazendo o app
+      // re-disparar o LockScreen em loop.
+      // Trade-off aceito: perdemos DAU/MAU "grátis" do PostHog. Vamos
+      // instrumentar manualmente via app_opened event no `_layout.tsx` se
+      // precisar dessa métrica. App-level lifecycle não vale o risco de
+      // quebrar o lock biométrico que é o "padrão WhatsApp" do app.
+      captureAppLifecycleEvents: false,
     });
     // Super-property: stamped on every event for clean cross-platform
     // breakdown alongside the PWA (`web`/`pwa`).
