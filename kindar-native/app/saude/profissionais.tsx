@@ -20,6 +20,7 @@ import { SkeletonList } from 'src/components/ui/Skeleton';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import { PhoneInput } from 'src/components/ui/MaskedInputs';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { formatCRM } from 'src/lib/format';
 
@@ -77,6 +78,14 @@ export default function ProfissionaisScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useCollabRealtime({
+    table: 'medical_professionals',
+    groupId: activeGroup?.groupId,
+    onChange: load,
+    displayLabel: 'profissional',
+    myUserId: userId,
+  });
 
   async function onRefresh() {
     setRefreshing(true);

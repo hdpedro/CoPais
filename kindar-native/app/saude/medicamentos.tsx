@@ -20,6 +20,7 @@ import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Med {
@@ -114,6 +115,14 @@ export default function MedicamentosScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useCollabRealtime({
+    table: 'active_medications',
+    groupId: activeGroup?.groupId,
+    onChange: load,
+    displayLabel: 'medicamento',
+    myUserId: userId,
+  });
 
   async function onRefresh() {
     setRefreshing(true);

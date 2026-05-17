@@ -17,6 +17,7 @@ import { DatePickerField, TimePickerField, dateToIso } from 'src/components/ui/D
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Appt { id: string; title: string; appointment_date: string; location: string | null; status: string; notes: string | null; childName: string; profName: string | null; child_id: string; }
@@ -60,6 +61,14 @@ export default function ConsultasScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useCollabRealtime({
+    table: 'medical_appointments',
+    groupId: activeGroup?.groupId,
+    onChange: load,
+    displayLabel: 'consulta',
+    myUserId: userId,
+  });
 
   async function handleCreate() {
     if (!title.trim() || !selectedChild || !userId || !activeGroup) return;

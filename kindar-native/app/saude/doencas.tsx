@@ -12,6 +12,7 @@ import { useAuth } from 'src/store/auth';
 import { fetchIllnesses, resolveIllness, addEvolutionQuick, type IllnessEpisode } from 'src/services/health';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
+import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const SEV_META: Record<string, { label: string; color: string }> = {
@@ -45,6 +46,14 @@ export default function DoencasScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useCollabRealtime({
+    table: 'illness_episodes',
+    groupId: activeGroup?.groupId,
+    onChange: load,
+    displayLabel: 'episódio',
+    myUserId: profile?.id,
+  });
 
   async function onRefresh() {
     setRefreshing(true);

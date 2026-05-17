@@ -25,6 +25,7 @@ import { SkeletonList } from 'src/components/ui/Skeleton';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { DecimalInput } from 'src/components/ui/MaskedInputs';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface GrowthRecord {
@@ -73,6 +74,14 @@ export default function CrescimentoScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  useCollabRealtime({
+    table: 'growth_records',
+    groupId: activeGroup?.groupId,
+    onChange: load,
+    displayLabel: 'medida',
+    myUserId: userId,
+  });
 
   async function onRefresh() {
     setRefreshing(true);
