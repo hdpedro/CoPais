@@ -17,6 +17,7 @@ import { useAuth } from 'src/store/auth';
 import { supabase } from 'src/lib/supabase';
 import { fetchChildren, type Child } from 'src/services/children';
 import ChildPicker from 'src/components/ui/ChildPicker';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -40,7 +41,7 @@ interface InferenceResponse {
   }>;
 }
 
-type Step = 'upload' | 'processing' | 'preview';
+type Step = 'upload' | 'confirm' | 'processing' | 'preview';
 
 export default function ReceitaScreen() {
   const insets = useSafeAreaInsets();
@@ -65,28 +66,42 @@ export default function ReceitaScreen() {
     }
   }, [activeGroup]);
 
+  // Asset capturado mas ainda não enviado pro OCR — usado no step="confirm".
+  const [pendingAsset, setPendingAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+
   const pickImage = useCallback(async (mode: 'camera' | 'library') => {
-    if (!selectedChildId) { Alert.alert('Selecione uma crianca', 'Escolha a crianca antes de fotografar'); return; }
+    if (!selectedChildId) { Alert.alert('Selecione uma criança', 'Escolha a criança antes de fotografar'); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const perm = mode === 'camera'
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permissao negada', mode === 'camera' ? 'Permissao de camera necessaria' : 'Permissao de galeria necessaria');
+      Alert.alert('Permissão negada', mode === 'camera' ? 'Precisamos da permissão da câmera' : 'Precisamos da permissão da galeria');
       return;
     }
-    // base64 not needed — we POST the file as multipart/form-data to match
-    // the PWA endpoint's contract (`request.formData()` reads `file`+`childId`).
     const result = mode === 'camera'
       ? await ImagePicker.launchCameraAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 })
       : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ImagePicker.MediaTypeOptions.Images, quality: 0.8 });
 
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
+    // Em vez de processar direto: vai pro step="confirm" pra usuário revisar
+    // a foto antes de gastar tempo + cota de OCR.
     setImageUri(asset.uri);
+    setPendingAsset(asset);
+    setStep('confirm');
+    setError(null);
+  }, [selectedChildId]);
+
+  /**
+   * Confirma processamento da foto capturada. Disparado pelo botão "Processar"
+   * no step="confirm".
+   */
+  const processConfirmedImage = useCallback(async () => {
+    if (!pendingAsset || !selectedChildId) return;
+    const asset = pendingAsset;
     setStep('processing');
     setError(null);
-
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Sessão expirada');
@@ -150,9 +165,19 @@ export default function ReceitaScreen() {
       setError(err.message || 'Erro ao processar receita');
       setStep('upload');
       setImageUri(null);
+      setPendingAsset(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [selectedChildId]);
+  }, [pendingAsset, selectedChildId]);
+
+  /** Cancela o asset capturado e volta pro step upload (refotografar). */
+  const retakePhoto = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setImageUri(null);
+    setPendingAsset(null);
+    setStep('upload');
+    setError(null);
+  }, []);
 
   async function handleSave() {
     if (!activeGroup || !selectedChildId || !inferenceId) {
@@ -288,6 +313,37 @@ export default function ReceitaScreen() {
               </Text>
             </TouchableOpacity>
           </>
+        ) : null}
+
+        {step === 'confirm' && imageUri ? (
+          <View style={{ marginBottom: spacing.lg }}>
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm }}>
+              A foto está nítida?
+            </Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.md, lineHeight: 20 }}>
+              Confira se o texto da receita está legível antes de processar. Fotos tremidas ou escuras geram resultado ruim.
+            </Text>
+            <Image
+              source={{ uri: imageUri }}
+              accessibilityLabel="Receita fotografada — revise antes de processar"
+              style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: radius.lg, marginBottom: spacing.lg, backgroundColor: colors.bgElevated }}
+              resizeMode="contain"
+            />
+            <View style={{ gap: spacing.sm }}>
+              <PrimaryButton
+                label="Processar receita"
+                onPress={processConfirmedImage}
+                testID="receita-process-button"
+                accessibilityHint="Envia a foto pra IA extrair os medicamentos"
+              />
+              <PrimaryButton
+                label="Refotografar"
+                onPress={retakePhoto}
+                variant="secondary"
+                testID="receita-retake-button"
+              />
+            </View>
+          </View>
         ) : null}
 
         {step === 'processing' ? (

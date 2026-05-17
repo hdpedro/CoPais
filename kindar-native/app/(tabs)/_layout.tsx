@@ -2,6 +2,7 @@ import { Tabs } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as Haptics from 'expo-haptics';
 
 // Brand colors inlined to bypass an EAS-side eager-bundle resolver bug
 // that fails to resolve "../../src/design-system/tokens" from this file
@@ -60,6 +61,17 @@ export default function TabLayout() {
 
   return (
     <Tabs
+      screenListeners={{
+        // Haptic Light no tap em qualquer tab — padrão iOS Cash/Linear/Notion.
+        // tabPress dispara antes da navegação efetiva; não disparamos ao
+        // re-tap na mesma tab (evita haptic redundante em scroll-to-top).
+        tabPress: (e) => {
+          // expo-router não expõe se é re-tap diretamente; aceitamos disparar
+          // sempre — usuário sente o feedback consistente.
+          if (e.defaultPrevented) return;
+          Haptics.selectionAsync();
+        },
+      }}
       screenOptions={{
         headerShown: false,
         tabBarStyle: {

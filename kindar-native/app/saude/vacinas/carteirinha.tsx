@@ -25,6 +25,7 @@ import { supabase } from 'src/lib/supabase';
 import { apiFetch } from 'src/lib/api-fetch';
 import { fetchChildren, type Child } from 'src/services/children';
 import ChildPicker from 'src/components/ui/ChildPicker';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -38,7 +39,7 @@ interface ParsedVaccine {
   include: boolean;
 }
 
-type Step = 'upload' | 'processing' | 'preview';
+type Step = 'upload' | 'confirm' | 'processing' | 'preview';
 
 export default function CarteirinhaScreen() {
   const insets = useSafeAreaInsets();
@@ -59,6 +60,8 @@ export default function CarteirinhaScreen() {
     });
   }, [activeGroup]);
 
+  const [pendingAsset, setPendingAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+
   const pickImage = useCallback(async (mode: 'camera' | 'library') => {
     if (!selectedChildId) {
       Alert.alert('Selecione uma criança', 'Escolha a criança antes de fotografar a carteirinha.');
@@ -69,7 +72,7 @@ export default function CarteirinhaScreen() {
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permissão negada', mode === 'camera' ? 'Permissão de câmera necessária' : 'Permissão de galeria necessária');
+      Alert.alert('Permissão negada', mode === 'camera' ? 'Precisamos da permissão da câmera' : 'Precisamos da permissão da galeria');
       return;
     }
     const result = mode === 'camera'
@@ -78,10 +81,18 @@ export default function CarteirinhaScreen() {
     if (result.canceled || !result.assets?.[0]) return;
     const asset = result.assets[0];
 
+    // step="confirm" pra usuário revisar antes de gastar cota OCR
     setImageUri(asset.uri);
+    setPendingAsset(asset);
+    setStep('confirm');
+    setError(null);
+  }, [selectedChildId]);
+
+  const processConfirmedImage = useCallback(async () => {
+    if (!pendingAsset) return;
+    const asset = pendingAsset;
     setStep('processing');
     setError(null);
-
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('Sessão expirada');
@@ -129,9 +140,19 @@ export default function CarteirinhaScreen() {
       setError(err.message || 'Erro ao ler a carteirinha');
       setStep('upload');
       setImageUri(null);
+      setPendingAsset(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [selectedChildId]);
+  }, [pendingAsset]);
+
+  /** Cancela o asset e volta pro step upload. */
+  const retakePhoto = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setImageUri(null);
+    setPendingAsset(null);
+    setStep('upload');
+    setError(null);
+  }, []);
 
   function updateVaccine(idx: number, field: keyof ParsedVaccine, value: string | boolean | null) {
     setVaccines(prev => prev.map((v, i) => (i === idx ? { ...v, [field]: value } : v)));
@@ -255,6 +276,37 @@ export default function CarteirinhaScreen() {
               <Text style={{ color: colors.text, fontSize: font.sizes.md, fontWeight: font.weights.medium }}>Escolher da galeria</Text>
             </TouchableOpacity>
           </>
+        ) : null}
+
+        {step === 'confirm' && imageUri ? (
+          <View style={{ marginBottom: spacing.lg }}>
+            <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm }}>
+              A foto está nítida?
+            </Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.md, lineHeight: 20 }}>
+              Confira se as vacinas e datas estão legíveis. Fotos tremidas ou escuras geram resultado incompleto.
+            </Text>
+            <Image
+              source={{ uri: imageUri }}
+              accessibilityLabel="Carteirinha fotografada — revise antes de processar"
+              style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: radius.lg, marginBottom: spacing.lg, backgroundColor: colors.bgElevated }}
+              resizeMode="contain"
+            />
+            <View style={{ gap: spacing.sm }}>
+              <PrimaryButton
+                label="Processar carteirinha"
+                onPress={processConfirmedImage}
+                testID="carteirinha-process-button"
+                accessibilityHint="Envia a foto pra IA identificar vacinas"
+              />
+              <PrimaryButton
+                label="Refotografar"
+                onPress={retakePhoto}
+                variant="secondary"
+                testID="carteirinha-retake-button"
+              />
+            </View>
+          </View>
         ) : null}
 
         {step === 'processing' ? (

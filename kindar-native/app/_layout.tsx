@@ -1,7 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, Text, Linking, AppState } from 'react-native';
+import { View, ActivityIndicator, Text, Linking, AppState, Animated } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Updates from 'expo-updates';
 import { useAuth } from 'src/store/auth';
@@ -108,23 +108,7 @@ export default function RootLayout() {
   }, []);
 
   if (isLoading) {
-    return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <View style={{
-          width: 64, height: 64, borderRadius: 20,
-          backgroundColor: colors.brandLight,
-          borderWidth: 1, borderColor: colors.border,
-          alignItems: 'center', justifyContent: 'center', marginBottom: 16,
-        }}>
-          <Text style={{ fontSize: 32 }}>🏠</Text>
-        </View>
-        <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text, letterSpacing: -0.5 }}>
-          Kindar
-        </Text>
-        <ActivityIndicator size="small" color={colors.brand} style={{ marginTop: 24 }} />
-        <StatusBar style="dark" />
-      </View>
-    );
+    return <SplashScreen />;
   }
 
   return (
@@ -181,5 +165,61 @@ export default function RootLayout() {
         <StatusBar style="dark" />
       </GestureHandlerRootView>
     </ErrorBoundary>
+  );
+}
+
+/**
+ * Splash interno do app — vive enquanto auth/i18n/etc. estão hidratando.
+ * Não confundir com o native splash do Expo (controlado por expo-splash-screen
+ * + app.json/splash), que aparece ANTES do React montar. Este aqui é o fallback
+ * "JS já bootou mas estado ainda não chegou".
+ *
+ * Antes era um hard cut quando isLoading virava false. Agora fazemos um fade-in
+ * de 280ms ao montar pra suavizar a transição splash → dashboard. O fade-out
+ * acontece naturalmente quando isLoading vira false (React desmonta e remonta
+ * o conteúdo abaixo).
+ */
+function SplashScreen() {
+  // Lazy init via useState — evita ESLint react-hooks/refs (acessar .current
+  // durante render). Animated.Value é mutável, então o estado nunca muda.
+  const [opacity] = useState(() => new Animated.Value(0));
+  useEffect(() => {
+    Animated.timing(opacity, {
+      toValue: 1,
+      duration: 280,
+      useNativeDriver: true,
+    }).start();
+  }, [opacity]);
+  return (
+    <Animated.View
+      style={{
+        flex: 1,
+        backgroundColor: colors.bg,
+        alignItems: 'center',
+        justifyContent: 'center',
+        opacity,
+      }}
+    >
+      <View
+        style={{
+          width: 64,
+          height: 64,
+          borderRadius: 20,
+          backgroundColor: colors.brandLight,
+          borderWidth: 1,
+          borderColor: colors.border,
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginBottom: 16,
+        }}
+      >
+        <Text style={{ fontSize: 32 }}>🏠</Text>
+      </View>
+      <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text, letterSpacing: -0.5 }}>
+        Kindar
+      </Text>
+      <ActivityIndicator size="small" color={colors.brand} style={{ marginTop: 24 }} />
+      <StatusBar style="dark" />
+    </Animated.View>
   );
 }
