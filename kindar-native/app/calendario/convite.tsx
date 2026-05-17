@@ -17,6 +17,7 @@ import { useAuth } from 'src/store/auth';
 import { supabase } from 'src/lib/supabase';
 import { createEvent } from 'src/services/events';
 import { fetchChildren, type Child } from 'src/services/children';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -372,22 +373,15 @@ export default function InviteParserScreen() {
               }}
             />
 
-            <TouchableOpacity
-              disabled={saving || !title.trim()}
-              onPress={handleSave}
-              activeOpacity={0.85}
-              style={{
-                backgroundColor: colors.brand, borderRadius: radius.md,
-                paddingVertical: spacing.md + 2, alignItems: 'center',
-                opacity: saving || !title.trim() ? 0.5 : 1, marginBottom: spacing.sm,
-              }}
-            >
-              {saving ? <ActivityIndicator color="#fff" /> : (
-                <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  Criar evento
-                </Text>
-              )}
-            </TouchableOpacity>
+            <View style={{ marginBottom: spacing.sm }}>
+              <PrimaryButton
+                label="Criar evento"
+                onPress={handleSave}
+                loading={saving}
+                disabled={!title.trim()}
+                testID="convite-save-button"
+              />
+            </View>
             <TouchableOpacity onPress={handleRetry} style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
               <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Tentar com outra foto</Text>
             </TouchableOpacity>

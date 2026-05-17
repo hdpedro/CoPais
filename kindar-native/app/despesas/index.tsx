@@ -42,6 +42,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
 
@@ -735,11 +736,16 @@ function EditExpenseModal({ expense, onClose, onSaved }: {
                 <TouchableOpacity
                   key={c.value}
                   onPress={() => setCategory(c.value)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: category === c.value }}
+                  accessibilityLabel={c.label}
                   style={{
-                    paddingHorizontal: spacing.md, paddingVertical: spacing.xs, borderRadius: 999,
+                    paddingHorizontal: spacing.md, paddingVertical: 10, minHeight: 36, borderRadius: 999,
                     borderWidth: 1, borderColor: category === c.value ? colors.brand : colors.borderLight,
                     backgroundColor: category === c.value ? `${colors.brand}15` : 'transparent',
+                    justifyContent: 'center',
                   }}
+                  hitSlop={8}
                 >
                   <Text style={{ fontSize: 12, color: category === c.value ? colors.brand : colors.textSecondary }}>{c.icon} {c.label}</Text>
                 </TouchableOpacity>
@@ -752,27 +758,29 @@ function EditExpenseModal({ expense, onClose, onSaved }: {
                 <TouchableOpacity
                   key={p}
                   onPress={() => setPriority(p)}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: priority === p }}
+                  accessibilityLabel={p === 'info' ? 'Info' : p === 'important' ? 'Importante' : 'Urgente'}
                   style={{
-                    flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md,
+                    flex: 1, paddingVertical: 12, minHeight: 44, borderRadius: radius.md,
                     borderWidth: 1, borderColor: priority === p ? colors.brand : colors.borderLight,
                     backgroundColor: priority === p ? `${colors.brand}15` : 'transparent',
-                    alignItems: 'center',
+                    alignItems: 'center', justifyContent: 'center',
                   }}
                 >
-                  <Text style={{ fontSize: 11, fontWeight: '600', color: priority === p ? colors.brand : colors.textSecondary }}>
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: priority === p ? colors.brand : colors.textSecondary }}>
                     {p === 'info' ? 'Info' : p === 'important' ? 'Importante' : 'Urgente'}
                   </Text>
                 </TouchableOpacity>
               ))}
             </View>
 
-            <TouchableOpacity
-              disabled={saving}
+            <PrimaryButton
+              label="Salvar"
               onPress={handleSave}
-              style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', opacity: saving ? 0.5 : 1 }}
-            >
-              {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Salvar</Text>}
-            </TouchableOpacity>
+              loading={saving}
+              testID="despesa-inline-save"
+            />
           </ScrollView>
         </View>
       </KeyboardAvoidingView>

@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { createChild } from 'src/services/children';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 // Schema check (CHECK sex IN ('M','F')) lives on `children.sex`. Native must
@@ -221,22 +222,13 @@ export default function NovaCriancaScreen() {
         />
 
         {/* Save button */}
-        <TouchableOpacity
-          disabled={saving || !fullName.trim() || !birthDate}
+        <PrimaryButton
+          label="Adicionar criança"
           onPress={handleSave}
-          activeOpacity={0.85}
-          style={{
-            backgroundColor: colors.brand, borderRadius: radius.md,
-            paddingVertical: spacing.md + 2, alignItems: 'center',
-            opacity: saving || !fullName.trim() || !birthDate ? 0.5 : 1,
-          }}
-        >
-          {saving ? <ActivityIndicator color="#fff" /> : (
-            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Adicionar criança
-            </Text>
-          )}
-        </TouchableOpacity>
+          loading={saving}
+          disabled={!fullName.trim() || !birthDate}
+          testID="crianca-save-button"
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

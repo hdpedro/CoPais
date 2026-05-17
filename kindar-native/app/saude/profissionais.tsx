@@ -347,8 +347,14 @@ function ProfessionalDetailModal({
 
   return (
     <Modal visible animationType="slide" transparent onRequestClose={onClose}>
-      <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}>
-        <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingBottom: spacing['2xl'] }}>
+      <TouchableOpacity
+        activeOpacity={1}
+        accessibilityLabel="Fechar"
+        accessibilityRole="button"
+        onPress={onClose}
+        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' }}
+      >
+        <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, paddingBottom: spacing['2xl'] }}>
           {/* Drag handle */}
           <View style={{ alignItems: 'center', paddingTop: spacing.sm }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight }} />
@@ -422,8 +428,8 @@ function ProfessionalDetailModal({
               <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>Editar</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }

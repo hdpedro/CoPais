@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/alt-text */
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator, KeyboardAvoidingView, Platform, Image, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Image, Alert } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -12,6 +12,7 @@ import { EXPENSE_CATEGORIES } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { CurrencyInput } from 'src/components/ui/MaskedInputs';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 interface ChildOption { id: string; full_name: string; }
@@ -279,10 +280,13 @@ export default function NovaExpenseScreen() {
           </View>
         )}
 
-        <TouchableOpacity onPress={handleSave} disabled={saving || !description.trim() || !amount}
-          style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.lg, alignItems: 'center', opacity: saving ? 0.5 : 1 }}>
-          {saving ? <ActivityIndicator color="#fff" /> : <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>Salvar</Text>}
-        </TouchableOpacity>
+        <PrimaryButton
+          label="Salvar despesa"
+          onPress={handleSave}
+          loading={saving}
+          disabled={!description.trim() || !amount}
+          testID="despesa-save-button"
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

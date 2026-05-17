@@ -1577,7 +1577,22 @@
     "dashboardExpensesHint": "Pendientes de aprobación o solicitud de cancelación.",
     "dashboardSaudeUnreadOne": "1 nuevo registro de salud",
     "dashboardSaudeUnreadOther": "{count} nuevos registros de salud",
-    "dashboardSaudeHint": "Citas, enfermedades, medicamentos, alergias o vacunas."
+    "dashboardSaudeHint": "Citas, enfermedades, medicamentos, alergias o vacunas.",
+    "realtime": {
+      "addedAlergiaToast": "Tu co-responsable agregó una alergia",
+      "addedConsultaToast": "Tu co-responsable agregó una consulta",
+      "addedMedicamentoToast": "Tu co-responsable agregó un medicamento",
+      "addedEpisodioToast": "Tu co-responsable agregó un episodio",
+      "addedVacinaToast": "Tu co-responsable agregó una vacuna",
+      "addedMedidaToast": "Tu co-responsable agregó una medición",
+      "addedProfissionalToast": "Tu co-responsable agregó un profesional",
+      "addedSintomaToast": "Tu co-responsable agregó un síntoma",
+      "addedReceitaToast": "Tu co-responsable agregó una receta",
+      "addedEventoToast": "Tu co-responsable agregó un evento",
+      "addedAtividadeToast": "Tu co-responsable agregó una actividad",
+      "addedDespesaToast": "Tu co-responsable agregó un gasto",
+      "addedNotaToast": "Tu co-responsable agregó una nota"
+    }
   },
   "schoolPage": {
     "subtitle": "Seguimiento de la rutina escolar y desarrollo de los niños.",
@@ -2446,6 +2461,26 @@
       "step3Body": "Configura la custodia — quién cuida en qué días.",
       "ctaButton": "Abrir Kindar",
       "footer": "Recibiste este correo porque creaste una cuenta en Kindar. Si no fuiste tú, ignora este mensaje."
+    }
+  },
+  "errors": {
+    "boundary": {
+      "networkTitle": "Problema de conexión",
+      "networkHint": "Verifica tu conexión a internet. Tus datos siguen guardados localmente.",
+      "storageTitle": "Sin espacio en el dispositivo",
+      "storageHint": "Tu teléfono puede tener poco almacenamiento. Intenta borrar fotos o apps que no usas.",
+      "permissionTitle": "Sin permiso",
+      "permissionHint": "Tu sesión puede haber expirado. Intenta iniciar sesión nuevamente.",
+      "renderingTitle": "Problema en la pantalla",
+      "renderingHint": "Hay un error en esta pantalla. Ya lo reportamos al equipo — lo arreglaremos pronto.",
+      "unknownTitle": "Algo salió mal",
+      "unknownHint": "Ocurrió un error inesperado. Ya lo reportamos al equipo para investigarlo.",
+      "btnRetry": "Intentar de nuevo",
+      "btnHome": "Volver al inicio",
+      "btnReport": "Reportar problema",
+      "reportHint": "Comparte los detalles del error con soporte",
+      "errorDetailsTitle": "Detalles del error",
+      "errorNoMessage": "sin mensaje"
     }
   }
 }

@@ -15,7 +15,22 @@
     "dashboardExpensesHint": "Pending approval or cancellation request.",
     "dashboardSaudeUnreadOne": "1 new health entry",
     "dashboardSaudeUnreadOther": "{count} new health entries",
-    "dashboardSaudeHint": "Appointments, illness, medications, allergies or vaccines."
+    "dashboardSaudeHint": "Appointments, illness, medications, allergies or vaccines.",
+    "realtime": {
+      "addedAlergiaToast": "Your co-parent added an allergy",
+      "addedConsultaToast": "Your co-parent added an appointment",
+      "addedMedicamentoToast": "Your co-parent added a medication",
+      "addedEpisodioToast": "Your co-parent added an episode",
+      "addedVacinaToast": "Your co-parent added a vaccine",
+      "addedMedidaToast": "Your co-parent added a measurement",
+      "addedProfissionalToast": "Your co-parent added a professional",
+      "addedSintomaToast": "Your co-parent added a symptom",
+      "addedReceitaToast": "Your co-parent added a prescription",
+      "addedEventoToast": "Your co-parent added an event",
+      "addedAtividadeToast": "Your co-parent added an activity",
+      "addedDespesaToast": "Your co-parent added an expense",
+      "addedNotaToast": "Your co-parent added a note"
+    }
   },
   "common": {
     "appName": "Kindar",
@@ -2325,6 +2340,26 @@
       "step3Body": "Set up custody — who cares on which days.",
       "ctaButton": "Open Kindar",
       "footer": "You received this email because you created a Kindar account. If it wasn't you, ignore this message."
+    }
+  },
+  "errors": {
+    "boundary": {
+      "networkTitle": "Connection issue",
+      "networkHint": "Check your internet connection. Your data is still saved locally.",
+      "storageTitle": "Device storage full",
+      "storageHint": "Your phone may be low on storage. Try removing some photos or apps you don't use.",
+      "permissionTitle": "No permission",
+      "permissionHint": "Your session may have expired. Try logging in again.",
+      "renderingTitle": "Screen problem",
+      "renderingHint": "There's a bug on this screen. We've reported it to the team — we'll fix it soon.",
+      "unknownTitle": "Something went wrong",
+      "unknownHint": "An unexpected error occurred. We've reported it to the team for investigation.",
+      "btnRetry": "Try again",
+      "btnHome": "Back to home",
+      "btnReport": "Report problem",
+      "reportHint": "Share the error details with support",
+      "errorDetailsTitle": "Error details",
+      "errorNoMessage": "no message"
     }
   }
 }

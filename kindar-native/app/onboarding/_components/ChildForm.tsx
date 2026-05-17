@@ -1,11 +1,12 @@
 import { memo, useMemo, type RefObject } from 'react';
 import {
-  ActivityIndicator, Text, TextInput, TouchableOpacity, View,
+  Text, TextInput, TouchableOpacity, View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import Animated, { FadeInDown, FadeOut } from 'react-native-reanimated';
 import { colors, font, radius, spacing } from 'src/design-system/tokens';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useReduceMotion } from '../_lib/useReduceMotion';
 import type { ChildSex, Translate } from '../_lib/types';
 
@@ -189,27 +190,13 @@ function ChildFormImpl({
         })}
       </View>
 
-      <TouchableOpacity
-        testID="onboarding-finish"
-        accessibilityLabel={cta}
-        accessibilityState={{ busy: saving, disabled: !canSubmit }}
+      <PrimaryButton
+        label={cta}
         onPress={onSave}
+        loading={saving}
         disabled={!canSubmit}
-        activeOpacity={0.85}
-        style={{
-          backgroundColor: colors.brand, borderRadius: radius.md,
-          paddingVertical: spacing.lg, alignItems: 'center',
-          opacity: canSubmit ? 1 : 0.5,
-        }}
-      >
-        {saving ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-            {cta}
-          </Text>
-        )}
-      </TouchableOpacity>
+        testID="onboarding-finish"
+      />
 
       {kind !== 'first' ? (
         <TouchableOpacity

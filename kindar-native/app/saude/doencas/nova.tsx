@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -15,6 +15,7 @@ import { useAuth } from 'src/store/auth';
 import { createIllness } from 'src/services/health';
 import { fetchChildren, type Child } from 'src/services/children';
 import ChildPicker from 'src/components/ui/ChildPicker';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 /**
@@ -249,22 +250,13 @@ export default function NovaDoencaScreen() {
           }}
         />
 
-        <TouchableOpacity
-          disabled={saving || !title.trim() || !childId}
+        <PrimaryButton
+          label="Registrar doença"
           onPress={handleSave}
-          activeOpacity={0.85}
-          style={{
-            backgroundColor: colors.brand, borderRadius: radius.md,
-            paddingVertical: spacing.md + 2, alignItems: 'center',
-            opacity: saving || !title.trim() || !childId ? 0.5 : 1,
-          }}
-        >
-          {saving ? <ActivityIndicator color="#fff" /> : (
-            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Registrar doenca
-            </Text>
-          )}
-        </TouchableOpacity>
+          loading={saving}
+          disabled={!title.trim() || !childId}
+          testID="doenca-save-button"
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

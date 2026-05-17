@@ -1577,7 +1577,22 @@
     "dashboardExpensesHint": "Ausstehende Genehmigung oder Stornierungsantrag.",
     "dashboardSaudeUnreadOne": "1 neuer Gesundheitseintrag",
     "dashboardSaudeUnreadOther": "{count} neue Gesundheitseinträge",
-    "dashboardSaudeHint": "Termine, Krankheiten, Medikamente, Allergien oder Impfungen."
+    "dashboardSaudeHint": "Termine, Krankheiten, Medikamente, Allergien oder Impfungen.",
+    "realtime": {
+      "addedAlergiaToast": "Dein Co-Elternteil hat eine Allergie hinzugefügt",
+      "addedConsultaToast": "Dein Co-Elternteil hat einen Termin hinzugefügt",
+      "addedMedicamentoToast": "Dein Co-Elternteil hat ein Medikament hinzugefügt",
+      "addedEpisodioToast": "Dein Co-Elternteil hat eine Episode hinzugefügt",
+      "addedVacinaToast": "Dein Co-Elternteil hat eine Impfung hinzugefügt",
+      "addedMedidaToast": "Dein Co-Elternteil hat eine Messung hinzugefügt",
+      "addedProfissionalToast": "Dein Co-Elternteil hat einen Fachmann hinzugefügt",
+      "addedSintomaToast": "Dein Co-Elternteil hat ein Symptom hinzugefügt",
+      "addedReceitaToast": "Dein Co-Elternteil hat ein Rezept hinzugefügt",
+      "addedEventoToast": "Dein Co-Elternteil hat ein Ereignis hinzugefügt",
+      "addedAtividadeToast": "Dein Co-Elternteil hat eine Aktivität hinzugefügt",
+      "addedDespesaToast": "Dein Co-Elternteil hat eine Ausgabe hinzugefügt",
+      "addedNotaToast": "Dein Co-Elternteil hat eine Notiz hinzugefügt"
+    }
   },
   "schoolPage": {
     "subtitle": "Begleitung der Schulroutine und Entwicklung der Kinder.",
@@ -2446,6 +2461,26 @@
       "step3Body": "Richten Sie das Sorgerecht ein — wer wann betreut.",
       "ctaButton": "Kindar öffnen",
       "footer": "Sie erhalten diese E-Mail, weil Sie ein Kindar-Konto erstellt haben. Falls Sie das nicht waren, ignorieren Sie diese Nachricht."
+    }
+  },
+  "errors": {
+    "boundary": {
+      "networkTitle": "Verbindungsproblem",
+      "networkHint": "Prüfe deine Internetverbindung. Deine Daten sind lokal weiterhin gespeichert.",
+      "storageTitle": "Gerätespeicher voll",
+      "storageHint": "Dein Handy hat möglicherweise wenig Speicher. Versuche, Fotos oder ungenutzte Apps zu löschen.",
+      "permissionTitle": "Keine Berechtigung",
+      "permissionHint": "Deine Sitzung ist möglicherweise abgelaufen. Versuche dich erneut anzumelden.",
+      "renderingTitle": "Bildschirmproblem",
+      "renderingHint": "Auf diesem Bildschirm gibt es einen Fehler. Wir haben das Team informiert — wir beheben es bald.",
+      "unknownTitle": "Etwas ist schiefgelaufen",
+      "unknownHint": "Ein unerwarteter Fehler ist aufgetreten. Wir haben das Team zur Untersuchung informiert.",
+      "btnRetry": "Erneut versuchen",
+      "btnHome": "Zurück zum Start",
+      "btnReport": "Problem melden",
+      "reportHint": "Teile die Fehlerdetails mit dem Support",
+      "errorDetailsTitle": "Fehlerdetails",
+      "errorNoMessage": "keine Nachricht"
     }
   }
 }

@@ -1577,7 +1577,22 @@
     "dashboardExpensesHint": "Pendentes de aprovação ou com pedido de cancelamento.",
     "dashboardSaudeUnreadOne": "1 registro de saúde novo",
     "dashboardSaudeUnreadOther": "{count} registros de saúde novos",
-    "dashboardSaudeHint": "Consultas, doenças, medicamentos, alergias ou vacinas."
+    "dashboardSaudeHint": "Consultas, doenças, medicamentos, alergias ou vacinas.",
+    "realtime": {
+      "addedAlergiaToast": "O co-responsável adicionou uma alergia",
+      "addedConsultaToast": "O co-responsável adicionou uma consulta",
+      "addedMedicamentoToast": "O co-responsável adicionou um medicamento",
+      "addedEpisodioToast": "O co-responsável adicionou um episódio",
+      "addedVacinaToast": "O co-responsável adicionou uma vacina",
+      "addedMedidaToast": "O co-responsável adicionou uma medida",
+      "addedProfissionalToast": "O co-responsável adicionou um profissional",
+      "addedSintomaToast": "O co-responsável adicionou um sintoma",
+      "addedReceitaToast": "O co-responsável adicionou uma receita",
+      "addedEventoToast": "O co-responsável adicionou um evento",
+      "addedAtividadeToast": "O co-responsável adicionou uma atividade",
+      "addedDespesaToast": "O co-responsável adicionou uma despesa",
+      "addedNotaToast": "O co-responsável adicionou uma nota"
+    }
   },
   "schoolPage": {
     "subtitle": "Acompanhamento da rotina escolar e desenvolvimento das crianças.",
@@ -2446,6 +2461,26 @@
       "step3Body": "Configure a guarda — quem cuida em quais dias.",
       "ctaButton": "Abrir o Kindar",
       "footer": "Você recebeu este e-mail porque criou uma conta no Kindar. Caso não tenha sido você, ignore esta mensagem."
+    }
+  },
+  "errors": {
+    "boundary": {
+      "networkTitle": "Problema de conexão",
+      "networkHint": "Verifique se você está conectado à internet. Seus dados continuam salvos localmente.",
+      "storageTitle": "Sem espaço no aparelho",
+      "storageHint": "Seu celular pode estar com pouco armazenamento. Tente apagar fotos ou apps que não usa.",
+      "permissionTitle": "Sem permissão",
+      "permissionHint": "Pode ser uma sessão expirada. Tente fazer login novamente.",
+      "renderingTitle": "Tela com problema",
+      "renderingHint": "Tem um bug nessa tela. Já reportamos pra equipe — vamos consertar logo.",
+      "unknownTitle": "Algo deu errado",
+      "unknownHint": "Aconteceu um erro inesperado. Já reportamos pra equipe investigar.",
+      "btnRetry": "Tentar novamente",
+      "btnHome": "Voltar pro início",
+      "btnReport": "Reportar problema",
+      "reportHint": "Compartilha os detalhes do erro com o suporte",
+      "errorDetailsTitle": "Detalhes do erro",
+      "errorNoMessage": "sem mensagem"
     }
   }
 }

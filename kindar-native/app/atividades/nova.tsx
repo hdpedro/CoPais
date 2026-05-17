@@ -13,7 +13,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  ActivityIndicator, KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -24,6 +24,7 @@ import { supabase } from 'src/lib/supabase';
 import { createActivity } from 'src/services/activities';
 import { fetchChildren, type Child } from 'src/services/children';
 import { ACTIVITY_CATEGORIES, getBrazilToday } from 'src/lib/constants';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const CAT_LABELS: Record<string, string> = {
@@ -596,24 +597,13 @@ export default function NovaAtividadeScreen() {
           }}
         />
 
-        <TouchableOpacity
-          disabled={saving || !name.trim()}
+        <PrimaryButton
+          label="Salvar atividade"
           onPress={handleSave}
-          activeOpacity={0.85}
+          loading={saving}
+          disabled={!name.trim()}
           testID="atividade-save"
-          accessibilityLabel="Salvar atividade"
-          style={{
-            backgroundColor: colors.brand, borderRadius: radius.md,
-            paddingVertical: spacing.md + 2, alignItems: 'center',
-            opacity: saving || !name.trim() ? 0.5 : 1,
-          }}
-        >
-          {saving ? <ActivityIndicator color="#fff" /> : (
-            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Salvar atividade
-            </Text>
-          )}
-        </TouchableOpacity>
+        />
       </ScrollView>
     </KeyboardAvoidingView>
   );

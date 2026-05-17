@@ -410,18 +410,22 @@ export default function ConsultasScreen() {
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                     <TouchableOpacity
                       onPress={() => openEditModal(item)}
-                      style={{ flex: 1, paddingVertical: 8, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Editar consulta"
+                      style={{ flex: 1, paddingVertical: 12, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                     >
-                      <Ionicons name="create-outline" size={14} color={colors.textSecondary} />
+                      <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
                       <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
                         Editar
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => handleDelete(item)}
-                      style={{ paddingVertical: 8, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: '#fee2e2', backgroundColor: '#fef2f2', alignItems: 'center', flexDirection: 'row', gap: 6 }}
+                      accessibilityRole="button"
+                      accessibilityLabel="Excluir consulta"
+                      style={{ paddingVertical: 12, paddingHorizontal: spacing.md, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: '#fee2e2', backgroundColor: '#fef2f2', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                     >
-                      <Ionicons name="trash-outline" size={14} color="#b91c1c" />
+                      <Ionicons name="trash-outline" size={16} color="#b91c1c" />
                       <Text style={{ color: '#b91c1c', fontSize: font.sizes.sm }}>
                         Excluir
                       </Text>
@@ -435,9 +439,11 @@ export default function ConsultasScreen() {
                 <View style={{ flexDirection: 'row', marginTop: spacing.md }}>
                   <TouchableOpacity
                     onPress={() => handleDelete(item)}
-                    style={{ paddingVertical: 8, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: '#fee2e2', backgroundColor: '#fef2f2', alignItems: 'center', flexDirection: 'row', gap: 6 }}
+                    accessibilityRole="button"
+                    accessibilityLabel="Excluir consulta"
+                    style={{ paddingVertical: 12, paddingHorizontal: spacing.md, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: '#fee2e2', backgroundColor: '#fef2f2', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                   >
-                    <Ionicons name="trash-outline" size={14} color="#b91c1c" />
+                    <Ionicons name="trash-outline" size={16} color="#b91c1c" />
                     <Text style={{ color: '#b91c1c', fontSize: font.sizes.sm }}>
                       Excluir
                     </Text>
@@ -454,10 +460,17 @@ export default function ConsultasScreen() {
         }}
       />
 
-      {/* Complete modal — diagnostico + resumo + retorno */}
+      {/* Complete modal — diagnóstico + resumo + retorno.
+          Tap no backdrop fecha (padrão iOS Mail/Notes). */}
       <Modal visible={!!completing} transparent animationType="slide" onRequestClose={() => setCompleting(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <View style={{ flex: 1, backgroundColor: '#00000080' }} />
+          <TouchableOpacity
+            activeOpacity={1}
+            accessibilityLabel="Fechar"
+            accessibilityRole="button"
+            onPress={() => setCompleting(null)}
+            style={{ flex: 1, backgroundColor: '#00000080' }}
+          />
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, maxHeight: '85%' }}>
             <ScrollView keyboardShouldPersistTaps="handled">
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
@@ -514,7 +527,13 @@ export default function ConsultasScreen() {
           agendada. Reusa os mesmos pickers do form de criar pra UX consistente. */}
       <Modal visible={!!editing} transparent animationType="slide" onRequestClose={() => setEditing(null)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <View style={{ flex: 1, backgroundColor: '#00000080' }} />
+          <TouchableOpacity
+            activeOpacity={1}
+            accessibilityLabel="Fechar"
+            accessibilityRole="button"
+            onPress={() => setEditing(null)}
+            style={{ flex: 1, backgroundColor: '#00000080' }}
+          />
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, maxHeight: '85%' }}>
             <ScrollView keyboardShouldPersistTaps="handled">
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>

@@ -31,6 +31,7 @@
 import { useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { useToast } from '../components/ui/ToastProvider';
+import { useI18n } from '../i18n';
 
 interface CollabRealtimeOptions {
   /** Tabela do Postgres. Ex: 'child_allergies', 'medical_appointments'. */
@@ -53,21 +54,27 @@ interface CollabRealtimeOptions {
 
 const DEFAULT_DEBOUNCE = 800;
 
-const PRONOUNS: Record<string, string> = {
-  alergia: 'uma',
-  consulta: 'uma',
-  doença: 'uma',
-  episódio: 'um',
-  medicamento: 'um',
-  vacina: 'uma',
-  medida: 'uma',
-  profissional: 'um',
-  sintoma: 'um',
-  receita: 'uma',
-  evento: 'um',
-  atividade: 'uma',
-  despesa: 'uma',
-  nota: 'uma',
+/**
+ * Mapeia displayLabel → chave i18n do toast.
+ *
+ * Antes era um dicionário PRONOUNS hardcoded em PT-BR + concatenação string,
+ * violando Regras 1/6/8 do CLAUDE.md (string literal visível, BCP47).
+ * Agora cada label tem uma chave dedicada em 5 locales com a mensagem completa.
+ */
+const TOAST_KEY_BY_LABEL: Record<string, string> = {
+  alergia: 'collab.realtime.addedAlergiaToast',
+  consulta: 'collab.realtime.addedConsultaToast',
+  medicamento: 'collab.realtime.addedMedicamentoToast',
+  episódio: 'collab.realtime.addedEpisodioToast',
+  vacina: 'collab.realtime.addedVacinaToast',
+  medida: 'collab.realtime.addedMedidaToast',
+  profissional: 'collab.realtime.addedProfissionalToast',
+  sintoma: 'collab.realtime.addedSintomaToast',
+  receita: 'collab.realtime.addedReceitaToast',
+  evento: 'collab.realtime.addedEventoToast',
+  atividade: 'collab.realtime.addedAtividadeToast',
+  despesa: 'collab.realtime.addedDespesaToast',
+  nota: 'collab.realtime.addedNotaToast',
 };
 
 export function useCollabRealtime({
@@ -81,6 +88,7 @@ export function useCollabRealtime({
   debounceMs = DEFAULT_DEBOUNCE,
 }: CollabRealtimeOptions): void {
   const toast = useToast();
+  const t = useI18n((s) => s.t);
   const onChangeRef = useRef(onChange);
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -112,14 +120,17 @@ export function useCollabRealtime({
             onChangeRef.current();
           }, debounceMs);
 
-          // Toast só pra eventos de outro user e só pra INSERT
+          // Toast só pra eventos de outro user e só pra INSERT.
+          // Mensagem via i18n (Regras Canônicas 1+6).
           if (!isSelf && payload.eventType === 'INSERT' && displayLabel) {
-            const pronoun = PRONOUNS[displayLabel] ?? 'um(a)';
-            toast.show({
-              message: `O co-responsável adicionou ${pronoun} ${displayLabel}`,
-              variant: 'info',
-              durationMs: 3000,
-            });
+            const key = TOAST_KEY_BY_LABEL[displayLabel];
+            if (key) {
+              toast.show({
+                message: t(key),
+                variant: 'info',
+                durationMs: 3000,
+              });
+            }
           }
         },
       )

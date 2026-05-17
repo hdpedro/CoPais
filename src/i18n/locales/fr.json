@@ -1577,7 +1577,22 @@
     "dashboardExpensesHint": "En attente d'approbation ou demande d'annulation.",
     "dashboardSaudeUnreadOne": "1 nouvelle entrée de santé",
     "dashboardSaudeUnreadOther": "{count} nouvelles entrées de santé",
-    "dashboardSaudeHint": "Rendez-vous, maladies, médicaments, allergies ou vaccins."
+    "dashboardSaudeHint": "Rendez-vous, maladies, médicaments, allergies ou vaccins.",
+    "realtime": {
+      "addedAlergiaToast": "Ton co-parent a ajouté une allergie",
+      "addedConsultaToast": "Ton co-parent a ajouté un rendez-vous",
+      "addedMedicamentoToast": "Ton co-parent a ajouté un médicament",
+      "addedEpisodioToast": "Ton co-parent a ajouté un épisode",
+      "addedVacinaToast": "Ton co-parent a ajouté un vaccin",
+      "addedMedidaToast": "Ton co-parent a ajouté une mesure",
+      "addedProfissionalToast": "Ton co-parent a ajouté un professionnel",
+      "addedSintomaToast": "Ton co-parent a ajouté un symptôme",
+      "addedReceitaToast": "Ton co-parent a ajouté une ordonnance",
+      "addedEventoToast": "Ton co-parent a ajouté un événement",
+      "addedAtividadeToast": "Ton co-parent a ajouté une activité",
+      "addedDespesaToast": "Ton co-parent a ajouté une dépense",
+      "addedNotaToast": "Ton co-parent a ajouté une note"
+    }
   },
   "schoolPage": {
     "subtitle": "Suivi de la routine scolaire et du développement des enfants.",
@@ -2446,6 +2461,26 @@
       "step3Body": "Configurez la garde — qui s'occupe quels jours.",
       "ctaButton": "Ouvrir Kindar",
       "footer": "Vous avez reçu cet e-mail parce que vous avez créé un compte Kindar. Si ce n'est pas vous, ignorez ce message."
+    }
+  },
+  "errors": {
+    "boundary": {
+      "networkTitle": "Problème de connexion",
+      "networkHint": "Vérifie ta connexion internet. Tes données restent enregistrées localement.",
+      "storageTitle": "Espace de stockage plein",
+      "storageHint": "Ton téléphone manque peut-être d'espace. Essaie de supprimer des photos ou apps inutilisées.",
+      "permissionTitle": "Aucune autorisation",
+      "permissionHint": "Ta session a peut-être expiré. Essaie de te reconnecter.",
+      "renderingTitle": "Problème d'affichage",
+      "renderingHint": "Il y a un bug sur cet écran. Nous l'avons signalé à l'équipe — nous allons le corriger rapidement.",
+      "unknownTitle": "Une erreur est survenue",
+      "unknownHint": "Une erreur inattendue s'est produite. Nous l'avons signalée à l'équipe pour investigation.",
+      "btnRetry": "Réessayer",
+      "btnHome": "Retour à l'accueil",
+      "btnReport": "Signaler un problème",
+      "reportHint": "Partage les détails de l'erreur avec le support",
+      "errorDetailsTitle": "Détails de l'erreur",
+      "errorNoMessage": "sans message"
     }
   }
 }
