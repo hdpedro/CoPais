@@ -11,6 +11,7 @@ import { createExpense, uploadExpenseReceipt } from 'src/services/expenses';
 import { EXPENSE_CATEGORIES } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { CurrencyInput } from 'src/components/ui/MaskedInputs';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 interface ChildOption { id: string; full_name: string; }
@@ -148,13 +149,16 @@ export default function NovaExpenseScreen() {
       <ScrollView contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
         {error ? <Text style={{ color: colors.error, marginBottom: spacing.md }}>{error}</Text> : null}
 
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Descricao</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Descrição</Text>
         <TextInput value={description} onChangeText={setDescription} placeholder="O que foi comprado?" placeholderTextColor={colors.textDim}
           style={{ backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.lg, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg }} />
 
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Valor (R$)</Text>
-        <TextInput value={amount} onChangeText={setAmount} placeholder="0,00" placeholderTextColor={colors.textDim} keyboardType="decimal-pad"
-          style={{ backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.lg, fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.lg }} />
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Valor</Text>
+        <CurrencyInput
+          value={parseFloat(amount.replace(',', '.')) || 0}
+          onChangeText={(reais) => setAmount(reais === 0 ? '' : String(reais).replace('.', ','))}
+          style={{ marginBottom: spacing.lg, fontSize: font.sizes.xl, fontWeight: font.weights.bold }}
+        />
 
         <View style={{ marginBottom: spacing.lg }}>
           <DatePickerField label="Data da despesa" value={dateIso} onChange={setDateIso} maximumDate={new Date()} />

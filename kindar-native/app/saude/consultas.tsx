@@ -15,6 +15,8 @@ import { getDisplayName } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, TimePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import ChildPicker from 'src/components/ui/ChildPicker';
+import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Appt { id: string; title: string; appointment_date: string; location: string | null; status: string; notes: string | null; childName: string; profName: string | null; child_id: string; }
@@ -161,31 +163,29 @@ export default function ConsultasScreen() {
   // é seguro porque medical_appointments não tem filhos referenciando-o por
   // FK NOT NULL (return_notes / summary ficam no próprio row).
   async function handleDelete(appt: Appt) {
-    Alert.alert(
-      'Excluir consulta',
-      `Excluir definitivamente "${appt.title}"? Esta ação não pode ser desfeita.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            const result = await safeWrite({
-              table: 'medical_appointments',
-              operation: 'delete',
-              payload: { id: appt.id },
-            });
-            if (result.success) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              await load();
-            } else {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', result.error || 'Falha ao excluir consulta');
-            }
-          },
-        },
-      ],
-    );
+    const statusLabel = appt.status === 'scheduled'
+      ? 'Consulta agendada — vai sumir da agenda dos dois responsáveis.'
+      : appt.status === 'completed'
+        ? 'Consulta realizada — apagar perde notas e histórico.'
+        : 'Consulta cancelada — apenas remoção do registro.';
+    const ok = await confirmDestructive({
+      title: `Excluir "${appt.title}"?`,
+      warning: statusLabel + '\n\nEsta ação não pode ser desfeita.',
+      destructiveLabel: 'Excluir',
+    });
+    if (!ok) return;
+    const result = await safeWrite({
+      table: 'medical_appointments',
+      operation: 'delete',
+      payload: { id: appt.id },
+    });
+    if (result.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await load();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', result.error || 'Falha ao excluir consulta');
+    }
   }
 
   // Inline edit modal — permite ajustar título / data / hora / local / notas
@@ -308,10 +308,13 @@ export default function ConsultasScreen() {
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
           <TextInput value={notes} onChangeText={setNotes} placeholder="Observações (opcional)" placeholderTextColor={colors.textDim} multiline
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md, minHeight: 60 }} />
-          <TouchableOpacity onPress={handleCreate} disabled={saving || !title.trim()}
-            style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', opacity: saving || !title.trim() ? 0.5 : 1 }}>
-            <Text style={{ color: '#fff', fontWeight: font.weights.bold }}>{saving ? 'Salvando...' : 'Registrar consulta'}</Text>
-          </TouchableOpacity>
+          <PrimaryButton
+            label="Registrar consulta"
+            onPress={handleCreate}
+            loading={saving}
+            disabled={!title.trim()}
+            testID="consulta-save-button"
+          />
         </View>
       ) : null}
 

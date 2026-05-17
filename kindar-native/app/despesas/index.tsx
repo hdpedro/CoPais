@@ -41,6 +41,7 @@ import { EXPENSE_CATEGORIES } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
 
@@ -258,29 +259,28 @@ export default function DespesasScreen() {
     setResponding(null);
   }
 
-  function confirmDelete(expense: Expense) {
-    Alert.alert(
-      'Remover despesa',
-      `Remover "${expense.description}"? Essa ação não pode ser desfeita.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Remover',
-          style: 'destructive',
-          onPress: async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            const res = await deleteExpense(expense.id);
-            if (res.success) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              await load();
-            } else {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', res.error || 'Falha');
-            }
-          },
-        },
-      ],
-    );
+  async function confirmDelete(expense: Expense) {
+    const valor = expense.amount.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const statusHint = expense.status === 'approved'
+      ? '\n⚠️ Despesa já aprovada — apagar remove do histórico financeiro dos dois.'
+      : expense.status === 'pending'
+        ? '\nAguardando aprovação do co-responsável.'
+        : '';
+    const ok = await confirmDestructive({
+      title: `Remover "${expense.description}"?`,
+      warning: `Valor: ${valor}${statusHint}\n\nEsta ação não pode ser desfeita.`,
+      destructiveLabel: 'Remover',
+    });
+    if (!ok) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    const res = await deleteExpense(expense.id);
+    if (res.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await load();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', res.error || 'Falha');
+    }
   }
 
   async function openReceipt(expense: Expense) {

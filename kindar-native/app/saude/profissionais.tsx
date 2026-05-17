@@ -5,7 +5,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Modal, Linking,
+  KeyboardAvoidingView, Platform, ScrollView, Modal, Linking,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +17,9 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
 import SwipeToDelete from 'src/components/ui/SwipeToDelete';
 import { SkeletonList } from 'src/components/ui/Skeleton';
+import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
+import { PhoneInput } from 'src/components/ui/MaskedInputs';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { formatCRM } from 'src/lib/format';
 
@@ -130,12 +133,54 @@ export default function ProfissionaisScreen() {
     }
   }
 
+  /**
+   * Conta dependências antes do delete pro contexto enriquecido (Stripe-style).
+   * Roda em paralelo via Promise.all pra ser rápido (< 300ms tipicamente).
+   */
+  async function countDependencies(profId: string): Promise<{ appointments: number; prescriptions: number }> {
+    if (!activeGroup) return { appointments: 0, prescriptions: 0 };
+    const [appts, presc] = await Promise.all([
+      supabase
+        .from('medical_appointments')
+        .select('id', { count: 'exact', head: true })
+        .eq('professional_id', profId),
+      supabase
+        .from('active_medications')
+        .select('id', { count: 'exact', head: true })
+        .eq('prescribed_by_id', profId),
+    ]);
+    return {
+      appointments: appts.count ?? 0,
+      prescriptions: presc.count ?? 0,
+    };
+  }
+
   async function handleDelete(p: Professional) {
-    // Confirmação fica no SwipeToDelete. Aqui executa direto. Modal de
-    // detalhe ainda chama esse handler com Alert.alert próprio.
+    // Confirma com contexto enriquecido. SwipeToDelete também chama esse
+    // handler — então centralizamos a UX aqui (ele passa a só executar).
+    // Mas pra mantermos compat: SwipeToDelete já chamou confirm; aqui
+    // executamos direto. Caller do modal de detalhe usa confirmDestructive
+    // explícito (mais abaixo).
     await safeWrite({ table: 'medical_professionals', operation: 'delete', payload: { id: p.id } });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     load();
+  }
+
+  /**
+   * Versão "rica" usada pelo modal de detalhe (não pelo swipe). Mostra
+   * dependências antes de apagar.
+   */
+  async function handleDeleteWithContext(p: Professional) {
+    const deps = await countDependencies(p.id);
+    const ok = await confirmDestructive({
+      title: `Apagar ${p.name}?`,
+      consequences: [
+        { count: deps.appointments, label: 'consultas usam ele/ela como profissional', impact: 'sem-vinculo' },
+        { count: deps.prescriptions, label: 'medicamentos prescritos por ele/ela', impact: 'preservado' },
+      ],
+    });
+    if (!ok) return;
+    await handleDelete(p);
   }
 
   return (
@@ -185,12 +230,12 @@ export default function ProfissionaisScreen() {
             </View>
             <View style={{ flex: 2 }}>
               <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Telefone</Text>
-              <TextInput value={phone} onChangeText={setPhone} placeholder="Ex: (11) 99999-9999" placeholderTextColor={colors.textDim} keyboardType="phone-pad" style={fieldStyle()} />
+              <PhoneInput value={phone} onChangeText={setPhone} placeholder="(11) 99999-9999" style={fieldStyle()} />
             </View>
           </View>
 
           <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>WhatsApp</Text>
-          <TextInput value={whatsapp} onChangeText={setWhatsapp} placeholder="Ex: (11) 99999-9999" placeholderTextColor={colors.textDim} keyboardType="phone-pad" style={fieldStyle()} />
+          <PhoneInput value={whatsapp} onChangeText={setWhatsapp} placeholder="(11) 99999-9999" style={fieldStyle()} />
 
           <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>Endereço</Text>
           <TextInput value={address} onChangeText={setAddress} placeholder="Rua, nº, bairro, cidade" placeholderTextColor={colors.textDim} style={fieldStyle()} />
@@ -198,14 +243,15 @@ export default function ProfissionaisScreen() {
           <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>Observações</Text>
           <TextInput value={notes} onChangeText={setNotes} placeholder="Convênio aceito, dia de plantão, particularidades…" placeholderTextColor={colors.textDim} multiline style={[fieldStyle(), { minHeight: 80, textAlignVertical: 'top' }]} />
 
-          <TouchableOpacity onPress={handleSave} disabled={saving || !name.trim() || !specialty.trim()}
-            style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', marginTop: spacing.lg, opacity: saving || !name.trim() ? 0.5 : 1 }}>
-            {saving ? <ActivityIndicator color="#fff" /> : (
-              <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-                {editing ? 'Salvar alterações' : 'Adicionar profissional'}
-              </Text>
-            )}
-          </TouchableOpacity>
+          <View style={{ marginTop: spacing.lg }}>
+            <PrimaryButton
+              label={editing ? 'Salvar alterações' : 'Adicionar profissional'}
+              onPress={handleSave}
+              loading={saving}
+              disabled={!name.trim() || !specialty.trim()}
+              testID="profissional-save-button"
+            />
+          </View>
         </ScrollView>
       ) : null}
 
@@ -267,7 +313,7 @@ export default function ProfissionaisScreen() {
         onEdit={(p) => openEdit(p)}
         onDelete={(p) => {
           setViewing(null);
-          handleDelete(p);
+          handleDeleteWithContext(p);
         }}
       />
     </KeyboardAvoidingView>

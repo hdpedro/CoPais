@@ -15,6 +15,7 @@ import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import SwipeToDelete from 'src/components/ui/SwipeToDelete';
 import { SkeletonList } from 'src/components/ui/Skeleton';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Allergy { id: string; name: string; allergy_type: string; severity: string; reaction: string | null; childName: string; child_id: string; }
@@ -139,10 +140,13 @@ export default function AlergiasScreen() {
           </View>
           <TextInput value={reaction} onChangeText={setReaction} placeholder="Reacao (opcional)" placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
-          <TouchableOpacity onPress={handleCreate} disabled={saving || !name.trim()}
-            style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', opacity: saving || !name.trim() ? 0.5 : 1 }}>
-            <Text style={{ color: '#fff', fontWeight: font.weights.bold }}>{saving ? 'Salvando...' : 'Adicionar alergia'}</Text>
-          </TouchableOpacity>
+          <PrimaryButton
+            label="Adicionar alergia"
+            onPress={handleCreate}
+            loading={saving}
+            disabled={!name.trim()}
+            testID="alergia-save-button"
+          />
         </View>
       ) : null}
 

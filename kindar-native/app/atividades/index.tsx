@@ -7,6 +7,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from 'src/store/auth';
+import { supabase } from 'src/lib/supabase';
 import {
   fetchActivities, updateActivity, deleteActivity, type Activity,
 } from 'src/services/activities';
@@ -15,6 +16,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { TimePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import ActivityReportModal from 'src/components/activities/ActivityReportModal';
 import ActivityChecklistModal from 'src/components/activities/ActivityChecklistModal';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -113,29 +115,48 @@ export default function AtividadesScreen() {
     }
   }
 
-  function confirmDelete(activity: Activity) {
-    Alert.alert(
-      'Remover atividade',
-      `Remover "${activity.name}" da lista? O historico fica preservado.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Remover', style: 'destructive',
-          onPress: async () => {
-            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
-            const res = await deleteActivity(activity.id);
-            if (res.success) {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              setEditing(null);
-              await load();
-            } else {
-              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', res.error || 'Falha');
-            }
-          },
-        },
-      ]
-    );
+  /**
+   * Conta ocorrências futuras + histórico antes do delete. Heurística rápida
+   * via calendar_occurrences (trigger 00074 mantém isso atualizado).
+   */
+  async function countActivityImpact(activityId: string): Promise<{ future: number; past: number }> {
+    const today = new Date().toISOString().slice(0, 10);
+    const [future, past] = await Promise.all([
+      supabase
+        .from('calendar_occurrences')
+        .select('id', { count: 'exact', head: true })
+        .eq('source_id', activityId)
+        .gte('occurrence_date', today),
+      supabase
+        .from('calendar_occurrences')
+        .select('id', { count: 'exact', head: true })
+        .eq('source_id', activityId)
+        .lt('occurrence_date', today),
+    ]);
+    return { future: future.count ?? 0, past: past.count ?? 0 };
+  }
+
+  async function confirmDelete(activity: Activity) {
+    const impact = await countActivityImpact(activity.id);
+    const ok = await confirmDestructive({
+      title: `Remover "${activity.name}"?`,
+      consequences: [
+        { count: impact.future, label: 'próximas ocorrências no calendário', impact: 'apagado' },
+        { count: impact.past, label: 'ocorrências passadas no histórico', impact: 'preservado' },
+      ],
+      destructiveLabel: 'Remover',
+    });
+    if (!ok) return;
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+    const res = await deleteActivity(activity.id);
+    if (res.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setEditing(null);
+      await load();
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      Alert.alert('Erro', res.error || 'Falha');
+    }
   }
 
   const renderItem = ({ item }: { item: Activity }) => {

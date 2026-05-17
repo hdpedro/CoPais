@@ -19,6 +19,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { SkeletonList } from 'src/components/ui/Skeleton';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Med {
@@ -255,10 +256,13 @@ export default function MedicamentosScreen() {
           </View>
           <TextInput value={reason} onChangeText={setReason} placeholder="Motivo (opcional)" placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
-          <TouchableOpacity onPress={handleCreate} disabled={saving || !name.trim()}
-            style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', opacity: saving || !name.trim() ? 0.5 : 1 }}>
-            <Text style={{ color: '#fff', fontWeight: font.weights.bold }}>{saving ? 'Salvando...' : 'Adicionar medicamento'}</Text>
-          </TouchableOpacity>
+          <PrimaryButton
+            label="Adicionar medicamento"
+            onPress={handleCreate}
+            loading={saving}
+            disabled={!name.trim()}
+            testID="medicamento-save-button"
+          />
         </View>
       ) : null}
 

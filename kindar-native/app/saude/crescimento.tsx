@@ -8,7 +8,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +23,8 @@ import ChildPicker from 'src/components/ui/ChildPicker';
 import SwipeToDelete from 'src/components/ui/SwipeToDelete';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { DecimalInput } from 'src/components/ui/MaskedInputs';
+import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface GrowthRecord {
@@ -230,26 +232,22 @@ export default function CrescimentoScreen() {
             <DatePickerField value={dateIso} onChange={setDateIso} placeholder="Data da medida" maximumDate={new Date()} />
           </View>
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
-            <TextInput value={weight} onChangeText={setWeight} placeholder="Peso (kg)" keyboardType="decimal-pad" placeholderTextColor={colors.textDim}
-              style={{ flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
-            <TextInput value={height} onChangeText={setHeight} placeholder="Altura (cm)" keyboardType="decimal-pad" placeholderTextColor={colors.textDim}
-              style={{ flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
+            <View style={{ flex: 1 }}>
+              <DecimalInput value={weight} onChangeText={setWeight} placeholder="Peso" unit="kg" maxIntegerDigits={3} maxDecimalDigits={2} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <DecimalInput value={height} onChangeText={setHeight} placeholder="Altura" unit="cm" maxIntegerDigits={3} maxDecimalDigits={1} />
+            </View>
           </View>
-          <TextInput value={headCm} onChangeText={setHeadCm} placeholder="Perímetro cefálico (cm) — opcional" keyboardType="decimal-pad" placeholderTextColor={colors.textDim}
-            style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
-          <TouchableOpacity
+          <View style={{ marginBottom: spacing.md }}>
+            <DecimalInput value={headCm} onChangeText={setHeadCm} placeholder="Perímetro cefálico (opcional)" unit="cm" maxIntegerDigits={3} maxDecimalDigits={1} />
+          </View>
+          <PrimaryButton
+            label={editingId ? 'Salvar alterações' : 'Registrar medida'}
             onPress={handleSubmit}
-            disabled={saving}
-            style={{
-              backgroundColor: colors.brand, borderRadius: radius.md,
-              paddingVertical: spacing.md, alignItems: 'center',
-              opacity: saving ? 0.5 : 1,
-            }}
-          >
-            <Text style={{ color: '#fff', fontWeight: font.weights.bold }}>
-              {saving ? 'Salvando...' : (editingId ? 'Salvar alterações' : 'Registrar medida')}
-            </Text>
-          </TouchableOpacity>
+            loading={saving}
+            testID="crescimento-save-button"
+          />
         </View>
       ) : null}
       {loading && records.length === 0 ? (
