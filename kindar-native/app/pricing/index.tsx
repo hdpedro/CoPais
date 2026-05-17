@@ -30,13 +30,13 @@ import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
 const FEATURES = [
-  { icon: 'calendar-outline', text: 'Calendario de guarda ilimitado' },
+  { icon: 'calendar-outline', text: 'Calendário de guarda ilimitado' },
   { icon: 'chatbubbles-outline', text: 'Chat sem limites' },
-  { icon: 'heart-outline', text: 'Saude completa (consultas, vacinas, alergias)' },
+  { icon: 'heart-outline', text: 'Saúde completa (consultas, vacinas, alergias)' },
   { icon: 'document-text-outline', text: 'Documentos ilimitados' },
   { icon: 'sparkles-outline', text: 'Assistente IA (Kindar AI)' },
-  { icon: 'pie-chart-outline', text: 'Relatorios financeiros' },
-  { icon: 'people-outline', text: 'Criancas e responsaveis ilimitados' },
+  { icon: 'pie-chart-outline', text: 'Relatórios financeiros' },
+  { icon: 'people-outline', text: 'Crianças e responsáveis ilimitados' },
 ];
 
 export default function PricingScreen() {

@@ -22,6 +22,7 @@ import ActivityReportModal from 'src/components/activities/ActivityReportModal';
 import ActivityChecklistModal from 'src/components/activities/ActivityChecklistModal';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 function normalizeTime(t: string | null | undefined): string | null {
@@ -85,6 +86,15 @@ export default function AtividadesScreen() {
   }, [activeGroup]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Real-time entre coparentes
+  useCollabRealtime({
+    table: 'child_activities',
+    groupId: activeGroup?.groupId,
+    onChange: load,
+    displayLabel: 'atividade',
+    myUserId: userId,
+  });
 
   function openEditor(activity: Activity) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

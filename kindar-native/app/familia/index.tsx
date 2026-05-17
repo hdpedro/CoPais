@@ -108,7 +108,7 @@ export default function FamiliaScreen() {
     if (!activeGroup) return;
     Alert.alert(
       'Remover membro',
-      `Remover ${member.fullName.split(' ')[0]} do grupo? O historico dele fica preservado mas ele perde acesso.`,
+      `Remover ${member.fullName.split(' ')[0]} do grupo? O histórico dele fica preservado mas ele perde acesso.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -140,7 +140,7 @@ export default function FamiliaScreen() {
     if (!activeGroup || !userId) return;
     Alert.alert(
       'Sair do grupo',
-      `Voce vai perder acesso a ${activeGroup.groupName}. Esta acao nao pode ser desfeita pelo proprio usuario — so quem e admin pode te readicionar.`,
+      `Você vai perder acesso a ${activeGroup.groupName}. Esta ação não pode ser desfeita pelo próprio usuário — só quem é admin pode te readicionar.`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -285,7 +285,7 @@ export default function FamiliaScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
                     <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
                       {m.fullName}
-                      {isSelf ? ' (voce)' : ''}
+                      {isSelf ? ' (você)' : ''}
                     </Text>
                     <View style={{ backgroundColor: `${roleMeta.color}20`, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                       <Text style={{ fontSize: 10 }}>{roleMeta.icon}</Text>

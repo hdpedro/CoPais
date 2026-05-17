@@ -16,6 +16,7 @@ import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useI18n } from 'src/i18n';
+import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
@@ -69,6 +70,16 @@ export default function DecisoesScreen() {
   }, [activeGroup, userId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Real-time entre coparentes — votos do outro pai aparecem na hora.
+  useCollabRealtime({
+    table: 'decisions',
+    groupId: activeGroup?.groupId,
+    onChange: load,
+    // Sem displayLabel — decisions usa "decisão" mas o toast no useCollabRealtime
+    // só renderiza se a chave existe. Sem chave = sem toast (mas list refresh acontece).
+    myUserId: userId,
+  });
 
   async function handleVote(d: Decision, choice: VoteChoice) {
     if (!userId || !activeGroup) return;

@@ -92,7 +92,7 @@ export default function AceitarConviteScreen() {
             </Text>
             {groupName ? (
               <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center' }}>
-                Voce agora faz parte de {groupName}
+                Você agora faz parte de {groupName}
               </Text>
             ) : null}
             <ActivityIndicator color={colors.brand} style={{ marginTop: spacing.lg }} />
@@ -104,10 +104,10 @@ export default function AceitarConviteScreen() {
             </View>
 
             <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text, textAlign: 'center', marginBottom: spacing.sm }}>
-              Voce recebeu um convite!
+              Você recebeu um convite!
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 20 }}>
-              Um responsavel te convidou pra compartilhar um grupo no Kindar. Aceitando, voce tera acesso ao calendario, decisoes, despesas e saude das criancas.
+              Um co-responsável te convidou pra compartilhar um grupo no Kindar. Aceitando, você terá acesso ao calendário, decisões, despesas e saúde das crianças.
             </Text>
 
             {error ? (
@@ -134,9 +134,9 @@ export default function AceitarConviteScreen() {
               )}
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={handleDecline} style={{ paddingVertical: spacing.sm }}>
+            <TouchableOpacity onPress={handleDecline} style={{ paddingVertical: spacing.sm }} accessibilityRole="button" accessibilityLabel="Agora não">
               <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>
-                Agora nao
+                Agora não
               </Text>
             </TouchableOpacity>
           </View>

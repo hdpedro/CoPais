@@ -32,6 +32,7 @@ import { TimePickerField, DatePickerField } from 'src/components/ui/DateTimeFiel
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
 import { useI18n } from 'src/i18n';
+import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 
 interface ChildSchool {
   childId: string;
@@ -281,6 +282,16 @@ export default function EscolaScreen() {
       loadLogs();
     }, [load, loadLogs]),
   );
+
+  // Real-time entre coparentes: novos registros escolares aparecem na hora.
+  useCollabRealtime({
+    table: 'school_logs',
+    groupId: activeGroup?.groupId,
+    onChange: loadLogs,
+    // school_log não tem chave i18n no useCollabRealtime ainda — refresh
+    // silencioso é suficiente (Foundation Collab já manda push priority).
+    myUserId: userId,
+  });
 
   function openEditor(child: ChildSchool) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

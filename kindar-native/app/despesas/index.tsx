@@ -46,6 +46,7 @@ import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
 
@@ -141,6 +142,16 @@ export default function DespesasScreen() {
   }, [activeGroup, userId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
+
+  // Real-time entre coparentes (Foundation Collab): quando o outro pai
+  // adiciona/edita despesa em outro device, lista atualiza sozinha + toast.
+  useCollabRealtime({
+    table: 'expenses',
+    groupId: activeGroup?.groupId,
+    onChange: load,
+    displayLabel: 'despesa',
+    myUserId: userId,
+  });
 
   // Push deep link → mark read + track.
   useEffect(() => {

@@ -18,9 +18,9 @@ import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
 const ROLES: { value: string; label: string; desc: string; icon: string }[] = [
-  { value: 'parent', label: 'Responsavel', desc: 'Pai, mae, padrasto/madrasta', icon: '👨‍👩‍👧' },
-  { value: 'grandparent', label: 'Avo(o)', desc: 'Participa da rotina', icon: '👴' },
-  { value: 'caregiver', label: 'Cuidador(a)', desc: 'Baba, au-pair', icon: '🧑‍🍼' },
+  { value: 'parent', label: 'Responsável', desc: 'Pai, mãe, padrasto/madrasta', icon: '👨‍👩‍👧' },
+  { value: 'grandparent', label: 'Avô(ó)', desc: 'Participa da rotina', icon: '👴' },
+  { value: 'caregiver', label: 'Cuidador(a)', desc: 'Babá, au-pair', icon: '🧑‍🍼' },
   { value: 'mediator', label: 'Mediador(a)', desc: 'Acesso apenas leitura', icon: '⚖️' },
   { value: 'lawyer', label: 'Advogado(a)', desc: 'Acesso apenas leitura', icon: '👩‍⚖️' },
 ];

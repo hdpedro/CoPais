@@ -154,7 +154,7 @@ export default function SegurancaScreen() {
                   ? capability?.isEnrolled
                     ? 'Cadastrado e pronto para uso'
                     : `Cadastre ${labelKind} nos Ajustes do dispositivo`
-                  : 'Dispositivo nao suporta biometria'}
+                  : 'Dispositivo não suporta biometria'}
               </Text>
             </View>
             {busy ? (
@@ -240,8 +240,8 @@ export default function SegurancaScreen() {
         }}>
           <Ionicons name="information-circle-outline" size={18} color={colors.brand} style={{ marginTop: 2 }} />
           <Text style={{ flex: 1, fontSize: font.sizes.xs, color: colors.text, lineHeight: 18 }}>
-            A biometria fica no chip do dispositivo. O Kindar nao envia nem armazena
-            seu rosto ou impressao digital. Se {labelKind} falhar 3x, voce pode usar
+            A biometria fica no chip do dispositivo. O Kindar não envia nem armazena
+            seu rosto ou impressão digital. Se {labelKind} falhar 3x, você pode usar
             a senha do dispositivo como alternativa.
           </Text>
         </View>
