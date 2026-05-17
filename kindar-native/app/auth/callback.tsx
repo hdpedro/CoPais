@@ -68,7 +68,7 @@ export default function AuthCallback() {
         }
 
         if (!accessToken || !refreshToken) {
-          setErrorMsg('Tokens de autenticacao nao encontrados.');
+          setErrorMsg('Tokens de autenticação não encontrados.');
           setStatus('error');
           setTimeout(() => router.replace('/auth/login'), 1500);
           return;

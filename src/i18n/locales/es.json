@@ -2029,6 +2029,26 @@
       "campaignBody": "Campaña disponible: {vaccineName} de {childName}"
     }
   },
+  "push": {
+    "chat": {
+      "title": "{senderName} en el chat",
+      "fallbackSender": "Alguien"
+    },
+    "trialReminder": {
+      "title": "Tu prueba Premium termina mañana",
+      "body": "Elige un plan para mantener la IA, la lectura de recetas y la agenda completa."
+    },
+    "renewalReminder": {
+      "title": "Renovación de Kindar en {days} días",
+      "body": "Toca para ver los detalles o cancelar antes del cobro."
+    },
+    "custodyChange": {
+      "title": "Cambio de custodia",
+      "body": "Mañana es día de cambio de custodia. {childLabel} estará con {parentName}.",
+      "fallbackChild": "tu hijo o hija",
+      "fallbackParent": "la otra persona responsable"
+    }
+  },
   "assistant": {
     "title": "Asistente Kindar",
     "speakOrType": "Habla o escribe lo que necesitas",

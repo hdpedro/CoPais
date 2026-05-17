@@ -199,16 +199,38 @@ export const useLock = create<LockState>((set, get) => ({
     // O prompt biometrico do iOS troca o AppState transientemente.
     // Ignorar essa transicao — nao e backgrounding genuino do usuario.
     if (get().isAuthenticating) return;
+
+    // Cooldown pós-unlock (2026-05-17): se desbloqueou nos últimos 1500ms,
+    // ignora o background event. Cobre cenário onde iOS emite múltiplos
+    // AppState changes após o user aprovar Face ID — o último 'active' que
+    // resolve o await pode vir DEPOIS de outros 'background' eventos que
+    // o LockGate AppState listener processou enquanto isAuthenticating
+    // ainda estava true. Sem esse cooldown, o lastBackgroundAt fica setado
+    // a um timestamp logo após o unlock, e o PRÓXIMO evaluateOnForeground
+    // (em qualquer foreground subsequente) re-locka instantaneamente em
+    // timeout='immediate'.
+    const { lastUnlockAt } = get();
+    if (lastUnlockAt && (Date.now() - lastUnlockAt) < 1500) {
+      return;
+    }
     set({ lastBackgroundAt: Date.now() });
   },
 
   evaluateOnForeground: () => {
-    const { enabled, timeout, isLocked, lastBackgroundAt, isAuthenticating } = get();
+    const { enabled, timeout, isLocked, lastBackgroundAt, isAuthenticating, lastUnlockAt } = get();
     // Mesma razao do markBackground: durante autenticacao, o retorno
     // ao foreground vem do fechamento do prompt, nao da volta do usuario.
     if (isAuthenticating) return;
     if (!enabled) return;
     if (isLocked) return; // ja ta travado, nao precisa reavaliar
+
+    // Cooldown pós-unlock (2026-05-17, mesma defesa do markBackground):
+    // se desbloqueou nos últimos 1500ms, NÃO re-locka. Cobre a janela
+    // onde iOS pode disparar AppState 'active' eventos rapidamente após
+    // o unlock que entrariam em race com a Promise resolve do
+    // biometricAuthenticate.
+    if (lastUnlockAt && (Date.now() - lastUnlockAt) < 1500) return;
+
     const threshold = TIMEOUT_MS[timeout];
     // immediate (threshold=0): qualquer ida pro background tranca.
     if (lastBackgroundAt == null) {

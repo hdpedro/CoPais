@@ -90,7 +90,7 @@ export default function PedidosEventosScreen() {
     if (!activeGroup) return;
     Alert.alert(
       'Cancelar pedido',
-      'O pedido sera descartado e o evento nao sera alterado.',
+      t('eventRequests.cancelDiscardMessage'),
       [
         { text: 'Voltar', style: 'cancel' },
         {

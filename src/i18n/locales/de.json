@@ -2029,6 +2029,26 @@
       "campaignBody": "Kampagne verfügbar: {vaccineName} von {childName}"
     }
   },
+  "push": {
+    "chat": {
+      "title": "{senderName} im Chat",
+      "fallbackSender": "Jemand"
+    },
+    "trialReminder": {
+      "title": "Deine Premium-Testphase endet morgen",
+      "body": "Wähle einen Tarif, um KI, Rezept-Scan und den vollständigen Kalender zu behalten."
+    },
+    "renewalReminder": {
+      "title": "Kindar verlängert sich in {days} Tagen",
+      "body": "Tippe für Details oder zum Kündigen vor der Abbuchung."
+    },
+    "custodyChange": {
+      "title": "Sorgewechsel",
+      "body": "Morgen ist ein Sorgewechsel-Tag. {childLabel} wird bei {parentName} sein.",
+      "fallbackChild": "dein Kind",
+      "fallbackParent": "dem anderen Elternteil"
+    }
+  },
   "assistant": {
     "title": "Kindar Assistent",
     "speakOrType": "Sprechen oder tippen Sie, was Sie brauchen",

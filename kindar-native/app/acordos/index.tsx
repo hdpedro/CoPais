@@ -71,7 +71,7 @@ export default function AcordosScreen() {
     if (!activeGroup) return;
     Alert.alert(
       'Remover acordo',
-      `Remover ${a.title}? Esta acao nao pode ser desfeita.`,
+      t('agreements.removeConfirmMessage', { title: a.title }),
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -282,7 +282,7 @@ export default function AcordosScreen() {
                     Marcar como inegociavel
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                    Regras fundamentais nao sujeitas a discussao
+                    {t('agreements.nonNegotiableHint')}
                   </Text>
                 </View>
               </TouchableOpacity>

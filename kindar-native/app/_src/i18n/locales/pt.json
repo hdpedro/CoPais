@@ -96,7 +96,9 @@
     "lgpdConsent": "Li e concordo com os Termos de Uso e a Politica de Privacidade, conforme a LGPD.",
     "passwordTooShort": "A senha deve ter pelo menos 8 caracteres.",
     "passwordsMismatch": "As senhas nao coincidem.",
-    "authError": "Erro de autenticação. Tente novamente."
+    "authError": "Erro de autenticação. Tente novamente.",
+    "googleNoTokenReturned": "Google não retornou token. Tente novamente.",
+    "googleSignInError": "Erro no Google Sign-In"
   },
   "nav": {
     "home": "Início",
@@ -226,7 +228,8 @@
     "maxActionsReached": "Máximo atingido",
     "tapToAdd": "Toque para adicionar",
     "saveActions": "Salvar",
-    "editActionsHint": "Editar"
+    "editActionsHint": "Editar",
+    "healthAlertTitle": "Atenção em saúde"
   },
   "calendar": {
     "title": "Calendário",
@@ -1361,7 +1364,9 @@
     "categoryHealth": "Saúde",
     "categorySafety": "Segurança",
     "categoryCommunication": "Comunicação",
-    "categoryFinancial": "Financeiro"
+    "categoryFinancial": "Financeiro",
+    "removeConfirmMessage": "Remover {title}? Esta ação não pode ser desfeita.",
+    "nonNegotiableHint": "Regras fundamentais não sujeitas a discussão"
   },
   "checkin": {
     "title": "Check-in Rápido",
@@ -2375,7 +2380,8 @@
     "confirmEditTitle": "Confirmação",
     "confirmEditMessage": "Você tem certeza que deseja alterar este evento? Essa mudança impacta a rotina da criança.",
     "confirmYes": "Sim, editar",
-    "confirmNo": "Cancelar"
+    "confirmNo": "Cancelar",
+    "cancelDiscardMessage": "O pedido será descartado e o evento não será alterado."
   },
   "emails": {
     "welcome": {
@@ -2637,6 +2643,81 @@
       "amountInvalid": "Valor inválido",
       "amountMustBePositive": "O valor deve ser maior que zero",
       "titleRequired": "Informe o título"
+    }
+  },
+  "ui": {
+    "a11y": {
+      "iconDefault": {
+        "add": "Adicionar",
+        "close": "Fechar",
+        "share": "Compartilhar",
+        "edit": "Editar",
+        "delete": "Apagar",
+        "more": "Mais ações",
+        "settings": "Configurações",
+        "help": "Ajuda",
+        "action": "Ação"
+      },
+      "childPickerSelect": "Selecionar {name}"
+    },
+    "swipeToDelete": {
+      "confirmTitle": "Apagar registro",
+      "confirmMessage": "Esta ação não pode ser desfeita. Deseja continuar?",
+      "deleteLabel": "Apagar",
+      "editLabel": "Editar"
+    },
+    "destructiveConfirm": {
+      "destructiveLabel": "Apagar",
+      "defaultWarning": "Esta ação não pode ser desfeita.",
+      "impactSuffixSemVinculo": "— vão ficar sem vínculo",
+      "impactSuffixPreservado": "— ficam intactos",
+      "impactSuffixApagado": "— serão apagados também",
+      "impactSuffixCascata": "— afetados em cascata"
+    },
+    "offlineBanner": {
+      "noInternetCached": "Sem internet — usando dados em cache",
+      "noInternetQueue": "Sem internet — {summary} aguardando",
+      "syncing": "Sincronizando {summary}…",
+      "syncDetailsTitle": "Sincronização pendente",
+      "offlineDetailsTitle": "Você está offline",
+      "syncingDescription": "Tudo que você registrou continua salvo. Estamos enviando ao servidor — deve sincronizar em segundos.",
+      "offlineDescription": "Seus registros estão salvos localmente. Assim que a internet voltar, tudo sincroniza automaticamente.",
+      "queueSectionTitle": "Aguardando sincronizar",
+      "syncNowButton": "Tentar agora",
+      "syncingButton": "Sincronizando…",
+      "waitingConnectionButton": "Aguardando conexão…",
+      "syncNowAccessibilityLabel": "Tentar sincronizar agora",
+      "detailsHint": "Toque pra ver detalhes ou tentar sincronizar agora",
+      "queueItemEntry": "{operation} {label}",
+      "operationInsert": "Adicionar",
+      "operationUpdate": "Atualizar",
+      "operationDelete": "Apagar",
+      "tableOne_child_allergies": "1 alergia",
+      "tableOther_child_allergies": "{count} alergias",
+      "tableOne_active_medications": "1 medicamento",
+      "tableOther_active_medications": "{count} medicamentos",
+      "tableOne_medication_doses": "1 dose",
+      "tableOther_medication_doses": "{count} doses",
+      "tableOne_growth_records": "1 medida",
+      "tableOther_growth_records": "{count} medidas",
+      "tableOne_illness_episodes": "1 episódio",
+      "tableOther_illness_episodes": "{count} episódios",
+      "tableOne_symptom_entries": "1 sintoma",
+      "tableOther_symptom_entries": "{count} sintomas",
+      "tableOne_medical_appointments": "1 consulta",
+      "tableOther_medical_appointments": "{count} consultas",
+      "tableOne_vaccination_records": "1 vacina",
+      "tableOther_vaccination_records": "{count} vacinas",
+      "tableOne_medical_professionals": "1 profissional",
+      "tableOther_medical_professionals": "{count} profissionais",
+      "tableOne_expenses": "1 despesa",
+      "tableOther_expenses": "{count} despesas",
+      "tableOne_notes": "1 nota",
+      "tableOther_notes": "{count} notas",
+      "tableOne_child_activities": "1 atividade",
+      "tableOther_child_activities": "{count} atividades",
+      "tableOneFallback": "1 {table}",
+      "tableOtherFallback": "{count} {table}"
     }
   }
 }

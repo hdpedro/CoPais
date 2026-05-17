@@ -23,6 +23,7 @@
 import { View, Text, TouchableOpacity } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
+import { useI18n } from '../../i18n';
 
 interface ChildPickerOption {
   id: string;
@@ -36,7 +37,7 @@ interface ChildPickerProps {
   onSelect: (id: string | null) => void;
   /** Permite chip "Todos" antes da lista (passa null no onSelect). */
   allowAll?: boolean;
-  /** Label do chip "Todos" — default "Todos". */
+  /** Label do chip "Todos". Default vem de `common.all` no locale ativo. */
   allLabel?: string;
   /** Desabilita interação (ex: enquanto submitting). */
   disabled?: boolean;
@@ -55,16 +56,18 @@ export default function ChildPicker({
   selectedId,
   onSelect,
   allowAll = false,
-  allLabel = 'Todos',
+  allLabel,
   disabled = false,
   hideWhenSingle = true,
   tone = 'brand',
   containerStyle,
   testID,
 }: ChildPickerProps) {
+  const t = useI18n((s) => s.t);
   if (hideWhenSingle && !allowAll && items.length <= 1) return null;
   if (items.length === 0) return null;
 
+  const resolvedAllLabel = allLabel ?? t('common.all');
   const activeBg = tone === 'error' ? colors.error : colors.brand;
 
   function handleSelect(id: string | null) {
@@ -78,25 +81,30 @@ export default function ChildPicker({
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, rowGap: spacing.sm }}>
         {allowAll ? (
           <Chip
-            label={allLabel}
+            label={resolvedAllLabel}
             active={selectedId === null}
             disabled={disabled}
             activeBg={activeBg}
             onPress={() => handleSelect(null)}
             testID={testID ? `${testID}-chip-all` : undefined}
+            accessibilityLabel={t('ui.a11y.childPickerSelect', { name: resolvedAllLabel })}
           />
         ) : null}
-        {items.map(c => (
-          <Chip
-            key={c.id}
-            label={c.full_name.split(' ')[0]}
-            active={selectedId === c.id}
-            disabled={disabled}
-            activeBg={activeBg}
-            onPress={() => handleSelect(c.id)}
-            testID={testID ? `${testID}-chip-${c.id}` : undefined}
-          />
-        ))}
+        {items.map(c => {
+          const firstName = c.full_name.split(' ')[0];
+          return (
+            <Chip
+              key={c.id}
+              label={firstName}
+              active={selectedId === c.id}
+              disabled={disabled}
+              activeBg={activeBg}
+              onPress={() => handleSelect(c.id)}
+              testID={testID ? `${testID}-chip-${c.id}` : undefined}
+              accessibilityLabel={t('ui.a11y.childPickerSelect', { name: firstName })}
+            />
+          );
+        })}
       </View>
     </View>
   );
@@ -109,6 +117,7 @@ function Chip({
   activeBg,
   onPress,
   testID,
+  accessibilityLabel,
 }: {
   label: string;
   active: boolean;
@@ -116,6 +125,7 @@ function Chip({
   activeBg: string;
   onPress: () => void;
   testID?: string;
+  accessibilityLabel: string;
 }) {
   return (
     <TouchableOpacity
@@ -124,7 +134,7 @@ function Chip({
       testID={testID}
       accessibilityRole="radio"
       accessibilityState={{ selected: active, disabled }}
-      accessibilityLabel={`Selecionar ${label}`}
+      accessibilityLabel={accessibilityLabel}
       activeOpacity={0.7}
       style={{
         paddingHorizontal: spacing.md,

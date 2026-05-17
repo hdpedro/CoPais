@@ -2029,6 +2029,26 @@
       "campaignBody": "Campaign available: {childName}'s {vaccineName}"
     }
   },
+  "push": {
+    "chat": {
+      "title": "{senderName} in Chat",
+      "fallbackSender": "Someone"
+    },
+    "trialReminder": {
+      "title": "Your Premium trial ends tomorrow",
+      "body": "Pick a plan to keep AI, prescription scanning, and the full calendar."
+    },
+    "renewalReminder": {
+      "title": "Kindar renews in {days} days",
+      "body": "Tap to see details or cancel before the charge."
+    },
+    "custodyChange": {
+      "title": "Custody handover",
+      "body": "Tomorrow is a custody handover day. {childLabel} will be with {parentName}.",
+      "fallbackChild": "your child",
+      "fallbackParent": "the other parent"
+    }
+  },
   "assistant": {
     "title": "Kindar Assistant",
     "speakOrType": "Speak or type what you need",

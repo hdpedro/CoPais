@@ -24,6 +24,7 @@
  */
 import { ReactNode } from 'react';
 import { Pressable, View, ViewStyle, KeyboardAvoidingView, Platform } from 'react-native';
+import { useI18n } from '../../i18n';
 
 interface ModalBackdropProps {
   children: ReactNode;
@@ -39,6 +40,8 @@ interface ModalBackdropProps {
   tapToClose?: boolean;
   /** Estilo extra do container do conteúdo. */
   contentStyle?: ViewStyle;
+  /** Override do a11y label do backdrop (padrão `common.close` no locale ativo). */
+  closeAccessibilityLabel?: string;
 }
 
 export default function ModalBackdrop({
@@ -49,8 +52,10 @@ export default function ModalBackdrop({
   padding = 16,
   tapToClose = true,
   contentStyle,
+  closeAccessibilityLabel,
 }: ModalBackdropProps) {
   const justify = align === 'top' ? 'flex-start' : align === 'bottom' ? 'flex-end' : 'center';
+  const t = useI18n((s) => s.t);
 
   return (
     <KeyboardAvoidingView
@@ -58,7 +63,7 @@ export default function ModalBackdrop({
       style={{ flex: 1 }}
     >
       <Pressable
-        accessibilityLabel="Fechar"
+        accessibilityLabel={closeAccessibilityLabel ?? t('common.close')}
         accessibilityRole="button"
         onPress={tapToClose ? onClose : undefined}
         style={{

@@ -32,14 +32,16 @@ import Reanimated, {
   useAnimatedStyle,
 } from 'react-native-reanimated';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
+import { useI18n } from '../../i18n';
 
 interface SwipeToDeleteProps {
   children: ReactNode;
   onDelete: () => void;
-  /** Mostra Alert antes de chamar onDelete. Default: confirma sempre. */
+  /** Mostra Alert antes de chamar onDelete. Default: confirma sempre. Quando
+   *  omitido, cai em `ui.swipeToDelete.confirmTitle` no locale ativo. */
   confirmTitle?: string;
   confirmMessage?: string;
-  /** Texto do botão. Default "Apagar". */
+  /** Texto do botão. Default `ui.swipeToDelete.deleteLabel`. */
   deleteLabel?: string;
   /** Adiciona ação secundária (Editar) à esquerda do botão Apagar. */
   onEdit?: () => void;
@@ -51,22 +53,28 @@ interface SwipeToDeleteProps {
 export default function SwipeToDelete({
   children,
   onDelete,
-  confirmTitle = 'Apagar registro',
-  confirmMessage = 'Esta ação não pode ser desfeita. Deseja continuar?',
-  deleteLabel = 'Apagar',
+  confirmTitle,
+  confirmMessage,
+  deleteLabel,
   onEdit,
-  editLabel = 'Editar',
+  editLabel,
   disabled = false,
 }: SwipeToDeleteProps) {
+  const t = useI18n((s) => s.t);
+  const resolvedConfirmTitle = confirmTitle ?? t('ui.swipeToDelete.confirmTitle');
+  const resolvedConfirmMessage = confirmMessage ?? t('ui.swipeToDelete.confirmMessage');
+  const resolvedDeleteLabel = deleteLabel ?? t('ui.swipeToDelete.deleteLabel');
+  const resolvedEditLabel = editLabel ?? t('ui.swipeToDelete.editLabel');
+
   function handleDelete(close: () => void) {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
     Alert.alert(
-      confirmTitle,
-      confirmMessage,
+      resolvedConfirmTitle,
+      resolvedConfirmMessage,
       [
-        { text: 'Cancelar', style: 'cancel', onPress: () => close() },
+        { text: t('common.cancel'), style: 'cancel', onPress: () => close() },
         {
-          text: deleteLabel,
+          text: resolvedDeleteLabel,
           style: 'destructive',
           onPress: () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -99,8 +107,8 @@ export default function SwipeToDelete({
           drag={drag}
           onDelete={() => handleDelete(() => swipeable.close())}
           onEdit={onEdit ? () => handleEdit(() => swipeable.close()) : undefined}
-          deleteLabel={deleteLabel}
-          editLabel={editLabel}
+          deleteLabel={resolvedDeleteLabel}
+          editLabel={resolvedEditLabel}
         />
       )}
       onSwipeableWillOpen={() => {

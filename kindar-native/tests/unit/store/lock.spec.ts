@@ -183,6 +183,11 @@ describe('lock store — invariantes', () => {
     // path zera lastBackgroundAt no MESMO set do isLocked=false, então
     // mesmo um evaluateOnForeground tardio (após o finally) retorna no
     // early-return de lastBackgroundAt==null.
+    //
+    // 2026-05-17: adicionamos cooldown de 1500ms no markBackground/
+    // evaluateOnForeground pós-unlock (defesa contra piscadas do AppState
+    // do iOS após Face ID). Pra testar o caminho LEGÍTIMO de "background
+    // return depois do unlock", simulamos passagem de tempo > 1500ms.
     const useLock = await loadStore();
     secureStore.set('kindar_lock_enabled', '1');
     secureStore.set('kindar_lock_timeout', 'immediate');
@@ -193,14 +198,50 @@ describe('lock store — invariantes', () => {
     resolveAuth(true);
     await p;
 
-    // Força a condição: flag false (finally rodou), isLocked=false, e
-    // simula que lastBackgroundAt foi setado por OUTRO ciclo de
-    // background (o user foi pro switcher e voltou depois do unlock).
-    // Aqui sim queremos lockar — esse é o caminho correto de "voltou
-    // do background com timeout=immediate".
+    // Avança Date.now em 2 segundos pra escapar do cooldown pós-unlock.
+    // No real device, esse seria o user efetivamente ficando no outro app
+    // por mais que 1.5s.
+    const realNow = Date.now;
+    const fakeNow = realNow() + 2000;
+    Date.now = () => fakeNow;
+    try {
+      // Força a condição: flag false (finally rodou), isLocked=false, e
+      // simula que lastBackgroundAt foi setado por OUTRO ciclo de
+      // background (o user foi pro switcher e voltou depois do unlock).
+      // Aqui sim queremos lockar — esse é o caminho correto de "voltou
+      // do background com timeout=immediate" APÓS cooldown.
+      useLock.getState().markBackground();
+      useLock.getState().evaluateOnForeground();
+      expect(useLock.getState().isLocked).toBe(true);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  test('COOLDOWN: piscadas do AppState <1500ms pós-unlock não re-lockam (Face ID loop fix 2)', async () => {
+    // Cenário: user volta do outro app → desbloqueia → iOS dispara
+    // piscadas residuais de AppState (active → background → active) em
+    // <500ms. SEM cooldown, markBackground populava lastBackgroundAt, e
+    // o próximo evaluateOnForeground re-lockava instantaneamente com
+    // timeout='immediate'.
+    const useLock = await loadStore();
+    secureStore.set('kindar_lock_enabled', '1');
+    secureStore.set('kindar_lock_timeout', 'immediate');
+    await useLock.getState().hydrate();
+
+    const p = useLock.getState().requestUnlock();
+    resolveAuth(true);
+    await p;
+    expect(useLock.getState().isLocked).toBe(false);
+
+    // Sequência de piscadas dentro de 1.5s — devem ser no-op
+    useLock.getState().markBackground();
+    expect(useLock.getState().lastBackgroundAt).toBe(null); // não setou
+    useLock.getState().evaluateOnForeground();
+    expect(useLock.getState().isLocked).toBe(false); // não re-lockou
     useLock.getState().markBackground();
     useLock.getState().evaluateOnForeground();
-    expect(useLock.getState().isLocked).toBe(true);
+    expect(useLock.getState().isLocked).toBe(false); // continua destravado
   });
 
   test('setEnabled(false) destrava imediatamente', async () => {

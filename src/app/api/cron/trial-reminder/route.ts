@@ -4,6 +4,9 @@ import { sendTrialEndingSoonEmail } from "@/lib/emails/trial";
 import { sendPushToUser } from "@/lib/push";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
+import { getServerT } from "@/i18n/server";
+import { getUsersLocale } from "@/lib/locale-utils";
+import type { Locale } from "@/i18n";
 
 /**
  * Runs daily at ~14:00 BRT. Sends:
@@ -80,13 +83,27 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Push fan-out — 1 day left, urgent copy.
+    // Push fan-out — 1 day left, urgent copy. Each recipient receives the
+    // copy in their own locale (profiles.locale). One bulk locale query +
+    // dictionary cache keyed by locale to avoid rebuilding closures per user.
     let pushesSent = 0;
+    const pushRecipientIds = pushRows.map((r) => r.user_id);
+    const localeByUser = await getUsersLocale(pushRecipientIds);
+    const tByLocale = new Map<Locale, Awaited<ReturnType<typeof getServerT>>>();
+    async function getT(locale: Locale) {
+      const cached = tByLocale.get(locale);
+      if (cached) return cached;
+      const fn = await getServerT(locale);
+      tByLocale.set(locale, fn);
+      return fn;
+    }
     await Promise.allSettled(
       pushRows.map(async (row) => {
+        const locale = localeByUser.get(row.user_id) ?? ("pt" as Locale);
+        const t = await getT(locale);
         await sendPushToUser(row.user_id, {
-          title: "Seu teste Premium acaba amanhã",
-          body: "Escolha um plano para manter IA, leitura de receitas e agenda completa.",
+          title: t("push.trialReminder.title"),
+          body: t("push.trialReminder.body"),
           // FIX 2026-05-17: era `/configuracoes/assinatura` (404, rota não
           // existe). Rota correta é `/assinatura` (alinhado com renewal-reminder).
           url: "/assinatura",

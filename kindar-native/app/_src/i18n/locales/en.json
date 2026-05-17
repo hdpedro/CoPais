@@ -96,7 +96,9 @@
     "lgpdConsent": "I have read and agree to the Terms of Use and the Privacy Policy.",
     "passwordTooShort": "Password must be at least 8 characters.",
     "passwordsMismatch": "Passwords do not match.",
-    "authError": "Authentication error. Please try again."
+    "authError": "Authentication error. Please try again.",
+    "googleNoTokenReturned": "Google did not return a token. Please try again.",
+    "googleSignInError": "Google Sign-In error"
   },
   "nav": {
     "home": "Home",
@@ -226,7 +228,8 @@
     "maxActionsReached": "Maximum reached",
     "tapToAdd": "Tap to add",
     "saveActions": "Save",
-    "editActionsHint": "Edit"
+    "editActionsHint": "Edit",
+    "healthAlertTitle": "Health alert"
   },
   "calendar": {
     "title": "Calendar",
@@ -1361,7 +1364,9 @@
     "categoryHealth": "Health",
     "categorySafety": "Safety",
     "categoryCommunication": "Communication",
-    "categoryFinancial": "Financial"
+    "categoryFinancial": "Financial",
+    "removeConfirmMessage": "Remove {title}? This action cannot be undone.",
+    "nonNegotiableHint": "Fundamental rules not subject to discussion"
   },
   "checkin": {
     "title": "Quick Check-in",
@@ -2375,7 +2380,8 @@
     "confirmEditTitle": "Confirmation",
     "confirmEditMessage": "Are you sure you want to change this event? This change impacts the child's routine.",
     "confirmYes": "Yes, edit",
-    "confirmNo": "Cancel"
+    "confirmNo": "Cancel",
+    "cancelDiscardMessage": "The request will be discarded and the event will not be changed."
   },
   "emails": {
     "welcome": {
@@ -2637,6 +2643,81 @@
       "amountInvalid": "Invalid amount",
       "amountMustBePositive": "Amount must be greater than zero",
       "titleRequired": "Enter a title"
+    }
+  },
+  "ui": {
+    "a11y": {
+      "iconDefault": {
+        "add": "Add",
+        "close": "Close",
+        "share": "Share",
+        "edit": "Edit",
+        "delete": "Delete",
+        "more": "More actions",
+        "settings": "Settings",
+        "help": "Help",
+        "action": "Action"
+      },
+      "childPickerSelect": "Select {name}"
+    },
+    "swipeToDelete": {
+      "confirmTitle": "Delete record",
+      "confirmMessage": "This action can't be undone. Continue?",
+      "deleteLabel": "Delete",
+      "editLabel": "Edit"
+    },
+    "destructiveConfirm": {
+      "destructiveLabel": "Delete",
+      "defaultWarning": "This action can't be undone.",
+      "impactSuffixSemVinculo": "— will be left unlinked",
+      "impactSuffixPreservado": "— stay intact",
+      "impactSuffixApagado": "— will be deleted too",
+      "impactSuffixCascata": "— affected in cascade"
+    },
+    "offlineBanner": {
+      "noInternetCached": "No internet — using cached data",
+      "noInternetQueue": "No internet — {summary} waiting",
+      "syncing": "Syncing {summary}…",
+      "syncDetailsTitle": "Sync pending",
+      "offlineDetailsTitle": "You're offline",
+      "syncingDescription": "Everything you logged is saved. We're sending it to the server — should sync in seconds.",
+      "offlineDescription": "Your records are saved locally. As soon as the internet is back, everything syncs automatically.",
+      "queueSectionTitle": "Waiting to sync",
+      "syncNowButton": "Try now",
+      "syncingButton": "Syncing…",
+      "waitingConnectionButton": "Waiting for connection…",
+      "syncNowAccessibilityLabel": "Try syncing now",
+      "detailsHint": "Tap to see details or try syncing now",
+      "queueItemEntry": "{operation} {label}",
+      "operationInsert": "Add",
+      "operationUpdate": "Update",
+      "operationDelete": "Delete",
+      "tableOne_child_allergies": "1 allergy",
+      "tableOther_child_allergies": "{count} allergies",
+      "tableOne_active_medications": "1 medication",
+      "tableOther_active_medications": "{count} medications",
+      "tableOne_medication_doses": "1 dose",
+      "tableOther_medication_doses": "{count} doses",
+      "tableOne_growth_records": "1 measurement",
+      "tableOther_growth_records": "{count} measurements",
+      "tableOne_illness_episodes": "1 episode",
+      "tableOther_illness_episodes": "{count} episodes",
+      "tableOne_symptom_entries": "1 symptom",
+      "tableOther_symptom_entries": "{count} symptoms",
+      "tableOne_medical_appointments": "1 appointment",
+      "tableOther_medical_appointments": "{count} appointments",
+      "tableOne_vaccination_records": "1 vaccine",
+      "tableOther_vaccination_records": "{count} vaccines",
+      "tableOne_medical_professionals": "1 professional",
+      "tableOther_medical_professionals": "{count} professionals",
+      "tableOne_expenses": "1 expense",
+      "tableOther_expenses": "{count} expenses",
+      "tableOne_notes": "1 note",
+      "tableOther_notes": "{count} notes",
+      "tableOne_child_activities": "1 activity",
+      "tableOther_child_activities": "{count} activities",
+      "tableOneFallback": "1 {table}",
+      "tableOtherFallback": "{count} {table}"
     }
   }
 }

@@ -490,7 +490,7 @@ export default function DashboardScreen() {
               <Text style={{ fontSize: 22 }}>🚨</Text>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.error }}>
-                  Atencao em saude
+                  {t('dashboard.healthAlertTitle')}
                 </Text>
                 <Text style={{ fontSize: font.sizes.xs, color: colors.text, marginTop: 2 }}>
                   {data.childHealthSummaries.filter(s => s.status === 'treatment').length} crianca(s) em tratamento

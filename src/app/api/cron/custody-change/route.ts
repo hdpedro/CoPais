@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPushToUser } from "@/lib/push";
 import { buildCustodyMap, formatDateKey, type ParentColorMap, type CustodyEvent } from "@/lib/calendar-utils";
+import { getServerT } from "@/i18n/server";
+import { getUsersLocale } from "@/lib/locale-utils";
+import type { Locale } from "@/i18n";
 
 /**
  * GET /api/cron/custody-change
@@ -62,12 +65,13 @@ export async function GET(request: NextRequest) {
 
       if (!members || members.length === 0) continue;
 
-      // Build parent color map (colors don't matter for notifications, but needed for buildCustodyMap)
+      // Build parent color map (colors don't matter for notifications, but needed for buildCustodyMap).
+      // Empty full_name keeps the raw value here; we resolve a localized fallback per recipient below.
       const parentColors: ParentColorMap = {};
       for (const m of members) {
         const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
         parentColors[m.user_id] = {
-          name: (p as { full_name: string } | null)?.full_name || "Usuario",
+          name: (p as { full_name: string } | null)?.full_name || "",
           color: "#000",
         };
       }
@@ -105,23 +109,37 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      const childLabel = childNames.size > 0
-        ? Array.from(childNames).join(", ")
-        : "a crianca";
+      const tomorrowParentName = tomorrowInfo.userName?.split(" ")[0] ?? "";
 
-      const tomorrowParentName = tomorrowInfo.userName.split(" ")[0];
-      const message = `Amanha e dia de troca de guarda. ${childLabel} estara com ${tomorrowParentName}.`;
+      // Localize per recipient — same group, but each member may use a
+      // different app locale (profiles.locale).
+      const recipientIds = members.map((m) => m.user_id);
+      const localeByUser = await getUsersLocale(recipientIds);
+      const tByLocale = new Map<Locale, Awaited<ReturnType<typeof getServerT>>>();
+      async function getT(locale: Locale) {
+        const cached = tByLocale.get(locale);
+        if (cached) return cached;
+        const fn = await getServerT(locale);
+        tByLocale.set(locale, fn);
+        return fn;
+      }
 
       // Send push to all group members
       await Promise.allSettled(
-        members.map((member) =>
-          sendPushToUser(member.user_id, {
-            title: "Troca de Guarda",
-            body: message,
+        members.map(async (member) => {
+          const locale = localeByUser.get(member.user_id) ?? ("pt" as Locale);
+          const t = await getT(locale);
+          const childLabel = childNames.size > 0
+            ? Array.from(childNames).join(", ")
+            : t("push.custodyChange.fallbackChild");
+          const parentLabel = tomorrowParentName || t("push.custodyChange.fallbackParent");
+          return sendPushToUser(member.user_id, {
+            title: t("push.custodyChange.title"),
+            body: t("push.custodyChange.body", { childLabel, parentName: parentLabel }),
             url: "/calendario",
             tag: "custody_change",
-          })
-        )
+          });
+        })
       );
 
       totalSent += members.length;

@@ -6,13 +6,17 @@
  *
  * Uso:
  *   const ok = await confirmDestructive({
- *     title: 'Apagar Dra. Marina',
+ *     title: t('saude.professionals.removeTitle', { name: 'Dra. Marina' }),
  *     subject: 'Dra. Marina (Pediatra)',
  *     consequences: [
- *       { count: 12, label: 'consultas usam ela como profissional', impact: 'sem-vinculo' },
- *       { count: 3, label: 'receitas registradas por ela', impact: 'preservado' },
+ *       {
+ *         count: 12,
+ *         label: t('saude.professionals.consequences.appointmentsOther'),
+ *         labelSingular: t('saude.professionals.consequences.appointmentsOne'),
+ *         impact: 'sem-vinculo',
+ *       },
  *     ],
- *     destructiveLabel: 'Apagar',
+ *     destructiveLabel: t('action.delete'),
  *   });
  *   if (!ok) return;
  *   await performDelete();
@@ -20,16 +24,35 @@
  * Diferença vs Alert.alert direto: monta uma mensagem clara com bullets +
  * indicadores visuais (text-only — Alert nativo não permite views custom)
  * + haptic Warning antes / Success após.
+ *
+ * i18n (Regras Canônicas 1, 6, 7):
+ *  - `DestructiveConfirm` é um módulo TS puro (sem hooks). Pode ser chamado de
+ *    qualquer lugar, inclusive fora de árvore React.
+ *  - Por isso, os defaults (label do botão destrutivo / cancelar / warning /
+ *    sufixos de impacto) usam o `useI18n` store direto (`getState()`),
+ *    consultado no momento da chamada. Isso respeita o locale ativo sem
+ *    forçar callers a passarem `t`.
+ *  - Caller pode sempre OVERRIDE qualquer string (destructiveLabel,
+ *    cancelLabel, warning) com sua própria t-traduzida.
+ *  - Plural do `count` agora é resolvido por `labelSingular` OPCIONAL no
+ *    `Consequence`. Quando o caller passa ambos, count===1 usa singular
+ *    e count≥2 usa `label`. Pra back-compat, callers antigos que só passam
+ *    `label` caem na heurística PT-BR `singularize()` — i18n incompleta
+ *    nesses callsites mas não quebra produção.
  */
 import { Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { useI18n } from '../../i18n';
 
 export type ImpactKind = 'sem-vinculo' | 'preservado' | 'apagado' | 'cascata';
 
 export interface Consequence {
   count: number;
-  /** Texto descritivo. Não inclua o número — o helper monta "X — label". */
+  /** Texto descritivo plural. Não inclua o número — o helper monta "X — label". */
   label: string;
+  /** Forma singular pro caso count===1. Quando omitido, cai na heurística
+   *  `singularize()` PT-BR (debt — preferir sempre passar). */
+  labelSingular?: string;
   impact: ImpactKind;
 }
 
@@ -40,11 +63,11 @@ const IMPACT_BULLET: Record<ImpactKind, string> = {
   'cascata': '⚠️',
 };
 
-const IMPACT_SUFFIX: Record<ImpactKind, string> = {
-  'sem-vinculo': '— vão ficar sem vínculo',
-  'preservado': '— ficam intactos',
-  'apagado': '— serão apagados também',
-  'cascata': '— afetados em cascata',
+const IMPACT_SUFFIX_KEY: Record<ImpactKind, string> = {
+  'sem-vinculo': 'ui.destructiveConfirm.impactSuffixSemVinculo',
+  'preservado': 'ui.destructiveConfirm.impactSuffixPreservado',
+  'apagado': 'ui.destructiveConfirm.impactSuffixApagado',
+  'cascata': 'ui.destructiveConfirm.impactSuffixCascata',
 };
 
 export interface DestructiveConfirmOptions {
@@ -53,11 +76,11 @@ export interface DestructiveConfirmOptions {
   subject?: string;
   /** Bullets de impacto. Vazio = só pergunta confirmação simples. */
   consequences?: Consequence[];
-  /** Texto adicional (ex: "Esta ação não pode ser desfeita."). */
+  /** Texto adicional. Default `ui.destructiveConfirm.defaultWarning` no locale ativo. */
   warning?: string;
-  /** Label do botão destrutivo. Default "Apagar". */
+  /** Label do botão destrutivo. Default `ui.destructiveConfirm.destructiveLabel`. */
   destructiveLabel?: string;
-  /** Label do botão cancel. Default "Cancelar". */
+  /** Label do botão cancel. Default `common.cancel`. */
   cancelLabel?: string;
 }
 
@@ -69,6 +92,10 @@ export function confirmDestructive(opts: DestructiveConfirmOptions): Promise<boo
   return new Promise((resolve) => {
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
 
+    // Snapshot do `t` no momento da chamada — usar getState() em vez de hook
+    // porque essa função é chamada de event handlers, não de React tree.
+    const t = useI18n.getState().t;
+
     const parts: string[] = [];
     if (opts.subject) parts.push(opts.subject + '\n');
 
@@ -77,8 +104,11 @@ export function confirmDestructive(opts: DestructiveConfirmOptions): Promise<boo
         .filter(c => c.count > 0)
         .map(c => {
           const bullet = IMPACT_BULLET[c.impact];
-          const noun = c.count === 1 ? singularize(c.label) : c.label;
-          return `${bullet} ${c.count} ${noun} ${IMPACT_SUFFIX[c.impact]}`;
+          const noun = c.count === 1
+            ? (c.labelSingular ?? singularize(c.label))
+            : c.label;
+          const suffix = t(IMPACT_SUFFIX_KEY[c.impact]);
+          return `${bullet} ${c.count} ${noun} ${suffix}`;
         });
       if (lines.length > 0) {
         parts.push(lines.join('\n'));
@@ -88,7 +118,7 @@ export function confirmDestructive(opts: DestructiveConfirmOptions): Promise<boo
     if (opts.warning) {
       parts.push('\n' + opts.warning);
     } else {
-      parts.push('\nEsta ação não pode ser desfeita.');
+      parts.push('\n' + t('ui.destructiveConfirm.defaultWarning'));
     }
 
     const message = parts.join('\n').trim();
@@ -98,12 +128,12 @@ export function confirmDestructive(opts: DestructiveConfirmOptions): Promise<boo
       message,
       [
         {
-          text: opts.cancelLabel ?? 'Cancelar',
+          text: opts.cancelLabel ?? t('common.cancel'),
           style: 'cancel',
           onPress: () => resolve(false),
         },
         {
-          text: opts.destructiveLabel ?? 'Apagar',
+          text: opts.destructiveLabel ?? t('ui.destructiveConfirm.destructiveLabel'),
           style: 'destructive',
           onPress: () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -117,8 +147,12 @@ export function confirmDestructive(opts: DestructiveConfirmOptions): Promise<boo
 }
 
 /**
- * Tenta singularizar um substantivo PT-BR. Heurística simples — suficiente
- * pros labels que vamos passar ("consultas", "receitas", "alergias", etc.).
+ * Tenta singularizar um substantivo PT-BR. Heurística simples — fallback
+ * pra callers que ainda não passam `labelSingular` explícito. Funciona pros
+ * labels que vamos passar ("consultas", "receitas", "alergias", etc.) mas
+ * só em pt-BR — outras línguas ficam com a forma plural mesmo se count===1.
+ *
+ * @deprecated callsites devem passar `labelSingular` no `Consequence`.
  */
 function singularize(noun: string): string {
   // "alergias" → "alergia", "consultas" → "consulta"

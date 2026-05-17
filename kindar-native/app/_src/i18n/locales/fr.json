@@ -96,7 +96,9 @@
     "lgpdConsent": "J'ai lu et j'accepte les Conditions d'utilisation et la Politique de confidentialité.",
     "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères.",
     "passwordsMismatch": "Les mots de passe ne correspondent pas.",
-    "authError": "Erreur d'authentification. Veuillez réessayer."
+    "authError": "Erreur d'authentification. Veuillez réessayer.",
+    "googleNoTokenReturned": "Google n'a pas renvoyé de jeton. Veuillez réessayer.",
+    "googleSignInError": "Erreur Google Sign-In"
   },
   "nav": {
     "home": "Accueil",
@@ -226,7 +228,8 @@
     "maxActionsReached": "Maximum atteint",
     "tapToAdd": "Appuyer pour ajouter",
     "saveActions": "Enregistrer",
-    "editActionsHint": "Modifier"
+    "editActionsHint": "Modifier",
+    "healthAlertTitle": "Alerte santé"
   },
   "calendar": {
     "title": "Calendrier",
@@ -1361,7 +1364,9 @@
     "categoryHealth": "Sante",
     "categorySafety": "Securite",
     "categoryCommunication": "Communication",
-    "categoryFinancial": "Financier"
+    "categoryFinancial": "Financier",
+    "removeConfirmMessage": "Supprimer {title} ? Cette action est irréversible.",
+    "nonNegotiableHint": "Règles fondamentales non soumises à discussion"
   },
   "checkin": {
     "title": "Check-in Rapide",
@@ -2375,7 +2380,8 @@
     "confirmEditTitle": "Confirmation",
     "confirmEditMessage": "Etes-vous sur de vouloir modifier cet evenement ? Ce changement impacte la routine de l'enfant.",
     "confirmYes": "Oui, modifier",
-    "confirmNo": "Annuler"
+    "confirmNo": "Annuler",
+    "cancelDiscardMessage": "La demande sera annulée et l'événement ne sera pas modifié."
   },
   "emails": {
     "welcome": {
@@ -2637,6 +2643,81 @@
       "amountInvalid": "Montant non valide",
       "amountMustBePositive": "Le montant doit être supérieur à zéro",
       "titleRequired": "Saisissez un titre"
+    }
+  },
+  "ui": {
+    "a11y": {
+      "iconDefault": {
+        "add": "Ajouter",
+        "close": "Fermer",
+        "share": "Partager",
+        "edit": "Modifier",
+        "delete": "Supprimer",
+        "more": "Plus d'actions",
+        "settings": "Réglages",
+        "help": "Aide",
+        "action": "Action"
+      },
+      "childPickerSelect": "Sélectionner {name}"
+    },
+    "swipeToDelete": {
+      "confirmTitle": "Supprimer l'enregistrement",
+      "confirmMessage": "Cette action est irréversible. Continuer ?",
+      "deleteLabel": "Supprimer",
+      "editLabel": "Modifier"
+    },
+    "destructiveConfirm": {
+      "destructiveLabel": "Supprimer",
+      "defaultWarning": "Cette action est irréversible.",
+      "impactSuffixSemVinculo": "— resteront sans lien",
+      "impactSuffixPreservado": "— restent intacts",
+      "impactSuffixApagado": "— seront aussi supprimés",
+      "impactSuffixCascata": "— affectés en cascade"
+    },
+    "offlineBanner": {
+      "noInternetCached": "Pas d'internet — données en cache",
+      "noInternetQueue": "Pas d'internet — {summary} en attente",
+      "syncing": "Synchronisation de {summary}…",
+      "syncDetailsTitle": "Synchronisation en attente",
+      "offlineDetailsTitle": "Tu es hors ligne",
+      "syncingDescription": "Tout ce que tu as enregistré reste sauvegardé. Nous l'envoyons au serveur — quelques secondes.",
+      "offlineDescription": "Tes enregistrements sont sauvegardés localement. Dès que la connexion revient, tout se synchronise automatiquement.",
+      "queueSectionTitle": "En attente de synchronisation",
+      "syncNowButton": "Réessayer",
+      "syncingButton": "Synchronisation…",
+      "waitingConnectionButton": "En attente de connexion…",
+      "syncNowAccessibilityLabel": "Réessayer la synchronisation",
+      "detailsHint": "Touche pour voir les détails ou réessayer maintenant",
+      "queueItemEntry": "{operation} {label}",
+      "operationInsert": "Ajouter",
+      "operationUpdate": "Mettre à jour",
+      "operationDelete": "Supprimer",
+      "tableOne_child_allergies": "1 allergie",
+      "tableOther_child_allergies": "{count} allergies",
+      "tableOne_active_medications": "1 médicament",
+      "tableOther_active_medications": "{count} médicaments",
+      "tableOne_medication_doses": "1 dose",
+      "tableOther_medication_doses": "{count} doses",
+      "tableOne_growth_records": "1 mesure",
+      "tableOther_growth_records": "{count} mesures",
+      "tableOne_illness_episodes": "1 épisode",
+      "tableOther_illness_episodes": "{count} épisodes",
+      "tableOne_symptom_entries": "1 symptôme",
+      "tableOther_symptom_entries": "{count} symptômes",
+      "tableOne_medical_appointments": "1 consultation",
+      "tableOther_medical_appointments": "{count} consultations",
+      "tableOne_vaccination_records": "1 vaccin",
+      "tableOther_vaccination_records": "{count} vaccins",
+      "tableOne_medical_professionals": "1 professionnel",
+      "tableOther_medical_professionals": "{count} professionnels",
+      "tableOne_expenses": "1 dépense",
+      "tableOther_expenses": "{count} dépenses",
+      "tableOne_notes": "1 note",
+      "tableOther_notes": "{count} notes",
+      "tableOne_child_activities": "1 activité",
+      "tableOther_child_activities": "{count} activités",
+      "tableOneFallback": "1 {table}",
+      "tableOtherFallback": "{count} {table}"
     }
   }
 }

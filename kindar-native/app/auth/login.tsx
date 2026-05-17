@@ -104,7 +104,7 @@ export default function LoginScreen() {
   async function completeGoogleLogin(idToken: string | undefined) {
     if (!idToken) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError('Google nao retornou token. Tente novamente.');
+      setError(t('auth.googleNoTokenReturned'));
       return;
     }
     setLoading(true);
@@ -119,7 +119,7 @@ export default function LoginScreen() {
       router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(result.error || 'Erro no Google Sign-In');
+      setError(result.error || t('auth.googleSignInError'));
     }
     setLoading(false);
   }
@@ -129,6 +129,10 @@ export default function LoginScreen() {
     // Defer to next tick so setState calls inside completeGoogleLogin
     // don't fire synchronously inside the effect (react-hooks/set-state-in-effect).
     queueMicrotask(() => void completeGoogleLogin(googleResponse.params?.id_token));
+    // completeGoogleLogin é estável (defined acima na mesma renderização) e
+    // só usa state setters do auth store + setError, ambos identidade fixa.
+    // Adicionar nas deps causaria re-execução desnecessária a cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [googleResponse]);
 
   // Hydrate persisted email on mount (rememberMe). Improves UX for users

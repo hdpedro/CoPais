@@ -8,9 +8,9 @@
  * O banner aparece no topo (abaixo do safe area) com 3 estados:
  *
  *  1. Online + fila vazia → escondido (default).
- *  2. Offline + fila vazia → "📡 Sem internet — usando dados em cache"
- *  3. Offline + fila com N → "📡 Sem internet — N registro(s) aguardando"
- *  4. Online + fila com N → "🔄 Sincronizando N registro(s)…" (transiente)
+ *  2. Offline + fila vazia → `ui.offlineBanner.noInternetCached`
+ *  3. Offline + fila com N → `ui.offlineBanner.noInternetQueue` com summary
+ *  4. Online + fila com N → `ui.offlineBanner.syncing` (transiente)
  *
  * Decisões consolidadas:
  *  - Atualiza a cada 3s pra refletir mudanças na fila (poll é mais simples
@@ -19,6 +19,14 @@
  *  - Slide-down animation de Reanimated; não bloqueia tap em itens abaixo.
  *  - Cores: âmbar suave pra offline (não vermelho — não é erro, é estado);
  *    azul suave pra "sincronizando".
+ *
+ * i18n (Regras Canônicas 1, 6, 7):
+ *  - Todas as strings vivem em `ui.offlineBanner.*` nos 5 locales.
+ *  - Plural é resolvido em JS escolhendo `tableOne_<table>` ou
+ *    `tableOther_<table>` (count===1 vs ≥2) — equivalente ao plural ICU
+ *    pra cada tabela conhecida (alergia/alergias etc). Tabelas
+ *    desconhecidas caem em `tableOneFallback`/`tableOtherFallback`.
+ *  - `toLocaleTimeString` usa o locale ativo do user (não fixo pt-BR).
  *
  * Wrap em _layout.tsx logo abaixo do ToastProvider pra ficar acima das telas.
  */
@@ -30,33 +38,42 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { isOnline, onConnectivityChange, getQueue, syncQueue, type QueuedAction } from '../../services/offline';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
+import { useI18n } from '../../i18n';
 
 const POLL_MS = 3000;
 
-const TABLE_LABELS: Record<string, string> = {
-  child_allergies: 'alergia',
-  active_medications: 'medicamento',
-  medication_doses: 'dose',
-  growth_records: 'medida',
-  illness_episodes: 'episódio',
-  symptom_entries: 'sintoma',
-  medical_appointments: 'consulta',
-  vaccination_records: 'vacina',
-  medical_professionals: 'profissional',
-  expenses: 'despesa',
-  notes: 'nota',
-  child_activities: 'atividade',
-};
+type TFn = (key: string, params?: Record<string, string | number>) => string;
 
-function pluralize(label: string, count: number): string {
-  if (count === 1) return `1 ${label}`;
-  // PT-BR: alergia → alergias; profissional → profissionais; etc.
-  // Pra simplificar: aceita -al → -ais; default → +s.
-  if (label.endsWith('al')) return `${count} ${label.slice(0, -2)}ais`;
-  return `${count} ${label}s`;
+/** Tabelas conhecidas — chaves resolvidas em `ui.offlineBanner.tableOne_<table>`
+ *  / `tableOther_<table>` nos 5 locales. */
+const KNOWN_TABLES = new Set<string>([
+  'child_allergies',
+  'active_medications',
+  'medication_doses',
+  'growth_records',
+  'illness_episodes',
+  'symptom_entries',
+  'medical_appointments',
+  'vaccination_records',
+  'medical_professionals',
+  'expenses',
+  'notes',
+  'child_activities',
+]);
+
+function pluralizeTable(t: TFn, table: string, count: number): string {
+  if (KNOWN_TABLES.has(table)) {
+    const key = count === 1
+      ? `ui.offlineBanner.tableOne_${table}`
+      : `ui.offlineBanner.tableOther_${table}`;
+    return t(key, { count });
+  }
+  return count === 1
+    ? t('ui.offlineBanner.tableOneFallback', { table })
+    : t('ui.offlineBanner.tableOtherFallback', { count, table });
 }
 
-function summarizeQueue(queue: QueuedAction[]): string {
+function summarizeQueue(t: TFn, queue: QueuedAction[]): string {
   if (queue.length === 0) return '';
   // Agrupa por tabela pra mostrar "2 alergias · 1 consulta"
   const byTable = new Map<string, number>();
@@ -65,14 +82,26 @@ function summarizeQueue(queue: QueuedAction[]): string {
   }
   const parts: string[] = [];
   for (const [table, count] of byTable) {
-    const label = TABLE_LABELS[table] || table;
-    parts.push(pluralize(label, count));
+    parts.push(pluralizeTable(t, table, count));
   }
   return parts.join(' · ');
 }
 
+function operationLabel(t: TFn, op: QueuedAction['operation']): string {
+  if (op === 'insert') return t('ui.offlineBanner.operationInsert');
+  if (op === 'update') return t('ui.offlineBanner.operationUpdate');
+  return t('ui.offlineBanner.operationDelete');
+}
+
+function singleItemLabel(t: TFn, table: string): string {
+  // Mesma lógica do pluralizeTable mas count fixo em 1.
+  return pluralizeTable(t, table, 1);
+}
+
 export default function OfflineBanner() {
   const insets = useSafeAreaInsets();
+  const t = useI18n((s) => s.t);
+  const locale = useI18n((s) => s.locale);
   const [online, setOnline] = useState(() => isOnline());
   const [queue, setQueue] = useState<QueuedAction[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -122,9 +151,9 @@ export default function OfflineBanner() {
   const icon = isOnlineSyncing ? 'sync' : 'cloud-offline-outline';
 
   let message: string;
-  if (isOfflineEmpty) message = 'Sem internet — usando dados em cache';
-  else if (isOfflineWithQueue) message = `Sem internet — ${summarizeQueue(queue)} aguardando`;
-  else message = `Sincronizando ${summarizeQueue(queue)}…`;
+  if (isOfflineEmpty) message = t('ui.offlineBanner.noInternetCached');
+  else if (isOfflineWithQueue) message = t('ui.offlineBanner.noInternetQueue', { summary: summarizeQueue(t, queue) });
+  else message = t('ui.offlineBanner.syncing', { summary: summarizeQueue(t, queue) });
 
   return (
     <>
@@ -148,7 +177,7 @@ export default function OfflineBanner() {
           }}
           accessibilityRole="button"
           accessibilityLabel={message}
-          accessibilityHint={hasQueue ? 'Toque pra ver detalhes ou tentar sincronizar agora' : undefined}
+          accessibilityHint={hasQueue ? t('ui.offlineBanner.detailsHint') : undefined}
           activeOpacity={0.85}
           style={{
             flexDirection: 'row',
@@ -188,13 +217,13 @@ export default function OfflineBanner() {
             borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
           }}>
             <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-              {online ? 'Sincronização pendente' : 'Você está offline'}
+              {online ? t('ui.offlineBanner.syncDetailsTitle') : t('ui.offlineBanner.offlineDetailsTitle')}
             </Text>
             <TouchableOpacity
               onPress={() => setShowDetails(false)}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="Fechar"
+              accessibilityLabel={t('common.close')}
             >
               <Ionicons name="close" size={24} color={colors.text} />
             </TouchableOpacity>
@@ -203,18 +232,18 @@ export default function OfflineBanner() {
           <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, lineHeight: 20 }}>
               {online
-                ? 'Tudo que você registrou continua salvo. Estamos enviando ao servidor — deve sincronizar em segundos.'
-                : 'Seus registros estão salvos localmente. Assim que a internet voltar, tudo sincroniza automaticamente.'}
+                ? t('ui.offlineBanner.syncingDescription')
+                : t('ui.offlineBanner.offlineDescription')}
             </Text>
 
             {hasQueue ? (
               <View style={{ gap: spacing.xs }}>
                 <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-                  Aguardando sincronizar
+                  {t('ui.offlineBanner.queueSectionTitle')}
                 </Text>
                 {queue.map((action, idx) => {
-                  const label = TABLE_LABELS[action.table] || action.table;
-                  const op = action.operation === 'insert' ? 'Adicionar' : action.operation === 'update' ? 'Atualizar' : 'Apagar';
+                  const label = singleItemLabel(t, action.table);
+                  const op = operationLabel(t, action.operation);
                   return (
                     <View
                       key={action.id ?? idx}
@@ -226,10 +255,10 @@ export default function OfflineBanner() {
                     >
                       <Ionicons name="time-outline" size={16} color={colors.textMuted} />
                       <Text style={{ fontSize: font.sizes.sm, color: colors.text, flex: 1 }}>
-                        {op} {label}
+                        {t('ui.offlineBanner.queueItemEntry', { operation: op, label })}
                       </Text>
                       <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                        {new Date(action.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        {new Date(action.timestamp).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                       </Text>
                     </View>
                   );
@@ -242,7 +271,7 @@ export default function OfflineBanner() {
                 onPress={handleSyncNow}
                 disabled={syncing || !online}
                 accessibilityRole="button"
-                accessibilityLabel="Tentar sincronizar agora"
+                accessibilityLabel={t('ui.offlineBanner.syncNowAccessibilityLabel')}
                 style={{
                   backgroundColor: colors.brand,
                   paddingVertical: spacing.md,
@@ -253,7 +282,11 @@ export default function OfflineBanner() {
                 }}
               >
                 <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  {syncing ? 'Sincronizando…' : online ? 'Tentar agora' : 'Aguardando conexão…'}
+                  {syncing
+                    ? t('ui.offlineBanner.syncingButton')
+                    : online
+                      ? t('ui.offlineBanner.syncNowButton')
+                      : t('ui.offlineBanner.waitingConnectionButton')}
                 </Text>
               </TouchableOpacity>
             ) : null}

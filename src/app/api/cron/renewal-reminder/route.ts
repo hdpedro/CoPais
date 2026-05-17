@@ -4,6 +4,9 @@ import { sendRenewalReminderEmail } from "@/lib/emails/renewal-reminder";
 import { sendPushToUser } from "@/lib/push";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
+import { getServerT } from "@/i18n/server";
+import { getUsersLocale } from "@/lib/locale-utils";
+import type { Locale } from "@/i18n";
 
 /**
  * Runs daily at ~12:00 UTC / 09:00 BRT. Sends a renewal heads-up to
@@ -66,10 +69,27 @@ export async function GET(request: NextRequest) {
     let emailsSent = 0;
     let pushesSent = 0;
 
+    // Resolve each recipient's locale once. Email body still uses the legacy
+    // template (locale handled inside sendRenewalReminderEmail), but the push
+    // title/body need per-recipient translation.
+    const recipientIds = toRemind.map((s) => s.user_id);
+    const localeByUser = await getUsersLocale(recipientIds);
+    const tByLocale = new Map<Locale, Awaited<ReturnType<typeof getServerT>>>();
+    async function getT(locale: Locale) {
+      const cached = tByLocale.get(locale);
+      if (cached) return cached;
+      const fn = await getServerT(locale);
+      tByLocale.set(locale, fn);
+      return fn;
+    }
+
     await Promise.allSettled(
       toRemind.map(async (sub) => {
         const profile = profileMap.get(sub.user_id);
         if (!profile?.email) return;
+
+        const locale = localeByUser.get(sub.user_id) ?? ("pt" as Locale);
+        const t = await getT(locale);
 
         await Promise.allSettled([
           sendRenewalReminderEmail(profile.email, profile.full_name, sub.plan_id, sub.current_period_end).then(
@@ -78,8 +98,8 @@ export async function GET(request: NextRequest) {
             }
           ),
           sendPushToUser(sub.user_id, {
-            title: "Renovação do Kindar em 3 dias",
-            body: "Toque para ver detalhes ou cancelar antes da cobrança.",
+            title: t("push.renewalReminder.title", { days: 3 }),
+            body: t("push.renewalReminder.body"),
             url: "/assinatura",
             tag: "renewal-reminder",
           }).then(() => {

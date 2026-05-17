@@ -30,6 +30,7 @@ import { ViewStyle } from 'react-native';
 import Animated, { useSharedValue, useAnimatedStyle, withRepeat, withTiming, Easing } from 'react-native-reanimated';
 import { useEffect } from 'react';
 import { colors, spacing, radius, shadows } from '../../design-system/tokens';
+import { useI18n } from '../../i18n';
 
 interface SkeletonLineProps {
   width?: number | `${number}%`;
@@ -43,6 +44,7 @@ interface SkeletonLineProps {
  */
 export function SkeletonLine({ width = '100%', height = 12, borderRadius = 6, style }: SkeletonLineProps) {
   const opacity = useSharedValue(0.4);
+  const t = useI18n((s) => s.t);
 
   useEffect(() => {
     opacity.value = withRepeat(
@@ -57,7 +59,7 @@ export function SkeletonLine({ width = '100%', height = 12, borderRadius = 6, st
   return (
     <Animated.View
       accessibilityRole="progressbar"
-      accessibilityLabel="Carregando"
+      accessibilityLabel={t('common.loading')}
       style={[
         {
           width,
