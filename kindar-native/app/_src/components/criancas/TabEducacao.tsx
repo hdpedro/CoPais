@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 import type { ChildEducation } from '../../services/children';
 import EmptyState from '../ui/EmptyState';
+import { useI18n } from '../../i18n';
 
 interface Props {
   education: ChildEducation | null;
@@ -45,14 +46,15 @@ function Row({ icon, label, value }: { icon: keyof typeof Ionicons.glyphMap; lab
 }
 
 export default function TabEducacao({ education, onEditPress }: Props) {
+  const t = useI18n(s => s.t);
   if (!education || !education.school_name) {
     return (
       <ScrollView contentContainerStyle={{ padding: spacing.lg }}>
         <EmptyState
           icon="school-outline"
-          title="Sem dados de escola"
-          description="Cadastre nome da escola, série, professor(a) e horários para deixar a rotina mais clara."
-          action={onEditPress ? { label: 'Cadastrar escola', onPress: onEditPress } : undefined}
+          title={t('empty.childEducation.title')}
+          description={t('empty.childEducation.description')}
+          action={onEditPress ? { label: t('empty.childEducation.actionLabel'), onPress: onEditPress } : undefined}
         />
       </ScrollView>
     );

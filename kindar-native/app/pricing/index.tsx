@@ -23,6 +23,7 @@ import { getAvailablePackages, purchasePackage, restore } from 'src/services/iap
 import type { PurchasesPackage } from 'react-native-purchases';
 import { supabase } from 'src/lib/supabase';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -38,6 +39,7 @@ const FEATURES = [
 ];
 
 export default function PricingScreen() {
+  const t = useI18n(s => s.t);
   const { userId } = useAuth();
   const [sub, setSub] = useState<UserSubscription | null>(null);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
@@ -118,7 +120,7 @@ export default function PricingScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Assinatura" />
+      <ScreenHeader title={t('subscription.headerTitle')} />
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 120 }}>
         {/* Hero */}
         <View style={{ alignItems: 'center', marginBottom: spacing['2xl'] }}>

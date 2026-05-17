@@ -18,6 +18,7 @@ import {
 } from '../../services/children';
 import { deleteDocument, DOCUMENT_CATEGORIES } from '../../services/documents';
 import EmptyState from '../ui/EmptyState';
+import { useI18n } from '../../i18n';
 
 interface Props {
   childId: string;
@@ -48,6 +49,7 @@ export default function TabDocumentos({
   refreshing,
   onRefresh,
 }: Props) {
+  const t = useI18n(s => s.t);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleOpen(doc: ChildDocument) {
@@ -134,8 +136,8 @@ export default function TabDocumentos({
       {documents.length === 0 ? (
         <EmptyState
           icon="document-text-outline"
-          title="Nenhum documento ainda"
-          description="Tire foto da carteirinha de vacinação, RG ou plano de saúde — fica tudo organizado aqui."
+          title={t('empty.childDocuments.title')}
+          description={t('empty.childDocuments.description')}
         />
       ) : (
         documents.map((doc) => {

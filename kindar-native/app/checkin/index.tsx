@@ -20,6 +20,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface CheckinItem {
@@ -33,6 +34,7 @@ const CAT_LABELS: Record<string, string> = {
 };
 
 export default function CheckinScreen() {
+  const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
   const [items, setItems] = useState<CheckinItem[]>([]);
   const [children, setChildren] = useState<Child[]>([]);
@@ -102,13 +104,13 @@ export default function CheckinScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Check-in" />
+      <ScreenHeader title={t('checkin.headerTitle')} />
       <FlatList
         data={items}
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-        ListEmptyComponent={loading ? null : <EmptyState icon="✅" title="Nenhum check-in" subtitle="Registre o dia a dia das crianças" />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="✅" title={t('empty.checkin.title')} description={t('empty.checkin.description')} />}
         renderItem={({ item }) => {
           const cat = CHECKIN_CATEGORIES.find((c: any) => c.value === item.category);
           const catLabel = CAT_LABELS[item.category] || item.category;

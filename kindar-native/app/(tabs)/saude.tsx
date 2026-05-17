@@ -98,6 +98,9 @@ export default function SaudeScreen() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.lg }}>
               <TouchableOpacity
                 onPress={() => setSelectedChildId(null)}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: !selectedChildId }}
+                accessibilityLabel="Filtrar histórico: todos"
                 style={{
                   paddingVertical: spacing.sm, paddingHorizontal: spacing.lg,
                   borderRadius: radius.full, marginRight: spacing.sm,
@@ -118,6 +121,9 @@ export default function SaudeScreen() {
                     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setSelectedChildId(c.childId === selectedChildId ? null : c.childId);
                   }}
+                  accessibilityRole="radio"
+                  accessibilityState={{ selected: selectedChildId === c.childId }}
+                  accessibilityLabel={`Filtrar histórico: ${c.childName}`}
                   style={{
                     paddingVertical: spacing.sm, paddingHorizontal: spacing.lg,
                     borderRadius: radius.full, marginRight: spacing.sm,
@@ -251,7 +257,11 @@ export default function SaudeScreen() {
               Historico
             </Text>
             {timeline.length > 0 ? (
-              <TouchableOpacity onPress={() => router.push('/saude/timeline')}>
+              <TouchableOpacity
+                onPress={() => router.push('/saude/timeline')}
+                accessibilityRole="link"
+                accessibilityLabel="Ver toda a timeline de saúde"
+              >
                 <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>
                   Ver tudo
                 </Text>
@@ -295,6 +305,8 @@ export default function SaudeScreen() {
               <TouchableOpacity
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/registrar'); }}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Registrar evento de saúde"
                 style={{
                   backgroundColor: colors.brand, borderRadius: radius.md,
                   paddingVertical: spacing.md, flexDirection: 'row',
@@ -310,6 +322,8 @@ export default function SaudeScreen() {
                 <TouchableOpacity
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/consultas'); }}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir consultas"
                   style={{
                     flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
                     paddingVertical: spacing.md, flexDirection: 'row',
@@ -324,6 +338,8 @@ export default function SaudeScreen() {
                 <TouchableOpacity
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/crescimento'); }}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir crescimento"
                   style={{
                     flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
                     paddingVertical: spacing.md, flexDirection: 'row',
@@ -349,6 +365,8 @@ export default function SaudeScreen() {
                     router.push(`/saude/detalhe?id=${event.id}&type=${event.type}`);
                   }}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${event.title}${event.childName ? ` — ${event.childName}` : ''} — ${formatRelativeDate(event.date)}`}
                   style={{
                     flexDirection: 'row', gap: spacing.md,
                     backgroundColor: colors.bgElevated, borderRadius: radius.lg,

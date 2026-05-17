@@ -43,6 +43,7 @@ import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
 
@@ -90,6 +91,7 @@ const ACTION_ICONS: Record<string, string> = {
 };
 
 export default function DespesasScreen() {
+  const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
   const { highlight } = useLocalSearchParams<{ highlight?: string }>();
@@ -538,7 +540,7 @@ export default function DespesasScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Despesas" />
+      <ScreenHeader title={t('expensesPage.headerTitle')} />
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={colors.brand} />
@@ -560,7 +562,7 @@ export default function DespesasScreen() {
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
           stickySectionHeadersEnabled={false}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
-          ListEmptyComponent={<EmptyState icon="🧾" title="Nenhuma despesa" subtitle="Registre a primeira despesa compartilhada" />}
+          ListEmptyComponent={<EmptyState icon="🧾" title={t('empty.despesas.title')} description={t('empty.despesas.description')} />}
         />
       )}
       <FAB onPress={() => router.push('/despesas/nova')} />

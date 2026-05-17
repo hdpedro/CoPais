@@ -23,6 +23,7 @@ import * as Haptics from 'expo-haptics';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useLock, TIMEOUT_LABELS, type LockTimeout } from 'src/store/lock';
 import { authenticate, getBiometricCapability, type BiometricCapability } from 'src/services/biometric-lock';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const TIMEOUT_OPTIONS: { value: LockTimeout; description: string }[] = [
@@ -33,6 +34,7 @@ const TIMEOUT_OPTIONS: { value: LockTimeout; description: string }[] = [
 ];
 
 export default function SegurancaScreen() {
+  const t = useI18n(s => s.t);
   const { enabled, timeout, hydrated, hydrate, setEnabled, setTimeout: setLockTimeout } = useLock();
   const [capability, setCapability] = useState<BiometricCapability | null>(null);
   const [busy, setBusy] = useState(false);
@@ -108,7 +110,7 @@ export default function SegurancaScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Seguranca" />
+      <ScreenHeader title={t('profile.security')} />
       <ScrollView contentContainerStyle={{ padding: spacing.xl, paddingBottom: 120 }}>
         {/* Hero */}
         <View style={{ alignItems: 'center', marginBottom: spacing['2xl'] }}>

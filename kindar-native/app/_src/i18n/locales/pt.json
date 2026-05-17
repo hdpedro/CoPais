@@ -440,7 +440,8 @@
       "preparation": "Preparação",
       "legal": "Jurídico",
       "other": "Outro"
-    }
+    },
+    "headerTitle": "Notas privadas"
   },
   "decisions": {
     "title": "Decisões",
@@ -1180,7 +1181,8 @@
       "checklistPostVaccineSkip": "Pular",
       "preventiveTilePrimary": "{name} em dia",
       "preventiveTilePending": "{name}: {count} reforço(s) pendente(s)",
-      "preventiveTileEmpty": "Comece a carteirinha do {name}"
+      "preventiveTileEmpty": "Comece a carteirinha do {name}",
+      "detailTitle": "Detalhe da vacina"
     },
     "emergency": {
       "addChildPrompt": "Adicione uma criança para gerar a ficha de emergência.",
@@ -1271,7 +1273,8 @@
       "durationPlaceholder": "Duração (ex: 7 dias)",
       "confirmEdit": "Confirmar edição",
       "medsSaved": "{count} medicamento(s) salvo(s)"
-    }
+    },
+    "consultationsTitle": "Consultas"
   },
   "profile": {
     "title": "Perfil",
@@ -1330,7 +1333,8 @@
       "statConverted": "Convertidos",
       "statMonths": "Meses grátis",
       "codeLabel": "Código:"
-    }
+    },
+    "security": "Segurança"
   },
   "agreements": {
     "title": "Acordos",
@@ -1363,7 +1367,8 @@
     "title": "Check-in Rápido",
     "today": "Hoje",
     "recentDays": "Últimos dias",
-    "by": "por"
+    "by": "por",
+    "headerTitle": "Check-in"
   },
   "invite": {
     "title": "Convidar Membro",
@@ -1424,7 +1429,10 @@
     "logVaccination": "Vacina",
     "logAppointment": "Consulta",
     "logGeneral": "Geral",
-    "confirmDelete": "Tem certeza que deseja excluir"
+    "confirmDelete": "Tem certeza que deseja excluir",
+    "headerLoading": "Carregando…",
+    "headerFallback": "Criança",
+    "notFound": "Criança não encontrada ou sem permissão."
   },
   "sensitive": {
     "title": "Temas Sensíveis",
@@ -1477,7 +1485,9 @@
     "registerAgain": "Registrar novamente",
     "noExpenses": "Nenhuma despesa registrada.",
     "addExpense": "Adicionar despesa",
-    "reason": "Motivo"
+    "reason": "Motivo",
+    "headerTitle": "Despesas",
+    "newExpenseTitle": "Nova Despesa"
   },
   "documentsPage": {
     "uploadDocument": "Enviar documento",
@@ -1493,7 +1503,8 @@
     "idRg": "ID / RG",
     "documentSingular": "documento",
     "documentPlural": "documentos",
-    "confirmDeleteDoc": "Tem certeza que deseja excluir este documento?"
+    "confirmDeleteDoc": "Tem certeza que deseja excluir este documento?",
+    "headerTitle": "Documentos"
   },
   "schoolPage": {
     "subtitle": "Acompanhamento da rotina escolar e desenvolvimento das crianças.",
@@ -1536,7 +1547,8 @@
       "eventAutoCalendar": "📅 Este item será adicionado ao calendário automaticamente.",
       "editAppearsNewDate": "📅 Aparece no calendário na nova data",
       "editRemovedFromCalendar": "⚠️ Vai ser removido do calendário (virou um registro)."
-    }
+    },
+    "headerTitle": "Escola"
   },
   "familyPage": {
     "manageFamily": "Gerenciar família",
@@ -1558,7 +1570,8 @@
     "joinedGroup": "entrou no grupo",
     "inviteTo": "Convite para",
     "wasCancelled": "foi cancelado",
-    "inviteNewMember": "Convidar novo membro"
+    "inviteNewMember": "Convidar novo membro",
+    "headerTitle": "Família"
   },
   "onboarding": {
     "welcome": "Bem-vindo ao Kindar!",
@@ -1585,7 +1598,9 @@
     "clearSchedule": "Limpar Escala",
     "clearConfirm": "Tem certeza? Todos os eventos de guarda serão removidos.",
     "clearSuccess": "Escala removida",
-    "optional": "A escala de guarda é opcional"
+    "optional": "A escala de guarda é opcional",
+    "headerTitle": "Esta semana",
+    "vacationTitle": "Período de Férias"
   },
   "checkinForm": {
     "child": "Criança",
@@ -2039,7 +2054,8 @@
     "saveActivity": "Salvar Atividade",
     "saveEvent": "Salvar Evento",
     "saveCustody": "Salvar Guarda",
-    "dateError": "A data de inicio nao pode ser posterior a data de fim."
+    "dateError": "A data de inicio nao pode ser posterior a data de fim.",
+    "headerTitle": "Novo Evento"
   },
   "inviteParser": {
     "title": "Adicionar via convite",
@@ -2104,7 +2120,8 @@
     "statusDisputed": "Disputada",
     "settlementPending": "Aguardando",
     "settlementConfirmed": "Confirmado",
-    "settlementDisputed": "Disputado"
+    "settlementDisputed": "Disputado",
+    "title": "Financeiro"
   },
   "activities": {
     "name": "Nome",
@@ -2255,7 +2272,8 @@
     "harmoniaCta": "Assinar Harmonia",
     "juridicoCta": "Assinar Premium Jurídico",
     "managedBy": "Pago por {name}",
-    "restorePurchase": "Restaurar compra"
+    "restorePurchase": "Restaurar compra",
+    "headerTitle": "Assinatura"
   },
   "trial": {
     "bannerTitle": "{plan} liberado",
@@ -2361,5 +2379,84 @@
       "errorDetailsTitle": "Detalhes do erro",
       "errorNoMessage": "sem mensagem"
     }
+  },
+  "empty": {
+    "acordos": {
+      "title": "Nenhum acordo",
+      "description": "Registre regras, rotinas e valores combinados entre os responsáveis."
+    },
+    "checkin": {
+      "title": "Nenhum check-in",
+      "description": "Registre o dia a dia das crianças."
+    },
+    "criancas": {
+      "title": "Nenhuma criança",
+      "description": "Adicione as crianças do grupo."
+    },
+    "decisoes": {
+      "title": "Nenhuma decisão",
+      "description": "Abra uma decisão para votação em grupo."
+    },
+    "despesas": {
+      "title": "Nenhuma despesa",
+      "description": "Registre a primeira despesa compartilhada."
+    },
+    "eventos": {
+      "title": "Nenhum evento",
+      "description": "Crie eventos do grupo."
+    },
+    "eventosPedidos": {
+      "title": "Nada pendente",
+      "description": "Você está em dia com os pedidos de alteração de evento."
+    },
+    "notas": {
+      "title": "Nenhuma nota",
+      "description": "Suas notas privadas — só você pode ver."
+    },
+    "temasSensiveis": {
+      "title": "Nenhuma nota",
+      "description": "Registre temas delicados para alinhar abordagens entre os responsáveis."
+    },
+    "documentosNoGroup": {
+      "title": "Sem grupo ativo"
+    },
+    "documentos": {
+      "title": "Nenhum documento ainda",
+      "description": "Toque no + para adicionar o primeiro documento — RG, carteirinha, escolar.",
+      "actionLabel": "Adicionar documento"
+    },
+    "documentosFiltered": {
+      "title": "Nada encontrado",
+      "description": "Tente outros filtros ou limpe a busca."
+    },
+    "escolaChildren": {
+      "title": "Nenhuma criança cadastrada"
+    },
+    "escolaLogs": {
+      "title": "Nenhum registro escolar",
+      "description": "Toque em + abaixo para registrar uma prova, reunião, nota ou conquista."
+    },
+    "semanaNoGroup": {
+      "title": "Sem grupo ativo",
+      "description": "Selecione ou crie um grupo para ver a semana."
+    },
+    "semana": {
+      "title": "Semana tranquila",
+      "description": "Sem eventos, atividades ou consultas registrados. Aproveite para descansar.",
+      "descriptionFiltered": "Nenhum registro para a criança selecionada nesta semana.",
+      "actionLabel": "Ir ao calendário"
+    },
+    "childDocuments": {
+      "title": "Nenhum documento ainda",
+      "description": "Tire foto da carteirinha de vacinação, RG ou plano de saúde — fica tudo organizado aqui."
+    },
+    "childEducation": {
+      "title": "Sem dados de escola",
+      "description": "Cadastre o nome da escola, série, professor(a) e horários para deixar a rotina mais clara.",
+      "actionLabel": "Cadastrar escola"
+    }
+  },
+  "events": {
+    "title": "Eventos"
   }
 }

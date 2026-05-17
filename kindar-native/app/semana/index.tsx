@@ -31,6 +31,7 @@ import {
 } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 /* ─── Types ─── */
@@ -162,6 +163,7 @@ function formatLongDate(dateKey: string): string {
 
 /* ─── Screen ─── */
 export default function SemanaScreen() {
+  const t = useI18n(s => s.t);
   const { activeGroup, userId } = useAuth();
   const [data, setData] = useState<SemanaData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -425,9 +427,9 @@ export default function SemanaScreen() {
   if (!activeGroup) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <ScreenHeader title="Esta semana" showBack={false} />
+        <ScreenHeader title={t('schedule.headerTitle')} showBack={false} />
         <View style={{ padding: spacing.lg }}>
-          <EmptyState icon="calendar-outline" title="Sem grupo ativo" description="Selecione ou crie um grupo para ver a semana." />
+          <EmptyState icon="calendar-outline" title={t('empty.semanaNoGroup.title')} description={t('empty.semanaNoGroup.description')} />
         </View>
       </View>
     );
@@ -436,7 +438,7 @@ export default function SemanaScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader
-        title="Esta semana"
+        title={t('schedule.headerTitle')}
         showBack={false}
         rightAction={{ icon: 'calendar-outline', onPress: () => router.push('/(tabs)/calendario') }}
       />
@@ -779,13 +781,13 @@ export default function SemanaScreen() {
               <View style={{ marginHorizontal: spacing.lg, marginTop: spacing.lg }}>
                 <EmptyState
                   icon="🌿"
-                  title="Semana tranquila"
+                  title={t('empty.semana.title')}
                   description={
                     childFilter
-                      ? 'Nenhum registro para a criança selecionada nesta semana.'
-                      : 'Sem eventos, atividades ou consultas registrados. Aproveite para descansar.'
+                      ? t('empty.semana.descriptionFiltered')
+                      : t('empty.semana.description')
                   }
-                  action={{ label: 'Ir ao calendário', onPress: () => router.push('/(tabs)/calendario') }}
+                  action={{ label: t('empty.semana.actionLabel'), onPress: () => router.push('/(tabs)/calendario') }}
                 />
               </View>
             ) : null}

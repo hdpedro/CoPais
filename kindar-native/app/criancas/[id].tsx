@@ -24,9 +24,11 @@ import TabSaude from 'src/components/criancas/TabSaude';
 import TabDocumentos from 'src/components/criancas/TabDocumentos';
 import TabEducacao from 'src/components/criancas/TabEducacao';
 import UploadSheet from 'src/components/criancas/UploadSheet';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, font } from 'src/design-system/tokens';
 
 export default function ChildDetailScreen() {
+  const t = useI18n(s => s.t);
   const { id, tab: initialTab } = useLocalSearchParams<{ id: string; tab?: ChildTab }>();
   const router = useRouter();
   const { activeGroup, userId } = useAuth();
@@ -79,7 +81,7 @@ export default function ChildDetailScreen() {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <ScreenHeader title="Carregando…" />
+        <ScreenHeader title={t('childDetail.headerLoading')} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={colors.brand} />
         </View>
@@ -90,10 +92,10 @@ export default function ChildDetailScreen() {
   if (!data) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <ScreenHeader title="Criança" />
+        <ScreenHeader title={t('childDetail.headerFallback')} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
           <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center' }}>
-            Criança não encontrada ou sem permissão.
+            {t('childDetail.notFound')}
           </Text>
         </View>
       </View>
@@ -104,7 +106,7 @@ export default function ChildDetailScreen() {
 
   return (
     <View testID="child-detail-screen" style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title={child.full_name.split(' ')[0] || 'Criança'} />
+      <ScreenHeader title={child.full_name.split(' ')[0] || t('childDetail.headerFallback')} />
       <ChildHeader child={child} medicalInfo={medicalInfo} />
       <TabBar active={tab} onChange={setTab} documentCount={documents.length} />
 

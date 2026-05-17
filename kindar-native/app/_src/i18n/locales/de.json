@@ -440,7 +440,8 @@
       "preparation": "Vorbereitung",
       "legal": "Rechtliches",
       "other": "Sonstiges"
-    }
+    },
+    "headerTitle": "Private Notizen"
   },
   "decisions": {
     "title": "Entscheidungen",
@@ -1180,7 +1181,8 @@
       "checklistPostVaccineSkip": "Überspringen",
       "preventiveTilePrimary": "{name} aktuell",
       "preventiveTilePending": "{name}: {count} offene Auffrischung(en)",
-      "preventiveTileEmpty": "Impfpass von {name} starten"
+      "preventiveTileEmpty": "Impfpass von {name} starten",
+      "detailTitle": "Impfdetails"
     },
     "emergency": {
       "addChildPrompt": "Fügen Sie ein Kind hinzu, um den Notfallausweis zu erstellen.",
@@ -1271,7 +1273,8 @@
       "durationPlaceholder": "Dauer (z. B. 7 Tage)",
       "confirmEdit": "Bearbeitung bestätigen",
       "medsSaved": "{count} Medikament(e) gespeichert"
-    }
+    },
+    "consultationsTitle": "Termine"
   },
   "profile": {
     "title": "Profil",
@@ -1330,7 +1333,8 @@
       "statConverted": "Konvertiert",
       "statMonths": "Gratismonate",
       "codeLabel": "Code:"
-    }
+    },
+    "security": "Sicherheit"
   },
   "agreements": {
     "title": "Vereinbarungen",
@@ -1363,7 +1367,8 @@
     "title": "Schneller Check-in",
     "today": "Heute",
     "recentDays": "Letzte Tage",
-    "by": "von"
+    "by": "von",
+    "headerTitle": "Check-in"
   },
   "invite": {
     "title": "Mitglied einladen",
@@ -1424,7 +1429,10 @@
     "logAllergy": "Allergie",
     "logVaccination": "Impfung",
     "logAppointment": "Arzttermin",
-    "logGeneral": "Allgemein"
+    "logGeneral": "Allgemein",
+    "headerLoading": "Wird geladen…",
+    "headerFallback": "Kind",
+    "notFound": "Kind nicht gefunden oder keine Berechtigung."
   },
   "sensitive": {
     "title": "Sensible Themen",
@@ -1477,7 +1485,9 @@
     "registerAgain": "Erneut registrieren",
     "noExpenses": "Keine Ausgaben registriert.",
     "addExpense": "Ausgabe hinzufügen",
-    "reason": "Grund"
+    "reason": "Grund",
+    "headerTitle": "Ausgaben",
+    "newExpenseTitle": "Neue Ausgabe"
   },
   "documentsPage": {
     "uploadDocument": "Dokument hochladen",
@@ -1493,7 +1503,8 @@
     "idRg": "Ausweis / Personalausweis",
     "documentSingular": "Dokument",
     "documentPlural": "Dokumente",
-    "confirmDeleteDoc": "Sind Sie sicher, dass Sie dieses Dokument loschen mochten?"
+    "confirmDeleteDoc": "Sind Sie sicher, dass Sie dieses Dokument loschen mochten?",
+    "headerTitle": "Dokumente"
   },
   "schoolPage": {
     "subtitle": "Begleitung der Schulroutine und Entwicklung der Kinder.",
@@ -1536,7 +1547,8 @@
       "eventAutoCalendar": "📅 Dieser Eintrag wird automatisch in den Kalender übernommen.",
       "editAppearsNewDate": "📅 Erscheint im Kalender am neuen Datum",
       "editRemovedFromCalendar": "⚠️ Wird aus dem Kalender entfernt (wird ein Eintrag)."
-    }
+    },
+    "headerTitle": "Schule"
   },
   "familyPage": {
     "manageFamily": "Familie verwalten",
@@ -1558,7 +1570,8 @@
     "joinedGroup": "ist der Gruppe beigetreten",
     "inviteTo": "Einladung an",
     "wasCancelled": "wurde storniert",
-    "inviteNewMember": "Neues Mitglied einladen"
+    "inviteNewMember": "Neues Mitglied einladen",
+    "headerTitle": "Familie"
   },
   "onboarding": {
     "welcome": "Willkommen bei Kindar!",
@@ -1585,7 +1598,9 @@
     "clearSchedule": "Zeitplan löschen",
     "clearConfirm": "Sind Sie sicher? Alle Sorgerechts-Ereignisse werden entfernt.",
     "clearSuccess": "Zeitplan gelöscht",
-    "optional": "Der Sorgerechtszeitplan ist optional"
+    "optional": "Der Sorgerechtszeitplan ist optional",
+    "headerTitle": "Diese Woche",
+    "vacationTitle": "Ferienzeit"
   },
   "checkinForm": {
     "child": "Kind",
@@ -2039,7 +2054,8 @@
     "saveActivity": "Aktivitat speichern",
     "saveEvent": "Ereignis speichern",
     "saveCustody": "Sorgerecht speichern",
-    "dateError": "Das Startdatum darf nicht nach dem Enddatum liegen."
+    "dateError": "Das Startdatum darf nicht nach dem Enddatum liegen.",
+    "headerTitle": "Neuer Termin"
   },
   "inviteParser": {
     "title": "Von Einladung hinzufugen",
@@ -2104,7 +2120,8 @@
     "statusDisputed": "Angefochten",
     "settlementPending": "Wartend",
     "settlementConfirmed": "Bestatigt",
-    "settlementDisputed": "Angefochten"
+    "settlementDisputed": "Angefochten",
+    "title": "Finanzen"
   },
   "activities": {
     "name": "Name",
@@ -2255,7 +2272,8 @@
     "harmoniaCta": "Harmonia abonnieren",
     "juridicoCta": "Premium Rechtlich abonnieren",
     "managedBy": "Bezahlt von {name}",
-    "restorePurchase": "Kauf wiederherstellen"
+    "restorePurchase": "Kauf wiederherstellen",
+    "headerTitle": "Abonnement"
   },
   "trial": {
     "bannerTitle": "{plan} freigeschaltet",
@@ -2361,5 +2379,84 @@
       "errorDetailsTitle": "Fehlerdetails",
       "errorNoMessage": "keine Nachricht"
     }
+  },
+  "empty": {
+    "acordos": {
+      "title": "Noch keine Vereinbarungen",
+      "description": "Halte gemeinsame Regeln, Routinen und Werte der Bezugspersonen fest."
+    },
+    "checkin": {
+      "title": "Noch keine Check-ins",
+      "description": "Halte den Alltag der Kinder fest."
+    },
+    "criancas": {
+      "title": "Noch keine Kinder",
+      "description": "Füge die Kinder der Gruppe hinzu."
+    },
+    "decisoes": {
+      "title": "Noch keine Entscheidungen",
+      "description": "Stelle eine Entscheidung zur Gruppenabstimmung."
+    },
+    "despesas": {
+      "title": "Noch keine Ausgaben",
+      "description": "Erfasse die erste gemeinsame Ausgabe."
+    },
+    "eventos": {
+      "title": "Noch keine Ereignisse",
+      "description": "Lege Gruppentermine an."
+    },
+    "eventosPedidos": {
+      "title": "Nichts ausstehend",
+      "description": "Du bist mit allen Änderungsanfragen für Termine auf dem Laufenden."
+    },
+    "notas": {
+      "title": "Noch keine Notizen",
+      "description": "Deine privaten Notizen — nur du siehst sie."
+    },
+    "temasSensiveis": {
+      "title": "Noch keine Notizen",
+      "description": "Halte sensible Themen fest, um den Umgang zwischen den Bezugspersonen abzustimmen."
+    },
+    "documentosNoGroup": {
+      "title": "Keine aktive Gruppe"
+    },
+    "documentos": {
+      "title": "Noch keine Dokumente",
+      "description": "Tippe auf +, um das erste Dokument hinzuzufügen — Ausweis, Gesundheitskarte, Schule.",
+      "actionLabel": "Dokument hinzufügen"
+    },
+    "documentosFiltered": {
+      "title": "Nichts gefunden",
+      "description": "Probiere andere Filter oder lösche die Suche."
+    },
+    "escolaChildren": {
+      "title": "Keine Kinder erfasst"
+    },
+    "escolaLogs": {
+      "title": "Noch keine Schul-Einträge",
+      "description": "Tippe unten auf +, um eine Prüfung, ein Treffen, eine Note oder einen Erfolg festzuhalten."
+    },
+    "semanaNoGroup": {
+      "title": "Keine aktive Gruppe",
+      "description": "Wähle eine Gruppe oder lege eine an, um die Woche zu sehen."
+    },
+    "semana": {
+      "title": "Ruhige Woche",
+      "description": "Keine Termine, Aktivitäten oder Untersuchungen erfasst. Genieße die Pause.",
+      "descriptionFiltered": "Keine Einträge für das ausgewählte Kind in dieser Woche.",
+      "actionLabel": "Zum Kalender"
+    },
+    "childDocuments": {
+      "title": "Noch keine Dokumente",
+      "description": "Fotografiere Impfpass, Ausweis oder Krankenversicherungskarte — alles bleibt hier geordnet."
+    },
+    "childEducation": {
+      "title": "Noch keine Schul-Daten",
+      "description": "Trage Schulname, Klasse, Lehrkraft und Zeiten ein, damit der Alltag klarer wird.",
+      "actionLabel": "Schule eintragen"
+    }
+  },
+  "events": {
+    "title": "Termine"
   }
 }

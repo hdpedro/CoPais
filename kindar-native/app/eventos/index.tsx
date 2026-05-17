@@ -12,6 +12,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { DatePickerField, TimePickerField } from 'src/components/ui/DateTimeField';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 function formatDate(d: string) {
@@ -24,6 +25,7 @@ function normalizeTime(t: string | null | undefined): string | null {
 }
 
 export default function EventosScreen() {
+  const t = useI18n(s => s.t);
   const { activeGroup } = useAuth();
   const [events, setEvents] = useState<SocialEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -134,11 +136,11 @@ export default function EventosScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Eventos" rightAction={{ icon: 'mail-outline', onPress: () => router.push('/eventos/pedidos') }} />
+      <ScreenHeader title={t('events.title')} rightAction={{ icon: 'mail-outline', onPress: () => router.push('/eventos/pedidos') }} />
       <FlatList data={events} keyExtractor={item => item.id} renderItem={renderItem}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.brand} />}
-        ListEmptyComponent={loading ? null : <EmptyState icon="🎯" title="Nenhum evento" subtitle="Crie eventos do grupo" />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="🎯" title={t('empty.eventos.title')} description={t('empty.eventos.description')} />}
       />
       <FAB onPress={() => router.push('/calendario/novo')} />
 

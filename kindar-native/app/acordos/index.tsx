@@ -18,6 +18,7 @@ import {
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const CAT_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -29,6 +30,7 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
 };
 
 export default function AcordosScreen() {
+  const t = useI18n(s => s.t);
   const { activeGroup, userId } = useAuth();
   const [agreements, setAgreements] = useState<Agreement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -110,13 +112,13 @@ export default function AcordosScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Acordos" />
+      <ScreenHeader title={t('agreements.title')} />
       <FlatList
         data={agreements}
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-        ListEmptyComponent={loading ? null : <EmptyState icon="🤝" title="Nenhum acordo" subtitle="Registre regras, rotinas e valores combinados entre os responsaveis" />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="🤝" title={t('empty.acordos.title')} description={t('empty.acordos.description')} />}
         renderItem={({ item: a }) => {
           const cat = CAT_META[a.category] || CAT_META.rule;
           const isMine = a.created_by === userId;

@@ -18,6 +18,7 @@ import ChildPicker from 'src/components/ui/ChildPicker';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Appt { id: string; title: string; appointment_date: string; location: string | null; status: string; notes: string | null; childName: string; profName: string | null; child_id: string; }
@@ -27,6 +28,7 @@ const STATUS_COLORS: Record<string, { label: string; color: string }> = {
 };
 
 export default function ConsultasScreen() {
+  const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
   const [appts, setAppts] = useState<Appt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -259,7 +261,7 @@ export default function ConsultasScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Consultas" rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => setShowForm(!showForm) }} />
+      <ScreenHeader title={t('health.consultationsTitle')} rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => setShowForm(!showForm) }} />
 
       {showForm ? (
         <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>

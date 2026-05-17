@@ -208,7 +208,7 @@ export default function VaccineDetailScreen() {
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <ScreenHeader title="Detalhe da vacina" />
+        <ScreenHeader title={t('health.vaccineEngine.detailTitle')} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={colors.brand} />
         </View>
@@ -219,7 +219,7 @@ export default function VaccineDetailScreen() {
   if (!record) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <ScreenHeader title="Detalhe da vacina" />
+        <ScreenHeader title={t('health.vaccineEngine.detailTitle')} />
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
           <Text style={{ fontSize: 40, marginBottom: spacing.md }}>🤔</Text>
           <Text style={{ color: colors.text, fontWeight: font.weights.semibold, marginBottom: spacing.xs }}>
@@ -244,7 +244,7 @@ export default function VaccineDetailScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.bg }}
     >
-      <ScreenHeader title="Detalhe da vacina" />
+      <ScreenHeader title={t('health.vaccineEngine.detailTitle')} />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }} keyboardShouldPersistTaps="handled">
         {/* Hero */}
         <View

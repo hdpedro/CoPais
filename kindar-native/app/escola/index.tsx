@@ -487,7 +487,7 @@ export default function EscolaScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Escola" />
+      <ScreenHeader title={t('schoolPage.headerTitle')} />
 
       <View style={{ flexDirection: 'row', paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm }}>
         <TabPill label="Informacoes" active={tab === 'info'} onPress={() => setTab('info')} />
@@ -509,7 +509,7 @@ export default function EscolaScreen() {
       {tab === 'info' ? (
         <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}>
-          {schools.length === 0 && !loading ? <EmptyState icon="🏫" title="Nenhuma crianca cadastrada" /> : null}
+          {schools.length === 0 && !loading ? <EmptyState icon="🏫" title={t('empty.escolaChildren.title')} /> : null}
           {schools.map(s => {
             const e = s.education;
             return (
@@ -557,8 +557,8 @@ export default function EscolaScreen() {
             ) : logs.length === 0 ? (
               <EmptyState
                 icon="📚"
-                title="Nenhum registro escolar"
-                subtitle="Toque em + abaixo para registrar uma prova, reunião, nota ou conquista."
+                title={t('empty.escolaLogs.title')}
+                description={t('empty.escolaLogs.description')}
               />
             ) : (
               logs

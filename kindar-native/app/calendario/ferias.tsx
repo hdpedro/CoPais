@@ -47,6 +47,7 @@ import { supabase } from 'src/lib/supabase';
 import { createVacationPeriod, listUpcomingVacations, deleteVacationPeriod } from 'src/services/vacation';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { getDisplayName } from 'src/lib/constants';
 
@@ -61,6 +62,7 @@ const RESPONSIBLE_COLORS = [
 ] as const;
 
 export default function NovaFeriasScreen() {
+  const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
   const params = useLocalSearchParams<{ date?: string }>();
@@ -230,7 +232,7 @@ export default function NovaFeriasScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.bg }}
     >
-      <ScreenHeader title="Período de Férias" />
+      <ScreenHeader title={t('schedule.vacationTitle')} />
 
       <ScrollView
         contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: insets.bottom + 100 }}

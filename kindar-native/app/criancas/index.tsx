@@ -7,6 +7,7 @@ import { fetchChildren, type Child } from 'src/services/children';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 function calcAge(birthDate: string): number {
@@ -15,6 +16,7 @@ function calcAge(birthDate: string): number {
 }
 
 export default function CriancasScreen() {
+  const t = useI18n(s => s.t);
   const { activeGroup } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,11 +78,11 @@ export default function CriancasScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Crianças" />
+      <ScreenHeader title={t('children.title')} />
       <FlatList data={children} keyExtractor={item => item.id} renderItem={renderItem}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-        ListEmptyComponent={loading ? null : <EmptyState icon="👶" title="Nenhuma criança" subtitle="Adicione as crianças do grupo" />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="👶" title={t('empty.criancas.title')} description={t('empty.criancas.description')} />}
       />
       {/* Hide FAB for readonly users (mediator/lawyer) — they cannot add children */}
       {!isReadonly ? <FAB onPress={() => router.push('/criancas/nova')} /> : null}

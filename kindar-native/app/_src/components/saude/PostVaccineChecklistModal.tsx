@@ -80,14 +80,20 @@ export default function PostVaccineChecklistModal({
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onSkip}>
-      <View
+      <TouchableOpacity
+        activeOpacity={1}
+        accessibilityLabel="Fechar"
+        accessibilityRole="button"
+        onPress={onSkip}
         style={{
           flex: 1,
           backgroundColor: 'rgba(0,0,0,0.3)',
           justifyContent: 'flex-end',
         }}
       >
-        <View
+        <TouchableOpacity
+          activeOpacity={1}
+          onPress={(e) => e.stopPropagation()}
           style={{
             backgroundColor: colors.bg,
             borderTopLeftRadius: radius.xl + 4,
@@ -170,8 +176,8 @@ export default function PostVaccineChecklistModal({
               </Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </View>
+        </TouchableOpacity>
+      </TouchableOpacity>
     </Modal>
   );
 }

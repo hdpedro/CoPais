@@ -18,6 +18,7 @@ import { apiFetch } from 'src/lib/api-fetch';
 import { useAuth } from 'src/store/auth';
 import { listInvitations, cancelInvitation, type Invitation } from 'src/services/invitations';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 type GroupRole = 'admin' | 'member' | 'readonly';
@@ -48,6 +49,7 @@ const ROLE_META: Record<string, { label: string; icon: string; color: string }> 
 };
 
 export default function FamiliaScreen() {
+  const t = useI18n(s => s.t);
   const { activeGroup, userId, signOut } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [children, setChildren] = useState<ChildPreview[]>([]);
@@ -211,7 +213,7 @@ export default function FamiliaScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title={activeGroup?.groupName || 'Família'} />
+      <ScreenHeader title={activeGroup?.groupName || t('familyPage.headerTitle')} />
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={colors.brand} />
@@ -448,8 +450,14 @@ export default function FamiliaScreen() {
 
       {/* Role-change modal — mirrors PWA MemberActions.tsx (3 radios + descriptions) */}
       <Modal visible={!!roleModalMember} transparent animationType="fade" onRequestClose={() => setRoleModalMember(null)}>
-        <View style={{ flex: 1, backgroundColor: '#00000080', justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
-          <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, width: '100%', maxWidth: 400 }}>
+        <TouchableOpacity
+          activeOpacity={1}
+          accessibilityLabel="Fechar"
+          accessibilityRole="button"
+          onPress={() => setRoleModalMember(null)}
+          style={{ flex: 1, backgroundColor: '#00000080', justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}
+        >
+          <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()} style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, width: '100%', maxWidth: 400 }}>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
               Mudar papel
             </Text>
@@ -504,8 +512,8 @@ export default function FamiliaScreen() {
             >
               <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>Cancelar</Text>
             </TouchableOpacity>
-          </View>
-        </View>
+          </TouchableOpacity>
+        </TouchableOpacity>
       </Modal>
     </View>
   );

@@ -16,6 +16,7 @@ import {
   type EventRequest,
 } from 'src/services/event-requests';
 import EmptyState from 'src/components/ui/EmptyState';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const ACTION_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -43,6 +44,7 @@ function describeChange(key: string, value: unknown): string {
 }
 
 export default function PedidosEventosScreen() {
+  const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
   const [requests, setRequests] = useState<EventRequest[]>([]);
@@ -122,7 +124,7 @@ export default function PedidosEventosScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         >
           {requests.length === 0 ? (
-            <EmptyState icon="📭" title="Nada pendente" subtitle="Voce esta em dia com os pedidos de alteracao de evento" />
+            <EmptyState icon="📭" title={t('empty.eventosPedidos.title')} description={t('empty.eventosPedidos.description')} />
           ) : (
             requests.map(r => {
               const action = ACTION_META[r.action_type] || ACTION_META.edit;

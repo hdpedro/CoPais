@@ -41,6 +41,7 @@ import { supabase } from 'src/lib/supabase';
 import { createEvent } from 'src/services/events';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, TimePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 interface ChildOption { id: string; full_name: string; }
@@ -57,6 +58,7 @@ const RESPONSIBLE_COLORS = [
 ] as const;
 
 export default function NovoEventoScreen() {
+  const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
   // Aceita ?date=YYYY-MM-DD (ex: clicar dia vazio no calendario abre
@@ -205,7 +207,7 @@ export default function NovoEventoScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       style={{ flex: 1, backgroundColor: colors.bg }}
     >
-      <ScreenHeader title="Novo Evento" />
+      <ScreenHeader title={t('newForm.headerTitle')} />
       <ScrollView
         contentContainerStyle={{ padding: spacing.xl, paddingBottom: insets.bottom + 120 }}
         keyboardShouldPersistTaps="handled"

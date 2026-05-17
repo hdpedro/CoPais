@@ -14,6 +14,7 @@ import { fetchNotes, createNote, updateNote, deleteNote, type Note } from 'src/s
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 // Categories must match the CHECK constraint on private_notes.category
@@ -29,6 +30,7 @@ const CATEGORIES: { value: NoteCategory; label: string; icon: string; color: str
 ];
 
 export default function NotasScreen() {
+  const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
   const [notes, setNotes] = useState<Note[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,13 +121,13 @@ export default function NotasScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Notas privadas" />
+      <ScreenHeader title={t('notes.headerTitle')} />
       <FlatList
         data={notes}
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-        ListEmptyComponent={loading ? null : <EmptyState icon="📝" title="Nenhuma nota" subtitle="Suas notas privadas — so voce pode ver" />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="📝" title={t('empty.notas.title')} description={t('empty.notas.description')} />}
         renderItem={({ item }) => {
           const cat = CATEGORIES.find(c => c.value === (item as unknown as { category?: string }).category) || CATEGORIES[0];
           return (

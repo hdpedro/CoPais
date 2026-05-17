@@ -317,6 +317,8 @@ export default function CalendarScreen() {
                     <TouchableOpacity
                       disabled={responding === s.id}
                       onPress={() => handleSwapDecision(s.id, 'rejected', s.requesterId, s.originalDate)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Rejeitar troca de ${s.requesterName}`}
                       style={{
                         flex: 1, paddingVertical: 8, borderRadius: radius.md,
                         borderWidth: 1, borderColor: colors.borderLight,
@@ -330,6 +332,8 @@ export default function CalendarScreen() {
                     <TouchableOpacity
                       disabled={responding === s.id}
                       onPress={() => handleSwapDecision(s.id, 'approved', s.requesterId, s.originalDate)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Aprovar troca de ${s.requesterName}`}
                       style={{
                         flex: 1, paddingVertical: 8, borderRadius: radius.md,
                         backgroundColor: colors.brand,
@@ -394,6 +398,8 @@ export default function CalendarScreen() {
                     <TouchableOpacity
                       disabled={responding === s.id}
                       onPress={() => handleCancelMySwap(s.id, s.originalDate)}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Cancelar pedido de troca em ${formatSwapDate(s.originalDate)}`}
                       style={{
                         marginTop: spacing.sm,
                         paddingVertical: 8, borderRadius: radius.md,
@@ -467,6 +473,8 @@ export default function CalendarScreen() {
                         disabled={responding === r.id}
                         onPress={() => handleEventRequestDecision(r, 'rejected')}
                         testID={`event-req-reject-${r.id}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Rejeitar solicitação de ${r.requesterName || 'coparente'}`}
                         style={{
                           flex: 1, paddingVertical: 8, borderRadius: radius.md,
                           borderWidth: 1, borderColor: colors.borderLight,
@@ -481,6 +489,8 @@ export default function CalendarScreen() {
                         disabled={responding === r.id}
                         onPress={() => handleEventRequestDecision(r, 'approved')}
                         testID={`event-req-approve-${r.id}`}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Aprovar solicitação de ${r.requesterName || 'coparente'}`}
                         style={{
                           flex: 1, paddingVertical: 8, borderRadius: radius.md,
                           backgroundColor: colors.brand,
@@ -506,15 +516,31 @@ export default function CalendarScreen() {
           padding: spacing.lg, ...shadows.sm,
         }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
-            <TouchableOpacity onPress={goPrev} hitSlop={12} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+            <TouchableOpacity
+              onPress={goPrev}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Mês anterior"
+              style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+            >
               <Ionicons name="chevron-back" size={22} color={colors.text} />
             </TouchableOpacity>
-            <TouchableOpacity onPress={goToday}>
+            <TouchableOpacity
+              onPress={goToday}
+              accessibilityRole="button"
+              accessibilityLabel={`${MONTH_NAMES[viewMonth]} de ${viewYear}. Tocar para voltar ao mês atual.`}
+            >
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
                 {MONTH_NAMES[viewMonth]} {viewYear}
               </Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={goNext} hitSlop={12} style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}>
+            <TouchableOpacity
+              onPress={goNext}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel="Próximo mês"
+              style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
+            >
               <Ionicons name="chevron-forward" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
@@ -550,6 +576,15 @@ export default function CalendarScreen() {
               const visible = pills.slice(0, 2);
               const extra = pills.length - visible.length;
 
+              const custodyResponsible = custody && members.find(m => m.userId === custody.responsibleId);
+              const custodyHint = custody
+                ? `, guarda com ${custody.responsibleId === userId ? 'você' : (custodyResponsible?.name || 'coparente')}`
+                : '';
+              const eventsHint = pills.length > 0
+                ? `, ${pills.length} ${pills.length === 1 ? 'evento' : 'eventos'}`
+                : '';
+              const holidayHint = holiday ? `, feriado: ${holiday}` : '';
+              const todayHint = isToday ? ', hoje' : '';
               return (
                 <TouchableOpacity
                   key={day}
@@ -559,7 +594,8 @@ export default function CalendarScreen() {
                     setSelectedDay(dateKey);
                   }}
                   testID={`calendar-day-${dateKey}`}
-                  accessibilityLabel={`Dia ${day} de ${MONTH_NAMES[viewMonth]}`}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Dia ${day} de ${MONTH_NAMES[viewMonth]}${todayHint}${custodyHint}${eventsHint}${holidayHint}`}
                   style={{
                     width: '14.2857%', height: 72, padding: 2,
                   }}
@@ -665,6 +701,8 @@ export default function CalendarScreen() {
           <TouchableOpacity
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/escala'); }}
             activeOpacity={0.85}
+            accessibilityRole="button"
+            accessibilityLabel={activeGroup?.custodyEnabled ? 'Editar escala de guarda' : 'Configurar escala de guarda'}
             style={{
               marginHorizontal: spacing.lg, marginBottom: spacing.lg,
               backgroundColor: colors.brand, borderRadius: radius.xl,
@@ -707,6 +745,9 @@ export default function CalendarScreen() {
 
         {/* Sync with native calendar */}
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Sincronizar com calendário do celular"
+          accessibilityState={{ disabled: syncing }}
           onPress={async () => {
             if (syncing) return;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -810,6 +851,8 @@ export default function CalendarScreen() {
                     router.push({ pathname: '/calendario/novo', params: { date: day || '' } } as never);
                   }}
                   activeOpacity={0.85}
+                  accessibilityRole="button"
+                  accessibilityLabel="Novo evento"
                   style={{
                     flex: 1.4, backgroundColor: colors.brand, borderRadius: radius.md,
                     paddingVertical: spacing.md, flexDirection: 'row',
@@ -828,6 +871,8 @@ export default function CalendarScreen() {
                     router.push('/saude/registrar' as never);
                   }}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Registrar consulta"
                   style={{
                     flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
                     paddingVertical: spacing.md, flexDirection: 'row',
@@ -846,6 +891,8 @@ export default function CalendarScreen() {
                     router.push('/atividades/nova' as never);
                   }}
                   activeOpacity={0.8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Nova atividade recorrente"
                   style={{
                     flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
                     paddingVertical: spacing.md, flexDirection: 'row',
@@ -967,6 +1014,8 @@ export default function CalendarScreen() {
                   router.push({ pathname: '/calendario/novo', params: { date: day || '' } } as never);
                 }}
                 activeOpacity={0.85}
+                accessibilityRole="button"
+                accessibilityLabel="Adicionar evento"
                 style={{
                   flex: 1, backgroundColor: colors.brand, borderRadius: radius.md,
                   paddingVertical: spacing.md, flexDirection: 'row',
@@ -1050,6 +1099,8 @@ export default function CalendarScreen() {
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
                 <TouchableOpacity
                   onPress={() => openSwap(false)}
+                  accessibilityRole="button"
+                  accessibilityLabel={isOwnDay ? 'Oferecer troca' : 'Pedir troca'}
                   style={{
                     flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                     backgroundColor: colors.brand, alignItems: 'center',
@@ -1062,6 +1113,8 @@ export default function CalendarScreen() {
                 {!isOwnDay ? (
                   <TouchableOpacity
                     onPress={() => openSwap(true)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Pedir visita"
                     style={{
                       flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                       borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',

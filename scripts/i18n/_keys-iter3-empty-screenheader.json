@@ -1,0 +1,541 @@
+{
+  "empty.acordos": {
+    "pt": {
+      "title": "Nenhum acordo",
+      "description": "Registre regras, rotinas e valores combinados entre os responsáveis."
+    },
+    "en": {
+      "title": "No agreements yet",
+      "description": "Record rules, routines and values agreed between caregivers."
+    },
+    "es": {
+      "title": "Sin acuerdos todavía",
+      "description": "Registra las reglas, rutinas y valores acordados entre los responsables."
+    },
+    "fr": {
+      "title": "Aucun accord pour le moment",
+      "description": "Notez les règles, routines et valeurs convenues entre les responsables."
+    },
+    "de": {
+      "title": "Noch keine Vereinbarungen",
+      "description": "Halte gemeinsame Regeln, Routinen und Werte der Bezugspersonen fest."
+    }
+  },
+  "empty.checkin": {
+    "pt": {
+      "title": "Nenhum check-in",
+      "description": "Registre o dia a dia das crianças."
+    },
+    "en": {
+      "title": "No check-ins yet",
+      "description": "Log how the kids are doing day by day."
+    },
+    "es": {
+      "title": "Sin check-ins todavía",
+      "description": "Registra el día a día de los niños."
+    },
+    "fr": {
+      "title": "Aucun check-in pour le moment",
+      "description": "Notez le quotidien des enfants."
+    },
+    "de": {
+      "title": "Noch keine Check-ins",
+      "description": "Halte den Alltag der Kinder fest."
+    }
+  },
+  "empty.criancas": {
+    "pt": {
+      "title": "Nenhuma criança",
+      "description": "Adicione as crianças do grupo."
+    },
+    "en": {
+      "title": "No children yet",
+      "description": "Add the children in your group."
+    },
+    "es": {
+      "title": "Sin niños todavía",
+      "description": "Agrega los niños del grupo."
+    },
+    "fr": {
+      "title": "Aucun enfant pour le moment",
+      "description": "Ajoute les enfants du groupe."
+    },
+    "de": {
+      "title": "Noch keine Kinder",
+      "description": "Füge die Kinder der Gruppe hinzu."
+    }
+  },
+  "empty.decisoes": {
+    "pt": {
+      "title": "Nenhuma decisão",
+      "description": "Abra uma decisão para votação em grupo."
+    },
+    "en": {
+      "title": "No decisions yet",
+      "description": "Open a decision so the group can vote."
+    },
+    "es": {
+      "title": "Sin decisiones todavía",
+      "description": "Abre una decisión para votar en grupo."
+    },
+    "fr": {
+      "title": "Aucune décision pour le moment",
+      "description": "Ouvre une décision pour un vote en groupe."
+    },
+    "de": {
+      "title": "Noch keine Entscheidungen",
+      "description": "Stelle eine Entscheidung zur Gruppenabstimmung."
+    }
+  },
+  "empty.despesas": {
+    "pt": {
+      "title": "Nenhuma despesa",
+      "description": "Registre a primeira despesa compartilhada."
+    },
+    "en": {
+      "title": "No expenses yet",
+      "description": "Log the first shared expense."
+    },
+    "es": {
+      "title": "Sin gastos todavía",
+      "description": "Registra el primer gasto compartido."
+    },
+    "fr": {
+      "title": "Aucune dépense pour le moment",
+      "description": "Enregistre la première dépense partagée."
+    },
+    "de": {
+      "title": "Noch keine Ausgaben",
+      "description": "Erfasse die erste gemeinsame Ausgabe."
+    }
+  },
+  "empty.eventos": {
+    "pt": {
+      "title": "Nenhum evento",
+      "description": "Crie eventos do grupo."
+    },
+    "en": {
+      "title": "No events yet",
+      "description": "Create events for the group."
+    },
+    "es": {
+      "title": "Sin eventos todavía",
+      "description": "Crea eventos del grupo."
+    },
+    "fr": {
+      "title": "Aucun événement pour le moment",
+      "description": "Crée des événements pour le groupe."
+    },
+    "de": {
+      "title": "Noch keine Ereignisse",
+      "description": "Lege Gruppentermine an."
+    }
+  },
+  "empty.eventosPedidos": {
+    "pt": {
+      "title": "Nada pendente",
+      "description": "Você está em dia com os pedidos de alteração de evento."
+    },
+    "en": {
+      "title": "Nothing pending",
+      "description": "You're all caught up on event change requests."
+    },
+    "es": {
+      "title": "Nada pendiente",
+      "description": "Estás al día con las solicitudes de cambio de eventos."
+    },
+    "fr": {
+      "title": "Rien en attente",
+      "description": "Tu es à jour avec les demandes de modification d'événement."
+    },
+    "de": {
+      "title": "Nichts ausstehend",
+      "description": "Du bist mit allen Änderungsanfragen für Termine auf dem Laufenden."
+    }
+  },
+  "empty.notas": {
+    "pt": {
+      "title": "Nenhuma nota",
+      "description": "Suas notas privadas — só você pode ver."
+    },
+    "en": {
+      "title": "No notes yet",
+      "description": "Your private notes — only you can see them."
+    },
+    "es": {
+      "title": "Sin notas todavía",
+      "description": "Tus notas privadas — solo tú puedes verlas."
+    },
+    "fr": {
+      "title": "Aucune note pour le moment",
+      "description": "Tes notes privées — toi seul·e peux les voir."
+    },
+    "de": {
+      "title": "Noch keine Notizen",
+      "description": "Deine privaten Notizen — nur du siehst sie."
+    }
+  },
+  "empty.temasSensiveis": {
+    "pt": {
+      "title": "Nenhuma nota",
+      "description": "Registre temas delicados para alinhar abordagens entre os responsáveis."
+    },
+    "en": {
+      "title": "No notes yet",
+      "description": "Log sensitive topics to align the approach between caregivers."
+    },
+    "es": {
+      "title": "Sin notas todavía",
+      "description": "Registra temas delicados para alinear el enfoque entre los responsables."
+    },
+    "fr": {
+      "title": "Aucune note pour le moment",
+      "description": "Note les sujets délicats pour aligner l'approche entre les responsables."
+    },
+    "de": {
+      "title": "Noch keine Notizen",
+      "description": "Halte sensible Themen fest, um den Umgang zwischen den Bezugspersonen abzustimmen."
+    }
+  },
+  "empty.documentosNoGroup": {
+    "pt": {
+      "title": "Sem grupo ativo"
+    },
+    "en": {
+      "title": "No active group"
+    },
+    "es": {
+      "title": "Sin grupo activo"
+    },
+    "fr": {
+      "title": "Aucun groupe actif"
+    },
+    "de": {
+      "title": "Keine aktive Gruppe"
+    }
+  },
+  "empty.documentos": {
+    "pt": {
+      "title": "Nenhum documento ainda",
+      "description": "Toque no + para adicionar o primeiro documento — RG, carteirinha, escolar.",
+      "actionLabel": "Adicionar documento"
+    },
+    "en": {
+      "title": "No documents yet",
+      "description": "Tap + to add the first document — ID, health card, school.",
+      "actionLabel": "Add document"
+    },
+    "es": {
+      "title": "Sin documentos todavía",
+      "description": "Toca + para añadir el primer documento — DNI, carné sanitario, escolar.",
+      "actionLabel": "Añadir documento"
+    },
+    "fr": {
+      "title": "Aucun document pour le moment",
+      "description": "Touche + pour ajouter le premier document — carte d'identité, carnet de santé, scolaire.",
+      "actionLabel": "Ajouter un document"
+    },
+    "de": {
+      "title": "Noch keine Dokumente",
+      "description": "Tippe auf +, um das erste Dokument hinzuzufügen — Ausweis, Gesundheitskarte, Schule.",
+      "actionLabel": "Dokument hinzufügen"
+    }
+  },
+  "empty.documentosFiltered": {
+    "pt": {
+      "title": "Nada encontrado",
+      "description": "Tente outros filtros ou limpe a busca."
+    },
+    "en": {
+      "title": "Nothing found",
+      "description": "Try other filters or clear the search."
+    },
+    "es": {
+      "title": "Nada encontrado",
+      "description": "Prueba otros filtros o borra la búsqueda."
+    },
+    "fr": {
+      "title": "Rien trouvé",
+      "description": "Essaie d'autres filtres ou efface la recherche."
+    },
+    "de": {
+      "title": "Nichts gefunden",
+      "description": "Probiere andere Filter oder lösche die Suche."
+    }
+  },
+  "empty.escolaChildren": {
+    "pt": {
+      "title": "Nenhuma criança cadastrada"
+    },
+    "en": {
+      "title": "No children registered"
+    },
+    "es": {
+      "title": "Sin niños registrados"
+    },
+    "fr": {
+      "title": "Aucun enfant enregistré"
+    },
+    "de": {
+      "title": "Keine Kinder erfasst"
+    }
+  },
+  "empty.escolaLogs": {
+    "pt": {
+      "title": "Nenhum registro escolar",
+      "description": "Toque em + abaixo para registrar uma prova, reunião, nota ou conquista."
+    },
+    "en": {
+      "title": "No school logs yet",
+      "description": "Tap + below to log a test, meeting, grade or achievement."
+    },
+    "es": {
+      "title": "Sin registros escolares",
+      "description": "Toca + abajo para registrar una prueba, reunión, nota o logro."
+    },
+    "fr": {
+      "title": "Aucun registre scolaire",
+      "description": "Touche + ci-dessous pour enregistrer un contrôle, une réunion, une note ou une réussite."
+    },
+    "de": {
+      "title": "Noch keine Schul-Einträge",
+      "description": "Tippe unten auf +, um eine Prüfung, ein Treffen, eine Note oder einen Erfolg festzuhalten."
+    }
+  },
+  "empty.semanaNoGroup": {
+    "pt": {
+      "title": "Sem grupo ativo",
+      "description": "Selecione ou crie um grupo para ver a semana."
+    },
+    "en": {
+      "title": "No active group",
+      "description": "Select or create a group to see the week."
+    },
+    "es": {
+      "title": "Sin grupo activo",
+      "description": "Selecciona o crea un grupo para ver la semana."
+    },
+    "fr": {
+      "title": "Aucun groupe actif",
+      "description": "Sélectionne ou crée un groupe pour voir la semaine."
+    },
+    "de": {
+      "title": "Keine aktive Gruppe",
+      "description": "Wähle eine Gruppe oder lege eine an, um die Woche zu sehen."
+    }
+  },
+  "empty.semana": {
+    "pt": {
+      "title": "Semana tranquila",
+      "description": "Sem eventos, atividades ou consultas registrados. Aproveite para descansar.",
+      "descriptionFiltered": "Nenhum registro para a criança selecionada nesta semana.",
+      "actionLabel": "Ir ao calendário"
+    },
+    "en": {
+      "title": "Quiet week",
+      "description": "No events, activities or appointments logged. Take a moment to rest.",
+      "descriptionFiltered": "No records for the selected child this week.",
+      "actionLabel": "Open calendar"
+    },
+    "es": {
+      "title": "Semana tranquila",
+      "description": "Sin eventos, actividades ni citas registradas. Aprovecha para descansar.",
+      "descriptionFiltered": "Sin registros para el niño seleccionado esta semana.",
+      "actionLabel": "Ir al calendario"
+    },
+    "fr": {
+      "title": "Semaine tranquille",
+      "description": "Aucun événement, activité ou rendez-vous enregistré. Profites-en pour souffler.",
+      "descriptionFiltered": "Aucun enregistrement pour l'enfant sélectionné cette semaine.",
+      "actionLabel": "Aller au calendrier"
+    },
+    "de": {
+      "title": "Ruhige Woche",
+      "description": "Keine Termine, Aktivitäten oder Untersuchungen erfasst. Genieße die Pause.",
+      "descriptionFiltered": "Keine Einträge für das ausgewählte Kind in dieser Woche.",
+      "actionLabel": "Zum Kalender"
+    }
+  },
+  "empty.childDocuments": {
+    "pt": {
+      "title": "Nenhum documento ainda",
+      "description": "Tire foto da carteirinha de vacinação, RG ou plano de saúde — fica tudo organizado aqui."
+    },
+    "en": {
+      "title": "No documents yet",
+      "description": "Take a photo of the vaccination card, ID or health plan — it all stays organized here."
+    },
+    "es": {
+      "title": "Sin documentos todavía",
+      "description": "Saca una foto del carné de vacunación, DNI o seguro médico — queda todo organizado aquí."
+    },
+    "fr": {
+      "title": "Aucun document pour le moment",
+      "description": "Photographie le carnet de vaccination, la carte d'identité ou la mutuelle — tout reste organisé ici."
+    },
+    "de": {
+      "title": "Noch keine Dokumente",
+      "description": "Fotografiere Impfpass, Ausweis oder Krankenversicherungskarte — alles bleibt hier geordnet."
+    }
+  },
+  "empty.childEducation": {
+    "pt": {
+      "title": "Sem dados de escola",
+      "description": "Cadastre o nome da escola, série, professor(a) e horários para deixar a rotina mais clara.",
+      "actionLabel": "Cadastrar escola"
+    },
+    "en": {
+      "title": "No school details yet",
+      "description": "Add the school name, grade, teacher and schedule to make the routine clearer.",
+      "actionLabel": "Add school"
+    },
+    "es": {
+      "title": "Sin datos de escuela",
+      "description": "Registra el nombre de la escuela, curso, profesor(a) y horarios para tener la rutina más clara.",
+      "actionLabel": "Registrar escuela"
+    },
+    "fr": {
+      "title": "Aucune info sur l'école",
+      "description": "Renseigne le nom de l'école, le niveau, l'enseignant·e et les horaires pour clarifier la routine.",
+      "actionLabel": "Renseigner l'école"
+    },
+    "de": {
+      "title": "Noch keine Schul-Daten",
+      "description": "Trage Schulname, Klasse, Lehrkraft und Zeiten ein, damit der Alltag klarer wird.",
+      "actionLabel": "Schule eintragen"
+    }
+  },
+  "checkin.headerTitle": {
+    "pt": "Check-in",
+    "en": "Check-in",
+    "es": "Check-in",
+    "fr": "Check-in",
+    "de": "Check-in"
+  },
+  "childDetail.headerLoading": {
+    "pt": "Carregando…",
+    "en": "Loading…",
+    "es": "Cargando…",
+    "fr": "Chargement…",
+    "de": "Wird geladen…"
+  },
+  "childDetail.headerFallback": {
+    "pt": "Criança",
+    "en": "Child",
+    "es": "Niño",
+    "fr": "Enfant",
+    "de": "Kind"
+  },
+  "childDetail.notFound": {
+    "pt": "Criança não encontrada ou sem permissão.",
+    "en": "Child not found or no permission.",
+    "es": "Niño no encontrado o sin permiso.",
+    "fr": "Enfant introuvable ou sans autorisation.",
+    "de": "Kind nicht gefunden oder keine Berechtigung."
+  },
+  "expensesPage.headerTitle": {
+    "pt": "Despesas",
+    "en": "Expenses",
+    "es": "Gastos",
+    "fr": "Dépenses",
+    "de": "Ausgaben"
+  },
+  "expensesPage.newExpenseTitle": {
+    "pt": "Nova Despesa",
+    "en": "New Expense",
+    "es": "Nuevo gasto",
+    "fr": "Nouvelle dépense",
+    "de": "Neue Ausgabe"
+  },
+  "documentsPage.headerTitle": {
+    "pt": "Documentos",
+    "en": "Documents",
+    "es": "Documentos",
+    "fr": "Documents",
+    "de": "Dokumente"
+  },
+  "schoolPage.headerTitle": {
+    "pt": "Escola",
+    "en": "School",
+    "es": "Escuela",
+    "fr": "École",
+    "de": "Schule"
+  },
+  "events.title": {
+    "pt": "Eventos",
+    "en": "Events",
+    "es": "Eventos",
+    "fr": "Événements",
+    "de": "Termine"
+  },
+  "familyPage.headerTitle": {
+    "pt": "Família",
+    "en": "Family",
+    "es": "Familia",
+    "fr": "Famille",
+    "de": "Familie"
+  },
+  "financial.title": {
+    "pt": "Financeiro",
+    "en": "Financial",
+    "es": "Finanzas",
+    "fr": "Finances",
+    "de": "Finanzen"
+  },
+  "notes.headerTitle": {
+    "pt": "Notas privadas",
+    "en": "Private notes",
+    "es": "Notas privadas",
+    "fr": "Notes privées",
+    "de": "Private Notizen"
+  },
+  "profile.security": {
+    "pt": "Segurança",
+    "en": "Security",
+    "es": "Seguridad",
+    "fr": "Sécurité",
+    "de": "Sicherheit"
+  },
+  "schedule.headerTitle": {
+    "pt": "Esta semana",
+    "en": "This week",
+    "es": "Esta semana",
+    "fr": "Cette semaine",
+    "de": "Diese Woche"
+  },
+  "schedule.vacationTitle": {
+    "pt": "Período de Férias",
+    "en": "Vacation Period",
+    "es": "Periodo de vacaciones",
+    "fr": "Période de vacances",
+    "de": "Ferienzeit"
+  },
+  "newForm.headerTitle": {
+    "pt": "Novo Evento",
+    "en": "New Event",
+    "es": "Nuevo evento",
+    "fr": "Nouvel événement",
+    "de": "Neuer Termin"
+  },
+  "subscription.headerTitle": {
+    "pt": "Assinatura",
+    "en": "Subscription",
+    "es": "Suscripción",
+    "fr": "Abonnement",
+    "de": "Abonnement"
+  },
+  "health.consultationsTitle": {
+    "pt": "Consultas",
+    "en": "Appointments",
+    "es": "Consultas",
+    "fr": "Consultations",
+    "de": "Termine"
+  },
+  "health.vaccineEngine.detailTitle": {
+    "pt": "Detalhe da vacina",
+    "en": "Vaccine details",
+    "es": "Detalle de la vacuna",
+    "fr": "Détails du vaccin",
+    "de": "Impfdetails"
+  }
+}

@@ -19,6 +19,7 @@ import { fetchChildren, type Child } from 'src/services/children';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const TOPIC_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -44,6 +45,7 @@ function formatRelative(iso: string): string {
 }
 
 export default function TemasSensiveisScreen() {
+  const t = useI18n(s => s.t);
   const { activeGroup, userId } = useAuth();
   const [notes, setNotes] = useState<SensitiveNote[]>([]);
   const [children, setChildren] = useState<Child[]>([]);
@@ -156,13 +158,13 @@ export default function TemasSensiveisScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Temas sensíveis" />
+      <ScreenHeader title={t('sensitive.title')} />
       <FlatList
         data={notes}
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-        ListEmptyComponent={loading ? null : <EmptyState icon="🔒" title="Nenhuma nota" subtitle="Registre temas delicados para aliar abordagens entre os responsáveis" />}
+        ListEmptyComponent={loading ? null : <EmptyState icon="🔒" title={t('empty.temasSensiveis.title')} description={t('empty.temasSensiveis.description')} />}
         renderItem={({ item: n }) => {
           const topic = TOPIC_META[n.topic] || TOPIC_META.outro;
           const isAwaitingApproval = !!n.deletion_requested_by;

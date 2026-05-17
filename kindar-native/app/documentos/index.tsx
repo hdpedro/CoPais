@@ -35,6 +35,7 @@ import {
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
 import UploadSheet from 'src/components/criancas/UploadSheet';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const CATEGORY_BY_VALUE = Object.fromEntries(DOCUMENT_CATEGORIES.map((c) => [c.value, c]));
@@ -46,6 +47,7 @@ function formatSize(bytes: number | null): string {
 }
 
 export default function DocumentosScreen() {
+  const t = useI18n(s => s.t);
   const { activeGroup, userId } = useAuth();
   const groupId = activeGroup?.groupId;
 
@@ -140,8 +142,8 @@ export default function DocumentosScreen() {
   if (!groupId || !userId) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
-        <ScreenHeader title="Documentos" />
-        <EmptyState icon="folder-outline" title="Sem grupo ativo" />
+        <ScreenHeader title={t('documentsPage.headerTitle')} />
+        <EmptyState icon="folder-outline" title={t('empty.documentosNoGroup.title')} />
       </View>
     );
   }
@@ -149,7 +151,7 @@ export default function DocumentosScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader
-        title="Documentos"
+        title={t('documentsPage.headerTitle')}
         rightAction={{ icon: 'add-circle', onPress: () => setUploadOpen(true) }}
       />
 
@@ -252,15 +254,15 @@ export default function DocumentosScreen() {
         >
           <EmptyState
             icon="folder-open-outline"
-            title={docs.length === 0 ? 'Nenhum documento ainda' : 'Nada encontrado'}
+            title={docs.length === 0 ? t('empty.documentos.title') : t('empty.documentosFiltered.title')}
             description={
               docs.length === 0
-                ? 'Toque no + para adicionar o primeiro documento — RG, carteirinha, escolar.'
-                : 'Tente outros filtros ou limpe a busca.'
+                ? t('empty.documentos.description')
+                : t('empty.documentosFiltered.description')
             }
             action={
               docs.length === 0
-                ? { label: 'Adicionar documento', onPress: () => setUploadOpen(true) }
+                ? { label: t('empty.documentos.actionLabel'), onPress: () => setUploadOpen(true) }
                 : undefined
             }
           />

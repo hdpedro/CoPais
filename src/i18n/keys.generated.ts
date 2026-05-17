@@ -500,6 +500,19 @@ export type TranslationKey =
   | "collab.priorityLabel"
   | "collab.priorityUrgent"
   | "collab.priorityUrgentHint"
+  | "collab.realtime.addedAlergiaToast"
+  | "collab.realtime.addedAtividadeToast"
+  | "collab.realtime.addedConsultaToast"
+  | "collab.realtime.addedDespesaToast"
+  | "collab.realtime.addedEpisodioToast"
+  | "collab.realtime.addedEventoToast"
+  | "collab.realtime.addedMedicamentoToast"
+  | "collab.realtime.addedMedidaToast"
+  | "collab.realtime.addedNotaToast"
+  | "collab.realtime.addedProfissionalToast"
+  | "collab.realtime.addedReceitaToast"
+  | "collab.realtime.addedSintomaToast"
+  | "collab.realtime.addedVacinaToast"
   | "collab.seen"
   | "common.all"
   | "common.appName"
@@ -744,6 +757,22 @@ export type TranslationKey =
   | "emails.welcome.step3Title"
   | "emails.welcome.subject"
   | "emails.welcome.tagline"
+  | "errors.boundary.btnHome"
+  | "errors.boundary.btnReport"
+  | "errors.boundary.btnRetry"
+  | "errors.boundary.errorDetailsTitle"
+  | "errors.boundary.errorNoMessage"
+  | "errors.boundary.networkHint"
+  | "errors.boundary.networkTitle"
+  | "errors.boundary.permissionHint"
+  | "errors.boundary.permissionTitle"
+  | "errors.boundary.renderingHint"
+  | "errors.boundary.renderingTitle"
+  | "errors.boundary.reportHint"
+  | "errors.boundary.storageHint"
+  | "errors.boundary.storageTitle"
+  | "errors.boundary.unknownHint"
+  | "errors.boundary.unknownTitle"
   | "eventRequests.actionsBlocked"
   | "eventRequests.approve"
   | "eventRequests.approveMessage"
@@ -2782,6 +2811,19 @@ export const TRANSLATION_KEYS = [
   "collab.priorityLabel",
   "collab.priorityUrgent",
   "collab.priorityUrgentHint",
+  "collab.realtime.addedAlergiaToast",
+  "collab.realtime.addedAtividadeToast",
+  "collab.realtime.addedConsultaToast",
+  "collab.realtime.addedDespesaToast",
+  "collab.realtime.addedEpisodioToast",
+  "collab.realtime.addedEventoToast",
+  "collab.realtime.addedMedicamentoToast",
+  "collab.realtime.addedMedidaToast",
+  "collab.realtime.addedNotaToast",
+  "collab.realtime.addedProfissionalToast",
+  "collab.realtime.addedReceitaToast",
+  "collab.realtime.addedSintomaToast",
+  "collab.realtime.addedVacinaToast",
   "collab.seen",
   "common.all",
   "common.appName",
@@ -3026,6 +3068,22 @@ export const TRANSLATION_KEYS = [
   "emails.welcome.step3Title",
   "emails.welcome.subject",
   "emails.welcome.tagline",
+  "errors.boundary.btnHome",
+  "errors.boundary.btnReport",
+  "errors.boundary.btnRetry",
+  "errors.boundary.errorDetailsTitle",
+  "errors.boundary.errorNoMessage",
+  "errors.boundary.networkHint",
+  "errors.boundary.networkTitle",
+  "errors.boundary.permissionHint",
+  "errors.boundary.permissionTitle",
+  "errors.boundary.renderingHint",
+  "errors.boundary.renderingTitle",
+  "errors.boundary.reportHint",
+  "errors.boundary.storageHint",
+  "errors.boundary.storageTitle",
+  "errors.boundary.unknownHint",
+  "errors.boundary.unknownTitle",
   "eventRequests.actionsBlocked",
   "eventRequests.approve",
   "eventRequests.approveMessage",

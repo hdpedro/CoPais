@@ -13,6 +13,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { CurrencyInput } from 'src/components/ui/MaskedInputs';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 interface ChildOption { id: string; full_name: string; }
@@ -27,6 +28,7 @@ const SPLIT_PRESETS: { id: '50-50' | '70-30' | '30-70' | '100-0' | 'custom'; lab
 ];
 
 export default function NovaExpenseScreen() {
+  const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -146,7 +148,7 @@ export default function NovaExpenseScreen() {
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Nova Despesa" />
+      <ScreenHeader title={t('expensesPage.newExpenseTitle')} />
       <ScrollView contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
         {error ? <Text style={{ color: colors.error, marginBottom: spacing.md }}>{error}</Text> : null}
 

@@ -42,6 +42,7 @@ import {
 import { useAuth } from 'src/store/auth';
 import { supabase } from 'src/lib/supabase';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface SplitMember {
@@ -93,6 +94,7 @@ function classifyPackage(pkg: PurchasesPackage): PackageView {
 }
 
 export default function AssinaturaScreen() {
+  const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
   const [billing, setBilling] = useState<BillingStatus>(FREE_BILLING);
   const [packages, setPackages] = useState<PackageView[]>([]);
@@ -271,7 +273,7 @@ export default function AssinaturaScreen() {
         style={{ flex: 1, backgroundColor: colors.bg }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        <ScreenHeader title="Assinatura" />
+        <ScreenHeader title={t('subscription.headerTitle')} />
         <View style={{ padding: spacing.xl }}>
           <View
             style={{
@@ -342,7 +344,7 @@ export default function AssinaturaScreen() {
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       contentContainerStyle={{ paddingBottom: spacing['3xl'] }}
     >
-      <ScreenHeader title="Assinatura" />
+      <ScreenHeader title={t('subscription.headerTitle')} />
 
       <View style={{ padding: spacing.xl, gap: spacing.lg }}>
         {/* Status card */}

@@ -34,6 +34,7 @@ import {
   type ChecklistItem,
 } from '../../services/activities';
 import { ACTIVITY_CATEGORIES } from '../../lib/constants';
+import { useToast } from '../ui/ToastProvider';
 
 const CATEGORY_LABEL: Record<string, string> = {
   sports: 'Esporte',
@@ -96,6 +97,7 @@ export default function ActivityDetailSheet({
   visible, onClose, activityId, occurrenceDate, completedBy, onReport, fullscreen = false, onChanged,
 }: Props) {
   const insets = useSafeAreaInsets();
+  const toast = useToast();
   const [activity, setActivity] = useState<ActivityFull | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
@@ -269,13 +271,16 @@ export default function ActivityDetailSheet({
         // permanecia. Sem feedback de erro nem refresh = usuario assumia
         // "nao funciona". onChanged dispara loadData() no calendar.
         onChanged?.();
-        // Confirmacao visivel — antes era silencioso (so haptic).
+        // Toast suave (não-bloqueante) + fecha o sheet automaticamente.
+        // Antes era Alert.alert que exigia tap "OK" — UX jarring pra ação
+        // já confirmada destrutivamente no swipe.
         const msg = scope === 'occurrence'
-          ? 'Ocorrencia deste dia removida do calendario.'
+          ? 'Ocorrência deste dia removida do calendário.'
           : scope === 'future'
-          ? 'Esta ocorrencia e as proximas foram removidas.'
-          : 'Atividade removida do calendario.';
-        Alert.alert('Pronto', msg, [{ text: 'OK', onPress: onClose }]);
+          ? 'Esta ocorrência e as próximas foram removidas.'
+          : 'Atividade removida do calendário.';
+        toast.show({ message: msg, variant: 'success' });
+        onClose();
       } else {
         // Erro visivel pro user + reportado pra debugging futuro.
         reportError(new Error(`activity_delete_failed: ${r.error || 'unknown'}`), {

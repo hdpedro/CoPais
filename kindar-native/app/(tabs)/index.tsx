@@ -199,6 +199,8 @@ export default function DashboardScreen() {
         </Text>
         <TouchableOpacity
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); refresh(); }}
+          accessibilityRole="button"
+          accessibilityLabel="Tentar de novo"
           style={{ backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md }}
         >
           <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: '700' }}>Tentar de novo</Text>
@@ -474,6 +476,8 @@ export default function DashboardScreen() {
             <TouchableOpacity
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium); router.push('/(tabs)/saude'); }}
               activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel={`Atenção em saúde: ${data.childHealthSummaries.filter(s => s.status === 'treatment').length} criança em tratamento. Abrir saúde.`}
               style={{
                 backgroundColor: `${colors.error}12`, borderRadius: radius.xl,
                 borderWidth: 1, borderColor: `${colors.error}30`,
@@ -506,7 +510,11 @@ export default function DashboardScreen() {
                     {t('dashboard.activities')}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => router.push('/atividades')}>
+                <TouchableOpacity
+                  onPress={() => router.push('/atividades')}
+                  accessibilityRole="link"
+                  accessibilityLabel="Ver todas as atividades"
+                >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
                 </TouchableOpacity>
               </View>
@@ -550,6 +558,8 @@ export default function DashboardScreen() {
                         key={`today-${act.id}`}
                         activeOpacity={0.75}
                         onPress={onPress}
+                        accessibilityRole="button"
+                        accessibilityLabel={`${act.name}${act.timeStr ? ` às ${act.timeStr}` : ''}${act.childName ? ` — ${act.childName}` : ''}${isEndedUnreported ? ' — relatar agora' : isEndedReported ? ' — encerrada' : ''}`}
                         style={{
                           backgroundColor: isEndedUnreported ? 'rgba(232,162,40,0.08)' : colors.bgElevated,
                           borderWidth: isEndedUnreported ? 1 : 0,
@@ -623,6 +633,8 @@ export default function DashboardScreen() {
                             occurrenceDate: tomorrowIso,
                           });
                         }}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Amanhã: ${act.name}${act.timeStr ? ` às ${act.timeStr}` : ''}${act.childName ? ` — ${act.childName}` : ''}`}
                         style={{
                           backgroundColor: colors.bgElevated, borderRadius: radius.md,
                           padding: spacing.md, marginBottom: 6,
@@ -663,7 +675,11 @@ export default function DashboardScreen() {
                     {t('dashboard.pendingDecisions')}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => router.push('/decisoes')}>
+                <TouchableOpacity
+                  onPress={() => router.push('/decisoes')}
+                  accessibilityRole="link"
+                  accessibilityLabel="Ver todas as decisões"
+                >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
               </View>
@@ -676,6 +692,8 @@ export default function DashboardScreen() {
                     key={d.id}
                     activeOpacity={0.75}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/decisoes/${d.id}`); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Votar em: ${d.title}${deadlineInfo ? ` — ${deadlineInfo.label}` : ''}`}
                     style={{
                       backgroundColor: 'rgba(232,162,40,0.08)',
                       borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
@@ -718,6 +736,10 @@ export default function DashboardScreen() {
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/escola'); }}
+              accessibilityRole="button"
+              accessibilityLabel={data!.schoolUnreadCount === 1
+                ? t('collab.dashboardSchoolUnreadOne')
+                : t('collab.dashboardSchoolUnreadOther', { count: data!.schoolUnreadCount })}
               style={{
                 backgroundColor: 'rgba(192,112,85,0.08)',
                 borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
@@ -756,6 +778,10 @@ export default function DashboardScreen() {
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
+              accessibilityRole="button"
+              accessibilityLabel={data!.expensesUnreadCount === 1
+                ? t('collab.dashboardExpensesUnreadOne')
+                : t('collab.dashboardExpensesUnreadOther', { count: data!.expensesUnreadCount })}
               style={{
                 backgroundColor: 'rgba(192,112,85,0.08)',
                 borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
@@ -795,6 +821,10 @@ export default function DashboardScreen() {
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude' as never); }}
+              accessibilityRole="button"
+              accessibilityLabel={data!.saudeUnreadCount === 1
+                ? t('collab.dashboardSaudeUnreadOne')
+                : t('collab.dashboardSaudeUnreadOther', { count: data!.saudeUnreadCount })}
               style={{
                 backgroundColor: 'rgba(192,112,85,0.08)',
                 borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
@@ -835,6 +865,10 @@ export default function DashboardScreen() {
             <TouchableOpacity
               activeOpacity={0.85}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/vacinas' as never); }}
+              accessibilityRole="button"
+              accessibilityLabel={data!.vaccinePendingCount === 1
+                ? t('health.vaccineEngine.statusOnePending')
+                : t('health.vaccineEngine.statusManyPending', { count: data!.vaccinePendingCount })}
               style={{
                 backgroundColor: '#FFFBEB',
                 borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
@@ -879,7 +913,11 @@ export default function DashboardScreen() {
                     {t('activityReport.pendingReports')}
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => router.push('/atividades')}>
+                <TouchableOpacity
+                  onPress={() => router.push('/atividades')}
+                  accessibilityRole="link"
+                  accessibilityLabel="Ver todos os relatos pendentes"
+                >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
               </View>
@@ -896,6 +934,8 @@ export default function DashboardScreen() {
                     key={`${r.activityId}-${r.occurrenceDate}`}
                     activeOpacity={0.75}
                     onPress={openReport}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Relatar ${r.activityName} — ${r.childName}${r.daysAgo > 0 ? `, há ${r.daysAgo} dias` : ''}`}
                     style={{
                       backgroundColor: 'rgba(232,162,40,0.08)',
                       borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
@@ -989,6 +1029,8 @@ export default function DashboardScreen() {
                       <TouchableOpacity
                         disabled={responding === s.id}
                         onPress={() => handleSwapDecision(s.id, 'rejected', s.requesterId, s.originalDate)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Rejeitar troca de ${s.requesterName}`}
                         style={{
                           flex: 1, paddingVertical: 8, borderRadius: radius.md,
                           borderWidth: 1, borderColor: colors.borderLight,
@@ -1002,6 +1044,8 @@ export default function DashboardScreen() {
                       <TouchableOpacity
                         disabled={responding === s.id}
                         onPress={() => handleSwapDecision(s.id, 'approved', s.requesterId, s.originalDate)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Aprovar troca de ${s.requesterName}`}
                         style={{
                           flex: 1, paddingVertical: 8, borderRadius: radius.md,
                           backgroundColor: colors.brand,
@@ -1067,6 +1111,8 @@ export default function DashboardScreen() {
                     <TouchableOpacity
                       disabled={responding === s.id}
                       onPress={() => handleCancelMySwap(s.id)}
+                      accessibilityRole="button"
+                      accessibilityLabel="Cancelar pedido de troca"
                       style={{
                         marginTop: spacing.sm,
                         paddingVertical: 8, borderRadius: radius.md,
@@ -1097,7 +1143,11 @@ export default function DashboardScreen() {
                 <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
                   🧾 Despesas pra aprovar
                 </Text>
-                <TouchableOpacity onPress={() => router.push('/despesas')}>
+                <TouchableOpacity
+                  onPress={() => router.push('/despesas')}
+                  accessibilityRole="link"
+                  accessibilityLabel="Ver todas as despesas"
+                >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
                 </TouchableOpacity>
               </View>
@@ -1106,6 +1156,8 @@ export default function DashboardScreen() {
                   key={e.id}
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Despesa pendente: ${e.description} — ${e.paidByName}, ${formatBRL(e.amount)}`}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
                     paddingVertical: spacing.sm,
@@ -1149,7 +1201,11 @@ export default function DashboardScreen() {
                     Saude
                   </Text>
                 </View>
-                <TouchableOpacity onPress={() => router.push('/(tabs)/saude')}>
+                <TouchableOpacity
+                  onPress={() => router.push('/(tabs)/saude')}
+                  accessibilityRole="link"
+                  accessibilityLabel="Abrir saúde"
+                >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
               </View>
@@ -1164,6 +1220,8 @@ export default function DashboardScreen() {
                     key={h.childId}
                     activeOpacity={0.8}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/(tabs)/saude?child=${h.childId}` as Parameters<typeof router.push>[0]); }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Saúde de ${h.childName}: ${h.statusLabel}. ${h.detail}`}
                     style={{
                       backgroundColor: statusConfig.bg,
                       borderWidth: 1, borderColor: statusConfig.border, borderRadius: radius.md,
@@ -1224,12 +1282,13 @@ export default function DashboardScreen() {
                 </Text>
                 <TouchableOpacity
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setShowQAModal(true); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('dashboard.editActionsHint')}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 4,
                     paddingHorizontal: spacing.sm, paddingVertical: 4,
                     borderRadius: radius.full, backgroundColor: colors.bgSurface,
                   }}
-                  accessibilityLabel={t('dashboard.editActionsHint')}
                 >
                   <Ionicons name="pencil-outline" size={11} color={colors.textMuted} />
                   <Text style={{ fontSize: 10, fontWeight: font.weights.medium, color: colors.textMuted }}>

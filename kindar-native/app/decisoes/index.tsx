@@ -14,6 +14,7 @@ import {
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
@@ -47,6 +48,7 @@ function formatDeadline(deadline: string | null): { label: string; urgent: boole
 }
 
 export default function DecisoesScreen() {
+  const t = useI18n(s => s.t);
   const { activeGroup, userId } = useAuth();
   const [decisions, setDecisions] = useState<Decision[]>([]);
   const [loading, setLoading] = useState(true);
@@ -217,7 +219,7 @@ export default function DecisoesScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Decisões" />
+      <ScreenHeader title={t('decisions.title')} />
       {loading ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
           <ActivityIndicator color={colors.brand} />
@@ -228,7 +230,7 @@ export default function DecisoesScreen() {
           keyExtractor={item => item.id}
           contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
-          ListEmptyComponent={<EmptyState icon="🗳️" title="Nenhuma decisão" subtitle="Abra uma decisão para votação em grupo" />}
+          ListEmptyComponent={<EmptyState icon="🗳️" title={t('empty.decisoes.title')} description={t('empty.decisoes.description')} />}
           renderItem={renderItem}
         />
       )}

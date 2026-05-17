@@ -33,6 +33,7 @@ import {
   type Settlement,
 } from 'src/services/settlements';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface MemberOption {
@@ -57,6 +58,7 @@ type ViewMode = 'dashboard' | 'settlements' | 'history';
 const MEMBER_COLORS = ['#5B9E85', '#D4735A', '#F4A261', '#8E6E95', '#3B82F6', '#E76F51'];
 
 export default function FinanceiroScreen() {
+  const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
   const [summary, setSummary] = useState<{ myTotal: number; otherTotal: number; balance: number; totalMonth: number } | null>(null);
@@ -258,7 +260,7 @@ export default function FinanceiroScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Financeiro" />
+      <ScreenHeader title={t('financial.title')} />
       <ScrollView
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 + insets.bottom }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
@@ -612,7 +614,13 @@ export default function FinanceiroScreen() {
       {/* Settlement modal — só renderiza se isShared (e mesmo assim modalOpen tem que ser true) */}
       <Modal visible={modalOpen && isShared} transparent animationType="slide" onRequestClose={() => setModalOpen(false)}>
         <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, justifyContent: 'flex-end' }}>
-          <View style={{ flex: 1, backgroundColor: '#00000080' }} />
+          <TouchableOpacity
+            activeOpacity={1}
+            accessibilityLabel="Fechar"
+            accessibilityRole="button"
+            onPress={() => setModalOpen(false)}
+            style={{ flex: 1, backgroundColor: '#00000080' }}
+          />
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, paddingBottom: spacing.xl + insets.bottom }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg }}>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>Registrar pagamento</Text>
