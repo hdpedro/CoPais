@@ -18,6 +18,7 @@ import {
 } from '../../services/children';
 import { deleteDocument, DOCUMENT_CATEGORIES } from '../../services/documents';
 import EmptyState from '../ui/EmptyState';
+import { useToast } from '../ui/ToastProvider';
 import { useI18n } from '../../i18n';
 
 interface Props {
@@ -50,6 +51,7 @@ export default function TabDocumentos({
   onRefresh,
 }: Props) {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function handleOpen(doc: ChildDocument) {
@@ -58,7 +60,7 @@ export default function TabDocumentos({
     const signed = await getSignedFileUrl('documents', doc.file_url, 3600);
     const target = signed || doc.file_url;
     Linking.openURL(target).catch(() => {
-      Alert.alert('Erro', 'Não foi possível abrir o documento.');
+      toast.show({ message: t('toasts.common.fallbackError'), variant: 'error' });
     });
   }
 
@@ -76,7 +78,7 @@ export default function TabDocumentos({
             const res = await deleteDocument(doc.id);
             setDeletingId(null);
             if (!res.success) {
-              Alert.alert('Erro', res.error);
+              toast.show({ message: res.error || t('toasts.common.deleteFailed'), variant: 'error' });
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               onChange();

@@ -12,6 +12,7 @@ import { useAuth } from 'src/store/auth';
 import { fetchIllnesses, resolveIllness, addEvolutionQuick, type IllnessEpisode } from 'src/services/health';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -28,6 +29,7 @@ function daysSince(startDate: string): number {
 
 export default function DoencasScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const insets = useSafeAreaInsets();
   const { activeGroup, profile } = useAuth();
   const [illnesses, setIllnesses] = useState<IllnessEpisode[]>([]);
@@ -90,7 +92,7 @@ export default function DoencasScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error);
+      toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
   }
 

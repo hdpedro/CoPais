@@ -7,6 +7,7 @@ import { fetchChildren, type Child } from 'src/services/children';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -79,7 +80,12 @@ export default function CriancasScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title={t('children.title')} />
-      <FlatList data={children} keyExtractor={item => item.id} renderItem={renderItem}
+      {loading && children.length === 0 ? (
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={3} />
+        </View>
+      ) : null}
+      <FlatList data={loading && children.length === 0 ? [] : children} keyExtractor={item => item.id} renderItem={renderItem}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : <EmptyState icon="👶" title={t('empty.criancas.title')} description={t('empty.criancas.description')} />}

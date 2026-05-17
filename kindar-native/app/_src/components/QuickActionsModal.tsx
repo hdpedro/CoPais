@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, Modal,
-  ActivityIndicator, Alert, Platform,
+  ActivityIndicator, Platform,
 } from 'react-native';
 import DraggableFlatList, {
   ScaleDecorator,
@@ -10,6 +10,7 @@ import DraggableFlatList, {
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from '../store/auth';
+import { useToast } from './ui/ToastProvider';
 import { useI18n } from '../i18n';
 import { colors, spacing, radius, font, shadows } from '../design-system/tokens';
 import {
@@ -25,6 +26,7 @@ interface Props {
 
 export default function QuickActionsModal({ visible, onClose }: Props) {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { profile, updateQuickActions } = useAuth();
 
   const [primary, setPrimary] = useState<string>(DEFAULT_QUICK_ACTIONS_NATIVE.primary);
@@ -104,7 +106,7 @@ export default function QuickActionsModal({ visible, onClose }: Props) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onClose();
     } else {
-      Alert.alert('Erro', result.error ?? 'Não foi possível salvar');
+      toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 

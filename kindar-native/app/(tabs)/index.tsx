@@ -15,6 +15,7 @@ import ActivityReportModal from 'src/components/activities/ActivityReportModal';
 import ActivityDetailSheet from 'src/components/activities/ActivityDetailSheet';
 import QuickActionsModal from 'src/components/QuickActionsModal';
 import ChildAvatar from 'src/components/ui/ChildAvatar';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { track, EVENTS } from 'src/lib/analytics';
 
 // i18n keys for greetings — same keys the PWA uses
@@ -64,6 +65,7 @@ export default function DashboardScreen() {
   const { activeGroup, userId, profile } = useAuth();
   const { data, loading, refresh } = useDashboard();
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [showQAModal, setShowQAModal] = useState(false);
   const [reportModal, setReportModal] = useState<{
@@ -137,10 +139,10 @@ export default function DashboardScreen() {
       await refresh();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-      Alert.alert('Erro', result.error || 'Falha ao responder.');
+      toast.show({ message: result.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
     setResponding(null);
-  }, [activeGroup, refresh]);
+  }, [activeGroup, refresh, t, toast]);
 
   const handleCancelMySwap = useCallback((swapId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
@@ -161,13 +163,13 @@ export default function DashboardScreen() {
               await refresh();
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error).catch(() => {});
-              Alert.alert('Erro', r.error || 'Falha ao cancelar.');
+              toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
             }
           },
         },
       ],
     );
-  }, [refresh]);
+  }, [refresh, t, toast]);
 
   function formatSwapDate(iso: string): string {
     const [, m, d] = iso.split('-').map(Number);

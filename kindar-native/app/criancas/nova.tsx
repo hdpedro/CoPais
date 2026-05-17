@@ -5,7 +5,7 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -14,6 +14,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { createChild } from 'src/services/children';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 // Schema check (CHECK sex IN ('M','F')) lives on `children.sex`. Native must
@@ -38,6 +40,8 @@ function parseDate(display: string): string | null {
 export default function NovaCriancaScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [fullName, setFullName] = useState('');
   const [birthDate, setBirthDate] = useState('');
   const [sex, setSex] = useState<'M' | 'F' | ''>('');
@@ -85,7 +89,7 @@ export default function NovaCriancaScreen() {
       router.back();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', 'Não foi possível adicionar a criança. Tente novamente.');
+      toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 

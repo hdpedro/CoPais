@@ -26,6 +26,8 @@ import { apiFetch } from 'src/lib/api-fetch';
 import { fetchChildren, type Child } from 'src/services/children';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -44,6 +46,8 @@ type Step = 'upload' | 'confirm' | 'processing' | 'preview';
 export default function CarteirinhaScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('upload');
@@ -64,7 +68,7 @@ export default function CarteirinhaScreen() {
 
   const pickImage = useCallback(async (mode: 'camera' | 'library') => {
     if (!selectedChildId) {
-      Alert.alert('Selecione uma criança', 'Escolha a criança antes de fotografar a carteirinha.');
+      toast.show({ message: t('toasts.validation.fillRequired'), variant: 'info' });
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -72,7 +76,7 @@ export default function CarteirinhaScreen() {
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permissão negada', mode === 'camera' ? 'Precisamos da permissão da câmera' : 'Precisamos da permissão da galeria');
+      toast.show({ message: mode === 'camera' ? t('toasts.permissions.cameraDenied') : t('toasts.permissions.photosDenied'), variant: 'info' });
       return;
     }
     const result = mode === 'camera'
@@ -86,7 +90,7 @@ export default function CarteirinhaScreen() {
     setPendingAsset(asset);
     setStep('confirm');
     setError(null);
-  }, [selectedChildId]);
+  }, [selectedChildId, t, toast]);
 
   const processConfirmedImage = useCallback(async () => {
     if (!pendingAsset) return;
@@ -162,7 +166,7 @@ export default function CarteirinhaScreen() {
     if (!activeGroup || !selectedChildId) return;
     const toSave = vaccines.filter(v => v.include && v.vaccine_name.trim());
     if (toSave.length === 0) {
-      Alert.alert('Nada para salvar', 'Marque ao menos uma vacina.');
+      toast.show({ message: t('toasts.validation.fillRequired'), variant: 'info' });
       return;
     }
     setSaving(true);
@@ -193,7 +197,7 @@ export default function CarteirinhaScreen() {
     setSaving(false);
     if (!r.ok) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', r.error || 'Falha ao salvar vacinas');
+      toast.show({ message: r.error || t('toasts.common.saveFailed'), variant: 'error' });
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

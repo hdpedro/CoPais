@@ -31,6 +31,7 @@ import {
   type SchoolLog, type SchoolPriority, type SchoolLogRead,
 } from 'src/services/school';
 import { useAuth } from 'src/store/auth';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { getDisplayName } from 'src/lib/constants';
 import { track, EVENTS } from 'src/lib/analytics';
@@ -70,6 +71,7 @@ export default function EscolaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userId } = useAuth();
   const t = useI18n(s => s.t);
+  const toast = useToast();
 
   const [log, setLog] = useState<SchoolLog | null>(null);
   const [eventTime, setEventTime] = useState<string | null>(null);
@@ -128,7 +130,7 @@ export default function EscolaDetailScreen() {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               router.back();
             } else {
-              Alert.alert('Erro', res.error || 'Não consegui excluir.');
+              toast.show({ message: res.error || t('toasts.common.deleteFailed'), variant: 'error' });
             }
           },
         },
@@ -144,7 +146,7 @@ export default function EscolaDetailScreen() {
     const res = await toggleSchoolLogCompleted(log.id, log.completed);
     if (!res.success) {
       setLog(prev => prev ? { ...prev, completed: log.completed } : prev);
-      Alert.alert('Erro', res.error || 'Não consegui atualizar.');
+      toast.show({ message: res.error || t('toasts.common.updateFailed'), variant: 'error' });
     }
   }
 

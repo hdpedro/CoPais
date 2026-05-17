@@ -32,6 +32,8 @@ import type { Child, MedicalInfo } from '../../services/children';
 import { updateChild, upsertChildMedicalInfo, uploadChildAvatar, signChildAvatar } from '../../services/children';
 import { supabase } from '../../lib/supabase';
 import { DatePickerField, isoDateToDisplay } from '../ui/DateTimeField';
+import { useToast } from '../ui/ToastProvider';
+import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 
 // ── Masks & validation ───────────────────────────────────────────────────
@@ -108,6 +110,8 @@ export default function EditChildSheet(props: Props) {
 }
 
 function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [fullName, setFullName] = useState(child.full_name);
   const [birthDate, setBirthDate] = useState<string>(child.birth_date);
   const [sex, setSex] = useState<'M' | 'F' | null>(child.sex);
@@ -181,15 +185,15 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
     Haptics.selectionAsync();
   }
 
-  function toggleBloodType(t: string) {
+  function toggleBloodType(bt: string) {
     Haptics.selectionAsync();
-    setBloodType(prev => (prev === t ? null : t));
+    setBloodType(prev => (prev === bt ? null : bt));
   }
 
   async function pickAvatarFromCamera() {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Câmera bloqueada', 'Habilite o acesso à câmera nas configurações do app.');
+      toast.show({ message: t('toasts.permissions.cameraBlocked'), variant: 'info' });
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -205,7 +209,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
   async function pickAvatarFromLibrary() {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Galeria bloqueada', 'Habilite acesso à galeria nas configurações.');
+      toast.show({ message: t('toasts.permissions.photosBlocked'), variant: 'info' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -230,7 +234,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
     if (!res.success) {
       setUploadingPhoto(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error);
+      toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });
       return;
     }
     // Sign the freshly-uploaded path so the preview shows the new image.
@@ -272,7 +276,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
     if (!childResult.success) {
       setSaving(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', childResult.error || 'Falha ao salvar');
+      toast.show({ message: childResult.error || t('toasts.common.saveFailed'), variant: 'error' });
       return;
     }
 
@@ -288,10 +292,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
       if (!medResult.success) {
         setSaving(false);
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert(
-          'Salvo parcialmente',
-          'Dados gerais foram salvos, mas houve erro ao salvar tipo sanguíneo: ' + medResult.error
-        );
+        toast.show({ message: medResult.error || t('toasts.common.saveFailed'), variant: 'warning' });
         await onSaved();
         return;
       }

@@ -16,7 +16,6 @@ import {
   ScrollView,
   TouchableOpacity,
   TextInput,
-  ActivityIndicator,
   RefreshControl,
   Alert,
   Linking,
@@ -34,7 +33,9 @@ import {
 } from 'src/services/documents';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import UploadSheet from 'src/components/criancas/UploadSheet';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
@@ -48,6 +49,7 @@ function formatSize(bytes: number | null): string {
 
 export default function DocumentosScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { activeGroup, userId } = useAuth();
   const groupId = activeGroup?.groupId;
 
@@ -118,7 +120,7 @@ export default function DocumentosScreen() {
     const { getSignedFileUrl } = await import('src/services/storage');
     const signed = await getSignedFileUrl('documents', doc.file_url, 3600);
     const target = signed || doc.file_url;
-    Linking.openURL(target).catch(() => Alert.alert('Erro', 'Não foi possível abrir.'));
+    Linking.openURL(target).catch(() => toast.show({ message: t('toasts.common.fallbackError'), variant: 'error' }));
   }
 
   function handleDelete(doc: Document) {
@@ -129,7 +131,7 @@ export default function DocumentosScreen() {
         style: 'destructive',
         onPress: async () => {
           const res = await deleteDocument(doc.id);
-          if (!res.success) Alert.alert('Erro', res.error);
+          if (!res.success) toast.show({ message: res.error || t('toasts.common.deleteFailed'), variant: 'error' });
           else {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
             load();
@@ -244,8 +246,8 @@ export default function DocumentosScreen() {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <ActivityIndicator color={colors.brand} />
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={4} />
         </View>
       ) : filtered.length === 0 ? (
         <ScrollView

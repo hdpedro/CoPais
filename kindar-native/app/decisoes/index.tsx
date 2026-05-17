@@ -14,6 +14,7 @@ import {
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -221,8 +222,8 @@ export default function DecisoesScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title={t('decisions.title')} />
       {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color={colors.brand} />
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={4} />
         </View>
       ) : (
         <FlatList

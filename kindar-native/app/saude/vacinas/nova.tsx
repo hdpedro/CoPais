@@ -33,6 +33,7 @@ import { reportError } from 'src/lib/error-reporter';
 import { withTimeout } from 'src/lib/with-timeout';
 import { recordVaccinationViaEngine, matchVaccineCatalog } from 'src/services/health';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -63,6 +64,7 @@ export default function NovaVacinaScreen() {
     notes?: string;
   }>();
   const t = useI18n((s) => s.t);
+  const toast = useToast();
   const { userId, activeGroup } = useAuth();
 
   const [children, setChildren] = useState<Child[]>([]);
@@ -139,7 +141,7 @@ export default function NovaVacinaScreen() {
     if (!activeGroup || !selectedChildId || !userId) return;
     const name = vaccineName.trim();
     if (!name) {
-      Alert.alert(t('common.error') || 'Erro', t('health.vaccineEngine.registerFieldName'));
+      toast.show({ message: t('health.vaccineEngine.registerFieldName'), variant: 'error' });
       return;
     }
     setSaving(true);
@@ -164,7 +166,7 @@ export default function NovaVacinaScreen() {
 
     if (!r.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('common.error') || 'Erro', r.error || 'Falha');
+      toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
       return;
     }
 

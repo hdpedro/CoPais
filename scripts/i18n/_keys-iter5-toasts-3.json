@@ -1,0 +1,24 @@
+{
+  "toasts.growth": {
+    "pt": {
+      "weightOutOfRange": "Peso fora do esperado — confirme o valor",
+      "heightOutOfRange": "Altura fora do esperado — confirme o valor em cm"
+    },
+    "en": {
+      "weightOutOfRange": "Weight out of expected range — please confirm",
+      "heightOutOfRange": "Height out of expected range — confirm the value in cm"
+    },
+    "es": {
+      "weightOutOfRange": "Peso fuera del rango esperado — confirma el valor",
+      "heightOutOfRange": "Altura fuera del rango esperado — confirma el valor en cm"
+    },
+    "fr": {
+      "weightOutOfRange": "Poids hors de la plage attendue — confirmez la valeur",
+      "heightOutOfRange": "Taille hors de la plage attendue — confirmez en cm"
+    },
+    "de": {
+      "weightOutOfRange": "Gewicht außerhalb des erwarteten Bereichs — bitte prüfen",
+      "heightOutOfRange": "Größe außerhalb des erwarteten Bereichs — bitte in cm prüfen"
+    }
+  }
+}

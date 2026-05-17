@@ -47,6 +47,7 @@ import { supabase } from 'src/lib/supabase';
 import { createVacationPeriod, listUpcomingVacations, deleteVacationPeriod } from 'src/services/vacation';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { getDisplayName } from 'src/lib/constants';
@@ -63,6 +64,7 @@ const RESPONSIBLE_COLORS = [
 
 export default function NovaFeriasScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
   const params = useLocalSearchParams<{ date?: string }>();
@@ -167,11 +169,8 @@ export default function NovaFeriasScreen() {
       });
       if (result.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert(
-          'Férias registradas',
-          'O calendário e a agenda já refletem o período. Coparentes serão avisados no próximo refresh.',
-          [{ text: 'OK', onPress: () => router.back() }],
-        );
+        toast.show({ message: t('toasts.common.saved'), variant: 'success' });
+        router.back();
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         const errMsg = (result as { error?: string }).error || 'Erro ao salvar férias';
@@ -219,7 +218,7 @@ export default function NovaFeriasScreen() {
               await loadVacations();
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', (res as { error?: string }).error || 'Não consegui remover.');
+              toast.show({ message: (res as { error?: string }).error || t('toasts.common.deleteFailed'), variant: 'error' });
             }
           },
         },

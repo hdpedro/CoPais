@@ -16,6 +16,7 @@ import { logMedicationDose } from 'src/services/health';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName, getBrazilToday } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { SkeletonList } from 'src/components/ui/Skeleton';
@@ -63,6 +64,7 @@ function formatMinutes(min: number): string {
 
 export default function MedicamentosScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [meds, setMeds] = useState<Med[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,7 +159,7 @@ export default function MedicamentosScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowForm(false); setName(''); setDosage(''); setFrequency(''); setReason('');
       load();
-    } else { Alert.alert('Erro', result.error || 'Falha ao salvar'); }
+    } else { toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' }); }
     setSaving(false);
   }
 
@@ -188,14 +190,14 @@ export default function MedicamentosScreen() {
 
     if (!result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Dose recusada', result.error);
+      toast.show({ message: result.error || t('toasts.common.fallbackError'), variant: 'error' });
       return;
     }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     if (result.warning) {
       // Half-interval crossed but >30min — log and surface a soft warning.
-      Alert.alert('Dose registrada', result.warning);
+      toast.show({ message: result.warning, variant: 'warning' });
     }
     await load();
   }
@@ -246,7 +248,7 @@ export default function MedicamentosScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Medicamentos" rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => setShowForm(!showForm) }} />
+      <ScreenHeader title={t('health.medications')} rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => setShowForm(!showForm) }} />
 
       {showForm ? (
         <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>

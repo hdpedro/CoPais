@@ -10,7 +10,7 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Alert, Switch,
+  KeyboardAvoidingView, Platform, Switch,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -21,6 +21,8 @@ import { supabase } from 'src/lib/supabase';
 import { updateEvent } from 'src/services/events';
 import { getDisplayName } from 'src/lib/constants';
 import { DatePickerField, TimePickerField } from 'src/components/ui/DateTimeField';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Member { user_id: string; name: string; }
@@ -31,6 +33,8 @@ export default function EditEventScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const eventId = typeof id === 'string' ? id : '';
   const { activeGroup } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -99,11 +103,11 @@ export default function EditEventScreen() {
 
   async function handleSave() {
     if (!title.trim()) {
-      Alert.alert('Título obrigatório', 'Da um nome pro evento.');
+      toast.show({ message: t('toasts.validation.titleRequired'), variant: 'error' });
       return;
     }
     if (!eventDate) {
-      Alert.alert('Data obrigatória', 'Escolhe uma data.');
+      toast.show({ message: t('toasts.validation.dateRequired'), variant: 'error' });
       return;
     }
     setSaving(true);
@@ -125,7 +129,7 @@ export default function EditEventScreen() {
       router.back();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Falha ao salvar.');
+      toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 

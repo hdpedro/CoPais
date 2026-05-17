@@ -42,6 +42,7 @@ import {
 import { useAuth } from 'src/store/auth';
 import { supabase } from 'src/lib/supabase';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -95,6 +96,7 @@ function classifyPackage(pkg: PurchasesPackage): PackageView {
 
 export default function AssinaturaScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [billing, setBilling] = useState<BillingStatus>(FREE_BILLING);
   const [packages, setPackages] = useState<PackageView[]>([]);
@@ -146,9 +148,9 @@ export default function AssinaturaScreen() {
     setSplitBusy(false);
     if (r.success) {
       await loadAll();
-      Alert.alert('Divisão ativa', 'O co-responsável vai ver a despesa em /financeiro.');
+      toast.show({ message: t('toasts.subscription.splitEnabled'), variant: 'success' });
     } else {
-      Alert.alert('Erro', r.error);
+      toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
   }
 
@@ -169,7 +171,7 @@ export default function AssinaturaScreen() {
             if (r.success) {
               await loadAll();
             } else {
-              Alert.alert('Erro', r.error);
+              toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
             }
           },
         },
@@ -199,7 +201,7 @@ export default function AssinaturaScreen() {
   async function handlePurchase(view: PackageView) {
     const token = await getAccessToken();
     if (!token) {
-      Alert.alert('Sessão expirada', 'Faça login novamente para assinar.');
+      toast.show({ message: t('toasts.common.sessionExpired'), variant: 'error' });
       return;
     }
 
@@ -209,11 +211,11 @@ export default function AssinaturaScreen() {
       const res = await purchasePackage(view.pkg, token, WEB_URL);
       if (res.success) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Pronto!', `Seu plano ${view.title} está ativo.`);
+        toast.show({ message: t('toasts.subscription.purchaseSuccess', { plan: view.title }), variant: 'success' });
         await loadAll();
       } else if (res.error && !/cancel/i.test(res.error)) {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        Alert.alert('Não foi possível concluir', res.error);
+        toast.show({ message: res.error || t('toasts.subscription.purchaseFailed'), variant: 'error' });
       }
     } finally {
       setPurchasingId(null);
@@ -223,22 +225,19 @@ export default function AssinaturaScreen() {
   async function handleRestore() {
     const token = await getAccessToken();
     if (!token) {
-      Alert.alert('Sessão expirada', 'Faça login novamente.');
+      toast.show({ message: t('toasts.common.sessionExpired'), variant: 'error' });
       return;
     }
     setRestoring(true);
     try {
       const res = await restore(token, WEB_URL);
       if (!res.success) {
-        Alert.alert('Falha ao restaurar', res.error || 'Tente novamente.');
+        toast.show({ message: res.error || t('toasts.subscription.restoreFailed'), variant: 'error' });
       } else if (!res.hasActive) {
-        Alert.alert(
-          'Nenhuma compra encontrada',
-          'Não achamos uma assinatura Kindar vinculada à sua conta Apple/Google.'
-        );
+        toast.show({ message: t('toasts.subscription.restoreNotFound'), variant: 'info' });
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        Alert.alert('Assinatura restaurada', 'Seu plano foi reativado.');
+        toast.show({ message: t('toasts.subscription.restoreSuccess'), variant: 'success' });
         await loadAll();
       }
     } finally {

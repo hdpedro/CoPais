@@ -11,7 +11,9 @@ import { fetchEvents, updateEvent, deleteEvent, type SocialEvent } from 'src/ser
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { DatePickerField, TimePickerField } from 'src/components/ui/DateTimeField';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -26,6 +28,7 @@ function normalizeTime(t: string | null | undefined): string | null {
 
 export default function EventosScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { activeGroup } = useAuth();
   const [events, setEvents] = useState<SocialEvent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -85,7 +88,7 @@ export default function EventosScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Não foi possível salvar');
+      toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 
@@ -106,7 +109,7 @@ export default function EventosScreen() {
               await load();
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', res.error || 'Falha');
+              toast.show({ message: res.error || t('toasts.common.deleteFailed'), variant: 'error' });
             }
           },
         },
@@ -137,7 +140,12 @@ export default function EventosScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title={t('events.title')} rightAction={{ icon: 'mail-outline', onPress: () => router.push('/eventos/pedidos') }} />
-      <FlatList data={events} keyExtractor={item => item.id} renderItem={renderItem}
+      {loading && events.length === 0 ? (
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={3} />
+        </View>
+      ) : null}
+      <FlatList data={loading && events.length === 0 ? [] : events} keyExtractor={item => item.id} renderItem={renderItem}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : <EmptyState icon="🎯" title={t('empty.eventos.title')} description={t('empty.eventos.description')} />}

@@ -2554,5 +2554,68 @@
     "family": "Família",
     "profile": "Perfil",
     "openModule": "Abrir {label}"
+  },
+  "toasts": {
+    "common": {
+      "saved": "Salvo",
+      "removed": "Removido",
+      "updated": "Atualizado",
+      "sent": "Enviado",
+      "copied": "Copiado",
+      "tryAgain": "Tente novamente",
+      "saveFailed": "Falha ao salvar",
+      "deleteFailed": "Falha ao remover",
+      "updateFailed": "Falha ao atualizar",
+      "loadFailed": "Falha ao carregar",
+      "sessionExpired": "Sessão expirada. Faça login novamente.",
+      "fallbackError": "Algo deu errado. Tente novamente."
+    },
+    "subscription": {
+      "splitEnabled": "Divisão ativa — coparente vê em Financeiro",
+      "purchaseSuccess": "Plano {plan} ativo",
+      "purchaseFailed": "Não foi possível concluir a compra",
+      "restoreFailed": "Falha ao restaurar",
+      "restoreNotFound": "Nenhuma assinatura Kindar encontrada nesta conta",
+      "restoreSuccess": "Assinatura restaurada",
+      "premiumWelcome": "Bem-vindo ao Premium",
+      "restoreFailedNoSubscription": "Nenhuma assinatura ativa encontrada"
+    },
+    "school": {
+      "needChildFirst": "Cadastre uma criança antes de registrar eventos escolares",
+      "titleRequired": "Dê um nome ao registro",
+      "childRequired": "Escolha pra qual criança o registro vale",
+      "subjectRequired": "Para uma prova, informe a matéria"
+    },
+    "chat": {
+      "permissionCamera": "Precisamos da permissão da câmera",
+      "permissionPhotos": "Precisamos da permissão das fotos",
+      "imageUploadFailed": "Não foi possível enviar a imagem",
+      "loadMessagesFailed": "Não foi possível buscar as mensagens",
+      "exportSuccess": "PDF gerado",
+      "exportFailed": "Não foi possível exportar as conversas"
+    },
+    "expense": {
+      "descriptionRequired": "Descrição obrigatória",
+      "invalidAmount": "Valor inválido"
+    },
+    "validation": {
+      "titleRequired": "Dê um título",
+      "dateRequired": "Escolha uma data",
+      "nameRequired": "Informe o nome",
+      "fillRequired": "Preencha os campos obrigatórios"
+    },
+    "permissions": {
+      "cameraDenied": "Precisamos da permissão da câmera",
+      "photosDenied": "Precisamos da permissão das fotos",
+      "cameraBlocked": "Câmera bloqueada — habilite nas configurações",
+      "photosBlocked": "Galeria bloqueada — habilite nas configurações"
+    },
+    "growth": {
+      "weightOutOfRange": "Peso fora do esperado — confirme o valor",
+      "heightOutOfRange": "Altura fora do esperado — confirme o valor em cm"
+    },
+    "emergency": {
+      "tokenMissing": "Esta criança ainda não tem token de emergência. Gere um na versão web."
+    }
   }
 }

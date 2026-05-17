@@ -7,7 +7,7 @@
 
 import { useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator, Alert,
+  View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,8 @@ import {
   OPERATION_META, respondToBalanceOperation,
   type BalanceOperation,
 } from '../../services/balance-operations';
+import { useToast } from '../ui/ToastProvider';
+import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface Props {
@@ -39,6 +41,8 @@ function formatDateTime(iso: string): string {
 }
 
 export default function BalanceHistorySheet({ visible, onClose, operations, currentUserId, groupId, onChanged }: Props) {
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [responding, setResponding] = useState<string | null>(null);
   const sorted = [...operations].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -54,7 +58,7 @@ export default function BalanceHistorySheet({ visible, onClose, operations, curr
       onChanged?.();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error);
+      toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
   }
 

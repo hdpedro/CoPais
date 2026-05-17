@@ -5,7 +5,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
-  TextInput, KeyboardAvoidingView, Platform, Alert,
+  TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -17,6 +17,8 @@ import {
   type Decision, type DecisionArgument, type VoteChoice,
 } from 'src/services/decisions';
 import { supabase } from 'src/lib/supabase';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
@@ -38,6 +40,8 @@ const STANCE_META: Record<string, { label: string; color: string; icon: string }
 export default function DecisionDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const { activeGroup, userId } = useAuth();
   const [decision, setDecision] = useState<Decision | null>(null);
   const [args, setArgs] = useState<DecisionArgument[]>([]);
@@ -115,7 +119,7 @@ export default function DecisionDetailScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error || 'Não foi possível publicar o argumento');
+      toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 

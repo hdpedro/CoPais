@@ -1,6 +1,6 @@
 /* eslint-disable jsx-a11y/alt-text */
 import { useEffect, useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Image, Alert } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, KeyboardAvoidingView, Platform, Image } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
@@ -13,6 +13,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { CurrencyInput } from 'src/components/ui/MaskedInputs';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
@@ -29,6 +30,7 @@ const SPLIT_PRESETS: { id: '50-50' | '70-30' | '30-70' | '100-0' | 'custom'; lab
 
 export default function NovaExpenseScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [description, setDescription] = useState('');
   const [amount, setAmount] = useState('');
@@ -75,7 +77,7 @@ export default function NovaExpenseScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (source === 'camera') {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) { Alert.alert('Permissao necessaria', 'Precisamos da camera para fotografar o comprovante'); return; }
+      if (!perm.granted) { toast.show({ message: t('toasts.permissions.cameraDenied'), variant: 'info' }); return; }
       const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.7, exif: false });
       if (!r.canceled && r.assets?.[0]) {
         setReceiptUri(r.assets[0].uri);
@@ -83,7 +85,7 @@ export default function NovaExpenseScreen() {
       }
     } else {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { Alert.alert('Permissao necessaria', 'Precisamos acesso as fotos'); return; }
+      if (!perm.granted) { toast.show({ message: t('toasts.permissions.photosDenied'), variant: 'info' }); return; }
       const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.7, exif: false });
       if (!r.canceled && r.assets?.[0]) {
         setReceiptUri(r.assets[0].uri);

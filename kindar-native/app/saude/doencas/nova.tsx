@@ -5,7 +5,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -16,6 +16,8 @@ import { createIllness } from 'src/services/health';
 import { fetchChildren, type Child } from 'src/services/children';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 /**
@@ -56,6 +58,8 @@ function todayDisplay(): string {
 export default function NovaDoencaScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [children, setChildren] = useState<Child[]>([]);
   const [childId, setChildId] = useState<string>('');
   const [title, setTitle] = useState('');
@@ -114,12 +118,7 @@ export default function NovaDoencaScreen() {
       // Surface o erro real do Supabase pra debug (mesmo padrao adotado em
       // sintomas.tsx apos o bug Diogo). Alert generico mascarava bugs por meses.
       const detail = (result as { error?: string }).error;
-      Alert.alert(
-        'Erro ao registrar doenca',
-        detail
-          ? `Detalhes: ${detail}`
-          : 'Tente novamente. Se persistir, verifique sua conexão.'
-      );
+      toast.show({ message: detail || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 

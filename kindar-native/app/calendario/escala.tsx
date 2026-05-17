@@ -16,6 +16,8 @@ import { supabase } from 'src/lib/supabase';
 import { fetchChildren, type Child } from 'src/services/children';
 import { generateSchedule, fetchSchedulePattern } from 'src/services/schedule';
 import { PARENT_COLORS } from 'src/lib/constants';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -46,6 +48,8 @@ function parseDate(display: string): string | null {
 export default function EscalaScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [children, setChildren] = useState<Child[]>([]);
   const [childId, setChildId] = useState<string>('');
   const [members, setMembers] = useState<Member[]>([]);
@@ -180,11 +184,11 @@ export default function EscalaScreen() {
   async function handleGenerate() {
     if (!activeGroup || !userId || !childId) return;
     if (pattern.every(p => p === null)) {
-      Alert.alert('Padrão vazio', 'Atribua ao menos alguns dias antes de gerar a escala.');
+      toast.show({ message: t('toasts.validation.fillRequired'), variant: 'error' });
       return;
     }
     const iso = parseDate(startDateDisplay);
-    if (!iso) { Alert.alert('Data inválida', 'Use DD/MM/AAAA'); return; }
+    if (!iso) { toast.show({ message: t('toasts.validation.dateRequired'), variant: 'error' }); return; }
 
     // O algoritmo do servidor (actions/calendar.ts:272-280 e
     // api/calendar/generate-schedule/route.ts) ancora o ciclo quinzenal
@@ -212,12 +216,11 @@ export default function EscalaScreen() {
             setGenerating(false);
             if (res.success) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('Escala gerada', `${res.inserted} evento(s) de guarda criados no calendário.`, [
-                { text: 'OK', onPress: () => router.back() },
-              ]);
+              toast.show({ message: t('toasts.common.saved'), variant: 'success' });
+              router.back();
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', res.error || 'Falha ao gerar escala');
+              toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });
             }
           },
         },

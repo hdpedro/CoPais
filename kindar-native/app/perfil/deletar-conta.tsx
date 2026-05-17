@@ -22,6 +22,8 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/store/auth';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -40,6 +42,8 @@ const WHAT_GETS_DELETED = [
 
 export default function DeletarContaScreen() {
   const insets = useSafeAreaInsets();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [confirmText, setConfirmText] = useState('');
   const [acknowledged, setAcknowledged] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -71,7 +75,7 @@ export default function DeletarContaScreen() {
       const { data: sessionData } = await supabase.auth.getSession();
       const token = sessionData.session?.access_token;
       if (!token) {
-        Alert.alert('Erro', 'Sessao expirada. Faca login novamente.');
+        toast.show({ message: t('toasts.common.sessionExpired'), variant: 'error' });
         setSubmitting(false);
         return;
       }
@@ -100,8 +104,8 @@ export default function DeletarContaScreen() {
       );
     } catch (err: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      const msg = (err as { message?: string })?.message || 'Erro inesperado';
-      Alert.alert('Erro', msg);
+      const msg = (err as { message?: string })?.message || t('toasts.common.fallbackError');
+      toast.show({ message: msg, variant: 'error' });
       setSubmitting(false);
     }
   }

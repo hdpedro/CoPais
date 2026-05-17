@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   TextInput,
   Modal,
-  Alert,
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
@@ -18,6 +17,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 import { uploadDocument, DOCUMENT_CATEGORIES, type UploadDocumentInput } from '../../services/documents';
+import { useToast } from '../ui/ToastProvider';
+import { useI18n } from '../../i18n';
 
 interface Props {
   visible: boolean;
@@ -42,6 +43,8 @@ const ALLOWED_MIME = [
 ];
 
 export default function UploadSheet({ visible, onClose, onUploaded, groupId, childId, uploadedBy }: Props) {
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   // Android + Modal pageSheet: presentationStyle="pageSheet" só funciona
   // como sheet com top inset automático no iOS. No Android cai pra
   // fullscreen e a status bar fica SOBRE o header — relógio do sistema
@@ -66,7 +69,7 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Câmera bloqueada', 'Habilite o acesso à câmera nas configurações do app.');
+      toast.show({ message: t('toasts.permissions.cameraBlocked'), variant: 'info' });
       return;
     }
     const result = await ImagePicker.launchCameraAsync({
@@ -89,7 +92,7 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Galeria bloqueada', 'Habilite acesso à galeria nas configurações.');
+      toast.show({ message: t('toasts.permissions.photosBlocked'), variant: 'info' });
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -127,11 +130,11 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
 
   async function handleUpload() {
     if (!file) {
-      Alert.alert('Selecione um arquivo');
+      toast.show({ message: t('toasts.validation.fillRequired'), variant: 'info' });
       return;
     }
     if (!name.trim()) {
-      Alert.alert('Dê um nome ao documento');
+      toast.show({ message: t('toasts.validation.nameRequired'), variant: 'error' });
       return;
     }
 
@@ -151,20 +154,16 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
     setUploading(false);
 
     if (!res.success) {
-      Alert.alert('Falha no envio', res.error);
+      toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     // Bug Aline/Mauricio 2026-05-14: usuária reclamou que "envia mas não
-    // fica salvo" — na realidade o documento é gravado, mas o feedback
-    // visual era SILENCIOSO (modal fecha sem confirmação) e a tela atrás
-    // ainda tem o state antigo enquanto load() refetch acontece em background.
-    // Alert explícito de sucesso elimina a ambiguidade.
+    // fica salvo" — toast garante o feedback explícito de sucesso.
     reset();
     onClose();
     onUploaded();
-    // Setembro do alert pós-fechamento — UX comum em iOS apps premium.
-    Alert.alert('Documento enviado', 'O arquivo foi salvo e já está disponível pra todos do grupo.');
+    toast.show({ message: t('toasts.common.sent'), variant: 'success' });
   }
 
   function handleClose() {

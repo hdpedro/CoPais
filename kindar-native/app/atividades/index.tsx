@@ -1,7 +1,7 @@
 import { useState, useCallback } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,10 +15,12 @@ import { ACTIVITY_CATEGORIES } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { TimePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import ActivityReportModal from 'src/components/activities/ActivityReportModal';
 import ActivityChecklistModal from 'src/components/activities/ActivityChecklistModal';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -57,6 +59,7 @@ function formatActivityDay(item: { recurrence_type: string; days_of_week: string
 
 export default function AtividadesScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { activeGroup, userId } = useAuth();
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,7 +116,7 @@ export default function AtividadesScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('activities.errors.saveTitle'), result.error || t('activities.errors.saveFallback'));
+      toast.show({ message: result.error || t('activities.errors.saveFallback'), variant: 'error' });
     }
   }
 
@@ -157,7 +160,7 @@ export default function AtividadesScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('activities.errors.deleteTitle'), res.error || t('activities.errors.deleteFallback'));
+      toast.show({ message: res.error || t('activities.errors.deleteFallback'), variant: 'error' });
     }
   }
 
@@ -221,7 +224,12 @@ export default function AtividadesScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title={t('activities.title')} />
-      <FlatList data={activities} keyExtractor={item => item.id} renderItem={renderItem}
+      {loading && activities.length === 0 ? (
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={4} />
+        </View>
+      ) : null}
+      <FlatList data={loading && activities.length === 0 ? [] : activities} keyExtractor={item => item.id} renderItem={renderItem}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : <EmptyState icon="📋" title={t('empty.atividades.title')} description={t('empty.atividades.description')} />}

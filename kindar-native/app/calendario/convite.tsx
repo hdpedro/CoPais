@@ -6,7 +6,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
-  TextInput, KeyboardAvoidingView, Platform, Image, Alert,
+  TextInput, KeyboardAvoidingView, Platform, Image,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +18,8 @@ import { supabase } from 'src/lib/supabase';
 import { createEvent } from 'src/services/events';
 import { fetchChildren, type Child } from 'src/services/children';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -48,6 +50,8 @@ function parseDateFromInput(display: string): string | null {
 export default function InviteParserScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [children, setChildren] = useState<Child[]>([]);
   const [step, setStep] = useState<Step>('upload');
   const [imageUri, setImageUri] = useState<string | null>(null);
@@ -79,7 +83,7 @@ export default function InviteParserScreen() {
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permissao negada', mode === 'camera' ? 'Permissao de camera necessaria' : 'Permissao de galeria necessaria');
+      toast.show({ message: mode === 'camera' ? t('toasts.permissions.cameraDenied') : t('toasts.permissions.photosDenied'), variant: 'info' });
       return;
     }
     const result = mode === 'camera'
@@ -140,7 +144,7 @@ export default function InviteParserScreen() {
       setImageUri(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, []);
+  }, [t, toast]);
 
   async function handleSave() {
     if (!activeGroup || !userId) return;
@@ -168,7 +172,7 @@ export default function InviteParserScreen() {
       router.back();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', 'Nao foi possivel salvar o evento.');
+      toast.show({ message: t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 

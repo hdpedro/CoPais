@@ -13,7 +13,6 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
-  Alert,
 } from 'react-native';
 import { useFocusEffect, router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -24,6 +23,7 @@ import { useAuth } from 'src/store/auth';
 import { reportError } from 'src/lib/error-reporter';
 import { withTimeout } from 'src/lib/with-timeout';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import {
   getVaccineStatus,
@@ -63,6 +63,7 @@ function daysUntil(iso: string): number {
 
 export default function VacinasScreen() {
   const t = useI18n((s) => s.t);
+  const toast = useToast();
   const { activeGroup } = useAuth();
   const params = useLocalSearchParams<{ crianca?: string; postVaccine?: string }>();
   const [children, setChildren] = useState<Child[]>([]);
@@ -165,7 +166,7 @@ export default function VacinasScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       load();
     } else {
-      Alert.alert(t('common.error'), r.error || 'Falha');
+      toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
   }
 
@@ -180,7 +181,7 @@ export default function VacinasScreen() {
     if (r.success) {
       load();
     } else {
-      Alert.alert(t('common.error'), r.error || 'Falha');
+      toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
   }
 
@@ -202,7 +203,7 @@ export default function VacinasScreen() {
       );
       load();
     } else {
-      Alert.alert(t('common.error'), r.error || 'Falha');
+      toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
   }
 

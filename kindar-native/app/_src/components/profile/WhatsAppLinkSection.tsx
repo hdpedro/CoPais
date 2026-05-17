@@ -14,11 +14,15 @@ import {
   getWhatsAppStatus, requestWhatsAppLink, verifyWhatsAppOTP, unlinkWhatsApp,
   type WhatsAppStatus,
 } from '../../services/whatsapp';
+import { useToast } from '../ui/ToastProvider';
+import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 
 type LinkState = 'unlinked' | 'pending' | 'linked';
 
 export default function WhatsAppLinkSection() {
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [state, setState] = useState<LinkState>('unlinked');
   const [phone, setPhone] = useState<string>('');
   const [phoneInput, setPhoneInput] = useState<string>('');
@@ -99,7 +103,7 @@ export default function WhatsAppLinkSection() {
             setLoading(null);
             if ('error' in res) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', res.error);
+              toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
               return;
             }
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

@@ -8,7 +8,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, Alert } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -131,7 +131,7 @@ export default function CrescimentoScreen() {
     // is dropped immediately.
     if (submittingRef.current) return;
     if ((!weight && !height && !headCm) || !selectedChild || !userId || !activeGroup) {
-      Alert.alert('Preencha ao menos um campo', 'Peso, altura ou perimetro cefalico');
+      toast.show({ message: t('toasts.validation.fillRequired'), variant: 'error' });
       return;
     }
     submittingRef.current = true;
@@ -150,13 +150,13 @@ export default function CrescimentoScreen() {
       // Sanity check: peso > 500 = improvavel (kg). Avisa user.
       const rawWeight = weight ? parseFloat(weight.replace(',', '.')) : null;
       if (rawWeight != null && (rawWeight < 0.5 || rawWeight > 250)) {
-        Alert.alert('Peso fora do esperado', `${rawWeight}kg parece estranho. Confirme o valor.`);
+        toast.show({ message: t('toasts.growth.weightOutOfRange'), variant: 'warning' });
         submittingRef.current = false;
         setSaving(false);
         return;
       }
       if (normHeight != null && (normHeight < 20 || normHeight > 230)) {
-        Alert.alert('Altura fora do esperado', `${normHeight}cm parece estranho. Confirme o valor (digite em cm).`);
+        toast.show({ message: t('toasts.growth.heightOutOfRange'), variant: 'warning' });
         submittingRef.current = false;
         setSaving(false);
         return;
@@ -179,7 +179,7 @@ export default function CrescimentoScreen() {
         resetForm();
         await load();
       } else {
-        Alert.alert('Erro', result.error || 'Falha');
+        toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
       }
     } finally {
       setSaving(false);
@@ -221,7 +221,7 @@ export default function CrescimentoScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Crescimento" rightAction={{ icon: showForm ? 'close' : 'add', onPress: toggleForm }} />
+      <ScreenHeader title={t('health.growth')} rightAction={{ icon: showForm ? 'close' : 'add', onPress: toggleForm }} />
       {showForm ? (
         <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
           {editingId ? (

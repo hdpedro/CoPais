@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert, Linking, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Linking, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from 'src/store/auth';
@@ -23,6 +23,7 @@ import { getAvailablePackages, purchasePackage, restore } from 'src/services/iap
 import type { PurchasesPackage } from 'react-native-purchases';
 import { supabase } from 'src/lib/supabase';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -40,6 +41,7 @@ const FEATURES = [
 
 export default function PricingScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { userId } = useAuth();
   const [sub, setSub] = useState<UserSubscription | null>(null);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
@@ -76,7 +78,7 @@ export default function PricingScreen() {
   async function handlePurchase(pkg: PurchasesPackage) {
     const token = await getAccessToken();
     if (!token) {
-      Alert.alert('Erro', 'Sessão expirada. Faça login novamente.');
+      toast.show({ message: t('toasts.common.sessionExpired'), variant: 'error' });
       return;
     }
     setPurchasingId(pkg.identifier);
@@ -88,17 +90,17 @@ export default function PricingScreen() {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await loadSub();
-      Alert.alert('Bem-vindo(a) ao Premium!', 'Sua assinatura está ativa. Aproveite todos os recursos.');
+      toast.show({ message: t('toasts.subscription.premiumWelcome'), variant: 'success' });
     } else if (result.error !== 'Compra cancelada') {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Não foi possível completar a compra');
+      toast.show({ message: result.error || t('toasts.subscription.purchaseFailed'), variant: 'error' });
     }
   }
 
   async function handleRestore() {
     const token = await getAccessToken();
     if (!token) {
-      Alert.alert('Erro', 'Sessão expirada. Faça login novamente.');
+      toast.show({ message: t('toasts.common.sessionExpired'), variant: 'error' });
       return;
     }
     setRestoring(true);
@@ -108,11 +110,11 @@ export default function PricingScreen() {
     if (result.success && result.hasActive) {
       await loadSub();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      Alert.alert('Restaurado', 'Sua assinatura foi reativada.');
+      toast.show({ message: t('toasts.subscription.restoreSuccess'), variant: 'success' });
     } else if (result.success) {
-      Alert.alert('Info', 'Nenhuma assinatura ativa encontrada nesta conta Apple.');
+      toast.show({ message: t('toasts.subscription.restoreFailedNoSubscription'), variant: 'info' });
     } else {
-      Alert.alert('Erro', result.error || 'Não foi possível restaurar');
+      toast.show({ message: result.error || t('toasts.subscription.restoreFailed'), variant: 'error' });
     }
   }
 

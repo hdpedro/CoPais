@@ -33,6 +33,7 @@ import {
   type Settlement,
 } from 'src/services/settlements';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -59,6 +60,7 @@ const MEMBER_COLORS = ['#5B9E85', '#D4735A', '#F4A261', '#8E6E95', '#3B82F6', '#
 
 export default function FinanceiroScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
   const [summary, setSummary] = useState<{ myTotal: number; otherTotal: number; balance: number; totalMonth: number } | null>(null);
@@ -197,7 +199,7 @@ export default function FinanceiroScreen() {
     if (!userId || !activeGroup || !paidTo) return;
     const value = parseFloat(amount.replace(',', '.'));
     if (!Number.isFinite(value) || value <= 0) {
-      Alert.alert('Valor inválido', 'Informe um valor maior que zero.');
+      toast.show({ message: t('toasts.expense.invalidAmount'), variant: 'error' });
       return;
     }
     setSubmitting(true);
@@ -212,7 +214,7 @@ export default function FinanceiroScreen() {
     setSubmitting(false);
     if (!res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error || 'Falha ao registrar pagamento.');
+      toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -232,7 +234,7 @@ export default function FinanceiroScreen() {
           onPress: async () => {
             const res = await confirmSettlement(s.id);
             if (!res.success) {
-              Alert.alert('Erro', res.error || 'Falha.');
+              toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
               return;
             }
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

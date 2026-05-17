@@ -17,6 +17,8 @@ import { fetchChildren, type Child } from 'src/services/children';
 import { regenerateEmergencyToken } from 'src/services/health';
 import { supabase } from 'src/lib/supabase';
 import ChildPicker from 'src/components/ui/ChildPicker';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -40,6 +42,8 @@ function getAge(birthDate: string): number {
 export default function EmergenciaScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [children, setChildren] = useState<(Child & { emergency_token: string | null })[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [summary, setSummary] = useState<HealthSummary | null>(null);
@@ -153,10 +157,10 @@ export default function EmergenciaScreen() {
             if (r.success) {
               setChildren(prev => prev.map(c => c.id === child.id ? { ...c, emergency_token: r.emergency_token } : c));
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              Alert.alert('Token regenerado', 'O link antigo não funciona mais.');
+              toast.show({ message: t('toasts.common.updated'), variant: 'success' });
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', r.error || 'Nao consegui regenerar.');
+              toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
             }
           },
         },
@@ -168,7 +172,7 @@ export default function EmergenciaScreen() {
     const child = children.find(c => c.id === selectedChildId);
     if (!child) return;
     if (!child.emergency_token) {
-      Alert.alert('Token ausente', 'Esta criança ainda não tem token de emergência. Edite os dados da criança na versão web para gerar um.');
+      toast.show({ message: t('toasts.emergency.tokenMissing'), variant: 'info' });
       return;
     }
     const url = `${WEB_URL}/saude/emergencia/publico?childId=${child.id}&token=${child.emergency_token}`;

@@ -9,12 +9,14 @@
 import { useState } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, KeyboardAvoidingView, Platform,
-  ScrollView, TextInput, ActivityIndicator, Alert,
+  ScrollView, TextInput, ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { createSwap } from '../../services/swaps';
 import { DatePickerField, dateToIso } from '../ui/DateTimeField';
+import { useToast } from '../ui/ToastProvider';
+import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface SwapRequestModalProps {
@@ -36,6 +38,8 @@ export default function SwapRequestModal({
   groupId, currentUserId,
   isVisitRequest = false,
 }: SwapRequestModalProps) {
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [proposedDate, setProposedDate] = useState<string | null>(null);
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -66,7 +70,7 @@ export default function SwapRequestModal({
       onClose();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Nao foi possivel criar a solicitacao');
+      toast.show({ message: result.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
   }
 

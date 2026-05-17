@@ -10,9 +10,10 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from 'react';
-import { View, Text, Modal, TouchableOpacity, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, Modal, TouchableOpacity, ActivityIndicator } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { supabase } from 'src/lib/supabase';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { useAuth } from 'src/store/auth';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -33,6 +34,7 @@ export default function PostVaccineChecklistModal({
   onSkip,
 }: Props) {
   const t = useI18n((s) => s.t);
+  const toast = useToast();
   const { userId } = useAuth();
   const [saving, setSaving] = useState(false);
 
@@ -48,7 +50,7 @@ export default function PostVaccineChecklistModal({
         .eq('id', vaccineRecordId)
         .single();
       if (!rec) {
-        Alert.alert(t('common.error') || 'Erro', 'Registro não encontrado');
+        toast.show({ message: t('toasts.common.loadFailed'), variant: 'error' });
         return;
       }
       const startDate = rec.administered_date as string;
@@ -72,7 +74,7 @@ export default function PostVaccineChecklistModal({
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       onDone();
     } catch (e: any) {
-      Alert.alert(t('common.error') || 'Erro', e?.message || 'Falha');
+      toast.show({ message: e?.message || t('toasts.common.fallbackError'), variant: 'error' });
     } finally {
       setSaving(false);
     }

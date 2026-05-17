@@ -2554,5 +2554,68 @@
     "family": "Family",
     "profile": "Profile",
     "openModule": "Open {label}"
+  },
+  "toasts": {
+    "common": {
+      "saved": "Saved",
+      "removed": "Removed",
+      "updated": "Updated",
+      "sent": "Sent",
+      "copied": "Copied",
+      "tryAgain": "Try again",
+      "saveFailed": "Couldn't save",
+      "deleteFailed": "Couldn't remove",
+      "updateFailed": "Couldn't update",
+      "loadFailed": "Couldn't load",
+      "sessionExpired": "Session expired. Please sign in again.",
+      "fallbackError": "Something went wrong. Try again."
+    },
+    "subscription": {
+      "splitEnabled": "Split active — co-caregiver sees it in Financial",
+      "purchaseSuccess": "{plan} plan is active",
+      "purchaseFailed": "Couldn't complete the purchase",
+      "restoreFailed": "Restore failed",
+      "restoreNotFound": "No Kindar subscription found on this account",
+      "restoreSuccess": "Subscription restored",
+      "premiumWelcome": "Welcome to Premium",
+      "restoreFailedNoSubscription": "No active subscription found"
+    },
+    "school": {
+      "needChildFirst": "Add a child before logging school events",
+      "titleRequired": "Give the record a name",
+      "childRequired": "Choose which child the record is for",
+      "subjectRequired": "For an exam, enter the subject"
+    },
+    "chat": {
+      "permissionCamera": "We need camera permission",
+      "permissionPhotos": "We need photo library permission",
+      "imageUploadFailed": "Couldn't upload the image",
+      "loadMessagesFailed": "Couldn't load the messages",
+      "exportSuccess": "PDF ready",
+      "exportFailed": "Couldn't export the conversations"
+    },
+    "expense": {
+      "descriptionRequired": "Description is required",
+      "invalidAmount": "Invalid amount"
+    },
+    "validation": {
+      "titleRequired": "Add a title",
+      "dateRequired": "Pick a date",
+      "nameRequired": "Enter a name",
+      "fillRequired": "Fill in the required fields"
+    },
+    "permissions": {
+      "cameraDenied": "We need camera permission",
+      "photosDenied": "We need photo library permission",
+      "cameraBlocked": "Camera blocked — enable it in Settings",
+      "photosBlocked": "Photo library blocked — enable it in Settings"
+    },
+    "growth": {
+      "weightOutOfRange": "Weight out of expected range — please confirm",
+      "heightOutOfRange": "Height out of expected range — confirm the value in cm"
+    },
+    "emergency": {
+      "tokenMissing": "This child has no emergency token yet. Generate one on the web app."
+    }
   }
 }

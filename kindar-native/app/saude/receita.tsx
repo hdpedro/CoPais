@@ -6,7 +6,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator,
-  Image, Alert, KeyboardAvoidingView, Platform, TextInput, Switch,
+  Image, KeyboardAvoidingView, Platform, TextInput, Switch,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -18,6 +18,8 @@ import { supabase } from 'src/lib/supabase';
 import { fetchChildren, type Child } from 'src/services/children';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -46,6 +48,8 @@ type Step = 'upload' | 'confirm' | 'processing' | 'preview';
 export default function ReceitaScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [children, setChildren] = useState<Child[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
   const [step, setStep] = useState<Step>('upload');
@@ -70,13 +74,13 @@ export default function ReceitaScreen() {
   const [pendingAsset, setPendingAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
 
   const pickImage = useCallback(async (mode: 'camera' | 'library') => {
-    if (!selectedChildId) { Alert.alert('Selecione uma criança', 'Escolha a criança antes de fotografar'); return; }
+    if (!selectedChildId) { toast.show({ message: t('toasts.validation.fillRequired'), variant: 'info' }); return; }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const perm = mode === 'camera'
       ? await ImagePicker.requestCameraPermissionsAsync()
       : await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!perm.granted) {
-      Alert.alert('Permissão negada', mode === 'camera' ? 'Precisamos da permissão da câmera' : 'Precisamos da permissão da galeria');
+      toast.show({ message: mode === 'camera' ? t('toasts.permissions.cameraDenied') : t('toasts.permissions.photosDenied'), variant: 'info' });
       return;
     }
     const result = mode === 'camera'
@@ -91,7 +95,7 @@ export default function ReceitaScreen() {
     setPendingAsset(asset);
     setStep('confirm');
     setError(null);
-  }, [selectedChildId]);
+  }, [selectedChildId, t, toast]);
 
   /**
    * Confirma processamento da foto capturada. Disparado pelo botão "Processar"
@@ -181,7 +185,7 @@ export default function ReceitaScreen() {
 
   async function handleSave() {
     if (!activeGroup || !selectedChildId || !inferenceId) {
-      Alert.alert('Erro', 'Sessão de receita inválida. Tire uma nova foto.');
+      toast.show({ message: t('toasts.common.fallbackError'), variant: 'error' });
       return;
     }
     // Pick which parsed medications the user marked to save.
@@ -189,7 +193,7 @@ export default function ReceitaScreen() {
       .map((m, i) => (m.include && m.name.trim() ? i : -1))
       .filter(i => i >= 0);
     if (selectedIndices.length === 0) {
-      Alert.alert('Nenhum medicamento selecionado', 'Marque ao menos um medicamento para salvar');
+      toast.show({ message: t('toasts.validation.fillRequired'), variant: 'info' });
       return;
     }
 
@@ -227,7 +231,7 @@ export default function ReceitaScreen() {
     } catch (e: unknown) {
       const err = e as { message?: string };
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', err.message || 'Falha ao salvar medicamentos.');
+      toast.show({ message: err.message || t('toasts.common.saveFailed'), variant: 'error' });
     } finally {
       setSaving(false);
     }

@@ -19,6 +19,8 @@ import { fetchChildren, type Child } from 'src/services/children';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -46,6 +48,7 @@ function formatRelative(iso: string): string {
 
 export default function TemasSensiveisScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { activeGroup, userId } = useAuth();
   const [notes, setNotes] = useState<SensitiveNote[]>([]);
   const [children, setChildren] = useState<Child[]>([]);
@@ -88,7 +91,7 @@ export default function TemasSensiveisScreen() {
             setActing(null);
             if (res.success) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-              if (res.deleted) Alert.alert('Excluída', 'Nota excluída imediatamente.');
+              if (res.deleted) toast.show({ message: t('toasts.common.removed'), variant: 'success' });
               await load();
             }
           },
@@ -117,7 +120,7 @@ export default function TemasSensiveisScreen() {
               await load();
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', res.error || 'Falha');
+              toast.show({ message: res.error || t('toasts.common.deleteFailed'), variant: 'error' });
             }
           },
         },
@@ -159,8 +162,13 @@ export default function TemasSensiveisScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title={t('sensitive.title')} />
+      {loading && notes.length === 0 ? (
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={3} />
+        </View>
+      ) : null}
       <FlatList
-        data={notes}
+        data={loading && notes.length === 0 ? [] : notes}
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}

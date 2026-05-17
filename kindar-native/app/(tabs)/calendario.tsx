@@ -18,6 +18,8 @@ import WeekendPlanner from 'src/components/calendar/WeekendPlanner';
 import SwapRequestModal from 'src/components/calendar/SwapRequestModal';
 import SwapBalanceCard from 'src/components/calendar/SwapBalanceCard';
 import { syncEventsToDeviceCalendar } from 'src/services/calendar-sync';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 
 function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -36,6 +38,8 @@ export default function CalendarScreen() {
   const insets = useSafeAreaInsets();
   const { events, custodyEvents, members, pendingSwaps, mySentSwaps, balanceOps, pendingEventRequests, refresh } = useCalendar();
   const { activeGroup, userId } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDay, setSelectedDay] = useState<string | null>(null);
   const [responding, setResponding] = useState<string | null>(null);
@@ -67,10 +71,10 @@ export default function CalendarScreen() {
       await refresh();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Falha ao responder solicitação');
+      toast.show({ message: result.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
     setResponding(null);
-  }, [activeGroup, userId, refresh]);
+  }, [activeGroup, userId, refresh, t, toast]);
 
   const handleSwapDecision = useCallback(async (
     swapId: string,
@@ -110,13 +114,13 @@ export default function CalendarScreen() {
               await refresh();
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', r.error || 'Falha ao cancelar.');
+              toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
             }
           },
         },
       ],
     );
-  }, [refresh]);
+  }, [refresh, t, toast]);
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -766,10 +770,10 @@ export default function CalendarScreen() {
                     setSyncing(false);
                     if (res.success) {
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-                      Alert.alert('Pronto', `${res.created || 0} evento(s) sincronizado(s). Veja no app Calendário do seu celular.`);
+                      toast.show({ message: t('toasts.common.sent'), variant: 'success' });
                     } else {
                       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                      Alert.alert('Erro', res.error || 'Falha ao sincronizar');
+                      toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
                     }
                   },
                 },

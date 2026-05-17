@@ -6,7 +6,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
-  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator, Alert,
+  KeyboardAvoidingView, Platform, ScrollView, ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -19,6 +19,8 @@ import { fetchChildren, type Child } from 'src/services/children';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -35,6 +37,7 @@ const CAT_LABELS: Record<string, string> = {
 
 export default function CheckinScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [items, setItems] = useState<CheckinItem[]>([]);
   const [children, setChildren] = useState<Child[]>([]);
@@ -98,15 +101,20 @@ export default function CheckinScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', 'Não foi possível registrar');
+      toast.show({ message: t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title={t('checkin.headerTitle')} />
+      {loading && items.length === 0 ? (
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={4} />
+        </View>
+      ) : null}
       <FlatList
-        data={items}
+        data={loading && items.length === 0 ? [] : items}
         keyExtractor={item => item.id}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}

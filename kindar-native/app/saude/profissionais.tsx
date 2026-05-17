@@ -4,7 +4,7 @@
  */
 import { useState, useCallback } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert,
+  View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl,
   KeyboardAvoidingView, Platform, ScrollView, Modal, Linking,
 } from 'react-native';
 import { useFocusEffect } from 'expo-router';
@@ -14,6 +14,7 @@ import { supabase } from 'src/lib/supabase';
 import { safeWrite } from 'src/services/offline';
 import { useAuth } from 'src/store/auth';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
 import SwipeToDelete from 'src/components/ui/SwipeToDelete';
 import { SkeletonList } from 'src/components/ui/Skeleton';
@@ -52,6 +53,7 @@ const SPECIALTIES = [
 
 export default function ProfissionaisScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [profs, setProfs] = useState<Professional[]>([]);
   const [loading, setLoading] = useState(true);
@@ -140,7 +142,7 @@ export default function ProfissionaisScreen() {
       resetForm();
       load();
     } else {
-      Alert.alert('Erro', result.error || 'Falha');
+      toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 
@@ -197,7 +199,7 @@ export default function ProfissionaisScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader
-        title="Profissionais"
+        title={t('health.professionals')}
         rightAction={{
           icon: showForm ? 'close' : 'add',
           onPress: () => {

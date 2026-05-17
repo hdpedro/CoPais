@@ -5,7 +5,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
-  Modal, TextInput, KeyboardAvoidingView, Platform, Alert,
+  Modal, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -16,6 +16,8 @@ import { fetchSymptoms, createSymptomEntry, type SymptomEntry } from 'src/servic
 import { fetchChildren, type Child } from 'src/services/children';
 import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
+import { SkeletonList } from 'src/components/ui/Skeleton';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -76,6 +78,7 @@ function groupByDate(entries: SymptomEntry[]): { date: string; items: SymptomEnt
 
 export default function SintomasScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
   const [children, setChildren] = useState<Child[]>([]);
@@ -118,7 +121,7 @@ export default function SintomasScreen() {
     if (!activeGroup || !userId || !selectedChildId) return;
     const tempNum = temperature.trim() ? parseFloat(temperature.replace(',', '.')) : undefined;
     if (symptomType === 'febre' && tempNum !== undefined && (tempNum < 30 || tempNum > 45)) {
-      Alert.alert('Temperatura inválida', 'Informe um valor entre 30 e 45°C.');
+      toast.show({ message: t('toasts.validation.fillRequired'), variant: 'warning' });
       return;
     }
     setSubmitting(true);
@@ -148,12 +151,7 @@ export default function SintomasScreen() {
       // "Nao foi possivel". Bug Diogo 2026-05-13 ficou invisivel por meses
       // porque o alert generico escondia o `23514 check_violation` real.
       const detail = (result as { error?: string }).error;
-      Alert.alert(
-        'Erro ao registrar sintoma',
-        detail
-          ? `Detalhes: ${detail}`
-          : 'Tente novamente. Se persistir, verifique sua conexão.'
-      );
+      toast.show({ message: detail || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 
@@ -181,8 +179,8 @@ export default function SintomasScreen() {
       />
 
       {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color={colors.brand} />
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={4} />
         </View>
       ) : (
         <ScrollView

@@ -19,7 +19,7 @@
 
 import { useCallback, useMemo, useState } from 'react';
 import {
-  View, Text, ScrollView, TouchableOpacity, RefreshControl, ActivityIndicator,
+  View, Text, ScrollView, TouchableOpacity, RefreshControl,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -31,6 +31,7 @@ import {
 } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -449,8 +450,8 @@ export default function SemanaScreen() {
         showsVerticalScrollIndicator={false}
       >
         {loading && !data ? (
-          <View style={{ paddingTop: 80, alignItems: 'center' }}>
-            <ActivityIndicator color={colors.brand} />
+          <View style={{ padding: spacing.lg }}>
+            <SkeletonList count={5} />
           </View>
         ) : !data ? null : (
           <>

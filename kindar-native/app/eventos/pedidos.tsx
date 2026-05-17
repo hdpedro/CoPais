@@ -16,6 +16,8 @@ import {
   type EventRequest,
 } from 'src/services/event-requests';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -45,6 +47,7 @@ function describeChange(key: string, value: unknown): string {
 
 export default function PedidosEventosScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
   const [requests, setRequests] = useState<EventRequest[]>([]);
@@ -79,7 +82,7 @@ export default function PedidosEventosScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error || 'Falha');
+      toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
   }
 
@@ -115,8 +118,8 @@ export default function PedidosEventosScreen() {
       </View>
 
       {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color={colors.brand} />
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={3} />
         </View>
       ) : (
         <ScrollView

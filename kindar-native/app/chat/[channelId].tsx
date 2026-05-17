@@ -17,6 +17,8 @@ import { safeWrite } from 'src/services/offline';
 import { notifyAction } from 'src/services/notify';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 // PT-BR month names (matches PWA `calendar.monthNames` translation source).
@@ -110,6 +112,8 @@ export default function ChatRoomScreen() {
   const insets = useSafeAreaInsets();
   const { channelId } = useLocalSearchParams<{ channelId: string }>();
   const { userId, activeGroup } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [loading, setLoading] = useState(true);
@@ -396,16 +400,16 @@ export default function ChatRoomScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     if (source === 'camera') {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) { Alert.alert('Permissao necessaria', 'Precisamos da camera'); return; }
+      if (!perm.granted) { toast.show({ message: t('toasts.chat.permissionCamera'), variant: 'info' }); return; }
       const r = await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 0.75, exif: false });
       if (!r.canceled && r.assets?.[0]) setPendingImage({ uri: r.assets[0].uri, mime: r.assets[0].mimeType || 'image/jpeg' });
     } else {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { Alert.alert('Permissao necessaria', 'Precisamos acesso as fotos'); return; }
+      if (!perm.granted) { toast.show({ message: t('toasts.chat.permissionPhotos'), variant: 'info' }); return; }
       const r = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 0.75, exif: false });
       if (!r.canceled && r.assets?.[0]) setPendingImage({ uri: r.assets[0].uri, mime: r.assets[0].mimeType || 'image/jpeg' });
     }
-  }, []);
+  }, [t, toast]);
 
   const openAttachSheet = useCallback(() => {
     Alert.alert('Anexar imagem', 'Escolha a origem', [
@@ -528,7 +532,7 @@ export default function ChatRoomScreen() {
     if (img) {
       imageUrl = await uploadChatImage(img.uri, img.mime, activeGroup.groupId);
       if (!imageUrl) {
-        Alert.alert('Erro', 'Não foi possível enviar a imagem');
+        toast.show({ message: t('toasts.chat.imageUploadFailed'), variant: 'error' });
         setNewMessage(text);
         setPendingImage(img);
         setReplyTo(reply);
@@ -556,7 +560,7 @@ export default function ChatRoomScreen() {
     }
 
     setSending(false);
-  }, [newMessage, pendingImage, channelId, userId, activeGroup, sending, showSuggestion, toneResult, replyTo]);
+  }, [newMessage, pendingImage, channelId, userId, activeGroup, sending, showSuggestion, toneResult, replyTo, t, toast]);
 
   const formatTime = (iso: string) => {
     const d = new Date(iso);
@@ -646,7 +650,7 @@ export default function ChatRoomScreen() {
 
       const { data: msgs, error: msgErr } = await query;
       if (msgErr) {
-        Alert.alert('Erro', 'Não foi possível buscar as mensagens.');
+        toast.show({ message: t('toasts.chat.loadMessagesFailed'), variant: 'error' });
         setExporting(false);
         return;
       }
@@ -717,7 +721,7 @@ export default function ChatRoomScreen() {
 
       const canShare = await Sharing.isAvailableAsync();
       if (!canShare) {
-        Alert.alert('Pronto', `PDF gerado em: ${uri}`);
+        toast.show({ message: t('toasts.chat.exportSuccess'), variant: 'success' });
         setExporting(false);
         return;
       }
@@ -733,11 +737,11 @@ export default function ChatRoomScreen() {
       setSelectedChannelId('');
     } catch (err) {
       console.error('[chat-export]', err);
-      Alert.alert('Erro', 'Não foi possível exportar as conversas.');
+      toast.show({ message: t('toasts.chat.exportFailed'), variant: 'error' });
     } finally {
       setExporting(false);
     }
-  }, [activeGroup, exporting, selectedChannelId, selectedMonth]);
+  }, [activeGroup, exporting, selectedChannelId, selectedMonth, t, toast]);
 
   // Message list with date separators + system message cards
   // Note: `items` is the message list with `kind: 'date' | 'system' | 'message'` markers

@@ -11,7 +11,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, Modal, KeyboardAvoidingView, Platform, ScrollView, TextInput,
-  ActivityIndicator, Alert,
+  ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +19,8 @@ import {
   submitActivityReport, fetchActivityReport,
   type ActivityReportStatus, type ActivityReportMood,
 } from '../../services/activities';
+import { useToast } from '../ui/ToastProvider';
+import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface Props {
@@ -49,6 +51,8 @@ const MOOD_OPTIONS: Array<{ value: ActivityReportMood; emoji: string; label: str
 export default function ActivityReportModal({
   visible, onClose, groupId, activityId, activityName, childId, reporterId, occurrenceDate, onSubmitted,
 }: Props) {
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [status, setStatus] = useState<ActivityReportStatus>('completed');
   const [notes, setNotes] = useState<string>('');
   const [mood, setMood] = useState<ActivityReportMood | null>(null);
@@ -91,7 +95,7 @@ export default function ActivityReportModal({
       onClose();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error);
+      toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 

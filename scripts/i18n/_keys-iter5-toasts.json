@@ -1,0 +1,222 @@
+{
+  "toasts.common": {
+    "pt": {
+      "saved": "Salvo",
+      "removed": "Removido",
+      "updated": "Atualizado",
+      "sent": "Enviado",
+      "copied": "Copiado",
+      "tryAgain": "Tente novamente",
+      "saveFailed": "Falha ao salvar",
+      "deleteFailed": "Falha ao remover",
+      "updateFailed": "Falha ao atualizar",
+      "loadFailed": "Falha ao carregar",
+      "sessionExpired": "Sessão expirada. Faça login novamente.",
+      "fallbackError": "Algo deu errado. Tente novamente."
+    },
+    "en": {
+      "saved": "Saved",
+      "removed": "Removed",
+      "updated": "Updated",
+      "sent": "Sent",
+      "copied": "Copied",
+      "tryAgain": "Try again",
+      "saveFailed": "Couldn't save",
+      "deleteFailed": "Couldn't remove",
+      "updateFailed": "Couldn't update",
+      "loadFailed": "Couldn't load",
+      "sessionExpired": "Session expired. Please sign in again.",
+      "fallbackError": "Something went wrong. Try again."
+    },
+    "es": {
+      "saved": "Guardado",
+      "removed": "Eliminado",
+      "updated": "Actualizado",
+      "sent": "Enviado",
+      "copied": "Copiado",
+      "tryAgain": "Inténtalo de nuevo",
+      "saveFailed": "No se pudo guardar",
+      "deleteFailed": "No se pudo eliminar",
+      "updateFailed": "No se pudo actualizar",
+      "loadFailed": "No se pudo cargar",
+      "sessionExpired": "Sesión caducada. Inicia sesión de nuevo.",
+      "fallbackError": "Algo salió mal. Inténtalo de nuevo."
+    },
+    "fr": {
+      "saved": "Enregistré",
+      "removed": "Supprimé",
+      "updated": "Mis à jour",
+      "sent": "Envoyé",
+      "copied": "Copié",
+      "tryAgain": "Réessayez",
+      "saveFailed": "Échec de l'enregistrement",
+      "deleteFailed": "Échec de la suppression",
+      "updateFailed": "Échec de la mise à jour",
+      "loadFailed": "Échec du chargement",
+      "sessionExpired": "Session expirée. Veuillez vous reconnecter.",
+      "fallbackError": "Une erreur s'est produite. Réessayez."
+    },
+    "de": {
+      "saved": "Gespeichert",
+      "removed": "Entfernt",
+      "updated": "Aktualisiert",
+      "sent": "Gesendet",
+      "copied": "Kopiert",
+      "tryAgain": "Bitte erneut versuchen",
+      "saveFailed": "Speichern fehlgeschlagen",
+      "deleteFailed": "Entfernen fehlgeschlagen",
+      "updateFailed": "Aktualisierung fehlgeschlagen",
+      "loadFailed": "Laden fehlgeschlagen",
+      "sessionExpired": "Sitzung abgelaufen. Bitte erneut anmelden.",
+      "fallbackError": "Etwas ist schiefgelaufen. Bitte erneut versuchen."
+    }
+  },
+  "toasts.subscription": {
+    "pt": {
+      "splitEnabled": "Divisão ativa — coparente vê em Financeiro",
+      "purchaseSuccess": "Plano {plan} ativo",
+      "purchaseFailed": "Não foi possível concluir a compra",
+      "restoreFailed": "Falha ao restaurar",
+      "restoreNotFound": "Nenhuma assinatura Kindar encontrada nesta conta",
+      "restoreSuccess": "Assinatura restaurada",
+      "premiumWelcome": "Bem-vindo ao Premium",
+      "restoreFailedNoSubscription": "Nenhuma assinatura ativa encontrada"
+    },
+    "en": {
+      "splitEnabled": "Split active — co-caregiver sees it in Financial",
+      "purchaseSuccess": "{plan} plan is active",
+      "purchaseFailed": "Couldn't complete the purchase",
+      "restoreFailed": "Restore failed",
+      "restoreNotFound": "No Kindar subscription found on this account",
+      "restoreSuccess": "Subscription restored",
+      "premiumWelcome": "Welcome to Premium",
+      "restoreFailedNoSubscription": "No active subscription found"
+    },
+    "es": {
+      "splitEnabled": "División activa — el corresponsable lo verá en Financiero",
+      "purchaseSuccess": "Plan {plan} activo",
+      "purchaseFailed": "No se pudo completar la compra",
+      "restoreFailed": "Error al restaurar",
+      "restoreNotFound": "No se encontró ninguna suscripción Kindar en esta cuenta",
+      "restoreSuccess": "Suscripción restaurada",
+      "premiumWelcome": "Bienvenido a Premium",
+      "restoreFailedNoSubscription": "No se encontró una suscripción activa"
+    },
+    "fr": {
+      "splitEnabled": "Partage activé — le co-responsable le verra dans Finances",
+      "purchaseSuccess": "Forfait {plan} actif",
+      "purchaseFailed": "Impossible de finaliser l'achat",
+      "restoreFailed": "Échec de la restauration",
+      "restoreNotFound": "Aucun abonnement Kindar trouvé sur ce compte",
+      "restoreSuccess": "Abonnement restauré",
+      "premiumWelcome": "Bienvenue dans Premium",
+      "restoreFailedNoSubscription": "Aucun abonnement actif trouvé"
+    },
+    "de": {
+      "splitEnabled": "Teilung aktiv — die mitsorgende Person sieht es in Finanzen",
+      "purchaseSuccess": "Tarif {plan} ist aktiv",
+      "purchaseFailed": "Kauf konnte nicht abgeschlossen werden",
+      "restoreFailed": "Wiederherstellung fehlgeschlagen",
+      "restoreNotFound": "Kein Kindar-Abo auf diesem Konto gefunden",
+      "restoreSuccess": "Abo wiederhergestellt",
+      "premiumWelcome": "Willkommen bei Premium",
+      "restoreFailedNoSubscription": "Kein aktives Abo gefunden"
+    }
+  },
+  "toasts.school": {
+    "pt": {
+      "needChildFirst": "Cadastre uma criança antes de registrar eventos escolares",
+      "titleRequired": "Dê um nome ao registro",
+      "childRequired": "Escolha pra qual criança o registro vale",
+      "subjectRequired": "Para uma prova, informe a matéria"
+    },
+    "en": {
+      "needChildFirst": "Add a child before logging school events",
+      "titleRequired": "Give the record a name",
+      "childRequired": "Choose which child the record is for",
+      "subjectRequired": "For an exam, enter the subject"
+    },
+    "es": {
+      "needChildFirst": "Añade un niño antes de registrar eventos escolares",
+      "titleRequired": "Pon un nombre al registro",
+      "childRequired": "Elige a qué niño corresponde el registro",
+      "subjectRequired": "Para un examen, indica la materia"
+    },
+    "fr": {
+      "needChildFirst": "Ajoutez un enfant avant d'enregistrer des événements scolaires",
+      "titleRequired": "Donnez un nom à l'enregistrement",
+      "childRequired": "Choisissez l'enfant concerné",
+      "subjectRequired": "Pour un contrôle, indiquez la matière"
+    },
+    "de": {
+      "needChildFirst": "Lege zuerst ein Kind an, bevor du schulische Einträge erstellst",
+      "titleRequired": "Gib dem Eintrag einen Namen",
+      "childRequired": "Wähle das Kind für den Eintrag",
+      "subjectRequired": "Gib bei einer Prüfung das Fach an"
+    }
+  },
+  "toasts.chat": {
+    "pt": {
+      "permissionCamera": "Precisamos da permissão da câmera",
+      "permissionPhotos": "Precisamos da permissão das fotos",
+      "imageUploadFailed": "Não foi possível enviar a imagem",
+      "loadMessagesFailed": "Não foi possível buscar as mensagens",
+      "exportSuccess": "PDF gerado",
+      "exportFailed": "Não foi possível exportar as conversas"
+    },
+    "en": {
+      "permissionCamera": "We need camera permission",
+      "permissionPhotos": "We need photo library permission",
+      "imageUploadFailed": "Couldn't upload the image",
+      "loadMessagesFailed": "Couldn't load the messages",
+      "exportSuccess": "PDF ready",
+      "exportFailed": "Couldn't export the conversations"
+    },
+    "es": {
+      "permissionCamera": "Necesitamos permiso de cámara",
+      "permissionPhotos": "Necesitamos permiso para acceder a las fotos",
+      "imageUploadFailed": "No se pudo enviar la imagen",
+      "loadMessagesFailed": "No se pudieron cargar los mensajes",
+      "exportSuccess": "PDF generado",
+      "exportFailed": "No se pudieron exportar las conversaciones"
+    },
+    "fr": {
+      "permissionCamera": "Nous avons besoin de l'autorisation de la caméra",
+      "permissionPhotos": "Nous avons besoin de l'autorisation des photos",
+      "imageUploadFailed": "Impossible d'envoyer l'image",
+      "loadMessagesFailed": "Impossible de charger les messages",
+      "exportSuccess": "PDF généré",
+      "exportFailed": "Impossible d'exporter les conversations"
+    },
+    "de": {
+      "permissionCamera": "Wir benötigen die Kamerafreigabe",
+      "permissionPhotos": "Wir benötigen Zugriff auf die Fotos",
+      "imageUploadFailed": "Bild konnte nicht hochgeladen werden",
+      "loadMessagesFailed": "Nachrichten konnten nicht geladen werden",
+      "exportSuccess": "PDF erstellt",
+      "exportFailed": "Konversationen konnten nicht exportiert werden"
+    }
+  },
+  "toasts.expense": {
+    "pt": {
+      "descriptionRequired": "Descrição obrigatória",
+      "invalidAmount": "Valor inválido"
+    },
+    "en": {
+      "descriptionRequired": "Description is required",
+      "invalidAmount": "Invalid amount"
+    },
+    "es": {
+      "descriptionRequired": "Descripción obligatoria",
+      "invalidAmount": "Importe no válido"
+    },
+    "fr": {
+      "descriptionRequired": "Description obligatoire",
+      "invalidAmount": "Montant invalide"
+    },
+    "de": {
+      "descriptionRequired": "Beschreibung erforderlich",
+      "invalidAmount": "Ungültiger Betrag"
+    }
+  }
+}

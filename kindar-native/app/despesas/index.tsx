@@ -11,7 +11,7 @@
  */
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import {
-  View, Text, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator, Alert,
+  View, Text, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator,
   Modal, Image, Pressable, TextInput, ScrollView, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,6 +43,8 @@ import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { SkeletonList } from 'src/components/ui/Skeleton';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
@@ -92,6 +94,7 @@ const ACTION_ICONS: Record<string, string> = {
 
 export default function DespesasScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
   const { highlight } = useLocalSearchParams<{ highlight?: string }>();
@@ -282,7 +285,7 @@ export default function DespesasScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error || 'Falha');
+      toast.show({ message: res.error || t('toasts.common.deleteFailed'), variant: 'error' });
     }
   }
 
@@ -559,8 +562,8 @@ export default function DespesasScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title={t('expensesPage.headerTitle')} />
       {loading ? (
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <ActivityIndicator color={colors.brand} />
+        <View style={{ padding: spacing.lg }}>
+          <SkeletonList count={4} />
         </View>
       ) : (
         <SectionList
@@ -610,7 +613,7 @@ export default function DespesasScreen() {
           onSubmit={async (reason) => {
             const res = await requestCancelExpense(canceling.id, reason);
             if (res.success) { setCanceling(null); await load(); }
-            else Alert.alert('Erro', res.error);
+            else toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
           }}
         />
       )}
@@ -624,7 +627,7 @@ export default function DespesasScreen() {
           onSubmit={async (reason) => {
             const res = await reopenApproval(reopening.id, reason);
             if (res.success) { setReopening(null); await load(); }
-            else Alert.alert('Erro', res.error);
+            else toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
           }}
         />
       )}
@@ -705,6 +708,8 @@ function EditExpenseModal({ expense, onClose, onSaved }: {
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [description, setDescription] = useState(expense.description);
   const [amount, setAmount] = useState(expense.amount.toString());
   const [category, setCategory] = useState(expense.category);
@@ -713,8 +718,8 @@ function EditExpenseModal({ expense, onClose, onSaved }: {
 
   async function handleSave() {
     const amt = parseFloat(amount.replace(',', '.'));
-    if (!description.trim()) { Alert.alert('Descrição obrigatória.'); return; }
-    if (!Number.isFinite(amt) || amt <= 0) { Alert.alert('Valor inválido.'); return; }
+    if (!description.trim()) { toast.show({ message: t('toasts.expense.descriptionRequired'), variant: 'error' }); return; }
+    if (!Number.isFinite(amt) || amt <= 0) { toast.show({ message: t('toasts.expense.invalidAmount'), variant: 'error' }); return; }
     setSaving(true);
     const res = await editExpense(expense.id, {
       description: description.trim(),
@@ -724,7 +729,7 @@ function EditExpenseModal({ expense, onClose, onSaved }: {
     });
     setSaving(false);
     if (res.success) onSaved();
-    else Alert.alert('Erro', res.error);
+    else toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });
   }
 
   return (
@@ -862,6 +867,8 @@ function CancelRespondModal({ expense, onClose, onResponded }: {
   onClose: () => void;
   onResponded: () => void;
 }) {
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [approved, setApproved] = useState<boolean | null>(null);
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
@@ -872,7 +879,7 @@ function CancelRespondModal({ expense, onClose, onResponded }: {
     const res = await respondToCancelRequest(expense.id, approved, reason.trim() || null);
     setSaving(false);
     if (res.success) onResponded();
-    else Alert.alert('Erro', res.error);
+    else toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
   }
 
   return (

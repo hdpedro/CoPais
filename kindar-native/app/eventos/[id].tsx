@@ -16,6 +16,8 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchEventDetail, deleteEvent } from 'src/services/events';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 type EventDetail = NonNullable<Awaited<ReturnType<typeof fetchEventDetail>>>;
@@ -36,6 +38,8 @@ function formatTime(t: string | null): string {
 export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const eventId = typeof id === 'string' ? id : '';
 
   const [event, setEvent] = useState<EventDetail | null>(null);
@@ -112,7 +116,7 @@ export default function EventDetailScreen() {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               router.back();
             } else {
-              Alert.alert('Erro', r.error || 'Falha ao excluir.');
+              toast.show({ message: r.error || t('toasts.common.deleteFailed'), variant: 'error' });
             }
           },
         },

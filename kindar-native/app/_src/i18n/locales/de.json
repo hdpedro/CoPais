@@ -2554,5 +2554,68 @@
     "family": "Familie",
     "profile": "Profil",
     "openModule": "{label} öffnen"
+  },
+  "toasts": {
+    "common": {
+      "saved": "Gespeichert",
+      "removed": "Entfernt",
+      "updated": "Aktualisiert",
+      "sent": "Gesendet",
+      "copied": "Kopiert",
+      "tryAgain": "Bitte erneut versuchen",
+      "saveFailed": "Speichern fehlgeschlagen",
+      "deleteFailed": "Entfernen fehlgeschlagen",
+      "updateFailed": "Aktualisierung fehlgeschlagen",
+      "loadFailed": "Laden fehlgeschlagen",
+      "sessionExpired": "Sitzung abgelaufen. Bitte erneut anmelden.",
+      "fallbackError": "Etwas ist schiefgelaufen. Bitte erneut versuchen."
+    },
+    "subscription": {
+      "splitEnabled": "Teilung aktiv — die mitsorgende Person sieht es in Finanzen",
+      "purchaseSuccess": "Tarif {plan} ist aktiv",
+      "purchaseFailed": "Kauf konnte nicht abgeschlossen werden",
+      "restoreFailed": "Wiederherstellung fehlgeschlagen",
+      "restoreNotFound": "Kein Kindar-Abo auf diesem Konto gefunden",
+      "restoreSuccess": "Abo wiederhergestellt",
+      "premiumWelcome": "Willkommen bei Premium",
+      "restoreFailedNoSubscription": "Kein aktives Abo gefunden"
+    },
+    "school": {
+      "needChildFirst": "Lege zuerst ein Kind an, bevor du schulische Einträge erstellst",
+      "titleRequired": "Gib dem Eintrag einen Namen",
+      "childRequired": "Wähle das Kind für den Eintrag",
+      "subjectRequired": "Gib bei einer Prüfung das Fach an"
+    },
+    "chat": {
+      "permissionCamera": "Wir benötigen die Kamerafreigabe",
+      "permissionPhotos": "Wir benötigen Zugriff auf die Fotos",
+      "imageUploadFailed": "Bild konnte nicht hochgeladen werden",
+      "loadMessagesFailed": "Nachrichten konnten nicht geladen werden",
+      "exportSuccess": "PDF erstellt",
+      "exportFailed": "Konversationen konnten nicht exportiert werden"
+    },
+    "expense": {
+      "descriptionRequired": "Beschreibung erforderlich",
+      "invalidAmount": "Ungültiger Betrag"
+    },
+    "validation": {
+      "titleRequired": "Titel hinzufügen",
+      "dateRequired": "Datum wählen",
+      "nameRequired": "Name angeben",
+      "fillRequired": "Pflichtfelder ausfüllen"
+    },
+    "permissions": {
+      "cameraDenied": "Wir benötigen die Kamerafreigabe",
+      "photosDenied": "Wir benötigen Zugriff auf die Fotos",
+      "cameraBlocked": "Kamera blockiert — in den Einstellungen aktivieren",
+      "photosBlocked": "Fotos blockiert — in den Einstellungen aktivieren"
+    },
+    "growth": {
+      "weightOutOfRange": "Gewicht außerhalb des erwarteten Bereichs — bitte prüfen",
+      "heightOutOfRange": "Größe außerhalb des erwarteten Bereichs — bitte in cm prüfen"
+    },
+    "emergency": {
+      "tokenMissing": "Dieses Kind hat noch keinen Notfall-Token. Erstelle einen in der Web-App."
+    }
   }
 }

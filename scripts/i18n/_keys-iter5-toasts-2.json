@@ -1,0 +1,66 @@
+{
+  "toasts.validation": {
+    "pt": {
+      "titleRequired": "Dê um título",
+      "dateRequired": "Escolha uma data",
+      "nameRequired": "Informe o nome",
+      "fillRequired": "Preencha os campos obrigatórios"
+    },
+    "en": {
+      "titleRequired": "Add a title",
+      "dateRequired": "Pick a date",
+      "nameRequired": "Enter a name",
+      "fillRequired": "Fill in the required fields"
+    },
+    "es": {
+      "titleRequired": "Pon un título",
+      "dateRequired": "Elige una fecha",
+      "nameRequired": "Indica el nombre",
+      "fillRequired": "Completa los campos obligatorios"
+    },
+    "fr": {
+      "titleRequired": "Ajoutez un titre",
+      "dateRequired": "Choisissez une date",
+      "nameRequired": "Indiquez le nom",
+      "fillRequired": "Remplissez les champs obligatoires"
+    },
+    "de": {
+      "titleRequired": "Titel hinzufügen",
+      "dateRequired": "Datum wählen",
+      "nameRequired": "Name angeben",
+      "fillRequired": "Pflichtfelder ausfüllen"
+    }
+  },
+  "toasts.permissions": {
+    "pt": {
+      "cameraDenied": "Precisamos da permissão da câmera",
+      "photosDenied": "Precisamos da permissão das fotos",
+      "cameraBlocked": "Câmera bloqueada — habilite nas configurações",
+      "photosBlocked": "Galeria bloqueada — habilite nas configurações"
+    },
+    "en": {
+      "cameraDenied": "We need camera permission",
+      "photosDenied": "We need photo library permission",
+      "cameraBlocked": "Camera blocked — enable it in Settings",
+      "photosBlocked": "Photo library blocked — enable it in Settings"
+    },
+    "es": {
+      "cameraDenied": "Necesitamos permiso de cámara",
+      "photosDenied": "Necesitamos permiso para acceder a las fotos",
+      "cameraBlocked": "Cámara bloqueada — habilítala en Ajustes",
+      "photosBlocked": "Galería bloqueada — habilítala en Ajustes"
+    },
+    "fr": {
+      "cameraDenied": "Nous avons besoin de l'autorisation de la caméra",
+      "photosDenied": "Nous avons besoin de l'autorisation des photos",
+      "cameraBlocked": "Caméra bloquée — activez-la dans les Réglages",
+      "photosBlocked": "Galerie bloquée — activez-la dans les Réglages"
+    },
+    "de": {
+      "cameraDenied": "Wir benötigen die Kamerafreigabe",
+      "photosDenied": "Wir benötigen Zugriff auf die Fotos",
+      "cameraBlocked": "Kamera blockiert — in den Einstellungen aktivieren",
+      "photosBlocked": "Fotos blockiert — in den Einstellungen aktivieren"
+    }
+  }
+}

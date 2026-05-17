@@ -17,7 +17,7 @@
 import { useEffect, useState } from 'react';
 import {
   View, Text, TextInput, ScrollView, TouchableOpacity, ActivityIndicator,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -28,6 +28,8 @@ import { supabase } from 'src/lib/supabase';
 import { updateActivity } from 'src/services/activities';
 import { ACTIVITY_CATEGORIES, getDisplayName } from 'src/lib/constants';
 import { TimePickerField } from 'src/components/ui/DateTimeField';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const CATEGORY_LABEL: Record<string, string> = {
@@ -42,6 +44,8 @@ export default function EditActivityScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const activityId = typeof params.id === 'string' ? params.id : '';
   const { activeGroup } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -100,7 +104,7 @@ export default function EditActivityScreen() {
 
   async function handleSave() {
     if (!name.trim()) {
-      Alert.alert('Nome obrigatório', 'Dá um nome pra atividade.');
+      toast.show({ message: t('toasts.validation.nameRequired'), variant: 'error' });
       return;
     }
     setSaving(true);
@@ -122,7 +126,7 @@ export default function EditActivityScreen() {
       router.back();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Falha ao salvar.');
+      toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 

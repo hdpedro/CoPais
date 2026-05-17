@@ -6,13 +6,15 @@
 import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Modal, ScrollView, KeyboardAvoidingView, Platform,
-  ActivityIndicator, Alert,
+  ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import {
   createBalanceOperation, type BalanceOperationType,
 } from '../../services/balance-operations';
+import { useToast } from '../ui/ToastProvider';
+import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface Props {
@@ -43,6 +45,8 @@ const OPTIONS: Array<{
 export default function ProposeBalanceAdjustmentSheet({
   visible, onClose, groupId, proposerId, targetUserId, targetName, currentBalance, onSubmitted,
 }: Props) {
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [operationType, setOperationType] = useState<BalanceOperationType>('waive');
   const [days, setDays] = useState<string>('1');
   const [notes, setNotes] = useState<string>('');
@@ -83,7 +87,7 @@ export default function ProposeBalanceAdjustmentSheet({
       onClose();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error);
+      toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
   }
 

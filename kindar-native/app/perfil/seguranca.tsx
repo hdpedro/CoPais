@@ -21,6 +21,7 @@ import { View, Text, ScrollView, Switch, TouchableOpacity, Alert, ActivityIndica
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useLock, TIMEOUT_LABELS, type LockTimeout } from 'src/store/lock';
 import { authenticate, getBiometricCapability, type BiometricCapability } from 'src/services/biometric-lock';
 import { useI18n } from 'src/i18n';
@@ -35,6 +36,7 @@ const TIMEOUT_OPTIONS: { value: LockTimeout; description: string }[] = [
 
 export default function SegurancaScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { enabled, timeout, hydrated, hydrate, setEnabled, setTimeout: setLockTimeout } = useLock();
   const [capability, setCapability] = useState<BiometricCapability | null>(null);
   const [busy, setBusy] = useState(false);
@@ -60,7 +62,7 @@ export default function SegurancaScreen() {
     if (next) {
       // Liga o lock — primeiro checa hardware + enrollment
       if (!capability.hasHardware) {
-        Alert.alert('Biometria nao suportada', 'Este dispositivo nao tem Face ID, Touch ID ou leitor biometrico.');
+        toast.show({ message: t('toasts.common.fallbackError'), variant: 'info' });
         return;
       }
       if (!capability.isEnrolled) {
@@ -80,7 +82,7 @@ export default function SegurancaScreen() {
       setBusy(false);
       if (!r.success) {
         if (r.error && r.error !== 'user_cancel' && r.error !== 'cancel') {
-          Alert.alert('Falha na autenticacao', 'Tente novamente.');
+          toast.show({ message: t('toasts.common.tryAgain'), variant: 'error' });
         }
         return;
       }
@@ -93,7 +95,7 @@ export default function SegurancaScreen() {
       setBusy(false);
       if (!r.success) {
         if (r.error && r.error !== 'user_cancel' && r.error !== 'cancel') {
-          Alert.alert('Falha na autenticacao', 'Tente novamente.');
+          toast.show({ message: t('toasts.common.tryAgain'), variant: 'error' });
         }
         return;
       }

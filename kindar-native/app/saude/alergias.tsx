@@ -2,7 +2,7 @@
  * Alergias — Lista + Criar alergia por criança (com type picker e severidade).
  */
 import { useState, useCallback } from 'react';
-import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, ScrollView } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { supabase } from 'src/lib/supabase';
@@ -11,6 +11,7 @@ import { notifyAction } from 'src/services/notify';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import SwipeToDelete from 'src/components/ui/SwipeToDelete';
@@ -36,6 +37,7 @@ const TYPE_OPTIONS: { value: string; label: string; icon: string }[] = [
 
 export default function AlergiasScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [allergies, setAllergies] = useState<Allergy[]>([]);
   const [loading, setLoading] = useState(true);
@@ -93,7 +95,7 @@ export default function AlergiasScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowForm(false); setName(''); setReaction('');
       load();
-    } else { Alert.alert('Erro', result.error || 'Falha ao salvar'); }
+    } else { toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' }); }
     setSaving(false);
   }
 
@@ -106,7 +108,7 @@ export default function AlergiasScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Alergias" rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => setShowForm(!showForm) }} />
+      <ScreenHeader title={t('health.allergies')} rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => setShowForm(!showForm) }} />
 
       {showForm ? (
         <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>

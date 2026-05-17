@@ -25,7 +25,9 @@ import {
   type SchoolLog, type SchoolLogType, type SchoolKind, type SchoolPriority, type SchoolLogRead,
 } from 'src/services/school';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
+import { SkeletonList } from 'src/components/ui/Skeleton';
 import { TimePickerField, DatePickerField } from 'src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
@@ -97,6 +99,7 @@ function todayIso(): string {
 export default function EscolaScreen() {
   const { activeGroup, userId } = useAuth();
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const groupId = activeGroup?.groupId ?? null;
 
   // Deep link from calendar: tap on event with school_log_id sets ?highlight=<id>
@@ -322,7 +325,7 @@ export default function EscolaScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error);
+      toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 
@@ -340,7 +343,7 @@ export default function EscolaScreen() {
 
   function openCreateLog() {
     if (childOptions.length === 0) {
-      Alert.alert('Cadastre uma criança primeiro', 'Você precisa adicionar uma criança antes de registrar eventos escolares.');
+      toast.show({ message: t('toasts.school.needChildFirst'), variant: 'info' });
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -376,15 +379,15 @@ export default function EscolaScreen() {
   async function handleSaveNewLog() {
     if (!groupId || !userId) return;
     if (!logTitle.trim()) {
-      Alert.alert('Título obrigatório', 'Dê um nome ao registro.');
+      toast.show({ message: t('toasts.school.titleRequired'), variant: 'error' });
       return;
     }
     if (!logChildId) {
-      Alert.alert('Criança obrigatória', 'Escolha pra qual criança o registro vale.');
+      toast.show({ message: t('toasts.school.childRequired'), variant: 'error' });
       return;
     }
     if (logSubtype === 'exam' && !logSubject.trim()) {
-      Alert.alert('Matéria obrigatória', 'Para uma prova, informe a matéria.');
+      toast.show({ message: t('toasts.school.subjectRequired'), variant: 'error' });
       return;
     }
     setSavingLog(true);
@@ -408,22 +411,22 @@ export default function EscolaScreen() {
       await loadLogs();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error || 'Não consegui salvar.');
+      toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 
   async function handleSaveEditLog() {
     if (!editingLog) return;
     if (!logTitle.trim()) {
-      Alert.alert('Título obrigatório', 'Dê um nome ao registro.');
+      toast.show({ message: t('toasts.school.titleRequired'), variant: 'error' });
       return;
     }
     if (!logChildId) {
-      Alert.alert('Criança obrigatória', 'Escolha pra qual criança o registro vale.');
+      toast.show({ message: t('toasts.school.childRequired'), variant: 'error' });
       return;
     }
     if (logSubtype === 'exam' && !logSubject.trim()) {
-      Alert.alert('Matéria obrigatória', 'Para uma prova, informe a matéria.');
+      toast.show({ message: t('toasts.school.subjectRequired'), variant: 'error' });
       return;
     }
     setSavingLog(true);
@@ -446,7 +449,7 @@ export default function EscolaScreen() {
       await loadLogs();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', res.error || 'Não consegui salvar.');
+      toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 
@@ -465,7 +468,7 @@ export default function EscolaScreen() {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               await loadLogs();
             } else {
-              Alert.alert('Erro', res.error || 'Nao consegui excluir.');
+              toast.show({ message: res.error || t('toasts.common.deleteFailed'), variant: 'error' });
             }
           },
         },
@@ -481,7 +484,7 @@ export default function EscolaScreen() {
     if (!res.success) {
       // rollback on failure
       setLogs(prev => prev.map(l => l.id === log.id ? { ...l, completed: log.completed } : l));
-      Alert.alert('Erro', res.error || 'Nao consegui atualizar.');
+      toast.show({ message: res.error || t('toasts.common.updateFailed'), variant: 'error' });
     }
   }
 
@@ -509,6 +512,7 @@ export default function EscolaScreen() {
       {tab === 'info' ? (
         <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}>
+          {loading && schools.length === 0 ? <SkeletonList count={3} /> : null}
           {schools.length === 0 && !loading ? <EmptyState icon="🏫" title={t('empty.escolaChildren.title')} /> : null}
           {schools.map(s => {
             const e = s.education;
@@ -553,7 +557,9 @@ export default function EscolaScreen() {
             ) : null}
 
             {logsLoading && logs.length === 0 ? (
-              <ActivityIndicator color={colors.brand} style={{ marginTop: spacing['3xl'] }} />
+              <View style={{ marginTop: spacing.lg }}>
+                <SkeletonList count={4} />
+              </View>
             ) : logs.length === 0 ? (
               <EmptyState
                 icon="📚"

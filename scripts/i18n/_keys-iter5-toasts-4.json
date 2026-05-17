@@ -1,0 +1,19 @@
+{
+  "toasts.emergency": {
+    "pt": {
+      "tokenMissing": "Esta criança ainda não tem token de emergência. Gere um na versão web."
+    },
+    "en": {
+      "tokenMissing": "This child has no emergency token yet. Generate one on the web app."
+    },
+    "es": {
+      "tokenMissing": "Este niño aún no tiene token de emergencia. Genéralo en la versión web."
+    },
+    "fr": {
+      "tokenMissing": "Cet enfant n'a pas encore de jeton d'urgence. Générez-le sur la version web."
+    },
+    "de": {
+      "tokenMissing": "Dieses Kind hat noch keinen Notfall-Token. Erstelle einen in der Web-App."
+    }
+  }
+}

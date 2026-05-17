@@ -25,6 +25,7 @@ import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/store/auth';
 import { markQuestStep } from 'src/services/quest';
 import { useI18n } from 'src/i18n';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { colors, font, spacing } from 'src/design-system/tokens';
 
 import { ChildForm } from './_components/ChildForm';
@@ -48,6 +49,7 @@ export default function OnboardingScreen() {
   const insets = useSafeAreaInsets();
   const { userId } = useAuth();
   const t = useI18n((s) => s.t);
+  const toast = useToast();
 
   const [state, dispatch] = useReducer(wizardReducer, initialWizardState);
   const { step, groupId, groupName, kids, form, invite } = state;
@@ -433,7 +435,7 @@ export default function OnboardingScreen() {
                 }, t) || t('onboardingForm.errorRemovingChild');
                 dispatch({ type: 'REMOVE_CHILD_REVERT' });
                 Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-                Alert.alert(t('common.error'), message);
+                toast.show({ message, variant: 'error' });
                 return;
               }
               dispatch({ type: 'REMOVE_CHILD_CONFIRM' });
@@ -446,7 +448,7 @@ export default function OnboardingScreen() {
               }, t) || t('onboardingForm.errorRemovingChild');
               dispatch({ type: 'REMOVE_CHILD_REVERT' });
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert(t('common.error'), message);
+              toast.show({ message, variant: 'error' });
             } finally {
               disposeController(controller);
             }
@@ -454,7 +456,7 @@ export default function OnboardingScreen() {
         },
       ],
     );
-  }, [groupId, state.kids, t]);
+  }, [groupId, state.kids, t, toast]);
 
   const setInviteEmail = useCallback((value: string) => {
     dispatch({ type: 'INVITE_EMAIL', value });

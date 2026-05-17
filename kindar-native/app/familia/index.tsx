@@ -18,6 +18,7 @@ import { apiFetch } from 'src/lib/api-fetch';
 import { useAuth } from 'src/store/auth';
 import { listInvitations, cancelInvitation, type Invitation } from 'src/services/invitations';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -50,6 +51,7 @@ const ROLE_META: Record<string, { label: string; icon: string; color: string }> 
 
 export default function FamiliaScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { activeGroup, userId, signOut } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [children, setChildren] = useState<ChildPreview[]>([]);
@@ -123,7 +125,7 @@ export default function FamiliaScreen() {
             setActing(null);
             if (!r.ok) {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert('Erro', r.error || 'Não foi possível remover');
+              toast.show({ message: r.error || t('toasts.common.deleteFailed'), variant: 'error' });
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               await load();
@@ -152,7 +154,7 @@ export default function FamiliaScreen() {
               query: { groupId: activeGroup.groupId },
             });
             if (!r.ok) {
-              Alert.alert('Erro', r.error || 'Não foi possível sair do grupo');
+              toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               // Force signout to reset state
@@ -203,7 +205,7 @@ export default function FamiliaScreen() {
     setActing(null);
     if (!r.ok) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', r.error || 'Não foi possível alterar o papel');
+      toast.show({ message: r.error || t('toasts.common.updateFailed'), variant: 'error' });
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);

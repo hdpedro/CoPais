@@ -13,6 +13,7 @@ import { notifyAction } from 'src/services/notify';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { DatePickerField, TimePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { confirmDestructive } from 'src/components/ui/DestructiveConfirm';
@@ -29,6 +30,7 @@ const STATUS_COLORS: Record<string, { label: string; color: string }> = {
 
 export default function ConsultasScreen() {
   const t = useI18n(s => s.t);
+  const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [appts, setAppts] = useState<Appt[]>([]);
   const [loading, setLoading] = useState(true);
@@ -96,7 +98,7 @@ export default function ConsultasScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowForm(false); setTitle(''); setDateIso(dateToIso(new Date())); setTimeHHMM(''); setLocation(''); setNotes(''); setSelectedProfessional(null);
       load();
-    } else { Alert.alert('Erro', result.error || 'Falha'); }
+    } else { toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' }); }
     setSaving(false);
   }
 
@@ -148,7 +150,7 @@ export default function ConsultasScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Falha ao concluir consulta');
+      toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 
@@ -195,7 +197,7 @@ export default function ConsultasScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Falha ao excluir consulta');
+      toast.show({ message: result.error || t('toasts.common.deleteFailed'), variant: 'error' });
     }
   }
 
@@ -230,7 +232,7 @@ export default function ConsultasScreen() {
   async function handleConfirmEdit() {
     if (!editing) return;
     if (!editTitle.trim() || !editDateIso || !editTimeHHMM) {
-      Alert.alert('Erro', 'Preencha título, data e hora.');
+      toast.show({ message: t('toasts.validation.fillRequired'), variant: 'error' });
       return;
     }
     setEditSaving(true);
@@ -255,7 +257,7 @@ export default function ConsultasScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', result.error || 'Falha ao salvar alterações');
+      toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 

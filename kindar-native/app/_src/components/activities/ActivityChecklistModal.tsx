@@ -8,7 +8,7 @@
 
 import { useState, useEffect } from 'react';
 import {
-  View, Text, TouchableOpacity, Modal, ScrollView, ActivityIndicator, Alert,
+  View, Text, TouchableOpacity, Modal, ScrollView, ActivityIndicator,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,8 @@ import {
   fetchChecklist, fetchChecklistCompletions, toggleChecklistItem,
   type ChecklistItem,
 } from '../../services/activities';
+import { useToast } from '../ui/ToastProvider';
+import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface Props {
@@ -28,6 +30,8 @@ interface Props {
 }
 
 export default function ActivityChecklistModal({ visible, onClose, activityId, activityName, occurrenceDate, completedBy }: Props) {
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
@@ -70,7 +74,7 @@ export default function ActivityChecklistModal({ visible, onClose, activityId, a
         else next.add(item.id);
         return next;
       });
-      Alert.alert('Erro', res.error);
+      toast.show({ message: res.error || t('toasts.common.updateFailed'), variant: 'error' });
     }
   }
 

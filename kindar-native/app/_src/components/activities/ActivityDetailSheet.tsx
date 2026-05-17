@@ -35,6 +35,7 @@ import {
 } from '../../services/activities';
 import { ACTIVITY_CATEGORIES } from '../../lib/constants';
 import { useToast } from '../ui/ToastProvider';
+import { useI18n } from '../../i18n';
 
 const CATEGORY_LABEL: Record<string, string> = {
   sports: 'Esporte',
@@ -98,6 +99,7 @@ export default function ActivityDetailSheet({
 }: Props) {
   const insets = useSafeAreaInsets();
   const toast = useToast();
+  const t = useI18n(s => s.t);
   const [activity, setActivity] = useState<ActivityFull | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
@@ -184,7 +186,7 @@ export default function ActivityDetailSheet({
         else next.add(item.id);
         return next;
       });
-      Alert.alert('Erro', res.error);
+      toast.show({ message: res.error || t('toasts.common.updateFailed'), variant: 'error' });
     }
   }
 
@@ -288,7 +290,7 @@ export default function ActivityDetailSheet({
           severity: 'warning',
           metadata: { activityId, scope, occurrenceDate, error: r.error },
         });
-        Alert.alert('Erro ao excluir', r.error || 'Tente novamente em alguns segundos.');
+        toast.show({ message: r.error || t('toasts.common.deleteFailed'), variant: 'error' });
       }
     } catch (err) {
       // Falha imprevista (rede, timeout, etc) — capturada pra nao
@@ -298,7 +300,7 @@ export default function ActivityDetailSheet({
         severity: 'error',
         metadata: { activityId, scope, occurrenceDate },
       });
-      Alert.alert('Erro', 'Não foi possível excluir agora. Verifique sua conexão e tente novamente.');
+      toast.show({ message: t('toasts.common.deleteFailed'), variant: 'error' });
     }
   }
 
@@ -307,7 +309,7 @@ export default function ActivityDetailSheet({
       // Defesa: se activity nao carregou ainda, mostra feedback em vez de
       // retornar silencioso. Antes era `if (!activity) return;` — Angelino
       // poderia clicar e nada acontecer.
-      Alert.alert('Aguarde', 'Carregando dados da atividade...');
+      toast.show({ message: t('common.loading'), variant: 'info' });
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});

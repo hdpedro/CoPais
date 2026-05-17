@@ -31,6 +31,7 @@ import {
   deleteVaccinationRecordViaEngine,
 } from 'src/services/health';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useToast } from 'src/components/ui/ToastProvider';
 import { DatePickerField } from 'src/components/ui/DateTimeField';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -71,6 +72,7 @@ function formatRelative(iso: string): string {
 export default function VaccineDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const t = useI18n((s) => s.t);
+  const toast = useToast();
   const { userId } = useAuth();
   const recordId = params.id as string;
 
@@ -176,7 +178,7 @@ export default function VaccineDetailScreen() {
       load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert(t('common.error') || 'Erro', r.error || 'Falha');
+      toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
     }
   }
 
@@ -197,7 +199,7 @@ export default function VaccineDetailScreen() {
               router.replace(`/saude/vacinas?crianca=${record.child_id}` as never);
             } else {
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-              Alert.alert(t('common.error') || 'Erro', r.error || 'Falha');
+              toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });
             }
           },
         },

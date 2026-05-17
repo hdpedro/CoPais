@@ -13,7 +13,7 @@
 import { useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
-  KeyboardAvoidingView, Platform, Alert,
+  KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -25,6 +25,8 @@ import { createActivity } from 'src/services/activities';
 import { fetchChildren, type Child } from 'src/services/children';
 import { ACTIVITY_CATEGORIES, getBrazilToday } from 'src/lib/constants';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useToast } from 'src/components/ui/ToastProvider';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const CAT_LABELS: Record<string, string> = {
@@ -112,6 +114,8 @@ function formatBrDate(input: string): string {
 export default function NovaAtividadeScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
+  const t = useI18n(s => s.t);
+  const toast = useToast();
   const [children, setChildren] = useState<Child[]>([]);
   const [members, setMembers] = useState<MemberOption[]>([]);
   const [childId, setChildId] = useState<string | null>(null);
@@ -262,7 +266,7 @@ export default function NovaAtividadeScreen() {
       router.back();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Erro', 'Não foi possível salvar a atividade.');
+      toast.show({ message: t('toasts.common.saveFailed'), variant: 'error' });
     }
   }
 

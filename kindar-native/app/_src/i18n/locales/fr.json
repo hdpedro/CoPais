@@ -2554,5 +2554,68 @@
     "family": "Famille",
     "profile": "Profil",
     "openModule": "Ouvrir {label}"
+  },
+  "toasts": {
+    "common": {
+      "saved": "Enregistré",
+      "removed": "Supprimé",
+      "updated": "Mis à jour",
+      "sent": "Envoyé",
+      "copied": "Copié",
+      "tryAgain": "Réessayez",
+      "saveFailed": "Échec de l'enregistrement",
+      "deleteFailed": "Échec de la suppression",
+      "updateFailed": "Échec de la mise à jour",
+      "loadFailed": "Échec du chargement",
+      "sessionExpired": "Session expirée. Veuillez vous reconnecter.",
+      "fallbackError": "Une erreur s'est produite. Réessayez."
+    },
+    "subscription": {
+      "splitEnabled": "Partage activé — le co-responsable le verra dans Finances",
+      "purchaseSuccess": "Forfait {plan} actif",
+      "purchaseFailed": "Impossible de finaliser l'achat",
+      "restoreFailed": "Échec de la restauration",
+      "restoreNotFound": "Aucun abonnement Kindar trouvé sur ce compte",
+      "restoreSuccess": "Abonnement restauré",
+      "premiumWelcome": "Bienvenue dans Premium",
+      "restoreFailedNoSubscription": "Aucun abonnement actif trouvé"
+    },
+    "school": {
+      "needChildFirst": "Ajoutez un enfant avant d'enregistrer des événements scolaires",
+      "titleRequired": "Donnez un nom à l'enregistrement",
+      "childRequired": "Choisissez l'enfant concerné",
+      "subjectRequired": "Pour un contrôle, indiquez la matière"
+    },
+    "chat": {
+      "permissionCamera": "Nous avons besoin de l'autorisation de la caméra",
+      "permissionPhotos": "Nous avons besoin de l'autorisation des photos",
+      "imageUploadFailed": "Impossible d'envoyer l'image",
+      "loadMessagesFailed": "Impossible de charger les messages",
+      "exportSuccess": "PDF généré",
+      "exportFailed": "Impossible d'exporter les conversations"
+    },
+    "expense": {
+      "descriptionRequired": "Description obligatoire",
+      "invalidAmount": "Montant invalide"
+    },
+    "validation": {
+      "titleRequired": "Ajoutez un titre",
+      "dateRequired": "Choisissez une date",
+      "nameRequired": "Indiquez le nom",
+      "fillRequired": "Remplissez les champs obligatoires"
+    },
+    "permissions": {
+      "cameraDenied": "Nous avons besoin de l'autorisation de la caméra",
+      "photosDenied": "Nous avons besoin de l'autorisation des photos",
+      "cameraBlocked": "Caméra bloquée — activez-la dans les Réglages",
+      "photosBlocked": "Galerie bloquée — activez-la dans les Réglages"
+    },
+    "growth": {
+      "weightOutOfRange": "Poids hors de la plage attendue — confirmez la valeur",
+      "heightOutOfRange": "Taille hors de la plage attendue — confirmez en cm"
+    },
+    "emergency": {
+      "tokenMissing": "Cet enfant n'a pas encore de jeton d'urgence. Générez-le sur la version web."
+    }
   }
 }
