@@ -46,12 +46,22 @@ export interface Decision {
   totalVoters?: number;
 }
 
+/**
+ * 2026-05-18: corrigido mismatch com schema do banco.
+ * - DB: `decision_arguments.argument_type` com CHECK (pro|contra). Doc:
+ *   pg_constraint `decision_arguments_argument_type_check`.
+ * - PWA: usa `argument_type` correto.
+ * - Native (versão anterior): usava `stance` + valores `favor|contra|neutro`.
+ *   Causava "Could not find the 'stance' column" no PostgREST schema cache.
+ * Fix: alinhar native ao schema canônico. Botão "Neutro" removido do
+ * composer (não suportado pelo DB; PWA também não tem).
+ */
 export interface DecisionArgument {
   id: string;
   decision_id: string;
   user_id: string;
   authorName: string;
-  stance: 'favor' | 'contra' | 'neutro';
+  argument_type: 'pro' | 'contra';
   text: string;
   created_at: string;
 }
@@ -175,7 +185,7 @@ export async function voteOnDecision(
 export async function fetchArguments(decisionId: string): Promise<DecisionArgument[]> {
   const { data } = await supabase
     .from('decision_arguments')
-    .select('id, decision_id, user_id, stance, text, created_at, profiles!decision_arguments_user_id_fkey(full_name)')
+    .select('id, decision_id, user_id, argument_type, text, created_at, profiles!decision_arguments_user_id_fkey(full_name)')
     .eq('decision_id', decisionId)
     .order('created_at', { ascending: true });
 
@@ -183,7 +193,7 @@ export async function fetchArguments(decisionId: string): Promise<DecisionArgume
     id: a.id,
     decision_id: a.decision_id,
     user_id: a.user_id,
-    stance: a.stance,
+    argument_type: a.argument_type,
     text: a.text,
     created_at: a.created_at,
     authorName: a.profiles?.full_name?.split(' ')[0] || '',
@@ -194,14 +204,14 @@ export async function postArgument(params: {
   decisionId: string;
   userId: string;
   groupId: string;
-  stance: 'favor' | 'contra' | 'neutro';
+  argumentType: 'pro' | 'contra';
   text: string;
   decisionTitle: string;
 }): Promise<{ success: boolean; error?: string }> {
   const { error } = await supabase.from('decision_arguments').insert({
     decision_id: params.decisionId,
     user_id: params.userId,
-    stance: params.stance,
+    argument_type: params.argumentType,
     text: params.text.trim(),
   });
   if (error) return { success: false, error: error.message };
@@ -209,7 +219,7 @@ export async function postArgument(params: {
   notifyAction('decision_argument_posted', params.groupId, {
     decisionId: params.decisionId,
     decisionTitle: params.decisionTitle,
-    stance: params.stance,
+    argumentType: params.argumentType,
   });
   return { success: true };
 }

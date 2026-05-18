@@ -31,10 +31,15 @@ const CAT_META: Record<string, { icon: string; color: string; label: string }> =
   outro: { icon: '📋', color: '#6B7280', label: 'Outro' },
 };
 
+/**
+ * 2026-05-18: alinhado ao DB. CHECK constraint do `decision_arguments.argument_type`
+ * só permite 'pro' e 'contra'. Native antes usava {favor,contra,neutro},
+ * o que causava o erro "Could not find the 'stance' column" reportado em
+ * produção. Botão "Neutro" removido (PWA também não tem).
+ */
 const STANCE_META: Record<string, { label: string; color: string; icon: string }> = {
-  favor: { label: 'A favor', color: '#4CAF50', icon: '👍' },
+  pro: { label: 'A favor', color: '#4CAF50', icon: '👍' },
   contra: { label: 'Contra', color: '#E53935', icon: '👎' },
-  neutro: { label: 'Neutro', color: '#8A8A8A', icon: '💭' },
 };
 
 export default function DecisionDetailScreen() {
@@ -48,7 +53,7 @@ export default function DecisionDetailScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [newArg, setNewArg] = useState('');
-  const [newStance, setNewStance] = useState<'favor' | 'contra' | 'neutro'>('favor');
+  const [newStance, setNewStance] = useState<'pro' | 'contra'>('pro');
   const [posting, setPosting] = useState(false);
   const [voting, setVoting] = useState(false);
 
@@ -107,7 +112,7 @@ export default function DecisionDetailScreen() {
       decisionId: decision.id,
       userId,
       groupId: activeGroup.groupId,
-      stance: newStance,
+      argumentType: newStance,
       text: newArg,
       decisionTitle: decision.title,
     });
@@ -115,7 +120,7 @@ export default function DecisionDetailScreen() {
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setNewArg('');
-      setNewStance('favor');
+      setNewStance('pro');
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -231,7 +236,9 @@ export default function DecisionDetailScreen() {
           </View>
         ) : (
           args.map(a => {
-            const stance = STANCE_META[a.stance] || STANCE_META.neutro;
+            // Fallback defensivo pra args legados ou linhas com type fora do
+            // CHECK constraint (não deveria existir; em prod sempre pro|contra).
+            const stance = STANCE_META[a.argument_type] || STANCE_META.pro;
             return (
               <View key={a.id} style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm, borderLeftWidth: 3, borderLeftColor: stance.color }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 4 }}>
@@ -254,7 +261,7 @@ export default function DecisionDetailScreen() {
       {isOpen ? (
         <View style={{ padding: spacing.md, paddingBottom: insets.bottom + spacing.md, backgroundColor: colors.bgElevated, borderTopWidth: 0.5, borderTopColor: colors.borderLight }}>
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
-            {(['favor', 'contra', 'neutro'] as const).map(s => {
+            {(['pro', 'contra'] as const).map(s => {
               const m = STANCE_META[s];
               const active = newStance === s;
               return (
