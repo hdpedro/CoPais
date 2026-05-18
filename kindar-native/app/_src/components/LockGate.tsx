@@ -20,11 +20,24 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AppState, type AppStateStatus, View, Text, StyleSheet } from 'react-native';
+import { AppState, Platform, type AppStateStatus, View, Text, StyleSheet } from 'react-native';
 import { useLock } from '../store/lock';
 import { useAuth } from '../store/auth';
 import LockScreen from './LockScreen';
 import { colors } from '../design-system/tokens';
+import { reportError } from '../lib/error-reporter';
+
+const LOCK_TELEMETRY_ENABLED = Platform.OS === 'ios';
+
+function logLockGateEvent(event: string, extra?: Record<string, unknown>): void {
+  if (!LOCK_TELEMETRY_ENABLED) return;
+  const ts = Date.now();
+  reportError(new Error(`[lockgate] ${event} @ ${ts}`), {
+    severity: 'info',
+    filePath: 'app/_src/components/LockGate.tsx',
+    metadata: { event, ts, ...(extra ?? {}) },
+  });
+}
 
 interface Props {
   children: ReactNode;
@@ -45,6 +58,16 @@ export default function LockGate({ children }: Props) {
   useEffect(() => {
     const sub = AppState.addEventListener('change', (next) => {
       const prev = lastStateRef.current;
+      const snapshot = useLock.getState();
+      logLockGateEvent('appstate.change', {
+        prev,
+        next,
+        isLocked: snapshot.isLocked,
+        isAuthenticating: snapshot.isAuthenticating,
+        postUnlockGrace: snapshot.postUnlockGrace,
+        lastUnlockAt: snapshot.lastUnlockAt,
+        lastBackgroundAt: snapshot.lastBackgroundAt,
+      });
       if (next === 'background') {
         // Registra quando saiu pro calculo de elapsed na proxima volta.
         // NAO trava aqui — o calculo de isLocked acontece quando volta.

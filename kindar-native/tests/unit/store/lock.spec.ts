@@ -33,6 +33,12 @@ vi.mock('react-native', () => ({
   Platform: { OS: 'ios' },
 }));
 
+// error-reporter mock — telemetria via reportError não toca rede nos testes.
+vi.mock('../../../app/_src/lib/error-reporter', () => ({
+  reportError: vi.fn(),
+  installGlobalErrorHandlers: vi.fn(),
+}));
+
 // Import depois dos mocks pra garantir que a fábrica zustand pegue os mocks.
 async function loadStore() {
   // Reset de módulos isola o estado entre testes (zustand é singleton).
@@ -186,8 +192,11 @@ describe('lock store — invariantes', () => {
     //
     // 2026-05-17: adicionamos cooldown de 1500ms no markBackground/
     // evaluateOnForeground pós-unlock (defesa contra piscadas do AppState
-    // do iOS após Face ID). Pra testar o caminho LEGÍTIMO de "background
-    // return depois do unlock", simulamos passagem de tempo > 1500ms.
+    // do iOS após Face ID). 2026-05-18: subiu pra 3000ms + grace flag
+    // depois que primeira tentativa não resolveu em devices reais.
+    // Pra testar o caminho LEGÍTIMO de "background return depois do
+    // unlock", simulamos passagem de tempo > 3000ms E consumimos o
+    // grace flag com uma transição prévia.
     const useLock = await loadStore();
     secureStore.set('kindar_lock_enabled', '1');
     secureStore.set('kindar_lock_timeout', 'immediate');
@@ -198,18 +207,23 @@ describe('lock store — invariantes', () => {
     resolveAuth(true);
     await p;
 
-    // Avança Date.now em 2 segundos pra escapar do cooldown pós-unlock.
+    // Consome o grace flag (primeira transição pós-unlock).
+    useLock.getState().markBackground();
+    expect(useLock.getState().postUnlockGrace).toBe(false);
+
+    // Avança Date.now em 3.5s pra escapar do cooldown pós-unlock.
     // No real device, esse seria o user efetivamente ficando no outro app
-    // por mais que 1.5s.
+    // por mais que 3s.
     const realNow = Date.now;
-    const fakeNow = realNow() + 2000;
+    const fakeNow = realNow() + 3500;
     Date.now = () => fakeNow;
     try {
       // Força a condição: flag false (finally rodou), isLocked=false, e
       // simula que lastBackgroundAt foi setado por OUTRO ciclo de
       // background (o user foi pro switcher e voltou depois do unlock).
       // Aqui sim queremos lockar — esse é o caminho correto de "voltou
-      // do background com timeout=immediate" APÓS cooldown.
+      // do background com timeout=immediate" APÓS cooldown e grace
+      // consumidos.
       useLock.getState().markBackground();
       useLock.getState().evaluateOnForeground();
       expect(useLock.getState().isLocked).toBe(true);
@@ -218,10 +232,10 @@ describe('lock store — invariantes', () => {
     }
   });
 
-  test('COOLDOWN: piscadas do AppState <1500ms pós-unlock não re-lockam (Face ID loop fix 2)', async () => {
+  test('COOLDOWN: piscadas do AppState <3000ms pós-unlock não re-lockam (Face ID loop fix 2)', async () => {
     // Cenário: user volta do outro app → desbloqueia → iOS dispara
     // piscadas residuais de AppState (active → background → active) em
-    // <500ms. SEM cooldown, markBackground populava lastBackgroundAt, e
+    // <3s. SEM cooldown, markBackground populava lastBackgroundAt, e
     // o próximo evaluateOnForeground re-lockava instantaneamente com
     // timeout='immediate'.
     const useLock = await loadStore();
@@ -234,7 +248,7 @@ describe('lock store — invariantes', () => {
     await p;
     expect(useLock.getState().isLocked).toBe(false);
 
-    // Sequência de piscadas dentro de 1.5s — devem ser no-op
+    // Sequência de piscadas dentro de 3s — devem ser no-op
     useLock.getState().markBackground();
     expect(useLock.getState().lastBackgroundAt).toBe(null); // não setou
     useLock.getState().evaluateOnForeground();
@@ -242,6 +256,61 @@ describe('lock store — invariantes', () => {
     useLock.getState().markBackground();
     useLock.getState().evaluateOnForeground();
     expect(useLock.getState().isLocked).toBe(false); // continua destravado
+  });
+
+  test('GRACE FLAG: primeira transição pós-unlock é consumida mesmo após cooldown (Face ID loop fix 3)', async () => {
+    // Cenário (2026-05-18, descoberto após user reportar loop persistir
+    // mesmo com cooldown 1500ms): em devices reais, iOS pode entregar a
+    // AppState 'active' do prompt-close > 3s após o Promise resolver,
+    // furando o cooldown temporal. O grace flag é defesa em profundidade:
+    // garante que pelo menos a PRIMEIRA transição pós-unlock seja absorvida.
+    const useLock = await loadStore();
+    secureStore.set('kindar_lock_enabled', '1');
+    secureStore.set('kindar_lock_timeout', 'immediate');
+    await useLock.getState().hydrate();
+
+    const p = useLock.getState().requestUnlock();
+    resolveAuth(true);
+    await p;
+    expect(useLock.getState().isLocked).toBe(false);
+    expect(useLock.getState().postUnlockGrace).toBe(true);
+
+    // Avança o tempo PRA ALÉM do cooldown — simula iOS entregando a
+    // transição com atraso.
+    const realNow = Date.now;
+    const fakeNow = realNow() + 5000;
+    Date.now = () => fakeNow;
+    try {
+      // Simula 'background' tardio do prompt-close — mesmo fora do
+      // cooldown temporal, o grace flag absorve.
+      useLock.getState().markBackground();
+      expect(useLock.getState().lastBackgroundAt).toBe(null); // grace consumiu
+      expect(useLock.getState().postUnlockGrace).toBe(false); // flag consumido
+
+      // 'active' subsequente — não há lastBackgroundAt setado, retorna early.
+      useLock.getState().evaluateOnForeground();
+      expect(useLock.getState().isLocked).toBe(false); // não re-lockou
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  test('GRACE FAILSAFE: flag não fica stuck se nenhum AppState event chegar', async () => {
+    // Defesa contra cenário teórico onde AppState callback nunca dispara
+    // pós-unlock — o grace flag tem failsafe de 5000ms (vide POST_UNLOCK_GRACE_FAILSAFE_MS).
+    // Usa fake timers do vitest pra avançar.
+    const useLock = await loadStore();
+    secureStore.set('kindar_lock_enabled', '1');
+    await useLock.getState().hydrate();
+
+    const p = useLock.getState().requestUnlock();
+    resolveAuth(true);
+    await p;
+    expect(useLock.getState().postUnlockGrace).toBe(true);
+
+    // Avança fake timers pelo failsafe completo.
+    await vi.advanceTimersByTimeAsync(6000);
+    expect(useLock.getState().postUnlockGrace).toBe(false);
   });
 
   test('setEnabled(false) destrava imediatamente', async () => {

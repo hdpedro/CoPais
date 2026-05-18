@@ -16,13 +16,26 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useLock } from '../store/lock';
 import { getBiometricCapability, type BiometricCapability } from '../services/biometric-lock';
 import { colors, spacing, radius, font } from '../design-system/tokens';
+import { reportError } from '../lib/error-reporter';
+
+const LOCK_TELEMETRY_ENABLED = Platform.OS === 'ios';
+
+function logLockScreenEvent(event: string, extra?: Record<string, unknown>): void {
+  if (!LOCK_TELEMETRY_ENABLED) return;
+  const ts = Date.now();
+  reportError(new Error(`[lockscreen] ${event} @ ${ts}`), {
+    severity: 'info',
+    filePath: 'app/_src/components/LockScreen.tsx',
+    metadata: { event, ts, ...(extra ?? {}) },
+  });
+}
 
 export default function LockScreen() {
   // O store e a fonte unica do estado de autenticacao: garante re-entrancia
@@ -43,13 +56,20 @@ export default function LockScreen() {
   }, []);
 
   const tryUnlock = useCallback(async () => {
-    if (!mountedRef.current) return;
+    if (!mountedRef.current) {
+      logLockScreenEvent('tryUnlock.skip.unmounted');
+      return;
+    }
     // Guard reforçado em 2026-05-17: se já tem um prompt em voo (flag do
     // store), nem chama requestUnlock — o store retornaria 'in_flight' mas
     // assim evitamos até o overhead do call. Defesa contra cenários onde
     // AppState piscadas (PostHog SDK, push register listener) podem
     // disparar re-render do LockScreen com remount do useEffect.
-    if (useLock.getState().isAuthenticating) return;
+    if (useLock.getState().isAuthenticating) {
+      logLockScreenEvent('tryUnlock.skip.alreadyAuthenticating');
+      return;
+    }
+    logLockScreenEvent('tryUnlock.start');
     setErrorMsg(null);
 
     const cap = capability ?? await getBiometricCapability();
@@ -66,6 +86,7 @@ export default function LockScreen() {
     }
 
     const result = await requestUnlock('Desbloquear Kindar');
+    logLockScreenEvent('tryUnlock.result', { success: result.success, error: result.error });
     if (!mountedRef.current) return;
 
     if (result.success) {
@@ -87,10 +108,14 @@ export default function LockScreen() {
   }, [capability, requestUnlock]);
 
   useEffect(() => {
+    logLockScreenEvent('mount');
     // Auto-trigger no primeiro render. Pequeno delay pra UI aparecer
     // antes do prompt (UX mais suave que prompt instantaneo).
     const t = setTimeout(() => { tryUnlock(); }, 250);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      logLockScreenEvent('unmount');
+    };
     // Dependencia intencionalmente vazia: auto-trigger e *uma vez por
     // montagem*. Re-disparo acontece via remount (isLocked oscilando) ou
     // toque manual no CTA.
