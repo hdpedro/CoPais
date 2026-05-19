@@ -24,10 +24,10 @@ export const colors = {
   authBorder: '#E8E0D4',
   authText: '#0E0C0A',
 
-  // Background
-  bg: '#EEECEA',
+  // Background (cream cohere com bg do logo Kindar #F5EBE1, atualizado 2026-05-19)
+  bg: '#F5EBE1',
   bgElevated: '#FFFFFF',
-  bgSurface: '#F5F5F3',
+  bgSurface: '#F0E6DB',
   bgCard: '#FFFFFF',
 
   // Text

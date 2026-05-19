@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#EEECEA"
+      "backgroundColor": "#F5EBE1"
     },
     "ios": {
       "supportsTablet": false,
@@ -39,7 +39,7 @@
       "package": "com.kindar.app",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#EEECEA"
+        "backgroundColor": "#F5EBE1"
       },
       "permissions": [
         "android.permission.CAMERA",
