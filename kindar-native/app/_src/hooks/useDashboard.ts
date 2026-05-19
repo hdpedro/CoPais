@@ -498,14 +498,35 @@ export function useDashboard() {
         // - regular: omite o tipo (escala normal não merece destaque)
         // - swap: "troca" (linguagem do produto)
         // - exception: "ajuste" (caso único, fora da escala)
+        //
+        // Bug Barata 2026-05-18: quando endDate era HOJE (último dia da guarda),
+        // o label saía "até seg" numa segunda-feira — redundante e confuso (user
+        // já sabe que hoje é segunda; progress bar mostra "5 de 5 consecutivos").
+        // Fix: usar termo relativo ("hoje"/"amanhã") quando aplicável.
         const dayOfWeekPt = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'][endDate.getDay()];
+        const todayMidnight = new Date();
+        todayMidnight.setHours(0, 0, 0, 0);
+        const endMidnight = new Date(endDate);
+        endMidnight.setHours(0, 0, 0, 0);
+        const daysUntilEnd = Math.round((endMidnight.getTime() - todayMidnight.getTime()) / 86400000);
+        const relativeEndDay = daysUntilEnd <= 0
+          ? 'hoje'
+          : daysUntilEnd === 1
+            ? 'amanhã'
+            : dayOfWeekPt;
         const custodyType = ce.custody_type || 'regular';
         const typeLabel = custodyType === 'swap'
           ? 'troca'
           : custodyType === 'exception'
             ? 'ajuste'
             : null;
-        endDateLabel = typeLabel ? `${typeLabel} · ${dayOfWeekPt}` : `até ${dayOfWeekPt}`;
+        // Quando relativeEndDay === 'hoje', "até hoje" lê estranho — usar
+        // "termina hoje" pra ficar natural; outros casos seguem o padrão "até X".
+        if (relativeEndDay === 'hoje') {
+          endDateLabel = typeLabel ? `${typeLabel} · termina hoje` : 'termina hoje';
+        } else {
+          endDateLabel = typeLabel ? `${typeLabel} · ${relativeEndDay}` : `até ${relativeEndDay}`;
+        }
       }
 
       // Custody summary for greeting subtitle. Suporta multiplos filhos:
