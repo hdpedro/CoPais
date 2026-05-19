@@ -48,6 +48,8 @@ export type CollabRecordType =
   | "active_medication"
   | "child_allergy"
   | "vaccination_record"
+  // Tamanhos (migration 00086): adoção #7. info priority por default.
+  | "child_size"
   // future:
   // | "decision"
   // | "calendar_event"
@@ -277,6 +279,8 @@ function coalescedTitle(recordType: CollabRecordType, baseTitle: string, count: 
       return `${actorPrefix} cadastrou ${count} alergias`;
     case "vaccination_record":
       return `${actorPrefix} registrou ${count} vacinas`;
+    case "child_size":
+      return `${actorPrefix} atualizou ${count} tamanhos`;
     default:
       return `${actorPrefix} adicionou ${count} registros`;
   }
@@ -303,6 +307,10 @@ function collabModuleHome(recordType: CollabRecordType): string {
       return "/saude/alergias";
     case "vaccination_record":
       return "/saude/vacinas";
+    case "child_size":
+      // Tamanhos vivem no perfil da criança. Sem child_id no contexto do
+      // coalesce, manda pra lista de filhos — user clica no nome certo.
+      return "/criancas";
     default:
       return "/dashboard";
   }
