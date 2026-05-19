@@ -8,7 +8,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -27,6 +27,7 @@ import { DecimalInput } from 'src/components/ui/MaskedInputs';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
+import { calculatePercentile } from 'src/lib/who-growth-data';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface GrowthRecord {
@@ -39,6 +40,44 @@ interface GrowthRecord {
   childName: string;
 }
 
+interface ChildInfo {
+  id: string;
+  full_name: string;
+  birth_date: string;
+  sex: 'M' | 'F' | null;
+}
+
+// Idade em meses pra percentil WHO. Espelha src/lib/who-growth-data.ts.
+function monthsBetween(birthDate: string, measureDate: string): number {
+  const b = new Date(birthDate + 'T12:00:00');
+  const d = new Date(measureDate + 'T12:00:00');
+  return Math.max(
+    0,
+    (d.getFullYear() - b.getFullYear()) * 12 +
+      (d.getMonth() - b.getMonth()) +
+      (d.getDate() - b.getDate()) / 30,
+  );
+}
+
+/**
+ * Premium UX: cor semântica por faixa de percentil (paridade PWA).
+ *  - P15-P85 verde (normal): a maioria das crianças saudáveis
+ *  - P3-P97 âmbar (atenção): faixa de monitoramento
+ *  - <P3 ou >P97 vermelho (acompanhar): conversar com pediatra
+ */
+function percentileColor(p: number | null): string {
+  if (p === null) return colors.textMuted;
+  if (p >= 15 && p <= 85) return '#059669'; // emerald-600
+  if (p >= 3 && p <= 97) return '#D97706'; // amber-600
+  return '#DC2626'; // red-600
+}
+function percentileBg(p: number | null): string {
+  if (p === null) return colors.bgSurface;
+  if (p >= 15 && p <= 85) return '#D1FAE5'; // emerald-100
+  if (p >= 3 && p <= 97) return '#FEF3C7'; // amber-100
+  return '#FEE2E2'; // red-100
+}
+
 export default function CrescimentoScreen() {
   const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
@@ -46,7 +85,7 @@ export default function CrescimentoScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [children, setChildren] = useState<Array<{id: string; full_name: string}>>([]);
+  const [children, setChildren] = useState<ChildInfo[]>([]);
   const [selectedChild, setSelectedChild] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
@@ -67,10 +106,11 @@ export default function CrescimentoScreen() {
     const [{ data: r }, { data: c }] = await Promise.all([
       supabase.from('growth_records').select('id, child_id, measured_date, weight_kg, height_cm, head_cm, children(full_name)')
         .eq('group_id', activeGroup.groupId).order('measured_date', { ascending: false }),
-      supabase.from('children').select('id, full_name').eq('group_id', activeGroup.groupId),
+      // Fetch birth_date + sex pra calcular percentil WHO no hero card (paridade PWA).
+      supabase.from('children').select('id, full_name, birth_date, sex').eq('group_id', activeGroup.groupId),
     ]);
     setRecords((r || []).map((x: any) => ({ ...x, childName: getDisplayName(x.children?.full_name) })));
-    setChildren(c || []);
+    setChildren((c || []) as ChildInfo[]);
     if (c && c.length > 0 && !selectedChild) setSelectedChild(c[0].id);
     setLoading(false);
   }, [activeGroup]);
@@ -219,9 +259,39 @@ export default function CrescimentoScreen() {
     setShowForm(!showForm);
   }
 
+  // ─── Premium UX (paridade PWA): per-child view ──────────────────
+  //   Chips no topo selecionam UM filho. Stat hero (peso/altura/PC) +
+  //   percentil WHO calculado pelo birth_date+sex. Lista filtrada pelo
+  //   filho ativo. Single source of truth: `selectedChild` controla
+  //   filtro da lista E pre-seleciona no form.
+  const activeChild = children.find((c) => c.id === selectedChild);
+  const childRecords = selectedChild
+    ? records.filter((r) => r.child_id === selectedChild)
+    : records;
+  const latestForChild = childRecords[0] || null;
+  const weightP =
+    latestForChild && activeChild?.sex && latestForChild.weight_kg
+      ? calculatePercentile(
+          monthsBetween(activeChild.birth_date, latestForChild.measured_date),
+          Number(latestForChild.weight_kg),
+          activeChild.sex,
+          'weight',
+        )
+      : null;
+  const heightP =
+    latestForChild && activeChild?.sex && latestForChild.height_cm
+      ? calculatePercentile(
+          monthsBetween(activeChild.birth_date, latestForChild.measured_date),
+          Number(latestForChild.height_cm),
+          activeChild.sex,
+          'height',
+        )
+      : null;
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <ScreenHeader title={t('health.growth')} rightAction={{ icon: showForm ? 'close' : 'add', onPress: toggleForm }} />
+
       {showForm ? (
         <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
           {editingId ? (
@@ -261,16 +331,94 @@ export default function CrescimentoScreen() {
           />
         </View>
       ) : null}
+
       {loading && records.length === 0 ? (
         <View style={{ padding: spacing.lg }}>
           <SkeletonList count={4} />
         </View>
       ) : null}
+
       <FlatList
-        data={loading && records.length === 0 ? [] : records}
+        data={loading && childRecords.length === 0 ? [] : childRecords}
         keyExtractor={item => item.id}
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
+        ListHeaderComponent={
+          <View>
+            {/* Child chips — chave UX: filtram a lista E pre-selecionam pro form */}
+            {!showForm && children.length > 1 ? (
+              <ScrollViewRow
+                items={children.map((c) => ({
+                  id: c.id,
+                  label: c.full_name.split(' ')[0],
+                }))}
+                selectedId={selectedChild}
+                onSelect={(id) => setSelectedChild(id)}
+              />
+            ) : null}
+
+            {/* Stat hero card — peso/altura/PC com percentil WHO colorido */}
+            {!showForm && latestForChild ? (
+              <View
+                style={{
+                  flexDirection: 'row',
+                  gap: spacing.sm,
+                  marginBottom: spacing.md,
+                }}
+              >
+                <StatCard
+                  label="Peso"
+                  value={latestForChild.weight_kg ? `${latestForChild.weight_kg}` : '—'}
+                  unit="kg"
+                  percentile={weightP}
+                />
+                <StatCard
+                  label="Altura"
+                  value={latestForChild.height_cm ? `${latestForChild.height_cm}` : '—'}
+                  unit="cm"
+                  percentile={heightP}
+                />
+                <StatCard
+                  label="Cabeça"
+                  value={latestForChild.head_cm ? `${latestForChild.head_cm}` : '—'}
+                  unit="cm"
+                  percentile={null}
+                />
+              </View>
+            ) : null}
+
+            {!showForm && latestForChild ? (
+              <Text
+                style={{
+                  fontSize: font.sizes.xs,
+                  color: colors.textMuted,
+                  textAlign: 'center',
+                  marginBottom: spacing.md,
+                }}
+              >
+                Última medida em {latestForChild.measured_date.split('-').reverse().join('/')}
+              </Text>
+            ) : null}
+
+            {childRecords.length > 0 ? (
+              <Text
+                style={{
+                  fontSize: font.sizes.xs,
+                  color: colors.textMuted,
+                  fontWeight: font.weights.semibold,
+                  textTransform: 'uppercase',
+                  letterSpacing: 1,
+                  marginBottom: spacing.sm,
+                  paddingHorizontal: spacing.xs,
+                }}
+              >
+                Histórico
+              </Text>
+            ) : null}
+          </View>
+        }
         ListEmptyComponent={loading ? null : (
           <EmptyState
             icon="📏"
@@ -279,11 +427,6 @@ export default function CrescimentoScreen() {
             action={{ label: t('empty.crescimento.actionLabel'), onPress: () => setShowForm(true), accessibilityHint: t('empty.crescimento.actionHint') }}
           />
         )}
-        ListHeaderComponent={records.length > 0 ? (
-          <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: spacing.sm, textAlign: 'center' }}>
-            Toque para editar · Deslize pra esquerda para apagar
-          </Text>
-        ) : null}
         renderItem={({ item }) => (
           <View style={{ marginBottom: spacing.sm }}>
             <SwipeToDelete
@@ -299,26 +442,44 @@ export default function CrescimentoScreen() {
                 accessibilityLabel={`Editar medida de ${item.childName} em ${item.measured_date?.split('-').reverse().join('/')}`}
                 accessibilityState={{ selected: editingId === item.id }}
                 style={{
-                  backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg,
+                  backgroundColor: colors.bgElevated,
+                  borderRadius: radius.lg,
+                  padding: spacing.lg,
                   ...shadows.sm,
-                  flexDirection: 'row', alignItems: 'center', gap: spacing.md,
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: spacing.md,
                   borderWidth: editingId === item.id ? 2 : 0,
                   borderColor: editingId === item.id ? colors.brand : 'transparent',
                 }}
               >
-                <Text style={{ fontSize: 20 }}>📏</Text>
+                {/* Avatar circular emerald (paridade PWA) */}
+                <View
+                  style={{
+                    width: 36,
+                    height: 36,
+                    borderRadius: 18,
+                    backgroundColor: '#D1FAE5',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                  }}
+                >
+                  <Text style={{ fontSize: 16 }}>📏</Text>
+                </View>
                 <View style={{ flex: 1 }}>
-                  <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
-                    {item.childName} — {item.measured_date?.split('-').reverse().join('/')}
+                  <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
+                    {item.weight_kg ? `${item.weight_kg} kg` : ''}
+                    {item.weight_kg && item.height_cm ? ' — ' : ''}
+                    {item.height_cm ? `${item.height_cm} cm` : ''}
+                    {!item.weight_kg && !item.height_cm && item.head_cm ? `PC ${item.head_cm} cm` : ''}
                   </Text>
-                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-                    {item.weight_kg ? `${item.weight_kg}kg` : ''}
-                    {item.weight_kg && item.height_cm ? ' · ' : ''}
-                    {item.height_cm ? `${item.height_cm}cm` : ''}
-                    {item.head_cm ? `${(item.weight_kg || item.height_cm) ? ' · ' : ''}PC ${item.head_cm}cm` : ''}
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
+                    {item.measured_date?.split('-').reverse().join('/')}
+                    {selectedChild ? '' : ` · ${item.childName}`}
+                    {item.head_cm && (item.weight_kg || item.height_cm) ? ` · PC ${item.head_cm} cm` : ''}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
               </TouchableOpacity>
             </SwipeToDelete>
           </View>
@@ -326,5 +487,109 @@ export default function CrescimentoScreen() {
       />
       {/* Toast agora é global via ToastProvider em _layout.tsx */}
     </View>
+  );
+}
+
+/* ───────────────────────────────────────────────────────────────────
+ * Premium helpers — StatCard com percentil + ScrollViewRow de chips.
+ * Inlined no arquivo pra manter co-localizado com a tela única que usa.
+ * ─────────────────────────────────────────────────────────────────── */
+
+interface StatCardProps {
+  label: string;
+  value: string;
+  unit: string;
+  percentile: number | null;
+}
+
+function StatCard({ label, value, unit, percentile }: StatCardProps) {
+  const hasPercentile = percentile !== null;
+  const pColor = percentileColor(percentile);
+  const pBg = percentileBg(percentile);
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.bgElevated,
+        borderRadius: radius.lg,
+        padding: spacing.md,
+        ...shadows.sm,
+        alignItems: 'center',
+      }}
+    >
+      <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: 4 }}>
+        {label}
+      </Text>
+      <Text style={{ fontSize: 22, fontWeight: font.weights.bold, color: colors.text, lineHeight: 26 }}>
+        {value}
+      </Text>
+      {hasPercentile ? (
+        <View
+          style={{
+            marginTop: 4,
+            paddingHorizontal: 8,
+            paddingVertical: 2,
+            borderRadius: radius.full,
+            backgroundColor: pBg,
+          }}
+        >
+          <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: pColor }}>
+            P{percentile}
+          </Text>
+        </View>
+      ) : (
+        <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>{unit}</Text>
+      )}
+    </View>
+  );
+}
+
+interface ScrollViewRowProps {
+  items: { id: string; label: string }[];
+  selectedId: string;
+  onSelect: (id: string) => void;
+}
+
+function ScrollViewRow({ items, selectedId, onSelect }: ScrollViewRowProps) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.md }}
+    >
+      {items.map((item) => {
+        const isActive = item.id === selectedId;
+        return (
+          <TouchableOpacity
+            key={item.id}
+            onPress={() => onSelect(item.id)}
+            activeOpacity={0.7}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: isActive }}
+            accessibilityLabel={item.label}
+            style={{
+              paddingHorizontal: spacing.md,
+              paddingVertical: 8,
+              borderRadius: radius.full,
+              backgroundColor: isActive ? colors.brand : colors.bgElevated,
+              borderWidth: isActive ? 0 : 1,
+              borderColor: colors.borderLight,
+              minWidth: 80,
+              alignItems: 'center',
+            }}
+          >
+            <Text
+              style={{
+                fontSize: font.sizes.sm,
+                fontWeight: font.weights.semibold,
+                color: isActive ? '#fff' : colors.text,
+              }}
+            >
+              {item.label}
+            </Text>
+          </TouchableOpacity>
+        );
+      })}
+    </ScrollView>
   );
 }
