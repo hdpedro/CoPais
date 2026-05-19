@@ -26,6 +26,13 @@ import OfflineBanner from 'src/components/ui/OfflineBanner';
 
 export default function RootLayout() {
   const { isLoading, initialize, userId } = useAuth();
+  // OTA gating: enquanto `updateChecked=false`, mantemos splash visível.
+  // Garante que o user NÃO vê o app no bundle antigo se um OTA está chegando
+  // — splash fica → check → fetch → reload (mata JS) → app inicia no bundle
+  // NOVO. Sem flicker visível de "app antigo aparece, depois recarrega".
+  //
+  // Em dev (Updates.isEnabled=false) inicializamos com true pra não bloquear.
+  const [updateChecked, setUpdateChecked] = useState(!Updates.isEnabled);
 
   // One-time setup: error handlers FIRST (so any crash in the rest of the
   // bootstrap is captured) + offline sync + push handler + RevenueCat + i18n
@@ -44,22 +51,44 @@ export default function RootLayout() {
     // effect [userId] abaixo, mesmo padrão do RevenueCat.
     analytics.initAnalytics();
 
-    // OTA "premium": com checkAutomatically=ON_LOAD o expo-updates baixa o
-    // bundle novo em background, mas so APLICA na proxima abertura — o user
-    // ve "estado antigo" depois de fechar/reabrir 1x e fica frustrado.
-    // Aqui forcamos reload imediato logo apos o download terminar, no
-    // cold start. So roda em release builds (Updates.isEnabled).
+    // OTA "premium" (atualizado 2026-05-19): com checkAutomatically=ON_LOAD
+    // o expo-updates baixa o bundle novo em background e o `Updates.reload-
+    // Async()` aplica imediatamente. PORÉM, sem gating o user via o app
+    // brevemente no bundle antigo antes do reload disparar (flicker de
+    // ~500ms-2s). Solução: bloquear `isLoading→false` até OTA check
+    // terminar — splash continua visível durante checkForUpdateAsync +
+    // fetchUpdateAsync + reloadAsync. Quando reload mata o JS engine, o
+    // app reinicia já no bundle novo, e o splash some quando o novo bundle
+    // termina de hidratar. User vê: 1 splash → app correto. Sem flicker.
+    //
+    // Failsafe: timeout 4s pra cobrir rede travada — se passar disso sem
+    // resposta do server EAS, libera mesmo no bundle antigo (network grace-
+    // ful degradation). Sem timeout, app travaria no splash pra users
+    // offline ou com EAS Updates fora do ar.
     if (Updates.isEnabled) {
+      let released = false;
+      const release = () => {
+        if (released) return;
+        released = true;
+        setUpdateChecked(true);
+      };
+      const failsafe = setTimeout(release, 4000);
       (async () => {
         try {
           const update = await Updates.checkForUpdateAsync();
           if (update.isAvailable) {
             await Updates.fetchUpdateAsync();
+            // reloadAsync mata o JS engine; nunca retorna. Splash já é o
+            // último que o user vê do bundle atual.
             await Updates.reloadAsync();
+            return; // unreachable
           }
         } catch {
           // sem internet, fingerprint mismatch, ou erro de rede —
           // mantem o bundle atual; nao quebra o app.
+        } finally {
+          clearTimeout(failsafe);
+          release();
         }
       })();
     }
@@ -107,7 +136,9 @@ export default function RootLayout() {
     return remove;
   }, []);
 
-  if (isLoading) {
+  // Splash visível enquanto auth carrega OU OTA check pendente.
+  // Ordem: primeiro garante bundle correto (OTA), depois auth.
+  if (isLoading || !updateChecked) {
     return <SplashScreen />;
   }
 
