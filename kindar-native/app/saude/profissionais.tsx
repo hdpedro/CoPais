@@ -277,7 +277,10 @@ export default function ProfissionaisScreen() {
           <SkeletonList count={3} />
         </View>
       ) : null}
-      <FlatList data={loading && profs.length === 0 ? [] : profs} keyExtractor={item => item.id} contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
+      <FlatList data={loading && profs.length === 0 ? [] : profs} keyExtractor={item => item.id}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : (
           <EmptyState

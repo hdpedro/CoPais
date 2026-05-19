@@ -369,8 +369,11 @@ export default function ConsultasScreen() {
       ) : null}
 
       <FlatList data={appts} keyExtractor={item => item.id}
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100, flexGrow: 1 }}
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={true}
         ListEmptyComponent={loading ? null : (
           <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'] }}><Text style={{ fontSize: 32, marginBottom: spacing.md }}>🏥</Text><Text style={{ color: colors.textMuted }}>Nenhuma consulta</Text></View>
         )}

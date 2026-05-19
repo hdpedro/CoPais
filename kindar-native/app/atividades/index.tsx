@@ -242,7 +242,9 @@ export default function AtividadesScreen() {
         </View>
       ) : null}
       <FlatList data={loading && activities.length === 0 ? [] : activities} keyExtractor={item => item.id} renderItem={renderItem}
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 120, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => { setRefreshing(true); await load(); setRefreshing(false); }} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : <EmptyState icon="📋" title={t('empty.atividades.title')} description={t('empty.atividades.description')} />}
       />

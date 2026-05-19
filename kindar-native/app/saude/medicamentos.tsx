@@ -286,7 +286,9 @@ export default function MedicamentosScreen() {
         </View>
       ) : null}
       <FlatList data={loading && meds.length === 0 ? [] : [...activeMeds, ...pastMeds]} keyExtractor={item => item.id}
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}
+        style={{ flex: 1 }}
+        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100, flexGrow: 1 }}
+        keyboardShouldPersistTaps="handled"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : (
           <EmptyState
