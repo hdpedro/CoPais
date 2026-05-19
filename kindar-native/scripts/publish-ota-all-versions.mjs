@@ -40,7 +40,16 @@ const APP_JSON = resolve(__dirname, "..", "app.json");
 // promovido pra Play Store / App Store. O script publica EXCETO a versão
 // atual de app.json (essa já é servida pelo `eas update --branch production`
 // padrão, sem precisar trocar a version aqui).
-const TARGET_VERSIONS = ["1.0.2", "1.0.3", "1.0.4", "1.0.5"];
+//
+// Atualizado 2026-05-19:
+//   - 1.0.2/1.0.3/1.0.4: instalações muito antigas. Podem receber as
+//     correções (tudo JS) mas a base de usuários decresce.
+//   - 1.0.5: Android Internal App Sharing antigo (memory).
+//   - 1.0.6: builds intermediários (alguns testers).
+//   - 1.0.7: iOS App Store atual (live) — MAIS IMPORTANTE.
+//   - 1.0.8: iOS em review + Android internal testers anteriores.
+//   - 1.0.9: atual (app.json) — não publicado aqui (eas update normal).
+const TARGET_VERSIONS = ["1.0.5", "1.0.6", "1.0.7", "1.0.8"];
 
 const args = process.argv.slice(2);
 const messageIdx = args.indexOf("--message");
