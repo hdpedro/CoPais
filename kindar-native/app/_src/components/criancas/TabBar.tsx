@@ -2,7 +2,7 @@ import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
-export type ChildTab = 'geral' | 'saude' | 'documentos' | 'educacao';
+export type ChildTab = 'geral' | 'saude' | 'tamanhos' | 'documentos' | 'educacao';
 
 interface Tab {
   id: ChildTab;
@@ -13,6 +13,7 @@ interface Tab {
 const TABS: Tab[] = [
   { id: 'geral', label: 'Geral', icon: 'person-outline' },
   { id: 'saude', label: 'Saúde', icon: 'medkit-outline' },
+  { id: 'tamanhos', label: 'Tamanhos', icon: 'shirt-outline' },
   { id: 'documentos', label: 'Documentos', icon: 'document-text-outline' },
   { id: 'educacao', label: 'Educação', icon: 'school-outline' },
 ];

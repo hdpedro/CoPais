@@ -21,6 +21,7 @@ import ChildHeader from 'src/components/criancas/ChildHeader';
 import TabBar, { type ChildTab } from 'src/components/criancas/TabBar';
 import TabGeral from 'src/components/criancas/TabGeral';
 import TabSaude from 'src/components/criancas/TabSaude';
+import TabTamanhos from 'src/components/criancas/TabTamanhos';
 import TabDocumentos from 'src/components/criancas/TabDocumentos';
 import TabEducacao from 'src/components/criancas/TabEducacao';
 import UploadSheet from 'src/components/criancas/UploadSheet';
@@ -133,6 +134,11 @@ export default function ChildDetailScreen() {
             professionals={professionals}
           />
         </ScrollView>
+      )}
+      {tab === 'tamanhos' && (
+        <View style={{ flex: 1 }}>
+          <TabTamanhos childId={child.id} groupId={groupId} />
+        </View>
       )}
       {tab === 'documentos' && (
         <View style={{ flex: 1 }}>
