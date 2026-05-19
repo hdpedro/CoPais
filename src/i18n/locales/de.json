@@ -26,7 +26,8 @@
     "viewAll": "",
     "confirmDelete": "Sind Sie sicher, dass Sie löschen möchten",
     "copy": "Kopieren",
-    "sessionExpired": "Sitzung abgelaufen. Bitte erneut anmelden."
+    "sessionExpired": "Sitzung abgelaufen. Bitte erneut anmelden.",
+    "saving": "Speichern…"
   },
   "auth": {
     "login": "Anmelden",
@@ -1962,7 +1963,8 @@
     "addSchoolInfo": "Schulinfos hinzufuegen",
     "sending": "Wird gesendet...",
     "confirmDeleteDoc": "Sind Sie sicher, dass Sie dieses Dokument loschen mochten?",
-    "deleteDocTitle": "Dokument loschen"
+    "deleteDocTitle": "Dokument loschen",
+    "tabSizes": "Größen"
   },
   "activityReport": {
     "title": "Aktivitaetsbericht",
@@ -2027,6 +2029,18 @@
       "snoozeReentry": "Erinnerung an die {vaccineName} von {childName} — Sie wollten sie planen",
       "appointmentTakeCard": "Bringen Sie den Impfpass von {childName} zum Termin mit {professional} mit — {count} ausstehende Dose(n)",
       "campaignBody": "Kampagne verfügbar: {vaccineName} von {childName}"
+    },
+    "sizes": {
+      "title": "{{actor}} hat eine Größe aktualisiert",
+      "body": "{{child}} trägt jetzt {{kind}} {{size}}",
+      "coalescedCount": "{{actor}} hat {{count}} Größen aktualisiert",
+      "kind": {
+        "shoe": "Schuh",
+        "pants": "Hose",
+        "shirt": "T-Shirt",
+        "coat": "Mantel",
+        "other": "Größe"
+      }
     }
   },
   "push": {
@@ -2523,5 +2537,49 @@
       "amountMustBePositive": "Der Betrag muss größer als null sein",
       "titleRequired": "Gib einen Titel an"
     }
+  },
+  "childSizes": {
+    "kind": {
+      "shoe": "Schuh",
+      "pants": "Hose",
+      "shirt": "T-Shirt",
+      "coat": "Mantel",
+      "other": "Sonstiges"
+    },
+    "currentTitle": "Größen",
+    "currentSubtitle": "Aktualisiere beim Einkauf — der Co-Elternteil wird automatisch benachrichtigt.",
+    "tapToRegister": "Tippen zum Eintragen",
+    "byParent": "Aktualisiert von {{parent}}",
+    "addOther": "Weiteren Typ hinzufügen",
+    "showHistory": "Verlauf anzeigen",
+    "hideHistory": "Verlauf ausblenden",
+    "historyTitle": "Verlauf",
+    "historySubtitle": "{{count}} Einträge",
+    "historyEmpty": "Noch keine Einträge.",
+    "confirmedSuffix": "Bestätigt",
+    "edit": "Bearbeiten",
+    "delete": "Löschen",
+    "confirmDelete": "Diesen Größeneintrag löschen?",
+    "recordedToday": "heute",
+    "recordedYesterday": "gestern",
+    "recordedDaysAgo": "vor {{count}} Tagen",
+    "recordedMonthAgo": "vor 1 Monat",
+    "recordedMonthsAgo": "vor {{count}} Monaten",
+    "recordedYearAgo": "vor 1 Jahr",
+    "recordedYearsAgo": "vor {{count}} Jahren",
+    "staleCheckinTitle": "Noch {{kind}} {{size}}?",
+    "confirmStill": "Ja, noch",
+    "updateNow": "Aktualisieren",
+    "modalTitle": "Größe",
+    "modalCreateTitle": "{{kind}} eintragen",
+    "modalEditTitle": "{{kind}} bearbeiten",
+    "fieldCustomLabel": "Typ",
+    "fieldCustomLabelPlaceholder": "z.B. Pyjama, Kleid, Uniform",
+    "fieldSizeValue": "Größe",
+    "shoePlaceholder": "z.B. 27 oder 27.5",
+    "clothesPlaceholder": "z.B. 4 Jahre, S, XL",
+    "fieldDate": "Datum",
+    "fieldNotes": "Notiz",
+    "fieldNotesPlaceholder": "Optional — Marke, Geschäft, Bemerkung"
   }
 }

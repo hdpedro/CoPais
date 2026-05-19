@@ -6,6 +6,8 @@ import { useI18n } from "@/i18n/provider";
 import { updateChild } from "@/actions/group";
 import { upsertChildEducation, uploadChildDocument, deleteChildDocument } from "@/actions/children";
 import DocumentViewer from "@/app/(app)/documentos/DocumentViewer";
+import TabTamanhos from "./TabTamanhos";
+import type { CurrentSize, ChildSizeRecord } from "@/lib/services/child-sizes";
 
 /* ───── Types ───── */
 
@@ -92,6 +94,8 @@ interface ChildDetailClientProps {
   vaccinations: Vaccination[];
   documents: DocumentRow[];
   education: Education | null;
+  currentSizes: CurrentSize[];
+  sizeHistory: ChildSizeRecord[];
   groupId: string;
   isReadonly: boolean;
   tab: string;
@@ -141,6 +145,8 @@ export default function ChildDetailClient({
   vaccinations,
   documents,
   education,
+  currentSizes,
+  sizeHistory,
   groupId,
   isReadonly,
   tab,
@@ -159,6 +165,7 @@ export default function ChildDetailClient({
   const tabs = [
     { key: "geral", label: t("childProfile.tabGeneral"), icon: "\u{1F464}" },
     { key: "saude", label: t("childProfile.tabHealth"), icon: "\u{1F3E5}" },
+    { key: "tamanhos", label: t("childProfile.tabSizes"), icon: "\u{1F455}" },
     { key: "documentos", label: t("childProfile.tabDocuments"), icon: "\u{1F4C4}" },
     { key: "educacao", label: t("childProfile.tabEducation"), icon: "\u{1F393}" },
   ];
@@ -230,6 +237,17 @@ export default function ChildDetailClient({
           allergies={allergies}
           medications={medications}
           vaccinations={vaccinations}
+          t={t}
+        />
+      )}
+
+      {tab === "tamanhos" && (
+        <TabTamanhos
+          childId={child.id}
+          groupId={groupId}
+          isReadonly={isReadonly}
+          currentSizes={currentSizes}
+          sizeHistory={sizeHistory}
           t={t}
         />
       )}

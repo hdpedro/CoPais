@@ -461,6 +461,7 @@ export type TranslationKey =
   | "childProfile.tabEducation"
   | "childProfile.tabGeneral"
   | "childProfile.tabHealth"
+  | "childProfile.tabSizes"
   | "childProfile.teacherName"
   | "childProfile.teacherNamePlaceholder"
   | "childProfile.upload"
@@ -468,6 +469,46 @@ export type TranslationKey =
   | "childProfile.vaccinesCount"
   | "childProfile.vaccinesRegistered"
   | "childProfile.weight"
+  | "childSizes.addOther"
+  | "childSizes.byParent"
+  | "childSizes.clothesPlaceholder"
+  | "childSizes.confirmDelete"
+  | "childSizes.confirmStill"
+  | "childSizes.confirmedSuffix"
+  | "childSizes.currentSubtitle"
+  | "childSizes.currentTitle"
+  | "childSizes.delete"
+  | "childSizes.edit"
+  | "childSizes.fieldCustomLabel"
+  | "childSizes.fieldCustomLabelPlaceholder"
+  | "childSizes.fieldDate"
+  | "childSizes.fieldNotes"
+  | "childSizes.fieldNotesPlaceholder"
+  | "childSizes.fieldSizeValue"
+  | "childSizes.hideHistory"
+  | "childSizes.historyEmpty"
+  | "childSizes.historySubtitle"
+  | "childSizes.historyTitle"
+  | "childSizes.kind.coat"
+  | "childSizes.kind.other"
+  | "childSizes.kind.pants"
+  | "childSizes.kind.shirt"
+  | "childSizes.kind.shoe"
+  | "childSizes.modalCreateTitle"
+  | "childSizes.modalEditTitle"
+  | "childSizes.modalTitle"
+  | "childSizes.recordedDaysAgo"
+  | "childSizes.recordedMonthAgo"
+  | "childSizes.recordedMonthsAgo"
+  | "childSizes.recordedToday"
+  | "childSizes.recordedYearAgo"
+  | "childSizes.recordedYearsAgo"
+  | "childSizes.recordedYesterday"
+  | "childSizes.shoePlaceholder"
+  | "childSizes.showHistory"
+  | "childSizes.staleCheckinTitle"
+  | "childSizes.tapToRegister"
+  | "childSizes.updateNow"
   | "children.add"
   | "children.addChild"
   | "children.allergiesLabel"
@@ -535,6 +576,7 @@ export type TranslationKey =
   | "common.optional"
   | "common.required"
   | "common.save"
+  | "common.saving"
   | "common.search"
   | "common.send"
   | "common.sessionExpired"
@@ -1862,6 +1904,14 @@ export type TranslationKey =
   | "notifications.saude.illnessTitle"
   | "notifications.saude.medicationTitle"
   | "notifications.saude.vaccineTitle"
+  | "notifications.sizes.body"
+  | "notifications.sizes.coalescedCount"
+  | "notifications.sizes.kind.coat"
+  | "notifications.sizes.kind.other"
+  | "notifications.sizes.kind.pants"
+  | "notifications.sizes.kind.shirt"
+  | "notifications.sizes.kind.shoe"
+  | "notifications.sizes.title"
   | "notifications.swapRequest"
   | "notifications.swapResponse"
   | "notifications.system"
@@ -2116,6 +2166,16 @@ export type TranslationKey =
   | "profileForm.editName"
   | "profileForm.fullNamePlaceholder"
   | "profileForm.saved"
+  | "push.chat.fallbackSender"
+  | "push.chat.title"
+  | "push.custodyChange.body"
+  | "push.custodyChange.fallbackChild"
+  | "push.custodyChange.fallbackParent"
+  | "push.custodyChange.title"
+  | "push.renewalReminder.body"
+  | "push.renewalReminder.title"
+  | "push.trialReminder.body"
+  | "push.trialReminder.title"
   | "schedule.alreadyConfigured"
   | "schedule.buildPattern"
   | "schedule.clearConfirm"
@@ -2789,6 +2849,7 @@ export const TRANSLATION_KEYS = [
   "childProfile.tabEducation",
   "childProfile.tabGeneral",
   "childProfile.tabHealth",
+  "childProfile.tabSizes",
   "childProfile.teacherName",
   "childProfile.teacherNamePlaceholder",
   "childProfile.upload",
@@ -2796,6 +2857,46 @@ export const TRANSLATION_KEYS = [
   "childProfile.vaccinesCount",
   "childProfile.vaccinesRegistered",
   "childProfile.weight",
+  "childSizes.addOther",
+  "childSizes.byParent",
+  "childSizes.clothesPlaceholder",
+  "childSizes.confirmDelete",
+  "childSizes.confirmStill",
+  "childSizes.confirmedSuffix",
+  "childSizes.currentSubtitle",
+  "childSizes.currentTitle",
+  "childSizes.delete",
+  "childSizes.edit",
+  "childSizes.fieldCustomLabel",
+  "childSizes.fieldCustomLabelPlaceholder",
+  "childSizes.fieldDate",
+  "childSizes.fieldNotes",
+  "childSizes.fieldNotesPlaceholder",
+  "childSizes.fieldSizeValue",
+  "childSizes.hideHistory",
+  "childSizes.historyEmpty",
+  "childSizes.historySubtitle",
+  "childSizes.historyTitle",
+  "childSizes.kind.coat",
+  "childSizes.kind.other",
+  "childSizes.kind.pants",
+  "childSizes.kind.shirt",
+  "childSizes.kind.shoe",
+  "childSizes.modalCreateTitle",
+  "childSizes.modalEditTitle",
+  "childSizes.modalTitle",
+  "childSizes.recordedDaysAgo",
+  "childSizes.recordedMonthAgo",
+  "childSizes.recordedMonthsAgo",
+  "childSizes.recordedToday",
+  "childSizes.recordedYearAgo",
+  "childSizes.recordedYearsAgo",
+  "childSizes.recordedYesterday",
+  "childSizes.shoePlaceholder",
+  "childSizes.showHistory",
+  "childSizes.staleCheckinTitle",
+  "childSizes.tapToRegister",
+  "childSizes.updateNow",
   "children.add",
   "children.addChild",
   "children.allergiesLabel",
@@ -2863,6 +2964,7 @@ export const TRANSLATION_KEYS = [
   "common.optional",
   "common.required",
   "common.save",
+  "common.saving",
   "common.search",
   "common.send",
   "common.sessionExpired",
@@ -4190,6 +4292,14 @@ export const TRANSLATION_KEYS = [
   "notifications.saude.illnessTitle",
   "notifications.saude.medicationTitle",
   "notifications.saude.vaccineTitle",
+  "notifications.sizes.body",
+  "notifications.sizes.coalescedCount",
+  "notifications.sizes.kind.coat",
+  "notifications.sizes.kind.other",
+  "notifications.sizes.kind.pants",
+  "notifications.sizes.kind.shirt",
+  "notifications.sizes.kind.shoe",
+  "notifications.sizes.title",
   "notifications.swapRequest",
   "notifications.swapResponse",
   "notifications.system",
@@ -4444,6 +4554,16 @@ export const TRANSLATION_KEYS = [
   "profileForm.editName",
   "profileForm.fullNamePlaceholder",
   "profileForm.saved",
+  "push.chat.fallbackSender",
+  "push.chat.title",
+  "push.custodyChange.body",
+  "push.custodyChange.fallbackChild",
+  "push.custodyChange.fallbackParent",
+  "push.custodyChange.title",
+  "push.renewalReminder.body",
+  "push.renewalReminder.title",
+  "push.trialReminder.body",
+  "push.trialReminder.title",
   "schedule.alreadyConfigured",
   "schedule.buildPattern",
   "schedule.clearConfirm",

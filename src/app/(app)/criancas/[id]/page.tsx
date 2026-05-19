@@ -2,6 +2,10 @@ import { redirect, notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { getSignedFileUrl } from "@/lib/storage-signed-url";
+import {
+  getCurrentSizes,
+  getSizeHistory,
+} from "@/lib/services/child-sizes";
 import dynamic from "next/dynamic";
 
 const ChildDetailClient = dynamic(() => import("./ChildDetailClient"), {
@@ -101,6 +105,13 @@ export default async function ChildDetailPage({
 
   if (!childRes.data) notFound();
 
+  // Tamanhos (módulo Foundation Collab #7 — migration 00086).
+  // Não bloqueia render se falhar: service retorna [] em erro.
+  const [currentSizes, sizeHistory] = await Promise.all([
+    getCurrentSizes(supabase, id),
+    getSizeHistory(supabase, id, { limit: 200 }),
+  ]);
+
   // Sign document URLs server-side. Buckets are private after migration 062.
   // We pass through any extra fields (profiles join etc.) by spreading.
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -123,6 +134,8 @@ export default async function ChildDetailPage({
       vaccinations={vaccinationsRes.data || []}
       documents={signedDocs}
       education={educationRes.data || null}
+      currentSizes={currentSizes}
+      sizeHistory={sizeHistory}
       groupId={groupId}
       isReadonly={isReadonly}
       tab={tab}

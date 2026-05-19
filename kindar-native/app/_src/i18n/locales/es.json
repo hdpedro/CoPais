@@ -60,7 +60,8 @@
     "confirmDelete": "¿Está seguro de que desea eliminar",
     "hello": "Hola",
     "copy": "Copiar",
-    "sessionExpired": "Sesión expirada. Inicie sesión nuevamente."
+    "sessionExpired": "Sesión expirada. Inicie sesión nuevamente.",
+    "saving": "Guardando…"
   },
   "auth": {
     "login": "Iniciar sesión",
@@ -1882,7 +1883,8 @@
     "addSchoolInfo": "Agregar info escolar",
     "sending": "Enviando...",
     "confirmDeleteDoc": "Estas seguro de que deseas eliminar este documento?",
-    "deleteDocTitle": "Eliminar documento"
+    "deleteDocTitle": "Eliminar documento",
+    "tabSizes": "Tallas"
   },
   "activityReport": {
     "title": "Reporte de Actividad",
@@ -1947,6 +1949,18 @@
       "snoozeReentry": "Recordatorio sobre la {vaccineName} de {childName} — ibas a agendarla",
       "appointmentTakeCard": "Lleva la libreta de vacunación de {childName} a la cita con {professional} — {count} dosis pendiente(s)",
       "campaignBody": "Campaña disponible: {vaccineName} de {childName}"
+    },
+    "sizes": {
+      "title": "{{actor}} actualizó una talla",
+      "body": "{{child}} ahora usa {{kind}} {{size}}",
+      "coalescedCount": "{{actor}} actualizó {{count}} tallas",
+      "kind": {
+        "shoe": "zapato",
+        "pants": "pantalón",
+        "shirt": "camiseta",
+        "coat": "abrigo",
+        "other": "talla"
+      }
     }
   },
   "assistant": {
@@ -2719,5 +2733,49 @@
       "tableOneFallback": "1 {table}",
       "tableOtherFallback": "{count} {table}"
     }
+  },
+  "childSizes": {
+    "kind": {
+      "shoe": "Zapato",
+      "pants": "Pantalón",
+      "shirt": "Camiseta",
+      "coat": "Abrigo",
+      "other": "Otro"
+    },
+    "currentTitle": "Tallas",
+    "currentSubtitle": "Actualiza cuando compres ropa nueva — el coparental recibe la notificación automáticamente.",
+    "tapToRegister": "Toca para registrar",
+    "byParent": "Actualizado por {{parent}}",
+    "addOther": "Agregar otro tipo",
+    "showHistory": "Ver historial",
+    "hideHistory": "Ocultar historial",
+    "historyTitle": "Historial",
+    "historySubtitle": "{{count}} registros",
+    "historyEmpty": "Aún sin registros.",
+    "confirmedSuffix": "Confirmado",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "confirmDelete": "¿Eliminar este registro de talla?",
+    "recordedToday": "hoy",
+    "recordedYesterday": "ayer",
+    "recordedDaysAgo": "hace {{count}} días",
+    "recordedMonthAgo": "hace 1 mes",
+    "recordedMonthsAgo": "hace {{count}} meses",
+    "recordedYearAgo": "hace 1 año",
+    "recordedYearsAgo": "hace {{count}} años",
+    "staleCheckinTitle": "¿Sigue usando {{kind}} {{size}}?",
+    "confirmStill": "Sí, sigue",
+    "updateNow": "Actualizar",
+    "modalTitle": "Talla",
+    "modalCreateTitle": "Registrar {{kind}}",
+    "modalEditTitle": "Editar {{kind}}",
+    "fieldCustomLabel": "Tipo",
+    "fieldCustomLabelPlaceholder": "Ej: Pijama, Vestido, Uniforme",
+    "fieldSizeValue": "Talla",
+    "shoePlaceholder": "Ej: 27 o 27.5",
+    "clothesPlaceholder": "Ej: 4 años, S, XL",
+    "fieldDate": "Fecha",
+    "fieldNotes": "Nota",
+    "fieldNotesPlaceholder": "Opcional — marca, tienda, observación"
   }
 }
