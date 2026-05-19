@@ -179,6 +179,13 @@ export async function updateSession(request: NextRequest) {
     "/api/notifications/mark-read",
     "/api/notifications/mark-all-read",
     "/api/school",
+    // /api/children/* — Native chama create/edit/delete + subrotas
+    // (sizes, education). Cada handler valida Bearer via resolveAuthenticatedUser.
+    // Sem esse prefix, middleware bouncava /api/children/<id>/sizes pra
+    // /session-recovery → toast "Falha ao registrar tamanho" no Native
+    // (Henrique 2026-05-19). /api/children/education já era listado individual;
+    // o prefix /api/children é superset, mas mantemos os dois pra rastreio.
+    "/api/children",
     // AI endpoints — native uploads (image OCR, assistant chat) carry
     // Bearer auth instead of cookies. Each /api/ai/* handler validates
     // the token via admin client. Without this prefix the middleware
