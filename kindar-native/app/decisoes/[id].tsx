@@ -206,6 +206,48 @@ export default function DecisionDetailScreen() {
             </View>
           </View>
 
+          {/* "Seu voto" badge — sempre visível quando o user votou.
+              Feature pedida por Angelino 2026-05-18 ("falou o meu para ficar
+              perfeito"): após o encerramento ele não conseguia ver o voto
+              próprio reforçado, só o tally agregado. Aparece tanto na fase
+              'aberta' quanto pós-resolução pra transparência consistente. */}
+          {decision.myVote ? (
+            <View style={{
+              flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+              marginTop: spacing.md, paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
+              backgroundColor: colors.bgElevated, borderRadius: radius.md,
+              borderWidth: 1, borderColor: colors.borderLight,
+            }}>
+              <Ionicons
+                name={
+                  decision.myVote === 'concordo' ? 'checkmark-circle'
+                  : decision.myVote === 'discordo' ? 'close-circle'
+                  : 'remove-circle'
+                }
+                size={16}
+                color={
+                  decision.myVote === 'concordo' ? '#4CAF50'
+                  : decision.myVote === 'discordo' ? '#E53935'
+                  : colors.textSecondary
+                }
+              />
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.medium }}>
+                Seu voto:
+              </Text>
+              <Text style={{
+                fontSize: font.sizes.sm,
+                fontWeight: font.weights.semibold,
+                color: decision.myVote === 'concordo' ? '#4CAF50'
+                  : decision.myVote === 'discordo' ? '#E53935'
+                  : colors.textSecondary,
+              }}>
+                {decision.myVote === 'concordo' ? 'A favor'
+                  : decision.myVote === 'discordo' ? 'Contra'
+                  : 'Abster'}
+              </Text>
+            </View>
+          ) : null}
+
           {/* Vote buttons */}
           {isOpen ? (
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
