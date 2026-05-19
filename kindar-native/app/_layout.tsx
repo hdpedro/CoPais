@@ -113,9 +113,37 @@ export default function RootLayout() {
     analytics.identify(userId);
 
     let lastState = AppState.currentState;
-    const sub = AppState.addEventListener('change', (next) => {
+    let lastBackgroundAt = 0;
+    const sub = AppState.addEventListener('change', async (next) => {
+      // OTA auto-apply on long-background resume (2026-05-19):
+      // se o user mandou app pro background há MAIS QUE 5 minutos E há OTA
+      // pendente baixado, reload silencioso. User espera o app "rebooting"
+      // depois de tanto tempo em background, então o splash do reload se
+      // funde com o resume — invisível.
+      if (next === 'background' || next === 'inactive') {
+        lastBackgroundAt = Date.now();
+      }
       if (next === 'active' && lastState !== 'active') {
+        // Re-register push (idempotente)
         registerForPushNotificationsAsync().catch(() => {});
+
+        // OTA auto-apply: só age se ficou > 5min em background.
+        // Limite evita "app reload toda vez que sai pra notificações".
+        const longBackground = lastBackgroundAt > 0 && Date.now() - lastBackgroundAt > 5 * 60 * 1000;
+        if (longBackground && Updates.isEnabled) {
+          try {
+            // Verifica se há update pendente baixado (não baixa agora pra
+            // não atrasar resume; checkAutomatically=ON_LOAD + splash gate
+            // já cobrem o caso de cold start).
+            const u = await Updates.checkForUpdateAsync();
+            if (u.isAvailable) {
+              await Updates.fetchUpdateAsync();
+              await Updates.reloadAsync();
+            }
+          } catch {
+            // sem internet, fingerprint mismatch — mantém atual.
+          }
+        }
       }
       lastState = next;
     });
