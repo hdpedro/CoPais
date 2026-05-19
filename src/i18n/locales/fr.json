@@ -2580,6 +2580,11 @@
     "clothesPlaceholder": "Ex : 4 ans, S, XL",
     "fieldDate": "Date",
     "fieldNotes": "Note",
-    "fieldNotesPlaceholder": "Optionnel — marque, magasin, remarque"
+    "fieldNotesPlaceholder": "Optionnel — marque, magasin, remarque",
+    "errorSizeRequired": "Indiquez la taille.",
+    "errorCustomLabelRequired": "Indiquez le nom du type (ex : Pyjama).",
+    "errorDateInvalid": "Date invalide. Utilisez AAAA-MM-JJ.",
+    "toastSaved": "Taille enregistrée.",
+    "toastUpdated": "Taille mise à jour."
   }
 }

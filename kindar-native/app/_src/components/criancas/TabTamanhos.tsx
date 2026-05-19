@@ -24,6 +24,7 @@ import {
 } from 'src/services/child-sizes';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { reportError } from 'src/lib/error-reporter';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Props {
@@ -73,6 +74,10 @@ interface EditModalState {
   sizeValue: string;
   recordedOn: string;
   notes: string;
+  /** Erro inline persistente até user editar/recancelar — não some como toast.
+   *  Bug Henrique 2026-05-19: toast efêmero deixava o user achando que "nada
+   *  aconteceu" sem feedback claro do motivo. */
+  error: string | null;
 }
 
 export default function TabTamanhos({ childId, groupId }: Props) {
@@ -139,6 +144,7 @@ export default function TabTamanhos({ childId, groupId }: Props) {
       sizeValue: '',
       recordedOn: new Date().toISOString().slice(0, 10),
       notes: '',
+      error: null,
     });
   }
   function openEditModal(s: CurrentSize | ChildSizeRecord) {
@@ -150,52 +156,110 @@ export default function TabTamanhos({ childId, groupId }: Props) {
       sizeValue: s.size_value,
       recordedOn: 'recorded_on' in s ? s.recorded_on : new Date().toISOString().slice(0, 10),
       notes: 'notes' in s ? (s.notes ?? '') : '',
+      error: null,
     });
   }
-  function closeModal() { setModal(null); }
+  function closeModal() {
+    if (busy) return; // não fecha durante save em curso
+    setModal(null);
+  }
+  // Helper pra atualizar modal sem perder error/state intacto. Limpa erro
+  // automaticamente quando user altera algum campo (sinal de retry).
+  function updateModal(patch: Partial<EditModalState>) {
+    setModal((m) => (m ? { ...m, ...patch, error: patch.error ?? null } : null));
+  }
 
   async function handleSubmitModal() {
     if (!modal) return;
+    // Validação inline: erro fica VISÍVEL no banner até user corrigir.
     if (!modal.sizeValue.trim()) {
-      toast.show({ message: t('childSizes.fieldSizeValue'), variant: 'error' });
+      updateModal({ error: t('childSizes.errorSizeRequired') });
       return;
     }
     if (modal.kind === 'other' && !modal.customLabel?.trim()) {
-      toast.show({ message: t('childSizes.fieldCustomLabel'), variant: 'error' });
+      updateModal({ error: t('childSizes.errorCustomLabelRequired') });
+      return;
+    }
+    // Sanity check de data — sem validar aqui, server rejeita com 400
+    // genérico ("Dados inválidos"). Antecipa pra UX clara.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(modal.recordedOn)) {
+      updateModal({ error: t('childSizes.errorDateInvalid') });
       return;
     }
     setBusy(true);
+    updateModal({ error: null }); // limpa erro anterior ao iniciar nova tentativa
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    let r: { success: boolean; error?: string };
-    if (modal.mode === 'create') {
-      r = await recordSize({
-        childId, groupId,
+
+    // Telemetria pré-call (severity=info) — se algo der errado, temos contexto.
+    reportError(new Error(`[child-sizes] save.start ${Date.now()}`), {
+      severity: 'info',
+      filePath: 'app/_src/components/criancas/TabTamanhos.tsx',
+      metadata: {
+        event: 'child_size_save_start',
+        mode: modal.mode,
         kind: modal.kind,
-        customLabel: modal.kind === 'other' ? modal.customLabel : null,
-        sizeValue: modal.sizeValue,
-        recordedOn: modal.recordedOn,
-        notes: modal.notes || null,
-      });
-    } else if (modal.sizeId) {
-      r = await updateSize({
         childId,
-        sizeId: modal.sizeId,
-        sizeValue: modal.sizeValue,
-        recordedOn: modal.recordedOn,
-        notes: modal.notes || null,
-        customLabel: modal.kind === 'other' ? modal.customLabel : undefined,
-      });
-    } else {
-      r = { success: false, error: 'missing sizeId' };
+        groupId,
+        sizeValueLen: modal.sizeValue.length,
+      },
+    });
+
+    let r: { success: boolean; error?: string };
+    try {
+      if (modal.mode === 'create') {
+        r = await recordSize({
+          childId, groupId,
+          kind: modal.kind,
+          customLabel: modal.kind === 'other' ? modal.customLabel : null,
+          sizeValue: modal.sizeValue,
+          recordedOn: modal.recordedOn,
+          notes: modal.notes || null,
+        });
+      } else if (modal.sizeId) {
+        r = await updateSize({
+          childId,
+          sizeId: modal.sizeId,
+          sizeValue: modal.sizeValue,
+          recordedOn: modal.recordedOn,
+          notes: modal.notes || null,
+          customLabel: modal.kind === 'other' ? modal.customLabel : undefined,
+        });
+      } else {
+        r = { success: false, error: 'missing sizeId' };
+      }
+    } catch (e) {
+      // Exception durante fetch (network down, fingerprint, etc) — não
+      // deixa engulir silencioso.
+      r = { success: false, error: e instanceof Error ? e.message : 'erro inesperado' };
     }
     setBusy(false);
+
+    // Telemetria pós-call — sucesso ou falha.
+    reportError(new Error(`[child-sizes] save.result ${Date.now()}`), {
+      severity: 'info',
+      filePath: 'app/_src/components/criancas/TabTamanhos.tsx',
+      metadata: {
+        event: r.success ? 'child_size_save_success' : 'child_size_save_failure',
+        mode: modal.mode,
+        kind: modal.kind,
+        errorMessage: r.error || null,
+      },
+    });
+
     if (r.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast.show({
+        message: modal.mode === 'create'
+          ? t('childSizes.toastSaved')
+          : t('childSizes.toastUpdated'),
+        variant: 'success',
+      });
       setModal(null);
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show({ message: r.error || t('toasts.common.saveFailed'), variant: 'error' });
+      // Erro fica no banner inline (persistente) — sem dependência de toast.
+      updateModal({ error: r.error || t('toasts.common.saveFailed') });
     }
   }
 
@@ -511,7 +575,30 @@ export default function TabTamanhos({ childId, groupId }: Props) {
             </TouchableOpacity>
           </View>
           {modal ? (
-            <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }}>
+            <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg }} keyboardShouldPersistTaps="handled">
+              {/* Banner de erro inline — persiste até user retentar/corrigir.
+                  Não some como toast (bug Henrique 2026-05-19). */}
+              {modal.error ? (
+                <View
+                  accessibilityRole="alert"
+                  accessibilityLiveRegion="polite"
+                  style={{
+                    backgroundColor: '#FEE2E2',
+                    borderColor: '#FCA5A5',
+                    borderWidth: 1,
+                    borderRadius: radius.md,
+                    padding: spacing.md,
+                    flexDirection: 'row',
+                    alignItems: 'flex-start',
+                    gap: spacing.sm,
+                  }}
+                >
+                  <Ionicons name="alert-circle" size={18} color="#B91C1C" />
+                  <Text style={{ flex: 1, color: '#7F1D1D', fontSize: font.sizes.sm, lineHeight: 18 }}>
+                    {modal.error}
+                  </Text>
+                </View>
+              ) : null}
               {modal.kind === 'other' ? (
                 <View>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.medium, marginBottom: 6 }}>
@@ -519,7 +606,7 @@ export default function TabTamanhos({ childId, groupId }: Props) {
                   </Text>
                   <TextInput
                     value={modal.customLabel ?? ''}
-                    onChangeText={(v) => setModal({ ...modal, customLabel: v })}
+                    onChangeText={(v) => updateModal({ customLabel: v })}
                     placeholder={t('childSizes.fieldCustomLabelPlaceholder')}
                     placeholderTextColor={colors.textMuted}
                     maxLength={40}
@@ -538,7 +625,7 @@ export default function TabTamanhos({ childId, groupId }: Props) {
                 </Text>
                 <TextInput
                   value={modal.sizeValue}
-                  onChangeText={(v) => setModal({ ...modal, sizeValue: v })}
+                  onChangeText={(v) => updateModal({ sizeValue: v })}
                   placeholder={modal.kind === 'shoe' ? t('childSizes.shoePlaceholder') : t('childSizes.clothesPlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   maxLength={24}
@@ -561,7 +648,7 @@ export default function TabTamanhos({ childId, groupId }: Props) {
                     edit manual. Pode upgrade pra date picker em Fase 2. */}
                 <TextInput
                   value={modal.recordedOn}
-                  onChangeText={(v) => setModal({ ...modal, recordedOn: v })}
+                  onChangeText={(v) => updateModal({ recordedOn: v })}
                   placeholder="YYYY-MM-DD"
                   placeholderTextColor={colors.textMuted}
                   maxLength={10}
@@ -579,7 +666,7 @@ export default function TabTamanhos({ childId, groupId }: Props) {
                 </Text>
                 <TextInput
                   value={modal.notes}
-                  onChangeText={(v) => setModal({ ...modal, notes: v })}
+                  onChangeText={(v) => updateModal({ notes: v })}
                   placeholder={t('childSizes.fieldNotesPlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   maxLength={500}
@@ -607,7 +694,14 @@ export default function TabTamanhos({ childId, groupId }: Props) {
                   </TouchableOpacity>
                 ) : null}
                 <View style={{ flex: 1 }} />
-                <TouchableOpacity onPress={closeModal} style={{ paddingVertical: 12, paddingHorizontal: spacing.md }}>
+                <TouchableOpacity
+                  onPress={closeModal}
+                  disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.cancel')}
+                  accessibilityState={{ disabled: busy }}
+                  style={{ paddingVertical: 12, paddingHorizontal: spacing.md, opacity: busy ? 0.4 : 1 }}
+                >
                   <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
                     {t('common.cancel')}
                   </Text>
@@ -615,14 +709,27 @@ export default function TabTamanhos({ childId, groupId }: Props) {
                 <TouchableOpacity
                   onPress={handleSubmitModal}
                   disabled={busy}
+                  accessibilityRole="button"
+                  accessibilityLabel={busy ? t('common.saving') : t('common.save')}
+                  accessibilityState={{ busy, disabled: busy }}
                   style={{
                     paddingVertical: 12, paddingHorizontal: spacing.lg,
                     backgroundColor: colors.brand, borderRadius: radius.md,
                     opacity: busy ? 0.6 : 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 8,
+                    minWidth: 100,
+                    justifyContent: 'center',
                   }}
                 >
                   {busy ? (
-                    <ActivityIndicator size="small" color="#fff" />
+                    <>
+                      <ActivityIndicator size="small" color="#fff" />
+                      <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
+                        {t('common.saving')}
+                      </Text>
+                    </>
                   ) : (
                     <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
                       {t('common.save')}

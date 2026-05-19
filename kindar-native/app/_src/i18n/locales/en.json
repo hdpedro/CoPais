@@ -2776,6 +2776,11 @@
     "clothesPlaceholder": "e.g. 4Y, S, XL",
     "fieldDate": "Date",
     "fieldNotes": "Note",
-    "fieldNotesPlaceholder": "Optional — brand, store, remark"
+    "fieldNotesPlaceholder": "Optional — brand, store, remark",
+    "errorSizeRequired": "Enter the size.",
+    "errorCustomLabelRequired": "Enter the type name (e.g. Pajamas).",
+    "errorDateInvalid": "Invalid date. Use YYYY-MM-DD.",
+    "toastSaved": "Size recorded.",
+    "toastUpdated": "Size updated."
   }
 }

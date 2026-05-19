@@ -479,6 +479,9 @@ export type TranslationKey =
   | "childSizes.currentTitle"
   | "childSizes.delete"
   | "childSizes.edit"
+  | "childSizes.errorCustomLabelRequired"
+  | "childSizes.errorDateInvalid"
+  | "childSizes.errorSizeRequired"
   | "childSizes.fieldCustomLabel"
   | "childSizes.fieldCustomLabelPlaceholder"
   | "childSizes.fieldDate"
@@ -508,6 +511,8 @@ export type TranslationKey =
   | "childSizes.showHistory"
   | "childSizes.staleCheckinTitle"
   | "childSizes.tapToRegister"
+  | "childSizes.toastSaved"
+  | "childSizes.toastUpdated"
   | "childSizes.updateNow"
   | "children.add"
   | "children.addChild"
@@ -2867,6 +2872,9 @@ export const TRANSLATION_KEYS = [
   "childSizes.currentTitle",
   "childSizes.delete",
   "childSizes.edit",
+  "childSizes.errorCustomLabelRequired",
+  "childSizes.errorDateInvalid",
+  "childSizes.errorSizeRequired",
   "childSizes.fieldCustomLabel",
   "childSizes.fieldCustomLabelPlaceholder",
   "childSizes.fieldDate",
@@ -2896,6 +2904,8 @@ export const TRANSLATION_KEYS = [
   "childSizes.showHistory",
   "childSizes.staleCheckinTitle",
   "childSizes.tapToRegister",
+  "childSizes.toastSaved",
+  "childSizes.toastUpdated",
   "childSizes.updateNow",
   "children.add",
   "children.addChild",
