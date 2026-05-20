@@ -19,7 +19,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashPhone, normalizePhone } from "@/lib/whatsapp/signature";
-import { sendWhatsAppOtp } from "@/lib/whatsapp/send-otp";
+import { sendTemplateMessage, sendTextMessage } from "@/lib/whatsapp/client";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 
 type Body =
   | { action: "status" }
@@ -111,11 +112,23 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Send OTP via WhatsApp — template AUTHENTICATION primeiro (fora janela 24h),
-    // text como fallback. Lógica completa em sendWhatsAppOtp.
-    const result = await sendWhatsAppOtp(phone, otp, "src/app/api/native/whatsapp/route.ts");
-    if (!result.ok) {
-      return NextResponse.json({ error: result.reason }, { status: 502 });
+    const phoneWithout = phone.replace("+", "");
+    try {
+      await sendTextMessage(
+        phoneWithout,
+        `Kindar - Codigo de verificacao: *${otp}*\n\nDigite este codigo no app para vincular seu WhatsApp.\n\nExpira em 10 minutos.`
+      );
+    } catch (err) {
+      reportServerError(err, { filePath: "src/app/api/native/whatsapp/route.ts" });
+      try {
+        await sendTemplateMessage(phoneWithout, "hello_world", "en_US");
+      } catch {
+        // Both channels failed
+      }
+      return NextResponse.json(
+        { error: "Nao foi possivel enviar o codigo. Verifique o numero." },
+        { status: 502 }
+      );
     }
 
     return NextResponse.json({ success: true, phone });

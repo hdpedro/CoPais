@@ -3,8 +3,9 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashPhone, normalizePhone } from "@/lib/whatsapp/signature";
-import { sendWhatsAppOtp } from "@/lib/whatsapp/send-otp";
+import { sendTemplateMessage, sendTextMessage } from "@/lib/whatsapp/client";
 import { revalidatePath } from "next/cache";
+import { reportServerError } from "@/lib/error-tracking/report-server";
 
 /**
  * Step 1: Request WhatsApp linking — sends OTP via WhatsApp
@@ -75,11 +76,23 @@ export async function requestWhatsAppLink(formData: FormData) {
       });
   }
 
-  // Send OTP via WhatsApp — template AUTHENTICATION primeiro (fora janela 24h),
-  // text como fallback (dentro janela). Lógica completa em sendWhatsAppOtp.
-  const result = await sendWhatsAppOtp(phone, otp, "src/actions/whatsapp.ts");
-  if (!result.ok) {
-    return { error: result.reason };
+  // Send OTP via WhatsApp
+  const phoneWithout = phone.replace("+", "");
+  try {
+    await sendTextMessage(
+      phoneWithout,
+      `Kindar - Codigo de verificacao: *${otp}*\n\nDigite este codigo no app para vincular seu WhatsApp.\n\nExpira em 10 minutos.`
+    );
+  } catch (err) {
+    console.error("[WA-LINK] Failed to send OTP:", err);
+    reportServerError(err, { filePath: "src/actions/whatsapp.ts" });
+    // Try template if text fails (24h window may not be open)
+    try {
+      await sendTemplateMessage(phoneWithout, "hello_world", "en_US");
+    } catch {
+      // If both fail, user can still manually enter OTP if they see it
+    }
+    return { error: "Nao foi possivel enviar o codigo. Verifique se o numero esta correto e tem WhatsApp." };
   }
 
   revalidatePath("/perfil");
