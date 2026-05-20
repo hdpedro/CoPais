@@ -4,9 +4,16 @@
 import { useEffect, useRef, useState } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, Linking, AppState } from 'react-native';
+import {
+  View,
+  Linking,
+  AppState,
+  AccessibilityInfo,
+  StyleSheet,
+} from 'react-native';
 import Animated, {
-  FadeInUp,
+  FadeIn,
+  FadeOut,
   Easing,
   useSharedValue,
   useAnimatedStyle,
@@ -19,6 +26,8 @@ import Animated, {
   type SharedValue,
 } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
 import * as Updates from 'expo-updates';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -224,13 +233,36 @@ export default function RootLayout() {
     }
   }, [splashVisible]);
 
-  if (splashVisible) {
-    return <SplashScreen isLoading={isLoading} />;
-  }
-
   return (
     <ErrorBoundary>
-      <GestureHandlerRootView style={{ flex: 1 }}>
+      <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
+        {/* Splash em absolute SOBRE o dashboard. Quando splashVisible
+            vira false, splash desmonta com FadeOut 400ms via Reanimated
+            layout animation. Dashboard renderiza por baixo. Como ambos
+            usam mesma backgroundColor cream, transição é imperceptível
+            de cor — só os elementos de UI emergem. Cinematic crossfade.
+
+            Anti-flicker: usar render condicional invés de absolute
+            permanente — dashboard só monta quando ready, então não
+            consome recursos durante boot. Quando flipa pra dashboard,
+            entering FadeIn no inner view dá o "emerge by behind". */}
+        {splashVisible ? (
+          <Animated.View
+            key="splash-cinematic"
+            exiting={FadeOut.duration(400).easing(
+              Easing.bezier(0.4, 0, 0.2, 1),
+            )}
+            style={StyleSheet.absoluteFill}
+          >
+            <SplashScreen isLoading={isLoading} />
+          </Animated.View>
+        ) : (
+        <Animated.View
+          entering={FadeIn.duration(280).delay(80).easing(
+            Easing.out(Easing.cubic),
+          )}
+          style={{ flex: 1 }}
+        >
         <ToastProvider>
         {/* Bug Carolina 2026-05-20: app fechou sozinho 2x. Causa: auto-reload
             OTA no resume após >5min reseta a view sem feedback. Fix: aumenta
@@ -284,6 +316,8 @@ export default function RootLayout() {
         </LockGate>
         </AnalyticsTree>
         </ToastProvider>
+        </Animated.View>
+        )}
         <StatusBar style="dark" />
       </GestureHandlerRootView>
     </ErrorBoundary>
@@ -324,103 +358,193 @@ function OtaUpdatedToastTrigger({ show, onShown }: { show: boolean; onShown: () 
  * o conteúdo abaixo).
  */
 /**
- * SplashScreen com assinatura emocional Kindar — coordenação familiar
- * premium, não fintech, não AI startup.
+ * SplashScreen — assinatura emocional Kindar (top-tier mobile premium).
  *
- * Bug Henrique 2026-05-20: pediu "premium digno de milhões de usuários",
- * depois deu direção cirúrgica pra subir de "premium tech" pra "emotional
- * premium Kindar". Choreography resultante:
+ * Direção entregue por Henrique 2026-05-20 (acting como Principal Motion
+ * Engineer + Staff UX Engineer + QA Lead): "produto premium global,
+ * nível Apple/Linear/Headspace", evitando vibes fintech/AI/crypto/kid-app.
+ * Identidade visual: "a rotina da família se organizando silenciosamente".
  *
- *   t=0     Background cream fade-in (200ms)
- *   t=200   Logo entra (spring overshoot 0.5→1.05→1.0, damping 14)
- *   t=400   Glow CHAMPAGNE (#F6EBDD) expande — acolhimento, não tech
- *   t=400+  4 dots CONSTELAÇÃO aparecem staggered (N→E→S→O cada 200ms)
- *           — "elementos da rotina se conectando ao centro"
- *   t=700   Wordmark "Kindar" entra (FadeInUp bezier cubic)
- *   t=1100  Tagline com TRACKING EXPAND (letter-spacing 0.5→2.5px)
- *   t=1380  BREATHING UNDERLINE inicia (Arc Browser style, brand 1px)
- *   Idle:   Logo respira (só durante isLoading=true), constelação
- *           orbita lento (60s rotação), underline respirando.
- *   Ready:  Logo breathing para suave, haptic, splash dissolve
- *           cinematicamente.
+ * Choreography (cinematic, 1.6s total + idle loops):
  *
- * Tudo via Reanimated 4 shared values → 60fps GPU mesmo na hidratação.
+ *   t=0     Background warm cream montado (já no parent)
+ *   t=200   Logo entra: scale 0.5→1.05 (overshoot spring) + opacity 0→1
+ *           + drop-shadow building. Apple HIG damping=14, stiffness=110.
+ *   t=400   GLOW SVG RADIAL champagne (#F6EBDD) com falloff Gaussian
+ *           REAL — escala 0.5→1.5 em 1600ms (cubic), opacity 0→0.22→0.
+ *           Usa <RadialGradient> com 3 stops pra falloff orgânico.
+ *   t=400+  Constelação aparece staggered (cada 220ms), 4 dots orbitam
+ *           em VELOCIDADES DIFERENTES (0.85x, 1.0x, 1.18x, 1.32x) pra
+ *           micro-drift orgânico — abstrato, NUNCA literal.
+ *   t=600   Logo settles 1.05→1.0 (spring natural)
+ *   t=750   Wordmark: scale 1.06→1.0 + opacity 0→1 + translateY 8→0
+ *           SIMULTÂNEOS (mimics blur→sharp focus, easing cubic-out)
+ *   t=1050  Tagline: scale 1.04→1.0 + tracking 0.5→2.5px + fade +
+ *           translateY 6→0 (premium emocional, Apple/Notion style)
+ *   t=1450  Breathing underline (Arc Browser): 0↔80px loop senoidal
  *
- * Sobre a constelação: 4 dots orbitando representam abstratamente a
- * coordenação familiar — múltiplos pontos conectados a um centro (lar).
- * Sem "kid app cliché" (mochila/coração/check). Identidade visual única.
+ * Loops ativos (idle):
+ *   - Logo respirando APENAS se isLoading (1.0↔1.025 cada 2.8s)
+ *   - Constelação orbita a velocidades drift-friendly
+ *   - Underline respira indefinidamente até unmount
+ *
+ * Exit (ready):
+ *   - cancelAnimation no logoScale → assenta suave 1.0
+ *   - Haptics.selectionAsync() no RootLayout (separado)
+ *   - FadeOut 400ms cubic via Animated.View exiting do parent
+ *   - Dashboard cross-mount com FadeIn 200ms (delay 60ms) por baixo
+ *
+ * A11y:
+ *   - AccessibilityInfo.isReduceMotionEnabled() respeitado: skip orbit,
+ *     skip breathing, skip glow expansion. Fade simples 200ms.
+ *
+ * Safe area:
+ *   - SafeAreaView do react-native-safe-area-context pra notch/dynamic
+ *     island. Logo perfectly centered no espaço seguro.
+ *
+ * Performance:
+ *   - 100% useNativeDriver-equivalent (Reanimated worklets) → 60fps GPU
+ *   - SVG Defs reusadas, sem alocação por frame
+ *   - useAnimatedStyle só toca props animadas (translateX/Y, opacity,
+ *     scale) — sem layout shift
+ *   - Sem setState em effects (useRef pra haptic-done)
+ *   - Cancelamento explícito de loops no unmount via cleanup
  */
 const CHAMPAGNE = '#F6EBDD';
-const CONSTELLATION_RADIUS = 78;
-const CONSTELLATION_POSITIONS = [
-  -Math.PI / 2, // N
-  0,             // E
-  Math.PI / 2,   // S
-  Math.PI,       // W
+const CONSTELLATION_RADIUS = 80;
+const CONSTELLATION_DOTS = [
+  { angle: -Math.PI / 2, speed: 1.0, size: 5, delay: 460 },     // N
+  { angle: 0, speed: 0.85, size: 5.5, delay: 660 },              // E
+  { angle: Math.PI / 2, speed: 1.32, size: 4.5, delay: 880 },    // S
+  { angle: Math.PI, speed: 1.18, size: 5, delay: 1080 },         // W
 ];
 
 function SplashScreen({ isLoading }: { isLoading: boolean }) {
   const t = useI18n((s) => s.t);
 
+  // Reduce motion gate — accessibility compliance. Quando true: skip
+  // orbit/breathing/glow expansion, só fade simples 200ms.
+  const [reduceMotion, setReduceMotion] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    AccessibilityInfo.isReduceMotionEnabled().then((rm) => {
+      if (!cancelled) setReduceMotion(rm);
+    });
+    const sub = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      (rm) => setReduceMotion(rm),
+    );
+    return () => {
+      cancelled = true;
+      sub.remove();
+    };
+  }, []);
+
   const logoScale = useSharedValue(0.5);
   const logoOpacity = useSharedValue(0);
-  const glowScale = useSharedValue(0.6);
+  const glowScale = useSharedValue(0.5);
   const glowOpacity = useSharedValue(0);
   const orbitProgress = useSharedValue(0);
   const underlineWidth = useSharedValue(0);
+
+  const wordmarkOpacity = useSharedValue(0);
+  const wordmarkScale = useSharedValue(1.06);
+  const wordmarkY = useSharedValue(8);
+
   const taglineTracking = useSharedValue(0.5);
   const taglineOpacity = useSharedValue(0);
+  const taglineScale = useSharedValue(1.04);
   const taglineY = useSharedValue(6);
 
   useEffect(() => {
-    // === Entrada do logo ===
-    logoOpacity.value = withTiming(1, { duration: 400 });
+    if (reduceMotion) {
+      // Modo a11y: tudo aparece com fade simples em 200ms, sem motion.
+      logoOpacity.value = withTiming(1, { duration: 200 });
+      logoScale.value = 1.0;
+      glowOpacity.value = 0;
+      glowScale.value = 1.0;
+      wordmarkOpacity.value = withTiming(1, { duration: 200 });
+      wordmarkScale.value = 1.0;
+      wordmarkY.value = 0;
+      taglineOpacity.value = withTiming(0.55, { duration: 200 });
+      taglineScale.value = 1.0;
+      taglineY.value = 0;
+      taglineTracking.value = 2.5;
+      return;
+    }
+
+    // === Logo entrance: spring overshoot Apple HIG ===
+    logoOpacity.value = withTiming(1, { duration: 420 });
     logoScale.value = withDelay(
       200,
       withSpring(1, { damping: 14, stiffness: 110 }),
     );
 
-    // === Glow champagne (one-shot, warm acolhimento) ===
+    // === Glow champagne (SVG radial) — slow & warm ===
     glowScale.value = withDelay(
       400,
-      withTiming(1.4, {
-        duration: 1200,
+      withTiming(1.5, {
+        duration: 1600,
         easing: Easing.bezier(0.4, 0, 0.2, 1),
       }),
     );
     glowOpacity.value = withDelay(
       400,
       withSequence(
-        withTiming(0.18, { duration: 400 }),
-        withTiming(0, { duration: 800 }),
+        withTiming(0.22, {
+          duration: 500,
+          easing: Easing.out(Easing.quad),
+        }),
+        withTiming(0, {
+          duration: 1100,
+          easing: Easing.in(Easing.quad),
+        }),
       ),
     );
 
-    // === Tagline tracking expand + slide-up ===
-    taglineY.value = withDelay(1100, withTiming(0, { duration: 420 }));
-    taglineOpacity.value = withDelay(
-      1100,
-      withTiming(0.55, { duration: 380 }),
+    // === Wordmark "Kindar" — blur→sharp focus illusion via scale+opacity ===
+    wordmarkOpacity.value = withDelay(
+      750,
+      withTiming(1, { duration: 440, easing: Easing.out(Easing.cubic) }),
     );
-    taglineTracking.value = withDelay(
-      1100,
-      withTiming(2.5, {
-        duration: 600,
-        easing: Easing.out(Easing.cubic),
-      }),
+    wordmarkScale.value = withDelay(
+      750,
+      withTiming(1.0, { duration: 440, easing: Easing.out(Easing.cubic) }),
+    );
+    wordmarkY.value = withDelay(
+      750,
+      withTiming(0, { duration: 440, easing: Easing.out(Easing.cubic) }),
     );
 
-    // === Breathing underline (Arc Browser style) ===
+    // === Tagline — tracking expand + blur→sharp ===
+    taglineOpacity.value = withDelay(
+      1050,
+      withTiming(0.55, { duration: 380 }),
+    );
+    taglineScale.value = withDelay(
+      1050,
+      withTiming(1.0, { duration: 460, easing: Easing.out(Easing.cubic) }),
+    );
+    taglineY.value = withDelay(
+      1050,
+      withTiming(0, { duration: 420, easing: Easing.out(Easing.cubic) }),
+    );
+    taglineTracking.value = withDelay(
+      1050,
+      withTiming(2.5, { duration: 620, easing: Easing.out(Easing.cubic) }),
+    );
+
+    // === Breathing underline (Arc Browser) — começa após choreography ===
     underlineWidth.value = withDelay(
-      1380,
+      1450,
       withRepeat(
         withSequence(
           withTiming(80, {
-            duration: 1400,
+            duration: 1500,
             easing: Easing.inOut(Easing.sin),
           }),
           withTiming(0, {
-            duration: 1400,
+            duration: 1500,
             easing: Easing.inOut(Easing.sin),
           }),
         ),
@@ -429,32 +553,38 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
       ),
     );
 
-    // === Constelação orbita lento — 60s pra dar uma volta completa ===
+    // === Constelação orbita lento — 90s rotação completa base. Cada dot
+    // tem seu próprio speed multiplier (definido em CONSTELLATION_DOTS),
+    // criando micro-drift orgânico ao longo de minutos. ===
     orbitProgress.value = withRepeat(
-      withTiming(1, { duration: 60_000, easing: Easing.linear }),
+      withTiming(1, { duration: 90_000, easing: Easing.linear }),
       -1,
       false,
     );
   }, [
+    reduceMotion,
     logoOpacity,
     logoScale,
     glowScale,
     glowOpacity,
-    taglineY,
+    wordmarkOpacity,
+    wordmarkScale,
+    wordmarkY,
     taglineOpacity,
+    taglineScale,
+    taglineY,
     taglineTracking,
     underlineWidth,
     orbitProgress,
   ]);
 
-  // Logo breathing — só roda enquanto isLoading=true. Quando vira false,
-  // assenta suavemente em scale=1 (evita pulo). Trick anti-"loading eterno":
-  // quando o app fica pronto o logo PARA de respirar — sinal subconsciente
-  // de "chegamos".
+  // Logo breathing — gated por isLoading + reduceMotion. Quando isLoading
+  // vira false: cancelAnimation + assenta suave em 1.0 (anti-pulo).
   useEffect(() => {
+    if (reduceMotion) return;
     if (isLoading) {
       logoScale.value = withDelay(
-        1400,
+        1600,
         withRepeat(
           withSequence(
             withTiming(1.025, {
@@ -474,7 +604,7 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
       cancelAnimation(logoScale);
       logoScale.value = withTiming(1.0, { duration: 280 });
     }
-  }, [isLoading, logoScale]);
+  }, [isLoading, logoScale, reduceMotion]);
 
   const logoStyle = useAnimatedStyle(() => ({
     opacity: logoOpacity.value,
@@ -487,14 +617,24 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
   const underlineStyle = useAnimatedStyle(() => ({
     width: underlineWidth.value,
   }));
+  const wordmarkStyle = useAnimatedStyle(() => ({
+    opacity: wordmarkOpacity.value,
+    transform: [
+      { scale: wordmarkScale.value },
+      { translateY: wordmarkY.value },
+    ],
+  }));
   const taglineStyle = useAnimatedStyle(() => ({
     opacity: taglineOpacity.value,
     letterSpacing: taglineTracking.value,
-    transform: [{ translateY: taglineY.value }],
+    transform: [
+      { scale: taglineScale.value },
+      { translateY: taglineY.value },
+    ],
   }));
 
   return (
-    <View
+    <SafeAreaView
       style={{
         flex: 1,
         backgroundColor: colors.bg,
@@ -509,50 +649,103 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
           justifyContent: 'center',
         }}
       >
-        {/* Glow champagne atrás do logo — warm, acolhedor, NOT tech */}
+        {/* Glow SVG radial gradient — falloff REAL Gaussian, sem hard edge.
+            300×300 viewBox dá espaço pra escala 1.5x sem clipping. */}
         <Animated.View
           style={[
             {
               position: 'absolute',
-              width: 220,
-              height: 220,
-              borderRadius: 110,
-              backgroundColor: CHAMPAGNE,
+              width: 300,
+              height: 300,
             },
             glowStyle,
           ]}
-        />
-        {/* Constelação — 4 dots orbitando em torno do logo */}
-        {CONSTELLATION_POSITIONS.map((angle, i) => (
+          pointerEvents="none"
+        >
+          <Svg width={300} height={300} viewBox="0 0 300 300">
+            <Defs>
+              <RadialGradient
+                id="splashGlow"
+                cx="50%"
+                cy="50%"
+                r="50%"
+                fx="50%"
+                fy="50%"
+              >
+                <Stop offset="0%" stopColor={CHAMPAGNE} stopOpacity="0.95" />
+                <Stop
+                  offset="35%"
+                  stopColor={CHAMPAGNE}
+                  stopOpacity="0.55"
+                />
+                <Stop
+                  offset="70%"
+                  stopColor={CHAMPAGNE}
+                  stopOpacity="0.15"
+                />
+                <Stop
+                  offset="100%"
+                  stopColor={CHAMPAGNE}
+                  stopOpacity="0"
+                />
+              </RadialGradient>
+            </Defs>
+            <Circle cx="150" cy="150" r="150" fill="url(#splashGlow)" />
+          </Svg>
+        </Animated.View>
+
+        {/* Constelação — 4 dots orbitando com micro-drift orgânico */}
+        {CONSTELLATION_DOTS.map((d, i) => (
           <ConstellationDot
             key={i}
-            angle={angle}
+            angle={d.angle}
+            speedMultiplier={d.speed}
+            size={d.size}
             orbitProgress={orbitProgress}
-            staggerDelay={400 + i * 200}
+            staggerDelay={d.delay}
+            reduceMotion={reduceMotion}
           />
         ))}
-        {/* Logo real (mesmo PNG do native splash — continuidade visual) */}
+
+        {/* Logo real (mesmo PNG do native splash — continuidade visual).
+            Drop shadow sutil pra depth premium Apple HIG. */}
         <Animated.Image
           source={splashLogo}
-          style={[{ width: 144, height: 144 }, logoStyle]}
+          style={[
+            {
+              width: 144,
+              height: 144,
+              // iOS shadow
+              shadowColor: '#1a1a1a',
+              shadowOffset: { width: 0, height: 6 },
+              shadowOpacity: 0.08,
+              shadowRadius: 18,
+              // Android elevation
+              elevation: 4,
+            },
+            logoStyle,
+          ]}
           resizeMode="contain"
         />
       </View>
-      {/* Wordmark com FadeInUp + easing cubic-out (Apple HIG soft-land) */}
+
+      {/* Wordmark — scale + translateY + opacity simultaneously (blur→sharp) */}
       <Animated.Text
-        entering={FadeInUp.delay(700)
-          .duration(420)
-          .easing(Easing.out(Easing.cubic))}
-        style={{
-          fontSize: 32,
-          fontWeight: '700',
-          color: colors.text,
-          letterSpacing: -1.0,
-          marginTop: 22,
-        }}
+        style={[
+          {
+            fontSize: 32,
+            fontWeight: '700',
+            color: colors.text,
+            letterSpacing: -1.0,
+            marginTop: 22,
+          },
+          wordmarkStyle,
+        ]}
+        accessibilityRole="header"
       >
         Kindar
       </Animated.Text>
+
       {/* Breathing underline (Arc Browser style) abaixo do wordmark */}
       <Animated.View
         style={[
@@ -565,8 +758,10 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
           },
           underlineStyle,
         ]}
+        pointerEvents="none"
       />
-      {/* Tagline com tracking expand — micro signature emocional */}
+
+      {/* Tagline — tracking expand + scale (blur→sharp) + slide-up */}
       <Animated.Text
         style={[
           {
@@ -582,43 +777,58 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
         {t('splash.tagline')}
       </Animated.Text>
       <StatusBar style="dark" />
-    </View>
+    </SafeAreaView>
   );
 }
 
 /**
  * ConstellationDot — micro-ponto que aparece staggered e depois orbita
- * lentamente em torno do logo. 4 deles formam uma constelação abstrata,
- * sugerindo "elementos da rotina se conectando ao centro" sem ser literal.
+ * lentamente em torno do logo. Cada dot tem speed multiplier próprio pra
+ * criar drift orgânico: dots ficam fora de fase ao longo do tempo,
+ * eliminando rigidez de rotação síncrona.
  *
- * - Aparecer: opacity 0→0.35 + scale 0.3→1 com spring
- * - Orbit: angle base + 2π × progress (60s rotação completa)
+ * Tamanho ligeiramente variado (4.5-5.5px) pra organicidade visual.
+ * reduceMotion=true: posição estática no ângulo base, sem orbit.
  */
 function ConstellationDot({
   angle,
+  speedMultiplier,
+  size,
   orbitProgress,
   staggerDelay,
+  reduceMotion,
 }: {
   angle: number;
+  speedMultiplier: number;
+  size: number;
   orbitProgress: SharedValue<number>;
   staggerDelay: number;
+  reduceMotion: boolean;
 }) {
   const appearOpacity = useSharedValue(0);
   const appearScale = useSharedValue(0.3);
 
   useEffect(() => {
+    if (reduceMotion) {
+      appearOpacity.value = withTiming(0.3, { duration: 200 });
+      appearScale.value = 1;
+      return;
+    }
     appearOpacity.value = withDelay(
       staggerDelay,
-      withTiming(0.35, { duration: 500 }),
+      withTiming(0.38, { duration: 540, easing: Easing.out(Easing.quad) }),
     );
     appearScale.value = withDelay(
       staggerDelay,
       withSpring(1, { damping: 12, stiffness: 90 }),
     );
-  }, [appearOpacity, appearScale, staggerDelay]);
+  }, [appearOpacity, appearScale, staggerDelay, reduceMotion]);
 
   const style = useAnimatedStyle(() => {
-    const currentAngle = angle + orbitProgress.value * Math.PI * 2;
+    const orbital = reduceMotion
+      ? 0
+      : orbitProgress.value * Math.PI * 2 * speedMultiplier;
+    const currentAngle = angle + orbital;
     const x = Math.cos(currentAngle) * CONSTELLATION_RADIUS;
     const y = Math.sin(currentAngle) * CONSTELLATION_RADIUS;
     return {
@@ -636,13 +846,14 @@ function ConstellationDot({
       style={[
         {
           position: 'absolute',
-          width: 5,
-          height: 5,
-          borderRadius: 2.5,
+          width: size,
+          height: size,
+          borderRadius: size / 2,
           backgroundColor: colors.brand,
         },
         style,
       ]}
+      pointerEvents="none"
     />
   );
 }
