@@ -140,7 +140,12 @@ export async function updateSession(request: NextRequest) {
   // injected session → falls through to /login.
   const publicRoutes = [
     "/login", "/signup", "/verify-email", "/forgot-password", "/reset-password",
-    "/auth/callback", "/convite", "/session-recovery", "/native-bridge",
+    "/auth/callback",
+    // /auth/confirm — Tier A token_hash flow (signup/magiclink/recovery/email_change).
+    // Sem essa rota pública, link de e-mail (que sempre é clicado SEM sessão)
+    // bounce pra /session-recovery → quebra todo o fluxo de confirmação cross-device.
+    "/auth/confirm",
+    "/convite", "/session-recovery", "/native-bridge",
     "/api/calendar", "/api/setup-db", "/api/auth", "/pricing",
     "/suporte", "/privacidade", "/termos",
     "/api/stripe/webhook", "/api/whatsapp/webhook", "/api/discord", "/api/log-error",
