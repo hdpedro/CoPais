@@ -17,6 +17,7 @@ import Animated, {
   Easing,
   useSharedValue,
   useAnimatedStyle,
+  useDerivedValue,
   withRepeat,
   withSequence,
   withTiming,
@@ -27,7 +28,14 @@ import Animated, {
 } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import Svg, { Defs, RadialGradient, Stop, Circle } from 'react-native-svg';
+import {
+  Canvas,
+  Circle as SkiaCircle,
+  Group,
+  BlurMask,
+  Image as SkiaImage,
+  useImage,
+} from '@shopify/react-native-skia';
 import * as Updates from 'expo-updates';
 import * as Haptics from 'expo-haptics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -596,10 +604,6 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
     }
   }, [isLoading, logoScale, reduceMotion]);
 
-  const logoStyle = useAnimatedStyle(() => ({
-    opacity: logoOpacity.value,
-    transform: [{ scale: logoScale.value }],
-  }));
   const underlineStyle = useAnimatedStyle(() => ({
     width: underlineWidth.value,
   }));
@@ -677,25 +681,13 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
           />
         ))}
 
-        {/* Logo real (mesmo PNG do native splash — continuidade visual).
-            Drop shadow sutil pra depth premium Apple HIG. */}
-        <Animated.Image
-          source={splashLogo}
-          style={[
-            {
-              width: 144,
-              height: 144,
-              // iOS shadow
-              shadowColor: '#1a1a1a',
-              shadowOffset: { width: 0, height: 6 },
-              shadowOpacity: 0.08,
-              shadowRadius: 18,
-              // Android elevation
-              elevation: 4,
-            },
-            logoStyle,
-          ]}
-          resizeMode="contain"
+        {/* Logo via Skia Canvas com BlurMask GPU REAL — blur entrance
+            (radius 18→0 em 700ms cubic-out). Drop-shadow Apple HIG
+            no wrapper Animated.View. */}
+        <AnimatedLogo
+          scale={logoScale}
+          opacity={logoOpacity}
+          reduceMotion={reduceMotion}
         />
       </View>
 
@@ -755,12 +747,18 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
 }
 
 /**
- * GlowLayer — camada de glow SVG RadialGradient. Múltiplas instâncias
- * empilhadas formam o bloom fotográfico real (lens flare premium).
+ * GlowLayer — camada de glow com **Skia BlurMask REAL Gaussian blur** rendered
+ * direto na GPU. Múltiplas instâncias empilhadas formam o bloom fotográfico
+ * de verdade — paridade Headspace/Apple Music/Robinhood.
  *
- * Cada layer tem seu próprio ciclo (scale 0.5→1.x + opacity bell curve)
- * pra dar sensação de "energia respirando" em camadas. reduceMotion
- * mantém invisível (skip toda a expansão).
+ * Skia BlurMask aplica Gaussian blur radius `blurRadius` em qualquer shape.
+ * Diferente de SVG RadialGradient (que aproxima blur via gradient stops),
+ * isso é blur de verdade calculado por shader. Resultado: glow muito mais
+ * soft e orgânico, sem nenhum "anel" visível.
+ *
+ * Cada layer tem ciclo próprio (scale 0.5→1.x + opacity bell curve) pra
+ * dar sensação de "energia respirando" em camadas. reduceMotion=true:
+ * skip toda a expansão.
  */
 function GlowLayer({
   size,
@@ -776,7 +774,7 @@ function GlowLayer({
   reduceMotion: boolean;
 }) {
   const scale = useSharedValue(0.5);
-  const opacity = useSharedValue(0);
+  const opacityShared = useSharedValue(0);
 
   useEffect(() => {
     if (reduceMotion) return;
@@ -787,8 +785,8 @@ function GlowLayer({
         easing: Easing.bezier(0.4, 0, 0.2, 1),
       }),
     );
-    const peakRatio = 0.3; // 30% do tempo pra subir, 70% pra dissipar
-    opacity.value = withDelay(
+    const peakRatio = 0.3;
+    opacityShared.value = withDelay(
       delay,
       withSequence(
         withTiming(peakOpacity, {
@@ -801,48 +799,118 @@ function GlowLayer({
         }),
       ),
     );
-  }, [scale, opacity, duration, delay, peakOpacity, reduceMotion]);
+  }, [scale, opacityShared, duration, delay, peakOpacity, reduceMotion]);
 
-  const style = useAnimatedStyle(() => ({
+  // Derived values pra Skia (precisa de useDerivedValue, não useAnimatedStyle).
+  const skiaCircleOpacity = useDerivedValue(() => opacityShared.value);
+  // Raio efetivo escala com o scale shared value pra crescer junto.
+  const skiaRadius = useDerivedValue(() => (size / 2) * scale.value);
+
+  // BlurMask radius proporcional ao tamanho — quanto maior o layer,
+  // mais blur (ambient outer = blur enorme, core inner = blur menor).
+  const blurAmount = size * 0.18;
+
+  return (
+    <View
+      style={{
+        position: 'absolute',
+        width: size,
+        height: size,
+      }}
+      pointerEvents="none"
+    >
+      <Canvas style={{ flex: 1 }}>
+        <Group>
+          <BlurMask blur={blurAmount} style="normal" />
+          <SkiaCircle
+            cx={size / 2}
+            cy={size / 2}
+            r={skiaRadius}
+            color={CHAMPAGNE}
+            opacity={skiaCircleOpacity}
+          />
+        </Group>
+      </Canvas>
+    </View>
+  );
+}
+
+/**
+ * AnimatedLogo — logo renderizado via Skia Canvas com BlurMask animado.
+ * Entrada: blur 18→0 durante a entrada (blur→sharp focus REAL via shader
+ * Gaussian). Combinado com scale spring overshoot, dá efeito cinematográfico
+ * que apenas Skia/Lottie/native consegue entregar.
+ *
+ * Wrapper Animated.View aplica scale + opacity por cima do Canvas Skia.
+ * Skia handle do blur internamente via useDerivedValue.
+ */
+function AnimatedLogo({
+  scale,
+  opacity,
+  reduceMotion,
+}: {
+  scale: SharedValue<number>;
+  opacity: SharedValue<number>;
+  reduceMotion: boolean;
+}) {
+  const logoImage = useImage(splashLogo);
+  const blurRadius = useSharedValue(reduceMotion ? 0 : 18);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      blurRadius.value = 0;
+      return;
+    }
+    // Blur entrance — 18px blur → 0 em sync com spring scale do logo.
+    // delay 200 = começa junto com o spring (logo aparece "vindo de longe"
+    // e foca quando assenta).
+    blurRadius.value = withDelay(
+      200,
+      withTiming(0, {
+        duration: 700,
+        easing: Easing.out(Easing.cubic),
+      }),
+    );
+  }, [blurRadius, reduceMotion]);
+
+  const wrapperStyle = useAnimatedStyle(() => ({
     opacity: opacity.value,
     transform: [{ scale: scale.value }],
   }));
+
+  const skiaBlur = useDerivedValue(() => blurRadius.value);
 
   return (
     <Animated.View
       style={[
         {
-          position: 'absolute',
-          width: size,
-          height: size,
+          width: 144,
+          height: 144,
+          // iOS shadow no wrapper (sombra na "view", não no Skia raster)
+          shadowColor: '#1a1a1a',
+          shadowOffset: { width: 0, height: 6 },
+          shadowOpacity: 0.08,
+          shadowRadius: 18,
+          elevation: 4,
         },
-        style,
+        wrapperStyle,
       ]}
-      pointerEvents="none"
     >
-      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <Defs>
-          <RadialGradient
-            id={`glow${size}`}
-            cx="50%"
-            cy="50%"
-            r="50%"
-            fx="50%"
-            fy="50%"
-          >
-            <Stop offset="0%" stopColor={CHAMPAGNE} stopOpacity="0.95" />
-            <Stop offset="35%" stopColor={CHAMPAGNE} stopOpacity="0.55" />
-            <Stop offset="70%" stopColor={CHAMPAGNE} stopOpacity="0.15" />
-            <Stop offset="100%" stopColor={CHAMPAGNE} stopOpacity="0" />
-          </RadialGradient>
-        </Defs>
-        <Circle
-          cx={size / 2}
-          cy={size / 2}
-          r={size / 2}
-          fill={`url(#glow${size})`}
-        />
-      </Svg>
+      <Canvas style={{ width: 144, height: 144 }}>
+        {logoImage ? (
+          <Group>
+            <BlurMask blur={skiaBlur} style="normal" />
+            <SkiaImage
+              image={logoImage}
+              x={0}
+              y={0}
+              width={144}
+              height={144}
+              fit="contain"
+            />
+          </Group>
+        ) : null}
+      </Canvas>
     </Animated.View>
   );
 }
