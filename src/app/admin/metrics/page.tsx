@@ -10,7 +10,22 @@ const fmtPct = (n: number) => `${Math.round(n * 1000) / 10}%`;
 
 export default async function AdminMetricsPage() {
   const admin = createAdminClient();
-  const m = await getAdminMetrics(admin);
+  const [m, funnel] = await Promise.all([
+    getAdminMetrics(admin),
+    fetchFunnelHealth(admin),
+  ]);
+  const confirmRate24h = funnel.started_24h > 0
+    ? funnel.confirmed_24h / funnel.started_24h
+    : 1;
+  const stuckRate24h = funnel.started_24h > 0
+    ? funnel.stuck_24h / funnel.started_24h
+    : 0;
+  const funnelHealth: "ok" | "warn" | "bad" =
+    funnel.stuck_current >= 3 || stuckRate24h > 0.10
+      ? "bad"
+      : funnel.stuck_current >= 1 || stuckRate24h > 0.05
+        ? "warn"
+        : "ok";
 
   return (
     <div className="space-y-8">
@@ -169,6 +184,63 @@ export default async function AdminMetricsPage() {
         </section>
       </div>
 
+      {/* Signup funnel health — Tier A observability */}
+      <section
+        className={`rounded-2xl border p-6 ${
+          funnelHealth === "bad"
+            ? "bg-rose-50 border-rose-200"
+            : funnelHealth === "warn"
+              ? "bg-amber-50 border-amber-200"
+              : "bg-white border-stone-200"
+        }`}
+      >
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-stone-900">Saúde do funil de signup</h2>
+          <span
+            className={`text-xs font-bold uppercase tracking-wider px-2 py-1 rounded ${
+              funnelHealth === "bad"
+                ? "bg-rose-600 text-white"
+                : funnelHealth === "warn"
+                  ? "bg-amber-500 text-white"
+                  : "bg-emerald-600 text-white"
+            }`}
+          >
+            {funnelHealth === "bad" ? "Crítico" : funnelHealth === "warn" ? "Atenção" : "Saudável"}
+          </span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div>
+            <p className="text-2xl font-bold text-stone-900">{funnel.started_24h}</p>
+            <p className="text-xs text-stone-500">Iniciados 24h</p>
+            <p className="text-[10px] text-stone-400 mt-0.5">{funnel.started_7d} em 7d</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-emerald-700">{funnel.confirmed_24h}</p>
+            <p className="text-xs text-stone-500">Confirmados 24h</p>
+            <p className="text-[10px] text-stone-400 mt-0.5">
+              {fmtPct(confirmRate24h)} taxa
+            </p>
+          </div>
+          <div>
+            <p className={`text-2xl font-bold ${funnel.stuck_current > 0 ? "text-rose-700" : "text-stone-900"}`}>
+              {funnel.stuck_current}
+            </p>
+            <p className="text-xs text-stone-500">Travados agora</p>
+            <p className="text-[10px] text-stone-400 mt-0.5">Sem confirmar &gt;1h</p>
+          </div>
+          <div>
+            <p className="text-2xl font-bold text-stone-900">{funnel.stuck_24h}</p>
+            <p className="text-xs text-stone-500">Stuck rate 24h</p>
+            <p className="text-[10px] text-stone-400 mt-0.5">{fmtPct(stuckRate24h)}</p>
+          </div>
+        </div>
+        {funnel.stuck_current > 0 && (
+          <p className="text-xs text-stone-600 mt-4">
+            Cron <code className="bg-stone-100 px-1 rounded">signup-rescue</code> roda hourly em :15 — confirma + email humano automaticamente.
+          </p>
+        )}
+      </section>
+
       {/* Trial detail */}
       <section className="bg-white rounded-2xl border border-stone-200 p-6">
         <h2 className="text-lg font-bold text-stone-900 mb-4">Trial de 7 dias</h2>
@@ -189,6 +261,38 @@ export default async function AdminMetricsPage() {
       </section>
     </div>
   );
+}
+
+interface FunnelHealth {
+  started_24h: number;
+  started_7d: number;
+  confirmed_24h: number;
+  confirmed_7d: number;
+  stuck_current: number;
+  stuck_24h: number;
+}
+
+async function fetchFunnelHealth(admin: ReturnType<typeof createAdminClient>): Promise<FunnelHealth> {
+  const fallback: FunnelHealth = {
+    started_24h: 0, started_7d: 0, confirmed_24h: 0, confirmed_7d: 0, stuck_current: 0, stuck_24h: 0,
+  };
+  try {
+    const { data, error } = await admin
+      .from("v_signup_funnel_health")
+      .select("*")
+      .maybeSingle();
+    if (error || !data) return fallback;
+    return {
+      started_24h: Number(data.started_24h ?? 0),
+      started_7d: Number(data.started_7d ?? 0),
+      confirmed_24h: Number(data.confirmed_24h ?? 0),
+      confirmed_7d: Number(data.confirmed_7d ?? 0),
+      stuck_current: Number(data.stuck_current ?? 0),
+      stuck_24h: Number(data.stuck_24h ?? 0),
+    };
+  } catch {
+    return fallback;
+  }
 }
 
 function KpiCard({

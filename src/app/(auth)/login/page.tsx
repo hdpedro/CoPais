@@ -1,10 +1,11 @@
 "use client";
 
-import { useState, useEffect, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useTransition } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { signIn } from "@/actions/auth";
+import { signIn, sendMagicLink } from "@/actions/auth";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
+import TurnstileWidget from "@/components/auth/TurnstileWidget";
 import KindarLogo from "@/components/KindarLogo";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/provider";
@@ -15,9 +16,6 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="bg-white rounded-2xl shadow-lg p-8 text-center min-h-[500px] flex items-center justify-center">
-          {/* Suspense fallback runs before provider hydrates with current
-              locale dict — use a neutral spinner. Translated copy comes once
-              the inner component renders. */}
           <p className="text-muted" aria-busy="true">
             ...
           </p>
@@ -46,6 +44,12 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
 
+  // Magic link state
+  const emailInputRef = useRef<HTMLInputElement | null>(null);
+  const [magicLinkSent, setMagicLinkSent] = useState<string | null>(null); // email enviado
+  const [magicLinkError, setMagicLinkError] = useState<string | null>(null);
+  const [isSendingMagic, startMagic] = useTransition();
+
   // Check if user already has a session (e.g. navigated here directly while logged in)
   useEffect(() => {
     const supabase = createClient();
@@ -71,6 +75,28 @@ function LoginForm() {
     if (!result?.error && conviteToken) {
       window.location.href = `/convite/${conviteToken}`;
     }
+  }
+
+  function handleMagicLink() {
+    const email = emailInputRef.current?.value?.trim() ?? "";
+    if (!email) {
+      setMagicLinkError(t("validation.field.emailRequired"));
+      return;
+    }
+    setMagicLinkError(null);
+    const fd = new FormData();
+    fd.set("email", email);
+    // Turnstile token presente no form principal já passou pelo widget
+    const tsInput = document.querySelector<HTMLInputElement>('input[name="cf-turnstile-response"]');
+    if (tsInput?.value) fd.set("cf-turnstile-response", tsInput.value);
+    startMagic(async () => {
+      const result = await sendMagicLink(fd);
+      if (result?.error) {
+        setMagicLinkError(result.error);
+      } else {
+        setMagicLinkSent(email);
+      }
+    });
   }
 
   if (checking) {
@@ -130,6 +156,7 @@ function LoginForm() {
             name="email"
             type="email"
             required
+            ref={emailInputRef}
             placeholder={t("auth.emailPlaceholder")}
             aria-label={t("auth.email")}
             className="w-full px-4 py-3 rounded-lg border border-[#E8E0D4] focus:outline-none focus:ring-2 focus:ring-[#C07055]/40 focus:border-[#C07055] text-[#0E0C0A] bg-white"
@@ -167,6 +194,9 @@ function LoginForm() {
           </Link>
         </div>
 
+        {/* Turnstile invisível — gera token pro signIn E pro magic link (mesma página) */}
+        <TurnstileWidget action="login" />
+
         <button
           type="submit"
           disabled={loading}
@@ -175,6 +205,34 @@ function LoginForm() {
           {loading ? t("auth.loggingIn") : t("auth.loginButton")}
         </button>
       </form>
+
+      {/* Magic Link — segunda opção, fora do form principal */}
+      <div className="mt-4">
+        {magicLinkSent ? (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-sm text-green-800 text-center" role="status">
+            {t("auth.login.magicLink.sent", { email: magicLinkSent })}
+          </div>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={handleMagicLink}
+              disabled={isSendingMagic}
+              className="w-full py-3 px-4 bg-white border border-[#E8E0D4] text-[#0E0C0A] font-medium rounded-lg hover:bg-[#F7F4EE] transition-colors disabled:opacity-60 flex items-center justify-center gap-2"
+            >
+              <svg className="w-4 h-4 text-[#C07055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} aria-hidden="true">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 8l9 6 9-6M3 8v10a2 2 0 002 2h14a2 2 0 002-2V8M3 8l9-6 9 6" />
+              </svg>
+              {isSendingMagic ? t("auth.login.magicLink.sending") : t("auth.login.magicLink.toggle")}
+            </button>
+            {magicLinkError && (
+              <p className="text-xs text-[#C07055] mt-2 text-center" role="alert">
+                {magicLinkError}
+              </p>
+            )}
+          </>
+        )}
+      </div>
 
       <p className="text-center mt-6 text-sm text-[#9A8878]">
         {t("auth.noAccount")}{" "}

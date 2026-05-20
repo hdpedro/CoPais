@@ -30,9 +30,23 @@
     "saving": "Guardando…"
   },
   "auth": {
-    "login": "Iniciar sesión",
+    "login": {
+      "magicLink": {
+        "toggle": "Entrar sin contraseña",
+        "title": "Entrar con un enlace por correo",
+        "description": "Sin contraseña, sin complicaciones. Te enviamos un enlace que usas para entrar.",
+        "send": "Enviar enlace",
+        "sending": "Enviando...",
+        "sent": "Listo. Enviamos un enlace a {{ email }} — ábrelo para entrar.",
+        "back": "Volver a contraseña",
+        "error": "No pudimos enviar el enlace. Intenta de nuevo."
+      }
+    },
     "logout": "Cerrar sesión",
-    "signup": "Registrarse",
+    "signup": {
+      "turnstileError": "No pudimos verificar que eres humano. Recarga la página e intenta de nuevo.",
+      "tosVersionedNote": "Versión {{ version }} de los Términos y Política de Privacidad. Puedes verlos después en tu perfil."
+    },
     "email": "Correo electrónico",
     "password": "Contraseña",
     "forgotPassword": "¿Olvidaste tu contraseña?",
@@ -77,7 +91,25 @@
       "spamHintTitle": "¿No lo encontraste?",
       "spamHintBody": "Revisa la carpeta de spam o correo no deseado. El correo puede tardar hasta 1 minuto en llegar.",
       "alreadyConfirmed": "Ya confirmé, entrar",
-      "resendHint": "Puedes reenviar el correo desde la pantalla de inicio de sesión si lo necesitas."
+      "resendHint": "Puedes reenviar el correo desde la pantalla de inicio de sesión si lo necesitas.",
+      "titlePending": "Confirma tu correo",
+      "descriptionPending": "Enviamos un enlace de confirmación a {{ email }}. Haz clic para activar tu cuenta.",
+      "openMail": "Abrir bandeja de entrada",
+      "openGmail": "Abrir Gmail",
+      "openOutlook": "Abrir Outlook",
+      "openICloud": "Abrir iCloud Mail",
+      "openYahoo": "Abrir Yahoo",
+      "resending": "Reenviando...",
+      "resend": "Reenviar correo",
+      "resendCooldown": "Espera {{ seconds }}s para reenviar",
+      "resendSent": "¡Correo reenviado!",
+      "changeEmail": "Cambiar correo",
+      "support": "Hablar con soporte",
+      "realtimeWaiting": "Verificando automáticamente",
+      "realtimeConfirmed": "¡Confirmado! Redirigiendo...",
+      "alternativeTitle": "¿Prefieres otra forma?",
+      "alternativeMagicLink": "Recibir enlace sin contraseña",
+      "alternativeSocial": "Continuar con Google"
     },
     "forgot": {
       "title": "Recuperar Contraseña",
@@ -96,6 +128,19 @@
       "submit": "Guardar Nueva Contraseña",
       "submitting": "Guardando...",
       "checking": "Verificando autenticación..."
+    },
+    "confirm": {
+      "errorTitle": "No pudimos confirmar",
+      "errorReasonExpired": "El enlace expiró. Pide un nuevo correo de confirmación.",
+      "errorReasonAlreadyUsed": "Este enlace ya fue usado. Intenta entrar directamente.",
+      "errorReasonInvalid": "Este enlace no es válido. Pide un nuevo correo.",
+      "errorReasonNetwork": "Fallo temporal. Intenta de nuevo en unos segundos.",
+      "errorReasonUnknown": "Algo salió mal. Ya lo estamos investigando.",
+      "actionResend": "Reenviar correo",
+      "actionLogin": "Intentar entrar",
+      "actionSupport": "Hablar con soporte",
+      "successTitle": "Correo confirmado",
+      "successDescription": "Redirigiendo a tu panel..."
     }
   },
   "nav": {
@@ -2495,6 +2540,32 @@
       "step3Body": "Configura la custodia — quién cuida en qué días.",
       "ctaButton": "Abrir Kindar",
       "footer": "Recibiste este correo porque creaste una cuenta en Kindar. Si no fuiste tú, ignora este mensaje."
+    },
+    "signupRescue": {
+      "subject": "Tu acceso a Kindar está liberado",
+      "fallbackName": "hola",
+      "greeting": "Hola, {{ name }}",
+      "intro": "Detectamos un problema técnico en nuestro sistema de confirmación que bloqueó tu acceso. No fuiste tú — fuimos nosotros, y lamentamos la demora.",
+      "fixedLabel": "Ya está arreglado.",
+      "fixedBody": "Tu cuenta está activa. Entra directamente — sin necesidad de reconfirmar nada.",
+      "ctaButton": "Entrar ahora",
+      "replyHint": "Si algo no funciona, responde este correo. Leemos personalmente.",
+      "signature": "Equipo Kindar"
+    },
+    "loginAlert": {
+      "subject": "Nuevo dispositivo entrando en tu Kindar",
+      "fallbackName": "hola",
+      "greeting": "Hola, {{ name }}",
+      "intro": "Detectamos un nuevo acceso a tu cuenta. Detalles a continuación:",
+      "deviceLabel": "Dispositivo",
+      "locationLabel": "Ubicación aproximada",
+      "whenLabel": "Cuándo",
+      "youLabel": "¿Fuiste tú?",
+      "youBody": "Puedes ignorar este correo.",
+      "notYouLabel": "¿No fuiste tú?",
+      "notYouBody": "Cambia tu contraseña inmediatamente con el botón de abajo.",
+      "cta": "Cambiar contraseña ahora",
+      "footer": "Recibes este correo por seguridad cuando un nuevo dispositivo entra. No es una alerta de intrusión."
     }
   },
   "errors": {
@@ -2586,5 +2657,19 @@
     "errorDateInvalid": "Fecha inválida. Usa AAAA-MM-DD.",
     "toastSaved": "Talla registrada.",
     "toastUpdated": "Talla actualizada."
+  },
+  "admin": {
+    "funnel": {
+      "title": "Salud del embudo de registro",
+      "started": "Iniciados",
+      "confirmed": "Confirmados",
+      "stuck": "Atascados ahora",
+      "stuckHint": "Sin confirmar por más de 1h",
+      "window24h": "Últimas 24h",
+      "window7d": "Últimos 7 días",
+      "healthOk": "Saludable",
+      "healthWarn": "Atención",
+      "healthBad": "Crítico"
+    }
   }
 }
