@@ -48,8 +48,9 @@ const APP_JSON = resolve(__dirname, "..", "app.json");
 //   - 1.0.6: builds intermediários (alguns testers).
 //   - 1.0.7: iOS App Store atual (live) — MAIS IMPORTANTE.
 //   - 1.0.8: iOS em review + Android internal testers anteriores.
-//   - 1.0.9: atual (app.json) — não publicado aqui (eas update normal).
-const TARGET_VERSIONS = ["1.0.5", "1.0.6", "1.0.7", "1.0.8"];
+//   - 1.0.9: aprovado App Store (release atual) + Android internal completed.
+//   - 1.0.10: aprovado Apple aguardando + Android internal/alpha (gráfico OMS).
+const TARGET_VERSIONS = ["1.0.5", "1.0.6", "1.0.7", "1.0.8", "1.0.9", "1.0.10"];
 
 const args = process.argv.slice(2);
 const messageIdx = args.indexOf("--message");
