@@ -8,7 +8,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useState, useCallback, useRef, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, ScrollView } from 'react-native';
+import { View, Text, FlatList, TouchableOpacity, RefreshControl, ScrollView, Alert } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -360,7 +360,11 @@ export default function CrescimentoScreen() {
               />
             ) : null}
 
-            {/* Stat hero card — peso/altura/PC com percentil WHO colorido */}
+            {/* Stat hero card — peso/altura/PC com percentil WHO colorido.
+                Cards tappable: ao tocar, abre o form com a última medida
+                pré-carregada pra editar (ou complementar PC vazio).
+                Premium UX: usuário toca o card "Cabeça —" e o form já abre
+                com Peso+Altura preservados, basta preencher PC + Salvar. */}
             {!showForm && latestForChild ? (
               <View
                 style={{
@@ -374,18 +378,21 @@ export default function CrescimentoScreen() {
                   value={latestForChild.weight_kg ? `${latestForChild.weight_kg}` : '—'}
                   unit="kg"
                   percentile={weightP}
+                  onPress={() => startEdit(latestForChild)}
                 />
                 <StatCard
                   label="Altura"
                   value={latestForChild.height_cm ? `${latestForChild.height_cm}` : '—'}
                   unit="cm"
                   percentile={heightP}
+                  onPress={() => startEdit(latestForChild)}
                 />
                 <StatCard
                   label="Cabeça"
                   value={latestForChild.head_cm ? `${latestForChild.head_cm}` : '—'}
                   unit="cm"
                   percentile={null}
+                  onPress={() => startEdit(latestForChild)}
                 />
               </View>
             ) : null}
@@ -494,7 +501,41 @@ export default function CrescimentoScreen() {
                     {item.head_cm && (item.weight_kg || item.height_cm) ? ` · PC ${item.head_cm} cm` : ''}
                   </Text>
                 </View>
-                <Ionicons name="chevron-forward" size={14} color={colors.textMuted} />
+                {/* Ações explícitas — paridade PWA + descoberta sem depender
+                    de swipe (gesture invisível). Bug Henrique 2026-05-20:
+                    "Não tem opção de editar e excluir". stopPropagation no
+                    onPress dos ícones pra não disparar o card todo. */}
+                <TouchableOpacity
+                  onPress={(e) => { e.stopPropagation(); startEdit(item); }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Editar medida"
+                  style={{ padding: 6 }}
+                >
+                  <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={(e) => {
+                    e.stopPropagation();
+                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                    // Alert.alert confirma antes de excluir — mesma UX do
+                    // SwipeToDelete wrapper. performDelete chama safeWrite.
+                    Alert.alert(
+                      'Excluir medida?',
+                      buildDeleteConfirmMessage(item),
+                      [
+                        { text: 'Cancelar', style: 'cancel' },
+                        { text: 'Excluir', style: 'destructive', onPress: () => performDelete(item) },
+                      ],
+                    );
+                  }}
+                  hitSlop={8}
+                  accessibilityRole="button"
+                  accessibilityLabel="Excluir medida"
+                  style={{ padding: 6 }}
+                >
+                  <Ionicons name="trash-outline" size={20} color={colors.error} />
+                </TouchableOpacity>
               </TouchableOpacity>
             </SwipeToDelete>
           </View>
@@ -515,23 +556,19 @@ interface StatCardProps {
   value: string;
   unit: string;
   percentile: number | null;
+  /** Tappable: ao tocar, abre o form (criar/editar). Bug Henrique 2026-05-20:
+   *  "Cabeça não tem onde preencher" — StatCard era só display. Agora tap
+   *  abre o form com a última medida pré-carregada pra editar/complementar. */
+  onPress?: () => void;
 }
 
-function StatCard({ label, value, unit, percentile }: StatCardProps) {
+function StatCard({ label, value, unit, percentile, onPress }: StatCardProps) {
   const hasPercentile = percentile !== null;
   const pColor = percentileColor(percentile);
   const pBg = percentileBg(percentile);
-  return (
-    <View
-      style={{
-        flex: 1,
-        backgroundColor: colors.bgElevated,
-        borderRadius: radius.lg,
-        padding: spacing.md,
-        ...shadows.sm,
-        alignItems: 'center',
-      }}
-    >
+  const isEmpty = value === '—';
+  const body = (
+    <>
       <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: 4 }}>
         {label}
       </Text>
@@ -555,8 +592,35 @@ function StatCard({ label, value, unit, percentile }: StatCardProps) {
       ) : (
         <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>{unit}</Text>
       )}
-    </View>
+      {isEmpty && onPress ? (
+        <Text style={{ fontSize: 9, color: colors.brand, marginTop: 2, fontWeight: font.weights.semibold }}>
+          + tocar
+        </Text>
+      ) : null}
+    </>
   );
+  const style = {
+    flex: 1,
+    backgroundColor: colors.bgElevated,
+    borderRadius: radius.lg,
+    padding: spacing.md,
+    ...shadows.sm,
+    alignItems: 'center' as const,
+  };
+  if (onPress) {
+    return (
+      <TouchableOpacity
+        onPress={onPress}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={isEmpty ? `Adicionar ${label}` : `Editar ${label}`}
+        style={style}
+      >
+        {body}
+      </TouchableOpacity>
+    );
+  }
+  return <View style={style}>{body}</View>;
 }
 
 interface ScrollViewRowProps {
