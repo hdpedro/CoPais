@@ -32,6 +32,21 @@ const CAT_META: Record<string, { icon: string; color: string; label: string }> =
 };
 
 /**
+ * Paleta de status — paridade com PWA `DecisoesClient.tsx:statusConfig`.
+ * Aberta=âmbar, Aprovada=verde, Rejeitada=vermelho, Expirada=cinza.
+ * Bug 2026-05-20 (Angelino "não foi corrigido"): a decisão "Vacina Influenza"
+ * estava com status='aprovada' no DB mas o Native escondia botões de voto
+ * sem mostrar NENHUMA pista visual do resultado — usuário ficava sem saber
+ * que a decisão já tinha sido resolvida. Chip + linha de resolução resolvem.
+ */
+const STATUS_META: Record<string, { color: string; bg: string; border: string }> = {
+  aberta: { color: '#B45309', bg: '#FEF3C7', border: '#FDE68A' },
+  aprovada: { color: '#047857', bg: '#D1FAE5', border: '#A7F3D0' },
+  rejeitada: { color: '#B91C1C', bg: '#FEE2E2', border: '#FECACA' },
+  expirada: { color: '#374151', bg: '#F3F4F6', border: '#E5E7EB' },
+};
+
+/**
  * 2026-05-18: alinhado ao DB. CHECK constraint do `decision_arguments.argument_type`
  * só permite 'pro' e 'contra'. Native antes usava {favor,contra,neutro},
  * o que causava o erro "Could not find the 'stance' column" reportado em
@@ -150,6 +165,15 @@ export default function DecisionDetailScreen() {
   const isOpen = decision.status === 'aberta';
   const isMine = decision.created_by === userId;
   const totalVotes = (decision.yesCount || 0) + (decision.noCount || 0) + (decision.abstainCount || 0);
+  const statusPalette = STATUS_META[decision.status] || STATUS_META.aberta;
+  // Label internacionalizado via keys existentes (decisions.statusOpen/Approved/Rejected/Expired).
+  // Map manual em vez de t(`decisions.status${...}`) pra evitar interpolação dinâmica
+  // de chave (linter no-pt-literal exige chaves estáveis).
+  const statusLabel =
+    decision.status === 'aprovada' ? t('decisions.statusApproved')
+    : decision.status === 'rejeitada' ? t('decisions.statusRejected')
+    : decision.status === 'expirada' ? t('decisions.statusExpired')
+    : t('decisions.statusOpen');
 
   return (
     <KeyboardAvoidingView
@@ -179,6 +203,30 @@ export default function DecisionDetailScreen() {
             <Text style={{ fontSize: font.sizes.xs, color: cat.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>
               {cat.label}
             </Text>
+            {/* Chip de status — paridade PWA. Sempre presente pra transparência
+                de estado (também em aberta, complementando o título). */}
+            <View
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: radius.full,
+                backgroundColor: statusPalette.bg,
+                borderWidth: 1,
+                borderColor: statusPalette.border,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: font.sizes.xs,
+                  color: statusPalette.color,
+                  fontWeight: font.weights.semibold,
+                  textTransform: 'uppercase',
+                  letterSpacing: 0.3,
+                }}
+              >
+                {statusLabel}
+              </Text>
+            </View>
           </View>
           <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text }}>
             {decision.title}
@@ -205,6 +253,52 @@ export default function DecisionDetailScreen() {
               </Text>
             </View>
           </View>
+
+          {/* Banner de resolução — quando decisão NÃO é mais aberta, comunica
+              claramente o resultado final. Bug Angelino 2026-05-20: decisão
+              estava 'aprovada' no DB mas Native só escondia botões, sem dar
+              sinal visual do estado. Banner usa cor do status (verde/vermelho
+              /cinza) + ícone + label localizada. */}
+          {!isOpen ? (
+            <View
+              style={{
+                marginTop: spacing.md,
+                paddingVertical: spacing.sm,
+                paddingHorizontal: spacing.md,
+                borderRadius: radius.md,
+                backgroundColor: statusPalette.bg,
+                borderWidth: 1,
+                borderColor: statusPalette.border,
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: spacing.sm,
+              }}
+            >
+              <Ionicons
+                name={
+                  decision.status === 'aprovada' ? 'checkmark-circle'
+                  : decision.status === 'rejeitada' ? 'close-circle'
+                  : 'time-outline'
+                }
+                size={18}
+                color={statusPalette.color}
+              />
+              <Text
+                style={{
+                  flex: 1,
+                  fontSize: font.sizes.sm,
+                  color: statusPalette.color,
+                  fontWeight: font.weights.semibold,
+                }}
+              >
+                {statusLabel}
+              </Text>
+              <Text style={{ fontSize: font.sizes.xs, color: statusPalette.color, fontWeight: font.weights.medium }}>
+                {decision.yesCount || 0} × {decision.noCount || 0}
+                {decision.abstainCount ? ` (${decision.abstainCount} absten.)` : ''}
+              </Text>
+            </View>
+          ) : null}
 
           {/* "Seu voto" badge — sempre visível quando o user votou.
               Feature pedida por Angelino 2026-05-18 ("falou o meu para ficar
