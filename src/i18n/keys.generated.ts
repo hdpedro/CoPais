@@ -44,6 +44,16 @@ export type TranslationKey =
   | "activityReport.submitReport"
   | "activityReport.submitting"
   | "activityReport.title"
+  | "admin.funnel.confirmed"
+  | "admin.funnel.healthBad"
+  | "admin.funnel.healthOk"
+  | "admin.funnel.healthWarn"
+  | "admin.funnel.started"
+  | "admin.funnel.stuck"
+  | "admin.funnel.stuckHint"
+  | "admin.funnel.title"
+  | "admin.funnel.window24h"
+  | "admin.funnel.window7d"
   | "agreements.accept"
   | "agreements.accepted"
   | "agreements.addAgreement"
@@ -87,6 +97,17 @@ export type TranslationKey =
   | "assistant.title"
   | "assistant.tryAgain"
   | "auth.authError"
+  | "auth.confirm.actionLogin"
+  | "auth.confirm.actionResend"
+  | "auth.confirm.actionSupport"
+  | "auth.confirm.errorReasonAlreadyUsed"
+  | "auth.confirm.errorReasonExpired"
+  | "auth.confirm.errorReasonInvalid"
+  | "auth.confirm.errorReasonNetwork"
+  | "auth.confirm.errorReasonUnknown"
+  | "auth.confirm.errorTitle"
+  | "auth.confirm.successDescription"
+  | "auth.confirm.successTitle"
   | "auth.confirmPassword"
   | "auth.confirmPasswordPlaceholder"
   | "auth.createAccount"
@@ -112,7 +133,14 @@ export type TranslationKey =
   | "auth.lgpdConsentSuffix"
   | "auth.loading"
   | "auth.loggingIn"
-  | "auth.login"
+  | "auth.login.magicLink.back"
+  | "auth.login.magicLink.description"
+  | "auth.login.magicLink.error"
+  | "auth.login.magicLink.send"
+  | "auth.login.magicLink.sending"
+  | "auth.login.magicLink.sent"
+  | "auth.login.magicLink.title"
+  | "auth.login.magicLink.toggle"
   | "auth.loginButton"
   | "auth.loginTitle"
   | "auth.logout"
@@ -136,17 +164,36 @@ export type TranslationKey =
   | "auth.reset.submitting"
   | "auth.reset.title"
   | "auth.resetPassword"
-  | "auth.signup"
+  | "auth.signup.tosVersionedNote"
+  | "auth.signup.turnstileError"
   | "auth.signupButton"
   | "auth.signupTitle"
   | "auth.tagline"
   | "auth.termsOfUse"
   | "auth.verifyEmail.alreadyConfirmed"
+  | "auth.verifyEmail.alternativeMagicLink"
+  | "auth.verifyEmail.alternativeSocial"
+  | "auth.verifyEmail.alternativeTitle"
+  | "auth.verifyEmail.changeEmail"
   | "auth.verifyEmail.description"
+  | "auth.verifyEmail.descriptionPending"
+  | "auth.verifyEmail.openGmail"
+  | "auth.verifyEmail.openICloud"
+  | "auth.verifyEmail.openMail"
+  | "auth.verifyEmail.openOutlook"
+  | "auth.verifyEmail.openYahoo"
+  | "auth.verifyEmail.realtimeConfirmed"
+  | "auth.verifyEmail.realtimeWaiting"
+  | "auth.verifyEmail.resend"
+  | "auth.verifyEmail.resendCooldown"
   | "auth.verifyEmail.resendHint"
+  | "auth.verifyEmail.resendSent"
+  | "auth.verifyEmail.resending"
   | "auth.verifyEmail.spamHintBody"
   | "auth.verifyEmail.spamHintTitle"
+  | "auth.verifyEmail.support"
   | "auth.verifyEmail.title"
+  | "auth.verifyEmail.titlePending"
   | "balanceOps.accept"
   | "balanceOps.approved"
   | "balanceOps.balanceAfter"
@@ -792,6 +839,28 @@ export type TranslationKey =
   | "documentsPage.subtitle"
   | "documentsPage.upload"
   | "documentsPage.uploadDocument"
+  | "emails.loginAlert.cta"
+  | "emails.loginAlert.deviceLabel"
+  | "emails.loginAlert.fallbackName"
+  | "emails.loginAlert.footer"
+  | "emails.loginAlert.greeting"
+  | "emails.loginAlert.intro"
+  | "emails.loginAlert.locationLabel"
+  | "emails.loginAlert.notYouBody"
+  | "emails.loginAlert.notYouLabel"
+  | "emails.loginAlert.subject"
+  | "emails.loginAlert.whenLabel"
+  | "emails.loginAlert.youBody"
+  | "emails.loginAlert.youLabel"
+  | "emails.signupRescue.ctaButton"
+  | "emails.signupRescue.fallbackName"
+  | "emails.signupRescue.fixedBody"
+  | "emails.signupRescue.fixedLabel"
+  | "emails.signupRescue.greeting"
+  | "emails.signupRescue.intro"
+  | "emails.signupRescue.replyHint"
+  | "emails.signupRescue.signature"
+  | "emails.signupRescue.subject"
   | "emails.welcome.ctaButton"
   | "emails.welcome.footer"
   | "emails.welcome.greeting"
@@ -2437,6 +2506,16 @@ export const TRANSLATION_KEYS = [
   "activityReport.submitReport",
   "activityReport.submitting",
   "activityReport.title",
+  "admin.funnel.confirmed",
+  "admin.funnel.healthBad",
+  "admin.funnel.healthOk",
+  "admin.funnel.healthWarn",
+  "admin.funnel.started",
+  "admin.funnel.stuck",
+  "admin.funnel.stuckHint",
+  "admin.funnel.title",
+  "admin.funnel.window24h",
+  "admin.funnel.window7d",
   "agreements.accept",
   "agreements.accepted",
   "agreements.addAgreement",
@@ -2480,6 +2559,17 @@ export const TRANSLATION_KEYS = [
   "assistant.title",
   "assistant.tryAgain",
   "auth.authError",
+  "auth.confirm.actionLogin",
+  "auth.confirm.actionResend",
+  "auth.confirm.actionSupport",
+  "auth.confirm.errorReasonAlreadyUsed",
+  "auth.confirm.errorReasonExpired",
+  "auth.confirm.errorReasonInvalid",
+  "auth.confirm.errorReasonNetwork",
+  "auth.confirm.errorReasonUnknown",
+  "auth.confirm.errorTitle",
+  "auth.confirm.successDescription",
+  "auth.confirm.successTitle",
   "auth.confirmPassword",
   "auth.confirmPasswordPlaceholder",
   "auth.createAccount",
@@ -2505,7 +2595,14 @@ export const TRANSLATION_KEYS = [
   "auth.lgpdConsentSuffix",
   "auth.loading",
   "auth.loggingIn",
-  "auth.login",
+  "auth.login.magicLink.back",
+  "auth.login.magicLink.description",
+  "auth.login.magicLink.error",
+  "auth.login.magicLink.send",
+  "auth.login.magicLink.sending",
+  "auth.login.magicLink.sent",
+  "auth.login.magicLink.title",
+  "auth.login.magicLink.toggle",
   "auth.loginButton",
   "auth.loginTitle",
   "auth.logout",
@@ -2529,17 +2626,36 @@ export const TRANSLATION_KEYS = [
   "auth.reset.submitting",
   "auth.reset.title",
   "auth.resetPassword",
-  "auth.signup",
+  "auth.signup.tosVersionedNote",
+  "auth.signup.turnstileError",
   "auth.signupButton",
   "auth.signupTitle",
   "auth.tagline",
   "auth.termsOfUse",
   "auth.verifyEmail.alreadyConfirmed",
+  "auth.verifyEmail.alternativeMagicLink",
+  "auth.verifyEmail.alternativeSocial",
+  "auth.verifyEmail.alternativeTitle",
+  "auth.verifyEmail.changeEmail",
   "auth.verifyEmail.description",
+  "auth.verifyEmail.descriptionPending",
+  "auth.verifyEmail.openGmail",
+  "auth.verifyEmail.openICloud",
+  "auth.verifyEmail.openMail",
+  "auth.verifyEmail.openOutlook",
+  "auth.verifyEmail.openYahoo",
+  "auth.verifyEmail.realtimeConfirmed",
+  "auth.verifyEmail.realtimeWaiting",
+  "auth.verifyEmail.resend",
+  "auth.verifyEmail.resendCooldown",
   "auth.verifyEmail.resendHint",
+  "auth.verifyEmail.resendSent",
+  "auth.verifyEmail.resending",
   "auth.verifyEmail.spamHintBody",
   "auth.verifyEmail.spamHintTitle",
+  "auth.verifyEmail.support",
   "auth.verifyEmail.title",
+  "auth.verifyEmail.titlePending",
   "balanceOps.accept",
   "balanceOps.approved",
   "balanceOps.balanceAfter",
@@ -3185,6 +3301,28 @@ export const TRANSLATION_KEYS = [
   "documentsPage.subtitle",
   "documentsPage.upload",
   "documentsPage.uploadDocument",
+  "emails.loginAlert.cta",
+  "emails.loginAlert.deviceLabel",
+  "emails.loginAlert.fallbackName",
+  "emails.loginAlert.footer",
+  "emails.loginAlert.greeting",
+  "emails.loginAlert.intro",
+  "emails.loginAlert.locationLabel",
+  "emails.loginAlert.notYouBody",
+  "emails.loginAlert.notYouLabel",
+  "emails.loginAlert.subject",
+  "emails.loginAlert.whenLabel",
+  "emails.loginAlert.youBody",
+  "emails.loginAlert.youLabel",
+  "emails.signupRescue.ctaButton",
+  "emails.signupRescue.fallbackName",
+  "emails.signupRescue.fixedBody",
+  "emails.signupRescue.fixedLabel",
+  "emails.signupRescue.greeting",
+  "emails.signupRescue.intro",
+  "emails.signupRescue.replyHint",
+  "emails.signupRescue.signature",
+  "emails.signupRescue.subject",
   "emails.welcome.ctaButton",
   "emails.welcome.footer",
   "emails.welcome.greeting",

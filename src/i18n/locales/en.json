@@ -30,9 +30,23 @@
     "saving": "Saving…"
   },
   "auth": {
-    "login": "Log in",
+    "login": {
+      "magicLink": {
+        "toggle": "Sign in without password",
+        "title": "Sign in with an email link",
+        "description": "No password, no hassle. We send a link you click to sign in.",
+        "send": "Send link",
+        "sending": "Sending...",
+        "sent": "Done. We sent a link to {{ email }} — open it to sign in.",
+        "back": "Back to password",
+        "error": "We could not send the link. Try again."
+      }
+    },
     "logout": "Log out",
-    "signup": "Sign up",
+    "signup": {
+      "turnstileError": "We could not verify you are human. Reload the page and try again.",
+      "tosVersionedNote": "Version {{ version }} of the Terms and Privacy Policy. You can view them later in your profile."
+    },
     "email": "Email",
     "password": "Password",
     "forgotPassword": "Forgot your password?",
@@ -77,7 +91,25 @@
       "spamHintTitle": "Didn't find it?",
       "spamHintBody": "Check your spam or junk folder. The email can take up to 1 minute to arrive.",
       "alreadyConfirmed": "I confirmed, sign in",
-      "resendHint": "You can resend the email from the login screen if needed."
+      "resendHint": "You can resend the email from the login screen if needed.",
+      "titlePending": "Confirm your email",
+      "descriptionPending": "We sent a confirmation link to {{ email }}. Click it to activate your account.",
+      "openMail": "Open inbox",
+      "openGmail": "Open Gmail",
+      "openOutlook": "Open Outlook",
+      "openICloud": "Open iCloud Mail",
+      "openYahoo": "Open Yahoo",
+      "resending": "Resending...",
+      "resend": "Resend email",
+      "resendCooldown": "Wait {{ seconds }}s to resend",
+      "resendSent": "Email resent!",
+      "changeEmail": "Change email",
+      "support": "Talk to support",
+      "realtimeWaiting": "We are checking automatically",
+      "realtimeConfirmed": "Confirmed! Redirecting...",
+      "alternativeTitle": "Prefer another way?",
+      "alternativeMagicLink": "Get a passwordless link",
+      "alternativeSocial": "Continue with Google"
     },
     "forgot": {
       "title": "Recover Password",
@@ -96,6 +128,19 @@
       "submit": "Save New Password",
       "submitting": "Saving...",
       "checking": "Verifying authentication..."
+    },
+    "confirm": {
+      "errorTitle": "We could not confirm",
+      "errorReasonExpired": "The link expired. Request a new confirmation email.",
+      "errorReasonAlreadyUsed": "This link was already used. Try signing in directly.",
+      "errorReasonInvalid": "This link is not valid. Request a new email.",
+      "errorReasonNetwork": "Temporary glitch. Try again in a few seconds.",
+      "errorReasonUnknown": "Something went wrong. We are already looking into it.",
+      "actionResend": "Resend email",
+      "actionLogin": "Try signing in",
+      "actionSupport": "Talk to support",
+      "successTitle": "Email confirmed",
+      "successDescription": "Redirecting to your dashboard..."
     }
   },
   "nav": {
@@ -2495,6 +2540,32 @@
       "step3Body": "Set up custody — who cares on which days.",
       "ctaButton": "Open Kindar",
       "footer": "You received this email because you created a Kindar account. If it wasn't you, ignore this message."
+    },
+    "signupRescue": {
+      "subject": "Your Kindar access is unlocked",
+      "fallbackName": "hi",
+      "greeting": "Hi, {{ name }}",
+      "intro": "We found a technical issue in our email confirmation system that blocked your access. It was not you — it was us, and we are sorry for the delay.",
+      "fixedLabel": "It is fixed.",
+      "fixedBody": "Your account is active. Sign in directly — no need to reconfirm anything.",
+      "ctaButton": "Sign in now",
+      "replyHint": "If anything does not work, reply to this email. We read every reply.",
+      "signature": "The Kindar team"
+    },
+    "loginAlert": {
+      "subject": "New device signing in to your Kindar",
+      "fallbackName": "hi",
+      "greeting": "Hi, {{ name }}",
+      "intro": "We detected a new sign-in to your account. Details below:",
+      "deviceLabel": "Device",
+      "locationLabel": "Approximate location",
+      "whenLabel": "When",
+      "youLabel": "Was this you?",
+      "youBody": "You can ignore this email.",
+      "notYouLabel": "Was not you?",
+      "notYouBody": "Change your password immediately using the button below.",
+      "cta": "Change password now",
+      "footer": "You get this email for security when a new device signs in. It is not an alert about a breach."
     }
   },
   "errors": {
@@ -2586,5 +2657,19 @@
     "errorDateInvalid": "Invalid date. Use YYYY-MM-DD.",
     "toastSaved": "Size recorded.",
     "toastUpdated": "Size updated."
+  },
+  "admin": {
+    "funnel": {
+      "title": "Signup funnel health",
+      "started": "Started",
+      "confirmed": "Confirmed",
+      "stuck": "Stuck now",
+      "stuckHint": "Unconfirmed for more than 1h",
+      "window24h": "Last 24h",
+      "window7d": "Last 7 days",
+      "healthOk": "Healthy",
+      "healthWarn": "Attention",
+      "healthBad": "Critical"
+    }
   }
 }

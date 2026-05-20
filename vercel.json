@@ -41,6 +41,10 @@
       "schedule": "0 * * * *"
     },
     {
+      "path": "/api/cron/signup-rescue",
+      "schedule": "15 * * * *"
+    },
+    {
       "path": "/api/cron/webhook-events-prune",
       "schedule": "30 4 * * *"
     },

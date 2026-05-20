@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { signUp } from "@/actions/auth";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
+import TurnstileWidget from "@/components/auth/TurnstileWidget";
 import KindarLogo from "@/components/KindarLogo";
 import { trackEvent, EVENTS } from "@/lib/analytics";
 import { useI18n } from "@/i18n/provider";
@@ -190,6 +191,9 @@ function SignUpForm() {
             {t("auth.lgpdConsentSuffix")}
           </label>
         </div>
+
+        {/* Cloudflare Turnstile invisível — bloqueia bot abuse sem fricção pra humano */}
+        <TurnstileWidget action="signup" />
 
         <button
           type="submit"

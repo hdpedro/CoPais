@@ -38,6 +38,40 @@ const { mockCookieStore, mockSupabase } = vi.hoisted(() => {
 
 vi.mock("next/headers", () => ({
   cookies: vi.fn().mockResolvedValue(mockCookieStore),
+  // signUp/signIn agora chamam `headers()` pra Turnstile IP + login alert geo.
+  // Stub minimal Headers que retorna null em todos os gets — fail-open paths.
+  headers: vi.fn().mockResolvedValue(new Headers()),
+}));
+
+// Tier A new deps — server-only / admin-side; mock pra que `import "@/actions/auth"`
+// não puxe `server-only` (que throw fora de RSC) nem o admin client com service role.
+vi.mock("@/lib/turnstile", () => ({
+  verifyTurnstileToken: vi.fn().mockResolvedValue({ ok: true }),
+}));
+
+vi.mock("@/lib/auth-fingerprint", () => ({
+  ipFromHeaders: vi.fn().mockReturnValue(null),
+  geoFromHeaders: vi.fn().mockReturnValue({ country: null, city: null }),
+  computeFingerprint: vi.fn().mockReturnValue({
+    hash: "stub", uaNormalized: "stub", ipBucket: "stub", deviceLabel: "Stub",
+  }),
+  locationLabel: vi.fn().mockReturnValue("Localização desconhecida"),
+}));
+
+vi.mock("@/lib/auth-login-device", () => ({
+  recordLoginDevice: vi.fn().mockResolvedValue({ isNewDevice: false, alertSent: false }),
+}));
+
+vi.mock("@/lib/supabase/admin", () => ({
+  createAdminClient: vi.fn().mockReturnValue({
+    from: vi.fn().mockReturnValue({
+      insert: vi.fn().mockResolvedValue({ data: null, error: null }),
+      select: vi.fn().mockReturnThis(),
+      eq: vi.fn().mockReturnThis(),
+      maybeSingle: vi.fn().mockResolvedValue({ data: null, error: null }),
+      update: vi.fn().mockReturnThis(),
+    }),
+  }),
 }));
 
 vi.mock("@/lib/supabase/server", () => ({
@@ -105,7 +139,10 @@ describe("signUp", () => {
     expect(mockSupabase.auth.signUp).toHaveBeenCalledWith(
       expect.objectContaining({ email: "a@b.com", password: "123456" })
     );
-    expect(mockRedirect).toHaveBeenCalledWith("/verify-email");
+    // Redirect inclui ?email= pra o /verify-email saber qual conta polar
+    expect(mockRedirect).toHaveBeenCalledWith(
+      expect.stringMatching(/^\/verify-email\?email=a%40b\.com$/),
+    );
   });
 
   it("returns translated error on duplicate email", async () => {

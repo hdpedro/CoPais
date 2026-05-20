@@ -30,9 +30,23 @@
     "saving": "Speichern…"
   },
   "auth": {
-    "login": "Anmelden",
+    "login": {
+      "magicLink": {
+        "toggle": "Ohne Passwort anmelden",
+        "title": "Mit E-Mail-Link anmelden",
+        "description": "Kein Passwort, kein Aufwand. Wir senden einen Link, mit dem du dich anmeldest.",
+        "send": "Link senden",
+        "sending": "Senden...",
+        "sent": "Fertig. Wir haben einen Link an {{ email }} gesendet — öffne ihn zum Anmelden.",
+        "back": "Zurück zu Passwort",
+        "error": "Der Link konnte nicht gesendet werden. Versuche es erneut."
+      }
+    },
     "logout": "Abmelden",
-    "signup": "Registrieren",
+    "signup": {
+      "turnstileError": "Wir konnten nicht prüfen, dass du ein Mensch bist. Lade die Seite neu und versuche es erneut.",
+      "tosVersionedNote": "Version {{ version }} der AGB und Datenschutzerklärung. Du kannst sie später im Profil ansehen."
+    },
     "email": "E-Mail-Adresse",
     "password": "Passwort",
     "forgotPassword": "Passwort vergessen?",
@@ -77,7 +91,25 @@
       "spamHintTitle": "Nicht gefunden?",
       "spamHintBody": "Prüfen Sie Ihren Spam- oder Junk-Ordner. Die E-Mail kann bis zu 1 Minute brauchen.",
       "alreadyConfirmed": "Bestätigt, anmelden",
-      "resendHint": "Sie können die E-Mail bei Bedarf erneut über den Anmeldebildschirm senden."
+      "resendHint": "Sie können die E-Mail bei Bedarf erneut über den Anmeldebildschirm senden.",
+      "titlePending": "Bestätige deine E-Mail",
+      "descriptionPending": "Wir haben einen Bestätigungslink an {{ email }} gesendet. Klicke darauf, um dein Konto zu aktivieren.",
+      "openMail": "Posteingang öffnen",
+      "openGmail": "Gmail öffnen",
+      "openOutlook": "Outlook öffnen",
+      "openICloud": "iCloud Mail öffnen",
+      "openYahoo": "Yahoo öffnen",
+      "resending": "Wird gesendet...",
+      "resend": "E-Mail erneut senden",
+      "resendCooldown": "Warte {{ seconds }}s zum erneut senden",
+      "resendSent": "E-Mail erneut gesendet!",
+      "changeEmail": "E-Mail ändern",
+      "support": "Mit Support sprechen",
+      "realtimeWaiting": "Wir prüfen automatisch",
+      "realtimeConfirmed": "Bestätigt! Weiterleitung...",
+      "alternativeTitle": "Lieber anders einsteigen?",
+      "alternativeMagicLink": "Link ohne Passwort erhalten",
+      "alternativeSocial": "Mit Google fortfahren"
     },
     "forgot": {
       "title": "Passwort wiederherstellen",
@@ -96,6 +128,19 @@
       "submit": "Neues Passwort speichern",
       "submitting": "Wird gespeichert...",
       "checking": "Authentifizierung wird überprüft..."
+    },
+    "confirm": {
+      "errorTitle": "Bestätigung fehlgeschlagen",
+      "errorReasonExpired": "Der Link ist abgelaufen. Fordere eine neue Bestätigungs-E-Mail an.",
+      "errorReasonAlreadyUsed": "Dieser Link wurde bereits verwendet. Versuche dich direkt anzumelden.",
+      "errorReasonInvalid": "Dieser Link ist ungültig. Fordere eine neue E-Mail an.",
+      "errorReasonNetwork": "Vorübergehender Fehler. Versuche es in ein paar Sekunden erneut.",
+      "errorReasonUnknown": "Etwas ist schiefgegangen. Wir prüfen es bereits.",
+      "actionResend": "E-Mail erneut senden",
+      "actionLogin": "Anmelden versuchen",
+      "actionSupport": "Mit Support sprechen",
+      "successTitle": "E-Mail bestätigt",
+      "successDescription": "Weiterleitung zum Dashboard..."
     }
   },
   "nav": {
@@ -2495,6 +2540,32 @@
       "step3Body": "Richten Sie das Sorgerecht ein — wer wann betreut.",
       "ctaButton": "Kindar öffnen",
       "footer": "Sie erhalten diese E-Mail, weil Sie ein Kindar-Konto erstellt haben. Falls Sie das nicht waren, ignorieren Sie diese Nachricht."
+    },
+    "signupRescue": {
+      "subject": "Dein Kindar-Zugang ist freigeschaltet",
+      "fallbackName": "hallo",
+      "greeting": "Hallo, {{ name }}",
+      "intro": "Wir haben ein technisches Problem in unserer E-Mail-Bestätigung entdeckt, das deinen Zugang blockierte. Es lag nicht an dir — es lag an uns, und wir entschuldigen uns für die Verzögerung.",
+      "fixedLabel": "Es ist behoben.",
+      "fixedBody": "Dein Konto ist aktiv. Melde dich direkt an — keine erneute Bestätigung nötig.",
+      "ctaButton": "Jetzt anmelden",
+      "replyHint": "Wenn etwas nicht funktioniert, antworte auf diese E-Mail. Wir lesen persönlich.",
+      "signature": "Das Kindar-Team"
+    },
+    "loginAlert": {
+      "subject": "Neues Gerät meldet sich bei deinem Kindar an",
+      "fallbackName": "hallo",
+      "greeting": "Hallo, {{ name }}",
+      "intro": "Wir haben eine neue Anmeldung bei deinem Konto erkannt. Details unten:",
+      "deviceLabel": "Gerät",
+      "locationLabel": "Ungefährer Standort",
+      "whenLabel": "Wann",
+      "youLabel": "Warst du das?",
+      "youBody": "Du kannst diese E-Mail ignorieren.",
+      "notYouLabel": "Warst du es nicht?",
+      "notYouBody": "Ändere dein Passwort sofort über die Schaltfläche unten.",
+      "cta": "Passwort jetzt ändern",
+      "footer": "Du erhältst diese E-Mail zur Sicherheit, wenn sich ein neues Gerät anmeldet. Es ist keine Warnung vor einem Einbruch."
     }
   },
   "errors": {
@@ -2586,5 +2657,19 @@
     "errorDateInvalid": "Ungültiges Datum. JJJJ-MM-TT verwenden.",
     "toastSaved": "Größe registriert.",
     "toastUpdated": "Größe aktualisiert."
+  },
+  "admin": {
+    "funnel": {
+      "title": "Gesundheit des Signup-Funnels",
+      "started": "Gestartet",
+      "confirmed": "Bestätigt",
+      "stuck": "Aktuell hängend",
+      "stuckHint": "Mehr als 1h unbestätigt",
+      "window24h": "Letzte 24h",
+      "window7d": "Letzte 7 Tage",
+      "healthOk": "Gesund",
+      "healthWarn": "Achtung",
+      "healthBad": "Kritisch"
+    }
   }
 }
