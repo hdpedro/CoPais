@@ -419,6 +419,20 @@ const CONSTELLATION_DOTS = [
   { angle: Math.PI, speed: 1.18, size: 5, delay: 1080 },         // W
 ];
 
+// Multi-layer glow stack — bloom fotográfico real. Cada camada tem
+// tamanho/opacidade/timing próprios pra simular lens flare/aura premium.
+// Ordem ascendente em z (maior atrás, menor na frente). Apple Music /
+// Headspace usam pattern similar.
+const GLOW_LAYERS = [
+  { size: 360, peakOpacity: 0.10, duration: 2000, delay: 380 }, // outer ambient
+  { size: 280, peakOpacity: 0.20, duration: 1700, delay: 400 }, // mid bloom
+  { size: 200, peakOpacity: 0.35, duration: 1400, delay: 440 }, // core warm
+];
+
+const KINDAR_LETTERS = ['K', 'i', 'n', 'd', 'a', 'r'];
+const LETTER_STAGGER_MS = 70;
+const WORDMARK_BASE_DELAY = 750;
+
 function SplashScreen({ isLoading }: { isLoading: boolean }) {
   const t = useI18n((s) => s.t);
 
@@ -442,30 +456,24 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
 
   const logoScale = useSharedValue(0.5);
   const logoOpacity = useSharedValue(0);
-  const glowScale = useSharedValue(0.5);
-  const glowOpacity = useSharedValue(0);
   const orbitProgress = useSharedValue(0);
   const underlineWidth = useSharedValue(0);
-
-  const wordmarkOpacity = useSharedValue(0);
-  const wordmarkScale = useSharedValue(1.06);
-  const wordmarkY = useSharedValue(8);
 
   const taglineTracking = useSharedValue(0.5);
   const taglineOpacity = useSharedValue(0);
   const taglineScale = useSharedValue(1.04);
   const taglineY = useSharedValue(6);
 
+  // Pulse ring (anel sonar que expande no momento isLoading=false).
+  // Sincroniza com haptic + crossfade. Confirma "chegamos" visualmente.
+  const pulseScale = useSharedValue(0.85);
+  const pulseOpacity = useSharedValue(0);
+
   useEffect(() => {
     if (reduceMotion) {
       // Modo a11y: tudo aparece com fade simples em 200ms, sem motion.
       logoOpacity.value = withTiming(1, { duration: 200 });
       logoScale.value = 1.0;
-      glowOpacity.value = 0;
-      glowScale.value = 1.0;
-      wordmarkOpacity.value = withTiming(1, { duration: 200 });
-      wordmarkScale.value = 1.0;
-      wordmarkY.value = 0;
       taglineOpacity.value = withTiming(0.55, { duration: 200 });
       taglineScale.value = 1.0;
       taglineY.value = 0;
@@ -478,42 +486,6 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
     logoScale.value = withDelay(
       200,
       withSpring(1, { damping: 14, stiffness: 110 }),
-    );
-
-    // === Glow champagne (SVG radial) — slow & warm ===
-    glowScale.value = withDelay(
-      400,
-      withTiming(1.5, {
-        duration: 1600,
-        easing: Easing.bezier(0.4, 0, 0.2, 1),
-      }),
-    );
-    glowOpacity.value = withDelay(
-      400,
-      withSequence(
-        withTiming(0.22, {
-          duration: 500,
-          easing: Easing.out(Easing.quad),
-        }),
-        withTiming(0, {
-          duration: 1100,
-          easing: Easing.in(Easing.quad),
-        }),
-      ),
-    );
-
-    // === Wordmark "Kindar" — blur→sharp focus illusion via scale+opacity ===
-    wordmarkOpacity.value = withDelay(
-      750,
-      withTiming(1, { duration: 440, easing: Easing.out(Easing.cubic) }),
-    );
-    wordmarkScale.value = withDelay(
-      750,
-      withTiming(1.0, { duration: 440, easing: Easing.out(Easing.cubic) }),
-    );
-    wordmarkY.value = withDelay(
-      750,
-      withTiming(0, { duration: 440, easing: Easing.out(Easing.cubic) }),
     );
 
     // === Tagline — tracking expand + blur→sharp ===
@@ -565,11 +537,6 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
     reduceMotion,
     logoOpacity,
     logoScale,
-    glowScale,
-    glowOpacity,
-    wordmarkOpacity,
-    wordmarkScale,
-    wordmarkY,
     taglineOpacity,
     taglineScale,
     taglineY,
@@ -577,6 +544,29 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
     underlineWidth,
     orbitProgress,
   ]);
+
+  // === Pulse ring on ready — anel sonar expandindo no momento em que
+  // isLoading flips false. Sincroniza com haptic (no parent) e crossfade.
+  // Confirma "chegamos" visualmente. Apple/Linear style. ===
+  useEffect(() => {
+    if (reduceMotion) return;
+    if (!isLoading) {
+      pulseOpacity.value = withSequence(
+        withTiming(0.55, {
+          duration: 80,
+          easing: Easing.out(Easing.quad),
+        }),
+        withTiming(0, {
+          duration: 700,
+          easing: Easing.out(Easing.cubic),
+        }),
+      );
+      pulseScale.value = withTiming(1.85, {
+        duration: 800,
+        easing: Easing.out(Easing.cubic),
+      });
+    }
+  }, [isLoading, reduceMotion, pulseOpacity, pulseScale]);
 
   // Logo breathing — gated por isLoading + reduceMotion. Quando isLoading
   // vira false: cancelAnimation + assenta suave em 1.0 (anti-pulo).
@@ -610,19 +600,8 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
     opacity: logoOpacity.value,
     transform: [{ scale: logoScale.value }],
   }));
-  const glowStyle = useAnimatedStyle(() => ({
-    opacity: glowOpacity.value,
-    transform: [{ scale: glowScale.value }],
-  }));
   const underlineStyle = useAnimatedStyle(() => ({
     width: underlineWidth.value,
-  }));
-  const wordmarkStyle = useAnimatedStyle(() => ({
-    opacity: wordmarkOpacity.value,
-    transform: [
-      { scale: wordmarkScale.value },
-      { translateY: wordmarkY.value },
-    ],
   }));
   const taglineStyle = useAnimatedStyle(() => ({
     opacity: taglineOpacity.value,
@@ -631,6 +610,10 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
       { scale: taglineScale.value },
       { translateY: taglineY.value },
     ],
+  }));
+  const pulseStyle = useAnimatedStyle(() => ({
+    opacity: pulseOpacity.value,
+    transform: [{ scale: pulseScale.value }],
   }));
 
   return (
@@ -649,50 +632,37 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
           justifyContent: 'center',
         }}
       >
-        {/* Glow SVG radial gradient — falloff REAL Gaussian, sem hard edge.
-            300×300 viewBox dá espaço pra escala 1.5x sem clipping. */}
+        {/* Multi-layer glow — 3 SVG radial gradients empilhados (bloom
+            fotográfico real). Maior atrás, menor na frente. Apple Music /
+            Headspace pattern. */}
+        {GLOW_LAYERS.map((layer, i) => (
+          <GlowLayer
+            key={i}
+            size={layer.size}
+            peakOpacity={layer.peakOpacity}
+            duration={layer.duration}
+            delay={layer.delay}
+            reduceMotion={reduceMotion}
+          />
+        ))}
+
+        {/* Pulse ring on ready — anel sonar que expande quando isLoading
+            vira false. Sincroniza com haptic + crossfade. Apple/Linear
+            signature de "ready". Sutil mas memorável. */}
         <Animated.View
           style={[
             {
               position: 'absolute',
-              width: 300,
-              height: 300,
+              width: 180,
+              height: 180,
+              borderRadius: 90,
+              borderWidth: 1.5,
+              borderColor: colors.brand,
             },
-            glowStyle,
+            pulseStyle,
           ]}
           pointerEvents="none"
-        >
-          <Svg width={300} height={300} viewBox="0 0 300 300">
-            <Defs>
-              <RadialGradient
-                id="splashGlow"
-                cx="50%"
-                cy="50%"
-                r="50%"
-                fx="50%"
-                fy="50%"
-              >
-                <Stop offset="0%" stopColor={CHAMPAGNE} stopOpacity="0.95" />
-                <Stop
-                  offset="35%"
-                  stopColor={CHAMPAGNE}
-                  stopOpacity="0.55"
-                />
-                <Stop
-                  offset="70%"
-                  stopColor={CHAMPAGNE}
-                  stopOpacity="0.15"
-                />
-                <Stop
-                  offset="100%"
-                  stopColor={CHAMPAGNE}
-                  stopOpacity="0"
-                />
-              </RadialGradient>
-            </Defs>
-            <Circle cx="150" cy="150" r="150" fill="url(#splashGlow)" />
-          </Svg>
-        </Animated.View>
+        />
 
         {/* Constelação — 4 dots orbitando com micro-drift orgânico */}
         {CONSTELLATION_DOTS.map((d, i) => (
@@ -729,22 +699,25 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
         />
       </View>
 
-      {/* Wordmark — scale + translateY + opacity simultaneously (blur→sharp) */}
-      <Animated.Text
-        style={[
-          {
-            fontSize: 32,
-            fontWeight: '700',
-            color: colors.text,
-            letterSpacing: -1.0,
-            marginTop: 22,
-          },
-          wordmarkStyle,
-        ]}
+      {/* Wordmark — per-letter stagger (Apple Keynote / Linear signature).
+          Cada letra reveal sequenciada (70ms entre) + blur→sharp (scale
+          + opacity + translateY simultâneos). Text-shadow sutil pra depth
+          Apple HIG. */}
+      <View
+        style={{ flexDirection: 'row', marginTop: 22 }}
+        accessible
         accessibilityRole="header"
+        accessibilityLabel="Kindar"
       >
-        Kindar
-      </Animated.Text>
+        {KINDAR_LETTERS.map((letter, i) => (
+          <WordmarkLetter
+            key={i}
+            letter={letter}
+            index={i}
+            reduceMotion={reduceMotion}
+          />
+        ))}
+      </View>
 
       {/* Breathing underline (Arc Browser style) abaixo do wordmark */}
       <Animated.View
@@ -778,6 +751,169 @@ function SplashScreen({ isLoading }: { isLoading: boolean }) {
       </Animated.Text>
       <StatusBar style="dark" />
     </SafeAreaView>
+  );
+}
+
+/**
+ * GlowLayer — camada de glow SVG RadialGradient. Múltiplas instâncias
+ * empilhadas formam o bloom fotográfico real (lens flare premium).
+ *
+ * Cada layer tem seu próprio ciclo (scale 0.5→1.x + opacity bell curve)
+ * pra dar sensação de "energia respirando" em camadas. reduceMotion
+ * mantém invisível (skip toda a expansão).
+ */
+function GlowLayer({
+  size,
+  peakOpacity,
+  duration,
+  delay,
+  reduceMotion,
+}: {
+  size: number;
+  peakOpacity: number;
+  duration: number;
+  delay: number;
+  reduceMotion: boolean;
+}) {
+  const scale = useSharedValue(0.5);
+  const opacity = useSharedValue(0);
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    scale.value = withDelay(
+      delay,
+      withTiming(1.5, {
+        duration,
+        easing: Easing.bezier(0.4, 0, 0.2, 1),
+      }),
+    );
+    const peakRatio = 0.3; // 30% do tempo pra subir, 70% pra dissipar
+    opacity.value = withDelay(
+      delay,
+      withSequence(
+        withTiming(peakOpacity, {
+          duration: duration * peakRatio,
+          easing: Easing.out(Easing.quad),
+        }),
+        withTiming(0, {
+          duration: duration * (1 - peakRatio),
+          easing: Easing.in(Easing.quad),
+        }),
+      ),
+    );
+  }, [scale, opacity, duration, delay, peakOpacity, reduceMotion]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }],
+  }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          position: 'absolute',
+          width: size,
+          height: size,
+        },
+        style,
+      ]}
+      pointerEvents="none"
+    >
+      <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        <Defs>
+          <RadialGradient
+            id={`glow${size}`}
+            cx="50%"
+            cy="50%"
+            r="50%"
+            fx="50%"
+            fy="50%"
+          >
+            <Stop offset="0%" stopColor={CHAMPAGNE} stopOpacity="0.95" />
+            <Stop offset="35%" stopColor={CHAMPAGNE} stopOpacity="0.55" />
+            <Stop offset="70%" stopColor={CHAMPAGNE} stopOpacity="0.15" />
+            <Stop offset="100%" stopColor={CHAMPAGNE} stopOpacity="0" />
+          </RadialGradient>
+        </Defs>
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={size / 2}
+          fill={`url(#glow${size})`}
+        />
+      </Svg>
+    </Animated.View>
+  );
+}
+
+/**
+ * WordmarkLetter — uma letra do "Kindar" com reveal staggered.
+ * Pattern de Apple Keynote / Linear: cada letra revela 70ms após a
+ * anterior com blur→sharp focus (scale 1.06→1.0 + opacity 0→1 +
+ * translateY 8→0 simultâneos, easing cubic-out 440ms).
+ *
+ * Text-shadow sutil dá depth Apple HIG. reduceMotion=true: aparece
+ * instantâneo no estado final.
+ */
+function WordmarkLetter({
+  letter,
+  index,
+  reduceMotion,
+}: {
+  letter: string;
+  index: number;
+  reduceMotion: boolean;
+}) {
+  const opacity = useSharedValue(0);
+  const scale = useSharedValue(1.06);
+  const y = useSharedValue(8);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      opacity.value = withTiming(1, { duration: 200 });
+      scale.value = 1.0;
+      y.value = 0;
+      return;
+    }
+    const delay = WORDMARK_BASE_DELAY + index * LETTER_STAGGER_MS;
+    opacity.value = withDelay(
+      delay,
+      withTiming(1, { duration: 440, easing: Easing.out(Easing.cubic) }),
+    );
+    scale.value = withDelay(
+      delay,
+      withTiming(1.0, { duration: 440, easing: Easing.out(Easing.cubic) }),
+    );
+    y.value = withDelay(
+      delay,
+      withTiming(0, { duration: 440, easing: Easing.out(Easing.cubic) }),
+    );
+  }, [opacity, scale, y, index, reduceMotion]);
+
+  const style = useAnimatedStyle(() => ({
+    opacity: opacity.value,
+    transform: [{ scale: scale.value }, { translateY: y.value }],
+  }));
+
+  return (
+    <Animated.Text
+      style={[
+        {
+          fontSize: 32,
+          fontWeight: '700',
+          color: colors.text,
+          letterSpacing: -0.8,
+          // Text shadow sutil — depth Apple HIG sem competir com logo
+          textShadowColor: 'rgba(0,0,0,0.06)',
+          textShadowOffset: { width: 0, height: 2 },
+          textShadowRadius: 8,
+        },
+        style,
+      ]}
+    >
+      {letter}
+    </Animated.Text>
   );
 }
 
