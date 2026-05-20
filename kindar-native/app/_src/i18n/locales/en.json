@@ -2782,5 +2782,8 @@
     "errorDateInvalid": "Invalid date. Use YYYY-MM-DD.",
     "toastSaved": "Size recorded.",
     "toastUpdated": "Size updated."
+  },
+  "splash": {
+    "tagline": "Co-parenting made gentle"
   }
 }

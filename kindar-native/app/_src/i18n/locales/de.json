@@ -2782,5 +2782,8 @@
     "errorDateInvalid": "Ungültiges Datum. JJJJ-MM-TT verwenden.",
     "toastSaved": "Größe registriert.",
     "toastUpdated": "Größe aktualisiert."
+  },
+  "splash": {
+    "tagline": "Gemeinsam Eltern sein"
   }
 }

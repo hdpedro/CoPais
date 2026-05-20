@@ -2782,5 +2782,8 @@
     "errorDateInvalid": "Data inválida. Use AAAA-MM-DD.",
     "toastSaved": "Tamanho registrado.",
     "toastUpdated": "Tamanho atualizado."
+  },
+  "splash": {
+    "tagline": "Coparentar com leveza"
   }
 }

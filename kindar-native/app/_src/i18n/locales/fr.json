@@ -2782,5 +2782,8 @@
     "errorDateInvalid": "Date invalide. Utilisez AAAA-MM-JJ.",
     "toastSaved": "Taille enregistrée.",
     "toastUpdated": "Taille mise à jour."
+  },
+  "splash": {
+    "tagline": "Coparentalité en douceur"
   }
 }

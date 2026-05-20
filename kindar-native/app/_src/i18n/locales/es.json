@@ -2782,5 +2782,8 @@
     "errorDateInvalid": "Fecha inválida. Usa AAAA-MM-DD.",
     "toastSaved": "Talla registrada.",
     "toastUpdated": "Talla actualizada."
+  },
+  "splash": {
+    "tagline": "Co-crianza con suavidad"
   }
 }
