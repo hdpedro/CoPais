@@ -237,21 +237,44 @@ export default function EscalaScreen() {
   }
 
   if (members.length < 2) {
+    // Bug Nessa 2026-05-20 (DM ao Angelino): nessa tela o usuário ficava preso
+    // sem botão de voltar. "Só fechando o aplicativo e iniciando novamente".
+    // Fix: header com back idêntico ao do estado normal (linha ~261) + dois
+    // CTAs (convidar OU voltar pro início). Nenhum usuário deve ficar preso.
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
-        <Text style={{ fontSize: 48, marginBottom: spacing.md }}>👥</Text>
-        <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, textAlign: 'center', marginBottom: spacing.sm }}>
-          Precisa de 2 responsáveis
-        </Text>
-        <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }}>
-          A escala de guarda requer o outro co-responsável no grupo. Convide-o primeiro.
-        </Text>
-        <TouchableOpacity
-          onPress={() => router.push('/convite/enviar')}
-          style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing['2xl'] }}
-        >
-          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Convidar co-responsável</Text>
-        </TouchableOpacity>
+      <View style={{ flex: 1, backgroundColor: colors.bg }}>
+        <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
+          <TouchableOpacity onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/'); }} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+            <Ionicons name="chevron-back" size={26} color={colors.text} />
+          </TouchableOpacity>
+          <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
+            Escala de guarda
+          </Text>
+        </View>
+
+        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
+          <Text style={{ fontSize: 48, marginBottom: spacing.md }}>👥</Text>
+          <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, textAlign: 'center', marginBottom: spacing.sm }}>
+            Precisa de 2 responsáveis
+          </Text>
+          <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }}>
+            A escala de guarda requer o outro co-responsável no grupo. Convide-o primeiro.
+          </Text>
+          <TouchableOpacity
+            onPress={() => router.push('/convite/enviar')}
+            style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing['2xl'], marginBottom: spacing.md }}
+          >
+            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Convidar co-responsável</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={() => router.replace('/')}
+            style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.lg }}
+            accessibilityRole="button"
+            accessibilityLabel="Voltar para o início"
+          >
+            <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>Voltar para o início</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }

@@ -53,10 +53,12 @@ CREATE TRIGGER trg_terms_acceptances_immutable_u
   BEFORE UPDATE ON public.terms_acceptances
   FOR EACH ROW EXECUTE FUNCTION public.terms_acceptances_immutable();
 
-DROP TRIGGER IF EXISTS trg_terms_acceptances_immutable_d ON public.terms_acceptances;
-CREATE TRIGGER trg_terms_acceptances_immutable_d
-  BEFORE DELETE ON public.terms_acceptances
-  FOR EACH ROW EXECUTE FUNCTION public.terms_acceptances_immutable();
+-- NOTA: trigger BEFORE DELETE foi removido em migration posterior
+-- (terms_acceptances_allow_cascade_delete, 2026-05-20) porque bloqueava
+-- CASCADE delete vindo de auth.users → user não conseguia deletar a
+-- própria conta. RLS sem policy DELETE já protege contra DELETE manual
+-- de anon/authenticated; service role bypassa intencionalmente.
+-- LGPD direito de esquecimento exige apagar quando conta é deletada.
 
 -- ============================================================
 -- AUTH LOGIN DEVICES — "novo dispositivo" alert source-of-truth

@@ -99,11 +99,16 @@ function interpolatePlaceholders(
   vars?: Record<string, string | number>,
 ): string {
   if (!vars) return template;
+  // `\s*` em torno do nome aceita tanto `{{name}}` (estilo compacto) quanto
+  // `{{ name }}` (estilo i18next com espaços, padrão das chaves novas da
+  // sprint Tier A 2026-05-20). Bug Henrique 2026-05-20: chaves tipo
+  // "{{ email }}" apareciam literais na UI porque o regex anterior exigia
+  // ausência de espaço — chave passou direto sem substituição.
   return template
-    .replace(/\{\{(\w+)\}\}/g, (_, k) =>
+    .replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) =>
       vars[k] !== undefined ? String(vars[k]) : `{{${k}}}`,
     )
-    .replace(/\{(\w+)\}/g, (_, k) =>
+    .replace(/\{\s*(\w+)\s*\}/g, (_, k) =>
       vars[k] !== undefined ? String(vars[k]) : `{${k}}`,
     );
 }

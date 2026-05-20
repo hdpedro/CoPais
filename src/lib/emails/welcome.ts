@@ -65,30 +65,39 @@ function buildWelcomeHtml(
       ${t("emails.welcome.intro")}
     </p>
 
-    <!-- Steps -->
-    <div style="margin-bottom:24px">
-      <div style="display:flex;align-items:flex-start;margin-bottom:16px">
-        <div style="width:28px;height:28px;border-radius:50%;background:#C07055;color:white;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:12px">1</div>
-        <div>
+    <!-- Steps - bug Nessa 2026-05-20 (DM): números invisíveis no Outlook/Apple Mail.
+         display:flex em emails é parcialmente suportado (Gmail web OK, mobile não).
+         Quando flex não aplica, o número fica left-aligned no canto sem centralização.
+         Fix: table layout — padrão de email HTML, suportado 100% dos clients. -->
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-bottom:24px">
+      <tr>
+        <td valign="top" style="width:40px;padding-bottom:16px">
+          <div style="width:28px;height:28px;line-height:28px;border-radius:50%;background:#C07055;color:white;font-size:13px;font-weight:700;text-align:center">1</div>
+        </td>
+        <td valign="top" style="padding-bottom:16px;padding-left:8px">
           <p style="font-size:14px;font-weight:600;color:#0E0C0A;margin:0">${t("emails.welcome.step1Title")}</p>
           <p style="font-size:13px;color:#9A8878;margin:2px 0 0">${t("emails.welcome.step1Body")}</p>
-        </div>
-      </div>
-      <div style="display:flex;align-items:flex-start;margin-bottom:16px">
-        <div style="width:28px;height:28px;border-radius:50%;background:#C07055;color:white;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:12px">2</div>
-        <div>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top" style="width:40px;padding-bottom:16px">
+          <div style="width:28px;height:28px;line-height:28px;border-radius:50%;background:#C07055;color:white;font-size:13px;font-weight:700;text-align:center">2</div>
+        </td>
+        <td valign="top" style="padding-bottom:16px;padding-left:8px">
           <p style="font-size:14px;font-weight:600;color:#0E0C0A;margin:0">${t("emails.welcome.step2Title")}</p>
           <p style="font-size:13px;color:#9A8878;margin:2px 0 0">${t("emails.welcome.step2Body")}</p>
-        </div>
-      </div>
-      <div style="display:flex;align-items:flex-start">
-        <div style="width:28px;height:28px;border-radius:50%;background:#C07055;color:white;font-size:13px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-right:12px">3</div>
-        <div>
+        </td>
+      </tr>
+      <tr>
+        <td valign="top" style="width:40px">
+          <div style="width:28px;height:28px;line-height:28px;border-radius:50%;background:#C07055;color:white;font-size:13px;font-weight:700;text-align:center">3</div>
+        </td>
+        <td valign="top" style="padding-left:8px">
           <p style="font-size:14px;font-weight:600;color:#0E0C0A;margin:0">${t("emails.welcome.step3Title")}</p>
           <p style="font-size:13px;color:#9A8878;margin:2px 0 0">${t("emails.welcome.step3Body")}</p>
-        </div>
-      </div>
-    </div>
+        </td>
+      </tr>
+    </table>
 
     <!-- CTA -->
     <a href="${APP_URL}/dashboard" style="display:block;text-align:center;background:#C07055;color:white;font-size:15px;font-weight:600;padding:14px 24px;border-radius:12px;text-decoration:none;margin-top:8px">

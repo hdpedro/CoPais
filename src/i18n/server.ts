@@ -175,11 +175,14 @@ function resolveKey(dict: Dictionary, key: string): string | null {
  */
 function interpolate(template: string, vars?: Record<string, string | number>): string {
   if (!vars) return template;
+  // `\s*` em torno do nome aceita tanto `{{name}}` (estilo compacto) quanto
+  // `{{ name }}` (estilo i18next com espaços, padrão das chaves novas da
+  // sprint Tier A 2026-05-20). KEEP IN SYNC com src/i18n/index.ts.
   return template
-    .replace(/\{\{(\w+)\}\}/g, (_, k) =>
+    .replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) =>
       vars[k] !== undefined ? String(vars[k]) : `{{${k}}}`,
     )
-    .replace(/\{(\w+)\}/g, (_, k) =>
+    .replace(/\{\s*(\w+)\s*\}/g, (_, k) =>
       vars[k] !== undefined ? String(vars[k]) : `{${k}}`,
     );
 }

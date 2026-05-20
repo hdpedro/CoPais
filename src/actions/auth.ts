@@ -13,6 +13,15 @@ import { APP_TERMS_VERSION, APP_PRIVACY_VERSION } from "@/lib/auth-versions";
 
 // Translate common Supabase auth errors to Portuguese
 function translateAuthError(message: string): string {
+  // Match patterns dinâmicos do Supabase primeiro (regex). Estes têm número
+  // variável de segundos e não passam pela tabela de match exato abaixo.
+  // Bug Henrique 2026-05-20: erro "For security purposes, you can only
+  // request this after 57 seconds." caía na default e retornava em inglês.
+  const dynamicSecondsMatch = message.match(/after (\d+) seconds?/i);
+  if (dynamicSecondsMatch) {
+    return `Por segurança, aguarde ${dynamicSecondsMatch[1]} segundos para tentar novamente.`;
+  }
+
   const translations: Record<string, string> = {
     "Invalid login credentials": "E-mail ou senha incorretos.",
     "Email not confirmed": "E-mail ainda não confirmado. Verifique sua caixa de entrada.",
