@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { View, ActivityIndicator, Text, Linking, AppState, Animated } from 'react-native';
+import { View, Text, Linking, AppState, Animated } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Updates from 'expo-updates';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +24,9 @@ import LockGate from 'src/components/LockGate';
 import AnalyticsTree from 'src/components/AnalyticsTree';
 import { ToastProvider, useToast } from 'src/components/ui/ToastProvider';
 import OfflineBanner from 'src/components/ui/OfflineBanner';
+// Asset estático do splash — ES import (regra eslint no-require-imports).
+// Mesmo PNG que o native splash do Expo usa, garantindo continuidade visual.
+import splashLogo from '../assets/splash-icon.png';
 
 export default function RootLayout() {
   const { isLoading, initialize, userId } = useAuth();
@@ -289,28 +292,61 @@ function OtaUpdatedToastTrigger({ show, onShown }: { show: boolean; onShown: () 
  * acontece naturalmente quando isLoading vira false (React desmonta e remonta
  * o conteúdo abaixo).
  */
+/**
+ * SplashScreen premium — paridade visual com o native splash do Expo.
+ *
+ * Bug Henrique 2026-05-20 ("logo genérico, vamos trabalhar num visual premium
+ * digno de app de milhões"): a versão anterior usava emoji 🏠 num quadrado
+ * arredondado pequeno + ActivityIndicator. Visual amador entre o native
+ * splash premium (logo cradle hands full-screen) e o dashboard.
+ *
+ * Nova versão:
+ *   - Image real do logo Kindar (splash-icon.png) — 144x144, sem wrapper.
+ *     Continua o visual do native splash: zero "salto de marca".
+ *   - Wordmark "Kindar" abaixo (consistência com PWA + tab bar).
+ *   - 3 dots pulsando como loader (substitui ActivityIndicator genérico).
+ *     Animação sequencial, brand color, escala de 0.7 → 1.0 + opacity.
+ *   - Logo respirando (loop sutil scale 1.0 ↔ 1.03 a cada ~2.8s) após
+ *     entrada — micro-vida sem distrair.
+ *   - Entrance: opacity 0→1 (320ms) + spring scale 0.92→1 (tension 100).
+ *
+ * Tudo via useNativeDriver=true → 60fps mesmo durante hidratação pesada.
+ */
 function SplashScreen() {
-  // Lazy init via useState — evita ESLint react-hooks/refs (acessar .current
-  // durante render). Animated.Value é mutável, então o estado nunca muda.
   const [opacity] = useState(() => new Animated.Value(0));
-  const [logoScale] = useState(() => new Animated.Value(0.85));
+  const [logoScale] = useState(() => new Animated.Value(0.92));
   useEffect(() => {
-    // Container fade-in 280ms (timing) + logo spring (overshoot suave).
-    // Spring config calibrada: tension 80 + friction 8 = bounce sutil (~2%),
-    // não exagerado tipo iMessage. Apple HIG-style microinteraction.
     Animated.parallel([
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 280,
+        duration: 320,
         useNativeDriver: true,
       }),
       Animated.spring(logoScale, {
         toValue: 1,
-        tension: 80,
-        friction: 8,
+        tension: 100,
+        friction: 9,
         useNativeDriver: true,
       }),
-    ]).start();
+    ]).start(({ finished }) => {
+      if (!finished) return;
+      // Breathing loop — só inicia DEPOIS da entrada, pra não conflitar.
+      // Scale 1.0 → 1.03 → 1.0 a cada 2.8s. Imperceptível mas dá vida.
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(logoScale, {
+            toValue: 1.03,
+            duration: 1400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(logoScale, {
+            toValue: 1.0,
+            duration: 1400,
+            useNativeDriver: true,
+          }),
+        ]),
+      ).start();
+    });
   }, [opacity, logoScale]);
   return (
     <Animated.View
@@ -322,27 +358,79 @@ function SplashScreen() {
         opacity,
       }}
     >
-      <Animated.View
+      <Animated.Image
+        source={splashLogo}
         style={{
-          width: 64,
-          height: 64,
-          borderRadius: 20,
-          backgroundColor: colors.brandLight,
-          borderWidth: 1,
-          borderColor: colors.border,
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 16,
+          width: 144,
+          height: 144,
           transform: [{ scale: logoScale }],
         }}
+        resizeMode="contain"
+      />
+      <Text
+        style={{
+          fontSize: 28,
+          fontWeight: '800',
+          color: colors.text,
+          letterSpacing: -0.6,
+          marginTop: 16,
+        }}
       >
-        <Text style={{ fontSize: 32 }}>🏠</Text>
-      </Animated.View>
-      <Text style={{ fontSize: 24, fontWeight: '800', color: colors.text, letterSpacing: -0.5 }}>
         Kindar
       </Text>
-      <ActivityIndicator size="small" color={colors.brand} style={{ marginTop: 24 }} />
+      <PulsingDots />
       <StatusBar style="dark" />
     </Animated.View>
+  );
+}
+
+/**
+ * Loader premium — 3 dots pulsando sequencialmente. Substitui o
+ * ActivityIndicator genérico (visual de form Android). Pattern usado em
+ * apps como Linear, Notion, Things: discreto, brand-colored, com timing
+ * orgânico (delay sequencial + ease-in-out).
+ */
+function PulsingDots() {
+  const [d0] = useState(() => new Animated.Value(0.35));
+  const [d1] = useState(() => new Animated.Value(0.35));
+  const [d2] = useState(() => new Animated.Value(0.35));
+  useEffect(() => {
+    const cycle = (val: Animated.Value, delay: number) =>
+      Animated.loop(
+        Animated.sequence([
+          Animated.delay(delay),
+          Animated.timing(val, {
+            toValue: 1,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.timing(val, {
+            toValue: 0.35,
+            duration: 400,
+            useNativeDriver: true,
+          }),
+          Animated.delay(400 - delay),
+        ]),
+      );
+    const animations = [cycle(d0, 0), cycle(d1, 200), cycle(d2, 400)];
+    animations.forEach((a) => a.start());
+    return () => animations.forEach((a) => a.stop());
+  }, [d0, d1, d2]);
+  return (
+    <View style={{ flexDirection: 'row', gap: 8, marginTop: 32 }}>
+      {[d0, d1, d2].map((dot, i) => (
+        <Animated.View
+          key={i}
+          style={{
+            width: 7,
+            height: 7,
+            borderRadius: 4,
+            backgroundColor: colors.brand,
+            opacity: dot,
+            transform: [{ scale: dot }],
+          }}
+        />
+      ))}
+    </View>
   );
 }
