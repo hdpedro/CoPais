@@ -9,17 +9,7 @@ import { sendWelcomeEmail } from "@/lib/emails/welcome";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { recordLoginDevice } from "@/lib/auth-login-device";
 import { ipFromHeaders, geoFromHeaders } from "@/lib/auth-fingerprint";
-
-/**
- * Versões dos documentos legais. Bump quando o conteúdo de
- * /termos ou /privacidade mudar de forma material — todos os
- * users vão precisar re-aceitar (UI a entregar próxima sprint).
- *
- * MANTER COMO STRINGS — pra suportar versões tipo "2.1-beta" no
- * futuro sem migration.
- */
-export const APP_TERMS_VERSION = "1.0";
-export const APP_PRIVACY_VERSION = "1.0";
+import { APP_TERMS_VERSION, APP_PRIVACY_VERSION } from "@/lib/auth-versions";
 
 // Translate common Supabase auth errors to Portuguese
 function translateAuthError(message: string): string {
