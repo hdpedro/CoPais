@@ -28,6 +28,7 @@ import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
 import { calculatePercentile } from 'src/lib/who-growth-data';
+import GrowthChart from 'src/components/saude/GrowthChart';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface GrowthRecord {
@@ -400,6 +401,20 @@ export default function CrescimentoScreen() {
               >
                 Última medida em {latestForChild.measured_date.split('-').reverse().join('/')}
               </Text>
+            ) : null}
+
+            {/* Gráfico OMS — curvas premium do PWA (paridade visual completa).
+                Alimentado pelos `childRecords` filtrados pelo chip ativo.
+                Aparece quando há criança ativa COM birth_date+sex (sem isso
+                não dá pra calcular percentil). Ocultos no modo form pra não
+                competir com inputs. */}
+            {!showForm && activeChild && activeChild.birth_date && activeChild.sex ? (
+              <GrowthChart
+                records={childRecords}
+                birthDate={activeChild.birth_date}
+                childName={activeChild.full_name}
+                childSex={activeChild.sex}
+              />
             ) : null}
 
             {childRecords.length > 0 ? (
