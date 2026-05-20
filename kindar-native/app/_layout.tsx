@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, ActivityIndicator, Text, Linking, AppState, Animated } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Updates from 'expo-updates';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from 'src/store/auth';
 import { useI18n } from 'src/i18n';
 import { setupOffline } from 'src/services/offline';
@@ -21,7 +22,7 @@ import { colors } from 'src/design-system/tokens';
 import AIAssistantSheet from 'src/components/ai/AIAssistantSheet';
 import LockGate from 'src/components/LockGate';
 import AnalyticsTree from 'src/components/AnalyticsTree';
-import { ToastProvider } from 'src/components/ui/ToastProvider';
+import { ToastProvider, useToast } from 'src/components/ui/ToastProvider';
 import OfflineBanner from 'src/components/ui/OfflineBanner';
 
 export default function RootLayout() {
@@ -33,6 +34,10 @@ export default function RootLayout() {
   //
   // Em dev (Updates.isEnabled=false) inicializamos com true pra não bloquear.
   const [updateChecked, setUpdateChecked] = useState(!Updates.isEnabled);
+  // OTA "post-reload toast": flag setada antes de Updates.reloadAsync() é lida
+  // depois do reload pra mostrar "App atualizado" — converte o que user percebia
+  // como "fechou sozinho" (bug Carolina 2026-05-20) em "ah, foi atualização".
+  const [showOtaToast, setShowOtaToast] = useState(false);
 
   // One-time setup: error handlers FIRST (so any crash in the rest of the
   // bootstrap is captured) + offline sync + push handler + RevenueCat + i18n
@@ -75,9 +80,22 @@ export default function RootLayout() {
       const failsafe = setTimeout(release, 4000);
       (async () => {
         try {
+          // Lê flag de reload prévio. Se TRUE, esse boot é após um reload
+          // OTA — mostra toast e limpa a flag. Bug Carolina 2026-05-20:
+          // sem feedback, user achava que app "fechou sozinho".
+          try {
+            const flag = await AsyncStorage.getItem('kindar.ota_reload_pending');
+            if (flag === '1') {
+              setShowOtaToast(true);
+              await AsyncStorage.removeItem('kindar.ota_reload_pending');
+            }
+          } catch { /* AsyncStorage indisponível — toast cosmético, não bloqueia */ }
+
           const update = await Updates.checkForUpdateAsync();
           if (update.isAvailable) {
             await Updates.fetchUpdateAsync();
+            // Marca pendência ANTES do reload pra próximo boot mostrar toast.
+            try { await AsyncStorage.setItem('kindar.ota_reload_pending', '1'); } catch {}
             // reloadAsync mata o JS engine; nunca retorna. Splash já é o
             // último que o user vê do bundle atual.
             await Updates.reloadAsync();
@@ -127,9 +145,13 @@ export default function RootLayout() {
         // Re-register push (idempotente)
         registerForPushNotificationsAsync().catch(() => {});
 
-        // OTA auto-apply: só age se ficou > 5min em background.
-        // Limite evita "app reload toda vez que sai pra notificações".
-        const longBackground = lastBackgroundAt > 0 && Date.now() - lastBackgroundAt > 5 * 60 * 1000;
+        // OTA auto-apply: só age se ficou > 30min em background.
+        // Bug Carolina 2026-05-20: threshold antigo de 5min disparava
+        // muito frequente — toda saída pro WhatsApp / notificações de
+        // 5+ minutos triggava reload no resume. Visualmente parece "app
+        // fechou sozinho". 30min é mais conservador: cobre o caso de
+        // "voltou no dia seguinte" sem incomodar quem só foi ver msg.
+        const longBackground = lastBackgroundAt > 0 && Date.now() - lastBackgroundAt > 30 * 60 * 1000;
         if (longBackground && Updates.isEnabled) {
           try {
             // Verifica se há update pendente baixado (não baixa agora pra
@@ -138,6 +160,8 @@ export default function RootLayout() {
             const u = await Updates.checkForUpdateAsync();
             if (u.isAvailable) {
               await Updates.fetchUpdateAsync();
+              // Flag pra próximo boot mostrar toast "App atualizado".
+              try { await AsyncStorage.setItem('kindar.ota_reload_pending', '1'); } catch {}
               await Updates.reloadAsync();
             }
           } catch {
@@ -174,6 +198,11 @@ export default function RootLayout() {
     <ErrorBoundary>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <ToastProvider>
+        {/* Bug Carolina 2026-05-20: app fechou sozinho 2x. Causa: auto-reload
+            OTA no resume após >5min reseta a view sem feedback. Fix: aumenta
+            threshold pra 30min E mostra esse toast no boot pós-reload pra
+            converter "fechou sozinho" em "ah, atualização". */}
+        <OtaUpdatedToastTrigger show={showOtaToast} onShown={() => setShowOtaToast(false)} />
         <AnalyticsTree>
         <LockGate>
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -225,6 +254,28 @@ export default function RootLayout() {
       </GestureHandlerRootView>
     </ErrorBoundary>
   );
+}
+
+/**
+ * Mostra toast "App atualizado" uma única vez após reload OTA.
+ * Vive dentro do ToastProvider — só assim consegue chamar useToast().
+ *
+ * Bug Carolina (DM Angelino 2026-05-20): user via app "fechar sozinho 2×"
+ * porque o reload OTA é silencioso. Esse trigger transforma o reset visual
+ * em feedback positivo: "Kindar atualizado ✓".
+ */
+function OtaUpdatedToastTrigger({ show, onShown }: { show: boolean; onShown: () => void }) {
+  const toast = useToast();
+  useEffect(() => {
+    if (!show) return;
+    // Pequeno delay pra splash sumir antes do toast — animation mais limpa.
+    const id = setTimeout(() => {
+      toast.show({ message: 'Kindar atualizado para a última versão', variant: 'success', durationMs: 3200 });
+      onShown();
+    }, 600);
+    return () => clearTimeout(id);
+  }, [show, toast, onShown]);
+  return null;
 }
 
 /**
