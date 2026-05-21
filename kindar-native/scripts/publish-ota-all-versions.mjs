@@ -50,7 +50,9 @@ const APP_JSON = resolve(__dirname, "..", "app.json");
 //   - 1.0.8: iOS em review + Android internal testers anteriores.
 //   - 1.0.9: aprovado App Store (release atual) + Android internal completed.
 //   - 1.0.10: aprovado Apple aguardando + Android internal/alpha (gráfico OMS).
-const TARGET_VERSIONS = ["1.0.5", "1.0.6", "1.0.7", "1.0.8", "1.0.9", "1.0.10"];
+//   - 1.0.11: Skia rebuild (binary já tem o splash novo, mas OTAs sobrescrevem
+//     com a versão JS mais recente — inclui dashboard skeleton + constelação 124).
+const TARGET_VERSIONS = ["1.0.5", "1.0.6", "1.0.7", "1.0.8", "1.0.9", "1.0.10", "1.0.11"];
 
 const args = process.argv.slice(2);
 const messageIdx = args.indexOf("--message");
