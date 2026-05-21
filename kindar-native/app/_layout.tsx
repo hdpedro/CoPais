@@ -419,7 +419,10 @@ function OtaUpdatedToastTrigger({ show, onShown }: { show: boolean; onShown: () 
  *   - Cancelamento explícito de loops no unmount via cleanup
  */
 const CHAMPAGNE = '#F6EBDD';
-const CONSTELLATION_RADIUS = 80;
+// 124px = logo half (72) + 52px breathing room. Antes era 80 = dots
+// quase tocavam a borda do logo (visto no vídeo Henrique 2026-05-21).
+// Agora dots ficam claramente fora do logo, formando constelação real.
+const CONSTELLATION_RADIUS = 124;
 const CONSTELLATION_DOTS = [
   { angle: -Math.PI / 2, speed: 1.0, size: 5, delay: 460 },     // N
   { angle: 0, speed: 0.85, size: 5.5, delay: 660 },              // E
