@@ -37,6 +37,7 @@ export async function updateActivity(activityId: string, updates: {
   responsible_id?: string | null;
   teacher_name?: string | null;
   class_name?: string | null;
+  reminder_lead_minutes?: number | null;
 }) {
   const r = await safeWrite({ table: 'child_activities', operation: 'update', payload: { id: activityId, ...updates } });
   if (!r.success) return r;
@@ -247,6 +248,7 @@ export async function createActivity(params: {
   location?: string; notes?: string; daysOfWeek?: string;
   dayOfMonth?: number | null; customInterval?: number; customUnit?: string;
   responsibleId?: string | null;
+  reminderLeadMinutes?: number | null;
   createdBy: string;
 }) {
   // 1. Insere a atividade master. NAO usamos safeWrite aqui porque
@@ -272,6 +274,7 @@ export async function createActivity(params: {
       location: params.location?.trim() || null,
       notes: params.notes?.trim() || null,
       responsible_id: params.responsibleId || null,
+      reminder_lead_minutes: params.reminderLeadMinutes ?? null,
       is_active: true,
       created_by: params.createdBy,
     })

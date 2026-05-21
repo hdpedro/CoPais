@@ -53,6 +53,10 @@ export type CollabRecordType =
   // future:
   // | "decision"
   // | "calendar_event"
+  // NOTE: activity_occurrence (lembrete) NÃO usa esta Foundation —
+  // notifyCollabCreate exclui o actor, mas lembretes são system-emitted
+  // pro responsável. activity-reminders.ts usa createNotificationWithPush
+  // direto (mesmo padrão do vaccine-notifier).
   ;
 
 interface NotifyCollabCreateArgs {

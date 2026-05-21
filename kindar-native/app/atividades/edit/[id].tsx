@@ -37,6 +37,17 @@ const CATEGORY_LABEL: Record<string, string> = {
   social: 'Social', therapy: 'Terapia', leisure: 'Lazer', other: 'Outro',
 };
 
+// Lead time chips — espelha shape de nova.tsx. NULL no banco = default service.
+const LEAD_OPTS: { value: number; key: 'minutes30'|'hour1'|'hours2'|'morning'|'evening'|'none' }[] = [
+  { value: 30, key: 'minutes30' },
+  { value: 60, key: 'hour1' },
+  { value: 120, key: 'hours2' },
+  { value: -1, key: 'morning' },
+  { value: -2, key: 'evening' },
+  { value: 0,  key: 'none' },
+];
+const DEFAULT_LEAD = 60;
+
 interface Member { user_id: string; name: string; }
 
 export default function EditActivityScreen() {
@@ -59,6 +70,7 @@ export default function EditActivityScreen() {
   const [teacherName, setTeacherName] = useState('');
   const [className, setClassName] = useState('');
   const [responsibleId, setResponsibleId] = useState<string | null>(null);
+  const [leadMinutes, setLeadMinutes] = useState<number>(DEFAULT_LEAD);
   const [notes, setNotes] = useState('');
 
   const [members, setMembers] = useState<Member[]>([]);
@@ -70,7 +82,7 @@ export default function EditActivityScreen() {
       const [{ data: act }, { data: memRows }] = await Promise.all([
         supabase
           .from('child_activities')
-          .select('name, category, time_start, time_end, location, notes, teacher_name, class_name, responsible_id')
+          .select('name, category, time_start, time_end, location, notes, teacher_name, class_name, responsible_id, reminder_lead_minutes')
           .eq('id', activityId)
           .maybeSingle(),
         supabase
@@ -88,6 +100,8 @@ export default function EditActivityScreen() {
         setTeacherName(act.teacher_name || '');
         setClassName(act.class_name || '');
         setResponsibleId(act.responsible_id || null);
+        // NULL no banco = "user nunca escolheu" — UI mostra default service (60).
+        setLeadMinutes(act.reminder_lead_minutes ?? DEFAULT_LEAD);
         setNotes(act.notes || '');
       }
       const memList: Member[] = ((memRows || []) as { user_id: string; profiles: { full_name: string | null; display_name: string | null; email: string | null } | { full_name: string | null; display_name: string | null; email: string | null }[] | null }[]).map((m) => {
@@ -118,6 +132,7 @@ export default function EditActivityScreen() {
       teacher_name: teacherName.trim() || null,
       class_name: className.trim() || null,
       responsible_id: responsibleId,
+      reminder_lead_minutes: leadMinutes,
       notes: notes.trim() || null,
     });
     setSaving(false);
@@ -301,6 +316,37 @@ export default function EditActivityScreen() {
                   color: active ? '#fff' : colors.text,
                 }}>
                   {m.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+
+        {/* Lead time chip — server cron a cada 15min lê esse campo e dispara push */}
+        {/* pro responsible_id na janela ±8min. Service: src/lib/services/activity-reminders.ts */}
+        <Label>{t('reminders.lead.label')}</Label>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+          {LEAD_OPTS.map(opt => {
+            const active = leadMinutes === opt.value;
+            const label = t(`reminders.lead.${opt.key}`);
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                onPress={() => { Haptics.selectionAsync(); setLeadMinutes(opt.value); }}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={label}
+                style={{
+                  paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.full,
+                  backgroundColor: active ? colors.brand : colors.bgElevated,
+                  ...shadows.sm,
+                }}
+              >
+                <Text style={{
+                  fontSize: font.sizes.xs, fontWeight: font.weights.semibold,
+                  color: active ? '#fff' : colors.text,
+                }}>
+                  {label}
                 </Text>
               </TouchableOpacity>
             );

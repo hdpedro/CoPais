@@ -36,6 +36,12 @@ export async function createActivity(formData: FormData) {
   const className = (formData.get("className") as string)?.trim();
   const roomName = (formData.get("room") as string)?.trim();
   const responsibleId = (formData.get("responsibleId") as string)?.trim();
+  const reminderLeadMinutesRaw = formData.get("reminderLeadMinutes") as string | null;
+  // NULL no banco = "user não escolheu" → service aplica default (60).
+  // Aceita 0 (sem lembrete), positivos (minutos antes), -1 (manhã), -2 (véspera).
+  const reminderLeadMinutes = reminderLeadMinutesRaw !== null && reminderLeadMinutesRaw !== ""
+    ? parseInt(reminderLeadMinutesRaw, 10)
+    : null;
 
   if (!name) {
     return { error: "Nome da atividade e obrigatorio." };
@@ -63,6 +69,7 @@ export async function createActivity(formData: FormData) {
       class_name: className || null,
       room: roomName || null,
       responsible_id: responsibleId || null,
+      reminder_lead_minutes: reminderLeadMinutes,
       created_by: user.id,
     })
     .select("id")
@@ -221,80 +228,25 @@ export async function toggleChecklistItem(
  * Send push notifications for tomorrow's activities.
  * Called by cron job API route.
  */
+/**
+ * D-1 noite (20:00 BRT, agendada via /api/cron/activity-reminders).
+ *
+ * Foi N-pushes-por-atividade-pra-todo-mundo (atividade de Jiu-Jitsu virava
+ * 1 push, Inglês outro, Médico outro — 3 atividades amanhã = 3 pushes).
+ *
+ * Agora é **digest agregado por grupo**: "Amanhã: 3 atividades. Jiu-Jitsu 09h
+ * + Inglês 14h + Médico 16h. 8 itens pra preparar." em 1 push só.
+ *
+ * Lembrete T-(lead) pré-evento foi extraído pra
+ * /api/cron/activity-due-reminders (a cada 15min, respeita responsible_id
+ * e reminder_lead_minutes — vide src/lib/services/activity-reminders.ts).
+ *
+ * Mantém shape `{ sent: number }` pro contrato do cron endpoint não quebrar.
+ */
 export async function sendActivityReminders() {
-  const { createClient: createAdminClient } = await import("@supabase/supabase-js");
-  const supabase = createAdminClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!
-  );
-
-  const tomorrow = new Date();
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowKey = formatDateKey(tomorrow);
-
-  // Find tomorrow's activities via pre-computed calendar_occurrences (no runtime recurrence)
-  const { data: occurrences } = await supabase
-    .from("calendar_occurrences")
-    .select("activity_id, child_activities!inner(id, name, category, time_start, group_id, child_id, children(full_name), activity_checklist_items(id, name, sort_order))")
-    .eq("occurrence_date", tomorrowKey);
-
-  if (!occurrences || occurrences.length === 0) return { sent: 0 };
-
-  let sentCount = 0;
-
-  const tomorrowActivities = occurrences.map((occ) => {
-    const act = Array.isArray(occ.child_activities) ? occ.child_activities[0] : occ.child_activities;
-    return act;
-  }).filter(Boolean);
-
-  // Fetch members for all relevant groups in one batch (fixes N+1)
-  const groupIds = [...new Set(tomorrowActivities.map((a) => a.group_id))];
-  const { data: allMembers } = await supabase
-    .from("group_members")
-    .select("user_id, group_id")
-    .in("group_id", groupIds);
-
-  const membersByGroup: Record<string, string[]> = {};
-  for (const m of allMembers || []) {
-    if (!membersByGroup[m.group_id]) membersByGroup[m.group_id] = [];
-    membersByGroup[m.group_id].push(m.user_id);
-  }
-
-  for (const activity of tomorrowActivities) {
-    const childName = (activity.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
-    const items = (activity.activity_checklist_items as unknown as { name: string; sort_order: number }[]) || [];
-    const itemList = items
-      .sort((a, b) => a.sort_order - b.sort_order)
-      .map((i) => i.name)
-      .join(", ");
-
-    const timeStr = activity.time_start
-      ? ` as ${activity.time_start.slice(0, 5)}`
-      : "";
-
-    const members = membersByGroup[activity.group_id] || [];
-
-    try {
-      await Promise.all(
-        members.map((userId) => {
-          const body = itemList
-            ? `${childName} tem ${activity.name}${timeStr} amanha! Preparar: ${itemList}`
-            : `${childName} tem ${activity.name}${timeStr} amanha!`;
-
-          return createNotificationWithPush(
-            userId,
-            "activity_reminder",
-            `${activity.name} amanha!`,
-            body,
-            "/atividades"
-          ).catch(() => {/* notification failure is non-critical */});
-        })
-      );
-      sentCount += members.length;
-    } catch { /* notification failure is non-critical */ }
-  }
-
-  return { sent: sentCount };
+  const { sendDailyActivityDigest } = await import("@/lib/services/activity-reminders");
+  const result = await sendDailyActivityDigest();
+  return { sent: result.sent };
 }
 
 /* ------------------------------------------------------------------ */

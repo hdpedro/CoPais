@@ -34,6 +34,27 @@ interface PushPayload {
   tag?: string;
   icon?: string;
   actions?: Array<{ action: string; title: string }>;
+  /**
+   * iOS only: APNs `interruptionLevel: 'time-sensitive'` (iOS 15+).
+   * Atravessa Foco/DND quando o app declara o entitlement
+   * `com.apple.developer.usernotifications.time-sensitive`.
+   * Use APENAS pra reminders reais de eventos agendados (Apple pode
+   * reverter no review se usar pra marketing). Default false.
+   */
+  timeSensitive?: boolean;
+  /**
+   * Android only: id do channel FCM (criado via Notifications.setNotification
+   * ChannelAsync no native). Default 'default' (channel principal).
+   * Pra reminders premium use 'activity_reminders' (importance MAX, som
+   * distinto, vibration pattern reconhecível).
+   */
+  androidChannelId?: string;
+  /**
+   * APNs/iOS category id pra Notification Action Buttons (quick actions).
+   * O app native registra via Notifications.setNotificationCategoryAsync.
+   * Sem cat = sem botões inline. Não-fatal se cat não existir no device.
+   */
+  iosCategoryId?: string;
 }
 
 interface PushSubscriptionData {
@@ -310,6 +331,13 @@ async function sendApnsPush(
         // the badge stick at 1 forever after the first push of a session.
         badge,
         ...(payload.tag ? { "thread-id": payload.tag } : {}),
+        // iOS 15+: atravessa Foco/DND quando entitlement
+        // `com.apple.developer.usernotifications.time-sensitive` ativo.
+        // Apple aceita silenciosamente se sem entitlement (push vira
+        // normal) — não quebra app antigo sem rebuild.
+        ...(payload.timeSensitive ? { "interruption-level": "time-sensitive" } : {}),
+        // Notification Categories pra Action Buttons (long-press).
+        ...(payload.iosCategoryId ? { category: payload.iosCategoryId } : {}),
       },
       url: payload.url || "/dashboard",
     };
@@ -462,7 +490,18 @@ export async function createNotificationWithPush(
   type: string,
   title: string,
   message: string,
-  link?: string
+  link?: string,
+  /**
+   * Opções premium opt-in. Backward-compatible: chamadores antigos passam só
+   * 5 args, comportamento idêntico. Pra activity reminders, passe
+   * { timeSensitive: true, androidChannelId: 'activity_reminders',
+   *   iosCategoryId: 'activity_reminder' }.
+   */
+  opts?: {
+    timeSensitive?: boolean;
+    androidChannelId?: string;
+    iosCategoryId?: string;
+  },
 ) {
   const supabase = getAdminClient();
 
@@ -488,5 +527,8 @@ export async function createNotificationWithPush(
     body: message,
     url: link || "/dashboard",
     tag: `${type}-${Date.now()}`,
+    timeSensitive: opts?.timeSensitive,
+    androidChannelId: opts?.androidChannelId,
+    iosCategoryId: opts?.iosCategoryId,
   });
 }

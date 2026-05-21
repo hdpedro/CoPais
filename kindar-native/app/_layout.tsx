@@ -48,6 +48,7 @@ import {
   setupNotificationHandler,
   registerForPushNotificationsAsync,
   addNotificationResponseListener,
+  registerNotificationChannels,
 } from 'src/services/push-setup';
 import { initializeIAP, identifyUser, resetUser } from 'src/services/iap';
 import * as analytics from 'src/lib/analytics';
@@ -85,6 +86,9 @@ export default function RootLayout() {
     useI18n.getState().hydrate();
     const cleanup = setupOffline();
     setupNotificationHandler();
+    // Channels Android dedicados (lembrete de atividade com som distinto +
+    // importance MAX). Idempotente; falha não é fatal. iOS no-op.
+    registerNotificationChannels().catch(() => {});
     // RevenueCat pode inicializar antes do login (anon user); quando userId
     // aparecer, o effect abaixo chama identifyUser() pra fazer o link.
     initializeIAP().catch(() => {});

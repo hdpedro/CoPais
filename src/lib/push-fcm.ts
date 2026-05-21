@@ -20,6 +20,15 @@ interface FcmPayload {
   body: string;
   url?: string;
   tag?: string;
+  /**
+   * Channel id criado via Notifications.setNotificationChannelAsync no
+   * native. Default 'default'. Pra reminders de atividade use
+   * 'activity_reminders' (importance MAX, som distinto, vibration
+   * reconhecível) — registrado em kindar-native push-setup.ts.
+   * Sem esse channel registrado no device, FCM cai pra channel padrão
+   * silenciosamente (não quebra entrega).
+   */
+  androidChannelId?: string;
 }
 
 /**
@@ -141,8 +150,9 @@ export async function sendFcmPush(
       android: {
         priority: "high" as const,
         notification: {
-          // Match Android channel registered in kindar-native push-setup.ts
-          channel_id: "default",
+          // Channel registered in kindar-native push-setup.ts. Per-payload
+          // override permite reminders premium usarem channel dedicado.
+          channel_id: payload.androidChannelId || "default",
           ...(payload.tag ? { tag: payload.tag } : {}),
         },
       },

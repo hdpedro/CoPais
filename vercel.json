@@ -13,6 +13,10 @@
       "schedule": "0 23 * * *"
     },
     {
+      "path": "/api/cron/activity-due-reminders",
+      "schedule": "*/15 * * * *"
+    },
+    {
       "path": "/api/cron/custody-change",
       "schedule": "0 10 * * *"
     },

@@ -11,6 +11,19 @@ interface Props {
   children: { id: string; full_name: string }[];
 }
 
+// Lead time options pro lembrete pré-evento.
+// Espelha kindar-native/app/atividades/nova.tsx — paridade PWA↔Native.
+// Default 60 ("1h antes"). Sentinels: -1=manhã(8h), -2=véspera(20h), 0=sem.
+const LEAD_OPTS: { value: number; label: string }[] = [
+  { value: 30,  label: "30 min antes" },
+  { value: 60,  label: "1h antes" },
+  { value: 120, label: "2h antes" },
+  { value: -1,  label: "Manhã do dia (8h)" },
+  { value: -2,  label: "Véspera (20h)" },
+  { value: 0,   label: "Sem lembrete" },
+];
+const DEFAULT_LEAD = 60;
+
 export default function NewActivityForm({ children }: Props) {
   const [selectedChildren, setSelectedChildren] = useState<string[]>([]);
   const [category, setCategory] = useState("sport");
@@ -22,6 +35,7 @@ export default function NewActivityForm({ children }: Props) {
     DEFAULT_CHECKLIST_ITEMS["sport"] || []
   );
   const [newItem, setNewItem] = useState("");
+  const [leadMinutes, setLeadMinutes] = useState<number>(DEFAULT_LEAD);
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -88,6 +102,7 @@ export default function NewActivityForm({ children }: Props) {
     formData.set("checklistItems", JSON.stringify(checklistItems));
     formData.set("category", category);
     formData.set("recurrenceType", recurrence);
+    formData.set("reminderLeadMinutes", String(leadMinutes));
     if (showDayOfWeek && selectedDays.length > 0) {
       formData.set("daysOfWeek", JSON.stringify(selectedDays));
     }
@@ -399,6 +414,34 @@ export default function NewActivityForm({ children }: Props) {
           >
             +
           </button>
+        </div>
+      </div>
+
+      {/* === SECTION 5: Reminder lead time === */}
+      {/* Server cron (/api/cron/activity-due-reminders, a cada 15min) lê esse */}
+      {/* campo e dispara push pro responsible_id na janela ±8min. */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+        <div>
+          <p className="text-sm font-medium text-[#2C2C2C]">Quando me lembrar?</p>
+          <p className="text-[11px] text-[#7A8C8B] mt-0.5">
+            Notificamos o responsável antes do evento com a lista de materiais.
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-1.5">
+          {LEAD_OPTS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setLeadMinutes(opt.value)}
+              className={`px-3 py-2 rounded-xl text-[13px] font-medium transition-all border ${
+                leadMinutes === opt.value
+                  ? "bg-primary/10 border-primary/30 text-primary shadow-sm"
+                  : "bg-white border-gray-200 text-[#7A8C8B] hover:bg-gray-50"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
       </div>
 

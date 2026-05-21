@@ -29,6 +29,48 @@ export function setupNotificationHandler() {
 }
 
 /**
+ * Registra channels Android (idempotente — Android dedupe por id).
+ * Pode rodar a cada boot sem custo. Falha não é fatal (ex: iOS).
+ *
+ * Channels:
+ *  - 'default'            (existente) — uso geral
+ *  - 'activity_reminders' (novo)      — lembrete pré-evento das atividades
+ *                                       com importance MAX, vibration
+ *                                       reconhecível. Backend FCM passa
+ *                                       channel_id='activity_reminders' no
+ *                                       payload — vide src/lib/push-fcm.ts.
+ *                                       Match com setNotificationCategory
+ *                                       Async('activity_reminder', [...])
+ *                                       pra quick actions (Fase futura).
+ *
+ * Pra app já instalado, o re-create com mesma config é no-op (Android só
+ * permite mudar nome+description via system settings após primeiro create).
+ */
+export async function registerNotificationChannels() {
+  if (Platform.OS !== 'android') return;
+  try {
+    await Notifications.setNotificationChannelAsync('default', {
+      name: 'Kindar',
+      importance: Notifications.AndroidImportance.MAX,
+      vibrationPattern: [0, 250, 250, 250],
+      lightColor: '#C07055',
+    });
+    await Notifications.setNotificationChannelAsync('activity_reminders', {
+      name: 'Lembretes de atividades',
+      description: 'Avisos pouco antes de cada compromisso da criança, com o checklist do que preparar.',
+      importance: Notifications.AndroidImportance.MAX,
+      // Padrão reconhecível: pulso curto-longo-curto. Diferencia de push
+      // genérico ("zumbido único") em ~200ms — premium tactile signature.
+      vibrationPattern: [0, 500, 250, 500],
+      lightColor: '#C07055',
+      enableVibrate: true,
+    });
+  } catch {
+    // non-fatal — push entrega via 'default' como fallback
+  }
+}
+
+/**
  * Request permission + get push token. Sends to backend to register on push_subscriptions.
  * Returns null if user denies permission or not on a physical device.
  */

@@ -60,6 +60,21 @@ const RECURRENCE_OPTS = [
   { value: 'monthly', label: 'Mensal' },
 ];
 
+// Lead time options pro lembrete pré-evento.
+// Valores em minutos. Sentinels: -1=manhã (8h), -2=véspera (20h), 0=sem.
+// Default 60min ("1h antes") quando reminder_lead_minutes IS NULL no banco —
+// service activity-reminders.ts aplica o mesmo default. Premium product
+// promise (vide CLAUDE.md "Alertas Kindar").
+const LEAD_OPTS: { value: number; key: 'minutes30'|'hour1'|'hours2'|'morning'|'evening'|'none' }[] = [
+  { value: 30, key: 'minutes30' },
+  { value: 60, key: 'hour1' },
+  { value: 120, key: 'hours2' },
+  { value: -1, key: 'morning' },
+  { value: -2, key: 'evening' },
+  { value: 0,  key: 'none' },
+];
+const DEFAULT_LEAD = 60;
+
 // Checklist defaults — mirrors PWA `DEFAULT_CHECKLIST_ITEMS` in
 // `src/lib/constants.ts:105`. Native ACTIVITY_CATEGORIES uses different
 // keys (sports/arts/social) — map them to PWA's keys (sport/art/school).
@@ -130,6 +145,7 @@ export default function NovaAtividadeScreen() {
   const [timeEnd, setTimeEnd] = useState('');
   const [endDateBr, setEndDateBr] = useState(''); // DD/MM/AAAA
   const [responsibleId, setResponsibleId] = useState<string | null>(null);
+  const [leadMinutes, setLeadMinutes] = useState<number>(DEFAULT_LEAD);
   const [checklistItems, setChecklistItems] = useState<string[]>([]);
   const [newChecklistItem, setNewChecklistItem] = useState('');
   const [saving, setSaving] = useState(false);
@@ -239,6 +255,7 @@ export default function NovaAtividadeScreen() {
       notes: notes.trim() || undefined,
       daysOfWeek: daysJson,
       responsibleId: responsibleId || null,
+      reminderLeadMinutes: leadMinutes,
       createdBy: userId,
     });
 
@@ -533,6 +550,37 @@ export default function NovaAtividadeScreen() {
             </View>
           </>
         ) : null}
+
+        {/* Lead time pro lembrete pré-evento — server cron a cada 15min lê */}
+        {/* esse campo e dispara push pro responsável. Service: src/lib/services/activity-reminders.ts */}
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>
+          {t('reminders.lead.label')}
+        </Text>
+        <View testID="atividade-lead" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
+          {LEAD_OPTS.map(opt => {
+            const active = leadMinutes === opt.value;
+            const label = t(`reminders.lead.${opt.key}`);
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                onPress={() => { Haptics.selectionAsync(); setLeadMinutes(opt.value); }}
+                testID={`atividade-lead-${opt.key}`}
+                accessibilityRole="radio"
+                accessibilityState={{ selected: active }}
+                accessibilityLabel={label}
+                style={{
+                  paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
+                  backgroundColor: active ? colors.brand : colors.bgElevated,
+                  borderWidth: 1, borderColor: active ? colors.brand : colors.borderLight,
+                }}
+              >
+                <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
+                  {label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
 
         {/* Checklist items */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Checklist da mochila</Text>
