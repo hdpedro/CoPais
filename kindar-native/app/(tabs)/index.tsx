@@ -4,7 +4,15 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated, {
+  FadeInDown,
+  Easing as ReanimatedEasing,
+  useSharedValue,
+  useAnimatedStyle,
+  withRepeat,
+  withSequence,
+  withTiming,
+} from 'react-native-reanimated';
 import { useAuth } from 'src/store/auth';
 import { useDashboard } from 'src/hooks/useDashboard';
 import { respondToSwap, cancelMySwap } from 'src/services/swaps';
@@ -179,9 +187,7 @@ export default function DashboardScreen() {
 
   if (!data && loading) {
     return (
-      <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center' }}>
-        <Text style={{ color: colors.textMuted, fontSize: font.sizes.md }}>{t('common.loading')}</Text>
-      </View>
+      <DashboardSkeleton insets={insets} />
     );
   }
 
@@ -1403,5 +1409,161 @@ export default function DashboardScreen() {
         onClose={() => setShowQAModal(false)}
       />
     </>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * DashboardSkeleton — placeholders premium durante hidratação inicial.
+ * Substitui o antigo "Carregando..." centralizado (que quebrava a per-
+ * cepção premium do splash, identificado via vídeo Henrique 2026-05-21).
+ *
+ * UX:
+ *   - Background cream MATCHING o splash (transição imperceptível)
+ *   - Hero card placeholder (~120px) + child chips + 3 content rows
+ *   - Shimmer animado SUTIL (opacity 0.4↔0.7 loop ~1500ms senoidal)
+ *   - Sem texto cru (zero "Carregando" / "Loading" / spinner genérico)
+ *
+ * Filosofia: skeleton DEVE refletir o layout real — não placeholder
+ * genérico tipo "ondas de cinza". O usuário tem que pré-visualizar o
+ * que vai aparecer. Pattern Linear / Notion / Stripe Dashboard.
+ * ───────────────────────────────────────────────────────────────────── */
+function DashboardSkeleton({ insets }: { insets: { top: number; bottom: number } }) {
+  return (
+    <View
+      style={{
+        flex: 1,
+        backgroundColor: colors.bg,
+        paddingTop: insets.top + spacing.lg,
+        paddingHorizontal: spacing.lg,
+      }}
+    >
+      {/* Header skeleton — saudação + ícones */}
+      <View
+        style={{
+          flexDirection: 'row',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: spacing.xl,
+        }}
+      >
+        <View>
+          <SkeletonBlock width={160} height={20} radius={6} />
+          <View style={{ height: 6 }} />
+          <SkeletonBlock width={100} height={14} radius={4} />
+        </View>
+        <SkeletonBlock width={36} height={36} radius={18} />
+      </View>
+
+      {/* Hero card skeleton */}
+      <SkeletonBlock
+        width="100%"
+        height={120}
+        radius={radius.xl}
+        style={{ marginBottom: spacing.lg }}
+      />
+
+      {/* Child chips row skeleton */}
+      <View
+        style={{
+          flexDirection: 'row',
+          gap: spacing.sm,
+          marginBottom: spacing.lg,
+        }}
+      >
+        <SkeletonBlock width={84} height={32} radius={radius.full} />
+        <SkeletonBlock width={84} height={32} radius={radius.full} />
+        <SkeletonBlock width={84} height={32} radius={radius.full} />
+      </View>
+
+      {/* Content rows — simulam cards de hoje/amanhã/atividades */}
+      <SkeletonBlock
+        width="100%"
+        height={84}
+        radius={radius.lg}
+        style={{ marginBottom: spacing.md }}
+      />
+      <SkeletonBlock
+        width="100%"
+        height={84}
+        radius={radius.lg}
+        style={{ marginBottom: spacing.md }}
+      />
+      <SkeletonBlock
+        width="100%"
+        height={84}
+        radius={radius.lg}
+        style={{ marginBottom: spacing.md }}
+      />
+
+      {/* Section label skeleton */}
+      <View style={{ marginTop: spacing.md, marginBottom: spacing.sm }}>
+        <SkeletonBlock width={120} height={14} radius={4} />
+      </View>
+
+      {/* Quick action squares */}
+      <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+        <SkeletonBlock width={64} height={64} radius={radius.lg} />
+        <SkeletonBlock width={64} height={64} radius={radius.lg} />
+        <SkeletonBlock width={64} height={64} radius={radius.lg} />
+        <SkeletonBlock width={64} height={64} radius={radius.lg} />
+      </View>
+    </View>
+  );
+}
+
+/**
+ * SkeletonBlock — placeholder com shimmer subtle. Reanimated worklet loop
+ * sin-wave opacity 0.4 ↔ 0.7. Usa borderRadius pra match formas reais.
+ *
+ * Cor base = colors.borderLight (cinza-cream muito sutil) sobre bg cream
+ * — contrast baixíssimo, sensação "fantasma de conteúdo".
+ */
+function SkeletonBlock({
+  width,
+  height,
+  radius: r,
+  style,
+}: {
+  width: number | string;
+  height: number;
+  radius: number;
+  style?: object;
+}) {
+  const opacity = useSharedValue(0.4);
+
+  useEffect(() => {
+    /* eslint-disable react-hooks/immutability */
+    opacity.value = withRepeat(
+      withSequence(
+        withTiming(0.7, {
+          duration: 750,
+          easing: ReanimatedEasing.inOut(ReanimatedEasing.sin),
+        }),
+        withTiming(0.4, {
+          duration: 750,
+          easing: ReanimatedEasing.inOut(ReanimatedEasing.sin),
+        }),
+      ),
+      -1,
+      false,
+    );
+    /* eslint-enable react-hooks/immutability */
+  }, [opacity]);
+
+  const animatedStyle = useAnimatedStyle(() => ({ opacity: opacity.value }));
+
+  return (
+    <Animated.View
+      style={[
+        {
+          width: width as number,
+          height,
+          borderRadius: r,
+          backgroundColor: colors.borderLight,
+        },
+        animatedStyle,
+        style,
+      ]}
+    />
   );
 }
