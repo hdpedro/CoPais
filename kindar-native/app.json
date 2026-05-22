@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kindar",
     "slug": "kindar",
-    "version": "1.0.12",
+    "version": "1.0.13",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -17,8 +17,11 @@
       "supportsTablet": false,
       "requireFullScreen": true,
       "bundleIdentifier": "com.kindar.app",
-      "buildNumber": "94",
+      "buildNumber": "95",
       "usesAppleSignIn": true,
+      "entitlements": {
+        "com.apple.developer.usernotifications.time-sensitive": true
+      },
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSPhotoLibraryUsageDescription": "O Kindar acessa sua biblioteca de fotos para você anexar imagens ao chat com o co-responsável (por exemplo: foto da rotina escolar do dia), comprovantes de despesas no módulo Despesas (recibo de farmácia, nota fiscal da escola), e documentos médicos (receita, carteira de vacinação). As imagens só são enviadas quando você toca explicitamente em Anexar.",
