@@ -1119,6 +1119,8 @@
       "ctaSnooze7d": "7 Tage verschieben",
       "ctaSnooze30d": "30 Tage verschieben",
       "ctaAlreadyScheduled": "Schon vereinbart",
+      "ctaMedicalAdvice": "Kinderarzt riet ab",
+      "ctaMedicalAdviceHint": "Blendet diese Dosis für 1 Jahr aus. Wir öffnen sie später zur Überprüfung.",
       "snoozeSuccess": "Erinnerung verschoben",
       "timelineTitle": "Zeitleiste",
       "timelineEmpty": "Noch keine Dosis erfasst",

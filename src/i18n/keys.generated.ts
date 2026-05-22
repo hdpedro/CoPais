@@ -1612,6 +1612,8 @@ export type TranslationKey =
   | "health.vaccineEngine.coverageHint"
   | "health.vaccineEngine.ctaAlreadyScheduled"
   | "health.vaccineEngine.ctaMarkAsTaken"
+  | "health.vaccineEngine.ctaMedicalAdvice"
+  | "health.vaccineEngine.ctaMedicalAdviceHint"
   | "health.vaccineEngine.ctaScheduleAppointment"
   | "health.vaccineEngine.ctaSnooze"
   | "health.vaccineEngine.ctaSnooze30d"
@@ -4075,6 +4077,8 @@ export const TRANSLATION_KEYS = [
   "health.vaccineEngine.coverageHint",
   "health.vaccineEngine.ctaAlreadyScheduled",
   "health.vaccineEngine.ctaMarkAsTaken",
+  "health.vaccineEngine.ctaMedicalAdvice",
+  "health.vaccineEngine.ctaMedicalAdviceHint",
   "health.vaccineEngine.ctaScheduleAppointment",
   "health.vaccineEngine.ctaSnooze",
   "health.vaccineEngine.ctaSnooze30d",

@@ -113,7 +113,7 @@ export interface DismissDoseInput {
   childId: string;
   vaccineId: string;
   doseNumber: number;
-  reason: "snoozed_7d" | "snoozed_30d" | "already_scheduled";
+  reason: "snoozed_7d" | "snoozed_30d" | "already_scheduled" | "medical_advice";
 }
 
 export interface SetCalendarPreferenceInput {
@@ -769,6 +769,10 @@ const SNOOZE_DAYS: Record<DismissDoseInput["reason"], number> = {
   snoozed_7d: 7,
   snoozed_30d: 30,
   already_scheduled: 30,
+  // Pediatra recomendou não dar: dispensa longa (1 ano) sem push de
+  // reentrada. Ao expirar, motor reabre pra revalidação — recomendações
+  // clínicas mudam com idade, calendário, situação imunológica etc.
+  medical_advice: 365,
 };
 
 export async function dismissPendingDose(

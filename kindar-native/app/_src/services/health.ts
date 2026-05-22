@@ -937,7 +937,7 @@ export async function dismissPendingDose(input: {
   childId: string;
   vaccineId: string;
   doseNumber: number;
-  reason: 'snoozed_7d' | 'snoozed_30d' | 'already_scheduled';
+  reason: 'snoozed_7d' | 'snoozed_30d' | 'already_scheduled' | 'medical_advice';
 }) {
   const r = await apiFetch<{ success: boolean; dismissedUntil?: string }>(`/api/health/vaccines`, {
     method: 'POST',

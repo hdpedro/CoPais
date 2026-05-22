@@ -146,25 +146,41 @@ export default function VaccinePendingCard({ dose, childId, childFirstName, isRe
       )}
 
       {showSnoozeMenu && !isReadonly && (
-        <div className="mt-2 grid grid-cols-3 gap-1.5">
-          {(["snoozed_7d", "snoozed_30d", "already_scheduled"] as const).map((reason) => (
-            <form key={reason} action={dismissDose}>
-              <input type="hidden" name="childId" value={childId} />
-              <input type="hidden" name="vaccineId" value={dose.vaccineId} />
-              <input type="hidden" name="doseNumber" value={String(dose.doseNumber)} />
-              <input type="hidden" name="reason" value={reason} />
-              <button
-                type="submit"
-                className="w-full text-[11px] font-medium text-muted hover:text-dark bg-white hover:bg-gray-50 py-2 rounded-lg border border-gray-200"
-              >
-                {reason === "snoozed_7d"
-                  ? t("health.vaccineEngine.ctaSnooze7d")
-                  : reason === "snoozed_30d"
-                  ? t("health.vaccineEngine.ctaSnooze30d")
-                  : t("health.vaccineEngine.ctaAlreadyScheduled")}
-              </button>
-            </form>
-          ))}
+        <div className="mt-2 space-y-1.5">
+          <div className="grid grid-cols-3 gap-1.5">
+            {(["snoozed_7d", "snoozed_30d", "already_scheduled"] as const).map((reason) => (
+              <form key={reason} action={dismissDose}>
+                <input type="hidden" name="childId" value={childId} />
+                <input type="hidden" name="vaccineId" value={dose.vaccineId} />
+                <input type="hidden" name="doseNumber" value={String(dose.doseNumber)} />
+                <input type="hidden" name="reason" value={reason} />
+                <button
+                  type="submit"
+                  className="w-full text-[11px] font-medium text-muted hover:text-dark bg-white hover:bg-gray-50 py-2 rounded-lg border border-gray-200"
+                >
+                  {reason === "snoozed_7d"
+                    ? t("health.vaccineEngine.ctaSnooze7d")
+                    : reason === "snoozed_30d"
+                    ? t("health.vaccineEngine.ctaSnooze30d")
+                    : t("health.vaccineEngine.ctaAlreadyScheduled")}
+                </button>
+              </form>
+            ))}
+          </div>
+          {/* Pediatra recomendou não dar — TTL 1 ano, sem reentrada de push */}
+          <form action={dismissDose}>
+            <input type="hidden" name="childId" value={childId} />
+            <input type="hidden" name="vaccineId" value={dose.vaccineId} />
+            <input type="hidden" name="doseNumber" value={String(dose.doseNumber)} />
+            <input type="hidden" name="reason" value="medical_advice" />
+            <button
+              type="submit"
+              title={t("health.vaccineEngine.ctaMedicalAdviceHint")}
+              className="w-full text-[11px] font-medium text-muted hover:text-dark bg-white hover:bg-gray-50 py-2 rounded-lg border border-gray-200"
+            >
+              👨‍⚕️ {t("health.vaccineEngine.ctaMedicalAdvice")}
+            </button>
+          </form>
         </div>
       )}
     </div>

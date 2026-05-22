@@ -117,7 +117,7 @@ interface PostBody {
   doseRecommendationId?: string;
   // dismiss
   vaccineId?: string;
-  reason?: "snoozed_7d" | "snoozed_30d" | "already_scheduled";
+  reason?: "snoozed_7d" | "snoozed_30d" | "already_scheduled" | "medical_advice";
 }
 
 export async function POST(request: Request) {

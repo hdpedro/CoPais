@@ -1119,6 +1119,8 @@
       "ctaSnooze7d": "Reporter 7 jours",
       "ctaSnooze30d": "Reporter 30 jours",
       "ctaAlreadyScheduled": "Déjà pris RDV",
+      "ctaMedicalAdvice": "Pédiatre déconseille",
+      "ctaMedicalAdviceHint": "Masque cette dose pendant 1 an. Nous la rouvrirons pour revue.",
       "snoozeSuccess": "Rappel reporté",
       "timelineTitle": "Chronologie",
       "timelineEmpty": "Aucune dose enregistrée",

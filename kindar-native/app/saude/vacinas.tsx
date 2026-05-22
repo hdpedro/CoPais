@@ -170,7 +170,7 @@ export default function VacinasScreen() {
     }
   }
 
-  async function handleSnooze(dose: VaccineDoseStatus, reason: 'snoozed_7d' | 'snoozed_30d' | 'already_scheduled') {
+  async function handleSnooze(dose: VaccineDoseStatus, reason: 'snoozed_7d' | 'snoozed_30d' | 'already_scheduled' | 'medical_advice') {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const r = await dismissPendingDose({
       childId: selectedChildId,
@@ -894,7 +894,7 @@ function PendingCard({
   childFirstName: string;
   childId: string;
   onMark: () => void;
-  onSnooze: (reason: 'snoozed_7d' | 'snoozed_30d' | 'already_scheduled') => void;
+  onSnooze: (reason: 'snoozed_7d' | 'snoozed_30d' | 'already_scheduled' | 'medical_advice') => void;
 }) {
   const t = useI18n((s) => s.t);
   const [showSnooze, setShowSnooze] = useState(false);
@@ -1022,30 +1022,41 @@ function PendingCard({
       </View>
 
       {showSnooze ? (
-        <View style={{ flexDirection: 'row', gap: 6, marginTop: spacing.xs }}>
+        <View style={{ marginTop: spacing.xs, gap: 6 }}>
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            <TouchableOpacity
+              onPress={() => { onSnooze('snoozed_7d'); setShowSnooze(false); }}
+              accessibilityRole="button"
+              accessibilityLabel={t('health.vaccineEngine.ctaSnooze7d')}
+              style={{ flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.borderLight }}
+            >
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>{t('health.vaccineEngine.ctaSnooze7d')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { onSnooze('snoozed_30d'); setShowSnooze(false); }}
+              accessibilityRole="button"
+              accessibilityLabel={t('health.vaccineEngine.ctaSnooze30d')}
+              style={{ flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.borderLight }}
+            >
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>{t('health.vaccineEngine.ctaSnooze30d')}</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={() => { onSnooze('already_scheduled'); setShowSnooze(false); }}
+              accessibilityRole="button"
+              accessibilityLabel={t('health.vaccineEngine.ctaAlreadyScheduled')}
+              style={{ flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.borderLight }}
+            >
+              <Text style={{ fontSize: 11, color: colors.textMuted }}>{t('health.vaccineEngine.ctaAlreadyScheduled')}</Text>
+            </TouchableOpacity>
+          </View>
           <TouchableOpacity
-            onPress={() => { onSnooze('snoozed_7d'); setShowSnooze(false); }}
+            onPress={() => { onSnooze('medical_advice'); setShowSnooze(false); }}
             accessibilityRole="button"
-            accessibilityLabel={t('health.vaccineEngine.ctaSnooze7d')}
-            style={{ flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.borderLight }}
+            accessibilityLabel={t('health.vaccineEngine.ctaMedicalAdvice')}
+            accessibilityHint={t('health.vaccineEngine.ctaMedicalAdviceHint')}
+            style={{ paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.borderLight }}
           >
-            <Text style={{ fontSize: 11, color: colors.textMuted }}>{t('health.vaccineEngine.ctaSnooze7d')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => { onSnooze('snoozed_30d'); setShowSnooze(false); }}
-            accessibilityRole="button"
-            accessibilityLabel={t('health.vaccineEngine.ctaSnooze30d')}
-            style={{ flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.borderLight }}
-          >
-            <Text style={{ fontSize: 11, color: colors.textMuted }}>{t('health.vaccineEngine.ctaSnooze30d')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => { onSnooze('already_scheduled'); setShowSnooze(false); }}
-            accessibilityRole="button"
-            accessibilityLabel={t('health.vaccineEngine.ctaAlreadyScheduled')}
-            style={{ flex: 1, paddingVertical: spacing.sm, alignItems: 'center', borderRadius: radius.md, backgroundColor: '#fff', borderWidth: 1, borderColor: colors.borderLight }}
-          >
-            <Text style={{ fontSize: 11, color: colors.textMuted }}>{t('health.vaccineEngine.ctaAlreadyScheduled')}</Text>
+            <Text style={{ fontSize: 11, color: colors.textMuted }}>👨‍⚕️ {t('health.vaccineEngine.ctaMedicalAdvice')}</Text>
           </TouchableOpacity>
         </View>
       ) : null}

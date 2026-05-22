@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "requireFullScreen": true,
       "bundleIdentifier": "com.kindar.app",
-      "buildNumber": "93",
+      "buildNumber": "94",
       "usesAppleSignIn": true,
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,

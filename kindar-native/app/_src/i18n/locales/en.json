@@ -1119,6 +1119,8 @@
       "ctaSnooze7d": "Snooze 7 days",
       "ctaSnooze30d": "Snooze 30 days",
       "ctaAlreadyScheduled": "Already booked",
+      "ctaMedicalAdvice": "Doctor advised against",
+      "ctaMedicalAdviceHint": "Hides this dose for 1 year. We'll reopen it later for review.",
       "snoozeSuccess": "Reminder snoozed",
       "timelineTitle": "Timeline",
       "timelineEmpty": "No doses recorded yet",

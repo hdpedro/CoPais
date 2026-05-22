@@ -197,7 +197,7 @@ export async function dismissDose(formData: FormData) {
   const childId = formData.get("childId") as string;
   const vaccineId = formData.get("vaccineId") as string;
   const doseNumber = Number(formData.get("doseNumber"));
-  const reason = formData.get("reason") as "snoozed_7d" | "snoozed_30d" | "already_scheduled";
+  const reason = formData.get("reason") as "snoozed_7d" | "snoozed_30d" | "already_scheduled" | "medical_advice";
 
   const result = await dismissPendingDoseService(supabase, {
     userId: user.id,
