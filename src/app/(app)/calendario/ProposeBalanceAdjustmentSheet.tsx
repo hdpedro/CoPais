@@ -100,7 +100,7 @@ export default function ProposeBalanceAdjustmentSheet({
           )}
 
           <div>
-            <label className="block text-xs font-medium text-[#2C2C2C] mb-1">Observacao (opcional)</label>
+            <label className="block text-xs font-medium text-[#2C2C2C] mb-1">Observação (opcional)</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}

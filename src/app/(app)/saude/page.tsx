@@ -170,8 +170,9 @@ export default async function SaudePage({
     supabase.from("medical_appointments").select("id", { count: "exact", head: true }).eq("child_id", selectedChildId),
     supabase.from("medical_professionals").select("id", { count: "exact", head: true }).eq("group_id", groupId),
     supabase.from("vaccination_records").select("vaccine_name, dose_label, administered_date").eq("child_id", selectedChildId).order("administered_date", { ascending: false }),
-    // Motor de Saúde Preventiva — status calmo + nextDue (banco já mantém via triggers)
-    getVaccineStatus(supabase, selectedChildId),
+    // Motor de Saúde Preventiva — status calmo + nextDue (banco já mantém via triggers).
+    // user.id pro engine filtrar dismissals ativos (snooze per-user).
+    getVaccineStatus(supabase, selectedChildId, user.id),
     // Health views — moved into parallel batch (was a sequential query after Promise.all)
     supabase
       .from("health_views")

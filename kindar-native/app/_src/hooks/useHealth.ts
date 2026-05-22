@@ -223,8 +223,8 @@ export function useHealth(selectedChildId?: string) {
 
         const statusLabel =
           status === 'treatment' ? 'Em tratamento'
-            : status === 'monitoring' ? 'Em observacao'
-              : 'Saudavel';
+            : status === 'monitoring' ? 'Em observação'
+              : 'Saudável';
 
         // Detail = a frase descritiva do "estado atual" (1 linha). Nao
         // duplicar com os chips embaixo: se for healthy, deixa "Tudo bem"

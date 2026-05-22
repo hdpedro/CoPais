@@ -1119,6 +1119,7 @@
       "ctaSnooze7d": "Reporter 7 jours",
       "ctaSnooze30d": "Reporter 30 jours",
       "ctaAlreadyScheduled": "Déjà pris RDV",
+      "snoozeSuccess": "Rappel reporté",
       "timelineTitle": "Chronologie",
       "timelineEmpty": "Aucune dose enregistrée",
       "ageBucket_0-2m": "0 à 2 mois",

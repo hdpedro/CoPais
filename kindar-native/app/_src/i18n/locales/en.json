@@ -1119,6 +1119,7 @@
       "ctaSnooze7d": "Snooze 7 days",
       "ctaSnooze30d": "Snooze 30 days",
       "ctaAlreadyScheduled": "Already booked",
+      "snoozeSuccess": "Reminder snoozed",
       "timelineTitle": "Timeline",
       "timelineEmpty": "No doses recorded yet",
       "ageBucket_0-2m": "0 to 2 months",

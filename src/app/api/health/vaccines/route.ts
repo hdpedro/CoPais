@@ -84,7 +84,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: "Sem permissão." }, { status: 403 });
   }
 
-  const result = await getVaccineStatus(supabase, childId);
+  // Passa user.id pro engine respeitar `vaccine_notification_dismissals`
+  // ativos (snooze per-user). Sem isso, "Adiar 7d" ficava silencioso na UI.
+  const result = await getVaccineStatus(supabase, childId, user.id);
   if (!result.ok) {
     return NextResponse.json({ error: result.error }, { status: result.status });
   }

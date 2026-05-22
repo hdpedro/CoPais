@@ -771,6 +771,7 @@
       "ctaSnooze7d": "7 Tage verschieben",
       "ctaSnooze30d": "30 Tage verschieben",
       "ctaAlreadyScheduled": "Schon vereinbart",
+      "snoozeSuccess": "Erinnerung verschoben",
       "timelineTitle": "Zeitleiste",
       "timelineEmpty": "Noch keine Dosis erfasst",
       "ageBucket_0-2m": "0 bis 2 Monate",

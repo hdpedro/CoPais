@@ -27,10 +27,10 @@ import PrimaryButton from 'src/components/ui/PrimaryButton';
 type EventType = 'illness' | 'medication' | 'appointment' | 'observation';
 
 const EVENT_TYPES: Array<{ type: EventType; icon: string; label: string; desc: string }> = [
-  { type: 'illness', icon: '🤒', label: 'Sintoma / Doenca', desc: 'Febre, dor, gripe, etc.' },
-  { type: 'medication', icon: '💊', label: 'Medicamento', desc: 'Remedio, dosagem, frequencia' },
-  { type: 'appointment', icon: '🏥', label: 'Consulta', desc: 'Medico, dentista, exame' },
-  { type: 'observation', icon: '📝', label: 'Observacao', desc: 'Nota livre sobre a saude' },
+  { type: 'illness', icon: '🤒', label: 'Sintoma / Doença', desc: 'Febre, dor, gripe, etc.' },
+  { type: 'medication', icon: '💊', label: 'Medicamento', desc: 'Remédio, dosagem, frequência' },
+  { type: 'appointment', icon: '🏥', label: 'Consulta', desc: 'Médico, dentista, exame' },
+  { type: 'observation', icon: '📝', label: 'Observação', desc: 'Nota livre sobre a saúde' },
 ];
 
 export default function RegistrarScreen() {

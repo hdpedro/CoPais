@@ -771,6 +771,7 @@
       "ctaSnooze7d": "Aplazar 7 días",
       "ctaSnooze30d": "Aplazar 30 días",
       "ctaAlreadyScheduled": "Ya la agendé",
+      "snoozeSuccess": "Recordatorio aplazado",
       "timelineTitle": "Línea del tiempo",
       "timelineEmpty": "Aún no hay dosis registradas",
       "ageBucket_0-2m": "0 a 2 meses",

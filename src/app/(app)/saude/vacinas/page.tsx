@@ -82,7 +82,8 @@ export default async function VacinasPage({
   // 3 queries em paralelo
   const today = new Date().toISOString();
   const [statusResult, recentRes, apptRes] = await Promise.all([
-    getVaccineStatus(supabase, selectedChildId),
+    // user.id pro engine filtrar dismissals ativos (snooze per-user).
+    getVaccineStatus(supabase, selectedChildId, user.id),
     supabase
       .from("vaccination_records")
       .select("id, vaccine_name, dose_label, dose_number, administered_date, location, batch_number, catalog_id")

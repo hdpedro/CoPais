@@ -173,12 +173,14 @@ export default function VacinasScreen() {
   async function handleSnooze(dose: VaccineDoseStatus, reason: 'snoozed_7d' | 'snoozed_30d' | 'already_scheduled') {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const r = await dismissPendingDose({
-      childId: dose.id ? selectedChildId : selectedChildId,
+      childId: selectedChildId,
       vaccineId: dose.vaccineId,
       doseNumber: dose.doseNumber,
       reason,
     });
     if (r.success) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      toast.show({ message: t('health.vaccineEngine.snoozeSuccess'), variant: 'success' });
       load();
     } else {
       toast.show({ message: r.error || t('toasts.common.fallbackError'), variant: 'error' });

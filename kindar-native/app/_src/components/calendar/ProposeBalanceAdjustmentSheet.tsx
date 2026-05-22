@@ -175,7 +175,7 @@ export default function ProposeBalanceAdjustmentSheet({
             ) : null}
 
             <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: 4, marginTop: spacing.md, fontWeight: font.weights.medium }}>
-              Observacao (opcional)
+              Observação (opcional)
             </Text>
             <TextInput
               value={notes}

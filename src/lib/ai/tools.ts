@@ -1483,7 +1483,7 @@ async function execGetVaccineStatus(p: Record<string, unknown>, ctx: ToolContext
   const child = resolveChild(String(p.child_name || ""), ctx.children);
   if (!child) return { success: false, message: "Nao encontrei essa crianca. Qual o nome?" };
 
-  const result = await getVaccineStatusService(ctx.supabase, child.id);
+  const result = await getVaccineStatusService(ctx.supabase, child.id, ctx.userId);
   if (!result.ok) {
     return { success: false, message: result.error };
   }

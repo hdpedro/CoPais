@@ -57,7 +57,7 @@ interface ChildHealthSummary {
   childName: string;
   childPhotoUrl: string | null;
   status: 'healthy' | 'monitoring' | 'treatment';
-  statusLabel: string;           // 'Em tratamento' / 'Em acompanhamento' / 'Saudavel'
+  statusLabel: string;           // 'Em tratamento' / 'Em acompanhamento' / 'Saudável'
   detail: string;
   nextAction: string | null;     // 'Confirmar dose' / 'Atualizar estado' / null
 }
@@ -854,7 +854,7 @@ export function useDashboard() {
         const statusLabel =
           status === 'treatment' ? 'Em tratamento'
           : status === 'monitoring' ? 'Em acompanhamento'
-          : 'Saudavel';
+          : 'Saudável';
 
         return { childId: child.id, childName: child.firstName, childPhotoUrl: child.photoUrl, status, statusLabel, detail, nextAction };
       });

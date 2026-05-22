@@ -86,9 +86,9 @@ export const ACTIVITY_CATEGORIES = [
 
 export const NOTE_CATEGORIES = [
   { value: "lembrete", label: "Lembrete", icon: "📌" },
-  { value: "observacao", label: "Observacao", icon: "👁️" },
-  { value: "preparacao", label: "Preparacao", icon: "📋" },
-  { value: "juridico", label: "Juridico", icon: "⚖️" },
+  { value: "observacao", label: "Observação", icon: "👁️" },
+  { value: "preparacao", label: "Preparação", icon: "📋" },
+  { value: "juridico", label: "Jurídico", icon: "⚖️" },
   { value: "outro", label: "Outro", icon: "📝" },
 ] as const;
 

@@ -69,7 +69,7 @@ export default function SaudeScreen() {
         <Animated.View entering={FadeInDown.delay(0).duration(400)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xl }}>
             <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.text }}>
-              Saude
+              Saúde
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -254,7 +254,7 @@ export default function SaudeScreen() {
         <Animated.View entering={FadeInDown.delay(300).duration(400)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, marginBottom: spacing.md }}>
             <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Historico
+              Histórico
             </Text>
             {timeline.length > 0 ? (
               <TouchableOpacity

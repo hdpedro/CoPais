@@ -1206,7 +1206,7 @@ export default function DashboardScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Ionicons name="pulse-outline" size={12} color={data?.hasAnyCriticalChild ? '#EF4444' : '#5B9E85'} />
                   <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                    Saude
+                    Saúde
                   </Text>
                 </View>
                 <TouchableOpacity

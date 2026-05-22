@@ -23,7 +23,7 @@ import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens
 
 const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
   escola: { icon: '🎒', color: '#3B82F6', label: 'Escola' },
-  saude: { icon: '🏥', color: '#EF4444', label: 'Saude' },
+  saude: { icon: '🏥', color: '#EF4444', label: 'Saúde' },
   atividade: { icon: '⚽', color: '#22C55E', label: 'Atividade' },
   viagem: { icon: '✈️', color: '#8B5CF6', label: 'Viagem' },
   financeiro: { icon: '💰', color: '#F59E0B', label: 'Financeiro' },

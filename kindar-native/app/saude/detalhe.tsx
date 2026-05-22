@@ -16,10 +16,10 @@ import { getDisplayName } from 'src/lib/constants';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const EVENT_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
-  illness: { icon: '🤒', color: '#E53935', label: 'Doenca / Sintoma' },
+  illness: { icon: '🤒', color: '#E53935', label: 'Doença / Sintoma' },
   medication: { icon: '💊', color: '#3b82f6', label: 'Medicamento' },
   appointment: { icon: '🏥', color: '#5B9E85', label: 'Consulta' },
-  observation: { icon: '📝', color: '#E8A228', label: 'Observacao' },
+  observation: { icon: '📝', color: '#E8A228', label: 'Observação' },
 };
 
 const SEVERITY_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
@@ -97,9 +97,9 @@ export default function DetalheScreen() {
       if (data.symptoms && (data.symptoms as string[]).length > 0) {
         rows.push({ label: 'Sintomas', value: (data.symptoms as string[]).join(', '), icon: '🩺' });
       }
-      if (data.diagnosis) rows.push({ label: 'Diagnostico', value: data.diagnosis as string, icon: '📋' });
+      if (data.diagnosis) rows.push({ label: 'Diagnóstico', value: data.diagnosis as string, icon: '📋' });
       rows.push({ label: 'Status', value: data.status === 'active' ? 'Ativo' : 'Resolvido', icon: data.status === 'active' ? '🔴' : '✅' });
-      if (data.start_date) rows.push({ label: 'Inicio', value: formatDate(data.start_date as string), icon: '📅' });
+      if (data.start_date) rows.push({ label: 'Início', value: formatDate(data.start_date as string), icon: '📅' });
       if (data.end_date) rows.push({ label: 'Fim', value: formatDate(data.end_date as string), icon: '📅' });
       if (data.hospital_visit) {
         rows.push({ label: 'Visita hospitalar', value: data.hospital_name as string || 'Sim', icon: '🏥' });

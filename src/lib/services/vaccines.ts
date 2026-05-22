@@ -214,10 +214,18 @@ function buildStatusLabel(totals: VaccineStatusResult["totals"]): string {
  * (ex: AI tool consultando em nome do user com `actingAs`). RLS de
  * `vaccine_recommended_doses` exige `is_group_member(group_id)`, então
  * sessão do user já gateia naturalmente.
+ *
+ * `userId` opcional: quando passado, `vaccine_notification_dismissals`
+ * ativos (per-user) filtram a lista de pendências (overdue + due_soon)
+ * e os totais correspondentes — coparente que adiou 7d/30d/"já agendei"
+ * deixa de ver o card até o TTL expirar. Sem userId, retorna tudo (export,
+ * relatório, contexto admin). Bug 2026-05-21: snooze gravava na tabela
+ * mas UI continuava mostrando porque o engine não consultava dismissals.
  */
 export async function getVaccineStatus(
   supabase: SupabaseClient,
   childId: string,
+  userId?: string,
 ): Promise<ServiceResult<VaccineStatusResult>> {
   if (!childId?.trim()) {
     return { ok: false, error: "childId obrigatório.", status: 400 };
@@ -345,20 +353,69 @@ export async function getVaccineStatus(
     outOfWindow: (coverage?.out_of_window_count as number) ?? 0,
   };
 
+  // Filtro de dismissals (snooze per-user). Só aplica quando o caller
+  // passa userId (UI live) — export/relatório/admin recebe tudo.
+  let dismissedKey: Set<string> | null = null;
+  if (userId) {
+    const nowIso = new Date().toISOString();
+    const { data: dismissals } = await supabase
+      .from("vaccine_notification_dismissals")
+      .select("vaccine_id, dose_number")
+      .eq("user_id", userId)
+      .eq("child_id", childId)
+      .gt("dismissed_until", nowIso);
+    if (dismissals && dismissals.length > 0) {
+      dismissedKey = new Set(
+        (dismissals as Array<{ vaccine_id: string; dose_number: number }>).map(
+          (d) => `${d.vaccine_id}:${d.dose_number}`,
+        ),
+      );
+    }
+  }
+  const isDismissed = (d: VaccineDoseStatus): boolean =>
+    !!dismissedKey && dismissedKey.has(`${d.vaccineId}:${d.doseNumber}`);
+
+  const overdueList = doses.filter((d) => d.status === "overdue" && !isDismissed(d));
+  const dueSoonList = doses.filter((d) => d.status === "due_soon" && !isDismissed(d));
+
+  // Ajusta totais pra refletir filtro (statusLabel + hero + tile precisam ver
+  // a contagem efetiva, senão "1 reforço pendente" persiste mesmo após snooze).
+  if (dismissedKey) {
+    totals.overdue = overdueList.length;
+    totals.dueSoon = dueSoonList.length;
+  }
+
+  // nextDue da view também precisa respeitar dismissal — senão hero diz
+  // "Próxima: BCG (1ª dose)" enquanto a UI omite o card correspondente.
+  const nextDueRaw = coverage?.next_due_dose_id
+    ? {
+        doseId: coverage.next_due_dose_id as string,
+        vaccineName: coverage.next_due_vaccine_name as string,
+        dueDate: coverage.next_due_date as string,
+      }
+    : null;
+  let nextDue = nextDueRaw;
+  if (nextDueRaw && dismissedKey) {
+    const matchingDose = doses.find((d) => d.id === nextDueRaw.doseId);
+    if (matchingDose && isDismissed(matchingDose)) {
+      // Acha próximo overdue/due_soon não dispensado pela ordem de due_date
+      const fallback = [...overdueList, ...dueSoonList].sort((a, b) =>
+        a.dueDate.localeCompare(b.dueDate),
+      )[0];
+      nextDue = fallback
+        ? { doseId: fallback.id, vaccineName: fallback.vaccineName, dueDate: fallback.dueDate }
+        : null;
+    }
+  }
+
   const result: VaccineStatusResult = {
     childId,
     coveragePct: (coverage?.coverage_pct as number) ?? 0,
     statusLabel: buildStatusLabel(totals),
     totals,
-    nextDue: coverage?.next_due_dose_id
-      ? {
-          doseId: coverage.next_due_dose_id as string,
-          vaccineName: coverage.next_due_vaccine_name as string,
-          dueDate: coverage.next_due_date as string,
-        }
-      : null,
-    overdue: doses.filter((d) => d.status === "overdue"),
-    dueSoon: doses.filter((d) => d.status === "due_soon"),
+    nextDue,
+    overdue: overdueList,
+    dueSoon: dueSoonList,
     upcoming: doses.filter((d) => d.status === "upcoming"),
     taken: doses.filter((d) => d.status === "taken"),
     historicalGaps: doses.filter((d) => d.status === "historical_gap"),

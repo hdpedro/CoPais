@@ -1680,6 +1680,7 @@ export type TranslationKey =
   | "health.vaccineEngine.settingsTitle"
   | "health.vaccineEngine.snoozeAppliedShort"
   | "health.vaccineEngine.snoozeReentryNotification"
+  | "health.vaccineEngine.snoozeSuccess"
   | "health.vaccineEngine.statusCompleteHistory"
   | "health.vaccineEngine.statusEmpty"
   | "health.vaccineEngine.statusManyPending"
@@ -4142,6 +4143,7 @@ export const TRANSLATION_KEYS = [
   "health.vaccineEngine.settingsTitle",
   "health.vaccineEngine.snoozeAppliedShort",
   "health.vaccineEngine.snoozeReentryNotification",
+  "health.vaccineEngine.snoozeSuccess",
   "health.vaccineEngine.statusCompleteHistory",
   "health.vaccineEngine.statusEmpty",
   "health.vaccineEngine.statusManyPending",

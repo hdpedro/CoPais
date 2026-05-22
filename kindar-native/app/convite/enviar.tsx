@@ -253,7 +253,7 @@ export default function EnviarConviteScreen() {
             {past.length > 0 ? (
               <>
                 <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.lg, marginBottom: spacing.sm }}>
-                  Historico
+                  Histórico
                 </Text>
                 {past.map(inv => (
                   <InviteRow key={inv.id} inv={inv} readonly />

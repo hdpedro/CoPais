@@ -34,7 +34,7 @@ const moodConfig = {
 };
 
 const healthConfig: Record<string, { dot: string; bg: string; label: string }> = {
-  healthy:   { dot: "bg-[#2E7268]", bg: "bg-[#2E7268]/8", label: "Saudavel" },
+  healthy:   { dot: "bg-[#2E7268]", bg: "bg-[#2E7268]/8", label: "Saudável" },
   treatment: { dot: "bg-blue-500", bg: "bg-blue-50", label: "Em tratamento" },
   sick:      { dot: "bg-red-500", bg: "bg-red-50", label: "Doente" },
 };
