@@ -52,9 +52,11 @@ const TARGET_BUILD_NUMBER = process.env.TARGET_BUILD_NUMBER || '80';
 const POLL_INTERVAL_MS = Number(process.env.POLL_INTERVAL_MS || 30_000);
 const POLL_TIMEOUT_MS = Number(process.env.POLL_TIMEOUT_MS || 30 * 60_000);
 
-const WHATS_NEW = `- Correção: erro ao adicionar argumento em Decisões.
-- Melhorias de estabilidade no bloqueio com Face ID.
-- Telemetria interna e ajustes de performance.`;
+const DEFAULT_WHATS_NEW = `- Correção: vacina pendente agora some da lista quando você toca em Adiar (antes só sumia depois de marcar como tomada).
+- Novo: opção "Pediatra orientou não dar" no menu Adiar de vacinas (oculta a dose por 1 ano e reabrimos depois pra revalidação).
+- Acentuação: dezenas de textos corrigidos em Saúde, Histórico, Diagnóstico, Observação, Notificações, Aderência, Método de pagamento, Plano de saúde e outros.
+- Ajustes internos de estabilidade.`;
+const WHATS_NEW = process.env.WHATS_NEW || DEFAULT_WHATS_NEW;
 
 const API = 'https://api.appstoreconnect.apple.com/v1';
 
