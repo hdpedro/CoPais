@@ -2785,5 +2785,21 @@
   },
   "splash": {
     "tagline": "Co-crianza con suavidad"
+  },
+  "reminders": {
+    "lead": {
+      "label": "¿Cuándo te recordamos?",
+      "minutes30": "30 min antes",
+      "hour1": "1h antes",
+      "hours2": "2h antes",
+      "morning": "Mañana del día (8h)",
+      "evening": "Noche anterior (20h)",
+      "none": "Sin recordatorio"
+    },
+    "action": {
+      "prepared": "Listo",
+      "snooze15": "Posponer 15 min",
+      "left": "Ya salí"
+    }
   }
 }

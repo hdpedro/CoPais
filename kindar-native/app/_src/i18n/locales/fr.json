@@ -2785,5 +2785,21 @@
   },
   "splash": {
     "tagline": "Coparentalité en douceur"
+  },
+  "reminders": {
+    "lead": {
+      "label": "Quand te rappeler ?",
+      "minutes30": "30 min avant",
+      "hour1": "1h avant",
+      "hours2": "2h avant",
+      "morning": "Le matin (8h)",
+      "evening": "La veille (20h)",
+      "none": "Pas de rappel"
+    },
+    "action": {
+      "prepared": "Prêt",
+      "snooze15": "Reporter 15 min",
+      "left": "En route"
+    }
   }
 }

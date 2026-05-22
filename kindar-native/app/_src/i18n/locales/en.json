@@ -2785,5 +2785,21 @@
   },
   "splash": {
     "tagline": "Co-parenting made gentle"
+  },
+  "reminders": {
+    "lead": {
+      "label": "When should we remind you?",
+      "minutes30": "30 min before",
+      "hour1": "1h before",
+      "hours2": "2h before",
+      "morning": "Morning of (8am)",
+      "evening": "Night before (8pm)",
+      "none": "No reminder"
+    },
+    "action": {
+      "prepared": "Ready",
+      "snooze15": "Snooze 15 min",
+      "left": "On my way"
+    }
   }
 }

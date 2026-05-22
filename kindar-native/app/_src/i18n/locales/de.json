@@ -2785,5 +2785,21 @@
   },
   "splash": {
     "tagline": "Gemeinsam Eltern sein"
+  },
+  "reminders": {
+    "lead": {
+      "label": "Wann sollen wir dich erinnern?",
+      "minutes30": "30 Min vorher",
+      "hour1": "1 Std vorher",
+      "hours2": "2 Std vorher",
+      "morning": "Am Morgen (8 Uhr)",
+      "evening": "Vorabend (20 Uhr)",
+      "none": "Keine Erinnerung"
+    },
+    "action": {
+      "prepared": "Bereit",
+      "snooze15": "15 Min später",
+      "left": "Unterwegs"
+    }
   }
 }

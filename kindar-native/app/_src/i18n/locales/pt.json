@@ -2785,5 +2785,21 @@
   },
   "splash": {
     "tagline": "Coparentar com leveza"
+  },
+  "reminders": {
+    "lead": {
+      "label": "Quando me lembrar?",
+      "minutes30": "30 min antes",
+      "hour1": "1h antes",
+      "hours2": "2h antes",
+      "morning": "Manhã do dia (8h)",
+      "evening": "Véspera (20h)",
+      "none": "Sem lembrete"
+    },
+    "action": {
+      "prepared": "Preparei",
+      "snooze15": "Adiar 15 min",
+      "left": "Já saí"
+    }
   }
 }
