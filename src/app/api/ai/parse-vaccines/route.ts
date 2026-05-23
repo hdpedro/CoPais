@@ -32,11 +32,19 @@ interface ParsedVaccine {
   administered_date: string | null;
   batch_number: string | null;
   location: string | null;
+  /** Confiança 0..1 no nome reconhecido (calibração explícita do modelo). */
+  name_confidence: number;
+  /** Confiança 0..1 na data lida (campo com maior taxa de erro em OCR). */
+  date_confidence: number;
+  /** Média ponderada (date pesa mais — é a fonte dominante de erro real).
+   *  Persiste em vaccination_records.confidence_score via vaccines-bulk. */
+  confidence_score: number;
 }
 
 const SYSTEM_PROMPT = `Você é um assistente especializado em ler carteirinhas de vacinação brasileiras.
 Sua tarefa é extrair TODAS as vacinas visíveis na imagem da carteirinha de vacinação.
-Retorne APENAS um JSON válido, sem markdown, sem explicações.`;
+Retorne APENAS um JSON válido, sem markdown, sem explicações.
+Seja CONSERVADOR em confidence: se a leitura não é nítida, atribua confiança baixa (≤ 0.5).`;
 
 const USER_PROMPT = `Analise esta imagem de uma carteirinha de vacinação brasileira.
 
@@ -46,6 +54,8 @@ Extraia TODAS as vacinas visíveis e retorne um array JSON com os seguintes camp
 - "administered_date": data de aplicação no formato YYYY-MM-DD (ou null se não legível)
 - "batch_number": número do lote (ou null se não legível)
 - "location": local de aplicação / unidade de saúde (ou null se não legível)
+- "name_confidence": número de 0 a 1 indicando confiança no nome lido. 1.0 = certeza visual. 0.5 = palpite razoável. 0.0 = chute.
+- "date_confidence": número de 0 a 1 indicando confiança na data lida. ATENÇÃO: anos antigos (mais de 5 anos atrás) em vacinas anuais (Influenza, COVID-19) são SUSPEITOS — pode estar lendo um campo de outro registro. Nesses casos use confidence baixa (0.3-0.5) e avise pelo valor.
 
 Regras:
 - Se um campo não for legível, use null
@@ -53,9 +63,19 @@ Regras:
 - Inclua TODAS as vacinas que conseguir identificar, mesmo com dados parciais
 - Se a imagem não for uma carteirinha de vacinação, retorne um array vazio []
 - Retorne APENAS o array JSON, sem texto adicional
+- Calibração de confidence: seja conservador. É melhor 0.6 conservador do que 0.95 enganoso. A UI usa esses valores pra alertar o usuário e pedir revisão.
 
 Exemplo de resposta:
-[{"vaccine_name":"BCG","dose_label":"Dose única","administered_date":"2023-01-15","batch_number":"ABC123","location":"UBS Centro"},{"vaccine_name":"Hepatite B","dose_label":"1ª dose","administered_date":"2023-01-15","batch_number":null,"location":null}]`;
+[{"vaccine_name":"BCG","dose_label":"Dose única","administered_date":"2023-01-15","batch_number":"ABC123","location":"UBS Centro","name_confidence":0.95,"date_confidence":0.9},{"vaccine_name":"Hepatite B","dose_label":"1ª dose","administered_date":"2023-01-15","batch_number":null,"location":null,"name_confidence":0.9,"date_confidence":0.7}]`;
+
+/**
+ * Sanitiza confidence reportada pela AI: clamp em [0, 1], default 0.5
+ * quando ausente/inválido (decisão neutra — UI não destaca, nem confia cega).
+ */
+function sanitizeConfidence(v: unknown): number {
+  if (typeof v !== "number" || !Number.isFinite(v)) return 0.5;
+  return Math.max(0, Math.min(1, v));
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -130,13 +150,26 @@ export async function POST(request: NextRequest) {
       }
       const parsed = JSON.parse(cleaned);
       if (Array.isArray(parsed)) {
-        vaccines = parsed.map((v: Record<string, unknown>) => ({
-          vaccine_name: String(v.vaccine_name || ""),
-          dose_label: v.dose_label ? String(v.dose_label) : null,
-          administered_date: v.administered_date ? String(v.administered_date) : null,
-          batch_number: v.batch_number ? String(v.batch_number) : null,
-          location: v.location ? String(v.location) : null,
-        })).filter((v) => v.vaccine_name.length > 0);
+        vaccines = parsed.map((v: Record<string, unknown>) => {
+          const name_confidence = sanitizeConfidence(v.name_confidence);
+          const date_confidence = sanitizeConfidence(v.date_confidence);
+          // Date weight=0.6 porque date errado é o erro mais frequente do OCR
+          // (ano lido de outro campo, etc.) e o que mais impacta o motor de
+          // saúde preventiva (vacinas anuais com data antiga = "future").
+          const confidence_score = Number(
+            (name_confidence * 0.4 + date_confidence * 0.6).toFixed(2),
+          );
+          return {
+            vaccine_name: String(v.vaccine_name || ""),
+            dose_label: v.dose_label ? String(v.dose_label) : null,
+            administered_date: v.administered_date ? String(v.administered_date) : null,
+            batch_number: v.batch_number ? String(v.batch_number) : null,
+            location: v.location ? String(v.location) : null,
+            name_confidence,
+            date_confidence,
+            confidence_score,
+          };
+        }).filter((v) => v.vaccine_name.length > 0);
       }
     } catch (parseErr) {
       console.error("[parse-vaccines] JSON parse error:", parseErr, "Raw:", result.text);
@@ -148,7 +181,13 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 5. Log to database
+    // 5. Log to database — ocr_confidence agora reflete a média real das
+    // confidences dos campos quando há vacinas; null quando nenhuma extraída.
+    const avgConfidence = vaccines.length > 0
+      ? Number((
+          vaccines.reduce((acc, v) => acc + v.confidence_score, 0) / vaccines.length
+        ).toFixed(2))
+      : null;
     await supabase.from("ai_event_logs").insert({
       user_id: auth.id,
       group_id: activeGroup.groupId,
@@ -157,7 +196,7 @@ export async function POST(request: NextRequest) {
       success: vaccines.length > 0,
       parser_type: "vaccine-card-vision",
       processing_time_ms: processingTimeMs,
-      ocr_confidence: null,
+      ocr_confidence: avgConfidence,
     });
 
     // 6. Return result
