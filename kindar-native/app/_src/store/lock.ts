@@ -23,7 +23,7 @@ import { create } from 'zustand';
 import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { authenticate as biometricAuthenticate, type AuthenticateResult } from '../services/biometric-lock';
-import { reportError } from '../lib/error-reporter';
+import { logLockTelemetry } from '../lib/lock-telemetry';
 
 /**
  * Cooldown pós-unlock — janela em que markBackground e evaluateOnForeground
@@ -44,25 +44,12 @@ const POST_UNLOCK_GRACE_FAILSAFE_MS = 5000;
 
 /**
  * Telemetria opt-in pro diagnóstico do Face ID loop em produção.
- * Loga severity='info' em app_errors a cada transição relevante do
- * estado de lock. Discord notify ignora 'info' (vide report-server.ts +
- * discord/message-builder.ts), então não polui canal — só vai pro banco
- * pra query post-hoc.
- *
- * Ativo só em iOS por enquanto (o loop é específico do Face ID iOS).
+ * Filtragem por volume centralizada em lock-telemetry.ts (eventos de
+ * transição esperada silenciados quando LOCK_VERBOSE=false; decisões raras
+ * preservadas). Discord notify ignora 'info' — sem ruído no canal.
  */
-const LOCK_TELEMETRY_ENABLED = Platform.OS === 'ios';
-
-function logLockEvent(event: string, extra?: Record<string, unknown>): void {
-  if (!LOCK_TELEMETRY_ENABLED) return;
-  const ts = Date.now();
-  // Mensagem única por chamada pra furar o dedupe do error-reporter.
-  reportError(new Error(`[lock] ${event} @ ${ts}`), {
-    severity: 'info',
-    filePath: 'app/_src/store/lock.ts',
-    metadata: { event, ts, ...(extra ?? {}) },
-  });
-}
+const logLockEvent = (event: string, extra?: Record<string, unknown>): void =>
+  logLockTelemetry('lock', event, extra);
 
 const KEY_ENABLED = 'kindar_lock_enabled';
 const KEY_TIMEOUT = 'kindar_lock_timeout';

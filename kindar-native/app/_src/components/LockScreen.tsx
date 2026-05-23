@@ -16,26 +16,18 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet, Platform } from 'react-native';
+import { View, Text, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useLock } from '../store/lock';
 import { getBiometricCapability, type BiometricCapability } from '../services/biometric-lock';
 import { colors, spacing, radius, font } from '../design-system/tokens';
-import { reportError } from '../lib/error-reporter';
+import { logLockTelemetry } from '../lib/lock-telemetry';
 
-const LOCK_TELEMETRY_ENABLED = Platform.OS === 'ios';
-
-function logLockScreenEvent(event: string, extra?: Record<string, unknown>): void {
-  if (!LOCK_TELEMETRY_ENABLED) return;
-  const ts = Date.now();
-  reportError(new Error(`[lockscreen] ${event} @ ${ts}`), {
-    severity: 'info',
-    filePath: 'app/_src/components/LockScreen.tsx',
-    metadata: { event, ts, ...(extra ?? {}) },
-  });
-}
+// Filtragem de alto volume centralizada em lock-telemetry.ts.
+const logLockScreenEvent = (event: string, extra?: Record<string, unknown>): void =>
+  logLockTelemetry('lockscreen', event, extra);
 
 export default function LockScreen() {
   // O store e a fonte unica do estado de autenticacao: garante re-entrancia

@@ -20,24 +20,16 @@
  */
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { AppState, Platform, type AppStateStatus, View, Text, StyleSheet } from 'react-native';
+import { AppState, type AppStateStatus, View, Text, StyleSheet } from 'react-native';
 import { useLock } from '../store/lock';
 import { useAuth } from '../store/auth';
 import LockScreen from './LockScreen';
 import { colors } from '../design-system/tokens';
-import { reportError } from '../lib/error-reporter';
+import { logLockTelemetry } from '../lib/lock-telemetry';
 
-const LOCK_TELEMETRY_ENABLED = Platform.OS === 'ios';
-
-function logLockGateEvent(event: string, extra?: Record<string, unknown>): void {
-  if (!LOCK_TELEMETRY_ENABLED) return;
-  const ts = Date.now();
-  reportError(new Error(`[lockgate] ${event} @ ${ts}`), {
-    severity: 'info',
-    filePath: 'app/_src/components/LockGate.tsx',
-    metadata: { event, ts, ...(extra ?? {}) },
-  });
-}
+// Filtragem de alto volume centralizada em lock-telemetry.ts.
+const logLockGateEvent = (event: string, extra?: Record<string, unknown>): void =>
+  logLockTelemetry('lockgate', event, extra);
 
 interface Props {
   children: ReactNode;
