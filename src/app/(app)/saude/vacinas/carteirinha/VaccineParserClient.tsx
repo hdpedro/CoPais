@@ -70,10 +70,10 @@ export default function VaccineParserClient({ groupId, childId, childBirthDate }
           .eq("child_id", childId);
         if (!cancelled && data) {
           setExisting(
-            data.map((r) => ({
+            (data as Array<{ vaccine_name: string | null; administered_date: string | null; catalog_id: string | null }>).map((r) => ({
               vaccine_name: String(r.vaccine_name || ""),
-              administered_date: r.administered_date as string | null,
-              catalog_id: r.catalog_id as string | null,
+              administered_date: r.administered_date,
+              catalog_id: r.catalog_id,
             })),
           );
         }
