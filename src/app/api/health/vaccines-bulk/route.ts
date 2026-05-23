@@ -90,7 +90,14 @@ interface VaccineInput {
   batch_number?: unknown;
   location?: unknown;
   notes?: unknown;
+  // OCR-derived confidence (0..1). Quando presente, persiste em
+  // `vaccination_records.confidence_score` pra UI poder destacar registros
+  // de baixa confiança (ex: chip "Revisar data") em telas futuras.
+  confidence_score?: unknown;
 }
+
+const VALID_SOURCES = new Set(["manual", "ocr", "imported"] as const);
+type VaccineSource = "manual" | "ocr" | "imported";
 
 export async function POST(request: Request) {
   const user = await resolveAuthenticatedUser(request);
@@ -102,6 +109,12 @@ export async function POST(request: Request) {
   const groupId = body.groupId as string | undefined;
   const childId = body.childId as string | undefined;
   const vaccinesRaw = body.vaccines;
+  // Source explicit (default 'manual' pra back-compat). Carteirinha OCR passa 'ocr'
+  // — viabiliza distinguir entradas digitadas vs reconhecidas no banco e em métricas.
+  const sourceRaw = body.source;
+  const source: VaccineSource = VALID_SOURCES.has(sourceRaw as VaccineSource)
+    ? (sourceRaw as VaccineSource)
+    : "manual";
 
   if (!groupId || !childId) {
     return NextResponse.json(
@@ -179,6 +192,15 @@ export async function POST(request: Request) {
       });
       continue;
     }
+    // confidence_score: aceita number ∈ [0, 1]; qualquer outra coisa vira null.
+    // Trigger normalize_vaccination_catalog (migration 00093) resolve catalog_id
+    // automaticamente — não precisa fazer inferCatalogMatch aqui.
+    const conf = typeof raw.confidence_score === "number"
+      && Number.isFinite(raw.confidence_score)
+      && raw.confidence_score >= 0
+      && raw.confidence_score <= 1
+      ? raw.confidence_score
+      : null;
     rows.push({
       group_id: groupId,
       child_id: childId,
@@ -196,6 +218,8 @@ export async function POST(request: Request) {
       notes: raw.notes
         ? String(raw.notes).trim().slice(0, 1000) || null
         : null,
+      source,
+      confidence_score: conf,
       created_by: user.id,
     });
   }
@@ -225,6 +249,13 @@ export async function POST(request: Request) {
   captureServerEvent(user.id, "vaccines_bulk_inserted", {
     count: rows.length,
     skipped: skipped.length,
+    source,
+    avg_confidence: rows.length > 0
+      ? (rows.reduce(
+          (acc, r) => acc + ((r.confidence_score as number | null) ?? 0),
+          0,
+        ) / rows.length)
+      : null,
     group_id: groupId,
   });
 

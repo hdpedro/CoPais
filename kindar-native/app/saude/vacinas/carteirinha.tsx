@@ -39,6 +39,9 @@ interface ParsedVaccine {
   batch_number: string | null;
   location: string | null;
   include: boolean;
+  /** Confidence média do OCR (0..1) — populada pela AI quando disponível.
+   *  Drives UI hints (chip "Revisar") e persiste em vaccination_records.confidence_score. */
+  confidence_score?: number | null;
 }
 
 type Step = 'upload' | 'confirm' | 'processing' | 'preview';
@@ -132,6 +135,10 @@ export default function CarteirinhaScreen() {
         batch_number: v.batch_number ?? null,
         location: v.location ?? null,
         include: true,
+        // Aceita confidence vinda da AI (PR-7 popula); número 0..1 ou null.
+        confidence_score: typeof v.confidence_score === 'number'
+          && v.confidence_score >= 0 && v.confidence_score <= 1
+          ? v.confidence_score : null,
       }));
       if (parsed.length === 0) {
         throw new Error(data.error || 'Nenhuma vacina identificada. Tente uma foto mais nítida.');
@@ -172,14 +179,18 @@ export default function CarteirinhaScreen() {
     setSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    // Send to PWA bulk endpoint — server applies group/child gates and
-    // enforces administered_date NOT NULL (DB constraint).
+    // Send to PWA bulk endpoint — server applies group/child gates,
+    // enforces administered_date NOT NULL (DB constraint), and trigger
+    // normalize_vaccination_catalog (migration 00093) resolve catalog_id.
+    // source='ocr' marca a entrada como reconhecida — distingue de digitação
+    // manual em métricas e em UI futura ("registrado via foto").
     const rows = toSave.map(v => ({
       vaccine_name: v.vaccine_name.trim().slice(0, 200),
       dose_label: v.dose_label?.trim().slice(0, 100) || null,
       administered_date: v.administered_date || null,
       batch_number: v.batch_number?.trim().slice(0, 100) || null,
       location: v.location?.trim().slice(0, 200) || null,
+      confidence_score: v.confidence_score ?? null,
     }));
     const r = await apiFetch<{
       success: true;
@@ -192,6 +203,7 @@ export default function CarteirinhaScreen() {
         groupId: activeGroup.groupId,
         childId: selectedChildId,
         vaccines: rows,
+        source: 'ocr',
       },
     });
     setSaving(false);
