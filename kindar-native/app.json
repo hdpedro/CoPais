@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "requireFullScreen": true,
       "bundleIdentifier": "com.kindar.app",
-      "buildNumber": "97",
+      "buildNumber": "98",
       "usesAppleSignIn": true,
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
@@ -50,7 +50,8 @@
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR"
-      ]
+      ],
+      "versionCode": 2
     },
     "plugins": [
       "expo-router",
