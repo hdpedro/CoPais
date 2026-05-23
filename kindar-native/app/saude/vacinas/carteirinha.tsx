@@ -26,9 +26,15 @@ import { apiFetch } from 'src/lib/api-fetch';
 import { fetchChildren, type Child } from 'src/services/children';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { DatePickerField, isoToDate } from 'src/components/ui/DateTimeField';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
+import {
+  detectVaccineWarnings,
+  type VaccineWarning,
+  type ExistingVaccinationRecord,
+} from 'src/lib/vaccine-card-helpers';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
@@ -39,9 +45,13 @@ interface ParsedVaccine {
   batch_number: string | null;
   location: string | null;
   include: boolean;
-  /** Confidence média do OCR (0..1) — populada pela AI quando disponível.
+  /** Confidence média do OCR (0..1) — populada pela AI (PR-7).
    *  Drives UI hints (chip "Revisar") e persiste em vaccination_records.confidence_score. */
   confidence_score?: number | null;
+  /** Confidence só da data (0..1) — usada pra warning de data suspeita. */
+  date_confidence?: number | null;
+  /** Warnings detectados localmente após parse (duplicate, old_annual, low_confidence). */
+  warnings?: VaccineWarning[];
 }
 
 type Step = 'upload' | 'confirm' | 'processing' | 'preview';
@@ -128,7 +138,7 @@ export default function CarteirinhaScreen() {
         throw new Error(`Erro ao processar a foto (${resp.status}). Tente novamente em instantes.`);
       }
       const data = await resp.json();
-      const parsed: ParsedVaccine[] = (data.vaccines || []).map((v: any) => ({
+      const parsedRaw: ParsedVaccine[] = (data.vaccines || []).map((v: any) => ({
         vaccine_name: v.vaccine_name || '',
         dose_label: v.dose_label ?? null,
         administered_date: v.administered_date ?? null,
@@ -139,10 +149,32 @@ export default function CarteirinhaScreen() {
         confidence_score: typeof v.confidence_score === 'number'
           && v.confidence_score >= 0 && v.confidence_score <= 1
           ? v.confidence_score : null,
+        date_confidence: typeof v.date_confidence === 'number'
+          && v.date_confidence >= 0 && v.date_confidence <= 1
+          ? v.date_confidence : null,
       }));
-      if (parsed.length === 0) {
+      if (parsedRaw.length === 0) {
         throw new Error(data.error || 'Nenhuma vacina identificada. Tente uma foto mais nítida.');
       }
+
+      // Dup detection + warning enrichment ANTES de mostrar preview.
+      // Query vaccination_records do child pra cross-reference.
+      const { data: existingRows } = await supabase
+        .from('vaccination_records')
+        .select('vaccine_name, administered_date, catalog_id')
+        .eq('child_id', selectedChildId!);
+      const existing: ExistingVaccinationRecord[] = (existingRows || []).map(r => ({
+        vaccine_name: String(r.vaccine_name || ''),
+        administered_date: r.administered_date as string | null,
+        catalog_id: r.catalog_id as string | null,
+      }));
+      const now = new Date();
+      const parsed: ParsedVaccine[] = parsedRaw.map(v => {
+        const warnings = detectVaccineWarnings(v, existing, now);
+        const hasDuplicate = warnings.some(w => w.kind === 'duplicate');
+        return { ...v, warnings, include: !hasDuplicate };
+      });
+
       setVaccines(parsed);
       setStep('preview');
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
@@ -154,7 +186,7 @@ export default function CarteirinhaScreen() {
       setPendingAsset(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [pendingAsset]);
+  }, [pendingAsset, selectedChildId]);
 
   /** Cancela o asset e volta pro step upload. */
   const retakePhoto = useCallback(() => {
@@ -351,12 +383,22 @@ export default function CarteirinhaScreen() {
                 ✓ {vaccines.length} vacina{vaccines.length > 1 ? 's' : ''} identificada{vaccines.length > 1 ? 's' : ''}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-                Revise os dados e ajuste se precisar. Desmarque vacinas que não quiser salvar.
+                Revise antes de salvar. Já registradas ficam desmarcadas; alertas em amarelo pedem conferência.
               </Text>
             </View>
 
-            {vaccines.map((v, i) => (
-              <View key={i} style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm, opacity: v.include ? 1 : 0.5 }}>
+            {vaccines.map((v, i) => {
+              const selectedChild = children.find(c => c.id === selectedChildId);
+              const minDate = selectedChild?.birth_date
+                ? isoToDate(selectedChild.birth_date)
+                : new Date('2000-01-01');
+              const maxDate = new Date();
+              const warnings = v.warnings ?? [];
+              const hasDup = warnings.some(w => w.kind === 'duplicate');
+              const hasOldAnnual = warnings.some(w => w.kind === 'old_annual');
+              const hasLowConf = warnings.some(w => w.kind === 'low_confidence');
+              return (
+              <View key={i} style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm, opacity: v.include ? 1 : 0.55 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
                   <Switch value={v.include} onValueChange={x => updateVaccine(i, 'include', x)}
                     trackColor={{ true: colors.brand, false: colors.borderLight }} thumbColor={v.include ? '#fff' : colors.textMuted} />
@@ -364,6 +406,42 @@ export default function CarteirinhaScreen() {
                     {v.vaccine_name || '(sem nome)'}
                   </Text>
                 </View>
+
+                {/* Warnings — chips visuais que orientam o user a revisar antes
+                    de salvar. Dups são pré-desmarcadas (sinal forte); demais
+                    são sinais suaves que mantêm marcado mas pedem revisão. */}
+                {warnings.length > 0 ? (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.sm }}>
+                    {hasDup ? (
+                      <View style={{ backgroundColor: 'rgba(239,68,68,0.10)', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            accessibilityLabel="Vacina já registrada — desmarcada por padrão">
+                        <Ionicons name="duplicate-outline" size={12} color="#B91C1C" />
+                        <Text style={{ fontSize: font.sizes.xs, color: '#B91C1C', fontWeight: font.weights.medium }}>
+                          Já registrado
+                        </Text>
+                      </View>
+                    ) : null}
+                    {hasOldAnnual ? (
+                      <View style={{ backgroundColor: 'rgba(245,158,11,0.12)', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            accessibilityLabel="Vacina anual com data antiga — verifique o ano">
+                        <Ionicons name="warning-outline" size={12} color="#B45309" />
+                        <Text style={{ fontSize: font.sizes.xs, color: '#B45309', fontWeight: font.weights.medium }}>
+                          Confira o ano
+                        </Text>
+                      </View>
+                    ) : null}
+                    {hasLowConf ? (
+                      <View style={{ backgroundColor: 'rgba(107,114,128,0.10)', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}
+                            accessibilityLabel="OCR reconheceu com baixa confiança — revise os dados">
+                        <Ionicons name="eye-outline" size={12} color="#4B5563" />
+                        <Text style={{ fontSize: font.sizes.xs, color: '#4B5563', fontWeight: font.weights.medium }}>
+                          Revisar
+                        </Text>
+                      </View>
+                    ) : null}
+                  </View>
+                ) : null}
+
                 <TextInput value={v.vaccine_name} onChangeText={x => updateVaccine(i, 'vaccine_name', x)}
                   placeholder="Nome da vacina" placeholderTextColor={colors.textMuted}
                   style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, fontSize: font.sizes.sm, color: colors.text, marginBottom: 6 }} />
@@ -371,9 +449,15 @@ export default function CarteirinhaScreen() {
                   <TextInput value={v.dose_label || ''} onChangeText={x => updateVaccine(i, 'dose_label', x)}
                     placeholder="Dose (ex: 1ª, reforço)" placeholderTextColor={colors.textMuted}
                     style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, fontSize: font.sizes.sm, color: colors.text }} />
-                  <TextInput value={v.administered_date || ''} onChangeText={x => updateVaccine(i, 'administered_date', x)}
-                    placeholder="AAAA-MM-DD" placeholderTextColor={colors.textMuted}
-                    style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, fontSize: font.sizes.sm, color: colors.text }} />
+                  <View style={{ flex: 1 }}>
+                    <DatePickerField
+                      value={v.administered_date}
+                      onChange={(iso) => updateVaccine(i, 'administered_date', iso)}
+                      placeholder="Data"
+                      minimumDate={minDate}
+                      maximumDate={maxDate}
+                    />
+                  </View>
                 </View>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   <TextInput value={v.batch_number || ''} onChangeText={x => updateVaccine(i, 'batch_number', x)}
@@ -384,7 +468,8 @@ export default function CarteirinhaScreen() {
                     style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, fontSize: font.sizes.sm, color: colors.text }} />
                 </View>
               </View>
-            ))}
+              );
+            })}
 
             <View style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
               <PrimaryButton
