@@ -9,7 +9,7 @@ import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
 import { getDisplayName } from '../lib/constants';
-import { withTimeout } from '../lib/with-timeout';
+import { withTimeout, TimeoutError } from '../lib/with-timeout';
 import { reportError } from '../lib/error-reporter';
 
 const FETCH_TIMEOUT_MS = 15_000;
@@ -312,7 +312,12 @@ export function useHealth(selectedChildId?: string) {
         timeline,
       });
     } catch (e) {
-      reportError(e, { severity: 'error', filePath: 'useHealth.loadData' }).catch(() => {});
+      // TimeoutError já foi reportado como 'info' pelo withTimeout (defesa em
+      // profundidade funcionando). Re-reportar como 'error' duplica row e
+      // acorda Discord à toa pra um cenário esperado.
+      if (!(e instanceof TimeoutError)) {
+        reportError(e, { severity: 'error', filePath: 'useHealth.loadData' }).catch(() => {});
+      }
     } finally {
       // Invariante: spinner SEMPRE termina, mesmo em timeout/erro/early return.
       setLoading(false);

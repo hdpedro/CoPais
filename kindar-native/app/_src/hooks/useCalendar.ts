@@ -12,7 +12,7 @@ import { loadMyPendingSwaps, loadMySentSwaps, type SwapRequestDetail } from '../
 import { listBalanceOperations, type BalanceOperation } from '../services/balance-operations';
 import { fetchMyPendingEventRequests, type EventRequest } from '../services/event-requests';
 import type { CustodyEventRaw } from '../lib/calendar-balance';
-import { withTimeout } from '../lib/with-timeout';
+import { withTimeout, TimeoutError } from '../lib/with-timeout';
 import { reportError } from '../lib/error-reporter';
 import { detectCustodyOverlap } from '../lib/calendar-overlap-detect';
 import { track, EVENTS } from '../lib/analytics';
@@ -292,7 +292,12 @@ export function useCalendar() {
         ));
       }
     } catch (e) {
-      reportError(e, { severity: 'error', filePath: 'useCalendar.loadData' }).catch(() => {});
+      // TimeoutError já foi reportado como 'info' pelo withTimeout (defesa em
+      // profundidade funcionando). Re-reportar como 'error' duplica row e
+      // acorda Discord à toa pra um cenário esperado.
+      if (!(e instanceof TimeoutError)) {
+        reportError(e, { severity: 'error', filePath: 'useCalendar.loadData' }).catch(() => {});
+      }
     } finally {
       // Invariante: spinner SEMPRE termina, mesmo em timeout/erro/early return.
       setLoading(false);

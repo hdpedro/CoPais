@@ -23,7 +23,7 @@ import { signChildAvatar } from '../services/children';
 import { PARENT_COLORS, getDisplayName } from '../lib/constants';
 import { cacheGet, cacheSet, isOnline } from '../services/offline';
 import { subscribeToNotifications } from '../services/notifications';
-import { withTimeout } from '../lib/with-timeout';
+import { withTimeout, TimeoutError } from '../lib/with-timeout';
 import { reportError } from '../lib/error-reporter';
 
 // Hard ceiling pra todo o ciclo de fetch. Sem isso, uma query do Supabase
@@ -1034,7 +1034,12 @@ export function useDashboard() {
         if (stale) setData(stale);
       } catch { /* cache miss: deixa data=null */ }
       setError(e instanceof Error ? e.message : 'Erro ao carregar dados');
-      reportError(e, { severity: 'error', filePath: 'useDashboard.loadData' }).catch(() => {});
+      // TimeoutError já foi reportado como 'info' pelo withTimeout (defesa em
+      // profundidade funcionando). Re-reportar como 'error' aqui duplica row
+      // no app_errors e acorda Discord à toa pra um cenário esperado.
+      if (!(e instanceof TimeoutError)) {
+        reportError(e, { severity: 'error', filePath: 'useDashboard.loadData' }).catch(() => {});
+      }
     } finally {
       // SEMPRE liberar o spinner — esse e o invariante que precisa segurar
       // pra UI nunca mais ficar travada em "Carregando..." (bug Aline).
