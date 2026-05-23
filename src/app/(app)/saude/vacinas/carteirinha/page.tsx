@@ -25,13 +25,15 @@ export default async function CarteirinhaPage({ searchParams }: PageProps) {
 
   const { data: children } = await supabase
     .from("children")
-    .select("id, full_name")
+    .select("id, full_name, birth_date")
     .eq("group_id", groupId);
 
   const params = await searchParams;
-  const childId =
-    params.crianca ||
-    (children && children.length > 0 ? children[0].id : null);
+  const selectedChild =
+    children?.find((c) => c.id === params.crianca) ||
+    children?.[0] ||
+    null;
+  const childId = selectedChild?.id ?? null;
 
   if (!childId) {
     redirect("/saude/vacinas");
@@ -39,7 +41,11 @@ export default async function CarteirinhaPage({ searchParams }: PageProps) {
 
   return (
     <div className="max-w-lg mx-auto pb-20">
-      <VaccineParserClient groupId={groupId} childId={childId} />
+      <VaccineParserClient
+        groupId={groupId}
+        childId={childId}
+        childBirthDate={selectedChild?.birth_date as string | null | undefined}
+      />
     </div>
   );
 }

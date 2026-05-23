@@ -1,9 +1,16 @@
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useEffect } from "react";
 import { createVaccinationRecordsBulk } from "@/actions/health";
+import { createClient } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import {
+  detectVaccineWarnings,
+  shouldPreUncheck,
+  type VaccineWarning,
+  type ExistingVaccinationRecord,
+} from "@/lib/vaccine-card-helpers";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -12,6 +19,8 @@ import Link from "next/link";
 interface Props {
   groupId: string;
   childId: string;
+  /** birth_date da criança em ISO YYYY-MM-DD — define mínimo do date input. */
+  childBirthDate?: string | null;
 }
 
 interface ParsedVaccine {
@@ -21,6 +30,11 @@ interface ParsedVaccine {
   batch_number: string | null;
   location: string | null;
   selected: boolean;
+  /** Confidence média do OCR (0..1) — populada pela AI (PR-7). */
+  confidence_score?: number | null;
+  date_confidence?: number | null;
+  /** Warnings detectados localmente (dup, old_annual, low_confidence). */
+  warnings?: VaccineWarning[];
 }
 
 type Step = "upload" | "processing" | "preview" | "error";
@@ -29,7 +43,7 @@ type Step = "upload" | "processing" | "preview" | "error";
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
 
-export default function VaccineParserClient({ groupId, childId }: Props) {
+export default function VaccineParserClient({ groupId, childId, childBirthDate }: Props) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -38,8 +52,43 @@ export default function VaccineParserClient({ groupId, childId }: Props) {
   const [vaccines, setVaccines] = useState<ParsedVaccine[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [existing, setExisting] = useState<ExistingVaccinationRecord[]>([]);
 
   const selectedCount = vaccines.filter((v) => v.selected).length;
+
+  // Pré-carrega vaccination_records do child pra dup detection (silencioso —
+  // se falhar, simplesmente não detecta dup no client; banco ainda dedupe
+  // pelo trigger ON CONFLICT e pelo motor recompute).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("vaccination_records")
+          .select("vaccine_name, administered_date, catalog_id")
+          .eq("child_id", childId);
+        if (!cancelled && data) {
+          setExisting(
+            data.map((r) => ({
+              vaccine_name: String(r.vaccine_name || ""),
+              administered_date: r.administered_date as string | null,
+              catalog_id: r.catalog_id as string | null,
+            })),
+          );
+        }
+      } catch {
+        /* dup detection é nice-to-have */
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [childId]);
+
+  // Limite máximo do date input = hoje (ISO YYYY-MM-DD)
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const minDateIso = childBirthDate ?? "2000-01-01";
 
   /* ---- Upload handler ---- */
   const handleFileSelect = useCallback(async (selectedFile: File) => {
@@ -66,12 +115,31 @@ export default function VaccineParserClient({ groupId, childId }: Props) {
       const result = await res.json();
 
       if (result.success && result.vaccines?.length > 0) {
-        setVaccines(
-          result.vaccines.map((v: Omit<ParsedVaccine, "selected">) => ({
-            ...v,
+        const now = new Date();
+        // Enrichment local: detecta warnings + pré-desmarca duplicates
+        // ANTES de mostrar preview. Tela do user reflete a decisão imediata
+        // em vez de esperar feedback do server pós-submit.
+        const enriched: ParsedVaccine[] = result.vaccines.map((v: Record<string, unknown>) => {
+          const base: ParsedVaccine = {
+            vaccine_name: String(v.vaccine_name ?? ""),
+            dose_label: v.dose_label ? String(v.dose_label) : null,
+            administered_date: v.administered_date ? String(v.administered_date) : null,
+            batch_number: v.batch_number ? String(v.batch_number) : null,
+            location: v.location ? String(v.location) : null,
             selected: true,
-          }))
-        );
+            confidence_score:
+              typeof v.confidence_score === "number" && v.confidence_score >= 0 && v.confidence_score <= 1
+                ? v.confidence_score
+                : null,
+            date_confidence:
+              typeof v.date_confidence === "number" && v.date_confidence >= 0 && v.date_confidence <= 1
+                ? v.date_confidence
+                : null,
+          };
+          const warnings = detectVaccineWarnings(base, existing, now);
+          return { ...base, warnings, selected: !shouldPreUncheck(warnings) };
+        });
+        setVaccines(enriched);
         setStep("preview");
       } else {
         setError(
@@ -84,7 +152,7 @@ export default function VaccineParserClient({ groupId, childId }: Props) {
       setError("Erro de conexao. Verifique sua internet e tente novamente.");
       setStep("error");
     }
-  }, []);
+  }, [existing]);
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -144,7 +212,9 @@ export default function VaccineParserClient({ groupId, childId }: Props) {
           administered_date: v.administered_date,
           batch_number: v.batch_number,
           location: v.location,
+          confidence_score: v.confidence_score ?? null,
         })),
+        "ocr",
       );
 
       if (!result.success) {
@@ -290,7 +360,12 @@ export default function VaccineParserClient({ groupId, childId }: Props) {
 
             {/* Vaccine list */}
             <div className="space-y-3">
-              {vaccines.map((vaccine, idx) => (
+              {vaccines.map((vaccine, idx) => {
+                const warnings = vaccine.warnings ?? [];
+                const hasDup = warnings.some((w) => w.kind === "duplicate");
+                const hasOldAnnual = warnings.some((w) => w.kind === "old_annual");
+                const hasLowConf = warnings.some((w) => w.kind === "low_confidence");
+                return (
                 <div
                   key={idx}
                   className={`bg-white rounded-2xl border p-4 space-y-3 transition-opacity ${
@@ -353,6 +428,48 @@ export default function VaccineParserClient({ groupId, childId }: Props) {
                     </button>
                   </div>
 
+                  {/* Warning chips — sinais visuais que orientam revisão antes
+                      do submit. Dup vermelho desmarca (sinal forte); demais
+                      mantêm marcado mas pedem conferência. Paridade com native. */}
+                  {warnings.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5">
+                      {hasDup && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-red-50 text-red-700 border border-red-100"
+                          aria-label="Vacina já registrada — desmarcada por padrão"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                            <path d="M8 3v3M16 3v3M3 9h18M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                          </svg>
+                          Já registrado
+                        </span>
+                      )}
+                      {hasOldAnnual && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-amber-50 text-amber-700 border border-amber-100"
+                          aria-label="Vacina anual com data antiga — verifique o ano"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 9v4m0 4h.01M5 19h14a2 2 0 001.84-2.75L13.74 4a2 2 0 00-3.48 0L3.16 16.25A2 2 0 005 19z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                          Confira o ano
+                        </span>
+                      )}
+                      {hasLowConf && (
+                        <span
+                          className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium bg-gray-50 text-gray-600 border border-gray-200"
+                          aria-label="OCR reconheceu com baixa confiança — revise os dados"
+                        >
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" />
+                          </svg>
+                          Revisar
+                        </span>
+                      )}
+                    </div>
+                  )}
+
                   {/* Fields */}
                   {vaccine.selected && (
                     <div className="grid grid-cols-2 gap-2">
@@ -377,6 +494,8 @@ export default function VaccineParserClient({ groupId, childId }: Props) {
                         <input
                           type="date"
                           value={vaccine.administered_date || ""}
+                          min={minDateIso}
+                          max={todayIso}
                           onChange={(e) =>
                             updateVaccine(
                               idx,
@@ -418,7 +537,8 @@ export default function VaccineParserClient({ groupId, childId }: Props) {
                     </div>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
 
             {/* Action buttons */}

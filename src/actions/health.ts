@@ -1141,12 +1141,19 @@ interface BulkVaccineInput {
   administered_date: string | null;
   batch_number: string | null;
   location: string | null;
+  /** Confidence média do OCR (0..1). Persiste em vaccination_records.confidence_score. */
+  confidence_score?: number | null;
 }
+
+const VALID_BULK_SOURCES = new Set(["manual", "ocr", "imported"] as const);
+type BulkVaccineSource = "manual" | "ocr" | "imported";
 
 export async function createVaccinationRecordsBulk(
   groupId: string,
   childId: string,
   vaccines: BulkVaccineInput[],
+  /** Source explícito; tela carteirinha passa 'ocr'. */
+  source: BulkVaccineSource = "manual",
 ): Promise<{ success: boolean; savedCount: number; error?: string }> {
   const supabase = await createClient();
   const user = await getAuthenticatedUser(supabase);
@@ -1154,17 +1161,32 @@ export async function createVaccinationRecordsBulk(
 
   if (vaccines.length === 0) return { success: false, savedCount: 0, error: "Nenhuma vacina selecionada" };
 
-  const rows = vaccines.map((v) => ({
-    group_id: groupId,
-    child_id: childId,
-    vaccine_name: sanitizeText(v.vaccine_name, 200),
-    dose_label: sanitizeText(v.dose_label, 100) || null,
-    administered_date: v.administered_date || null,
-    batch_number: sanitizeText(v.batch_number, 100) || null,
-    location: sanitizeText(v.location, 200) || null,
-    notes: "Importado via leitura de carteirinha (IA)",
-    created_by: user.id,
-  }));
+  const safeSource: BulkVaccineSource = VALID_BULK_SOURCES.has(source) ? source : "manual";
+
+  // Trigger normalize_vaccination_catalog (migration 00093) resolve catalog_id
+  // automaticamente — não precisa inferCatalogMatch aqui.
+  const rows = vaccines.map((v) => {
+    const conf =
+      typeof v.confidence_score === "number" &&
+      Number.isFinite(v.confidence_score) &&
+      v.confidence_score >= 0 &&
+      v.confidence_score <= 1
+        ? v.confidence_score
+        : null;
+    return {
+      group_id: groupId,
+      child_id: childId,
+      vaccine_name: sanitizeText(v.vaccine_name, 200),
+      dose_label: sanitizeText(v.dose_label, 100) || null,
+      administered_date: v.administered_date || null,
+      batch_number: sanitizeText(v.batch_number, 100) || null,
+      location: sanitizeText(v.location, 200) || null,
+      notes: "Importado via leitura de carteirinha (IA)",
+      source: safeSource,
+      confidence_score: conf,
+      created_by: user.id,
+    };
+  });
 
   const { error } = await supabase.from("vaccination_records").insert(rows);
 
