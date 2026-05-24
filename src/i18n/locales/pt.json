@@ -29,8 +29,32 @@
     "sessionExpired": "Sessão expirada. Faça login novamente.",
     "saving": "Salvando..."
   },
+  "error": {
+    "auth": {
+      "invalid_credentials": "E-mail ou senha incorretos.",
+      "email_not_confirmed": "E-mail ainda não confirmado. Verifique sua caixa de entrada.",
+      "user_already_exists": "Este e-mail já está cadastrado.",
+      "email_address_invalid": "E-mail inválido.",
+      "weak_password": "A senha deve ter pelo menos 8 caracteres.",
+      "same_password": "A nova senha deve ser diferente da senha atual.",
+      "session_missing": "Sessão expirada. Faça login novamente.",
+      "user_not_found": "Usuário não encontrado.",
+      "over_email_send_rate_limit": "Muitas tentativas. Aguarde alguns minutos.",
+      "rate_limit_with_seconds": "Por segurança, aguarde {{ seconds }} segundos para tentar novamente.",
+      "otp_expired": "Link expirado ou inválido. Solicite um novo.",
+      "otp_disabled": "Cadastro por OTP não permitido.",
+      "signup_disabled": "Cadastro temporariamente desabilitado.",
+      "user_banned": "Conta suspensa. Fale com o suporte.",
+      "captcha_failed": "Não conseguimos validar que você é humano. Tente novamente.",
+      "provider_disabled": "Provedor de login indisponível.",
+      "oauth_failed": "Falha no login social. Tente novamente.",
+      "validation_failed": "Dados inválidos. Confira e tente novamente.",
+      "unknown": "Erro inesperado. Tente novamente."
+    }
+  },
   "auth": {
     "login": {
+      "emailNotConfirmedCta": "Reenviar e-mail de confirmação",
       "magicLink": {
         "toggle": "Entrar sem senha",
         "title": "Entrar com um link no e-mail",
@@ -2673,6 +2697,19 @@
       "healthOk": "Saudável",
       "healthWarn": "Atenção",
       "healthBad": "Crítico"
+    }
+  },
+  "reminders": {
+    "activity": {
+      "title": "Em breve: {activityName}",
+      "titleMorning": "Hoje: {activityName}",
+      "titleEvening": "Amanhã: {activityName}",
+      "itemsLabel": "Levar"
+    },
+    "digest": {
+      "title": "Sua agenda de amanhã",
+      "body": "{summary}",
+      "bodyWithItems": "{summary} · {count} itens pra preparar"
     }
   }
 }

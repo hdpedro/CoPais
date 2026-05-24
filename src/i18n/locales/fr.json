@@ -29,8 +29,32 @@
     "sessionExpired": "Session expirée. Veuillez vous reconnecter.",
     "saving": "Enregistrement…"
   },
+  "error": {
+    "auth": {
+      "invalid_credentials": "E-mail ou mot de passe incorrect.",
+      "email_not_confirmed": "E-mail non encore confirmé. Vérifie ta boîte de réception.",
+      "user_already_exists": "Cet e-mail est déjà enregistré.",
+      "email_address_invalid": "E-mail invalide.",
+      "weak_password": "Le mot de passe doit comporter au moins 8 caractères.",
+      "same_password": "Le nouveau mot de passe doit être différent de l'ancien.",
+      "session_missing": "Session expirée. Reconnecte-toi.",
+      "user_not_found": "Utilisateur introuvable.",
+      "over_email_send_rate_limit": "Trop de tentatives. Attends quelques minutes.",
+      "rate_limit_with_seconds": "Par sécurité, attends {{ seconds }} secondes avant de réessayer.",
+      "otp_expired": "Lien expiré ou invalide. Demande-en un nouveau.",
+      "otp_disabled": "Inscription par OTP non autorisée.",
+      "signup_disabled": "Inscriptions temporairement désactivées.",
+      "user_banned": "Compte suspendu. Contacte le support.",
+      "captcha_failed": "Impossible de vérifier que tu es humain. Réessaie.",
+      "provider_disabled": "Fournisseur de connexion indisponible.",
+      "oauth_failed": "Échec de la connexion sociale. Réessaie.",
+      "validation_failed": "Données invalides. Vérifie et réessaie.",
+      "unknown": "Erreur inattendue. Réessaie."
+    }
+  },
   "auth": {
     "login": {
+      "emailNotConfirmedCta": "Renvoyer l'e-mail de confirmation",
       "magicLink": {
         "toggle": "Se connecter sans mot de passe",
         "title": "Se connecter avec un lien e-mail",
@@ -2673,6 +2697,19 @@
       "healthOk": "En bonne santé",
       "healthWarn": "Attention",
       "healthBad": "Critique"
+    }
+  },
+  "reminders": {
+    "activity": {
+      "title": "Bientôt : {activityName}",
+      "titleMorning": "Aujourd'hui : {activityName}",
+      "titleEvening": "Demain : {activityName}",
+      "itemsLabel": "Apporter"
+    },
+    "digest": {
+      "title": "Ton agenda de demain",
+      "body": "{summary}",
+      "bodyWithItems": "{summary} · {count} choses à préparer"
     }
   }
 }

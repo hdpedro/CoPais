@@ -29,8 +29,32 @@
     "sessionExpired": "Session expired. Please sign in again.",
     "saving": "Saving…"
   },
+  "error": {
+    "auth": {
+      "invalid_credentials": "Incorrect email or password.",
+      "email_not_confirmed": "Email not confirmed yet. Check your inbox.",
+      "user_already_exists": "This email is already registered.",
+      "email_address_invalid": "Invalid email.",
+      "weak_password": "Password must be at least 8 characters.",
+      "same_password": "New password must be different from the current one.",
+      "session_missing": "Session expired. Sign in again.",
+      "user_not_found": "User not found.",
+      "over_email_send_rate_limit": "Too many attempts. Wait a few minutes.",
+      "rate_limit_with_seconds": "For security, wait {{ seconds }} seconds before trying again.",
+      "otp_expired": "Link expired or invalid. Request a new one.",
+      "otp_disabled": "OTP sign-up not allowed.",
+      "signup_disabled": "Sign-ups temporarily disabled.",
+      "user_banned": "Account suspended. Contact support.",
+      "captcha_failed": "We couldn't verify you're human. Try again.",
+      "provider_disabled": "Login provider unavailable.",
+      "oauth_failed": "Social login failed. Try again.",
+      "validation_failed": "Invalid data. Check and try again.",
+      "unknown": "Unexpected error. Try again."
+    }
+  },
   "auth": {
     "login": {
+      "emailNotConfirmedCta": "Resend confirmation email",
       "magicLink": {
         "toggle": "Sign in without password",
         "title": "Sign in with an email link",
@@ -2673,6 +2697,19 @@
       "healthOk": "Healthy",
       "healthWarn": "Attention",
       "healthBad": "Critical"
+    }
+  },
+  "reminders": {
+    "activity": {
+      "title": "Coming up: {activityName}",
+      "titleMorning": "Today: {activityName}",
+      "titleEvening": "Tomorrow: {activityName}",
+      "itemsLabel": "Bring"
+    },
+    "digest": {
+      "title": "Tomorrow's agenda",
+      "body": "{summary}",
+      "bodyWithItems": "{summary} · {count} items to prep"
     }
   }
 }

@@ -2803,6 +2803,17 @@
       "prepared": "Ready",
       "snooze15": "Snooze 15 min",
       "left": "On my way"
+    },
+    "activity": {
+      "title": "Coming up: {activityName}",
+      "titleMorning": "Today: {activityName}",
+      "titleEvening": "Tomorrow: {activityName}",
+      "itemsLabel": "Bring"
+    },
+    "digest": {
+      "title": "Tomorrow's agenda",
+      "body": "{summary}",
+      "bodyWithItems": "{summary} · {count} items to prep"
     }
   }
 }

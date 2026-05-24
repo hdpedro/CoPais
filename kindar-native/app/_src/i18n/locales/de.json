@@ -2803,6 +2803,17 @@
       "prepared": "Bereit",
       "snooze15": "15 Min später",
       "left": "Unterwegs"
+    },
+    "activity": {
+      "title": "Demnächst: {activityName}",
+      "titleMorning": "Heute: {activityName}",
+      "titleEvening": "Morgen: {activityName}",
+      "itemsLabel": "Mitbringen"
+    },
+    "digest": {
+      "title": "Dein Plan für morgen",
+      "body": "{summary}",
+      "bodyWithItems": "{summary} · {count} Sachen vorzubereiten"
     }
   }
 }

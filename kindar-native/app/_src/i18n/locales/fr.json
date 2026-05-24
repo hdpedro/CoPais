@@ -2803,6 +2803,17 @@
       "prepared": "Prêt",
       "snooze15": "Reporter 15 min",
       "left": "En route"
+    },
+    "activity": {
+      "title": "Bientôt : {activityName}",
+      "titleMorning": "Aujourd'hui : {activityName}",
+      "titleEvening": "Demain : {activityName}",
+      "itemsLabel": "Apporter"
+    },
+    "digest": {
+      "title": "Ton agenda de demain",
+      "body": "{summary}",
+      "bodyWithItems": "{summary} · {count} choses à préparer"
     }
   }
 }

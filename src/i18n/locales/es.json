@@ -29,8 +29,32 @@
     "sessionExpired": "Sesión expirada. Inicie sesión nuevamente.",
     "saving": "Guardando…"
   },
+  "error": {
+    "auth": {
+      "invalid_credentials": "Correo o contraseña incorrectos.",
+      "email_not_confirmed": "Correo aún no confirmado. Revisa tu bandeja de entrada.",
+      "user_already_exists": "Este correo ya está registrado.",
+      "email_address_invalid": "Correo inválido.",
+      "weak_password": "La contraseña debe tener al menos 8 caracteres.",
+      "same_password": "La nueva contraseña debe ser diferente de la actual.",
+      "session_missing": "Sesión expirada. Inicia sesión nuevamente.",
+      "user_not_found": "Usuario no encontrado.",
+      "over_email_send_rate_limit": "Demasiados intentos. Espera unos minutos.",
+      "rate_limit_with_seconds": "Por seguridad, espera {{ seconds }} segundos antes de volver a intentar.",
+      "otp_expired": "Enlace expirado o inválido. Solicita uno nuevo.",
+      "otp_disabled": "Registro por OTP no permitido.",
+      "signup_disabled": "Registros temporalmente deshabilitados.",
+      "user_banned": "Cuenta suspendida. Contacta al soporte.",
+      "captcha_failed": "No pudimos verificar que eres humano. Inténtalo nuevamente.",
+      "provider_disabled": "Proveedor de inicio de sesión no disponible.",
+      "oauth_failed": "Falló el inicio de sesión social. Inténtalo nuevamente.",
+      "validation_failed": "Datos inválidos. Revisa e inténtalo nuevamente.",
+      "unknown": "Error inesperado. Inténtalo nuevamente."
+    }
+  },
   "auth": {
     "login": {
+      "emailNotConfirmedCta": "Reenviar correo de confirmación",
       "magicLink": {
         "toggle": "Entrar sin contraseña",
         "title": "Entrar con un enlace por correo",
@@ -2673,6 +2697,19 @@
       "healthOk": "Saludable",
       "healthWarn": "Atención",
       "healthBad": "Crítico"
+    }
+  },
+  "reminders": {
+    "activity": {
+      "title": "Pronto: {activityName}",
+      "titleMorning": "Hoy: {activityName}",
+      "titleEvening": "Mañana: {activityName}",
+      "itemsLabel": "Llevar"
+    },
+    "digest": {
+      "title": "Tu agenda de mañana",
+      "body": "{summary}",
+      "bodyWithItems": "{summary} · {count} cosas para preparar"
     }
   }
 }

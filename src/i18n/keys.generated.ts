@@ -133,6 +133,7 @@ export type TranslationKey =
   | "auth.lgpdConsentSuffix"
   | "auth.loading"
   | "auth.loggingIn"
+  | "auth.login.emailNotConfirmedCta"
   | "auth.login.magicLink.back"
   | "auth.login.magicLink.description"
   | "auth.login.magicLink.error"
@@ -873,6 +874,25 @@ export type TranslationKey =
   | "emails.welcome.step3Title"
   | "emails.welcome.subject"
   | "emails.welcome.tagline"
+  | "error.auth.captcha_failed"
+  | "error.auth.email_address_invalid"
+  | "error.auth.email_not_confirmed"
+  | "error.auth.invalid_credentials"
+  | "error.auth.oauth_failed"
+  | "error.auth.otp_disabled"
+  | "error.auth.otp_expired"
+  | "error.auth.over_email_send_rate_limit"
+  | "error.auth.provider_disabled"
+  | "error.auth.rate_limit_with_seconds"
+  | "error.auth.same_password"
+  | "error.auth.session_missing"
+  | "error.auth.signup_disabled"
+  | "error.auth.unknown"
+  | "error.auth.user_already_exists"
+  | "error.auth.user_banned"
+  | "error.auth.user_not_found"
+  | "error.auth.validation_failed"
+  | "error.auth.weak_password"
   | "errors.boundary.btnHome"
   | "errors.boundary.btnReport"
   | "errors.boundary.btnRetry"
@@ -2253,6 +2273,13 @@ export type TranslationKey =
   | "push.renewalReminder.title"
   | "push.trialReminder.body"
   | "push.trialReminder.title"
+  | "reminders.activity.itemsLabel"
+  | "reminders.activity.title"
+  | "reminders.activity.titleEvening"
+  | "reminders.activity.titleMorning"
+  | "reminders.digest.body"
+  | "reminders.digest.bodyWithItems"
+  | "reminders.digest.title"
   | "schedule.alreadyConfigured"
   | "schedule.buildPattern"
   | "schedule.clearConfirm"
@@ -2598,6 +2625,7 @@ export const TRANSLATION_KEYS = [
   "auth.lgpdConsentSuffix",
   "auth.loading",
   "auth.loggingIn",
+  "auth.login.emailNotConfirmedCta",
   "auth.login.magicLink.back",
   "auth.login.magicLink.description",
   "auth.login.magicLink.error",
@@ -3338,6 +3366,25 @@ export const TRANSLATION_KEYS = [
   "emails.welcome.step3Title",
   "emails.welcome.subject",
   "emails.welcome.tagline",
+  "error.auth.captcha_failed",
+  "error.auth.email_address_invalid",
+  "error.auth.email_not_confirmed",
+  "error.auth.invalid_credentials",
+  "error.auth.oauth_failed",
+  "error.auth.otp_disabled",
+  "error.auth.otp_expired",
+  "error.auth.over_email_send_rate_limit",
+  "error.auth.provider_disabled",
+  "error.auth.rate_limit_with_seconds",
+  "error.auth.same_password",
+  "error.auth.session_missing",
+  "error.auth.signup_disabled",
+  "error.auth.unknown",
+  "error.auth.user_already_exists",
+  "error.auth.user_banned",
+  "error.auth.user_not_found",
+  "error.auth.validation_failed",
+  "error.auth.weak_password",
   "errors.boundary.btnHome",
   "errors.boundary.btnReport",
   "errors.boundary.btnRetry",
@@ -4718,6 +4765,13 @@ export const TRANSLATION_KEYS = [
   "push.renewalReminder.title",
   "push.trialReminder.body",
   "push.trialReminder.title",
+  "reminders.activity.itemsLabel",
+  "reminders.activity.title",
+  "reminders.activity.titleEvening",
+  "reminders.activity.titleMorning",
+  "reminders.digest.body",
+  "reminders.digest.bodyWithItems",
+  "reminders.digest.title",
   "schedule.alreadyConfigured",
   "schedule.buildPattern",
   "schedule.clearConfirm",

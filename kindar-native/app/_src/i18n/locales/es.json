@@ -2803,6 +2803,17 @@
       "prepared": "Listo",
       "snooze15": "Posponer 15 min",
       "left": "Ya salí"
+    },
+    "activity": {
+      "title": "Pronto: {activityName}",
+      "titleMorning": "Hoy: {activityName}",
+      "titleEvening": "Mañana: {activityName}",
+      "itemsLabel": "Llevar"
+    },
+    "digest": {
+      "title": "Tu agenda de mañana",
+      "body": "{summary}",
+      "bodyWithItems": "{summary} · {count} cosas para preparar"
     }
   }
 }
