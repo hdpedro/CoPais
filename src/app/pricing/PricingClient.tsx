@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getPaymentPlatform } from "@/lib/payment-platform";
 import { trackEvent, EVENTS } from "@/lib/analytics";
+import { trialDaysInAppPublic } from "@/lib/billing/promo";
 
 interface Plan {
   id: string;
@@ -62,6 +63,9 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
   const router = useRouter();
   const platform = getPaymentPlatform();
   const tiers = groupByTier(plans);
+  // Promo "2 meses grátis": quando NEXT_PUBLIC_PROMO_2M_FREE=true mostra
+  // 60 dias em todos os textos. Sem o flag, mantém 7 dias original.
+  const trialDays = trialDaysInAppPublic();
 
   const earlyBirdMonthly = earlyBird.find((e) => e.planId === "harmonia_earlybird_monthly");
   const earlyBirdPlan = plans.find((p) => p.id === "harmonia_earlybird_monthly");
@@ -192,7 +196,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
           Escolha o plano ideal para sua família
         </h1>
         <p className="mt-4 text-[#9A8878] text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
-          Comece com 7 dias grátis de Premium Jurídico. Cancele quando quiser.
+          Comece com {trialDays} dias grátis de Premium Jurídico. Cancele quando quiser.
         </p>
 
         {/* Social proof band — só renderiza com volume real (>= 10 famílias)
@@ -446,7 +450,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
                     {loading === activePlan.id
                       ? "Redirecionando…"
                       : isLoggedIn
-                        ? "Começar 7 dias grátis"
+                        ? `Começar ${trialDays} dias grátis`
                         : "Criar conta e testar grátis"}
                   </button>
                 )}
@@ -486,7 +490,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            7 dias grátis para testar tudo
+            {trialDays} dias grátis para testar tudo
           </span>
         </div>
 
@@ -495,7 +499,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
             "legible" disclosure (premium apps don't bury legal terms). */}
         <div className="mt-10 text-center text-[13px] text-[#6B5F52] max-w-2xl mx-auto leading-relaxed">
           <p>
-            Assinatura autorrenovável. Após o período de teste gratuito de 7 dias, a assinatura será cobrada
+            Assinatura autorrenovável. Após o período de teste gratuito de {trialDays} dias, a assinatura será cobrada
             automaticamente no valor do plano selecionado. A assinatura é renovada automaticamente ao final de
             cada período, salvo cancelamento pelo menos 24 horas antes do fim do período vigente.
             {platform === "apple_iap"

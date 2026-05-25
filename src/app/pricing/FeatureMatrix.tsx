@@ -3,6 +3,7 @@
  * Harmonia and Premium Jurídico across the 6-7 decision-critical features.
  * No JS needed; pure markup + Tailwind.
  */
+import { trialDaysInAppPublic } from "@/lib/billing/promo";
 
 interface Row {
   label: string;
@@ -50,6 +51,7 @@ function Cell({ value }: { value: string | boolean }) {
 }
 
 export default function FeatureMatrix() {
+  const trialDays = trialDaysInAppPublic();
   return (
     <section className="max-w-6xl mx-auto px-4 pb-16">
       <h2 className="text-2xl font-bold text-stone-900 mb-6 text-center">
@@ -91,7 +93,7 @@ export default function FeatureMatrix() {
       </div>
 
       <p className="text-center text-xs text-stone-500 mt-4">
-        Todos os planos pagos começam com 7 dias grátis de Premium Jurídico. Cancele quando quiser, sem multa.
+        Todos os planos pagos começam com {trialDays} dias grátis de Premium Jurídico. Cancele quando quiser, sem multa.
       </p>
     </section>
   );
