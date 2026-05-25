@@ -455,25 +455,43 @@ export default function AssinaturaClient({
           </article>
         )}
 
-        {/* Harmonia — regular */}
-        <article className="bg-white rounded-2xl border border-stone-200 p-6">
-          <h2 className="text-xl font-bold text-stone-900">Harmonia</h2>
+        {/* Harmonia — regular. Enquanto Early Bird tem vagas, exibimos o
+            preço FUTURO (R$ 24,90/mês — vide MONETIZACAO.md §3) com riscado
+            do R$ 19,90 atual + chamada "oferta inicial" pra deixar claro o
+            valor pós-Early Bird. Resolve a confusão #4 da auditoria UX:
+            antes ambos cards mostravam R$ 19,90/mês e usuário pensava
+            "qual a diferença?". */}
+        <article className="relative bg-white rounded-2xl border-2 border-[#C07055] p-6 shadow-lg shadow-[#C07055]/15 md:scale-[1.02]">
+          <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#C07055] text-white text-xs font-bold rounded-full uppercase tracking-wider whitespace-nowrap">
+            Mais popular
+          </div>
+          <h2 className="text-2xl font-bold text-stone-900 mt-2">Harmonia</h2>
           <p className="text-stone-600 text-sm mb-3">Organização completa para toda a família.</p>
           {paymentMethod === "pix" && PIX_ENABLED ? (
             <>
-              <p className="text-3xl font-bold text-stone-900 mb-0.5">
+              <p className="text-4xl font-extrabold text-stone-900 mb-0.5">
                 R$ 14,90
                 <span className="text-base font-normal text-stone-500"> /mês via PIX</span>
               </p>
               <p className="text-xs text-stone-500 line-through mb-1">R$ 19,90 /mês no cartão</p>
             </>
+          ) : earlyBirdAvailable ? (
+            <>
+              <p className="text-4xl font-extrabold text-stone-900">
+                R$ 19,90
+                <span className="text-base font-normal text-stone-500"> /mês</span>
+              </p>
+              <p className="text-xs text-stone-500 mt-0.5">
+                Oferta inicial · <span className="line-through">R$ 24,90/mês</span> após Early Bird
+              </p>
+            </>
           ) : (
-            <p className="text-3xl font-bold text-stone-900 mb-1">
-              R$ 19,90
+            <p className="text-4xl font-extrabold text-stone-900 mb-1">
+              R$ 24,90
               <span className="text-base font-normal text-stone-500"> /mês</span>
             </p>
           )}
-          <ul className="text-sm text-stone-600 my-4 space-y-1">
+          <ul className="text-sm text-stone-600 my-4 space-y-1.5">
             <li>✓ Crianças ilimitadas</li>
             <li>✓ IA assistente</li>
             <li>✓ OCR de receitas médicas</li>
@@ -483,15 +501,18 @@ export default function AssinaturaClient({
           <button
             onClick={() => startCheckout("harmonia_monthly")}
             disabled={busyPlan === "harmonia_monthly" || !recurringConsent}
-            className="w-full bg-stone-900 hover:bg-stone-800 text-white font-semibold py-3 rounded-xl transition disabled:opacity-60"
+            className="w-full bg-[#C07055] hover:bg-[#A85D47] text-white font-semibold py-3.5 rounded-xl shadow-md shadow-[#C07055]/30 transition-all hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60 disabled:hover:shadow-md disabled:hover:translate-y-0"
           >
             {busyPlan === "harmonia_monthly" ? "Abrindo checkout…" : "Assinar Harmonia"}
           </button>
         </article>
 
-        {/* Premium Jurídico */}
-        <article className="bg-white rounded-2xl border border-amber-200 p-6">
-          <div className="inline-block bg-amber-100 text-amber-800 text-xs font-semibold px-2 py-1 rounded mb-2">
+        {/* Premium Jurídico — secondary (não-recommended). Cor neutra
+            stone-900 ao invés do laranja contrastante anterior (B5 fix).
+            Hierarquia: Harmonia = brand primária (mais popular), Jurídico
+            = secundário neutro pra não competir visualmente. */}
+        <article className="bg-white rounded-2xl border border-stone-200 p-6 hover:border-stone-300 transition-colors">
+          <div className="inline-block bg-stone-100 text-stone-700 text-xs font-semibold px-2.5 py-1 rounded-full mb-2">
             Para quem tem processo ou precisa de audit trail
           </div>
           <h2 className="text-xl font-bold text-stone-900">Premium Jurídico</h2>
@@ -510,7 +531,7 @@ export default function AssinaturaClient({
               <span className="text-base font-normal text-stone-500"> /mês</span>
             </p>
           )}
-          <ul className="text-sm text-stone-600 my-4 space-y-1">
+          <ul className="text-sm text-stone-600 my-4 space-y-1.5">
             <li>✓ Tudo do Harmonia</li>
             <li>✓ Export legal (PDF com audit trail)</li>
             <li>✓ Backup jurídico automático</li>
@@ -520,7 +541,7 @@ export default function AssinaturaClient({
           <button
             onClick={() => startCheckout("premium_juridico_monthly")}
             disabled={busyPlan === "premium_juridico_monthly" || !recurringConsent}
-            className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-60"
+            className="w-full bg-stone-900 hover:bg-stone-800 text-white font-semibold py-3.5 rounded-xl shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60 disabled:hover:shadow-md disabled:hover:translate-y-0"
           >
             {busyPlan === "premium_juridico_monthly" ? "Abrindo checkout…" : "Assinar Premium Jurídico"}
           </button>
