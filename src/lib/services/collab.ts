@@ -221,11 +221,21 @@ export async function notifyCollabCreate(args: NotifyCollabCreateArgs): Promise<
           ? collabModuleHome(args.recordType)
           : (args.link || collabModuleHome(args.recordType));
 
+        // Time-Sensitive promotion (1.0.13+):
+        // priority='urgent' atravessa Foco/DND no iOS. Atualmente o único
+        // path que cria urgent é o trigger SQL `illness_episodes_grave_to_urgent`
+        // (severity='grave' → urgent automático). Apple aceita Time-Sensitive
+        // pra info real time-bound — criança com febre alta qualifica.
+        // Importante: NÃO usar pra `important` nem `info` — Apple penaliza
+        // uso indiscriminado no review.
+        const isUrgent = args.priority === "urgent";
+
         await sendPushToUser(m.user_id, {
           title: pushTitle,
           body: pushBody,
           url: pushLink,
           tag: coalesceTag(m.user_id, args.recordType, args.actorUserId, args.groupId, bucket),
+          timeSensitive: isUrgent,
         });
 
         // Telemetry — one event per recipient. Coalesced flag for analytics.

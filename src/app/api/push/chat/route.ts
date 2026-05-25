@@ -79,11 +79,19 @@ export async function POST(request: NextRequest) {
     return fn;
   }
 
-  // FIX 2026-05-17: tag estática `"chat_message"` causava OVERWRITE global —
-  // FCM/APNs com mesma tag substituem a notificação anterior no shade. User
-  // que recebia 3 mensagens de coparentes diferentes via só a última. Agora
-  // tag por grupo+remetente+janela 60s coalesce intencional sem sumir geral.
-  const minuteBucket = Math.floor(Date.now() / 60000);
+  // HISTÓRICO DO COALESCING DESSE ROUTE:
+  //   - FIX 2026-05-17: tag estática "chat_message" causava OVERWRITE GLOBAL
+  //     (3 coparentes mandando → user via só a última do CONJUNTO).
+  //   - Workaround: tag por grupo+sender+minuteBucket60s → fixou cross-sender
+  //     mas DENTRO do mesmo sender no mesmo minuto, ainda substituía.
+  //   - FIX 2026-05-22: separamos thread-id (iOS, AGRUPA visualmente, não
+  //     substitui) de tag (FCM, SUBSTITUI). `threadId` mapeia só pra APNs;
+  //     FCM não recebe nada → cada mensagem aparece individual no Android.
+  //     Resultado: ZERO mensagem perdida + agrupamento bonito iOS por sender.
+  //
+  // Padrão equivalente: WhatsApp / iMessage. Cada mensagem permanece visível
+  // até user dispensar. iOS NC agrupa visualmente sob mesmo sender (thread-id).
+  // Android NC agrupa automaticamente por app (Kindar).
   await Promise.allSettled(
     members.map(async (member) => {
       const locale = localeByUser.get(member.user_id) ?? ("pt" as Locale);
@@ -93,7 +101,10 @@ export async function POST(request: NextRequest) {
         title: t("push.chat.title", { senderName: senderLabel }),
         body: truncatedText,
         url: "/chat",
-        tag: `chat-${groupId}-${user.id}-${minuteBucket}`,
+        // threadId só pra iOS thread-id (NÃO substitui no Android — vs tag
+        // que substitui). Granularidade per-sender = todas msgs do mesmo
+        // coparente agrupam visualmente em iOS sem sobrescrever Android.
+        threadId: `chat-${groupId}-${user.id}`,
       });
     })
   );

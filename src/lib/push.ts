@@ -31,7 +31,28 @@ interface PushPayload {
   title: string;
   body: string;
   url?: string;
+  /**
+   * Semântica HÍBRIDA — backward-compat com chamadores legados:
+   * - APNs: usado como `thread-id` (AGRUPA visualmente, NÃO substitui)
+   * - FCM:  usado como `android.notification.tag` (SUBSTITUI notif anterior)
+   *
+   * Casos legítimos de `tag`: status updates onde só a versão mais recente
+   * importa (ex: "swap pendente" → "swap aprovada" — replace OK).
+   *
+   * Pra notifs sequenciais que NÃO devem se sobrescrever (chat, ações
+   * múltiplas em sequência), use `threadId` em vez de `tag`.
+   */
   tag?: string;
+  /**
+   * iOS APNs `thread-id` SEM mapear pra FCM tag (não substitui Android).
+   * Agrupa visualmente na Central de Notificações iOS mas cada notif fica
+   * visível. Padrão WhatsApp/iMessage pra conversas e ações sequenciais.
+   *
+   * Bug histórico 2026-05-22: chat usava `tag` → mensagens consecutivas no
+   * Android substituíam a anterior, user perdia mensagem. Migrado pra
+   * `threadId` desde então.
+   */
+  threadId?: string;
   icon?: string;
   actions?: Array<{ action: string; title: string }>;
   /**
@@ -330,7 +351,13 @@ async function sendApnsPush(
         // when there's no other unread) clears the dot. Hardcoded 1 made
         // the badge stick at 1 forever after the first push of a session.
         badge,
-        ...(payload.tag ? { "thread-id": payload.tag } : {}),
+        // thread-id prioriza payload.threadId (iOS-only, não-substituível)
+        // sobre payload.tag (legacy, mapeado dual com FCM replacement).
+        ...(payload.threadId
+          ? { "thread-id": payload.threadId }
+          : payload.tag
+            ? { "thread-id": payload.tag }
+            : {}),
         // iOS 15+: atravessa Foco/DND quando entitlement
         // `com.apple.developer.usernotifications.time-sensitive` ativo.
         // Apple aceita silenciosamente se sem entitlement (push vira
