@@ -109,7 +109,6 @@ export default function DecisoesClient({
   // Compute urgency for a decision
   const getUrgency = (decision: Decision): { label: string; color: string; bg: string; icon: string } | null => {
     const now = new Date();
-    const todayStr = now.toISOString().split("T")[0];
 
     if (decision.deadline) {
       const deadlineDate = new Date(decision.deadline + "T23:59:59");
@@ -134,7 +133,7 @@ export default function DecisoesClient({
   const tabs = [
     { key: "abertas", label: t("decisions.tabOpen") },
     { key: "resolvidas", label: t("decisions.tabResolved") },
-    { key: "todas", label: t("common.all") },
+    { key: "todas", label: t("decisions.all") },
   ];
 
   return (

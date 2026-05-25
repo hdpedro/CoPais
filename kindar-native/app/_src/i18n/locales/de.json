@@ -2057,6 +2057,7 @@
     "imageHint": "Optional, max. 5 MB",
     "child": "Kind",
     "selectChild": "Auswahlen...",
+    "allChildren": "Alle",
     "allOrNone": "Alle / Keines",
     "time": "Uhrzeit",
     "custodyWith": "Wird bei sein",
