@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({
+  const payload = {
     groupId,
     tier: subscription.tier,
     planId: subscription.planId,
@@ -97,5 +97,23 @@ export async function GET(req: NextRequest) {
     autoSplit,
     autoSplitCoUserId,
     autoSplitCoShare,
-  });
+  };
+
+  const response = NextResponse.json(payload);
+
+  // Cache for 60s. Billing status changes via webhook (Stripe/RC) and via
+  // /api/iap/verify, neither of which the client can predict locally. Using
+  // private (per-user) + short max-age + SWR balances freshness vs DB cost.
+  //
+  // - `private` — never cache in shared CDN; this is per-user.
+  // - `max-age=60` — browser/native serves cached value for up to 60s.
+  // - `stale-while-revalidate=300` — for the next 5min, serve stale and
+  //   refresh in background. Smooths over short DB blips.
+  //
+  // Native clients implement their own in-memory cache with manual
+  // invalidation after `/api/iap/verify` returns (see kindar-native/billing.ts).
+  response.headers.set("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
+  // Different auth tokens => different responses. Mandatory with `private` cache.
+  response.headers.set("Vary", "Authorization");
+  return response;
 }

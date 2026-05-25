@@ -310,6 +310,39 @@ export default function PricingScreen() {
           </View>
         )}
 
+        {/* Apple App Store Review Guideline 3.1.2(c) — auto-renewal disclosure
+            MUST be adjacent to the subscribe buttons. Previously this text
+            lived in the legal footer below the Restore button; Apple requires
+            it "in the same view as, and immediately visible to, the user
+            before they initiate the auto-renewable subscription purchase,
+            without scrolling". Moved here on 2026-05-25 to comply.
+
+            i18n-ignore: copy financeira/legal segue Regra Canônica 14 —
+            PT-BR é a fonte autorizada, sem tradução por LLM. */}
+        {!isPremium && packages.length > 0 ? (
+          <View
+            style={{
+              marginBottom: spacing.lg,
+              paddingHorizontal: spacing.sm,
+            }}
+            accessible
+            accessibilityRole="text"
+          >
+            <Text
+              style={{
+                fontSize: 12,
+                color: colors.textSecondary,
+                lineHeight: 17,
+                textAlign: 'center',
+              }}
+            >
+              {Platform.OS === 'ios'
+                ? 'Assinatura autorrenovável. A cobrança ocorre na sua conta Apple ID a cada período até que você cancele em Ajustes > Apple ID > Assinaturas, pelo menos 24h antes do fim do período.'
+                : 'Assinatura autorrenovável. A cobrança ocorre na sua conta Google Play a cada período até que você cancele em Play Store > Pagamentos > Assinaturas, pelo menos 24h antes do fim do período.'}
+            </Text>
+          </View>
+        ) : null}
+
         {/* Restore + legal */}
         {!isPremium ? (
           <TouchableOpacity

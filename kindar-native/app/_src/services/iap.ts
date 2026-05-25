@@ -24,6 +24,7 @@ import Purchases, {
   LOG_LEVEL,
   PURCHASES_ERROR_CODE,
 } from 'react-native-purchases';
+import { invalidateBillingCache } from './billing';
 
 const APPLE_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_APPLE_API_KEY || '';
 const GOOGLE_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_GOOGLE_API_KEY || '';
@@ -219,6 +220,10 @@ export async function purchasePackage(
       console.warn('[iap] backend verify failed (will reconcile via webhook):', verifyErr);
     }
 
+    // Invalida cache local de billing pra que o próximo
+    // `getBillingStatus()` reflita a nova compra imediatamente.
+    invalidateBillingCache();
+
     return { success: true, customerInfo };
   } catch (err) {
     const pErr = err as PurchasesError;
@@ -268,6 +273,10 @@ export async function restore(accessToken: string, webUrl: string): Promise<{
       } catch {
         /* ignore — webhook reconcilia */
       }
+
+      // Cache invalidation só quando há entitlement ativo — restore vazio
+      // não muda nada no backend, então não força refresh desnecessário.
+      invalidateBillingCache();
     }
 
     return { success: true, hasActive };

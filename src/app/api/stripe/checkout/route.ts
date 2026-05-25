@@ -68,9 +68,36 @@ export async function POST(req: NextRequest) {
 
     let customerId = existingSub?.stripe_customer_id;
 
+    // Resolve Stripe Customer ID. Priority:
+    //   1. subscription.stripe_customer_id from an active row (above)
+    //   2. profile.stripe_customer_id cache (migration 00095 — falls back
+    //      gracefully if column doesn't exist yet on staging clones)
+    //   3. stripe.customers.list({email}) — slow external call, rate-limited
+    //      to 100/s on live. Used only as last resort for legacy users.
+    //   4. stripe.customers.create — first-time user. We backfill the
+    //      profile cache so the next checkout skips paths 3/4.
+    let profileFullName: string | null = null;
+    if (!customerId) {
+      type CustomerCacheRow = {
+        stripe_customer_id?: string | null;
+        full_name?: string | null;
+      };
+      const { data: profileRow } = await supabase
+        .from("profiles")
+        .select("stripe_customer_id, full_name")
+        .eq("id", user.id)
+        .single<CustomerCacheRow>();
+
+      profileFullName = profileRow?.full_name ?? null;
+      if (profileRow?.stripe_customer_id) {
+        customerId = profileRow.stripe_customer_id;
+      }
+    }
+
     // Create or retrieve Stripe customer
     if (!customerId) {
-      // Check if a Stripe customer already exists for this email
+      // Last resort: Stripe API lookup by email (legacy users created before
+      // the cache existed). Limited to 100 req/s on live — never the hot path.
       const existingCustomers = await stripe.customers.list({
         email: user.email!,
         limit: 1,
@@ -79,19 +106,27 @@ export async function POST(req: NextRequest) {
       if (existingCustomers.data.length > 0) {
         customerId = existingCustomers.data[0].id;
       } else {
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("full_name")
-          .eq("id", user.id)
-          .single();
-
         const customer = await stripe.customers.create({
           email: user.email!,
-          name: profile?.full_name || undefined,
+          name: profileFullName || undefined,
           metadata: { supabase_user_id: user.id },
         });
         customerId = customer.id;
       }
+
+      // Backfill the cache so subsequent checkouts skip the external lookup.
+      // Best-effort — failure here doesn't block the checkout.
+      await supabase
+        .from("profiles")
+        .update({ stripe_customer_id: customerId })
+        .eq("id", user.id)
+        .then((res) => {
+          if (res.error && res.error.code !== "42703") {
+            // 42703 = column doesn't exist (migration 00095 not yet applied).
+            // Any other error: log but don't fail the checkout.
+            console.warn("[stripe/checkout] profile cache backfill failed:", res.error.message);
+          }
+        });
     }
 
     // If user already has an active subscription, redirect to portal instead
