@@ -652,15 +652,12 @@ export async function createNotificationWithPush(
     timeSensitive?: boolean;
     androidChannelId?: string;
     iosCategoryId?: string;
-    /** Bypass prefs (mute/quiet/cat). Use APENAS pra info crítica de saúde. */
-    urgent?: boolean;
+    urgent?: boolean;  // bypass prefs (saúde crítica)
   },
 ) {
   const supabase = getAdminClient();
 
-  // Insert in-app notification — SEMPRE, mesmo se push for skipado pelo
-  // prefs filter no sendPushToUser. User pode abrir inbox e ver tudo,
-  // controle granular afeta só push device-side.
+  // Insert in-app notification — SEMPRE (inbox vê tudo, push pode silenciar).
   try {
     await supabase.from("notifications").insert({
       user_id: userId,
