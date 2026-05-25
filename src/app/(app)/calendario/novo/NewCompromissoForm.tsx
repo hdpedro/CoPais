@@ -435,7 +435,7 @@ export default function NewCompromissoForm({ children, members, groupId, initial
             {"\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67\u200D\uD83D\uDC66"}
           </span>
           <span className={`text-sm font-medium ${allChildrenSelected ? "text-[#D4735A]" : "text-[#2C2C2C]"}`}>
-            {t("common.all")}
+            {t("newForm.allChildren")}
           </span>
         </button>
         {children.map((child) => {

@@ -61,7 +61,7 @@ export default function NotasClient({
   };
 
   const filterTabs = [
-    { value: "todas", label: t("common.all") },
+    { value: "todas", label: t("notes.categories.all") },
     ...noteCategories.map((c) => ({ value: c.value, label: categoryLabels[c.value] || c.label })),
   ];
 

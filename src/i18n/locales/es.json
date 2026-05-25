@@ -2243,6 +2243,7 @@
     "imageHint": "Opcional, max 5MB",
     "child": "Hijo/a",
     "selectChild": "Seleccionar...",
+    "allChildren": "Todos",
     "allOrNone": "Todos / Ninguno",
     "time": "Horario",
     "custodyWith": "Estara con",
