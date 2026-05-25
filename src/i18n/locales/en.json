@@ -1437,6 +1437,9 @@
     "theme": "Theme",
     "about": "About",
     "memberSince": "Member since",
+    "subscriptionLink": "Plan and subscription",
+    "dangerZone": "Danger zone",
+    "dangerZoneHint": "Destructive actions. There's no undo.",
     "deleteAccount": {
       "backToProfile": "← Back to Profile",
       "title": "Delete my account",

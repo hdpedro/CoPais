@@ -1437,6 +1437,9 @@
     "theme": "Tema",
     "about": "Acerca de",
     "memberSince": "Miembro desde",
+    "subscriptionLink": "Plan y suscripción",
+    "dangerZone": "Zona de peligro",
+    "dangerZoneHint": "Acciones destructivas. No se pueden deshacer.",
     "deleteAccount": {
       "backToProfile": "← Volver al perfil",
       "title": "Eliminar mi cuenta",

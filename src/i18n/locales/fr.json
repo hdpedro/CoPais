@@ -1437,6 +1437,9 @@
     "theme": "Thème",
     "about": "À propos",
     "memberSince": "Membre depuis",
+    "subscriptionLink": "Forfait et abonnement",
+    "dangerZone": "Zone de danger",
+    "dangerZoneHint": "Actions destructives. Aucun retour en arrière.",
     "deleteAccount": {
       "backToProfile": "← Retour au profil",
       "title": "Supprimer mon compte",

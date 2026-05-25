@@ -1437,6 +1437,9 @@
     "theme": "Design",
     "about": "Über uns",
     "memberSince": "Mitglied seit",
+    "subscriptionLink": "Tarif und Abo",
+    "dangerZone": "Gefahrenzone",
+    "dangerZoneHint": "Destruktive Aktionen. Kein Rückgängig möglich.",
     "deleteAccount": {
       "backToProfile": "← Zurück zum Profil",
       "title": "Mein Konto löschen",
