@@ -522,7 +522,7 @@ export default function AssinaturaClient({
             Para quem tem processo ou precisa de audit trail
           </div>
           <h2 className="text-xl font-bold text-stone-900">Premium Jurídico</h2>
-          <p className="text-stone-600 text-sm mb-3">Tudo de Harmonia + suporte jurídico.</p>
+          <p className="text-stone-600 text-sm mb-3">Tudo do Harmonia + suporte jurídico.</p>
           {paymentMethod === "pix" && PIX_ENABLED ? (
             <>
               <p className="text-3xl font-bold text-stone-900 mb-0.5">
