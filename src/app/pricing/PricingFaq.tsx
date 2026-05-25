@@ -16,8 +16,8 @@ const FAQS = [
     a: "Ele(a) entra de graça como co-responsável. Você paga uma vez, toda a família acessa. Se preferir, ative o 'split automático' na tela de assinatura: criamos uma despesa recorrente de 50% do valor no módulo de Despesas para ele(a). Resolver o rateio é decisão da família — a gente só dá a ferramenta.",
   },
   {
-    q: "O Early Bird realmente fica R$19,90 para sempre?",
-    a: "Sim, para sempre. Os primeiros 1.000 assinantes travam o preço no valor de lançamento. Mesmo em 2030, mesmo quando o plano padrão for R$40, R$50. Sua assinatura não sobe. É o tipo de compromisso que a gente assume porque os primeiros clientes são quem valida o produto.",
+    q: "O Early Bird realmente fica R$ 14,90 para sempre?",
+    a: "Sim, para sempre. Os primeiros 1.000 assinantes travam R$ 14,90/mês no valor de lançamento. Mesmo em 2030, mesmo quando o plano padrão for R$ 40 ou R$ 50, sua assinatura não sobe. É o tipo de compromisso que a gente assume porque os primeiros clientes são quem valida o produto.",
   },
   {
     q: "O que acontece quando as 1.000 vagas acabarem?",
