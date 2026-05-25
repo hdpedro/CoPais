@@ -99,7 +99,7 @@ function getDateLabel(dateStr: string): string {
   if (diffDays === 0) return "Hoje";
   if (diffDays === 1) return "Ontem";
   if (diffDays < 7) {
-    const dayNames = ["Domingo", "Segunda-feira", "Terca-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sabado"];
+    const dayNames = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"];
     return dayNames[msgDate.getDay()];
   }
   return msgDate.toLocaleDateString("pt-BR", { day: "numeric", month: "long", year: "numeric" });

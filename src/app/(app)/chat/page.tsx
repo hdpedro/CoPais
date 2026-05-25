@@ -4,7 +4,14 @@ import { getActiveGroup } from "@/lib/group-utils";
 
 import dynamic from "next/dynamic";
 
+// SSR disabled pra evitar React #418 hydration mismatch: ChatRoom usa
+// `new Date()` em getDateLabel/getDateKey/generateMonthOptions, que
+// resolve diferente entre server e client (timezone diff). Componente
+// é altamente interativo (realtime, upload, optimistic UI) — não tem
+// SEO value e a UX é equivalente (skeleton → mount). Bug F#61 do loop
+// iteração 2 — chat ficava preso no skeleton em prod.
 const ChatRoom = dynamic(() => import("./ChatRoom"), {
+  ssr: false,
   loading: () => <div className="animate-pulse bg-gray-100 rounded-xl h-96" />,
 });
 
