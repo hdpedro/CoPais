@@ -12,7 +12,39 @@ import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { supabase } from '../lib/supabase';
 import { QUICK_ACTIONS_CATALOG_NATIVE } from '../lib/constants';
-import { translateAuthError } from '../lib/auth-errors';
+import { mapSupabaseAuthError, type AuthErrorCode } from '../lib/auth-errors';
+
+interface AuthActionFailure {
+  success: false;
+  error: string;
+  errorCode: AuthErrorCode;
+  errorParams?: Record<string, string | number>;
+}
+
+interface AuthActionOk {
+  success: true;
+}
+
+type AuthActionResult = AuthActionOk | AuthActionFailure;
+
+function authFailure(
+  error: { message?: string | null; code?: string | null } | null,
+): AuthActionFailure {
+  const mapped = mapSupabaseAuthError(error);
+  return {
+    success: false,
+    error: mapped.fallbackMessage,
+    errorCode: mapped.code,
+    ...(mapped.params ? { errorParams: mapped.params } : {}),
+  };
+}
+
+function genericFailure(
+  errorCode: AuthErrorCode,
+  message: string,
+): AuthActionFailure {
+  return { success: false, error: message, errorCode };
+}
 
 const ACTIVE_GROUP_KEY = '@kindar_active_group';
 let authSubscription: { unsubscribe: () => void } | null = null;
@@ -57,9 +89,9 @@ interface AuthState {
   memberships: GroupMembership[];
 
   initialize: () => Promise<void>;
-  signIn: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
-  signUp: (email: string, password: string, fullName: string, refCode?: string | null) => Promise<{ success: boolean; error?: string }>;
-  resendConfirmation: (email: string) => Promise<{ success: boolean; error?: string }>;
+  signIn: (email: string, password: string) => Promise<AuthActionResult>;
+  signUp: (email: string, password: string, fullName: string, refCode?: string | null) => Promise<AuthActionResult>;
+  resendConfirmation: (email: string) => Promise<AuthActionResult>;
   signOut: () => Promise<void>;
   loadProfile: () => Promise<void>;
   loadActiveGroup: () => Promise<void>;
@@ -120,19 +152,20 @@ export const useAuth = create<AuthState>((set, get) => ({
         email: email.trim().toLowerCase(),
         password,
       });
-      // Erros do Supabase chegam em ingles — mapeia pra pt-BR pra UI nao
-      // expor strings tipo "Email not confirmed" / "Invalid login credentials".
-      // Bug observado 2026-05-12 (Brenno) onde a UI vazou o ingles cru.
-      if (error) return { success: false, error: translateAuthError(error.message) };
+      // Erros do Supabase chegam em ingles — mapeia pra { code, message } pra
+      // UI usar i18n e não expor strings tipo "Email not confirmed".
+      // Bug observado 2026-05-12 (Brenno) onde a UI vazou o ingles cru;
+      // refinado 2026-05-22 (Bruna) trocando match string por code estavel.
+      if (error) return authFailure(error);
 
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { success: false, error: 'Erro ao obter usuario' };
+      if (!user) return genericFailure('unknown', 'Erro ao obter usuario');
 
       set({ isAuthenticated: true, userId: user.id });
       await Promise.all([get().loadProfile(), get().loadActiveGroup()]);
       return { success: true };
     } catch {
-      return { success: false, error: 'Erro de conexao' };
+      return genericFailure('unknown', 'Erro de conexao');
     }
   },
 
@@ -142,10 +175,10 @@ export const useAuth = create<AuthState>((set, get) => ({
         type: 'signup',
         email: email.trim().toLowerCase(),
       });
-      if (error) return { success: false, error: translateAuthError(error.message) };
+      if (error) return authFailure(error);
       return { success: true };
     } catch {
-      return { success: false, error: 'Erro de conexao' };
+      return genericFailure('unknown', 'Erro de conexao');
     }
   },
 
@@ -165,10 +198,10 @@ export const useAuth = create<AuthState>((set, get) => ({
           },
         },
       });
-      if (error) return { success: false, error: translateAuthError(error.message) };
+      if (error) return authFailure(error);
       return { success: true };
     } catch {
-      return { success: false, error: 'Erro de conexão' };
+      return genericFailure('unknown', 'Erro de conexão');
     }
   },
 

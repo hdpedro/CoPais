@@ -9,7 +9,26 @@ import TurnstileWidget from "@/components/auth/TurnstileWidget";
 import KindarLogo from "@/components/KindarLogo";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/provider";
+import { trackEvent, EVENTS } from "@/lib/analytics";
+import type { AuthErrorCode } from "@/lib/auth-error-codes";
 import type { Session } from "@supabase/supabase-js";
+
+/**
+ * Resolve a localized error message. Prefer the i18n key when we have a
+ * stable code; fall back to the server-provided text for unknown codes
+ * (covers future Supabase codes we haven't mapped yet).
+ */
+function resolveAuthErrorText(
+  t: (key: string, vars?: Record<string, string | number>) => string,
+  code: AuthErrorCode | null,
+  params: Record<string, string | number> | null,
+  fallback: string | null,
+): string | null {
+  if (code && code !== "unknown") {
+    return t(`error.auth.${code}`, params ?? undefined);
+  }
+  return fallback ?? null;
+}
 
 export default function LoginPage() {
   return (
@@ -32,17 +51,43 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const conviteToken = searchParams.get("convite");
+
+  // New contract: callback redirects with ?errorCode=&errorParams=. Legacy
+  // ?error=<raw string> is still respected to handle in-flight redirects
+  // and bookmarked URLs from before the change.
+  const urlErrorCode = searchParams.get("errorCode") as AuthErrorCode | null;
+  const urlErrorParamsRaw = searchParams.get("errorParams");
   const urlError = searchParams.get("error");
 
-  const [error, setError] = useState<string | null>(
-    urlError && urlError !== "auth"
-      ? decodeURIComponent(urlError)
-      : urlError === "auth"
-        ? t("auth.authError")
-        : null,
+  const initialErrorParams = (() => {
+    if (!urlErrorParamsRaw) return null;
+    try {
+      const parsed = JSON.parse(urlErrorParamsRaw);
+      return typeof parsed === "object" && parsed ? parsed : null;
+    } catch {
+      return null;
+    }
+  })();
+
+  const [errorCode, setErrorCode] = useState<AuthErrorCode | null>(urlErrorCode);
+  const [errorParams, setErrorParams] = useState<Record<string, string | number> | null>(
+    initialErrorParams,
   );
+  const [errorFallback, setErrorFallback] = useState<string | null>(
+    urlError && urlError !== "auth" ? decodeURIComponent(urlError) : null,
+  );
+  // Legacy `?error=auth` from older callback redirects — translate to the
+  // generic auth message.
+  const initialAuthErrorTranslated = urlError === "auth" ? t("auth.authError") : null;
   const [loading, setLoading] = useState(false);
   const [checking, setChecking] = useState(true);
+
+  // Resolved text the JSX renders — recomputed from {errorCode, errorParams,
+  // errorFallback} on every render so changing the locale or the action
+  // result immediately reflects.
+  const error =
+    resolveAuthErrorText(t, errorCode, errorParams, errorFallback) ??
+    initialAuthErrorTranslated;
 
   // Magic link state
   const emailInputRef = useRef<HTMLInputElement | null>(null);
@@ -66,16 +111,33 @@ function LoginForm() {
 
   async function handleSubmit(formData: FormData) {
     setLoading(true);
-    setError(null);
+    setErrorCode(null);
+    setErrorParams(null);
+    setErrorFallback(null);
     const result = await signIn(formData);
-    if (result?.error) {
-      setError(result.error);
+    if (result && "error" in result) {
+      setErrorCode(result.errorCode ?? "unknown");
+      setErrorParams(result.errorParams ?? null);
+      setErrorFallback(result.error);
       setLoading(false);
+      return;
     }
-    if (!result?.error && conviteToken) {
+    if (conviteToken) {
       window.location.href = `/convite/${conviteToken}`;
     }
   }
+
+  // Emit `auth_error_shown` when an error transitions from null → present.
+  // Lets us see in PostHog which codes are hitting users in production —
+  // priorization by data instead of by anecdote.
+  useEffect(() => {
+    if (!errorCode) return;
+    trackEvent(EVENTS.AUTH_ERROR_SHOWN, {
+      code: errorCode,
+      page: "login",
+      has_invite: !!conviteToken,
+    });
+  }, [errorCode, conviteToken]);
 
   function handleMagicLink() {
     const email = emailInputRef.current?.value?.trim() ?? "";
@@ -91,7 +153,7 @@ function LoginForm() {
     if (tsInput?.value) fd.set("cf-turnstile-response", tsInput.value);
     startMagic(async () => {
       const result = await sendMagicLink(fd);
-      if (result?.error) {
+      if (result && "error" in result) {
         setMagicLinkError(result.error);
       } else {
         setMagicLinkSent(email);
@@ -126,7 +188,22 @@ function LoginForm() {
 
       {error && (
         <div className="bg-red-50 border border-error/20 text-error rounded-lg p-3 mb-4 text-sm">
-          {error}
+          <p>{error}</p>
+          {errorCode === "email_not_confirmed" && (
+            <button
+              type="button"
+              onClick={() => {
+                const emailValue = emailInputRef.current?.value?.trim() ?? "";
+                const qs = emailValue
+                  ? `?email=${encodeURIComponent(emailValue)}`
+                  : "";
+                router.push(`/verify-email${qs}`);
+              }}
+              className="mt-2 text-sm font-medium text-[#C07055] hover:underline"
+            >
+              {t("auth.login.emailNotConfirmedCta")}
+            </button>
+          )}
         </div>
       )}
 

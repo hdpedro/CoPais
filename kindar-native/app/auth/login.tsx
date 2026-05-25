@@ -181,9 +181,10 @@ export default function LoginScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       setError(result.error || 'Erro ao entrar');
       // Detecta "email nao confirmado" pra revelar o botao de reenvio.
-      // Match contra a string PT-BR (translateAuthError ja mapeou).
-      if (result.error?.toLowerCase().includes('e-mail ainda não confirmado') ||
-          result.error?.toLowerCase().includes('email not confirmed')) {
+      // Match estavel por errorCode (Supabase auth-js code), nao por string.
+      // Antes (ate 2026-05-22 / Bruna) dependiamos do texto PT-BR e quebraria
+      // se a copy mudasse ou o build estivesse com bundle desatualizado.
+      if (result.errorCode === 'email_not_confirmed') {
         setEmailNotConfirmed(true);
       }
     }

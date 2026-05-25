@@ -10,30 +10,39 @@ import { verifyTurnstileToken } from "@/lib/turnstile";
 import { recordLoginDevice } from "@/lib/auth-login-device";
 import { ipFromHeaders, geoFromHeaders } from "@/lib/auth-fingerprint";
 import { APP_TERMS_VERSION, APP_PRIVACY_VERSION } from "@/lib/auth-versions";
+import {
+  mapSupabaseAuthError,
+  type AuthErrorCode,
+} from "@/lib/auth-error-codes";
 
-// Translate common Supabase auth errors to Portuguese
-function translateAuthError(message: string): string {
-  // Match patterns dinâmicos do Supabase primeiro (regex). Estes têm número
-  // variável de segundos e não passam pela tabela de match exato abaixo.
-  // Bug Henrique 2026-05-20: erro "For security purposes, you can only
-  // request this after 57 seconds." caía na default e retornava em inglês.
-  const dynamicSecondsMatch = message.match(/after (\d+) seconds?/i);
-  if (dynamicSecondsMatch) {
-    return `Por segurança, aguarde ${dynamicSecondsMatch[1]} segundos para tentar novamente.`;
-  }
+/**
+ * Shape comum de retorno de erro pras auth actions. O client renderiza via
+ * `t('error.auth.{errorCode}', errorParams)` e usa `errorCode` pra branch
+ * de UI (ex: mostrar CTA "Reenviar e-mail" quando `email_not_confirmed`).
+ * `error` (texto pt-BR) fica como fallback pra clients sem i18n.
+ */
+export interface AuthActionError {
+  error: string;
+  errorCode: AuthErrorCode;
+  errorParams?: Record<string, string | number>;
+}
 
-  const translations: Record<string, string> = {
-    "Invalid login credentials": "E-mail ou senha incorretos.",
-    "Email not confirmed": "E-mail ainda não confirmado. Verifique sua caixa de entrada.",
-    "User already registered": "Este e-mail já está cadastrado.",
-    "Password should be at least 6 characters": "A senha deve ter pelo menos 6 caracteres.",
-    "New password should be different from the old password.": "A nova senha deve ser diferente da senha atual.",
-    "Auth session missing!": "Sessão expirada. Faça login novamente.",
-    "User not found": "Usuário não encontrado.",
-    "Email rate limit exceeded": "Muitas tentativas. Aguarde alguns minutos.",
-    "For security purposes, you can only request this once every 60 seconds": "Por segurança, aguarde 60 segundos entre tentativas.",
+function authErrorReturn(
+  error: { message?: string | null; code?: string | null } | null | undefined,
+): AuthActionError {
+  const mapped = mapSupabaseAuthError(error);
+  return {
+    error: mapped.fallbackMessage,
+    errorCode: mapped.code,
+    ...(mapped.params ? { errorParams: mapped.params } : {}),
   };
-  return translations[message] || message;
+}
+
+function validationError(
+  errorCode: AuthErrorCode,
+  message: string,
+): AuthActionError {
+  return { error: message, errorCode };
 }
 
 export async function signUp(formData: FormData) {
@@ -52,7 +61,10 @@ export async function signUp(formData: FormData) {
   const tsResult = await verifyTurnstileToken(turnstileToken, clientIp);
   if (!tsResult.ok) {
     captureServerEvent(email, "signup_blocked_bot", { reason: tsResult.reason });
-    return { error: "Não conseguimos validar que você é humano. Recarregue a página e tente de novo." };
+    return validationError(
+      "captcha_failed",
+      "Não conseguimos validar que você é humano. Recarregue a página e tente de novo.",
+    );
   }
 
   // Referral code — either passed via form (`?ref=XXX` on signup URL) or
@@ -86,7 +98,7 @@ export async function signUp(formData: FormData) {
   });
 
   if (error) {
-    return { error: translateAuthError(error.message) };
+    return authErrorReturn(error);
   }
 
   // ---------- Tier A: LGPD — INSERT versionado em terms_acceptances ----------
@@ -165,7 +177,7 @@ export async function signIn(formData: FormData) {
   });
 
   if (error) {
-    return { error: translateAuthError(error.message) };
+    return authErrorReturn(error);
   }
 
   cookieStore.set("kindar-has-session", "1", {
@@ -238,7 +250,7 @@ export async function resetPassword(formData: FormData) {
   });
 
   if (error) {
-    return { error: translateAuthError(error.message) };
+    return authErrorReturn(error);
   }
 
   captureServerEvent(email, "password_reset");
@@ -266,14 +278,14 @@ export async function signInWithOAuth(
   });
 
   if (error) {
-    return { error: translateAuthError(error.message) };
+    return authErrorReturn(error);
   }
 
   if (data.url) {
     redirect(data.url);
   }
 
-  return { error: "Erro ao iniciar login social." };
+  return validationError("oauth_failed", "Erro ao iniciar login social.");
 }
 
 export async function updatePassword(formData: FormData) {
@@ -283,7 +295,7 @@ export async function updatePassword(formData: FormData) {
   const { error } = await supabase.auth.updateUser({ password });
 
   if (error) {
-    return { error: translateAuthError(error.message) };
+    return authErrorReturn(error);
   }
 
   redirect("/dashboard");
@@ -305,7 +317,9 @@ export async function updatePassword(formData: FormData) {
  */
 export async function resendConfirmation(formData: FormData) {
   const email = formData.get("email") as string;
-  if (!email) return { error: "E-mail obrigatório." };
+  if (!email) {
+    return validationError("validation_failed", "E-mail obrigatório.");
+  }
 
   const supabase = await createClient();
   const callbackUrl = new URL("/auth/confirm", process.env.NEXT_PUBLIC_APP_URL);
@@ -319,7 +333,7 @@ export async function resendConfirmation(formData: FormData) {
   });
 
   if (error) {
-    return { error: translateAuthError(error.message) };
+    return authErrorReturn(error);
   }
 
   captureServerEvent(email, "signup_resend");
@@ -341,7 +355,9 @@ export async function resendConfirmation(formData: FormData) {
  */
 export async function sendMagicLink(formData: FormData) {
   const email = formData.get("email") as string;
-  if (!email) return { error: "E-mail obrigatório." };
+  if (!email) {
+    return validationError("validation_failed", "E-mail obrigatório.");
+  }
 
   // Turnstile
   const turnstileToken = formData.get("cf-turnstile-response") as string | null;
@@ -349,7 +365,10 @@ export async function sendMagicLink(formData: FormData) {
   const clientIp = ipFromHeaders(reqHeaders);
   const tsResult = await verifyTurnstileToken(turnstileToken, clientIp);
   if (!tsResult.ok) {
-    return { error: "Não conseguimos validar que você é humano." };
+    return validationError(
+      "captcha_failed",
+      "Não conseguimos validar que você é humano.",
+    );
   }
 
   const supabase = await createClient();
@@ -363,7 +382,7 @@ export async function sendMagicLink(formData: FormData) {
   });
 
   if (error) {
-    return { error: translateAuthError(error.message) };
+    return authErrorReturn(error);
   }
 
   captureServerEvent(email, "magic_link_sent");

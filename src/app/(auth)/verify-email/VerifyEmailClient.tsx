@@ -103,7 +103,7 @@ export default function VerifyEmailClient({ initialEmail, initialError, initialR
     fd.set("email", email);
     startResend(async () => {
       const result = await resendConfirmation(fd);
-      if (result?.error) {
+      if (result && "error" in result) {
         setResendError(result.error);
         setResendSuccess(false);
       } else {
@@ -120,7 +120,7 @@ export default function VerifyEmailClient({ initialEmail, initialError, initialR
     fd.set("email", email);
     startMagicLink(async () => {
       const result = await sendMagicLink(fd);
-      if (result?.error) {
+      if (result && "error" in result) {
         setResendError(result.error);
       } else {
         setMagicLinkSent(true);

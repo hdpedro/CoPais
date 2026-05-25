@@ -510,7 +510,56 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
 }
 
 /**
- * Also insert into notifications table for in-app history + send push
+ * Mapeamento `type` de notification → categoria de preference. Tipos não
+ * mapeados defaultam pra "category_disabled = false" (i.e., sempre passa) —
+ * preservar backward-compat e não bloquear sem opt-out explícito.
+ *
+ * Sincronizado com NotificationCategory em services/notification-prefs.ts.
+ * Importante manter os strings idênticos pro JSONB persistido na profile
+ * continuar fazendo sentido conforme tipos novos aparecem.
+ */
+function mapTypeToCategory(type: string): string | null {
+  // Activity reminders / digest
+  if (type === "activity_reminder" || type.startsWith("activity_reminder")) return "activity_reminders";
+  if (type === "activity_digest") return "activity_digest";
+  // Vaccine / health Foundation Collab
+  if (type.startsWith("vaccine") || type === "health_vaccine_created") return "vaccine_alerts";
+  if (
+    type === "medical_appointment_created" ||
+    type === "illness_episode_created" ||
+    type === "active_medication_created" ||
+    type === "child_allergy_created" ||
+    type === "vaccination_record_created" ||
+    type.startsWith("health_")
+  ) return "health_collab";
+  // Chat
+  if (type === "chat_message" || type.startsWith("chat")) return "chat";
+  // Foundation Collab por record_type
+  if (type === "school_log_created") return "school_collab";
+  if (type === "expense_created" || type.startsWith("expense_")) return "expense_collab";
+  if (type.startsWith("decision_")) return "decisions";
+  if (type.startsWith("swap_")) return "swap";
+  if (type === "birthday_reminder") return "birthday";
+  if (type === "retention" || type.startsWith("retention_")) return "retention";
+  if (type.startsWith("balance_")) return "balance_operations";
+  if (type.startsWith("settlement_")) return "settlements";
+  // System / unknown — passa direto (sem opt-out)
+  return null;
+}
+
+/**
+ * Also insert into notifications table for in-app history + send push.
+ *
+ * Respeita `profiles.notification_prefs` (migration 00093):
+ *  - mute_until (mute global temporário)
+ *  - categories[<category>] = false (mute por tipo)
+ *  - quiet_hours (silêncio noturno)
+ *
+ * Urgent (`opts.urgent=true`) bypassa tudo — info crítica de saúde deve
+ * passar sempre.
+ *
+ * Inbox in-app SEMPRE recebe o row (user vê histórico mesmo se push foi
+ * skipado). Só o push device-side é silenciado.
  */
 export async function createNotificationWithPush(
   userId: string,
@@ -528,11 +577,14 @@ export async function createNotificationWithPush(
     timeSensitive?: boolean;
     androidChannelId?: string;
     iosCategoryId?: string;
+    /** Bypass prefs (mute/quiet/cat). Use APENAS pra info crítica de saúde. */
+    urgent?: boolean;
   },
 ) {
   const supabase = getAdminClient();
 
-  // Insert in-app notification
+  // Insert in-app notification — SEMPRE, mesmo se push for skipado.
+  // User pode abrir inbox e ver tudo, controle granular afeta só push.
   try {
     await supabase.from("notifications").insert({
       user_id: userId,
@@ -544,6 +596,37 @@ export async function createNotificationWithPush(
     });
   } catch {
     // Don't crash if insert fails
+  }
+
+  // Respeita preferências do user antes do push device-side.
+  // Failure-open: se notification-prefs.ts falhar, push vai (preserve UX).
+  const category = mapTypeToCategory(type);
+  if (category) {
+    try {
+      const { shouldSendPush } = await import("@/lib/services/notification-prefs");
+      const decision = await shouldSendPush(
+        userId,
+        category as Parameters<typeof shouldSendPush>[1],
+        { isUrgent: !!opts?.urgent },
+      );
+      if (!decision.send) {
+        // Telemetry — quanto mute realmente está acontecendo
+        // (lazy import pra evitar circular dep). Best-effort.
+        try {
+          const { captureServerEvent } = await import("@/lib/posthog-server");
+          captureServerEvent(userId, "notification_skipped", {
+            type,
+            category,
+            reason: decision.reason,
+          });
+        } catch {
+          // ignore
+        }
+        return;
+      }
+    } catch {
+      // notification-prefs indisponível — segue com push (fail open)
+    }
   }
 
   // Send push. Tag is unique per notification so the OS doesn't collapse

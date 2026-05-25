@@ -154,7 +154,10 @@ describe("signUp", () => {
       makeFormData({ email: "a@b.com", password: "123456", fullName: "Test" })
     );
 
-    expect(result).toEqual({ error: "Este e-mail já está cadastrado." });
+    expect(result).toEqual({
+      error: "Este e-mail já está cadastrado.",
+      errorCode: "user_already_exists",
+    });
     expect(mockRedirect).not.toHaveBeenCalled();
   });
 
@@ -208,7 +211,10 @@ describe("signIn", () => {
       makeFormData({ email: "a@b.com", password: "wrong" })
     );
 
-    expect(result).toEqual({ error: "E-mail ou senha incorretos." });
+    expect(result).toEqual({
+      error: "E-mail ou senha incorretos.",
+      errorCode: "invalid_credentials",
+    });
     expect(mockRedirect).not.toHaveBeenCalled();
   });
 
@@ -276,6 +282,7 @@ describe("resetPassword", () => {
 
     expect(result).toEqual({
       error: "Muitas tentativas. Aguarde alguns minutos.",
+      errorCode: "over_email_send_rate_limit",
     });
   });
 });
@@ -307,6 +314,7 @@ describe("updatePassword", () => {
 
     expect(result).toEqual({
       error: "A nova senha deve ser diferente da senha atual.",
+      errorCode: "same_password",
     });
   });
 });

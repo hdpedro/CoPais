@@ -91,6 +91,11 @@ export const EVENTS = {
   VACCINE_CALENDAR_PREFERENCE_CHANGED: "vaccine_calendar_preference_changed", // server
   VACCINE_APPOINTMENT_LINKED: "vaccine_appointment_linked",// "Agendar pediatra" do pendência
   VACCINE_RECOMMENDATION_COMPUTED: "vaccine_recommendation_computed", // server (futuro telemetry)
+
+  // Auth observability — dispara quando uma tela de auth renderiza um erro.
+  // Drives "qual erro está pegando users" em PostHog (priorizar fixes
+  // baseado em frequência, não em achismo).
+  AUTH_ERROR_SHOWN: "auth_error_shown",
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];

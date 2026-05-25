@@ -1978,6 +1978,49 @@ export type TranslationKey =
   | "notes.title"
   | "notes.titlePlaceholder"
   | "notes.yesDelete"
+  | "notifPrefs.catActivityDigest"
+  | "notifPrefs.catActivityDigestHint"
+  | "notifPrefs.catActivityReminders"
+  | "notifPrefs.catActivityRemindersHint"
+  | "notifPrefs.catBalanceOperations"
+  | "notifPrefs.catBalanceOperationsHint"
+  | "notifPrefs.catBirthday"
+  | "notifPrefs.catBirthdayHint"
+  | "notifPrefs.catChat"
+  | "notifPrefs.catChatHint"
+  | "notifPrefs.catDecisions"
+  | "notifPrefs.catDecisionsHint"
+  | "notifPrefs.catExpenseCollab"
+  | "notifPrefs.catExpenseCollabHint"
+  | "notifPrefs.catHealthCollab"
+  | "notifPrefs.catHealthCollabHint"
+  | "notifPrefs.catRetention"
+  | "notifPrefs.catRetentionHint"
+  | "notifPrefs.catSchoolCollab"
+  | "notifPrefs.catSchoolCollabHint"
+  | "notifPrefs.catSettlements"
+  | "notifPrefs.catSettlementsHint"
+  | "notifPrefs.catSwap"
+  | "notifPrefs.catSwapHint"
+  | "notifPrefs.catVaccineAlerts"
+  | "notifPrefs.catVaccineAlertsHint"
+  | "notifPrefs.categoriesHint"
+  | "notifPrefs.footerHint"
+  | "notifPrefs.mute1h"
+  | "notifPrefs.mute4h"
+  | "notifPrefs.muteClear"
+  | "notifPrefs.muteHint"
+  | "notifPrefs.muteTomorrow"
+  | "notifPrefs.mutedUntil"
+  | "notifPrefs.quietHoursEnd"
+  | "notifPrefs.quietHoursHint"
+  | "notifPrefs.quietHoursLabel"
+  | "notifPrefs.quietHoursStart"
+  | "notifPrefs.sectionCategories"
+  | "notifPrefs.sectionMute"
+  | "notifPrefs.sectionQuietHours"
+  | "notifPrefs.subtitle"
+  | "notifPrefs.title"
   | "notifications.chatMessage"
   | "notifications.custodyChange"
   | "notifications.daysAgo"
@@ -4470,6 +4513,49 @@ export const TRANSLATION_KEYS = [
   "notes.title",
   "notes.titlePlaceholder",
   "notes.yesDelete",
+  "notifPrefs.catActivityDigest",
+  "notifPrefs.catActivityDigestHint",
+  "notifPrefs.catActivityReminders",
+  "notifPrefs.catActivityRemindersHint",
+  "notifPrefs.catBalanceOperations",
+  "notifPrefs.catBalanceOperationsHint",
+  "notifPrefs.catBirthday",
+  "notifPrefs.catBirthdayHint",
+  "notifPrefs.catChat",
+  "notifPrefs.catChatHint",
+  "notifPrefs.catDecisions",
+  "notifPrefs.catDecisionsHint",
+  "notifPrefs.catExpenseCollab",
+  "notifPrefs.catExpenseCollabHint",
+  "notifPrefs.catHealthCollab",
+  "notifPrefs.catHealthCollabHint",
+  "notifPrefs.catRetention",
+  "notifPrefs.catRetentionHint",
+  "notifPrefs.catSchoolCollab",
+  "notifPrefs.catSchoolCollabHint",
+  "notifPrefs.catSettlements",
+  "notifPrefs.catSettlementsHint",
+  "notifPrefs.catSwap",
+  "notifPrefs.catSwapHint",
+  "notifPrefs.catVaccineAlerts",
+  "notifPrefs.catVaccineAlertsHint",
+  "notifPrefs.categoriesHint",
+  "notifPrefs.footerHint",
+  "notifPrefs.mute1h",
+  "notifPrefs.mute4h",
+  "notifPrefs.muteClear",
+  "notifPrefs.muteHint",
+  "notifPrefs.muteTomorrow",
+  "notifPrefs.mutedUntil",
+  "notifPrefs.quietHoursEnd",
+  "notifPrefs.quietHoursHint",
+  "notifPrefs.quietHoursLabel",
+  "notifPrefs.quietHoursStart",
+  "notifPrefs.sectionCategories",
+  "notifPrefs.sectionMute",
+  "notifPrefs.sectionQuietHours",
+  "notifPrefs.subtitle",
+  "notifPrefs.title",
   "notifications.chatMessage",
   "notifications.custodyChange",
   "notifications.daysAgo",

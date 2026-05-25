@@ -3,6 +3,29 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { sendWelcomeEmail } from "@/lib/emails/welcome";
 import { captureServerEvent } from "@/lib/posthog-server";
+import {
+  mapOAuthCallbackError,
+  type AuthErrorCode,
+} from "@/lib/auth-error-codes";
+
+/**
+ * Redireciona pra /login passando o errorCode pela query — o client
+ * resolve via `t('error.auth.{code}', errorParams)`. Substitui o padrão
+ * antigo `?error=<mensagem crua em inglês>` que vazava strings EN pra UI
+ * (bug Bruna 2026-05-22).
+ */
+function redirectToLoginWithErrorCode(
+  origin: string,
+  errorCode: AuthErrorCode,
+  errorParams?: Record<string, string | number>,
+) {
+  const params = new URLSearchParams();
+  params.set("errorCode", errorCode);
+  if (errorParams) {
+    params.set("errorParams", JSON.stringify(errorParams));
+  }
+  return NextResponse.redirect(`${origin}/login?${params.toString()}`);
+}
 
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
@@ -13,12 +36,10 @@ export async function GET(request: Request) {
   const error = searchParams.get("error");
   const error_description = searchParams.get("error_description");
 
-  // If Supabase returned an error, redirect to login with message
+  // OAuth provider returned an error — map upstream message to a stable code.
   if (error) {
-    const message = error_description || error;
-    return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent(message)}`
-    );
+    const mapped = mapOAuthCallbackError(error, error_description);
+    return redirectToLoginWithErrorCode(origin, mapped.code, mapped.params);
   }
 
   // OAuth logins always persist session (equivalent to "Lembrar-me" checked)
@@ -87,11 +108,9 @@ export async function GET(request: Request) {
       return NextResponse.redirect(`${origin}${next}`);
     }
 
-    // If code exchange fails, show specific error
+    // If code exchange fails, the magic-link / OAuth code is stale.
     console.error("Auth callback code exchange error:", exchangeError.message);
-    return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent("Link expirado ou já utilizado. Tente novamente.")}`
-    );
+    return redirectToLoginWithErrorCode(origin, "otp_expired");
   }
 
   // Handle token_hash verification (used by some Supabase email templates)
@@ -109,11 +128,9 @@ export async function GET(request: Request) {
     }
 
     console.error("Auth callback token verify error:", verifyError.message);
-    return NextResponse.redirect(
-      `${origin}/login?error=${encodeURIComponent("Link expirado ou já utilizado. Tente novamente.")}`
-    );
+    return redirectToLoginWithErrorCode(origin, "otp_expired");
   }
 
-  // No auth params found — redirect to login
-  return NextResponse.redirect(`${origin}/login?error=auth`);
+  // No auth params found — the user landed here without a code/token.
+  return redirectToLoginWithErrorCode(origin, "oauth_failed");
 }

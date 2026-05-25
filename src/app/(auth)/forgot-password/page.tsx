@@ -16,9 +16,9 @@ export default function ForgotPasswordPage() {
     setError(null);
     setSuccess(null);
     const result = await resetPassword(formData);
-    if (result?.error) {
+    if (result && "error" in result) {
       setError(result.error);
-    } else if (result?.success) {
+    } else if (result && "success" in result) {
       setSuccess(result.success);
     }
     setLoading(false);
