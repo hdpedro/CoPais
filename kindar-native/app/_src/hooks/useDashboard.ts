@@ -738,17 +738,25 @@ export function useDashboard() {
         const { data: coverageRows } = await withTimeout(
           supabase
             .from('child_vaccine_coverage')
-            .select('overdue_count, due_soon_count, next_due_date, next_due_vaccine_name')
+            .select('overdue_count, due_soon_count, total_taken, next_due_date, next_due_vaccine_name')
             .eq('group_id', activeGroup.groupId),
           5_000,
           'useDashboard:vaccinePending',
         );
+        // F#25 (E2E PRD 2026-05-25) — paridade PWA: pra criança recém-
+        // cadastrada sem NENHUM registro vacinal, suprime alerta de
+        // "overdue/due_soon" porque o motor classifica doses passadas
+        // pela idade que ainda não foram registradas. Banner alarma
+        // user antes dele adicionar o histórico. Fix: filtra crianças
+        // com `total_taken > 0`.
         for (const r of (coverageRows || []) as Array<{
           overdue_count: number | null;
           due_soon_count: number | null;
+          total_taken: number | null;
           next_due_date: string | null;
           next_due_vaccine_name: string | null;
         }>) {
+          if (Number(r.total_taken || 0) <= 0) continue;
           vaccinePendingCount += Number(r.overdue_count || 0) + Number(r.due_soon_count || 0);
           if (r.next_due_date && (!vaccineNextDue || r.next_due_date < vaccineNextDue.dueDate)) {
             vaccineNextDue = {
