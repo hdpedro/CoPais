@@ -68,12 +68,30 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Missing event" }, { status: 400 });
   }
 
+  // Sandbox isolation — Vercel injects VERCEL_ENV = 'production' | 'preview' | 'development'.
+  // Apple/Google sandbox transactions get a separate RevenueCat environment tag,
+  // but RC delivers BOTH to whichever webhook URL is configured. Without this gate
+  // a single sandbox purchase in production sandbox testing creates a real, paid-
+  // looking subscription row (the UNIQUE index `idx_subscriptions_active_user_provider`
+  // would even overwrite the user's legitimate sub on the same provider).
+  //
+  // Policy:
+  //   - production deploy + SANDBOX event → ignore (return 200 so RC stops retrying)
+  //   - preview/dev + any event → accept (sandbox testing happens here)
+  //   - production deploy + PRODUCTION event → accept (the only real path)
+  if (event.environment === "SANDBOX" && process.env.VERCEL_ENV === "production") {
+    console.log(
+      `[revenuecat/webhook] Ignoring SANDBOX event ${event.id} (${event.type}) in production deploy`,
+    );
+    return NextResponse.json({ ok: true, ignored: true, reason: "sandbox_in_production" });
+  }
+
   const admin = createAdminClient();
 
   // Idempotency guard — RC retries with the same event.id on failure.
-  // Without this, a re-delivery of INITIAL_PURCHASE creates duplicate
-  // active subscription rows; RENEWAL re-delivery creates a duplicate
-  // split expense (the expenses dedup catches it but we waste round-trips).
+  // STRICT: a non-23505 DB error must return 500 so RC retries rather than
+  // letting partial side effects (subscription INSERT, welcome email)
+  // execute without idempotency cover. See stripe/webhook for full rationale.
   const dedup = await admin
     .from("webhook_events")
     .insert({ provider: "revenuecat", event_id: event.id, event_type: event.type })
@@ -84,7 +102,12 @@ export async function POST(req: NextRequest) {
       console.log(`[revenuecat/webhook] Duplicate event ${event.id} (${event.type}) — skipping`);
       return NextResponse.json({ ok: true, duplicate: true });
     }
-    console.warn("[revenuecat/webhook] webhook_events insert failed:", dedup.error.message);
+    console.error("[revenuecat/webhook] Dedup insert failed:", dedup.error);
+    reportServerError(dedup.error, {
+      filePath: "src/app/api/revenuecat/webhook/route.ts",
+      severity: "critical",
+    });
+    return NextResponse.json({ error: "Idempotency check failed" }, { status: 500 });
   }
 
   try {
@@ -377,13 +400,16 @@ export async function POST(req: NextRequest) {
       filePath: "src/app/api/revenuecat/webhook/route.ts",
       severity: "critical",
     });
-    // Delete dedup row so RC can retry. Otherwise we'd be stuck.
+    // KEEP the dedup row — same rationale as stripe/webhook. RC retries
+    // use the same event.id, so on retry the 23505 path short-circuits
+    // cleanly. Deleting here would let a partial-state retry duplicate
+    // side effects (subscription INSERT, welcome email, split expense).
+    const message = err instanceof Error ? err.message : String(err);
     await admin
       .from("webhook_events")
-      .delete()
+      .update({ error: message.slice(0, 500) })
       .eq("provider", "revenuecat")
       .eq("event_id", event.id);
-    // Return 500 so RevenueCat retries.
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
   }
 }

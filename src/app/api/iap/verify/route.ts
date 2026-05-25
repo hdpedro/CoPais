@@ -68,6 +68,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Sandbox isolation — same policy as the RevenueCat webhook.
+    // The native client can pass `isSandbox=true` so the backend knows the
+    // purchase happened in a StoreKit sandbox session. We refuse to persist
+    // sandbox state on production deploys.
+    if (body.isSandbox === true && process.env.VERCEL_ENV === "production") {
+      return NextResponse.json(
+        { error: "Sandbox purchases are not accepted in production" },
+        { status: 403 },
+      );
+    }
+
     // Use admin client to bypass RLS for writes
     const admin = createAdminClient();
 
@@ -140,23 +151,51 @@ export async function POST(req: NextRequest) {
     // duplicate row for the same purchase.
     const { data: existingSub } = await admin
       .from("subscriptions")
-      .select("id, status")
+      .select("id, status, plan_id")
       .eq("user_id", user.id)
       .eq("payment_provider", providerTag)
       .in("status", ["active", "trialing", "past_due", "pending"])
       .maybeSingle();
 
-    // Decide the target status:
-    //   - If user already has an active/trialing sub on this provider, keep
-    //     it active (this is a renewal/plan-change path, RevenueCat will
-    //     also fire RENEWAL or PRODUCT_CHANGE).
-    //   - Otherwise, write 'pending'. RevenueCat webhook flips to 'active'
-    //     after verifying the Apple/Google signature server-side.
-    const isExistingActive =
+    // Security model — `productId` and `originalTransactionId` arrive from
+    // the native client, NOT from Apple/Google directly. We cannot trust
+    // them as ground truth. Two distinct paths:
+    //
+    //   1. Existing active/trialing sub on this provider:
+    //      User is renewing or upgrading. We DO NOT change plan_id or
+    //      status here, because that would let a forged client smuggle a
+    //      higher tier without actually paying for it (e.g. user is paying
+    //      Harmonia Monthly but sends productId=premium_juridico_annual).
+    //      RevenueCat's PRODUCT_CHANGE webhook is the only trusted path
+    //      for plan upgrades — Apple/Google sign those server-to-server.
+    //
+    //   2. No active sub, or only past_due/pending exists:
+    //      Best-effort INSERT/UPDATE with status='pending'. The
+    //      RevenueCat webhook flips to 'active' once Apple/Google
+    //      confirm the receipt (typical latency < 5s in production).
+    //      Pending rows do NOT grant access — `v_group_active_subscription`
+    //      filters them out.
+    const existingIsAccessGranting =
       existingSub?.status === "active" || existingSub?.status === "trialing";
-    const targetStatus = isExistingActive ? "active" : "pending";
+
+    if (existingIsAccessGranting) {
+      // No-op: trust the webhook for any change. Return the existing state
+      // so the client can render its current plan without flicker.
+      return NextResponse.json({
+        success: true,
+        plan: existingSub.plan_id,
+        expiresAt: null,
+        restored: false,
+        status: existingSub.status,
+        pendingReconciliation: true,
+        note: "Plan changes go through RevenueCat webhook (PRODUCT_CHANGE).",
+      });
+    }
+
+    const targetStatus = "pending" as const;
 
     if (existingSub) {
+      // existingSub is past_due or pending — safe to overwrite to pending.
       await admin
         .from("subscriptions")
         .update({
@@ -208,7 +247,7 @@ export async function POST(req: NextRequest) {
       expiresAt: periodEnd.toISOString(),
       restored: false,
       status: targetStatus,
-      pendingReconciliation: targetStatus === "pending",
+      pendingReconciliation: true,
     });
   } catch (error) {
     console.error("[IAP] Verify error:", error);
