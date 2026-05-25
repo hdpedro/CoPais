@@ -24,11 +24,17 @@ interface EarlyBirdView {
   isSoldOut: boolean;
 }
 
+interface LandingStatsView {
+  activeFamilies: number;
+  childrenOrganized: number;
+}
+
 interface PricingClientProps {
   plans: Plan[];
   currentPlanId: string;
   isLoggedIn: boolean;
   earlyBird?: EarlyBirdView[];
+  landingStats?: LandingStatsView;
 }
 
 // Group plans by tier (free / harmonia / premium_juridico). Falls back to
@@ -50,7 +56,7 @@ function groupByTier(plans: Plan[]): Tier[] {
   ];
 }
 
-export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyBird = [] }: PricingClientProps) {
+export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyBird = [], landingStats }: PricingClientProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("annual");
   const router = useRouter();
@@ -121,7 +127,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
         setLoading(null);
       }
     } catch {
-      alert("Erro de conexao. Tente novamente.");
+      alert("Erro de conexão. Tente novamente.");
       setLoading(null);
     }
   }
@@ -153,11 +159,11 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
       if (data.url) {
         globalThis.location.assign(data.url);
       } else {
-        alert("Erro ao abrir portal de assinatura");
+        alert("Erro ao abrir o portal de assinatura. Tente novamente em instantes.");
         setLoading(null);
       }
     } catch {
-      alert("Erro de conexao");
+      alert("Erro de conexão. Tente novamente.");
       setLoading(null);
     }
   }
@@ -186,8 +192,26 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
           Escolha o plano ideal para sua família
         </h1>
         <p className="mt-4 text-[#9A8878] text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
-          Comece com 14 dias grátis no Premium. Cancele quando quiser.
+          Comece com 7 dias grátis de Premium Jurídico. Cancele quando quiser.
         </p>
+
+        {/* Social proof band — só renderiza com volume real (>= 10 famílias)
+            pra não passar a sensação de "ninguém usa ainda". Padrão Linear/
+            Stripe: mostra contagem só quando ela ajuda, esconde quando ela
+            atrapalha. */}
+        {landingStats && landingStats.activeFamilies >= 10 && (
+          <div className="mt-7 inline-flex items-center gap-2.5 px-4 py-2 bg-white/70 backdrop-blur rounded-full border border-[#E8E0D4]">
+            <span className="flex -space-x-1.5">
+              <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#C07055] to-[#A85D47] border-2 border-white" aria-hidden="true" />
+              <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#2E7268] to-[#1F5048] border-2 border-white" aria-hidden="true" />
+              <span className="w-6 h-6 rounded-full bg-gradient-to-br from-[#D4A574] to-[#B0865A] border-2 border-white" aria-hidden="true" />
+            </span>
+            <span className="text-sm text-[#2C2C2C] font-medium">
+              Junte-se a mais de <strong className="text-[#0E0C0A]">{landingStats.activeFamilies.toLocaleString("pt-BR")}</strong>{" "}
+              {landingStats.activeFamilies === 1 ? "família" : "famílias"} que já se organizam com o Kindar
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Billing toggle */}
@@ -227,8 +251,8 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
                 Preço de lançamento
               </div>
               <h2 className="text-3xl sm:text-4xl font-extrabold mb-2">Harmonia Early Bird</h2>
-              <p className="text-white/90 text-sm sm:text-base mb-4 max-w-xl">
-                R$ 14,90/mês <strong>para sempre</strong> — apenas para as primeiras {earlyBirdMonthly.maxSubscribers} famílias.
+              <p className="text-white/90 text-sm sm:text-base mb-4 max-w-xl leading-relaxed">
+                R$ 14,90/mês <strong>para sempre</strong> — só para as primeiras {earlyBirdMonthly.maxSubscribers.toLocaleString("pt-BR")} famílias.
                 Depois, o plano Harmonia volta a R$ 19,90/mês.
               </p>
 
@@ -245,17 +269,17 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
                 />
               </div>
               <p className="text-xs sm:text-sm font-medium text-white/90 mb-5">
-                Restam <strong className="text-white">{earlyBirdMonthly.slotsRemaining}</strong> de{" "}
-                {earlyBirdMonthly.maxSubscribers} vagas
+                Restam <strong className="text-white">{earlyBirdMonthly.slotsRemaining.toLocaleString("pt-BR")}</strong> de{" "}
+                {earlyBirdMonthly.maxSubscribers.toLocaleString("pt-BR")} vagas
               </p>
 
               <button
                 onClick={() => handleSubscribe(earlyBirdPlan)}
                 disabled={loading === earlyBirdPlan.id}
-                className="inline-flex items-center justify-center bg-white text-emerald-700 font-bold px-6 py-3 rounded-xl hover:bg-stone-50 transition shadow-lg disabled:opacity-70"
+                className="inline-flex items-center justify-center bg-white text-emerald-700 font-bold px-6 py-3.5 rounded-xl hover:bg-stone-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-70"
               >
-                {loading === earlyBirdPlan.id ? "Abrindo…" : "Garantir R$19,90 para sempre"}
-                <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {loading === earlyBirdPlan.id ? "Abrindo…" : "Garantir R$ 14,90 para sempre"}
+                <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                 </svg>
               </button>
@@ -268,7 +292,8 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
       <div className="max-w-6xl mx-auto px-4 pb-16">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {tiers.map((tier) => {
-            const activePlan = tier.name === "Free"
+            // Grátis tier só tem monthly; pago alterna conforme billing toggle.
+            const activePlan = tier.name === "Grátis"
               ? tier.monthly
               : billingCycle === "annual" && tier.annual
                 ? tier.annual
@@ -276,7 +301,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
 
             if (!activePlan) return null;
 
-            const isFree = tier.name === "Gratis";
+            const isFree = tier.name === "Grátis";
             const isPremium = tier.name === "Harmonia";
             const isElite = tier.name === "Premium Jurídico";
             // Match current plan by tier (not exact ID) so toggling billing cycle still shows "Plano atual"
@@ -421,7 +446,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
                     {loading === activePlan.id
                       ? "Redirecionando…"
                       : isLoggedIn
-                        ? "Começar trial de 14 dias"
+                        ? "Começar 7 dias grátis"
                         : "Criar conta e testar grátis"}
                   </button>
                 )}
@@ -461,7 +486,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            14 dias grátis para testar
+            7 dias grátis para testar tudo
           </span>
         </div>
 
@@ -470,7 +495,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
             "legible" disclosure (premium apps don't bury legal terms). */}
         <div className="mt-10 text-center text-[13px] text-[#6B5F52] max-w-2xl mx-auto leading-relaxed">
           <p>
-            Assinatura autorrenovável. Após o período de teste gratuito de 14 dias, a assinatura será cobrada
+            Assinatura autorrenovável. Após o período de teste gratuito de 7 dias, a assinatura será cobrada
             automaticamente no valor do plano selecionado. A assinatura é renovada automaticamente ao final de
             cada período, salvo cancelamento pelo menos 24 horas antes do fim do período vigente.
             {platform === "apple_iap"

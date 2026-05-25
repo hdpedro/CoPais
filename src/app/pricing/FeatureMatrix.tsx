@@ -91,7 +91,7 @@ export default function FeatureMatrix() {
       </div>
 
       <p className="text-center text-xs text-stone-500 mt-4">
-        Todos os planos: 7 dias de degustação Premium Jurídico no signup. Cancele quando quiser, sem multa.
+        Todos os planos pagos começam com 7 dias grátis de Premium Jurídico. Cancele quando quiser, sem multa.
       </p>
     </section>
   );
