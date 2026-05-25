@@ -37,22 +37,24 @@ const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const APP_JSON = resolve(__dirname, "..", "app.json");
 // Runtimes em produção que recebem OTA. Atualizar quando novo binário for
-// promovido pra Play Store / App Store. O script publica EXCETO a versão
-// atual de app.json (essa já é servida pelo `eas update --branch production`
-// padrão, sem precisar trocar a version aqui).
+// promovido pra Play Store / App Store.
 //
-// Atualizado 2026-05-19:
-//   - 1.0.2/1.0.3/1.0.4: instalações muito antigas. Podem receber as
-//     correções (tudo JS) mas a base de usuários decresce.
-//   - 1.0.5: Android Internal App Sharing antigo (memory).
-//   - 1.0.6: builds intermediários (alguns testers).
-//   - 1.0.7: iOS App Store atual (live) — MAIS IMPORTANTE.
-//   - 1.0.8: iOS em review + Android internal testers anteriores.
-//   - 1.0.9: aprovado App Store (release atual) + Android internal completed.
-//   - 1.0.10: aprovado Apple aguardando + Android internal/alpha (gráfico OMS).
-//   - 1.0.11: Skia rebuild (binary já tem o splash novo, mas OTAs sobrescrevem
-//     com a versão JS mais recente — inclui dashboard skeleton + constelação 124).
-const TARGET_VERSIONS = ["1.0.5", "1.0.6", "1.0.7", "1.0.8", "1.0.9", "1.0.10", "1.0.11"];
+// Atualizado 2026-05-22:
+//   - 1.0.5/1.0.6: removidos do alvo (instalações muito antigas, base
+//     decrescente). Caso reapareçam reports, reincluir.
+//   - 1.0.7: iOS legado mas ainda live em alguns devices.
+//   - 1.0.8/1.0.9/1.0.10: aprovadas anteriores, ainda têm users.
+//   - 1.0.11: Skia rebuild (cradle hands splash + constelação 124).
+//   - 1.0.12: PULADA — cancelada (DEVELOPER_REJECTED), nunca chegou a users.
+//   - 1.0.13: **CURRENT LIVE APP STORE** (release 22-may) — MAIS IMPORTANTE.
+//
+// Bundle JS atual inclui:
+//   - Soft prompt pre-permission iOS (anti-churn) — não viola native deps
+//   - Tela /perfil/notificacoes com 4 groups, send test, reset, deep link
+//   - Chat coalescing fix (threadId vs tag — preserva mensagens no Android)
+//   - All deps usadas já existem nos binários (expo-notifications, expo-
+//     secure-store, @react-native-community/datetimepicker, expo-haptics).
+const TARGET_VERSIONS = ["1.0.7", "1.0.8", "1.0.9", "1.0.10", "1.0.11", "1.0.13"];
 
 const args = process.argv.slice(2);
 const messageIdx = args.indexOf("--message");
