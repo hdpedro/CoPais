@@ -26,32 +26,28 @@ export async function GET(request: NextRequest) {
   const nowIso = new Date().toISOString();
 
   try {
-    // Select first so we can email the users after. Returning rows
-    // from the update would be cleaner but .returns() after update in
-    // Supabase JS is awkward across versions — two queries is fine.
-    const { data: expired, error: selectError } = await supabase
+    // Atomic UPDATE...RETURNING — Supabase JS exposes this via `.select()`
+    // chained after `.update()`. One query instead of SELECT-then-UPDATE
+    // avoids a race where a webhook flips the same row from `trialing` to
+    // `active` between our SELECT and UPDATE (which previously would have
+    // overwritten the legitimate Stripe/IAP activation with `expired`).
+    //
+    // The filter is identical to the old SELECT: only `payment_provider='trial'`
+    // rows are touched, so an Apple/Stripe `trialing` sub is never disturbed.
+    const { data: expired, error: updateError } = await supabase
       .from("subscriptions")
-      .select("id, user_id")
+      .update({ status: "expired", updated_at: nowIso })
       .eq("status", "trialing")
       .eq("payment_provider", "trial")
-      .lt("trial_end", nowIso);
+      .lt("trial_end", nowIso)
+      .select("id, user_id");
 
-    if (selectError) throw selectError;
+    if (updateError) throw updateError;
     const expiredList = expired ?? [];
 
     if (expiredList.length === 0) {
       return NextResponse.json({ ok: true, expired: 0, timestamp: nowIso });
     }
-
-    const { error: updateError } = await supabase
-      .from("subscriptions")
-      .update({ status: "expired", updated_at: nowIso })
-      .in(
-        "id",
-        expiredList.map((r) => r.id)
-      );
-
-    if (updateError) throw updateError;
 
     // Fan out emails + analytics in parallel. Email failures are swallowed
     // by sendTrialExpiredEmail — we never want one flaky email to stall

@@ -35,19 +35,29 @@ export async function POST(req: NextRequest) {
   // Idempotency guard — Stripe retries failed deliveries up to 3 days.
   // INSERT-then-process pattern: if we've already seen this event_id we
   // short-circuit with 200 so Stripe stops retrying.
+  //
+  // STRICT policy (changed 2026-05-25 after audit):
+  //   - 23505 unique violation → duplicate, 200 idempotent success
+  //   - Any other DB error → 500 so Stripe retries. We refuse to process
+  //     side effects with broken idempotency, because if processing succeeds
+  //     here without the dedup row, the retry will execute everything twice
+  //     (e.g. claim referral coupon twice, send welcome email twice).
   const dedup = await supabase
     .from("webhook_events")
     .insert({ provider: "stripe", event_id: event.id, event_type: event.type })
     .select("id")
     .single();
   if (dedup.error) {
-    // 23505 = unique violation = already processed. Idempotent success.
     if (dedup.error.code === "23505") {
       console.log(`[stripe/webhook] Duplicate event ${event.id} (${event.type}) — skipping`);
       return NextResponse.json({ received: true, duplicate: true });
     }
-    // Any other error: log + continue (don't block real processing).
-    console.warn("[stripe/webhook] webhook_events insert failed:", dedup.error.message);
+    console.error("[stripe/webhook] Dedup insert failed:", dedup.error);
+    reportServerError(dedup.error, {
+      filePath: "src/app/api/stripe/webhook/route.ts",
+      severity: "critical",
+    });
+    return NextResponse.json({ error: "Idempotency check failed" }, { status: 500 });
   }
 
   try {
@@ -449,11 +459,17 @@ export async function POST(req: NextRequest) {
   } catch (error) {
     console.error(`[stripe/webhook] Error handling ${event.type}:`, error);
     reportServerError(error, { filePath: "src/app/api/stripe/webhook/route.ts", severity: "critical" });
-    // Record the error for forensics. We DELETE the dedup row so Stripe
-    // can retry — the alternative (keep + return 500) leaves us stuck.
+    // Persist error for forensics + KEEP the dedup row. Previous logic
+    // deleted it so Stripe could retry — but if processing partially
+    // succeeded (e.g. subscription row already inserted), the retry would
+    // duplicate side effects on top of that. Instead, we trust Stripe's
+    // built-in retry semantics: a failed delivery (500 response) is retried
+    // with the SAME event_id, so the dedup hit will short-circuit cleanly
+    // and the operator can manually replay if needed.
+    const message = error instanceof Error ? error.message : String(error);
     await supabase
       .from("webhook_events")
-      .delete()
+      .update({ error: message.slice(0, 500) })
       .eq("provider", "stripe")
       .eq("event_id", event.id);
     return NextResponse.json({ error: "Webhook handler failed" }, { status: 500 });
