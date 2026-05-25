@@ -105,6 +105,8 @@ export async function POST(request: NextRequest) {
         // que substitui). Granularidade per-sender = todas msgs do mesmo
         // coparente agrupam visualmente em iOS sem sobrescrever Android.
         threadId: `chat-${groupId}-${user.id}`,
+        // notificationType: respeita prefs (mute chat / quiet hours / etc.)
+        notificationType: "chat_message",
       });
     })
   );

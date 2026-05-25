@@ -371,6 +371,7 @@ export async function submitActivityReport(formData: FormData) {
             title: `${activity.name} — ${statusLabel}`,
             body: `${senderName} reportou: ${childName} ${statusLabel}${moodText}`,
             url: "/dashboard",
+            notificationType: "activity_status_update",
           });
         } catch { /* push failure is non-critical */ }
       }

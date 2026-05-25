@@ -32,6 +32,23 @@ interface PushPayload {
   body: string;
   url?: string;
   /**
+   * Notification type — usado pra resolver categoria de prefs em
+   * `shouldSendPush`. Quando ausente, push BYPASSA o filter (legacy
+   * callers continuam funcionando).
+   *
+   * IMPORTANTE: passe SEMPRE em chamadores novos. Sem isso, o user
+   * que mutou a categoria correspondente AINDA recebe o push.
+   *
+   * Mapping type→category vive em mapTypeToCategory() abaixo.
+   */
+  notificationType?: string;
+  /**
+   * Bypass total das prefs (mute/quiet/category). Use APENAS pra info
+   * crítica de saúde — criança com febre, urgência médica. Foundation
+   * Collab seta automaticamente quando priority='urgent'.
+   */
+  urgent?: boolean;
+  /**
    * Semântica HÍBRIDA — backward-compat com chamadores legados:
    * - APNs: usado como `thread-id` (AGRUPA visualmente, NÃO substitui)
    * - FCM:  usado como `android.notification.tag` (SUBSTITUI notif anterior)
@@ -431,9 +448,54 @@ async function removeApnsToken(userId: string, token: string) {
 }
 
 /**
- * Send push notification to a specific user (all their devices: web + APNs)
+ * Send push notification to a specific user (all their devices: web + APNs).
+ *
+ * Respeita `profiles.notification_prefs` (migration 00093) quando
+ * `payload.notificationType` é passado:
+ *  - mute_until (mute global temporário)
+ *  - categories[<category>] = false
+ *  - quiet_hours (silêncio noturno BRT)
+ *
+ * `payload.urgent === true` bypassa tudo — info crítica de saúde sempre passa.
+ *
+ * SEM `notificationType`: push vai (backward-compat com callers legados).
+ * Migrar callers gradualmente pra passar o tipo correto.
+ *
+ * NOTE: in-app notification row deve ser inserida pelo CALLER (ex:
+ * `createNotificationWithPush` ou direto em services como
+ * `notifyCollabCreate`) — esse helper só envia ao device.
  */
 export async function sendPushToUser(userId: string, payload: PushPayload) {
+  // PREFS FILTER — central pra TODOS os pushes, qualquer entry point.
+  // Failure-open: outage de DB não bloqueia push (preserve UX).
+  if (payload.notificationType) {
+    const category = mapTypeToCategory(payload.notificationType);
+    if (category) {
+      try {
+        const { shouldSendPush } = await import("@/lib/services/notification-prefs");
+        const decision = await shouldSendPush(
+          userId,
+          category as Parameters<typeof shouldSendPush>[1],
+          { isUrgent: !!payload.urgent },
+        );
+        if (!decision.send) {
+          // Telemetria fire-and-forget
+          try {
+            const { captureServerEvent } = await import("@/lib/posthog-server");
+            captureServerEvent(userId, "notification_skipped", {
+              type: payload.notificationType,
+              category,
+              reason: decision.reason,
+            });
+          } catch {}
+          return;
+        }
+      } catch {
+        // Fail-open
+      }
+    }
+  }
+
   try {
     // Send via web-push (VAPID)
     const subscriptions = await getUserSubscriptions(userId);
@@ -511,17 +573,23 @@ export async function sendPushToUsers(userIds: string[], payload: PushPayload) {
 
 /**
  * Mapeamento `type` de notification → categoria de preference. Tipos não
- * mapeados defaultam pra "category_disabled = false" (i.e., sempre passa) —
- * preservar backward-compat e não bloquear sem opt-out explícito.
+ * mapeados retornam null (push passa sem filtro — backward-compat).
  *
  * Sincronizado com NotificationCategory em services/notification-prefs.ts.
  * Importante manter os strings idênticos pro JSONB persistido na profile
  * continuar fazendo sentido conforme tipos novos aparecem.
+ *
+ * EXPORTED pra testes e pra services chamadores poderem inspecionar.
  */
-function mapTypeToCategory(type: string): string | null {
-  // Activity reminders / digest
-  if (type === "activity_reminder" || type.startsWith("activity_reminder")) return "activity_reminders";
+export function mapTypeToCategory(type: string): string | null {
+  // Activity (reminders, digest, status update, status change)
   if (type === "activity_digest") return "activity_digest";
+  if (
+    type === "activity_reminder" ||
+    type === "activity_status_update" ||
+    type === "custody_change" ||  // mudança de guarda = info de agenda
+    type.startsWith("activity_reminder")
+  ) return "activity_reminders";
   // Vaccine / health Foundation Collab
   if (type.startsWith("vaccine") || type === "health_vaccine_created") return "vaccine_alerts";
   if (
@@ -530,6 +598,7 @@ function mapTypeToCategory(type: string): string | null {
     type === "active_medication_created" ||
     type === "child_allergy_created" ||
     type === "vaccination_record_created" ||
+    type === "child_size_created" ||  // tamanhos (Foundation Collab)
     type.startsWith("health_")
   ) return "health_collab";
   // Chat
@@ -540,7 +609,13 @@ function mapTypeToCategory(type: string): string | null {
   if (type.startsWith("decision_")) return "decisions";
   if (type.startsWith("swap_")) return "swap";
   if (type === "birthday_reminder") return "birthday";
-  if (type === "retention" || type.startsWith("retention_")) return "retention";
+  if (
+    type === "retention" ||
+    type === "trial_reminder" ||  // trial expiring (marketing-ish)
+    type === "renewal_reminder" || // renewal subscription (marketing-ish)
+    type === "signup_rescue" ||  // signup incompleto
+    type.startsWith("retention_")
+  ) return "retention";
   if (type.startsWith("balance_")) return "balance_operations";
   if (type.startsWith("settlement_")) return "settlements";
   // System / unknown — passa direto (sem opt-out)
@@ -583,8 +658,9 @@ export async function createNotificationWithPush(
 ) {
   const supabase = getAdminClient();
 
-  // Insert in-app notification — SEMPRE, mesmo se push for skipado.
-  // User pode abrir inbox e ver tudo, controle granular afeta só push.
+  // Insert in-app notification — SEMPRE, mesmo se push for skipado pelo
+  // prefs filter no sendPushToUser. User pode abrir inbox e ver tudo,
+  // controle granular afeta só push device-side.
   try {
     await supabase.from("notifications").insert({
       user_id: userId,
@@ -598,45 +674,15 @@ export async function createNotificationWithPush(
     // Don't crash if insert fails
   }
 
-  // Respeita preferências do user antes do push device-side.
-  // Failure-open: se notification-prefs.ts falhar, push vai (preserve UX).
-  const category = mapTypeToCategory(type);
-  if (category) {
-    try {
-      const { shouldSendPush } = await import("@/lib/services/notification-prefs");
-      const decision = await shouldSendPush(
-        userId,
-        category as Parameters<typeof shouldSendPush>[1],
-        { isUrgent: !!opts?.urgent },
-      );
-      if (!decision.send) {
-        // Telemetry — quanto mute realmente está acontecendo
-        // (lazy import pra evitar circular dep). Best-effort.
-        try {
-          const { captureServerEvent } = await import("@/lib/posthog-server");
-          captureServerEvent(userId, "notification_skipped", {
-            type,
-            category,
-            reason: decision.reason,
-          });
-        } catch {
-          // ignore
-        }
-        return;
-      }
-    } catch {
-      // notification-prefs indisponível — segue com push (fail open)
-    }
-  }
-
-  // Send push. Tag is unique per notification so the OS doesn't collapse
-  // multiple alerts of the same type (e.g. several swap requests in a row).
-  // (Angelino fix 2e263a5)
+  // Send push. notificationType passado pra sendPushToUser respeitar prefs.
+  // Tag única por notif evita colapso indesejado (multiple swap requests etc.)
   await sendPushToUser(userId, {
     title,
     body: message,
     url: link || "/dashboard",
     tag: `${type}-${Date.now()}`,
+    notificationType: type,
+    urgent: opts?.urgent,
     timeSensitive: opts?.timeSensitive,
     androidChannelId: opts?.androidChannelId,
     iosCategoryId: opts?.iosCategoryId,

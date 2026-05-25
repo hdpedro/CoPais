@@ -2005,21 +2005,43 @@ export type TranslationKey =
   | "notifPrefs.catVaccineAlerts"
   | "notifPrefs.catVaccineAlertsHint"
   | "notifPrefs.categoriesHint"
+  | "notifPrefs.enableNotifications"
   | "notifPrefs.footerHint"
+  | "notifPrefs.groupChildren"
+  | "notifPrefs.groupChildrenHint"
+  | "notifPrefs.groupCoparent"
+  | "notifPrefs.groupCoparentHint"
+  | "notifPrefs.groupFamily"
+  | "notifPrefs.groupFamilyHint"
+  | "notifPrefs.groupSystem"
+  | "notifPrefs.groupSystemHint"
+  | "notifPrefs.headerMuted"
+  | "notifPrefs.headerMutedSingular"
   | "notifPrefs.mute1h"
   | "notifPrefs.mute4h"
   | "notifPrefs.muteClear"
   | "notifPrefs.muteHint"
   | "notifPrefs.muteTomorrow"
   | "notifPrefs.mutedUntil"
+  | "notifPrefs.openSettings"
+  | "notifPrefs.permissionDenied"
+  | "notifPrefs.permissionDeniedHint"
+  | "notifPrefs.permissionUndetermined"
+  | "notifPrefs.permissionUndeterminedHint"
   | "notifPrefs.quietHoursEnd"
   | "notifPrefs.quietHoursHint"
   | "notifPrefs.quietHoursLabel"
   | "notifPrefs.quietHoursStart"
+  | "notifPrefs.resetConfirm"
+  | "notifPrefs.resetToDefaults"
   | "notifPrefs.sectionCategories"
   | "notifPrefs.sectionMute"
   | "notifPrefs.sectionQuietHours"
+  | "notifPrefs.sendTest"
+  | "notifPrefs.sendTestHint"
   | "notifPrefs.subtitle"
+  | "notifPrefs.testFailed"
+  | "notifPrefs.testSent"
   | "notifPrefs.title"
   | "notifications.chatMessage"
   | "notifications.custodyChange"
@@ -2407,6 +2429,15 @@ export type TranslationKey =
   | "sensitive.urgent"
   | "sensitive.viewSource"
   | "sensitive.waitingApproval"
+  | "softPrompt.accept"
+  | "softPrompt.decline"
+  | "softPrompt.footer"
+  | "softPrompt.line1"
+  | "softPrompt.line2"
+  | "softPrompt.line3"
+  | "softPrompt.line4"
+  | "softPrompt.subtitle"
+  | "softPrompt.title"
   | "subscription.activeNoPayer"
   | "subscription.cancelScheduled"
   | "subscription.currentPlanLabel"
@@ -4540,21 +4571,43 @@ export const TRANSLATION_KEYS = [
   "notifPrefs.catVaccineAlerts",
   "notifPrefs.catVaccineAlertsHint",
   "notifPrefs.categoriesHint",
+  "notifPrefs.enableNotifications",
   "notifPrefs.footerHint",
+  "notifPrefs.groupChildren",
+  "notifPrefs.groupChildrenHint",
+  "notifPrefs.groupCoparent",
+  "notifPrefs.groupCoparentHint",
+  "notifPrefs.groupFamily",
+  "notifPrefs.groupFamilyHint",
+  "notifPrefs.groupSystem",
+  "notifPrefs.groupSystemHint",
+  "notifPrefs.headerMuted",
+  "notifPrefs.headerMutedSingular",
   "notifPrefs.mute1h",
   "notifPrefs.mute4h",
   "notifPrefs.muteClear",
   "notifPrefs.muteHint",
   "notifPrefs.muteTomorrow",
   "notifPrefs.mutedUntil",
+  "notifPrefs.openSettings",
+  "notifPrefs.permissionDenied",
+  "notifPrefs.permissionDeniedHint",
+  "notifPrefs.permissionUndetermined",
+  "notifPrefs.permissionUndeterminedHint",
   "notifPrefs.quietHoursEnd",
   "notifPrefs.quietHoursHint",
   "notifPrefs.quietHoursLabel",
   "notifPrefs.quietHoursStart",
+  "notifPrefs.resetConfirm",
+  "notifPrefs.resetToDefaults",
   "notifPrefs.sectionCategories",
   "notifPrefs.sectionMute",
   "notifPrefs.sectionQuietHours",
+  "notifPrefs.sendTest",
+  "notifPrefs.sendTestHint",
   "notifPrefs.subtitle",
+  "notifPrefs.testFailed",
+  "notifPrefs.testSent",
   "notifPrefs.title",
   "notifications.chatMessage",
   "notifications.custodyChange",
@@ -4942,6 +4995,15 @@ export const TRANSLATION_KEYS = [
   "sensitive.urgent",
   "sensitive.viewSource",
   "sensitive.waitingApproval",
+  "softPrompt.accept",
+  "softPrompt.decline",
+  "softPrompt.footer",
+  "softPrompt.line1",
+  "softPrompt.line2",
+  "softPrompt.line3",
+  "softPrompt.line4",
+  "softPrompt.subtitle",
+  "softPrompt.title",
   "subscription.activeNoPayer",
   "subscription.cancelScheduled",
   "subscription.currentPlanLabel",

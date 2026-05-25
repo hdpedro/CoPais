@@ -200,6 +200,23 @@ export default function PerfilScreen() {
           <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
         </TouchableOpacity>
 
+        {/* Notificações — Fase C controle granular */}
+        <TouchableOpacity onPress={() => router.push('/perfil/notificacoes')}
+          testID="perfil-notificacoes"
+          accessibilityRole="button"
+          accessibilityLabel={t('notifPrefs.title')}
+          style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm,
+            flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
+          <Ionicons name="notifications-outline" size={20} color={colors.brand} />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: font.sizes.md, color: colors.text }}>{t('notifPrefs.title')}</Text>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
+              {t('notifPrefs.subtitle')}
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+        </TouchableOpacity>
+
         {/* Subscription */}
         <TouchableOpacity onPress={() => router.push('/pricing')}
           accessibilityRole="button"

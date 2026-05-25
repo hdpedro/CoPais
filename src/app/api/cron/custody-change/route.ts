@@ -138,6 +138,7 @@ export async function GET(request: NextRequest) {
             body: t("push.custodyChange.body", { childLabel, parentName: parentLabel }),
             url: "/calendario",
             tag: "custody_change",
+            notificationType: "custody_change",
           });
         })
       );

@@ -108,6 +108,7 @@ export async function GET(request: NextRequest) {
           // existe). Rota correta é `/assinatura` (alinhado com renewal-reminder).
           url: "/assinatura",
           tag: "trial-ending",
+          notificationType: "trial_reminder",
         });
         captureServerEvent(row.user_id, "trial_reminder_push_sent");
         pushesSent++;

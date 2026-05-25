@@ -23,7 +23,8 @@
     "i18n:orphans": "node scripts/i18n/validate-orphan-keys.mjs --warn-only",
     "i18n:hardcoded": "node scripts/i18n/find-hardcoded-strings.mjs --warn-only",
     "i18n:gen": "node scripts/i18n/generate-types.mjs",
-    "i18n:check": "npm run i18n:parity && npm run i18n:char-limits && npm run i18n:gen"
+    "i18n:audit-server": "node scripts/i18n/audit-server-keys.mjs",
+    "i18n:check": "npm run i18n:parity && npm run i18n:char-limits && npm run i18n:audit-server && npm run i18n:gen"
   },
   "dependencies": {
     "@hello-pangea/dnd": "^18.0.1",

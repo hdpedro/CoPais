@@ -12,4 +12,5 @@
 # CI re-runs both jobs (plus build + lint) as required checks on PR.
 # Skipping this hook risks pushing a broken main; please don't `--no-verify`.
 npm run typecheck
+npm run i18n:audit-server
 npm run test -- --run

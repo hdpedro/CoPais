@@ -102,6 +102,7 @@ export async function GET(request: NextRequest) {
             body: t("push.renewalReminder.body"),
             url: "/assinatura",
             tag: "renewal-reminder",
+            notificationType: "renewal_reminder",
           }).then(() => {
             pushesSent++;
           }),

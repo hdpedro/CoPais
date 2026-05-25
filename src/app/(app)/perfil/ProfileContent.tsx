@@ -130,6 +130,14 @@ export default function ProfileContent({
             </svg>
           </div>
         </Link>
+        <Link href="/perfil/notificacoes" className="block bg-white rounded-xl p-4 shadow-sm hover:shadow-md transition-shadow">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-medium text-dark">{t("notifPrefs.title")}</span>
+            <svg className="w-5 h-5 text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
       </div>
 
       {/* Sign Out */}

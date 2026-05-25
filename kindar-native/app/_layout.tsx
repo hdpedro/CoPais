@@ -192,6 +192,7 @@ export default function RootLayout() {
         const status = await checkSoftPromptStatus();
         if (status === 'show_modal') {
           setShowSoftPrompt(true);
+          analytics.capture('soft_prompt_shown', { context: 'post_login_delay' });
         }
       } catch {
         // Não-fatal
@@ -249,19 +250,24 @@ export default function RootLayout() {
 
   // Soft prompt handlers — chamados pelo SoftPromptModal abaixo.
   const handleSoftPromptAccept = async () => {
+    analytics.capture('soft_prompt_accepted');
     await markSoftPromptShown().catch(() => {});
     setShowSoftPrompt(false);
     // Agora SIM dispara o hard prompt iOS, mostrando o nativo
-    await registerForPushNotificationsAsync({ forceRequest: true }).catch(() => {});
+    const token = await registerForPushNotificationsAsync({ forceRequest: true }).catch(() => null);
+    // Telemetria de outcome final pós hard prompt
+    analytics.capture('soft_prompt_outcome', {
+      outcome: token ? 'granted' : 'denied_at_native',
+    });
   };
 
   const handleSoftPromptDecline = async () => {
+    analytics.capture('soft_prompt_declined');
     await markSoftPromptShown().catch(() => {});
     setShowSoftPrompt(false);
     // Não dispara hard prompt — user pode reativar via /perfil/notificacoes
-    // depois (que vai mostrar instrução de ir em Settings → Notifications →
-    // Kindar pra primeiro grant, OU usar o flag de re-prompt se ainda
-    // undetermined).
+    // depois (que mostra banner permissionUndetermined + CTA "Ativar
+    // notificações" que chama o hard prompt diretamente).
   };
 
   // Navigate on notification tap
