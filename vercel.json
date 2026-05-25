@@ -26,7 +26,7 @@
     },
     {
       "path": "/api/cron/trial-expiry",
-      "schedule": "0 3 * * *"
+      "schedule": "0 9 * * *"
     },
     {
       "path": "/api/cron/trial-reminder",

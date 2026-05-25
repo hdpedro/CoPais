@@ -73,14 +73,47 @@ export async function getGroupSubscription(
 }
 
 /**
- * Returns the user's primary group — the oldest group they belong to.
- * Matches the heuristic used in the 00054 backfill so billing context is
- * consistent with migrated data.
+ * Returns the user's primary group with this precedence:
+ *
+ *   1. `profiles.last_active_group_id` (migration 00097) — the group the user
+ *      most recently navigated into. Best signal for "which group do they
+ *      mean right now" when they're a member of more than one.
+ *   2. Oldest membership by `joined_at` (legacy heuristic) — fallback when
+ *      column is null (backfill missed a row, or migration not applied yet).
+ *
+ * Defensive: if reading the `last_active_group_id` column errors (e.g.
+ * column doesn't exist on a staging clone), we silently fall through to
+ * the legacy heuristic — same code path as before migration 00097.
  */
 export async function getPrimaryGroupId(
   supabase: SupabaseClient,
   userId: string
 ): Promise<string | null> {
+  // Prefer last_active_group_id. PG error 42703 (column doesn't exist) →
+  // treat as null and fall through to the legacy heuristic.
+  try {
+    type ProfileRow = { last_active_group_id?: string | null };
+    const { data: profileRow, error } = await supabase
+      .from("profiles")
+      .select("last_active_group_id")
+      .eq("id", userId)
+      .maybeSingle<ProfileRow>();
+    if (!error && profileRow?.last_active_group_id) {
+      // Verify the user is still a member of that group — they may have
+      // been removed since last login. Cheap query, single row.
+      const { data: membership } = await supabase
+        .from("group_members")
+        .select("group_id")
+        .eq("user_id", userId)
+        .eq("group_id", profileRow.last_active_group_id)
+        .maybeSingle();
+      if (membership?.group_id) return membership.group_id;
+    }
+  } catch {
+    // Column doesn't exist or RLS edge — fall through.
+  }
+
+  // Legacy fallback — oldest membership.
   const { data } = await supabase
     .from("group_members")
     .select("group_id")
