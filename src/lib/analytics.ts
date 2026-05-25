@@ -53,7 +53,10 @@ export const EVENTS = {
   TRIAL_REMINDER_SENT: "trial_reminder_sent",
   RENEWAL_REMINDER_SENT: "renewal_reminder_sent",
   SUBSCRIPTION_CANCELED: "subscription_canceled",
+  SUBSCRIPTION_CANCEL_SCHEDULED: "subscription_cancel_scheduled",
+  SUBSCRIPTION_UNCANCELLED: "subscription_uncancelled",
   SUBSCRIPTION_RENEWED: "subscription_renewed",
+  SUBSCRIPTION_PLAN_CHANGED: "subscription_plan_changed",
 
   // Referral
   REFERRAL_LINK_COPIED: "referral_link_copied",

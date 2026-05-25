@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import {
   getGroupSubscription,
   getPrimaryGroupId,
@@ -23,11 +24,18 @@ import { getEarlyBirdStatus } from "@/lib/billing/early-bird";
  * from the native app, cookie from the web).
  */
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Dual-auth: Bearer (Native via fetch) or cookie (PWA). Previously this
+  // route used only the cookie client, which silently returned 401 for the
+  // Native (Bearer-only) and the client fell through to FREE_BILLING — the
+  // Native effectively never saw a paid tier. Fixed 2026-05-25 audit.
+  const user = await resolveAuthenticatedUser(req);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Admin client bypasses RLS for reads. We've already authenticated above,
+  // so this is safe and works uniformly for Bearer + cookie sessions.
+  const supabase = createAdminClient();
 
   const requestedGroupId = req.nextUrl.searchParams.get("groupId");
   const groupId = requestedGroupId ?? (await getPrimaryGroupId(supabase, user.id));
@@ -73,7 +81,7 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({
+  const payload = {
     groupId,
     tier: subscription.tier,
     planId: subscription.planId,
@@ -97,5 +105,23 @@ export async function GET(req: NextRequest) {
     autoSplit,
     autoSplitCoUserId,
     autoSplitCoShare,
-  });
+  };
+
+  const response = NextResponse.json(payload);
+
+  // Cache for 60s. Billing status changes via webhook (Stripe/RC) and via
+  // /api/iap/verify, neither of which the client can predict locally. Using
+  // private (per-user) + short max-age + SWR balances freshness vs DB cost.
+  //
+  // - `private` — never cache in shared CDN; this is per-user.
+  // - `max-age=60` — browser/native serves cached value for up to 60s.
+  // - `stale-while-revalidate=300` — for the next 5min, serve stale and
+  //   refresh in background. Smooths over short DB blips.
+  //
+  // Native clients implement their own in-memory cache with manual
+  // invalidation after `/api/iap/verify` returns (see kindar-native/billing.ts).
+  response.headers.set("Cache-Control", "private, max-age=60, stale-while-revalidate=300");
+  // Different auth tokens => different responses. Mandatory with `private` cache.
+  response.headers.set("Vary", "Authorization");
+  return response;
 }

@@ -56,6 +56,20 @@ async function resolveServerPlatform(): Promise<string> {
  * `user_login`, `swap_request_created`) can be broken down alongside
  * client events in PostHog Trends.
  */
+// Revenue-critical events that we want loud in logs if PostHog is unreachable.
+// Losing one of these means we can't attribute paid conversions, so an alert
+// in Vercel logs / Sentry is worth the noise.
+const REVENUE_CRITICAL = new Set([
+  "checkout_started",
+  "checkout_completed",
+  "subscription_started",
+  "subscription_renewed",
+  "subscription_canceled",
+  "payment_failed",
+  "trial_started",
+  "trial_expired",
+]);
+
 export function captureServerEvent(
   userId: string,
   event: string,
@@ -63,19 +77,33 @@ export function captureServerEvent(
 ) {
   // The async work runs in an IIFE so the public signature stays sync
   // (matches all existing call sites that fire-and-forget). Errors are
-  // swallowed internally — analytics never breaks the app.
+  // swallowed internally — analytics never breaks the app, but we log
+  // revenue-critical events explicitly so a PostHog outage is visible.
   void (async () => {
     try {
       const ph = getServerPostHog();
-      if (!ph) return;
+      if (!ph) {
+        if (REVENUE_CRITICAL.has(event)) {
+          console.error(
+            `[posthog-server] DROPPED revenue-critical event '${event}' for user ${userId} — PostHog client not configured`,
+          );
+        }
+        return;
+      }
       const platform = await resolveServerPlatform();
       ph.capture({
         distinctId: userId,
         event,
         properties: { ...properties, platform },
       });
-    } catch {
-      // Never let analytics break the app
+    } catch (err) {
+      // Log loudly for revenue events; silent for others so we don't spam logs.
+      if (REVENUE_CRITICAL.has(event)) {
+        console.error(
+          `[posthog-server] FAILED to capture revenue-critical event '${event}' for user ${userId}:`,
+          err,
+        );
+      }
     }
   })();
 }

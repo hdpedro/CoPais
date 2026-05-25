@@ -102,6 +102,11 @@ export default function AssinaturaClient({
   const [splitCoShare, setSplitCoShare] = useState<number>(splitState?.coSharePercent ?? 50);
   const [splitPending, startSplitTransition] = useTransition();
   const [splitMessage, setSplitMessage] = useState<string | null>(null);
+  // LGPD Art. 8 (consentimento livre, informado e inequívoco) — ANPD em
+  // outubro/2025 começou a fiscalizar contratos de assinatura recorrente
+  // pedindo evidência de consent específico de cobrança automática (separado
+  // dos Termos gerais). Checkbox bloqueia o botão até o user marcar.
+  const [recurringConsent, setRecurringConsent] = useState(false);
 
   function handleEnableSplit() {
     if (!splitCoUserId) return;
@@ -129,18 +134,23 @@ export default function AssinaturaClient({
   }
 
   async function startCheckout(planId: string) {
+    if (!recurringConsent) {
+      // UI gate — botão é disabled, mas defesa em profundidade.
+      return;
+    }
     setBusyPlan(planId);
     const couponCode = couponStatus.kind === "valid" ? couponStatus.code : undefined;
     trackEvent(EVENTS.CHECKOUT_STARTED, {
       plan_id: planId,
       payment_method: paymentMethod,
       coupon_code: couponCode || null,
+      recurring_consent: true,
     });
     try {
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ planId, paymentMethod, couponCode }),
+        body: JSON.stringify({ planId, paymentMethod, couponCode, recurringConsent: true }),
       });
       const { url, error } = await res.json();
       if (error) throw new Error(error);
@@ -378,6 +388,41 @@ export default function AssinaturaClient({
         </div>
       )}
 
+      {/* LGPD Art. 8 — consentimento específico, livre e informado para
+          cobrança recorrente. Bloqueia todos os botões de assinar até o
+          user marcar. Separado dos Termos gerais pra atender exigência da
+          ANPD (outubro/2025) de "consent específico" pra modalidades de
+          cobrança automática. Não exibimos durante trial ativo — user já
+          consentiu se ativou trial via createGroup e não está re-iniciando
+          uma assinatura paga. */}
+      {!subscription.isActive || subscription.isTrial ? (
+        <div className="mb-6 p-4 bg-stone-50 border border-stone-200 rounded-xl">
+          <label className="flex items-start gap-3 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={recurringConsent}
+              onChange={(e) => setRecurringConsent(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-stone-300 text-emerald-600 focus:ring-emerald-500 cursor-pointer"
+              aria-describedby="recurring-consent-text"
+            />
+            <span id="recurring-consent-text" className="text-sm text-stone-700 leading-snug">
+              Autorizo a cobrança automática e recorrente do valor do plano selecionado,
+              renovada a cada ciclo até que eu cancele. Posso cancelar a qualquer momento
+              no portal do Stripe (no caso de PIX/cartão) ou nas Configurações da Apple/Google
+              (no caso de IAP). Estou ciente dos{" "}
+              <a href="/termos" target="_blank" rel="noopener noreferrer" className="text-emerald-700 underline">
+                Termos de Uso
+              </a>{" "}
+              e da{" "}
+              <a href="/privacidade" target="_blank" rel="noopener noreferrer" className="text-emerald-700 underline">
+                Política de Privacidade
+              </a>
+              .
+            </span>
+          </label>
+        </div>
+      ) : null}
+
       <div className="space-y-4">
         {/* Early Bird — only shown if slots remain AND not already on a paid plan */}
         {earlyBirdAvailable && subscription.tier !== "harmonia" && subscription.tier !== "premium_juridico" && (
@@ -402,7 +447,7 @@ export default function AssinaturaClient({
             </ul>
             <button
               onClick={() => startCheckout("harmonia_earlybird_monthly")}
-              disabled={busyPlan === "harmonia_earlybird_monthly"}
+              disabled={busyPlan === "harmonia_earlybird_monthly" || !recurringConsent}
               className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-60"
             >
               {busyPlan === "harmonia_earlybird_monthly" ? "Abrindo checkout…" : "Garantir Early Bird"}
@@ -437,7 +482,7 @@ export default function AssinaturaClient({
           </ul>
           <button
             onClick={() => startCheckout("harmonia_monthly")}
-            disabled={busyPlan === "harmonia_monthly"}
+            disabled={busyPlan === "harmonia_monthly" || !recurringConsent}
             className="w-full bg-stone-900 hover:bg-stone-800 text-white font-semibold py-3 rounded-xl transition disabled:opacity-60"
           >
             {busyPlan === "harmonia_monthly" ? "Abrindo checkout…" : "Assinar Harmonia"}
@@ -474,7 +519,7 @@ export default function AssinaturaClient({
           </ul>
           <button
             onClick={() => startCheckout("premium_juridico_monthly")}
-            disabled={busyPlan === "premium_juridico_monthly"}
+            disabled={busyPlan === "premium_juridico_monthly" || !recurringConsent}
             className="w-full bg-amber-600 hover:bg-amber-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-60"
           >
             {busyPlan === "premium_juridico_monthly" ? "Abrindo checkout…" : "Assinar Premium Jurídico"}

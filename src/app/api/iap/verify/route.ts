@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { getPrimaryGroupId } from "@/lib/billing";
 
 /**
@@ -35,23 +35,10 @@ import { getPrimaryGroupId } from "@/lib/billing";
  */
 export async function POST(req: NextRequest) {
   try {
-    // Authenticate: aceita Bearer (native via fetch) ou cookie (web).
-    // O native envia Bearer porque Next middleware nao valida tokens em
-    // /api/* e o cookie nao existe fora do webview com ssr configurado.
-    const authHeader = req.headers.get("authorization");
-    let user: { id: string } | null = null;
-
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.slice(7);
-      const adminForAuth = createAdminClient();
-      const { data, error } = await adminForAuth.auth.getUser(token);
-      if (!error && data.user) user = { id: data.user.id };
-    } else {
-      const supabase = await createClient();
-      const { data: { user: webUser } } = await supabase.auth.getUser();
-      if (webUser) user = { id: webUser.id };
-    }
-
+    // Dual-auth via shared helper. Replaces inline 15-line Bearer/cookie
+    // dance — same behavior, less drift between this and /api/billing/status,
+    // /api/create-group, etc.
+    const user = await resolveAuthenticatedUser(req);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -65,6 +52,17 @@ export async function POST(req: NextRequest) {
       return NextResponse.json(
         { error: "Missing productId" },
         { status: 400 }
+      );
+    }
+
+    // Sandbox isolation — same policy as the RevenueCat webhook.
+    // The native client can pass `isSandbox=true` so the backend knows the
+    // purchase happened in a StoreKit sandbox session. We refuse to persist
+    // sandbox state on production deploys.
+    if (body.isSandbox === true && process.env.VERCEL_ENV === "production") {
+      return NextResponse.json(
+        { error: "Sandbox purchases are not accepted in production" },
+        { status: 403 },
       );
     }
 
@@ -113,8 +111,14 @@ export async function POST(req: NextRequest) {
     // Resolve the user's primary group — subscriptions are per-group as
     // of migration 00054. Users without a group shouldn't reach checkout
     // but fail-soft so we don't crash on edge cases.
-    const supabaseRead = await createClient();
-    const groupId = await getPrimaryGroupId(supabaseRead, user.id);
+    //
+    // CRITICAL: must use admin client. The cookie-based client doesn't have
+    // a session when the Native calls via Bearer header, so RLS would block
+    // the read and getPrimaryGroupId would silently return null — the new
+    // sub would land with coparenting_group_id=null and v_group_active_
+    // subscription would filter it out, putting the paying user on Free.
+    // Same bug class that `/api/create-group` had before the 2026-05-25 fix.
+    const groupId = await getPrimaryGroupId(admin, user.id);
 
     // Calculate subscription period
     const now = new Date();
@@ -140,23 +144,51 @@ export async function POST(req: NextRequest) {
     // duplicate row for the same purchase.
     const { data: existingSub } = await admin
       .from("subscriptions")
-      .select("id, status")
+      .select("id, status, plan_id")
       .eq("user_id", user.id)
       .eq("payment_provider", providerTag)
       .in("status", ["active", "trialing", "past_due", "pending"])
       .maybeSingle();
 
-    // Decide the target status:
-    //   - If user already has an active/trialing sub on this provider, keep
-    //     it active (this is a renewal/plan-change path, RevenueCat will
-    //     also fire RENEWAL or PRODUCT_CHANGE).
-    //   - Otherwise, write 'pending'. RevenueCat webhook flips to 'active'
-    //     after verifying the Apple/Google signature server-side.
-    const isExistingActive =
+    // Security model — `productId` and `originalTransactionId` arrive from
+    // the native client, NOT from Apple/Google directly. We cannot trust
+    // them as ground truth. Two distinct paths:
+    //
+    //   1. Existing active/trialing sub on this provider:
+    //      User is renewing or upgrading. We DO NOT change plan_id or
+    //      status here, because that would let a forged client smuggle a
+    //      higher tier without actually paying for it (e.g. user is paying
+    //      Harmonia Monthly but sends productId=premium_juridico_annual).
+    //      RevenueCat's PRODUCT_CHANGE webhook is the only trusted path
+    //      for plan upgrades — Apple/Google sign those server-to-server.
+    //
+    //   2. No active sub, or only past_due/pending exists:
+    //      Best-effort INSERT/UPDATE with status='pending'. The
+    //      RevenueCat webhook flips to 'active' once Apple/Google
+    //      confirm the receipt (typical latency < 5s in production).
+    //      Pending rows do NOT grant access — `v_group_active_subscription`
+    //      filters them out.
+    const existingIsAccessGranting =
       existingSub?.status === "active" || existingSub?.status === "trialing";
-    const targetStatus = isExistingActive ? "active" : "pending";
+
+    if (existingIsAccessGranting) {
+      // No-op: trust the webhook for any change. Return the existing state
+      // so the client can render its current plan without flicker.
+      return NextResponse.json({
+        success: true,
+        plan: existingSub.plan_id,
+        expiresAt: null,
+        restored: false,
+        status: existingSub.status,
+        pendingReconciliation: true,
+        note: "Plan changes go through RevenueCat webhook (PRODUCT_CHANGE).",
+      });
+    }
+
+    const targetStatus = "pending" as const;
 
     if (existingSub) {
+      // existingSub is past_due or pending — safe to overwrite to pending.
       await admin
         .from("subscriptions")
         .update({
@@ -188,6 +220,11 @@ export async function POST(req: NextRequest) {
           providerTag === "google" ? originalTransactionId || null : null,
         current_period_start: now.toISOString(),
         current_period_end: periodEnd.toISOString(),
+        // Tag sandbox rows so v_group_active_subscription excludes them.
+        // Symmetric with the RevenueCat webhook handler. Production deploys
+        // refuse sandbox upstream (line ~75 of this file), so this only
+        // marks rows in preview/dev where sandbox QA happens.
+        is_sandbox: body.isSandbox === true,
       });
 
       if (insertErr) {
@@ -208,7 +245,7 @@ export async function POST(req: NextRequest) {
       expiresAt: periodEnd.toISOString(),
       restored: false,
       status: targetStatus,
-      pendingReconciliation: targetStatus === "pending",
+      pendingReconciliation: true,
     });
   } catch (error) {
     console.error("[IAP] Verify error:", error);
