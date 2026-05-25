@@ -51,7 +51,7 @@ function Cell({ value }: { value: string | boolean }) {
 
 export default function FeatureMatrix() {
   return (
-    <section className="max-w-5xl mx-auto px-4 pb-16">
+    <section className="max-w-6xl mx-auto px-4 pb-16">
       <h2 className="text-2xl font-bold text-stone-900 mb-6 text-center">
         Compare os três planos lado a lado
       </h2>

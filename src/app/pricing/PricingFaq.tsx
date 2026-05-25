@@ -50,32 +50,38 @@ export default function PricingFaq() {
 
   return (
     <section className="max-w-3xl mx-auto px-4 pb-20">
-      <h2 className="text-2xl font-bold text-stone-900 mb-8 text-center">Dúvidas frequentes</h2>
-      <div className="space-y-2">
+      <h2 className="text-3xl sm:text-4xl font-bold text-stone-900 mb-10 text-center tracking-tight">
+        Dúvidas frequentes
+      </h2>
+      <div className="space-y-3">
         {FAQS.map((item, idx) => {
           const open = openIdx === idx;
           return (
             <div
               key={item.q}
-              className={`rounded-xl border bg-white transition ${
-                open ? "border-[#C07055]/40 shadow-sm" : "border-stone-200"
+              className={`rounded-xl border bg-white transition-all ${
+                open ? "border-[#C07055]/40 shadow-md" : "border-stone-200 hover:border-stone-300 hover:shadow-sm"
               }`}
             >
               <button
                 onClick={() => setOpenIdx(open ? null : idx)}
-                className="w-full flex items-start justify-between gap-4 p-4 text-left"
+                aria-expanded={open}
+                className="w-full flex items-start justify-between gap-4 p-5 text-left cursor-pointer hover:bg-stone-50/60 rounded-xl transition-colors"
               >
-                <span className="text-[14px] font-semibold text-stone-900">{item.q}</span>
+                <span className="text-[15px] sm:text-base font-semibold text-stone-900 leading-snug">
+                  {item.q}
+                </span>
                 <span
-                  className={`shrink-0 text-[#C07055] text-lg transition-transform ${
-                    open ? "rotate-45" : ""
+                  className={`shrink-0 mt-0.5 inline-flex items-center justify-center w-7 h-7 rounded-full bg-[#C07055]/10 text-[#C07055] text-xl font-light transition-transform ${
+                    open ? "rotate-45 bg-[#C07055] text-white" : ""
                   }`}
+                  aria-hidden="true"
                 >
                   +
                 </span>
               </button>
               {open && (
-                <div className="px-4 pb-4 text-[13.5px] text-stone-600 leading-relaxed">
+                <div className="px-5 pb-5 text-[14.5px] text-stone-600 leading-relaxed">
                   {item.a}
                 </div>
               )}
