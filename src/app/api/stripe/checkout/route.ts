@@ -41,6 +41,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Missing planId" }, { status: 400 });
     }
 
+    // PIX recurring gate — Stripe PIX Automático ainda é beta restrito
+    // (status em 2026-05). Sem essa flag setada, escolher PIX cria uma
+    // session que vai falhar silenciosamente no fim do fluxo com erro
+    // confuso pro user ("método de pagamento não disponível pra esse
+    // produto"). Bloqueamos antes pra dar mensagem clara.
+    //
+    // Operator: set STRIPE_PIX_RECURRING_ENABLED=true quando Stripe
+    // confirmar habilitação na conta. Ver MANUAL_OPERACIONAL.md seção PIX.
+    if (paymentMethod === "pix" && process.env.STRIPE_PIX_RECURRING_ENABLED !== "true") {
+      return NextResponse.json(
+        {
+          error:
+            "Pagamento via PIX recorrente ainda não está disponível. Por favor, escolha cartão de crédito.",
+          code: "pix_recurring_not_enabled",
+        },
+        { status: 400 },
+      );
+    }
+
     // Resolve stripe_price_id from plans table if client didn't pass one.
     // This is the preferred path — keeps pricing authoritative on the DB.
     if (!priceId) {

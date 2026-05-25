@@ -115,6 +115,10 @@ export async function POST(req: NextRequest) {
         // on the assinatura page without another Stripe round-trip.
         const paymentMethodHint = session.metadata?.payment_method_hint || "card";
         const couponCode = session.metadata?.coupon_code || null;
+        // Stripe distinguishes test/live by SECRET KEY (sk_test_* vs sk_live_*),
+        // so any event reaching us with `livemode=false` is a test-mode session.
+        // Tag the resulting row so it never grants production access.
+        const isSandbox = (event as unknown as { livemode?: boolean }).livemode === false;
         // Map Stripe statuses correctly. "incomplete" / "past_due" must NOT
         // grant access — the previous logic ("active" ? "active" : "trialing")
         // gave full access to users mid-3DS-confirmation or with declined cards.
@@ -132,6 +136,7 @@ export async function POST(req: NextRequest) {
           current_period_end: new Date(periodEnd * 1000).toISOString(),
           cancel_at_period_end: sub.cancel_at_period_end,
           trial_end: sub.trial_end ? new Date(sub.trial_end * 1000).toISOString() : null,
+          is_sandbox: isSandbox,
         });
 
         // Increment redemption counter on the internal coupons row.

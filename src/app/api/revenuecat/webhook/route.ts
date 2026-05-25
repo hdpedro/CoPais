@@ -180,6 +180,11 @@ export async function POST(req: NextRequest) {
           current_period_end: periodEnd?.toISOString() ?? now.toISOString(),
           cancel_at_period_end: false,
           updated_at: now.toISOString(),
+          // Tag sandbox rows so `v_group_active_subscription` excludes them.
+          // In production deploys this is unreachable (gate at top of handler
+          // returned 200 ignored). In preview/dev, sandbox events are accepted
+          // for QA — marking them keeps test data isolated.
+          is_sandbox: event.environment === "SANDBOX",
         };
 
         if (existing) {
