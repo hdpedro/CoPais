@@ -22,18 +22,30 @@ export default async function PricingPage() {
     .eq("is_active", true)
     .order("sort_order");
 
-  // Try to get user subscription (may be null if not logged in)
+  // Try to get user subscription (may be null if not logged in).
+  // Defesa em profundidade contra incident de Postgres lento: ambos os
+  // fetches têm hard ceiling de 1.5s — /pricing é página pública e
+  // NUNCA deve segurar a renderização por causa de auth lenta.
   let currentPlanId = "free";
   let isLoggedIn = false;
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const userPromise = supabase.auth.getUser();
+    const userTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("auth.getUser timeout")), 1500),
+    );
+    const { data: { user } } = await Promise.race([userPromise, userTimeout]);
     if (user) {
       isLoggedIn = true;
-      const sub = await getUserSubscription(supabase, user.id);
+      const subPromise = getUserSubscription(supabase, user.id);
+      const subTimeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("getUserSubscription timeout")), 1500),
+      );
+      const sub = await Promise.race([subPromise, subTimeout]);
       currentPlanId = sub.planId;
     }
   } catch {
-    // Not logged in — that's fine for the pricing page
+    // Not logged in OR Postgres lento — em ambos os casos, tratar como
+    // visitante anônimo com plano free. Pricing continua renderizando.
   }
 
   const earlyBird = await getEarlyBirdStatus();
