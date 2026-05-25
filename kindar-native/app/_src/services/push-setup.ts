@@ -73,8 +73,26 @@ export async function registerNotificationChannels() {
 /**
  * Request permission + get push token. Sends to backend to register on push_subscriptions.
  * Returns null if user denies permission or not on a physical device.
+ *
+ * BEHAVIOR CHANGE 2026-05-22: deixou de chamar o hard prompt iOS direto.
+ * Agora SÓ procede se permission já foi concedida (granted) ou se o
+ * caller passou `forceRequest=true` (vindo do SoftPromptModal após user
+ * clicar "Sim, ativar"). Sem isso, retorna null sem mostrar hard prompt.
+ *
+ * Industry rationale: 40-60% dos users clicam "Don't Allow" no hard prompt
+ * iOS quando aparece sem contexto, e iOS NUNCA reaparece — perde push pra
+ * sempre. Soft prompt pré-modal explicando o valor restaura opt-in pra
+ * 60-70%.
+ *
+ * Fluxo recomendado:
+ *   1. Caller checa `checkSoftPromptStatus()` em push-soft-prompt.ts
+ *   2. Se 'show_modal' → mostra SoftPromptModal
+ *   3. Se user clica "Sim" → chama `registerForPushNotificationsAsync({ forceRequest: true })`
+ *   4. Se 'already_granted' → chama sem forceRequest (no-op de prompt)
  */
-export async function registerForPushNotificationsAsync(): Promise<string | null> {
+export async function registerForPushNotificationsAsync(
+  opts: { forceRequest?: boolean } = {},
+): Promise<string | null> {
   if (Platform.OS === 'web') {
     // expo-notifications on web does not support native APNs/FCM tokens
     return null;
@@ -84,6 +102,12 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   let finalStatus = existing;
 
   if (existing !== 'granted') {
+    if (!opts.forceRequest) {
+      // Sem forceRequest, NÃO disparamos o hard prompt iOS — preserva
+      // a opção de mostrar soft prompt antes. Caller decide quando
+      // realmente pedir.
+      return null;
+    }
     const { status } = await Notifications.requestPermissionsAsync();
     finalStatus = status;
   }

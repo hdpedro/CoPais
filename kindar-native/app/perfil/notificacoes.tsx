@@ -272,7 +272,7 @@ function Section({ title, hint, children }: { title: string; hint?: string; chil
       backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg,
       marginBottom: spacing.md, borderWidth: 1, borderColor: colors.borderLight, ...shadows.sm,
     }}>
-      <Text style={{ fontSize: font.sizes.base, fontWeight: font.weights.semibold, color: colors.text, marginBottom: 2 }}>
+      <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, marginBottom: 2 }}>
         {title}
       </Text>
       {hint ? (

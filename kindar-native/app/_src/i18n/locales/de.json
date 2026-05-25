@@ -2860,5 +2860,16 @@
     "catSettlements": "Abrechnungen",
     "catSettlementsHint": "Finanzbestätigungen",
     "footerHint": "Gesundheitsnotfälle kommen immer durch, auch wenn alles stumm ist."
+  },
+  "softPrompt": {
+    "title": "Wir melden uns, wenn es wichtig ist",
+    "subtitle": "Kindar nutzt Benachrichtigungen für Dinge wie:",
+    "line1": "Erinnerungen vor den Aktivitäten deiner Kinder",
+    "line2": "Nachrichten vom Co-Elternteil im Chat",
+    "line3": "Ausstehende Impfungen und Termine",
+    "line4": "Wichtige Änderungen bei Ausgaben und Entscheidungen",
+    "footer": "Du kannst alles später in Profil → Benachrichtigungen anpassen.",
+    "accept": "Ja, Benachrichtigungen aktivieren",
+    "decline": "Nicht jetzt"
   }
 }

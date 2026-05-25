@@ -2860,5 +2860,16 @@
     "catSettlements": "Liquidaciones",
     "catSettlementsHint": "Confirmaciones financieras",
     "footerHint": "Las urgencias de salud pasan siempre, incluso con todo silenciado."
+  },
+  "softPrompt": {
+    "title": "Te avisaremos cuando importe",
+    "subtitle": "Kindar usa notificaciones para cosas como:",
+    "line1": "Recordatorios antes de las actividades de tus hijos",
+    "line2": "Mensajes del coparente en el chat",
+    "line3": "Vacunas y consultas pendientes",
+    "line4": "Cambios importantes en gastos y decisiones",
+    "footer": "Podés personalizar todo después en Perfil → Notificaciones.",
+    "accept": "Sí, activar notificaciones",
+    "decline": "Ahora no"
   }
 }

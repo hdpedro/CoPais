@@ -2860,5 +2860,16 @@
     "catSettlements": "Settlements",
     "catSettlementsHint": "Financial confirmations",
     "footerHint": "Health emergencies always come through, even when everything is muted."
+  },
+  "softPrompt": {
+    "title": "We'll let you know when it matters",
+    "subtitle": "Kindar uses notifications for things like:",
+    "line1": "Reminders before your kids' activities",
+    "line2": "Messages from your co-parent in chat",
+    "line3": "Pending vaccines and appointments",
+    "line4": "Important changes in expenses and decisions",
+    "footer": "You can customize everything later in Profile → Notifications.",
+    "accept": "Yes, enable notifications",
+    "decline": "Not now"
   }
 }

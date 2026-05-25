@@ -50,6 +50,11 @@ import {
   addNotificationResponseListener,
   registerNotificationChannels,
 } from 'src/services/push-setup';
+import {
+  checkSoftPromptStatus,
+  markSoftPromptShown,
+} from 'src/services/push-soft-prompt';
+import SoftPromptModal from 'src/components/push/SoftPromptModal';
 import { initializeIAP, identifyUser, resetUser } from 'src/services/iap';
 import * as analytics from 'src/lib/analytics';
 import { colors } from 'src/design-system/tokens';
@@ -156,18 +161,42 @@ export default function RootLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Soft prompt state: visível quando iOS permission é "undetermined" AND
+  // user ainda não recusou via soft prompt antes. Setado pela checagem em
+  // checkSoftPromptStatus() abaixo. Industry standard pra preservar opt-in
+  // rate (60-70% vs 30-40% sem soft prompt).
+  const [showSoftPrompt, setShowSoftPrompt] = useState(false);
+
   // Register for push + identify RevenueCat user after login. Tambem re-tenta
   // o registro APNs/FCM toda vez que o app volta pro foreground — cobre o
   // cenario onde o registro inicial falhou (sem internet, backend instavel)
   // e o token nunca foi salvo no DB. Idempotente no backend (dedup por user
   // + token), entao executar varias vezes nao gera duplicatas.
+  //
+  // BEHAVIOR CHANGE 2026-05-22: registerForPushNotificationsAsync() agora
+  // NÃO chama o hard prompt iOS direto (vide push-setup.ts). Em vez disso,
+  // checamos primeiro se devemos mostrar o soft prompt; só depois do user
+  // clicar "Sim" no modal disparamos o request nativo.
   useEffect(() => {
     if (!userId) {
       resetUser().catch(() => {});
       analytics.reset();
       return;
     }
+    // 1. Tenta registrar (no-op se ainda não temos permission)
     registerForPushNotificationsAsync().catch(() => {});
+    // 2. Verifica se devemos mostrar o soft prompt depois de login
+    // Delay pequeno pra não competir com splash/onboarding na primeira tela
+    const t = setTimeout(async () => {
+      try {
+        const status = await checkSoftPromptStatus();
+        if (status === 'show_modal') {
+          setShowSoftPrompt(true);
+        }
+      } catch {
+        // Não-fatal
+      }
+    }, 1500);
     identifyUser(userId).catch(() => {});
     analytics.identify(userId);
 
@@ -212,8 +241,28 @@ export default function RootLayout() {
       }
       lastState = next;
     });
-    return () => sub.remove();
+    return () => {
+      clearTimeout(t);
+      sub.remove();
+    };
   }, [userId]);
+
+  // Soft prompt handlers — chamados pelo SoftPromptModal abaixo.
+  const handleSoftPromptAccept = async () => {
+    await markSoftPromptShown().catch(() => {});
+    setShowSoftPrompt(false);
+    // Agora SIM dispara o hard prompt iOS, mostrando o nativo
+    await registerForPushNotificationsAsync({ forceRequest: true }).catch(() => {});
+  };
+
+  const handleSoftPromptDecline = async () => {
+    await markSoftPromptShown().catch(() => {});
+    setShowSoftPrompt(false);
+    // Não dispara hard prompt — user pode reativar via /perfil/notificacoes
+    // depois (que vai mostrar instrução de ir em Settings → Notifications →
+    // Kindar pra primeiro grant, OU usar o flag de re-prompt se ainda
+    // undetermined).
+  };
 
   // Navigate on notification tap
   useEffect(() => {
@@ -330,6 +379,14 @@ export default function RootLayout() {
         </ToastProvider>
         </Animated.View>
         )}
+        {/* Soft prompt pre-permission iOS. Aparece UMA VEZ por device quando
+            iOS permission é undetermined e user ainda não dismissou. Antes
+            do hard prompt iOS (que é irrevogável) — preserva opt-in rate. */}
+        <SoftPromptModal
+          visible={showSoftPrompt}
+          onAccept={handleSoftPromptAccept}
+          onDecline={handleSoftPromptDecline}
+        />
         <StatusBar style="dark" />
       </GestureHandlerRootView>
     </ErrorBoundary>

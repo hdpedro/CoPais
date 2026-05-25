@@ -2756,5 +2756,16 @@
     "catSettlements": "Règlements",
     "catSettlementsHint": "Confirmations financières",
     "footerHint": "Les urgences de santé passent toujours, même tout en silence."
+  },
+  "softPrompt": {
+    "title": "On te préviendra quand ça compte",
+    "subtitle": "Kindar utilise les notifications pour des choses comme :",
+    "line1": "Rappels avant les activités de tes enfants",
+    "line2": "Messages du co-parent dans le chat",
+    "line3": "Vaccins et rendez-vous en attente",
+    "line4": "Changements importants dans les dépenses et décisions",
+    "footer": "Tu peux tout personnaliser plus tard dans Profil → Notifications.",
+    "accept": "Oui, activer les notifications",
+    "decline": "Pas maintenant"
   }
 }
