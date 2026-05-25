@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { trialDaysInAppPublic } from "@/lib/billing/promo";
 
 export const metadata: Metadata = {
   title: "Termos de Uso — Kindar",
@@ -7,6 +8,7 @@ export const metadata: Metadata = {
 };
 
 export default function TermosPage() {
+  const trialDays = trialDaysInAppPublic();
   return (
     <div className="min-h-screen bg-[#FAFAF8] text-[#0E0C0A]">
       {/* Header */}
@@ -137,7 +139,7 @@ export default function TermosPage() {
             <ul className="list-disc pl-6 space-y-1">
               <li>As assinaturas sao renovadas automaticamente ao final de cada periodo (mensal ou anual), salvo cancelamento previo pelo Usuario.</li>
               <li>O pagamento e processado pela Apple (via App Store) ou pelo Stripe (via web), conforme a plataforma utilizada.</li>
-              <li>O período de teste gratuito de 7 dias está disponível para novos assinantes. Após o período de teste, a assinatura será cobrada automaticamente.</li>
+              <li>O período de teste gratuito de {trialDays} dias está disponível para novos assinantes. Após o período de teste, a assinatura será cobrada automaticamente.</li>
               <li>O Usuario pode cancelar a assinatura a qualquer momento. No caso de assinaturas pela App Store, o cancelamento e feito nas configuracoes da conta Apple.</li>
               <li>O cancelamento entra em vigor ao final do periodo ja pago. Nao ha reembolso proporcional.</li>
             </ul>

@@ -36,9 +36,33 @@ export function isPromoActiveServer(): boolean {
   return process.env.PROMO_2M_FREE === "true";
 }
 
+/**
+ * Public/client check pra UI rendering (pricing, termos, marketing). Lê
+ * NEXT_PUBLIC_PROMO_2M_FREE que é exposta ao bundle do client. DEVE estar
+ * em sync com PROMO_2M_FREE (server) ou a UI mostra valor diferente do
+ * que o backend concede.
+ *
+ * Bug F#23 (E2E 2026-05-25): PROMO_2M_FREE=true em prod concedia 60d mas
+ * NEXT_PUBLIC_PROMO_2M_FREE não estava setada → UI mostrava "7 dias"
+ * hardcoded em /pricing, FeatureMatrix, /termos. Esse helper resolve:
+ * passa a ler o flag em todo lugar visível ao usuário.
+ */
+export function isPromoActivePublic(): boolean {
+  return process.env.NEXT_PUBLIC_PROMO_2M_FREE === "true";
+}
+
 /** Trial days in-app (Premium Jurídico): 60 if promo, else 7. */
 export function trialDaysInApp(): number {
   return isPromoActiveServer() ? PROMO_TRIAL_DAYS : TRIAL_DURATION_DAYS_DEFAULT;
+}
+
+/**
+ * Trial days a mostrar em UI. Mesma lógica do server, mas baseada na flag
+ * PUBLIC. Usa em /pricing, FeatureMatrix, /termos, banners, etc.
+ * Mantém sync com `trialDaysInApp()` quando flags estão sincronizadas.
+ */
+export function trialDaysInAppPublic(): number {
+  return isPromoActivePublic() ? PROMO_TRIAL_DAYS : TRIAL_DURATION_DAYS_DEFAULT;
 }
 
 /** Stripe checkout trial: 60 if promo, else 14. */
