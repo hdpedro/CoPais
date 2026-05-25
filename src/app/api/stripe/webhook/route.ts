@@ -7,6 +7,7 @@ import { sendSubscriptionWelcomeEmail } from "@/lib/emails/subscription-welcome"
 import { sendTrialEndingSoonEmail } from "@/lib/emails/trial";
 import { sendPaymentFailedEmail } from "@/lib/emails/payment-failed";
 import { claimReferralReward } from "@/lib/referral-claim";
+import { captureServerEvent } from "@/lib/posthog-server";
 import type Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
@@ -175,6 +176,33 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // Telemetria do funil pago. PRECISA estar aqui (e não no client) — o
+        // success_url redireciona pro `/pricing/success` antes do webhook ter
+        // gravado a row, então qualquer evento client-side dispara num
+        // momento em que `subscriptions` ainda nem existe pra esse user.
+        const mappedStatus = mapStripeStatus(sub.status);
+        const lineItem = sub.items.data[0];
+        const amountBrl = lineItem?.price?.unit_amount ?? null;
+        captureServerEvent(userId, "checkout_completed", {
+          provider: "stripe",
+          plan_id: planId,
+          payment_method: paymentMethodHint,
+          coupon_code: couponCode,
+          is_trial: !!sub.trial_end,
+          amount_brl: amountBrl,
+          group_id: groupId,
+        });
+        captureServerEvent(userId, "subscription_started", {
+          provider: "stripe",
+          plan_id: planId,
+          status: mappedStatus,
+          is_trial: !!sub.trial_end,
+          payment_method: paymentMethodHint,
+          coupon_code: couponCode,
+          amount_brl: amountBrl,
+          stripe_subscription_id: subscriptionId,
+        });
+
         console.log(`[stripe/webhook] Subscription created for user ${userId}, plan ${planId}`);
         break;
       }
@@ -258,6 +286,17 @@ export async function POST(req: NextRequest) {
           periodStart,
         });
 
+        // Telemetria de renovação — distinto de checkout_completed (que é só
+        // a primeira). Permite calcular retention/MRR no PostHog sem precisar
+        // joinar a tabela de subscriptions.
+        captureServerEvent(dbSub.user_id, "subscription_renewed", {
+          provider: "stripe",
+          plan_id: dbSub.plan_id,
+          subscription_id: dbSub.id,
+          period_start: periodStart,
+          split_active: !!dbSub.auto_split,
+        });
+
         console.log(
           `[stripe/webhook] Renewal split for sub ${dbSub.id}: ${
             result.created ? "created" : "existed"
@@ -269,6 +308,14 @@ export async function POST(req: NextRequest) {
       case "customer.subscription.deleted": {
         const sub = event.data.object as Stripe.Subscription;
 
+        // Resolve user antes do UPDATE — depois da mudança de status, o
+        // captureServerEvent ainda consegue carimbar o distinctId certo.
+        const { data: dbSub } = await supabase
+          .from("subscriptions")
+          .select("user_id, plan_id, current_period_start")
+          .eq("stripe_subscription_id", sub.id)
+          .maybeSingle();
+
         await supabase
           .from("subscriptions")
           .update({
@@ -276,6 +323,23 @@ export async function POST(req: NextRequest) {
             updated_at: new Date().toISOString(),
           })
           .eq("stripe_subscription_id", sub.id);
+
+        if (dbSub) {
+          const lifetimeDays = dbSub.current_period_start
+            ? Math.floor(
+                (Date.now() - new Date(dbSub.current_period_start).getTime()) /
+                  (1000 * 60 * 60 * 24),
+              )
+            : null;
+          captureServerEvent(dbSub.user_id, "subscription_canceled", {
+            provider: "stripe",
+            plan_id: dbSub.plan_id,
+            stripe_subscription_id: sub.id,
+            lifetime_days: lifetimeDays,
+            cancel_reason: (sub as unknown as { cancellation_details?: { reason?: string } })
+              .cancellation_details?.reason ?? null,
+          });
+        }
 
         console.log(`[stripe/webhook] Subscription canceled: ${sub.id}`);
         break;
@@ -321,6 +385,22 @@ export async function POST(req: NextRequest) {
             console.warn("[stripe/webhook] payment-failed email failed (non-fatal):", err);
           }
         })();
+
+        // Telemetria de falha de cobrança — útil pra correlacionar com
+        // recovery email/push e medir taxa de recuperação pós-fail.
+        const { data: dbSubForFail } = await supabase
+          .from("subscriptions")
+          .select("user_id, plan_id")
+          .eq("stripe_subscription_id", subscriptionId)
+          .maybeSingle();
+        if (dbSubForFail) {
+          captureServerEvent(dbSubForFail.user_id, "payment_failed", {
+            provider: "stripe",
+            plan_id: dbSubForFail.plan_id,
+            stripe_subscription_id: subscriptionId,
+            next_retry_at: nextRetry ? new Date(nextRetry * 1000).toISOString() : null,
+          });
+        }
 
         console.log(`[stripe/webhook] Payment failed for subscription ${subscriptionId}`);
         break;

@@ -3,6 +3,8 @@ import { revalidateTag } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { createChild } from "@/lib/services/children";
+import { grantTrialIfEligible } from "@/lib/billing";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 export async function POST(request: Request) {
   // Dual auth: Bearer (native) + cookie (PWA). Without Bearer support
@@ -139,7 +141,27 @@ export async function POST(request: Request) {
   //    apenas fica desatualizado num campo informativo).
   await admin.from("profiles").update({ onboarding_step: step }).eq("id", userId);
 
-  // 5) Invalida caches
+  // 5) Concede degustação de 7 dias Premium Jurídico ("show the ceiling").
+  //    Sem isso, todo grupo novo nasce no Free e ninguém vê o teto do produto
+  //    — bug detectado em prod 2026-05-25 (64 grupos em 90d, zero trials).
+  //    A action paralela `actions/group.ts:createGroup` (dashboard) já fazia
+  //    isso; este endpoint (wizard PWA + Native) tinha sido esquecido.
+  //    Idempotente, user-scoped, non-fatal — se falhar o grupo continua válido.
+  const trialResult = await grantTrialIfEligible(admin, userId, groupId);
+  if (trialResult.granted) {
+    captureServerEvent(userId, "trial_started", { group_id: groupId, via: "onboarding_wizard" });
+  }
+
+  // 6) Telemetria. Sem `group_created` capturado, a galáxia entre signup_completed
+  //    e qualquer evento de onboarding fica invisível no PostHog.
+  captureServerEvent(userId, "group_created", {
+    group_id: groupId,
+    via: "onboarding_wizard",
+    has_child: !!childId,
+    trial_granted: trialResult.granted,
+  });
+
+  // 7) Invalida caches
   revalidateTag(`profile-${userId}`, "max");
   revalidateTag(`members-${groupId}`, "max");
   revalidateTag(`children-${groupId}`, "max");

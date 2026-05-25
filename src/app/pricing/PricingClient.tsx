@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { getPaymentPlatform } from "@/lib/payment-platform";
+import { trackEvent, EVENTS } from "@/lib/analytics";
 
 interface Plan {
   id: string;
@@ -66,6 +67,19 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
     currentPlanId.startsWith("harmonia");
 
   async function handleSubscribe(plan: Plan) {
+    // Dispara checkout_started ANTES de qualquer guard — assim mesmo redirect
+    // pra signup ou alert de IAP ainda conta como intenção de compra do
+    // funil. O que NÃO é intent: clicar no "Plano atual" (handled fora).
+    trackEvent(EVENTS.CHECKOUT_STARTED, {
+      plan_id: plan.id,
+      price_brl: plan.priceBrl,
+      interval: plan.interval,
+      source: "pricing_public",
+      is_logged_in: isLoggedIn,
+      platform,
+      provider: platform === "apple_iap" ? "apple_iap" : "stripe",
+    });
+
     if (!isLoggedIn) {
       router.push("/signup");
       return;
