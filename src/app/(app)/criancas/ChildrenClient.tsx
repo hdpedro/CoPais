@@ -49,7 +49,13 @@ export default function ChildrenClient({ childrenList, isReadonly }: ChildrenCli
                   </div>
                   <div className="flex-1">
                     <h3 className="font-semibold text-dark">{child.full_name}</h3>
-                    <p className="text-sm text-muted">{age} {age === 1 ? t("children.yearOld") : t("children.yearsOld")} - {t("children.birthDate")}: {new Date(child.birth_date).toLocaleDateString("pt-BR")}</p>
+                    {/* F#40: birth_date é DATE "YYYY-MM-DD" no DB.
+                        `new Date(str).toLocaleDateString` interpretava
+                        como UTC midnight e renderizava off-by-one no
+                        BRT (10/03 virava 09/03). Split manual evita
+                        timezone shift — mesma técnica já em uso em
+                        ChildDetailClient. */}
+                    <p className="text-sm text-muted">{age} {age === 1 ? t("children.yearOld") : t("children.yearsOld")} - {t("children.birthDate")}: {child.birth_date.split("-").reverse().join("/")}</p>
                     {child.allergies && child.allergies.length > 0 && (
                       <div className="flex gap-1 mt-1">
                         {child.allergies.map((a: string, i: number) => (

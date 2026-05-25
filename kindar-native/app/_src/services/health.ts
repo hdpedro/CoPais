@@ -840,13 +840,22 @@ async function fetchVaccineStatusDirect(childId: string): Promise<VaccineStatusR
   }));
 
   const cov: any = coverageRes.data;
+  const rawTaken = cov?.total_taken || 0;
+  const rawOverdue = cov?.overdue_count || 0;
+  const rawDueSoon = cov?.due_soon_count || 0;
+  const rawHistoricalGap = cov?.historical_gap_count || 0;
+  // F#42 (E2E PRD 2026-05-25) — paridade PWA. Quando criança sem
+  // nenhum vaccination_record (taken=0), reclassifica overdue/due_soon
+  // como historicalGap pra evitar UI contraditória ("X está bem!" +
+  // "1 reforço pendente" lado-a-lado). Vide src/lib/services/vaccines.ts.
+  const isEmptyHistory = rawTaken === 0;
   const totals = {
     recommended: cov?.total_recommended || 0,
-    taken: cov?.total_taken || 0,
-    overdue: cov?.overdue_count || 0,
-    dueSoon: cov?.due_soon_count || 0,
+    taken: rawTaken,
+    overdue: isEmptyHistory ? 0 : rawOverdue,
+    dueSoon: isEmptyHistory ? 0 : rawDueSoon,
     upcoming: cov?.upcoming_count || 0,
-    historicalGap: cov?.historical_gap_count || 0,
+    historicalGap: isEmptyHistory ? rawHistoricalGap + rawOverdue + rawDueSoon : rawHistoricalGap,
     outOfWindow: cov?.out_of_window_count || 0,
   };
   // statusLabel mesma lógica do PWA. (i18n keys aplicados pelo render)

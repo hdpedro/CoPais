@@ -343,13 +343,26 @@ export async function getVaccineStatus(
     .map((b) => ({ ageBucket: b, doses: buckets[b] }));
 
   const coverage = coverageRes.data;
+  const rawTaken = (coverage?.total_taken as number) ?? 0;
+  const rawOverdue = (coverage?.overdue_count as number) ?? 0;
+  const rawDueSoon = (coverage?.due_soon_count as number) ?? 0;
+  const rawHistoricalGap = (coverage?.historical_gap_count as number) ?? 0;
+
+  // F#42 (E2E PRD 2026-05-25) — quando a criança AINDA NÃO TEM NENHUM
+  // registro vacinal (taken=0), o motor PNI classifica doses passadas
+  // pela idade como overdue/due_soon. Isso gerava UI contraditória:
+  // "Lucas está bem" + "1 reforço pendente: COVID-19 hoje" lado-a-lado.
+  // Fix: reclassifica essas counts como historicalGap até o user
+  // adicionar a primeira vacina. A label "Complete o histórico" assume
+  // o lugar do alerta "X pendente", em linha com o design calm-status.
+  const isEmptyHistory = rawTaken === 0;
   const totals = {
     recommended: (coverage?.total_recommended as number) ?? 0,
-    taken: (coverage?.total_taken as number) ?? 0,
-    overdue: (coverage?.overdue_count as number) ?? 0,
-    dueSoon: (coverage?.due_soon_count as number) ?? 0,
+    taken: rawTaken,
+    overdue: isEmptyHistory ? 0 : rawOverdue,
+    dueSoon: isEmptyHistory ? 0 : rawDueSoon,
     upcoming: (coverage?.upcoming_count as number) ?? 0,
-    historicalGap: (coverage?.historical_gap_count as number) ?? 0,
+    historicalGap: isEmptyHistory ? rawHistoricalGap + rawOverdue + rawDueSoon : rawHistoricalGap,
     outOfWindow: (coverage?.out_of_window_count as number) ?? 0,
   };
 
