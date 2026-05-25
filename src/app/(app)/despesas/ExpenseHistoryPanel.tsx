@@ -9,6 +9,7 @@
 
 import { useState, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { formatBRL } from "@/lib/format/currency";
 
 interface HistoryRow {
   id: string;
@@ -63,7 +64,7 @@ function describeDiff(before: Record<string, unknown> | null, after: Record<stri
     if (b === null && a === null) continue;
     // Format known fields
     if (key === "amount") {
-      diffs.push(`valor R$ ${Number(b ?? 0).toFixed(2)} → R$ ${Number(a ?? 0).toFixed(2)}`);
+      diffs.push(`valor ${formatBRL(Number(b ?? 0))} → ${formatBRL(Number(a ?? 0))}`);
     } else if (key === "description") {
       diffs.push(`descrição "${b}" → "${a}"`);
     } else if (key === "category") {

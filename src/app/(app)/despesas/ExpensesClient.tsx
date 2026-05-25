@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useI18n } from "@/i18n/provider";
 import { EXPENSE_CATEGORIES } from "@/lib/constants";
 import { trackEvent, EVENTS } from "@/lib/analytics";
+import { formatBRL } from "@/lib/format/currency";
 import {
   updateExpenseStatus,
   markExpenseRead,
@@ -381,7 +382,7 @@ export default function ExpensesClient({
       <div className={`grid gap-3 ${rejected > 0 ? "grid-cols-3" : "grid-cols-2"}`}>
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <p className="text-xs text-muted">{t("expensesPage.totalExclRejected")}</p>
-          <p className="text-xl font-bold text-dark">R$ {total.toFixed(2)}</p>
+          <p className="text-xl font-bold text-dark">{formatBRL(total)}</p>
         </div>
         <div className="bg-white rounded-xl p-4 shadow-sm">
           <p className="text-xs text-muted">{t("expensesPage.pendingCount")}</p>
@@ -429,7 +430,7 @@ export default function ExpensesClient({
               <div className="flex items-center justify-between px-1">
                 <p className="text-[11px] font-bold text-muted uppercase tracking-wider">{group.label}</p>
                 <p className="text-[11px] text-muted">
-                  Total: <span className="font-semibold text-dark">R$ {group.total.toFixed(2)}</span>
+                  Total: <span className="font-semibold text-dark">{formatBRL(group.total)}</span>
                 </p>
               </div>
               {group.items.map((expense) => (
@@ -518,7 +519,7 @@ export default function ExpensesClient({
                 <h3 className="text-lg font-bold text-dark">Responder pedido de cancelamento</h3>
                 <p className="text-xs text-muted mt-1">
                   {memberById.get(respondingCancel.paid_by) || "Coparente"} quer cancelar:{" "}
-                  <strong>{respondingCancel.description}</strong> · R$ {respondingCancel.amount.toFixed(2)}
+                  <strong>{respondingCancel.description}</strong> · {formatBRL(respondingCancel.amount)}
                 </p>
               </div>
               <button type="button" onClick={() => setRespondingCancel(null)} className="text-muted hover:text-dark text-xl leading-none">
@@ -707,7 +708,7 @@ function ExpenseCard({
             </span>
           )}
           <div className="text-right">
-            <p className="font-semibold text-dark">R$ {expense.amount.toFixed(2)}</p>
+            <p className="font-semibold text-dark">{formatBRL(expense.amount)}</p>
             <span className={`text-xs px-2 py-0.5 rounded-full ${statusColors[expense.status] || statusColors.pending}`}>
               {statusLabels[expense.status] || expense.status}
             </span>

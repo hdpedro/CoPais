@@ -15,6 +15,7 @@ const QuickActionsModal = dynamic(() => import("@/components/QuickActionsModal")
 import CustodyActivationCard from "@/components/CustodyActivationCard";
 import { QUICK_ACTIONS_CATALOG, DEFAULT_QUICK_ACTIONS, type QuickActionDef } from "@/lib/constants";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
+import { formatBRL } from "@/lib/format/currency";
 
 /* ------------------------------------------------------------------ */
 /*  Serializable prop types (no functions, no Supabase, no Date)      */
@@ -830,7 +831,7 @@ export default function DashboardClient(props: DashboardClientProps) {
                     <p className="text-[11px] text-[#7A8C8B]">{exp.paidByName} &middot; {exp.dateLabel}</p>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <p className="text-[14px] font-bold text-[#2C2C2C]">R$ {exp.amount.toFixed(2)}</p>
+                    <p className="text-[14px] font-bold text-[#2C2C2C]">{formatBRL(exp.amount)}</p>
                     <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#D4735A]/10 text-[#D4735A]">
                       {t("dashboard.pendingBadge")}
                     </span>

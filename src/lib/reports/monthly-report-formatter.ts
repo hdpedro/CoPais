@@ -1,4 +1,5 @@
 import type { MonthlyChildData, ActivitySummary, CheckinSummary, HealthSummary, CustodySummary, ExpenseSummary, DecisionSummary } from "./monthly-child-report";
+import { formatBRL } from "@/lib/format/currency";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kindar.com.br";
 
@@ -42,7 +43,7 @@ const SYMPTOM_LABELS: Record<string, string> = {
 };
 
 function formatCurrency(value: number): string {
-  return `R$ ${value.toFixed(2).replace(".", ",")}`;
+  return formatBRL(value);
 }
 
 function formatDate(dateStr: string): string {

@@ -20,6 +20,7 @@ import { captureServerEvent } from "@/lib/posthog-server";
 import { notifyGroupViaWhatsApp } from "@/lib/whatsapp/notify";
 import { notifyCollabCreate, type CollabPriority } from "@/lib/services/collab";
 import { logExpenseHistory, type ExpenseSnapshot } from "@/lib/services/expense-history";
+import { formatBRL } from "@/lib/format/currency";
 
 export type ExpenseCategory =
   | "education"
@@ -297,7 +298,7 @@ export async function createExpense(
     actorUserId: paidBy,
     priority,
     title: `${actorName} registrou uma despesa`,
-    message: `${safeDescription} — R$ ${amount.toFixed(2).replace(".", ",")}`,
+    message: `${safeDescription} — ${formatBRL(amount)}`,
     link: `/despesas?highlight=${expenseId}`,
   });
 
@@ -483,13 +484,13 @@ async function sendExpenseCreatedNotifications(args: {
       args.supabase,
       args.groupId,
       args.paidBy,
-      `💰 Nova despesa: ${args.description} — R$ ${args.amount.toFixed(2)}`,
+      `💰 Nova despesa: ${args.description} — ${formatBRL(args.amount)}`,
     );
 
     await notifyGroupViaWhatsApp(
       args.groupId,
       args.paidBy,
-      `💰 *Nova despesa registrada*\n\n${senderName} registrou: ${args.description}\nValor: R$ ${args.amount.toFixed(2).replace(".", ",")}\n\nAcesse kindar.com.br/despesas para ver detalhes.`,
+      `💰 *Nova despesa registrada*\n\n${senderName} registrou: ${args.description}\nValor: ${formatBRL(args.amount)}\n\nAcesse kindar.com.br/despesas para ver detalhes.`,
       "expense",
     );
   } catch (err) {
@@ -522,7 +523,7 @@ async function sendExpenseStatusNotification(args: {
         args.creatorId,
         "expense_approved",
         "Despesa Aprovada ✅",
-        `${reviewerName} aprovou sua despesa de R$ ${args.amount.toFixed(2)} — ${args.description}`,
+        `${reviewerName} aprovou sua despesa de ${formatBRL(args.amount)} — ${args.description}`,
         "/despesas",
       );
     } else {
@@ -531,7 +532,7 @@ async function sendExpenseStatusNotification(args: {
         args.creatorId,
         "expense_rejected",
         "Despesa Rejeitada ❌",
-        `${reviewerName} rejeitou sua despesa de R$ ${args.amount.toFixed(2)} — ${args.description}.${reasonText}`,
+        `${reviewerName} rejeitou sua despesa de ${formatBRL(args.amount)} — ${args.description}.${reasonText}`,
         "/despesas",
       );
     }
@@ -715,7 +716,7 @@ export async function editExpense(
       actorUserId: actorId,
       priority: (after.priority as CollabPriority) || "info",
       title: `${actorName} editou uma despesa`,
-      message: `${after.description} — R$ ${finalAmount.toFixed(2).replace(".", ",")} (precisa reaprovar)`,
+      message: `${after.description} — ${formatBRL(finalAmount)} (precisa reaprovar)`,
       link: `/despesas?highlight=${expenseId}`,
     });
   }
@@ -845,7 +846,7 @@ export async function requestCancelExpense(
       actorUserId: actorId,
       priority: "important",
       title: `${actorName} quer cancelar uma despesa`,
-      message: `${expense.description} — R$ ${amount.toFixed(2).replace(".", ",")} — motivo: ${trimmedReason}`,
+      message: `${expense.description} — ${formatBRL(amount)} — motivo: ${trimmedReason}`,
       link: `/despesas?highlight=${expenseId}`,
     });
   }
@@ -1056,7 +1057,7 @@ export async function reopenApproval(
       actorUserId: actorId,
       priority: "important",
       title: `Sua despesa foi reaberta pra reanálise`,
-      message: `${expense.description} — R$ ${amount.toFixed(2).replace(".", ",")} — motivo: ${trimmedReason}`,
+      message: `${expense.description} — ${formatBRL(amount)} — motivo: ${trimmedReason}`,
       link: `/despesas?highlight=${expenseId}`,
     });
   }

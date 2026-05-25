@@ -1,5 +1,6 @@
 import { getResend } from "@/lib/email";
 import { getPlanAmountBrl } from "@/lib/billing/split";
+import { formatBRL } from "@/lib/format/currency";
 
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || "https://kindar.com.br";
 
@@ -55,7 +56,7 @@ function buildHtml(
   amount: number,
   renewalDateLocal: string
 ): string {
-  const amountFmt = `R$ ${amount.toFixed(2).replace(".", ",")}`;
+  const amountFmt = formatBRL(amount);
   return `<!DOCTYPE html>
 <html lang="pt-BR">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>

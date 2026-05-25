@@ -38,6 +38,7 @@ import {
   type ExpenseHistoryRow,
 } from 'src/services/expenses';
 import { EXPENSE_CATEGORIES } from 'src/lib/constants';
+import { formatBRL as formatBRLShared } from 'src/lib/currency';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
@@ -68,7 +69,9 @@ const PRIORITY_META: Record<ExpensePriority, { bg: string; text: string; label: 
 };
 
 function formatBRL(v: number): string {
-  return `R$ ${v.toFixed(2).replace('.', ',')}`;
+  // Delegamos ao helper canônico em `src/lib/currency` pra ter grouping
+  // correto via Intl.NumberFormat ("R$ 1.234,56" em vez de "R$ 1234,56").
+  return formatBRLShared(v);
 }
 
 function formatReadAt(iso: string): string {
