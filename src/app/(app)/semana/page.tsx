@@ -174,10 +174,26 @@ export default async function SemanaPage() {
     pendingActions.push({ type: "routine", label: "Registrar check-in de hoje", href: "/checkin", icon: "✅", urgency: "medium" });
   }
   if (pendingDecisions && pendingDecisions.length > 0) {
-    pendingActions.push({ type: "routine", label: `${pendingDecisions.length} decisão(ões) pendente(s)`, href: "/decisoes", icon: "🗳️", urgency: "medium" });
+    pendingActions.push({
+      type: "routine",
+      label: pendingDecisions.length === 1
+        ? "1 decisão pendente"
+        : `${pendingDecisions.length} decisões pendentes`,
+      href: "/decisoes",
+      icon: "🗳️",
+      urgency: "medium",
+    });
   }
   if (swapRequests && swapRequests.length > 0) {
-    pendingActions.push({ type: "custody", label: `${swapRequests.length} troca(s) de guarda pendente(s)`, href: "/calendario", icon: "🔄", urgency: "medium" });
+    pendingActions.push({
+      type: "custody",
+      label: swapRequests.length === 1
+        ? "1 troca de guarda pendente"
+        : `${swapRequests.length} trocas de guarda pendentes`,
+      href: "/calendario",
+      icon: "🔄",
+      urgency: "medium",
+    });
   }
 
   // Child summaries with richer data
@@ -237,13 +253,19 @@ export default async function SemanaPage() {
   const hasSickChild = childSummaries.some(c => c.healthStatus === "sick");
   const sickChildName = childSummaries.find(c => c.healthStatus === "sick")?.name || "";
 
+  // Plural BR consistente — sem o anti-pattern "item(ns) pendente(s)". Bug
+  // F#63 do E2E PRD 2026-05-25: header rendia "Semana equilibrada com 1
+  // item(ns) pendente(s)" — singular e plural misturados via parênteses.
+  const pendItems = pendingCount === 1 ? "1 item pendente" : `${pendingCount} itens pendentes`;
+  const pendPluralOnly = pendingCount === 1 ? "1 pendência aberta" : `${pendingCount} pendências abertas`;
+
   let headerText = "";
   if (hasSickChild && pendingCount > 1) {
     headerText = `${pendingCount} pendências e atenção à saúde de ${sickChildName}`;
   } else if (hasSickChild) {
     headerText = `Atenção à saúde de ${sickChildName} esta semana`;
   } else if (pendingCount >= 3) {
-    headerText = `${pendingCount} pendências abertas que precisam de ação`;
+    headerText = `${pendPluralOnly} que precisam de ação`;
   } else if (totalEvents > 10) {
     headerText = "Rotina intensa com múltiplas atividades";
   } else if (totalEvents >= 5) {
@@ -251,7 +273,7 @@ export default async function SemanaPage() {
   } else if (pendingCount === 0 && totalEvents <= 3) {
     headerText = "Semana leve e organizada";
   } else if (pendingCount > 0) {
-    headerText = `Semana equilibrada com ${pendingCount} item(ns) pendente(s)`;
+    headerText = `Semana equilibrada com ${pendItems}`;
   } else {
     headerText = "Rotina estável — tudo sob controle";
   }
