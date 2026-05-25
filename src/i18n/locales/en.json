@@ -109,6 +109,20 @@
     "lgpdConsentPrefix": "I have read and agree to the",
     "lgpdConsentMiddle": "and the",
     "lgpdConsentSuffix": ", per Brazilian data protection law (LGPD).",
+    "passwordStrength": {
+      "weak": "Weak password",
+      "fair": "Fair password",
+      "good": "Good password",
+      "strong": "Strong password",
+      "hintLengthShort": "Use at least 8 characters",
+      "hintAddNumber": "Add a number",
+      "hintAddSymbol": "Add a symbol (! @ # …) to strengthen it",
+      "hintAddUpper": "Mix upper and lower case",
+      "matchOk": "Passwords match",
+      "matchFail": "Passwords don't match yet"
+    },
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
     "verifyEmail": {
       "title": "Confirm your email",
       "description": "We've sent a verification link to your inbox. Click the link to activate your account and come back here to sign in.",

@@ -6,6 +6,7 @@ import Link from "next/link";
 import { signIn, sendMagicLink } from "@/actions/auth";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import TurnstileWidget from "@/components/auth/TurnstileWidget";
+import PasswordInput from "@/components/auth/PasswordInput";
 import KindarLogo from "@/components/KindarLogo";
 import { createClient } from "@/lib/supabase/client";
 import { useI18n } from "@/i18n/provider";
@@ -244,14 +245,13 @@ function LoginForm() {
           <label htmlFor="password" className="block text-sm font-medium text-[#0E0C0A] mb-1">
             {t("auth.password")}
           </label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             required
             placeholder={t("auth.passwordPlaceholder")}
             aria-label={t("auth.password")}
-            className="w-full px-4 py-3 rounded-lg border border-[#E8E0D4] focus:outline-none focus:ring-2 focus:ring-[#C07055]/40 focus:border-[#C07055] text-[#0E0C0A] bg-white"
+            autoComplete="current-password"
           />
         </div>
 
@@ -277,7 +277,7 @@ function LoginForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 px-4 bg-[#C07055] text-white font-semibold rounded-lg hover:bg-[#A85D47] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3.5 px-4 bg-[#C07055] text-white font-semibold rounded-xl hover:bg-[#A85D47] transition-all shadow-md hover:shadow-lg hover:shadow-[#C07055]/25 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none"
         >
           {loading ? t("auth.loggingIn") : t("auth.loginButton")}
         </button>

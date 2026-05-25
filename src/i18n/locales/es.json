@@ -109,6 +109,20 @@
     "lgpdConsentPrefix": "He leído y acepto los",
     "lgpdConsentMiddle": "y la",
     "lgpdConsentSuffix": ", según la ley brasileña de protección de datos (LGPD).",
+    "passwordStrength": {
+      "weak": "Contraseña débil",
+      "fair": "Contraseña aceptable",
+      "good": "Contraseña buena",
+      "strong": "Contraseña fuerte",
+      "hintLengthShort": "Usa al menos 8 caracteres",
+      "hintAddNumber": "Añade un número",
+      "hintAddSymbol": "Añade un símbolo (! @ # …) para reforzarla",
+      "hintAddUpper": "Mezcla mayúsculas y minúsculas",
+      "matchOk": "Las contraseñas coinciden",
+      "matchFail": "Las contraseñas aún no coinciden"
+    },
+    "showPassword": "Mostrar contraseña",
+    "hidePassword": "Ocultar contraseña",
     "verifyEmail": {
       "title": "Confirma tu correo",
       "description": "Hemos enviado un enlace de verificación a tu bandeja de entrada. Haz clic en el enlace para activar tu cuenta y vuelve aquí para entrar.",
