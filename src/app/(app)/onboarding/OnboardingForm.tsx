@@ -25,6 +25,7 @@ import {
   useCallback, useEffect, useReducer, useRef, type FormEvent,
 } from "react";
 import { useI18n } from "@/i18n/provider";
+import { markOnboardingFinished } from "@/actions/onboarding-quest";
 import { ChildForm } from "./_components/ChildForm";
 import { FamilyStep } from "./_components/FamilyStep";
 import { FamilySummary } from "./_components/FamilySummary";
@@ -58,6 +59,12 @@ export default function OnboardingForm() {
    * iniciada (deduplicação implícita).
    */
   const controllersRef = useRef<Set<AbortController>>(new Set());
+  /**
+   * Flag pra permitir saída intencional via finishOnboarding. Sem isso o
+   * `beforeunload` handler bloqueia o reload pro /dashboard com prompt
+   * "Leave site?" — pra Chrome MCP/QA isso parecia um botão quebrado.
+   */
+  const allowExitRef = useRef(false);
 
   useEffect(() => {
     // Capture o ref atual num closure — o cleanup roda no unmount com
@@ -95,9 +102,14 @@ export default function OnboardingForm() {
   }, [step]);
 
   // Avisa antes de fechar a aba quando o onboarding já tem grupo criado.
+  // Mas permite saída intencional via `allowExitRef.current = true` (vide
+  // finishOnboarding) — sem isso, o reload pro /dashboard disparava o
+  // prompt "Leave site?" e a navegação era cancelada (bug F#20, 25 users
+  // ficaram stuck no step 2).
   useEffect(() => {
     if (step !== "family-summary") return;
     function handler(e: BeforeUnloadEvent) {
+      if (allowExitRef.current) return;
       e.preventDefault();
       e.returnValue = "";
     }
@@ -409,8 +421,20 @@ export default function OnboardingForm() {
     }
   }, [groupId, invite.email, invite.role, t]);
 
-  const finishOnboarding = useCallback(() => {
-    // Reload completo evita issues raros com token Supabase + redirect server-side.
+  const finishOnboarding = useCallback(async () => {
+    // 1. Persiste onboarding_step=4 no DB ANTES de navegar. Sem isso, o
+    //    /api/create-group deixava step=2 e jobs/quests/dashboards
+    //    permaneciam segmentando o user como "onboarding incompleto".
+    //    Fire-and-forget: se falhar, navegação prossegue (não-fatal).
+    try {
+      await markOnboardingFinished();
+    } catch {
+      // Server action falhou — logamos client-side mas seguimos.
+      // Próxima visita ao /dashboard pode rodar idempotente.
+    }
+    // 2. Libera o beforeunload pra evitar prompt "Leave site?" no reload.
+    allowExitRef.current = true;
+    // 3. Reload completo evita issues raros com token Supabase + redirect server-side.
     window.location.href = "/dashboard";
   }, []);
 

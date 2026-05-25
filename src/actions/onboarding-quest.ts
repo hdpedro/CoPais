@@ -56,6 +56,35 @@ export async function markQuestStep(step: QuestStep, metadata?: Record<string, u
   return { success: true };
 }
 
+/**
+ * Marca o onboarding como concluído pro user atual setando
+ * `profiles.onboarding_step = 4`. Idempotente. Chamada pelo botão "Ir pro
+ * app · convido depois" no fim do wizard.
+ *
+ * Bug 2026-05-25: o botão antes só fazia `window.location.href` sem
+ * persistir o step, deixando 25 users com `onboarding_step=2` no DB —
+ * o que travava jobs/quests/observability que segmentam por step.
+ */
+export async function markOnboardingFinished() {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, error: "unauthenticated" };
+
+  const { error } = await supabase
+    .from("profiles")
+    .update({ onboarding_step: 4 })
+    .eq("id", user.id);
+
+  if (error) {
+    // Não-fatal — o user já tem grupo + criança, só o métrica fica stale.
+    console.warn("[markOnboardingFinished] update failed:", error.message);
+    return { success: false, error: error.message };
+  }
+
+  captureServerEvent(user.id, "onboarding_finished");
+  return { success: true };
+}
+
 /** Returns the user's current quest progress. */
 export async function getQuestProgress(): Promise<QuestProgress> {
   const supabase = await createClient();
