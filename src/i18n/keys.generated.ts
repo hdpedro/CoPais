@@ -124,6 +124,7 @@ export type TranslationKey =
   | "auth.fullName"
   | "auth.fullNamePlaceholder"
   | "auth.hasAccount"
+  | "auth.hidePassword"
   | "auth.invited"
   | "auth.invitedLoginHint"
   | "auth.invitedSignupHint"
@@ -151,6 +152,16 @@ export type TranslationKey =
   | "auth.password"
   | "auth.passwordMinLength"
   | "auth.passwordPlaceholder"
+  | "auth.passwordStrength.fair"
+  | "auth.passwordStrength.good"
+  | "auth.passwordStrength.hintAddNumber"
+  | "auth.passwordStrength.hintAddSymbol"
+  | "auth.passwordStrength.hintAddUpper"
+  | "auth.passwordStrength.hintLengthShort"
+  | "auth.passwordStrength.matchFail"
+  | "auth.passwordStrength.matchOk"
+  | "auth.passwordStrength.strong"
+  | "auth.passwordStrength.weak"
   | "auth.passwordTooShort"
   | "auth.passwordsMismatch"
   | "auth.privacyPolicy"
@@ -165,6 +176,7 @@ export type TranslationKey =
   | "auth.reset.submitting"
   | "auth.reset.title"
   | "auth.resetPassword"
+  | "auth.showPassword"
   | "auth.signup.tosVersionedNote"
   | "auth.signup.turnstileError"
   | "auth.signupButton"
@@ -2273,6 +2285,8 @@ export type TranslationKey =
   | "pricing.upgradePrompt"
   | "pricing.viewPlans"
   | "profile.about"
+  | "profile.dangerZone"
+  | "profile.dangerZoneHint"
   | "profile.deleteAccount.backToProfile"
   | "profile.deleteAccount.cancel"
   | "profile.deleteAccount.confirmKeyword"
@@ -2323,6 +2337,7 @@ export type TranslationKey =
   | "profile.referral.title"
   | "profile.referral.whatsappMessage"
   | "profile.referral.yourLinkLabel"
+  | "profile.subscriptionLink"
   | "profile.theme"
   | "profile.title"
   | "profileForm.editName"
@@ -2690,6 +2705,7 @@ export const TRANSLATION_KEYS = [
   "auth.fullName",
   "auth.fullNamePlaceholder",
   "auth.hasAccount",
+  "auth.hidePassword",
   "auth.invited",
   "auth.invitedLoginHint",
   "auth.invitedSignupHint",
@@ -2717,6 +2733,16 @@ export const TRANSLATION_KEYS = [
   "auth.password",
   "auth.passwordMinLength",
   "auth.passwordPlaceholder",
+  "auth.passwordStrength.fair",
+  "auth.passwordStrength.good",
+  "auth.passwordStrength.hintAddNumber",
+  "auth.passwordStrength.hintAddSymbol",
+  "auth.passwordStrength.hintAddUpper",
+  "auth.passwordStrength.hintLengthShort",
+  "auth.passwordStrength.matchFail",
+  "auth.passwordStrength.matchOk",
+  "auth.passwordStrength.strong",
+  "auth.passwordStrength.weak",
   "auth.passwordTooShort",
   "auth.passwordsMismatch",
   "auth.privacyPolicy",
@@ -2731,6 +2757,7 @@ export const TRANSLATION_KEYS = [
   "auth.reset.submitting",
   "auth.reset.title",
   "auth.resetPassword",
+  "auth.showPassword",
   "auth.signup.tosVersionedNote",
   "auth.signup.turnstileError",
   "auth.signupButton",
@@ -4839,6 +4866,8 @@ export const TRANSLATION_KEYS = [
   "pricing.upgradePrompt",
   "pricing.viewPlans",
   "profile.about",
+  "profile.dangerZone",
+  "profile.dangerZoneHint",
   "profile.deleteAccount.backToProfile",
   "profile.deleteAccount.cancel",
   "profile.deleteAccount.confirmKeyword",
@@ -4889,6 +4918,7 @@ export const TRANSLATION_KEYS = [
   "profile.referral.title",
   "profile.referral.whatsappMessage",
   "profile.referral.yourLinkLabel",
+  "profile.subscriptionLink",
   "profile.theme",
   "profile.title",
   "profileForm.editName",

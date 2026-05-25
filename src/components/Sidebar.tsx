@@ -6,6 +6,24 @@ import GroupSelector from "./GroupSelector";
 import NotificationBadge from "./NotificationBadge";
 import KindarLogo from "./KindarLogo";
 import { useI18n } from "@/i18n/provider";
+import { useSubscription } from "./SubscriptionProvider";
+
+/**
+ * Mapeia planId → label curto pro chip do sidebar. Em vez de depender do
+ * campo `tier` (que está com bug pra novos planos `harmonia_*` /
+ * `premium_juridico_*`), deriva direto do planId — é a fonte de verdade
+ * estável.
+ */
+function tierChip(planId: string): { label: string; bg: string; text: string } | null {
+  if (!planId || planId === "free") return null;
+  if (planId.startsWith("premium_juridico") || planId.startsWith("elite")) {
+    return { label: "Premium Jurídico", bg: "bg-[#2E7268]/10", text: "text-[#2E7268]" };
+  }
+  if (planId.startsWith("harmonia") || planId.startsWith("premium")) {
+    return { label: "Harmonia", bg: "bg-[#C07055]/10", text: "text-[#C07055]" };
+  }
+  return null;
+}
 
 interface NavItem {
   href: string;
@@ -200,6 +218,8 @@ const navSections: NavSection[] = [
 export default function Sidebar({ initial, fullName, groups, activeGroupId, userId }: { initial: string; fullName: string; groups: Array<{ id: string; name: string }>; activeGroupId: string; userId: string }) {
   const pathname = usePathname();
   const { t } = useI18n();
+  const subscription = useSubscription();
+  const chip = tierChip(subscription.planId);
 
   return (
     <aside role="navigation" aria-label={t("nav.sectionOrganization")} className="flex flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-100 z-40">
@@ -303,9 +323,18 @@ export default function Sidebar({ initial, fullName, groups, activeGroupId, user
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[13px] font-semibold text-[#2C2C2C] truncate">{fullName}</p>
-            <p className="text-[10px] text-[#9CA3AF]">{t("nav.viewProfile")}</p>
+            {chip ? (
+              <span className={`inline-flex items-center gap-1 mt-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-semibold ${chip.bg} ${chip.text}`}>
+                <svg className="w-2.5 h-2.5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+                </svg>
+                {chip.label}
+              </span>
+            ) : (
+              <p className="text-[10px] text-[#9CA3AF]">{t("nav.viewProfile")}</p>
+            )}
           </div>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <polyline points="9 18 15 12 9 6" />
           </svg>
         </Link>

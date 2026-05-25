@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 import { getUserSubscription } from "@/lib/subscription";
 import { getEarlyBirdStatus } from "@/lib/billing/early-bird";
+import { getLandingStats } from "@/lib/landing-stats";
 import { EVENTS } from "@/lib/analytics";
 import PricingClient from "./PricingClient";
 import FeatureMatrix from "./FeatureMatrix";
 import PricingFaq from "./PricingFaq";
+import PricingFooter from "./PricingFooter";
 import PageViewTracker from "@/components/analytics/PageViewTracker";
 
 // Revalidate every 30s so the Early Bird slot counter stays fresh.
@@ -35,6 +37,7 @@ export default async function PricingPage() {
   }
 
   const earlyBird = await getEarlyBirdStatus();
+  const landingStats = await getLandingStats();
 
   const earlyBirdSlots = earlyBird.find((e) => e.planId === "harmonia_earlybird_monthly");
 
@@ -67,9 +70,11 @@ export default async function PricingPage() {
           maxSubscribers: e.maxSubscribers,
           isSoldOut: e.isSoldOut,
         }))}
+        landingStats={landingStats}
       />
       <FeatureMatrix />
       <PricingFaq />
+      <PricingFooter />
     </>
   );
 }

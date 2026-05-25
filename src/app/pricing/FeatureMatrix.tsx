@@ -51,7 +51,7 @@ function Cell({ value }: { value: string | boolean }) {
 
 export default function FeatureMatrix() {
   return (
-    <section className="max-w-5xl mx-auto px-4 pb-16">
+    <section className="max-w-6xl mx-auto px-4 pb-16">
       <h2 className="text-2xl font-bold text-stone-900 mb-6 text-center">
         Compare os três planos lado a lado
       </h2>
@@ -91,7 +91,7 @@ export default function FeatureMatrix() {
       </div>
 
       <p className="text-center text-xs text-stone-500 mt-4">
-        Todos os planos: 7 dias de degustação Premium Jurídico no signup. Cancele quando quiser, sem multa.
+        Todos os planos pagos começam com 7 dias grátis de Premium Jurídico. Cancele quando quiser, sem multa.
       </p>
     </section>
   );

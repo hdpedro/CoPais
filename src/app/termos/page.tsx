@@ -137,7 +137,7 @@ export default function TermosPage() {
             <ul className="list-disc pl-6 space-y-1">
               <li>As assinaturas sao renovadas automaticamente ao final de cada periodo (mensal ou anual), salvo cancelamento previo pelo Usuario.</li>
               <li>O pagamento e processado pela Apple (via App Store) ou pelo Stripe (via web), conforme a plataforma utilizada.</li>
-              <li>O periodo de teste gratuito de 14 dias esta disponivel para novos assinantes. Apos o periodo de teste, a assinatura sera cobrada automaticamente.</li>
+              <li>O período de teste gratuito de 7 dias está disponível para novos assinantes. Após o período de teste, a assinatura será cobrada automaticamente.</li>
               <li>O Usuario pode cancelar a assinatura a qualquer momento. No caso de assinaturas pela App Store, o cancelamento e feito nas configuracoes da conta Apple.</li>
               <li>O cancelamento entra em vigor ao final do periodo ja pago. Nao ha reembolso proporcional.</li>
             </ul>

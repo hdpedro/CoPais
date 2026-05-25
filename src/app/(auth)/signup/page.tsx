@@ -6,6 +6,8 @@ import Link from "next/link";
 import { signUp } from "@/actions/auth";
 import SocialLoginButtons from "@/components/SocialLoginButtons";
 import TurnstileWidget from "@/components/auth/TurnstileWidget";
+import PasswordInput from "@/components/auth/PasswordInput";
+import PasswordStrengthMeter from "@/components/auth/PasswordStrengthMeter";
 import KindarLogo from "@/components/KindarLogo";
 import { trackEvent, EVENTS } from "@/lib/analytics";
 import { useI18n } from "@/i18n/provider";
@@ -30,6 +32,11 @@ function SignUpForm() {
   const { t } = useI18n();
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // Validação live: força o meter a re-renderizar a cada keystroke sem
+  // precisar do FormData. Confirm-password também usa o mesmo state pra
+  // mostrar "as senhas conferem".
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const searchParams = useSearchParams();
   const conviteToken = searchParams.get("convite");
   const refCode = searchParams.get("ref");
@@ -143,49 +150,64 @@ function SignUpForm() {
           <label htmlFor="password" className="block text-sm font-medium text-[#0E0C0A] mb-1">
             {t("auth.password")}
           </label>
-          <input
+          <PasswordInput
             id="password"
             name="password"
-            type="password"
             required
             minLength={8}
             placeholder={t("auth.passwordMinLength")}
             aria-label={t("auth.password")}
-            className="w-full px-4 py-3 rounded-lg border border-[#E8E0D4] focus:outline-none focus:ring-2 focus:ring-[#C07055]/40 focus:border-[#C07055] text-[#0E0C0A] bg-white"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
           />
+          <PasswordStrengthMeter password={password} />
         </div>
 
         <div>
           <label htmlFor="confirmPassword" className="block text-sm font-medium text-[#0E0C0A] mb-1">
             {t("auth.confirmPassword")}
           </label>
-          <input
+          <PasswordInput
             id="confirmPassword"
             name="confirmPassword"
-            type="password"
             required
             minLength={8}
             placeholder={t("auth.confirmPasswordPlaceholder")}
             aria-label={t("auth.confirmPassword")}
-            className="w-full px-4 py-3 rounded-lg border border-[#E8E0D4] focus:outline-none focus:ring-2 focus:ring-[#C07055]/40 focus:border-[#C07055] text-[#0E0C0A] bg-white"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            autoComplete="new-password"
           />
+          {confirmPassword && (
+            <p
+              className={`text-xs mt-1.5 font-medium ${
+                password === confirmPassword ? "text-[#2E7268]" : "text-amber-700"
+              }`}
+              aria-live="polite"
+            >
+              {password === confirmPassword
+                ? t("auth.passwordStrength.matchOk")
+                : t("auth.passwordStrength.matchFail")}
+            </p>
+          )}
         </div>
 
-        <div className="flex items-start gap-2">
+        <div className="flex items-start gap-2.5 pt-1">
           <input
             id="lgpd"
             name="lgpd"
             type="checkbox"
             required
-            className="mt-1 h-4 w-4 rounded border-[#E8E0D4] text-[#C07055] focus:ring-[#C07055]"
+            className="mt-0.5 h-[18px] w-[18px] rounded border-[#E8E0D4] text-[#C07055] focus:ring-2 focus:ring-[#C07055]/40 accent-[#C07055] cursor-pointer flex-shrink-0"
           />
-          <label htmlFor="lgpd" className="text-xs text-[#9A8878]">
+          <label htmlFor="lgpd" className="text-[13px] text-[#6B5F52] leading-relaxed cursor-pointer">
             {t("auth.lgpdConsentPrefix")}{" "}
-            <Link href="/termos" className="text-[#C07055] hover:underline">
+            <Link href="/termos" className="text-[#C07055] hover:underline font-medium">
               {t("auth.termsOfUse")}
             </Link>{" "}
             {t("auth.lgpdConsentMiddle")}{" "}
-            <Link href="/privacidade" className="text-[#C07055] hover:underline">
+            <Link href="/privacidade" className="text-[#C07055] hover:underline font-medium">
               {t("auth.privacyPolicy")}
             </Link>
             {t("auth.lgpdConsentSuffix")}
@@ -198,7 +220,7 @@ function SignUpForm() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full py-3 px-4 bg-[#C07055] text-white font-semibold rounded-lg hover:bg-[#A85D47] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full py-3.5 px-4 bg-[#C07055] text-white font-semibold rounded-xl hover:bg-[#A85D47] transition-all shadow-md hover:shadow-lg hover:shadow-[#C07055]/25 hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:transform-none"
         >
           {loading ? t("auth.creatingAccount") : t("auth.createAccount")}
         </button>

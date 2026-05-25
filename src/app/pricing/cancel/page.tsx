@@ -24,8 +24,8 @@ function PricingCancelContent() {
           </svg>
         </div>
         <h1 className="text-2xl font-bold text-[#0E0C0A] mb-2">Pagamento cancelado</h1>
-        <p className="text-[#9A8878] mb-8">
-          Nenhuma cobranca foi feita. Voce pode tentar novamente quando quiser.
+        <p className="text-[#9A8878] mb-8 leading-relaxed">
+          Tudo certo — nenhuma cobrança foi feita. Você pode voltar e tentar de novo quando quiser.
         </p>
         <div className="space-y-3">
           <Link

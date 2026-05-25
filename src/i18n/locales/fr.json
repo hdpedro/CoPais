@@ -109,6 +109,20 @@
     "lgpdConsentPrefix": "J'ai lu et j'accepte les",
     "lgpdConsentMiddle": "et la",
     "lgpdConsentSuffix": ", conformément à la loi brésilienne sur la protection des données (LGPD).",
+    "passwordStrength": {
+      "weak": "Mot de passe faible",
+      "fair": "Mot de passe acceptable",
+      "good": "Bon mot de passe",
+      "strong": "Mot de passe fort",
+      "hintLengthShort": "Utilise au moins 8 caractères",
+      "hintAddNumber": "Ajoute un chiffre",
+      "hintAddSymbol": "Ajoute un symbole (! @ # …) pour le renforcer",
+      "hintAddUpper": "Mélange majuscules et minuscules",
+      "matchOk": "Les mots de passe correspondent",
+      "matchFail": "Les mots de passe ne correspondent pas encore"
+    },
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
     "verifyEmail": {
       "title": "Confirmez votre e-mail",
       "description": "Nous avons envoyé un lien de vérification à votre boîte de réception. Cliquez sur le lien pour activer votre compte et revenez ici pour vous connecter.",
@@ -1423,6 +1437,9 @@
     "theme": "Thème",
     "about": "À propos",
     "memberSince": "Membre depuis",
+    "subscriptionLink": "Forfait et abonnement",
+    "dangerZone": "Zone de danger",
+    "dangerZoneHint": "Actions destructives. Aucun retour en arrière.",
     "deleteAccount": {
       "backToProfile": "← Retour au profil",
       "title": "Supprimer mon compte",
