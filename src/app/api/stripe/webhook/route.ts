@@ -8,6 +8,7 @@ import { sendTrialEndingSoonEmail } from "@/lib/emails/trial";
 import { sendPaymentFailedEmail } from "@/lib/emails/payment-failed";
 import { claimReferralReward } from "@/lib/referral-claim";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { mapStripeStatus } from "@/lib/billing/stripe-status";
 import type Stripe from "stripe";
 
 export async function POST(req: NextRequest) {
@@ -210,6 +211,11 @@ export async function POST(req: NextRequest) {
         // success_url redireciona pro `/pricing/success` antes do webhook ter
         // gravado a row, então qualquer evento client-side dispara num
         // momento em que `subscriptions` ainda nem existe pra esse user.
+        //
+        // NOTA sobre `amount_brl_cents`: Stripe `unit_amount` é em CENTAVOS
+        // (1990 = R$ 19,90). Mantemos a unidade explícita no nome do property
+        // pra evitar queries PostHog do tipo `SUM(amount) / count` retornarem
+        // valor 100× maior do que esperado.
         const mappedStatus = mapStripeStatus(sub.status);
         const lineItem = sub.items.data[0];
         const amountBrl = lineItem?.price?.unit_amount ?? null;
@@ -219,7 +225,7 @@ export async function POST(req: NextRequest) {
           payment_method: paymentMethodHint,
           coupon_code: couponCode,
           is_trial: !!sub.trial_end,
-          amount_brl: amountBrl,
+          amount_brl_cents: amountBrl,
           group_id: groupId,
         });
         captureServerEvent(userId, "subscription_started", {
@@ -229,7 +235,7 @@ export async function POST(req: NextRequest) {
           is_trial: !!sub.trial_end,
           payment_method: paymentMethodHint,
           coupon_code: couponCode,
-          amount_brl: amountBrl,
+          amount_brl_cents: amountBrl,
           stripe_subscription_id: subscriptionId,
         });
 
@@ -245,6 +251,15 @@ export async function POST(req: NextRequest) {
         const periodStart = (sub as unknown as { current_period_start: number }).current_period_start;
         const periodEnd = (sub as unknown as { current_period_end: number }).current_period_end;
 
+        // Read the existing row so we can detect what actually changed and
+        // emit the right telemetry. Stripe doesn't tell us "plan changed"
+        // explicitly — we have to diff payload vs DB.
+        const { data: priorSub } = await supabase
+          .from("subscriptions")
+          .select("plan_id, cancel_at_period_end, status")
+          .eq("stripe_subscription_id", sub.id)
+          .maybeSingle();
+
         // Build update payload conditionally — never fall back to a hardcoded
         // plan_id ("harmonia_monthly") because doing so silently downgrades
         // legitimate Premium Jurídico users when an upstream metadata bug
@@ -257,8 +272,9 @@ export async function POST(req: NextRequest) {
           updated_at: string;
           plan_id?: string;
         };
+        const newStatus = mapStripeStatus(sub.status);
         const updatePayload: SubUpdate = {
-          status: mapStripeStatus(sub.status),
+          status: newStatus,
           current_period_start: new Date(periodStart * 1000).toISOString(),
           current_period_end: new Date(periodEnd * 1000).toISOString(),
           cancel_at_period_end: sub.cancel_at_period_end,
@@ -273,17 +289,49 @@ export async function POST(req: NextRequest) {
           .update(updatePayload)
           .eq("stripe_subscription_id", sub.id);
 
+        // Diff-based telemetry — Stripe's customer.subscription.updated
+        // fires for many reasons (plan change, cancel scheduled, cancel
+        // undone, payment method updated, …). We dispatch distinct PostHog
+        // events so retention/MRR dashboards can break down by reason.
+        if (priorSub) {
+          // Plan change (upgrade or downgrade)
+          if (sub.metadata?.plan_id && sub.metadata.plan_id !== priorSub.plan_id) {
+            captureServerEvent(userId, "subscription_plan_changed", {
+              provider: "stripe",
+              old_plan_id: priorSub.plan_id,
+              new_plan_id: sub.metadata.plan_id,
+              stripe_subscription_id: sub.id,
+            });
+          }
+          // Cancel scheduled (user clicked "cancel at end of period")
+          if (!priorSub.cancel_at_period_end && sub.cancel_at_period_end) {
+            captureServerEvent(userId, "subscription_cancel_scheduled", {
+              provider: "stripe",
+              plan_id: updatePayload.plan_id ?? priorSub.plan_id,
+              stripe_subscription_id: sub.id,
+              effective_at: new Date(periodEnd * 1000).toISOString(),
+            });
+          }
+          // Cancel undone (user changed their mind before period end)
+          if (priorSub.cancel_at_period_end && !sub.cancel_at_period_end) {
+            captureServerEvent(userId, "subscription_uncancelled", {
+              provider: "stripe",
+              plan_id: updatePayload.plan_id ?? priorSub.plan_id,
+              stripe_subscription_id: sub.id,
+            });
+          }
+        }
+
         console.log(`[stripe/webhook] Subscription updated for user ${userId}: ${sub.status}`);
         break;
       }
 
       case "invoice.payment_succeeded": {
-        // Only trigger the split on renewals (billing_reason='subscription_cycle').
+        // Only act on renewals (billing_reason='subscription_cycle').
         // The first payment goes through checkout.session.completed which
         // also fires this event with billing_reason='subscription_create' —
-        // we skip that to avoid a duplicate expense on day 1 (the enable
-        // action already created one). Idempotency guard in createSplit-
-        // ExpenseForPeriod protects against double-fire anyway.
+        // we skip that to avoid double-counting (welcome email, sub INSERT,
+        // first split expense are all handled by checkout.session.completed).
         const invoice = event.data.object as Stripe.Invoice;
         const billingReason = (invoice as unknown as { billing_reason: string }).billing_reason;
         if (billingReason !== "subscription_cycle") break;
@@ -291,47 +339,62 @@ export async function POST(req: NextRequest) {
         const subscriptionId = (invoice as unknown as { subscription: string | null }).subscription;
         if (!subscriptionId) break;
 
-        // Look up the subscription row in our DB to see if auto_split is on
-        // and to resolve the group / counterparty / plan.
+        // Look up the sub once and use it for BOTH telemetry and (optional)
+        // split expense creation. Previously the renewal event ONLY fired
+        // when auto_split was on, because the split early-return was above
+        // the captureServerEvent — so we lost ~70% of renewal data in
+        // PostHog (most users don't have split). Fix: always capture, only
+        // split if applicable.
         const { data: dbSub } = await supabase
           .from("subscriptions")
           .select("id, coparenting_group_id, user_id, plan_id, auto_split, auto_split_co_user_id, auto_split_co_share")
           .eq("stripe_subscription_id", subscriptionId)
           .maybeSingle();
 
-        if (!dbSub || !dbSub.auto_split || !dbSub.auto_split_co_user_id || !dbSub.auto_split_co_share || !dbSub.coparenting_group_id) {
-          break;
-        }
+        if (!dbSub) break;
 
         const periodStartUnix = (invoice as unknown as { period_start: number }).period_start;
         const periodStart = new Date(periodStartUnix * 1000).toISOString().slice(0, 10);
-
-        const result = await createSplitExpenseForPeriod(supabase, {
-          subscriptionId: dbSub.id,
-          groupId: dbSub.coparenting_group_id,
-          payerUserId: dbSub.user_id,
-          coUserId: dbSub.auto_split_co_user_id,
-          coSharePercent: dbSub.auto_split_co_share,
-          planId: dbSub.plan_id,
-          periodStart,
-        });
+        const invoiceAmountCents = (invoice as unknown as { amount_paid?: number }).amount_paid ?? null;
 
         // Telemetria de renovação — distinto de checkout_completed (que é só
         // a primeira). Permite calcular retention/MRR no PostHog sem precisar
-        // joinar a tabela de subscriptions.
+        // joinar a tabela de subscriptions. SEMPRE dispara, mesmo sem split.
         captureServerEvent(dbSub.user_id, "subscription_renewed", {
           provider: "stripe",
           plan_id: dbSub.plan_id,
           subscription_id: dbSub.id,
           period_start: periodStart,
           split_active: !!dbSub.auto_split,
+          amount_brl_cents: invoiceAmountCents,
         });
 
-        console.log(
-          `[stripe/webhook] Renewal split for sub ${dbSub.id}: ${
-            result.created ? "created" : "existed"
-          } expense ${result.expenseId ?? ""}`
-        );
+        // Auto-split expense — only when configured. Idempotency in
+        // createSplitExpenseForPeriod protects against double-fire if Stripe
+        // retries this invoice event.
+        if (
+          dbSub.auto_split &&
+          dbSub.auto_split_co_user_id &&
+          dbSub.auto_split_co_share &&
+          dbSub.coparenting_group_id
+        ) {
+          const result = await createSplitExpenseForPeriod(supabase, {
+            subscriptionId: dbSub.id,
+            groupId: dbSub.coparenting_group_id,
+            payerUserId: dbSub.user_id,
+            coUserId: dbSub.auto_split_co_user_id,
+            coSharePercent: dbSub.auto_split_co_share,
+            planId: dbSub.plan_id,
+            periodStart,
+          });
+          console.log(
+            `[stripe/webhook] Renewal split for sub ${dbSub.id}: ${
+              result.created ? "created" : "existed"
+            } expense ${result.expenseId ?? ""}`
+          );
+        } else {
+          console.log(`[stripe/webhook] Renewal for sub ${dbSub.id} (no split configured)`);
+        }
         break;
       }
 
@@ -466,6 +529,16 @@ export async function POST(req: NextRequest) {
           }
         })();
 
+        // Telemetria — permite correlacionar "trial ending email enviado D-3"
+        // com "user converteu/abandonou" pra otimizar timing de reminders.
+        captureServerEvent(userId, "trial_ending_soon", {
+          provider: "stripe",
+          plan_id: sub.metadata?.plan_id ?? null,
+          days_remaining: daysRemaining,
+          trial_end_at: trialEnd?.toISOString() ?? null,
+          stripe_subscription_id: sub.id,
+        });
+
         console.log(`[stripe/webhook] Trial ending soon for user ${userId} (${daysRemaining}d)`);
         break;
       }
@@ -496,23 +569,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ received: true });
-}
-
-function mapStripeStatus(status: string): string {
-  // Stripe → our internal status. The view v_group_active_subscription
-  // includes ('active','trialing','past_due') as access-granting; anything
-  // else is treated as no-access. We map conservatively: only sub.status
-  // values that Stripe explicitly considers paid/access-granting flow into
-  // the access-granting buckets.
-  switch (status) {
-    case "active": return "active";
-    case "trialing": return "trialing";
-    case "past_due": return "past_due"; // grace period during retry
-    case "canceled": return "canceled";
-    case "unpaid": return "canceled"; // Stripe gave up on retries
-    case "incomplete": return "pending"; // 3DS/SCA in progress, no access yet
-    case "incomplete_expired": return "expired"; // 3DS confirmation timed out
-    case "paused": return "expired";
-    default: return "expired";
-  }
 }

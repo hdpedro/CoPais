@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import {
   getGroupSubscription,
   getPrimaryGroupId,
@@ -23,11 +24,18 @@ import { getEarlyBirdStatus } from "@/lib/billing/early-bird";
  * from the native app, cookie from the web).
  */
 export async function GET(req: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  // Dual-auth: Bearer (Native via fetch) or cookie (PWA). Previously this
+  // route used only the cookie client, which silently returned 401 for the
+  // Native (Bearer-only) and the client fell through to FREE_BILLING — the
+  // Native effectively never saw a paid tier. Fixed 2026-05-25 audit.
+  const user = await resolveAuthenticatedUser(req);
   if (!user) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // Admin client bypasses RLS for reads. We've already authenticated above,
+  // so this is safe and works uniformly for Bearer + cookie sessions.
+  const supabase = createAdminClient();
 
   const requestedGroupId = req.nextUrl.searchParams.get("groupId");
   const groupId = requestedGroupId ?? (await getPrimaryGroupId(supabase, user.id));

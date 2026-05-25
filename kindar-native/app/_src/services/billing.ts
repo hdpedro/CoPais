@@ -149,6 +149,10 @@ export async function enableSubscriptionSplit(params: {
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.error || `Erro ${res.status}` };
     }
+    // Mutou auto_split no servidor — invalida cache local pra que o próximo
+    // getBillingStatus() reflita o novo estado imediatamente. Sem isso a UI
+    // mostra autoSplit stale por até BILLING_CACHE_TTL_MS (60s).
+    invalidateBillingCache(params.groupId);
     return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message || 'Falha de rede' };
@@ -178,6 +182,8 @@ export async function disableSubscriptionSplit(
       const body = await res.json().catch(() => ({}));
       return { success: false, error: body.error || `Erro ${res.status}` };
     }
+    // Mutou auto_split — invalida cache (mesmo motivo do enable).
+    invalidateBillingCache(groupId);
     return { success: true };
   } catch (err) {
     return { success: false, error: (err as Error).message || 'Falha de rede' };
