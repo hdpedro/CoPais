@@ -66,7 +66,14 @@ export default function WeeklySummaryClient({
           <Chip icon="✅" value={kpis.totalCheckins} label="check-ins" empty={kpis.totalCheckins === 0} />
           {kpis.medsCount > 0 && <Chip icon="💊" value={kpis.medsCount} label="med." accent />}
           {kpis.appointmentsCount > 0 && <Chip icon="🩺" value={kpis.appointmentsCount} label="consultas" />}
-          {kpis.pendingCount > 0 && <Chip icon="⚠️" value={kpis.pendingCount} label="pendências" accent />}
+          {kpis.pendingCount > 0 && (
+            <Chip
+              icon="⚠️"
+              value={kpis.pendingCount}
+              label={kpis.pendingCount === 1 ? "pendência" : "pendências"}
+              accent
+            />
+          )}
           <Chip icon="💬" value={kpis.messagesCount} label="msgs" empty={kpis.messagesCount === 0} />
         </div>
       </div>
@@ -140,7 +147,7 @@ export default function WeeklySummaryClient({
         <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
           <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
             <span className="w-1.5 h-1.5 rounded-full bg-[#D4735A] animate-pulse" />
-            Acao necessaria
+            Ação necessária
           </p>
           <div className="space-y-1.5">
             {pendingActions.map((action, i) => (
