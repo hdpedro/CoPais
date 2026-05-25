@@ -172,19 +172,34 @@ export async function POST(req: NextRequest) {
         })();
 
         // Referral reward — if this user was referred and this is their
-        // first paid sub, credit 1 month free to both parties. Runs after
-        // the sub row exists so we can look it up.
-        const { data: newSub } = await supabase
-          .from("subscriptions")
-          .select("id")
-          .eq("stripe_subscription_id", subscriptionId)
-          .maybeSingle();
-        if (newSub) {
-          const reward = await claimReferralReward(supabase, userId, newSub.id);
-          if (reward.claimed) {
-            console.log(`[stripe/webhook] Referral reward claimed for user ${userId}`);
+        // first paid sub, credit 1 month free to both parties.
+        //
+        // Detached IIFE: claim involves Stripe API calls (coupon.create ×2 +
+        // subscription.update on referrer) which can take >1s. Stripe expects
+        // the webhook to respond within 30s; bundling claim into the sync
+        // path eats into that budget and, more importantly, a slow claim
+        // failure here would cascade into a webhook retry that duplicates
+        // upstream side effects (welcome email, subscription INSERT).
+        //
+        // Idempotency is guaranteed by `referral_rewards.referred_subscription_id`
+        // UNIQUE constraint — concurrent claims race-lose cleanly.
+        void (async () => {
+          try {
+            const { data: newSub } = await supabase
+              .from("subscriptions")
+              .select("id")
+              .eq("stripe_subscription_id", subscriptionId)
+              .maybeSingle();
+            if (newSub) {
+              const reward = await claimReferralReward(supabase, userId, newSub.id);
+              if (reward.claimed) {
+                console.log(`[stripe/webhook] Referral reward claimed for user ${userId}`);
+              }
+            }
+          } catch (err) {
+            console.warn(`[stripe/webhook] referral claim failed (non-fatal):`, err);
           }
-        }
+        })();
 
         // Telemetria do funil pago. PRECISA estar aqui (e não no client) — o
         // success_url redireciona pro `/pricing/success` antes do webhook ter

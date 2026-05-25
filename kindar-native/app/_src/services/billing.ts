@@ -13,6 +13,14 @@ import { supabase } from '../lib/supabase';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
+// In-memory cache for billing status — backend is authoritative but native
+// hits this on every foreground transition, which scales linearly with users.
+// 60s TTL matches Cache-Control on /api/billing/status. Callers can force a
+// refresh after writes (e.g. after `/api/iap/verify`) via `invalidateBillingCache()`.
+const BILLING_CACHE_TTL_MS = 60_000;
+type BillingCacheEntry = { data: BillingStatus; at: number };
+const billingCache = new Map<string, BillingCacheEntry>(); // key = groupId ?? '__primary__'
+
 export interface BillingStatus {
   groupId: string | null;
   tier: 'free' | 'harmonia' | 'premium_juridico';
@@ -60,7 +68,17 @@ export const FREE_BILLING: BillingStatus = {
   earlyBird: [],
 };
 
-export async function getBillingStatus(groupId?: string): Promise<BillingStatus> {
+export async function getBillingStatus(
+  groupId?: string,
+  options?: { skipCache?: boolean },
+): Promise<BillingStatus> {
+  const cacheKey = groupId ?? '__primary__';
+  const cached = billingCache.get(cacheKey);
+  const now = Date.now();
+  if (!options?.skipCache && cached && now - cached.at < BILLING_CACHE_TTL_MS) {
+    return cached.data;
+  }
+
   try {
     const { data: session } = await supabase.auth.getSession();
     const token = session?.session?.access_token;
@@ -72,10 +90,27 @@ export async function getBillingStatus(groupId?: string): Promise<BillingStatus>
     });
 
     if (!res.ok) return FREE_BILLING;
-    return (await res.json()) as BillingStatus;
+    const data = (await res.json()) as BillingStatus;
+    billingCache.set(cacheKey, { data, at: now });
+    return data;
   } catch (err) {
     console.warn('[billing] getBillingStatus failed:', err);
     return FREE_BILLING;
+  }
+}
+
+/**
+ * Forces the next `getBillingStatus()` to bypass the in-memory cache and hit
+ * the server. Call this immediately after any flow that mutates billing
+ * state — `purchasePackage`, `restore`, `enableSubscriptionSplit`, etc.
+ * Cheaper than `skipCache: true` on every call from those flows because
+ * callers may be in deep components that don't know about the cache.
+ */
+export function invalidateBillingCache(groupId?: string): void {
+  if (groupId) {
+    billingCache.delete(groupId);
+  } else {
+    billingCache.clear();
   }
 }
 
