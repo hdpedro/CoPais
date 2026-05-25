@@ -4,6 +4,7 @@ import { createSplitExpenseForPeriod } from "@/lib/billing/split";
 import { sendSubscriptionWelcomeEmail } from "@/lib/emails/subscription-welcome";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { getPrimaryGroupId } from "@/lib/billing";
 
 /**
  * RevenueCat webhook — receives server-side events for iOS and Android
@@ -128,16 +129,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: true, ignored: true, reason: "unknown_product" });
     }
 
-    // 3. Resolve user's primary group
-    const { data: groupMember } = await admin
-      .from("group_members")
-      .select("group_id")
-      .eq("user_id", event.app_user_id)
-      .order("joined_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-
-    const coparentingGroupId = groupMember?.group_id ?? null;
+    // 3. Resolve user's primary group via the canonical resolver so we
+    // respect `profiles.last_active_group_id` for multi-group users (same
+    // as /api/billing/status). Previously this used `joined_at ASC` inline,
+    // which would route an IAP purchase to the wrong group when the user
+    // belongs to more than one (separated parent re-partnered, consultant
+    // in N families). Mismatch with billing/status caused UI/DB drift.
+    const coparentingGroupId = await getPrimaryGroupId(admin, event.app_user_id);
 
     // 4. Route by event type
     const now = new Date();
@@ -167,7 +165,8 @@ export async function POST(req: NextRequest) {
           .in("status", ["pending", "active", "trialing", "past_due", "canceled"])
           .maybeSingle();
 
-        const subPayload = {
+        // Shared fields between INSERT and UPDATE.
+        const baseSubPayload = {
           plan_id: plan.id,
           status: "active" as const,
           apple_original_transaction_id:
@@ -175,25 +174,30 @@ export async function POST(req: NextRequest) {
           google_purchase_token:
             providerTag === "google" ? event.original_transaction_id || null : null,
           payment_method_hint: methodHint,
-          coparenting_group_id: coparentingGroupId,
           current_period_start: periodStart.toISOString(),
           current_period_end: periodEnd?.toISOString() ?? now.toISOString(),
           cancel_at_period_end: false,
           updated_at: now.toISOString(),
-          // Tag sandbox rows so `v_group_active_subscription` excludes them.
-          // In production deploys this is unreachable (gate at top of handler
-          // returned 200 ignored). In preview/dev, sandbox events are accepted
-          // for QA — marking them keeps test data isolated.
-          is_sandbox: event.environment === "SANDBOX",
         };
 
         if (existing) {
-          await admin.from("subscriptions").update(subPayload).eq("id", existing.id);
+          // UPDATE — do NOT overwrite `coparenting_group_id` or `is_sandbox`.
+          // Both are set on INSERT and reflect the original purchase context.
+          // Overwriting `coparenting_group_id` could silently move a sub to
+          // another group if the user joined a new group between purchase
+          // and renewal. Overwriting `is_sandbox` is even worse: an
+          // UNCANCELLATION SANDBOX event delivered to a preview deploy
+          // could flip a real production sub to is_sandbox=true.
+          await admin.from("subscriptions").update(baseSubPayload).eq("id", existing.id);
         } else {
           await admin.from("subscriptions").insert({
+            ...baseSubPayload,
             user_id: event.app_user_id,
             payment_provider: providerTag,
-            ...subPayload,
+            // INSERT path only — see comment above for why we don't set these
+            // on UPDATE.
+            coparenting_group_id: coparentingGroupId,
+            is_sandbox: event.environment === "SANDBOX",
           });
         }
 
@@ -201,6 +205,17 @@ export async function POST(req: NextRequest) {
         // subscription_started; UNCANCELLATION é só resume (não cria sub
         // nova) então fica como evento próprio pra retention dashboards.
         const isInitial = event.type === "INITIAL_PURCHASE";
+        // RevenueCat envia `price_in_purchased_currency` (em unidades, e.g.
+        // 19.90) e `currency` (ex: 'BRL'). Pra paridade com Stripe events
+        // (que enviam em centavos), convertemos pra cents. `null` se RC não
+        // mandou (sandbox às vezes não inclui).
+        const rcPrice = (event as unknown as { price_in_purchased_currency?: number })
+          .price_in_purchased_currency;
+        const amountCents =
+          typeof rcPrice === "number" ? Math.round(rcPrice * 100) : null;
+        const currency =
+          (event as unknown as { currency?: string }).currency ?? null;
+
         if (isInitial) {
           captureServerEvent(event.app_user_id, "checkout_completed", {
             provider: providerTag === "google" ? "google_iap" : "apple_iap",
@@ -208,6 +223,8 @@ export async function POST(req: NextRequest) {
             is_trial: event.period_type === "TRIAL" || event.period_type === "INTRO",
             store: event.store,
             environment: event.environment,
+            amount_brl_cents: amountCents,
+            currency,
           });
           captureServerEvent(event.app_user_id, "subscription_started", {
             provider: providerTag === "google" ? "google_iap" : "apple_iap",
@@ -217,6 +234,8 @@ export async function POST(req: NextRequest) {
             store: event.store,
             environment: event.environment,
             transaction_id: event.original_transaction_id,
+            amount_brl_cents: amountCents,
+            currency,
           });
         } else {
           captureServerEvent(event.app_user_id, "subscription_uncancelled", {
@@ -326,7 +345,16 @@ export async function POST(req: NextRequest) {
       }
 
       case "EXPIRATION": {
-        // Subscription ended. Mark as canceled — user loses access now.
+        // Subscription ended. Capture lifetime BEFORE the UPDATE so we can
+        // attribute properly (post-UPDATE the row reflects cancellation).
+        const { data: dbSubForExpiry } = await admin
+          .from("subscriptions")
+          .select("id, current_period_start")
+          .eq("user_id", event.app_user_id)
+          .eq("payment_provider", providerTag)
+          .in("status", ["active", "past_due"])
+          .maybeSingle();
+
         await admin
           .from("subscriptions")
           .update({
@@ -337,11 +365,20 @@ export async function POST(req: NextRequest) {
           .eq("payment_provider", providerTag)
           .in("status", ["active", "past_due"]);
 
+        const lifetimeDays = dbSubForExpiry?.current_period_start
+          ? Math.floor(
+              (Date.now() - new Date(dbSubForExpiry.current_period_start).getTime()) /
+                (1000 * 60 * 60 * 24),
+            )
+          : null;
+
         captureServerEvent(event.app_user_id, "subscription_canceled", {
           provider: providerTag === "google" ? "google_iap" : "apple_iap",
           plan_id: plan.id,
           cancel_reason: event.cancel_reason ?? "expired",
           store: event.store,
+          subscription_id: dbSubForExpiry?.id ?? null,
+          lifetime_days: lifetimeDays,
         });
         break;
       }

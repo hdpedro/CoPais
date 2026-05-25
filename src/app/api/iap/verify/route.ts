@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { getPrimaryGroupId } from "@/lib/billing";
 
 /**
@@ -35,23 +35,10 @@ import { getPrimaryGroupId } from "@/lib/billing";
  */
 export async function POST(req: NextRequest) {
   try {
-    // Authenticate: aceita Bearer (native via fetch) ou cookie (web).
-    // O native envia Bearer porque Next middleware nao valida tokens em
-    // /api/* e o cookie nao existe fora do webview com ssr configurado.
-    const authHeader = req.headers.get("authorization");
-    let user: { id: string } | null = null;
-
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.slice(7);
-      const adminForAuth = createAdminClient();
-      const { data, error } = await adminForAuth.auth.getUser(token);
-      if (!error && data.user) user = { id: data.user.id };
-    } else {
-      const supabase = await createClient();
-      const { data: { user: webUser } } = await supabase.auth.getUser();
-      if (webUser) user = { id: webUser.id };
-    }
-
+    // Dual-auth via shared helper. Replaces inline 15-line Bearer/cookie
+    // dance — same behavior, less drift between this and /api/billing/status,
+    // /api/create-group, etc.
+    const user = await resolveAuthenticatedUser(req);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -124,8 +111,14 @@ export async function POST(req: NextRequest) {
     // Resolve the user's primary group — subscriptions are per-group as
     // of migration 00054. Users without a group shouldn't reach checkout
     // but fail-soft so we don't crash on edge cases.
-    const supabaseRead = await createClient();
-    const groupId = await getPrimaryGroupId(supabaseRead, user.id);
+    //
+    // CRITICAL: must use admin client. The cookie-based client doesn't have
+    // a session when the Native calls via Bearer header, so RLS would block
+    // the read and getPrimaryGroupId would silently return null — the new
+    // sub would land with coparenting_group_id=null and v_group_active_
+    // subscription would filter it out, putting the paying user on Free.
+    // Same bug class that `/api/create-group` had before the 2026-05-25 fix.
+    const groupId = await getPrimaryGroupId(admin, user.id);
 
     // Calculate subscription period
     const now = new Date();
@@ -227,6 +220,11 @@ export async function POST(req: NextRequest) {
           providerTag === "google" ? originalTransactionId || null : null,
         current_period_start: now.toISOString(),
         current_period_end: periodEnd.toISOString(),
+        // Tag sandbox rows so v_group_active_subscription excludes them.
+        // Symmetric with the RevenueCat webhook handler. Production deploys
+        // refuse sandbox upstream (line ~75 of this file), so this only
+        // marks rows in preview/dev where sandbox QA happens.
+        is_sandbox: body.isSandbox === true,
       });
 
       if (insertErr) {
