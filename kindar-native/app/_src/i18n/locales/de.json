@@ -372,7 +372,7 @@
   "chat": {
     "title": "Chat",
     "groupChat": "Gruppenchat",
-    "members": "{count} Mitglieder",
+    "members": "{count, plural, one {# Mitglied} other {# Mitglieder}}",
     "typeMessage": "Nachricht eingeben...",
     "noMessages": "Noch keine Nachrichten",
     "startConversation": "Starten Sie die Unterhaltung",

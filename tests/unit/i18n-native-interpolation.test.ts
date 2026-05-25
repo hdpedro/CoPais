@@ -73,7 +73,13 @@ describe("i18n native — sintaxe de placeholders (informativo)", () => {
       const raw = fs.readFileSync(path.join(LOCALES_DIR, `${locale}.json`), "utf8");
       const data = JSON.parse(raw);
       const offenders: string[] = [];
+      // ICU plural/select têm nested braces ({x, plural, one {# coisa}})
+      // — não dá pra checar com regex flat. Skip a validação shape pra
+      // strings que CONTÊM ICU (detectado pelo marker ", plural," ou
+      // ", select,"). Pra essas, confiamos no parser ICU em runtime.
+      const ICU_MARKER = /,\s*(plural|select|selectordinal),/;
       for (const [key, value] of flatten(data)) {
+        if (ICU_MARKER.test(value)) continue; // ICU — não-flat
         // Acha qualquer `{ ... }` ou `{{ ... }}` mal-formado. Aceita:
         //   - {camelCase} ou {snake_case} (single brace)
         //   - {{camelCase}} ou {{snake_case}} (double brace legado)
