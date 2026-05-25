@@ -5,6 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createChild } from "@/lib/services/children";
 import { grantTrialIfEligible } from "@/lib/billing";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { recordQuestStepServer } from "@/lib/quest-server";
 
 export async function POST(request: Request) {
   // Dual auth: Bearer (native) + cookie (PWA). Without Bearer support
@@ -160,6 +161,15 @@ export async function POST(request: Request) {
     has_child: !!childId,
     trial_granted: trialResult.granted,
   });
+
+  // 6.1) Marca quest "add_child" se criança foi adicionada nesse mesmo
+  //      endpoint. Bug F#24 (E2E 2026-05-25): dashboard quests ficavam
+  //      0/5 mesmo após adicionar criança via wizard, porque o
+  //      markQuestStep só era chamado pela action /actions/group.ts
+  //      (caminho legado), não por este endpoint REST. Best-effort.
+  if (childId) {
+    await recordQuestStepServer(admin, userId, "add_child", { via: "create_group_api" });
+  }
 
   // 7) Invalida caches
   revalidateTag(`profile-${userId}`, "max");

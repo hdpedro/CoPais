@@ -32,6 +32,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createChild } from "@/lib/services/children";
+import { recordQuestStepServer } from "@/lib/quest-server";
 
 interface AddChildBody {
   groupId?: string;
@@ -57,8 +58,9 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => ({}))) as AddChildBody;
     groupId = body.groupId?.trim();
 
+    const admin = createAdminClient();
     const result = await createChild(
-      createAdminClient(),
+      admin,
       {
         groupId: groupId || "",
         fullName: body.fullName?.trim() || "",
@@ -84,6 +86,13 @@ export async function POST(request: Request) {
     }
 
     revalidateTag(`children-${groupId}`, "max");
+
+    // F#24 — marca quest "add_child" via lib compartilhada. Idempotente,
+    // non-fatal. Mesma justificativa que /api/create-group: o caminho
+    // legado /actions/group.ts marcava, este endpoint REST não — daí
+    // dashboards travavam em 0/5 mesmo com criança real no DB.
+    await recordQuestStepServer(admin, user.id, "add_child", { via: "children_api" });
+
     return NextResponse.json({ success: true, child: result.data });
   } catch (caught) {
     const message = caught instanceof Error ? caught.message : "Erro inesperado.";
