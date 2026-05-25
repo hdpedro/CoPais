@@ -90,21 +90,136 @@ function resolveKeyPath(dict: Dictionary, key: string): string | null {
 }
 
 /**
+ * CLDR plural rule por locale (cardinal). Reduzido pro essencial das 5
+ * línguas suportadas. Versão completa seria via `Intl.PluralRules`, mas
+ * essa abordagem inline economiza ~30KB de bundle (CLDR data) e cobre
+ * 100% dos casos de uso atuais.
+ *
+ * - pt/es/fr/de: "one" pra n=0..1 (algumas variantes pt aceitam só n=1,
+ *   mas BR rule = 0..1 conforme CLDR 44). Outros => "other".
+ * - en: "one" só pra n=1 estrito. Outros => "other".
+ *
+ * Quando precisar `few`/`many` (russo, polonês, etc.), trocar pra
+ * `new Intl.PluralRules(locale).select(count)`.
+ */
+function pluralKey(locale: Locale, count: number): "one" | "other" {
+  if (locale === "en") return count === 1 ? "one" : "other";
+  return count >= 0 && count <= 1 ? "one" : "other";
+}
+
+/**
+ * Parse ICU MessageFormat plural syntax e resolve pro case correto.
+ *
+ * Suporta apenas plural cardinal (sem select/selectordinal — chave
+ * indisponível no projeto). Sintaxe: `{var, plural, =N {text} one {text}
+ * other {text}}`. `#` é substituído pelo valor de `var`.
+ *
+ * Retorna `null` se o template não é ICU — caller volta pro
+ * `interpolatePlaceholders` regular. Bug F#62 do E2E PRD 2026-05-25:
+ * /chat renderizava `{count, plural, one {# membro} other {# membros}}`
+ * literal porque o motor só lidava com `{var}` simples.
+ */
+function applyICUPlural(
+  template: string,
+  vars: Record<string, string | number> | undefined,
+  locale: Locale,
+): string | null {
+  // Match `{varname, plural, ...}` no início do template (mesmo se houver
+  // texto antes — caso `{days, plural, ...} dias` não suportado por simpli-
+  // cidade; ICU completo seria via `intl-messageformat`).
+  const header = template.match(/\{(\w+)\s*,\s*plural\s*,\s*/);
+  if (!header) return null;
+  const varname = header[1];
+  if (!vars || vars[varname] === undefined) return null;
+  const count = Number(vars[varname]);
+  if (Number.isNaN(count)) return null;
+
+  // Find the start of the rules section (after `, plural, `) and the matching
+  // closing `}` at the end. We parse `keyword {text}` pairs respecting nested
+  // braces (the `text` can itself contain `{var}` placeholders).
+  const rulesStart = header.index! + header[0].length;
+  // Walk from rulesStart counting braces from the OUTER `{varname, plural, ...}`
+  // To find the closing `}` of the ICU pattern: depth starts at 1 (we already
+  // consumed the opening `{`), each `{` we see is +1, each `}` is -1.
+  let i = rulesStart;
+  let depth = 1;
+  while (i < template.length && depth > 0) {
+    if (template[i] === "{") depth++;
+    else if (template[i] === "}") {
+      depth--;
+      if (depth === 0) break;
+    }
+    i++;
+  }
+  if (depth !== 0) return null; // malformed ICU
+  const rules = template.slice(rulesStart, i);
+  const after = template.slice(i + 1); // tail after the ICU block (we don't
+  // currently mix ICU + plain text but support it gracefully)
+
+  // Parse rules: sequence of `keyword {body}` pairs.
+  const cases: Record<string, string> = {};
+  let p = 0;
+  while (p < rules.length) {
+    // Skip whitespace
+    while (p < rules.length && /\s/.test(rules[p])) p++;
+    // Read keyword (one, other, =0, =1, few, many, etc.)
+    let kw = "";
+    while (p < rules.length && /[\w=]/.test(rules[p])) {
+      kw += rules[p++];
+    }
+    if (!kw) break;
+    // Skip whitespace before `{`
+    while (p < rules.length && /\s/.test(rules[p])) p++;
+    if (rules[p] !== "{") break;
+    p++; // consume `{`
+    // Read body respecting nested braces
+    let body = "";
+    let d = 1;
+    while (p < rules.length && d > 0) {
+      if (rules[p] === "{") d++;
+      else if (rules[p] === "}") {
+        d--;
+        if (d === 0) break;
+      }
+      body += rules[p++];
+    }
+    p++; // consume closing `}`
+    cases[kw] = body;
+  }
+
+  // Pick the matching case: exact `=N` wins, else CLDR keyword.
+  const exact = cases[`=${count}`];
+  const chosen = exact ?? cases[pluralKey(locale, count)] ?? cases["other"] ?? "";
+  // Replace `#` with the count (CLDR escape for the variable in the chosen body).
+  const rendered = chosen.replace(/#/g, String(count));
+  return rendered + after;
+}
+
+/**
  * Interpolate named placeholders. Supports both `{name}` (modern) and
  * `{{name}}` (legacy i18next-style — required for parity with native runtime
  * after bug Aline 2026-05-13: native locale JSONs mix both styles).
+ *
+ * Quando o template é ICU MessageFormat (detecta `{var, plural, ...}`),
+ * resolve via `applyICUPlural` primeiro — depois interpola placeholders
+ * regulares no resultado (caso o branch escolhido contenha `{name}`).
  */
 function interpolatePlaceholders(
   template: string,
   vars?: Record<string, string | number>,
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
   if (!vars) return template;
+  // Tenta ICU primeiro (template tipo `{count, plural, ...}`). Se não
+  // bater, segue pro fluxo de placeholders simples abaixo.
+  const icu = applyICUPlural(template, vars, locale);
+  const base = icu !== null ? icu : template;
   // `\s*` em torno do nome aceita tanto `{{name}}` (estilo compacto) quanto
   // `{{ name }}` (estilo i18next com espaços, padrão das chaves novas da
   // sprint Tier A 2026-05-20). Bug Henrique 2026-05-20: chaves tipo
   // "{{ email }}" apareciam literais na UI porque o regex anterior exigia
   // ausência de espaço — chave passou direto sem substituição.
-  return template
+  return base
     .replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) =>
       vars[k] !== undefined ? String(vars[k]) : `{{${k}}}`,
     )
@@ -131,7 +246,7 @@ export function t(
 ): string {
   const dict = getDictionary(locale);
   const hit = resolveKeyPath(dict, key);
-  if (hit !== null) return interpolatePlaceholders(hit, vars);
+  if (hit !== null) return interpolatePlaceholders(hit, vars, locale);
 
   // Try fallback to source language (pt-BR).
   if (locale !== DEFAULT_LOCALE) {
@@ -139,7 +254,7 @@ export function t(
     const fallbackHit = resolveKeyPath(fallbackDict, key);
     if (fallbackHit !== null) {
       reportMissingClient(key, locale);
-      return interpolatePlaceholders(fallbackHit, vars);
+      return interpolatePlaceholders(fallbackHit, vars, locale);
     }
   }
 

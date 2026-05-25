@@ -169,16 +169,90 @@ function resolveKey(dict: Dictionary, key: string): string | null {
 }
 
 /**
+ * CLDR plural rule por locale (cardinal). KEEP IN SYNC com src/i18n/index.ts
+ * `pluralKey`.
+ */
+function pluralKey(locale: Locale, count: number): "one" | "other" {
+  if (locale === "en") return count === 1 ? "one" : "other";
+  return count >= 0 && count <= 1 ? "one" : "other";
+}
+
+/**
+ * Parse ICU MessageFormat plural syntax e resolve pro case correto.
+ * KEEP IN SYNC com src/i18n/index.ts `applyICUPlural`. Bug F#62 do E2E PRD
+ * 2026-05-25: /chat renderizava ICU literal porque motor só lidava com
+ * `{var}` simples.
+ */
+function applyICUPlural(
+  template: string,
+  vars: Record<string, string | number> | undefined,
+  locale: Locale,
+): string | null {
+  const header = template.match(/\{(\w+)\s*,\s*plural\s*,\s*/);
+  if (!header) return null;
+  const varname = header[1];
+  if (!vars || vars[varname] === undefined) return null;
+  const count = Number(vars[varname]);
+  if (Number.isNaN(count)) return null;
+  const rulesStart = header.index! + header[0].length;
+  let i = rulesStart;
+  let depth = 1;
+  while (i < template.length && depth > 0) {
+    if (template[i] === "{") depth++;
+    else if (template[i] === "}") {
+      depth--;
+      if (depth === 0) break;
+    }
+    i++;
+  }
+  if (depth !== 0) return null;
+  const rules = template.slice(rulesStart, i);
+  const after = template.slice(i + 1);
+  const cases: Record<string, string> = {};
+  let p = 0;
+  while (p < rules.length) {
+    while (p < rules.length && /\s/.test(rules[p])) p++;
+    let kw = "";
+    while (p < rules.length && /[\w=]/.test(rules[p])) kw += rules[p++];
+    if (!kw) break;
+    while (p < rules.length && /\s/.test(rules[p])) p++;
+    if (rules[p] !== "{") break;
+    p++;
+    let body = "";
+    let d = 1;
+    while (p < rules.length && d > 0) {
+      if (rules[p] === "{") d++;
+      else if (rules[p] === "}") {
+        d--;
+        if (d === 0) break;
+      }
+      body += rules[p++];
+    }
+    p++;
+    cases[kw] = body;
+  }
+  const exact = cases[`=${count}`];
+  const chosen = exact ?? cases[pluralKey(locale, count)] ?? cases["other"] ?? "";
+  return chosen.replace(/#/g, String(count)) + after;
+}
+
+/**
  * Substitute named placeholders. Supports both `{name}` (modern) and
  * `{{name}}` (legacy i18next-style — kept for parity with native runtime
  * which already supports both, see bug Aline 2026-05-13 in native i18n).
+ *
+ * Quando o template é ICU MessageFormat (detecta `{var, plural, ...}`),
+ * resolve via `applyICUPlural` primeiro — depois interpola placeholders
+ * regulares no resultado.
  */
-function interpolate(template: string, vars?: Record<string, string | number>): string {
+function interpolate(template: string, vars: Record<string, string | number> | undefined, locale: Locale): string {
   if (!vars) return template;
+  const icu = applyICUPlural(template, vars, locale);
+  const base = icu !== null ? icu : template;
   // `\s*` em torno do nome aceita tanto `{{name}}` (estilo compacto) quanto
   // `{{ name }}` (estilo i18next com espaços, padrão das chaves novas da
   // sprint Tier A 2026-05-20). KEEP IN SYNC com src/i18n/index.ts.
-  return template
+  return base
     .replace(/\{\{\s*(\w+)\s*\}\}/g, (_, k) =>
       vars[k] !== undefined ? String(vars[k]) : `{{${k}}}`,
     )
@@ -222,12 +296,12 @@ export async function getServerT(overrideLocale?: Locale): Promise<TFn> {
 
   return (key, vars) => {
     const hit = resolveKey(primary, key);
-    if (hit !== null) return interpolate(hit, vars);
+    if (hit !== null) return interpolate(hit, vars, locale);
     const fallbackHit = resolveKey(fallback, key);
     if (fallbackHit !== null) {
       // Async-fire-and-forget: don't block render to log a miss.
       void reportMissingKey(key, locale);
-      return interpolate(fallbackHit, vars);
+      return interpolate(fallbackHit, vars, locale);
     }
     void reportMissingKey(key, locale);
     return process.env.NODE_ENV === "production" ? key : `🔴 MISSING: ${key}`;
