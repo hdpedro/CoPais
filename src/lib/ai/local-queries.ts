@@ -20,6 +20,7 @@ import {
   hasPronoun,
   expandAbbreviations,
 } from "./local-helpers";
+import { formatBRL as formatBRLShared } from "@/lib/format/currency";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -52,7 +53,8 @@ function fmtBR(iso: string): string {
 }
 
 function fmtBRL(v: number): string {
-  return `R$ ${v.toFixed(2).replace(".", ",")}`;
+  // Delegamos ao helper canônico pra grouping correto (R$ 1.234,56).
+  return formatBRLShared(v);
 }
 
 function todayISO(): string {

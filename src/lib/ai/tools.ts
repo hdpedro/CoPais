@@ -17,6 +17,7 @@ import {
   getVaccineStatus as getVaccineStatusService,
   recordVaccination as recordVaccinationService,
 } from "@/lib/services/vaccines";
+import { formatBRL as formatBRLShared } from "@/lib/format/currency";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -63,7 +64,10 @@ function todayISO(): string {
 }
 
 function formatBRL(v: number): string {
-  return `R$ ${v.toFixed(2).replace(".", ",")}`;
+  // Re-export do helper canônico em `@/lib/format/currency` pra manter
+  // backward-compat com call-sites neste arquivo. Resultado idêntico
+  // ("R$ 1.234,56") + grouping correto via Intl.NumberFormat.
+  return formatBRLShared(v);
 }
 
 /* Parse monetary values from various formats: "R$ 45,00", "45.00", "45", "30 conto" */

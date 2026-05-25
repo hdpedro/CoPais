@@ -22,6 +22,7 @@ import { routeToolsRequest, routeTextRequest } from "@/lib/ai/router";
 import { logAIRequest } from "@/lib/ai/core/logger";
 import { AIChatMessage, AIToolDefinition } from "@/lib/ai/core/types";
 import { AIRateLimiter } from "@/lib/ai/rate-limit";
+import { formatBRL } from "@/lib/format/currency";
 import {
   CONFIRM_WORDS,
   CANCEL_WORDS,
@@ -434,7 +435,7 @@ export async function processWhatsAppMessage(
         expense_date: expenseDate,
       });
 
-      const summary = `Recibo lido: *${receipt.description}* — R$ ${receipt.amount.toFixed(2).replace(".", ",")}${expenseDate ? ` (${expenseDate.split("-").reverse().join("/")})` : ""}.\nQual a categoria?`;
+      const summary = `Recibo lido: *${receipt.description}* — ${formatBRL(receipt.amount)}${expenseDate ? ` (${expenseDate.split("-").reverse().join("/")})` : ""}.\nQual a categoria?`;
 
       await sendListMessage(phone, summary, "Categorias", [
         { id: "rcat:health",     title: "Saúde" },
@@ -1046,7 +1047,7 @@ async function finalizeReceiptExpense(
   const catLabel = CATEGORY_LABEL[draft.category || "other"] || "Outros";
   await sendTextMessage(
     phone,
-    `✅ Despesa registrada: *${draft.description}* — R$ ${draft.amount.toFixed(2).replace(".", ",")} (${catLabel}, ${dateBR}).`,
+    `✅ Despesa registrada: *${draft.description}* — ${formatBRL(draft.amount)} (${catLabel}, ${dateBR}).`,
   );
 
   await logAIRequest({

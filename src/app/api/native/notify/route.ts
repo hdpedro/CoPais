@@ -16,6 +16,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createNotificationWithPush } from "@/lib/push";
 import { postChatNotification } from "@/lib/chat-notify";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { formatBRL } from "@/lib/format/currency";
 
 type ActionType =
   | "expense_created"
@@ -67,8 +68,8 @@ const ACTION_CONFIGS: Record<ActionType, {
   expense_created: {
     notificationType: "expense_new",
     titleFn: () => "Nova Despesa",
-    messageFn: (name, d) => `${name} registrou: ${d.description} — R$ ${Number(d.amount || 0).toFixed(2)}`,
-    chatMessageFn: (name, d) => `💰 Nova despesa: ${d.description} — R$ ${Number(d.amount || 0).toFixed(2)}`,
+    messageFn: (name, d) => `${name} registrou: ${d.description} — ${formatBRL(Number(d.amount || 0))}`,
+    chatMessageFn: (name, d) => `💰 Nova despesa: ${d.description} — ${formatBRL(Number(d.amount || 0))}`,
     link: "/despesas",
     analyticsEvent: "expense_created",
   },

@@ -38,6 +38,7 @@ import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
+import { formatBRL } from 'src/lib/currency';
 
 interface MemberOption {
   user_id: string;
@@ -228,7 +229,7 @@ export default function FinanceiroScreen() {
     if (!userId) return;
     Alert.alert(
       'Confirmar recebimento',
-      `Confirma que recebeu R$ ${s.amount.toFixed(2)} de ${s.paidByName}?`,
+      `Confirma que recebeu ${formatBRL(s.amount)} de ${s.paidByName}?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
@@ -319,7 +320,7 @@ export default function FinanceiroScreen() {
               Saldo
             </Text>
             <Text style={{ fontSize: font.sizes['4xl'], fontWeight: font.weights.extrabold, color: balanceColor, marginTop: spacing.sm }}>
-              R$ {Math.abs(summary?.balance || 0).toFixed(2)}
+              {formatBRL(Math.abs(summary?.balance || 0))}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: balanceColor, fontWeight: font.weights.medium }}>
               {balanceLabel}
@@ -407,7 +408,7 @@ export default function FinanceiroScreen() {
                 {isShared ? 'Total no mês' : 'Seus gastos no mês'}
               </Text>
               <Text style={{ fontSize: font.sizes['3xl'], fontWeight: font.weights.extrabold, color: colors.text, textAlign: 'center', marginTop: 2 }}>
-                R$ {monthlySpending.totalMonth.toFixed(2)}
+                {formatBRL(monthlySpending.totalMonth)}
               </Text>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textAlign: 'center', marginTop: 2 }}>
                 {monthlySpending.expensesCount} {monthlySpending.expensesCount === 1 ? 'despesa' : 'despesas'}
@@ -439,7 +440,7 @@ export default function FinanceiroScreen() {
                         </Text>
                       </View>
                       <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                        R$ {spent.toFixed(2)}
+                        {formatBRL(spent)}
                       </Text>
                       <View style={{ height: 6, backgroundColor: colors.bgSurface, borderRadius: 3, marginTop: spacing.xs, overflow: 'hidden' }}>
                         <View style={{ height: '100%', width: `${Math.min(100, pct)}%`, backgroundColor: m.color, borderRadius: 3 }} />
@@ -461,13 +462,13 @@ export default function FinanceiroScreen() {
             <View style={{ flex: 1, backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm }}>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Você pagou (total)</Text>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                R$ {(summary?.myTotal || 0).toFixed(2)}
+                {formatBRL(summary?.myTotal || 0)}
               </Text>
             </View>
             <View style={{ flex: 1, backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm }}>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Outro pagou (total)</Text>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                R$ {(summary?.otherTotal || 0).toFixed(2)}
+                {formatBRL(summary?.otherTotal || 0)}
               </Text>
             </View>
           </View>
@@ -484,14 +485,14 @@ export default function FinanceiroScreen() {
                 key={s.id}
                 onPress={() => handleConfirmSettlement(s)}
                 accessibilityRole="button"
-                accessibilityLabel={`Confirmar recebimento de R$ ${s.amount.toFixed(2)} de ${s.paidByName}`}
+                accessibilityLabel={`Confirmar recebimento de ${formatBRL(s.amount)} de ${s.paidByName}`}
                 style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, borderWidth: 1, borderColor: `${colors.brand}40`, ...shadows.sm }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                   <Ionicons name="cash-outline" size={20} color={colors.brand} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
-                      R$ {s.amount.toFixed(2)} de {s.paidByName}
+                      {formatBRL(s.amount)} de {s.paidByName}
                     </Text>
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
                       {(s.payment_method || 'PIX').toUpperCase()}
@@ -560,7 +561,7 @@ export default function FinanceiroScreen() {
                       </Text>
                     </View>
                     <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.bold, color: colors.text }}>
-                      R$ {s.amount.toFixed(2)}
+                      {formatBRL(s.amount)}
                     </Text>
                   </View>
                 </View>
@@ -592,7 +593,7 @@ export default function FinanceiroScreen() {
                       {label}
                     </Text>
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                      R$ {total.toFixed(2)}
+                      {formatBRL(total)}
                     </Text>
                   </View>
                   {group.items.map((s) => {
@@ -621,7 +622,7 @@ export default function FinanceiroScreen() {
                             ) : null}
                           </View>
                           <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.bold, color: colors.text }}>
-                            R$ {s.amount.toFixed(2)}
+                            {formatBRL(s.amount)}
                           </Text>
                         </View>
                       </View>
@@ -677,9 +678,9 @@ export default function FinanceiroScreen() {
             {balanceForCounter !== null ? (
               <Text style={{ fontSize: font.sizes.xs, color: balanceForCounter > 0 ? colors.error : colors.textMuted, marginBottom: spacing.md }}>
                 {balanceForCounter > 0
-                  ? `Você deve R$ ${balanceForCounter.toFixed(2)} a este coparente.`
+                  ? `Você deve ${formatBRL(balanceForCounter)} a este coparente.`
                   : balanceForCounter < 0
-                    ? `Você está com saldo positivo de R$ ${Math.abs(balanceForCounter).toFixed(2)}.`
+                    ? `Você está com saldo positivo de ${formatBRL(Math.abs(balanceForCounter))}.`
                     : 'Saldo zerado com este coparente.'}
               </Text>
             ) : null}

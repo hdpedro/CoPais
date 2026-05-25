@@ -6,6 +6,7 @@ import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { createNotificationWithPush } from "@/lib/push";
+import { formatBRL } from "@/lib/format/currency";
 
 export async function createSettlement(formData: FormData) {
   const supabase = await createClient();
@@ -85,7 +86,7 @@ export async function createSettlement(formData: FormData) {
   const TOLERANCE = 0.01;
   if (amount > balanceOwed + TOLERANCE) {
     redirect("/financeiro?error=" + encodeURIComponent(
-      `Valor excede o saldo devedor. Saldo atual: R$ ${Math.max(0, balanceOwed).toFixed(2)}.`
+      `Valor excede o saldo devedor. Saldo atual: ${formatBRL(Math.max(0, balanceOwed))}.`
     ));
   }
 
@@ -122,7 +123,7 @@ export async function createSettlement(formData: FormData) {
       paidTo,
       "settlement_created",
       "Pagamento Registrado 💸",
-      `${senderName} registrou um pagamento de R$ ${amount.toFixed(2)} para voce. Confirme o recebimento.`,
+      `${senderName} registrou um pagamento de ${formatBRL(amount)} para você. Confirme o recebimento.`,
       "/financeiro"
     );
   } catch {
@@ -208,7 +209,7 @@ export async function confirmSettlement(formData: FormData) {
         fullSettlement.paid_by,
         "settlement_confirmed",
         "Pagamento Confirmado ✅",
-        `${confirmerName} confirmou o recebimento de R$ ${Number.isFinite(amountValue) ? amountValue.toFixed(2) : "0.00"}.`,
+        `${confirmerName} confirmou o recebimento de ${formatBRL(Number.isFinite(amountValue) ? amountValue : 0)}.`,
         "/financeiro"
       );
     }

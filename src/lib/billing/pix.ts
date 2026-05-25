@@ -1,4 +1,5 @@
 import { getPlanAmountBrl } from "./split";
+import { formatBRL } from "@/lib/format/currency";
 
 /**
  * PIX discount configuration. The actual discount is applied via a
@@ -50,7 +51,7 @@ export function getPixPrice(planId: string): PixPriceView | null {
     cardPriceBrl: cardPrice,
     pixPriceBrl: pixPrice,
     discountBrl: PIX_DISCOUNT_BRL,
-    savings: `R$ ${PIX_DISCOUNT_BRL.toFixed(2).replace(".", ",")}`,
+    savings: formatBRL(PIX_DISCOUNT_BRL),
   };
 }
 

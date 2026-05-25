@@ -14,6 +14,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { createNotificationWithPush } from "@/lib/push";
+import { formatBRL } from "@/lib/format/currency";
 
 export async function POST(request: Request) {
   const user = await resolveAuthenticatedUser(request);
@@ -108,7 +109,7 @@ export async function POST(request: Request) {
   if (amount > balanceOwed + TOLERANCE) {
     return NextResponse.json(
       {
-        error: `Valor excede o saldo devedor. Saldo atual: R$ ${Math.max(0, balanceOwed).toFixed(2)}.`,
+        error: `Valor excede o saldo devedor. Saldo atual: ${formatBRL(Math.max(0, balanceOwed))}.`,
       },
       { status: 400 },
     );
@@ -150,7 +151,7 @@ export async function POST(request: Request) {
       paidTo,
       "settlement_created",
       "Pagamento Registrado 💸",
-      `${senderName} registrou um pagamento de R$ ${amount.toFixed(2)} para você. Confirme o recebimento.`,
+      `${senderName} registrou um pagamento de ${formatBRL(amount)} para você. Confirme o recebimento.`,
       "/financeiro",
     );
   } catch {
@@ -231,9 +232,7 @@ export async function PATCH(request: Request) {
       settlement.paid_by,
       "settlement_confirmed",
       "Pagamento Confirmado ✅",
-      `${confirmerName} confirmou o recebimento de R$ ${
-        Number.isFinite(amountValue) ? amountValue.toFixed(2) : "0.00"
-      }.`,
+      `${confirmerName} confirmou o recebimento de ${formatBRL(Number.isFinite(amountValue) ? amountValue : 0)}.`,
       "/financeiro",
     );
   } catch {

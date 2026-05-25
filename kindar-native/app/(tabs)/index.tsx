@@ -19,6 +19,7 @@ import { respondToSwap, cancelMySwap } from 'src/services/swaps';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from 'src/lib/constants';
+import { formatBRL as formatBRLShared } from 'src/lib/currency';
 import ActivityReportModal from 'src/components/activities/ActivityReportModal';
 import ActivityDetailSheet from 'src/components/activities/ActivityDetailSheet';
 import QuickActionsModal from 'src/components/QuickActionsModal';
@@ -55,7 +56,9 @@ function formatShortDate(isoDate: string): string {
   return `${d}/${m}`;
 }
 function formatBRL(v: number): string {
-  return `R$ ${v.toFixed(2).replace('.', ',')}`;
+  // Delegamos ao helper canônico em `src/lib/currency` pra ter grouping
+  // correto via Intl.NumberFormat ("R$ 1.234,56" em vez de "R$ 1234,56").
+  return formatBRLShared(v);
 }
 function formatDeadline(deadline: string | null): { label: string; urgent: boolean } | null {
   if (!deadline) return null;
