@@ -10,6 +10,7 @@ import { useAuth } from 'src/store/auth';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { track, EVENTS } from 'src/lib/analytics';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 const PRIVACY_URL = `${WEB_URL}/privacidade`;
@@ -76,6 +77,10 @@ export default function SignupScreen() {
     setError('');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
+    // Telemetria — dispara ANTES da chamada de rede pra capturar tentativa
+    // mesmo se signUp falhar. Paridade com PWA `app/(auth)/signup/page.tsx`.
+    track(EVENTS.SIGNUP_STARTED, { has_referral: !!refParam });
+
     // Forward referral code (mirrors PWA src/actions/auth.ts:signUp). The
     // handle_new_user trigger validates the code; invalid codes are simply
     // ignored, so it's safe to pass through verbatim.
@@ -83,6 +88,9 @@ export default function SignupScreen() {
 
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // `signup_completed` aqui significa "conta criada, e-mail de confirmação
+      // disparado" — não que o user já confirmou. PWA tem mesma semântica.
+      track(EVENTS.SIGNUP_COMPLETED, { has_referral: !!refParam });
       setSuccess(true);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

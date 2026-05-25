@@ -46,7 +46,17 @@ export const EVENTS = {
   // Conversion
   CHECKOUT_STARTED: 'checkout_started',
   CHECKOUT_COMPLETED: 'checkout_completed',
+  CHECKOUT_CANCELED: 'checkout_canceled',
+  CHECKOUT_FAILED: 'checkout_failed',
+  COUPON_APPLIED: 'coupon_applied',
+  COUPON_REJECTED: 'coupon_rejected',
+  PAYMENT_METHOD_CHOSEN: 'payment_method_chosen',
   SUBSCRIPTION_STARTED: 'subscription_started',
+  SUBSCRIPTION_SPLIT_ENABLED: 'subscription_split_enabled',
+  SUBSCRIPTION_SPLIT_DISABLED: 'subscription_split_disabled',
+  RESTORE_ATTEMPTED: 'restore_attempted',
+  RESTORE_SUCCEEDED: 'restore_succeeded',
+  PAYMENT_FAILED: 'payment_failed',
 
   // Retention
   TRIAL_EXPIRED: 'trial_expired',

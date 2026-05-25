@@ -1,6 +1,20 @@
 import Link from "next/link";
+import { EVENTS } from "@/lib/analytics";
+import PageViewTracker from "@/components/analytics/PageViewTracker";
 
 export default function PricingSuccessPage() {
+  return (
+    <>
+      <PageViewTracker
+        event={EVENTS.CHECKOUT_COMPLETED}
+        properties={{ source: "pricing_success_redirect", provider: "stripe" }}
+      />
+      <PricingSuccessContent />
+    </>
+  );
+}
+
+function PricingSuccessContent() {
   return (
     <div className="min-h-screen bg-[#EEECEA] flex items-center justify-center px-4">
       <div className="bg-white rounded-2xl shadow-lg p-8 max-w-md w-full text-center">

@@ -26,6 +26,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
+import { track, EVENTS } from 'src/lib/analytics';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
@@ -67,7 +68,16 @@ export default function PricingScreen() {
       const pkgs = await getAvailablePackages();
       setPackages(pkgs);
       setLoadingPkgs(false);
+      // Telemetria — dispara depois que packages carregam pra anexar
+      // `packages_offered` (quando 0, sinaliza problema RevenueCat).
+      track(EVENTS.PRICING_VIEWED, {
+        source: 'native_paywall',
+        platform: Platform.OS,
+        packages_offered: pkgs.length,
+        current_tier: sub?.tier ?? null,
+      });
     })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function getAccessToken(): Promise<string | null> {
@@ -76,6 +86,18 @@ export default function PricingScreen() {
   }
 
   async function handlePurchase(pkg: PurchasesPackage) {
+    const provider = Platform.OS === 'ios' ? 'apple_iap' : 'google_iap';
+    // Captura intent ANTES do gate de auth — assim "tentei comprar mas não
+    // estava logado" também conta no funil. Padrão simétrico ao PWA.
+    track(EVENTS.CHECKOUT_STARTED, {
+      plan_id: pkg.product.identifier,
+      provider,
+      price: pkg.product.price,
+      currency: pkg.product.currencyCode,
+      package_type: pkg.packageType,
+      source: 'native_paywall',
+    });
+
     const token = await getAccessToken();
     if (!token) {
       toast.show({ message: t('toasts.common.sessionExpired'), variant: 'error' });
@@ -89,15 +111,39 @@ export default function PricingScreen() {
 
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      // checkout_completed = StoreKit confirmou compra. subscription_started
+      // ainda é emitido server-side pelo revenuecat webhook (canonical), mas
+      // este client-side fica como sinal rápido pra atribuição (UTMs, etc).
+      track(EVENTS.CHECKOUT_COMPLETED, {
+        plan_id: pkg.product.identifier,
+        provider,
+        price: pkg.product.price,
+        currency: pkg.product.currencyCode,
+        source: 'native_paywall',
+      });
       await loadSub();
       toast.show({ message: t('toasts.subscription.premiumWelcome'), variant: 'success' });
-    } else if (result.error !== 'Compra cancelada') {
+    } else if (result.error === 'Compra cancelada') {
+      track(EVENTS.CHECKOUT_CANCELED, {
+        plan_id: pkg.product.identifier,
+        provider,
+        source: 'native_paywall',
+      });
+    } else {
+      track(EVENTS.CHECKOUT_FAILED, {
+        plan_id: pkg.product.identifier,
+        provider,
+        error_message: result.error,
+        source: 'native_paywall',
+      });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.show({ message: result.error || t('toasts.subscription.purchaseFailed'), variant: 'error' });
     }
   }
 
   async function handleRestore() {
+    track(EVENTS.RESTORE_ATTEMPTED, { platform: Platform.OS, source: 'native_paywall' });
+
     const token = await getAccessToken();
     if (!token) {
       toast.show({ message: t('toasts.common.sessionExpired'), variant: 'error' });
@@ -108,10 +154,12 @@ export default function PricingScreen() {
     setRestoring(false);
 
     if (result.success && result.hasActive) {
+      track(EVENTS.RESTORE_SUCCEEDED, { platform: Platform.OS, has_active: true });
       await loadSub();
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast.show({ message: t('toasts.subscription.restoreSuccess'), variant: 'success' });
     } else if (result.success) {
+      track(EVENTS.RESTORE_SUCCEEDED, { platform: Platform.OS, has_active: false });
       toast.show({ message: t('toasts.subscription.restoreFailedNoSubscription'), variant: 'info' });
     } else {
       toast.show({ message: result.error || t('toasts.subscription.restoreFailed'), variant: 'error' });

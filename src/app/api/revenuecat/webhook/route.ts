@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { createSplitExpenseForPeriod } from "@/lib/billing/split";
 import { sendSubscriptionWelcomeEmail } from "@/lib/emails/subscription-welcome";
 import { reportServerError } from "@/lib/error-tracking/report-server";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 /**
  * RevenueCat webhook — receives server-side events for iOS and Android
@@ -168,6 +169,35 @@ export async function POST(req: NextRequest) {
           });
         }
 
+        // Telemetria — INITIAL_PURCHASE conta como checkout_completed +
+        // subscription_started; UNCANCELLATION é só resume (não cria sub
+        // nova) então fica como evento próprio pra retention dashboards.
+        const isInitial = event.type === "INITIAL_PURCHASE";
+        if (isInitial) {
+          captureServerEvent(event.app_user_id, "checkout_completed", {
+            provider: providerTag === "google" ? "google_iap" : "apple_iap",
+            plan_id: plan.id,
+            is_trial: event.period_type === "TRIAL" || event.period_type === "INTRO",
+            store: event.store,
+            environment: event.environment,
+          });
+          captureServerEvent(event.app_user_id, "subscription_started", {
+            provider: providerTag === "google" ? "google_iap" : "apple_iap",
+            plan_id: plan.id,
+            is_trial: event.period_type === "TRIAL" || event.period_type === "INTRO",
+            payment_method: methodHint,
+            store: event.store,
+            environment: event.environment,
+            transaction_id: event.original_transaction_id,
+          });
+        } else {
+          captureServerEvent(event.app_user_id, "subscription_uncancelled", {
+            provider: providerTag === "google" ? "google_iap" : "apple_iap",
+            plan_id: plan.id,
+            store: event.store,
+          });
+        }
+
         // Welcome email on first purchase only. UNCANCELLATION doesn't
         // qualify — that's someone resuming auto-renew after canceling.
         // Detached: see comment in stripe/webhook for why we don't await.
@@ -230,6 +260,15 @@ export async function POST(req: NextRequest) {
               periodStart: periodStart.toISOString().slice(0, 10),
             });
           }
+
+          captureServerEvent(event.app_user_id, "subscription_renewed", {
+            provider: providerTag === "google" ? "google_iap" : "apple_iap",
+            plan_id: plan.id,
+            subscription_id: dbSub.id,
+            period_start: periodStart.toISOString(),
+            split_active: !!dbSub.auto_split,
+            store: event.store,
+          });
         }
         break;
       }
@@ -245,6 +284,16 @@ export async function POST(req: NextRequest) {
           .eq("user_id", event.app_user_id)
           .eq("payment_provider", providerTag)
           .in("status", ["active", "past_due"]);
+
+        // `cancel_reason` da Apple/Google distingue "user requested" vs
+        // "billing issue" vs "developer cancellation" — útil pra entender
+        // se churn é decisão ou problema técnico.
+        captureServerEvent(event.app_user_id, "subscription_cancel_scheduled", {
+          provider: providerTag === "google" ? "google_iap" : "apple_iap",
+          plan_id: plan.id,
+          cancel_reason: event.cancel_reason ?? null,
+          store: event.store,
+        });
         break;
       }
 
@@ -259,6 +308,13 @@ export async function POST(req: NextRequest) {
           .eq("user_id", event.app_user_id)
           .eq("payment_provider", providerTag)
           .in("status", ["active", "past_due"]);
+
+        captureServerEvent(event.app_user_id, "subscription_canceled", {
+          provider: providerTag === "google" ? "google_iap" : "apple_iap",
+          plan_id: plan.id,
+          cancel_reason: event.cancel_reason ?? "expired",
+          store: event.store,
+        });
         break;
       }
 
@@ -272,6 +328,12 @@ export async function POST(req: NextRequest) {
           .eq("user_id", event.app_user_id)
           .eq("payment_provider", providerTag)
           .eq("status", "active");
+
+        captureServerEvent(event.app_user_id, "payment_failed", {
+          provider: providerTag === "google" ? "google_iap" : "apple_iap",
+          plan_id: plan.id,
+          store: event.store,
+        });
         break;
       }
 
@@ -287,6 +349,12 @@ export async function POST(req: NextRequest) {
           .eq("user_id", event.app_user_id)
           .eq("payment_provider", providerTag)
           .in("status", ["active", "past_due"]);
+
+        captureServerEvent(event.app_user_id, "subscription_plan_changed", {
+          provider: providerTag === "google" ? "google_iap" : "apple_iap",
+          new_plan_id: plan.id,
+          store: event.store,
+        });
         break;
       }
 

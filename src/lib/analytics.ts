@@ -33,12 +33,20 @@ export const EVENTS = {
   // Conversion
   CHECKOUT_STARTED: "checkout_started",
   CHECKOUT_COMPLETED: "checkout_completed",
+  CHECKOUT_CANCELED: "checkout_canceled",
+  CHECKOUT_FAILED: "checkout_failed",
   COUPON_APPLIED: "coupon_applied",
   COUPON_REJECTED: "coupon_rejected",
   PAYMENT_METHOD_CHOSEN: "payment_method_chosen",
   SUBSCRIPTION_STARTED: "subscription_started",
   SUBSCRIPTION_SPLIT_ENABLED: "subscription_split_enabled",
   SUBSCRIPTION_SPLIT_DISABLED: "subscription_split_disabled",
+  PAYMENT_FAILED: "payment_failed",
+  // Native-only (no PWA path: IAP restore is only meaningful inside the
+  // native app), but kept in the PWA catalog so the analytics-parity test
+  // passes and so PostHog event-name typing stays consistent across surfaces.
+  RESTORE_ATTEMPTED: "restore_attempted",
+  RESTORE_SUCCEEDED: "restore_succeeded",
 
   // Retention
   TRIAL_EXPIRED: "trial_expired",
