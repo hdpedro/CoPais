@@ -5,12 +5,21 @@ import { useI18n } from "@/i18n/provider";
 import EditProfileForm from "./EditProfileForm";
 import WhatsAppLinkSection from "./WhatsAppLinkSection";
 import LanguageSelector from "@/components/LanguageSelector";
+import ReferralCard from "@/components/referral/ReferralCard";
 import { signOut } from "@/actions/auth";
 
 interface Membership {
   group_id: string;
   role: string;
   groupName: string;
+}
+
+interface ReferralProps {
+  code: string;
+  totalClicks: number;
+  totalSignups: number;
+  totalRewards: number;
+  monthsEarned: number;
 }
 
 export default function ProfileContent({
@@ -23,6 +32,7 @@ export default function ProfileContent({
   memberships,
   whatsappStatus,
   whatsappPhone,
+  referral,
 }: {
   displayName: string;
   email: string;
@@ -33,6 +43,7 @@ export default function ProfileContent({
   memberships: Membership[];
   whatsappStatus: "unlinked" | "pending" | "linked";
   whatsappPhone?: string;
+  referral?: ReferralProps | null;
 }) {
   const { t } = useI18n();
 
@@ -46,6 +57,18 @@ export default function ProfileContent({
     lawyer: t("nav.member"),
     viewer: t("nav.member"),
   };
+  // F#46: o role do user no APP (parent/grandparent/caregiver) é
+  // diferente do role NO GRUPO (admin/member). Mostrar "Membro" embaixo
+  // do email confundia user que era admin do grupo. Solução: só mostrar
+  // tag quando role for não-default (mediator, lawyer, viewer — papéis
+  // que importam pro contexto colaborativo). Pais/avós/cuidadores são
+  // implícitos pelo grupo.
+  const SHOW_USER_ROLE_TAG: Record<string, boolean> = {
+    mediator: true,
+    lawyer: true,
+    viewer: true,
+  };
+  const showUserRoleTag = SHOW_USER_ROLE_TAG[roleName] === true;
 
   return (
     <div className="max-w-lg mx-auto space-y-6 pb-20">
@@ -62,7 +85,9 @@ export default function ProfileContent({
           <div>
             <h2 className="text-xl font-bold text-[#0E0C0A]">{displayName}</h2>
             <p className="text-sm text-[#9A8878]">{email}</p>
-            <p className="text-xs text-[#C07055] font-medium mt-1">{roleLabels[roleName] || roleName}</p>
+            {showUserRoleTag && (
+              <p className="text-xs text-[#C07055] font-medium mt-1">{roleLabels[roleName] || roleName}</p>
+            )}
           </div>
         </div>
 
@@ -147,6 +172,19 @@ export default function ProfileContent({
           </div>
         </Link>
       </div>
+
+      {/* Referral — secundário, vai antes do logout pra não competir
+          com a info primária do perfil. F#50 (E2E loop iter 2): antes
+          ficava no topo da página, acima do header "Perfil". */}
+      {referral && (
+        <ReferralCard
+          code={referral.code}
+          totalClicks={referral.totalClicks}
+          totalSignups={referral.totalSignups}
+          totalRewards={referral.totalRewards}
+          monthsEarned={referral.monthsEarned}
+        />
+      )}
 
       {/* Sign Out */}
       <form action={signOut}>

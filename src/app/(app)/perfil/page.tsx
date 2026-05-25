@@ -3,7 +3,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getDisplayName } from "@/lib/constants";
 import { getReferralStats } from "@/lib/referral";
 import ProfileContent from "./ProfileContent";
-import ReferralCard from "@/components/referral/ReferralCard";
 import { getWhatsAppLinkStatus } from "@/actions/whatsapp";
 import { getRequestLocale } from "@/i18n/server";
 
@@ -48,30 +47,31 @@ export default async function ProfilePage() {
     groupName: (m.coparenting_groups as unknown as { name: string } | null)?.name || "—",
   }));
 
+  // F#50 (E2E loop iter 2): Referral movido pra DENTRO de ProfileContent
+  // (logo antes de Logout) ao invés de no topo. Razão: hierarquia visual
+  // = info primária do user primeiro, ações secundárias (referral) depois.
   return (
-    <>
-      {referralStats && (
-        <div className="max-w-2xl mx-auto px-4 pt-4">
-          <ReferralCard
-            code={referralStats.code}
-            totalClicks={referralStats.totalClicks}
-            totalSignups={referralStats.totalSignups}
-            totalRewards={referralStats.totalRewards}
-            monthsEarned={referralStats.monthsEarned}
-          />
-        </div>
-      )}
-      <ProfileContent
-        displayName={displayName}
-        email={user.email || ""}
-        phone={profile?.phone}
-        roleName={profile?.role || "parent"}
-        createdAt={createdAt}
-        currentName={profile?.full_name || ""}
-        memberships={mappedMemberships}
-        whatsappStatus={waStatus?.status || "unlinked"}
-        whatsappPhone={waStatus?.status !== "unlinked" ? waStatus?.phone : undefined}
-      />
-    </>
+    <ProfileContent
+      displayName={displayName}
+      email={user.email || ""}
+      phone={profile?.phone}
+      roleName={profile?.role || "parent"}
+      createdAt={createdAt}
+      currentName={profile?.full_name || ""}
+      memberships={mappedMemberships}
+      whatsappStatus={waStatus?.status || "unlinked"}
+      whatsappPhone={waStatus?.status !== "unlinked" ? waStatus?.phone : undefined}
+      referral={
+        referralStats
+          ? {
+              code: referralStats.code,
+              totalClicks: referralStats.totalClicks,
+              totalSignups: referralStats.totalSignups,
+              totalRewards: referralStats.totalRewards,
+              monthsEarned: referralStats.monthsEarned,
+            }
+          : null
+      }
+    />
   );
 }
