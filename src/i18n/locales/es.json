@@ -518,7 +518,7 @@
   "chat": {
     "title": "Chat",
     "groupChat": "Chat grupal",
-    "members": "{count} miembros",
+    "members": "{count, plural, one {# miembro} other {# miembros}}",
     "typeMessage": "Escribe un mensaje...",
     "noMessages": "No hay mensajes aún",
     "startConversation": "Inicia la conversación",
