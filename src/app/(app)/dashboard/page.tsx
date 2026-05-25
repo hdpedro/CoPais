@@ -354,26 +354,35 @@ export default async function DashboardPage() {
   // `child_vaccine_coverage`. Tile aparece quando há pendência calma.
   const { data: vaccineCoverageRows } = await supabase
     .from("child_vaccine_coverage")
-    .select("child_id, overdue_count, due_soon_count, next_due_date, next_due_vaccine_name")
+    .select("child_id, overdue_count, due_soon_count, total_taken, next_due_date, next_due_vaccine_name")
     .eq("group_id", groupId);
-  const vaccinePending = (vaccineCoverageRows || []).reduce<{
-    total: number;
-    nextDueDate: string | null;
-    nextDueVaccineName: string | null;
-  }>(
-    (acc, row) => {
-      const overdue = Number(row.overdue_count || 0);
-      const dueSoon = Number(row.due_soon_count || 0);
-      acc.total += overdue + dueSoon;
-      const rowDate = row.next_due_date as string | null;
-      if (rowDate && (!acc.nextDueDate || rowDate < acc.nextDueDate)) {
-        acc.nextDueDate = rowDate;
-        acc.nextDueVaccineName = (row.next_due_vaccine_name as string | null) || null;
-      }
-      return acc;
-    },
-    { total: 0, nextDueDate: null, nextDueVaccineName: null },
-  );
+  // F#25 (E2E PRD 2026-05-25) — pra criança recém-cadastrada sem
+  // NENHUM registro vacinal, o motor classificava doses como overdue
+  // pela idade. Banner "1 reforço pendente: COVID-19 hoje" assustava
+  // o user antes dele sequer ter adicionado o histórico. Fix: só
+  // soma overdue/due_soon de crianças que JÁ TÊM algum registro
+  // (`total_taken > 0`). Crianças zeradas viram "Adicione o histórico
+  // vacinal" via outro caminho (card de saúde), não pendência alarmante.
+  const vaccinePending = (vaccineCoverageRows || [])
+    .filter((row) => Number(row.total_taken || 0) > 0)
+    .reduce<{
+      total: number;
+      nextDueDate: string | null;
+      nextDueVaccineName: string | null;
+    }>(
+      (acc, row) => {
+        const overdue = Number(row.overdue_count || 0);
+        const dueSoon = Number(row.due_soon_count || 0);
+        acc.total += overdue + dueSoon;
+        const rowDate = row.next_due_date as string | null;
+        if (rowDate && (!acc.nextDueDate || rowDate < acc.nextDueDate)) {
+          acc.nextDueDate = rowDate;
+          acc.nextDueVaccineName = (row.next_due_vaccine_name as string | null) || null;
+        }
+        return acc;
+      },
+      { total: 0, nextDueDate: null, nextDueVaccineName: null },
+    );
 
   // Filter decisions where user hasn't voted yet
   const openDecisionIds = (openDecisions || []).map(d => d.id);
