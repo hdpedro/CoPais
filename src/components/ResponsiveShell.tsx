@@ -21,6 +21,17 @@ function shouldHideAIFab(pathname: string | null): boolean {
   return HIDE_AI_FAB_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
 }
 
+// F#7 (E2E 2026-05-25) — esconder sidebar/bottom-nav inteira durante
+// onboarding. Sidebar full (16 nav items) competia com o foco do wizard
+// e diluía o fluxo de criação. Mesma técnica do Stripe Atlas / Notion /
+// Linear: durante onboarding, a tela é DEDICADA ao wizard. Header fica
+// no /perfil button + logo simples no topo.
+const HIDE_SHELL_ROUTES = ["/onboarding"];
+function shouldHideShell(pathname: string | null): boolean {
+  if (!pathname) return false;
+  return HIDE_SHELL_ROUTES.some((r) => pathname === r || pathname.startsWith(`${r}/`));
+}
+
 export default function ResponsiveShell({
   initial,
   fullName,
@@ -39,6 +50,7 @@ export default function ResponsiveShell({
   const isDesktop = useIsDesktop();
   const pathname = usePathname();
   const hideAIFab = shouldHideAIFab(pathname);
+  const hideShell = shouldHideShell(pathname);
   const [isKeyboardOpen, setIsKeyboardOpen] = useState(false);
 
   // Native WebView mode: quando o app iOS/Android abre paginas via WebView,
@@ -95,6 +107,31 @@ export default function ResponsiveShell({
           {children}
         </div>
       </main>
+    );
+  }
+
+  // F#7 — durante onboarding, esconde sidebar/bottom-nav inteira.
+  // Header mínimo: só logo Kindar (sem nav items competindo com o
+  // wizard). Padrão Stripe Atlas / Notion / Linear "minimal during
+  // setup". Quando user termina onboarding (window.location → /dashboard),
+  // o shell completo reaparece.
+  if (hideShell) {
+    return (
+      <>
+        <header className="fixed top-0 left-0 right-0 z-40 bg-[#EEECEA]/80 backdrop-blur-2xl px-5 py-3 flex items-center safe-area-top">
+          <div className="max-w-4xl mx-auto w-full flex items-center justify-center">
+            <div className="flex items-center gap-1.5">
+              <KindarLogo size={28} />
+              <span className="text-xl font-bold text-[#2C2C2C] tracking-tight">Kindar</span>
+            </div>
+          </div>
+        </header>
+        <main className="pt-[max(72px,calc(60px+env(safe-area-inset-top)))]">
+          <div className="max-w-4xl mx-auto px-5 py-4 pb-12">
+            {children}
+          </div>
+        </main>
+      </>
     );
   }
 
