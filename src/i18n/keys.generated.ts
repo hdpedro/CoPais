@@ -1865,6 +1865,7 @@ export type TranslationKey =
   | "newForm.activityNamePlaceholder"
   | "newForm.addItem"
   | "newForm.additionalDetails"
+  | "newForm.allChildren"
   | "newForm.allOrNone"
   | "newForm.catArt"
   | "newForm.catCourse"
@@ -4446,6 +4447,7 @@ export const TRANSLATION_KEYS = [
   "newForm.activityNamePlaceholder",
   "newForm.addItem",
   "newForm.additionalDetails",
+  "newForm.allChildren",
   "newForm.allOrNone",
   "newForm.catArt",
   "newForm.catCourse",
