@@ -424,8 +424,14 @@ export default function AssinaturaClient({
       ) : null}
 
       <div className="space-y-4">
-        {/* Early Bird — only shown if slots remain AND not already on a paid plan */}
-        {earlyBirdAvailable && subscription.tier !== "harmonia" && subscription.tier !== "premium_juridico" && (
+        {/* Early Bird — só esconde quando user JÁ tem sub paga ativa
+            (não-trial). Users em trial (subscription.isTrial=true) DEVEM
+            ver pra poder travar a oferta antes do trial expirar.
+            Bug F#28 (E2E 2026-05-25): trial user via plan_id =
+            premium_juridico_monthly → tier='premium_juridico' → check
+            antigo bloqueava Early Bird mesmo o user ainda não tendo
+            pago nada. Fix: incluir isTrial como motivo pra mostrar. */}
+        {earlyBirdAvailable && (subscription.isTrial || (subscription.tier !== "harmonia" && subscription.tier !== "premium_juridico")) && (
           <article className="relative bg-white rounded-2xl border-2 border-emerald-300 p-6 shadow-sm">
             <div className="absolute -top-3 left-6 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full">
               Early Bird · Restam {earlyBird.slotsRemaining}/{earlyBird.maxSubscribers}
@@ -546,6 +552,17 @@ export default function AssinaturaClient({
             {busyPlan === "premium_juridico_monthly" ? "Abrindo checkout…" : "Assinar Premium Jurídico"}
           </button>
         </article>
+
+        {/* Atalho pro plano anual — economiza ~17% vs mensal. /pricing
+            tem o toggle Mensal/Anual completo + Early Bird. Quem está
+            logado vê esse link inline pra não precisar pesquisar.
+            F#30 (E2E 2026-05-25): /assinatura logado SÓ tinha mensal. */}
+        <a
+          href="/pricing"
+          className="block text-center text-sm text-[#C07055] font-medium mt-2 py-3 rounded-xl border border-dashed border-[#C07055]/40 hover:bg-[#C07055]/5 transition-colors"
+        >
+          Prefere pagar 1× por ano? Economize ~17% no plano anual →
+        </a>
       </div>
 
       {/* Split automático — only for active (non-trial) subs with an eligible co-parent */}
