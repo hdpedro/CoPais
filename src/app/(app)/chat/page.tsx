@@ -2,18 +2,11 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 
-import dynamic from "next/dynamic";
-
-// SSR disabled pra evitar React #418 hydration mismatch: ChatRoom usa
-// `new Date()` em getDateLabel/getDateKey/generateMonthOptions, que
-// resolve diferente entre server e client (timezone diff). Componente
-// é altamente interativo (realtime, upload, optimistic UI) — não tem
-// SEO value e a UX é equivalente (skeleton → mount). Bug F#61 do loop
-// iteração 2 — chat ficava preso no skeleton em prod.
-const ChatRoom = dynamic(() => import("./ChatRoom"), {
-  ssr: false,
-  loading: () => <div className="animate-pulse bg-gray-100 rounded-xl h-96" />,
-});
+// `dynamic({ ssr: false })` vive em ChatRoomLoader ("use client" wrapper)
+// porque Next 16 turbopack proíbe `ssr: false` em Server Components (build
+// error fatal). Wrapper isola o constraint sem mudar UX. Detalhes: bug
+// F#61 + P0 incident 2026-05-25 documentados em ChatRoomLoader.tsx.
+import ChatRoom from "./ChatRoomLoader";
 
 // Hidden topic slugs (kept in DB for FK constraints, but not shown)
 const HIDDEN_TOPIC_SLUGS = ["financeiro", "saude", "escola", "rotina"];
