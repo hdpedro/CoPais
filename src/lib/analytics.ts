@@ -92,6 +92,25 @@ export const EVENTS = {
   EXPENSE_CANCEL_REJECTED: "expense_cancel_rejected",   // reviewer refused cancel
   EXPENSE_REOPENED: "expense_reopened",            // reviewer reopened within 24h
 
+  // Push notifications — Native iOS/Android soft prompt + register pipeline.
+  // Adicionados aqui pra paridade com o catálogo do Native (kindar-native/app/
+  // _src/lib/analytics.ts). PWA não dispara estes eventos diretamente, mas o
+  // teste `analytics-events-parity.test.ts` exige que toda chave do Native
+  // exista aqui — sem isso, qualquer dashboard/funil PostHog que cruze os
+  // dois lados fica com half-known events. Background: regressão silenciosa
+  // 2026-05-22 (`analytics.capture` em vez de `track`) deu zero apns_token
+  // em prod por 3 dias; este catálogo + test surface no Native + CI typecheck
+  // no Native fecham o ciclo. Vide `project_kindar_apns_silent_regression`.
+  SOFT_PROMPT_SHOWN: "soft_prompt_shown",
+  SOFT_PROMPT_ACCEPTED: "soft_prompt_accepted",
+  SOFT_PROMPT_DECLINED: "soft_prompt_declined",
+  SOFT_PROMPT_OUTCOME: "soft_prompt_outcome",
+  PUSH_TOKEN_OBTAINED: "push_token_obtained",
+  PUSH_TOKEN_EMPTY: "push_token_empty",
+  PUSH_TOKEN_OBTAIN_FAILED: "push_token_obtain_failed",
+  PUSH_TOKEN_REGISTER_SUCCEEDED: "push_token_register_succeeded",
+  PUSH_TOKEN_REGISTER_FAILED: "push_token_register_failed",
+
   // Vaccine Engine — Motor de Saúde Preventiva (migration 00082)
   VACCINE_STATUS_VIEWED: "vaccine_status_viewed",          // user mounted /saude/vacinas
   VACCINE_TIMELINE_SCROLLED: "vaccine_timeline_scrolled",  // proxy de engajamento âncora

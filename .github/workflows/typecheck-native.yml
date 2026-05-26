@@ -1,0 +1,70 @@
+name: Typecheck (Native)
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'kindar-native/**'
+      - '.github/workflows/typecheck-native.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'kindar-native/**'
+      - '.github/workflows/typecheck-native.yml'
+
+# Why this exists:
+#   The PWA typecheck.yml workflow explicitly excludes kindar-native. The
+#   comment there claims "the native app has its own type-check setup",
+#   but that setup never existed. As a result, on 2026-05-22 a refactor
+#   shipped a typo (`analytics.capture` instead of `analytics.track`) that
+#   tsc would have caught — `analytics.capture` is `undefined` under
+#   `import * as analytics`. The TypeError silently broke the soft-prompt
+#   handler before `registerForPushNotificationsAsync({forceRequest:true})`
+#   ran. Net effect: ZERO `apns_token` rows in production from 2026-05-22
+#   onward, no iOS push to anyone. See `project_kindar_apns_silent_regression`.
+#
+# Continue-on-error during stabilization:
+#   The native tree currently has 2 pre-existing tsc errors unrelated to
+#   push (splash-icon.png asset declaration + GrowthChart color union). The
+#   first pass runs with `continue-on-error: true` so this workflow surfaces
+#   regressions without blocking PRs that don't fix the existing errors.
+#   Once the 2 known errors are cleaned up, flip `continue-on-error` to
+#   false and require this check in branch protection.
+
+jobs:
+  typecheck-native:
+    name: tsc --noEmit (kindar-native)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: kindar-native
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: kindar-native/package-lock.json
+
+      - run: npm ci
+
+      - name: Run tsc
+        run: npm run typecheck
+        continue-on-error: true
+        id: tsc
+
+      - name: Diff against baseline of pre-existing errors
+        # Hard-fails the job if any NEW tsc error appears beyond the known 2.
+        # When the baseline drops to 0, remove this step and the
+        # continue-on-error above.
+        if: steps.tsc.outcome == 'failure'
+        run: |
+          npm run typecheck 2>&1 | tee tsc.log || true
+          ERR_COUNT=$(grep -c "^app/" tsc.log || echo 0)
+          BASELINE=2
+          echo "tsc error count: $ERR_COUNT (baseline: $BASELINE)"
+          if [ "$ERR_COUNT" -gt "$BASELINE" ]; then
+            echo "::error::tsc surfaced $ERR_COUNT errors, baseline is $BASELINE — this PR introduces new type errors."
+            exit 1
+          fi
