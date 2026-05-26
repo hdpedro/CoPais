@@ -156,23 +156,20 @@ async function sendApnsDebug(token: string): Promise<ApnsAttempt> {
       _debug: true,
     };
 
-    const res = await fetch(apnsUrl, {
-      method: "POST",
-      headers: {
-        authorization: `bearer ${jwt}`,
-        "apns-topic": bundleId,
-        "apns-push-type": "alert",
-        "apns-priority": "10",
-        "content-type": "application/json",
-      },
+    // APNs requer HTTP/2 — vide push.ts pra explicação completa do bug.
+    const { status, body: resBody } = await sendDebugViaHttp2({
+      url: apnsUrl,
+      jwt,
+      bundleId,
       body: JSON.stringify(payload),
     });
 
     let parsedReason: string | null = null;
-    if (!res.ok) {
+    const isOk = status >= 200 && status < 300;
+    if (!isOk && resBody) {
       try {
-        const body = (await res.json()) as { reason?: string };
-        parsedReason = body?.reason ?? null;
+        const parsed = JSON.parse(resBody) as { reason?: string };
+        parsedReason = parsed?.reason ?? null;
       } catch {
         // body wasn't JSON
       }
@@ -180,9 +177,9 @@ async function sendApnsDebug(token: string): Promise<ApnsAttempt> {
 
     return {
       tokenSuffix: tokenSuffix(token),
-      delivered: res.ok,
-      status: res.status,
-      reason: parsedReason ?? (res.ok ? "delivered" : `http_${res.status}`),
+      delivered: isOk,
+      status,
+      reason: parsedReason ?? (isOk ? "delivered" : `http_${status}`),
       errorMessage: null,
     };
   } catch (err) {
@@ -194,6 +191,71 @@ async function sendApnsDebug(token: string): Promise<ApnsAttempt> {
       errorMessage: err instanceof Error ? err.message : String(err),
     };
   }
+}
+
+/**
+ * Send via HTTP/2 nativo. APNs aceita SOMENTE HTTP/2; fetch (undici) usa
+ * HTTP/1.1 por default em Node runtime e Apple recusa. Vide push.ts pra
+ * análise completa.
+ */
+async function sendDebugViaHttp2({
+  url,
+  jwt,
+  bundleId,
+  body,
+}: {
+  url: string;
+  jwt: string;
+  bundleId: string;
+  body: string;
+}): Promise<{ status: number; body: string }> {
+  const http2 = await import("node:http2");
+  const u = new URL(url);
+  return new Promise((resolve, reject) => {
+    const client = http2.connect(u.origin);
+    let settled = false;
+    const safeReject = (err: Error) => {
+      if (settled) return;
+      settled = true;
+      try { client.close(); } catch {}
+      reject(err);
+    };
+    const safeResolve = (val: { status: number; body: string }) => {
+      if (settled) return;
+      settled = true;
+      try { client.close(); } catch {}
+      resolve(val);
+    };
+    client.on("error", safeReject);
+    const timeout = setTimeout(() => safeReject(new Error("apns http2 timeout")), 10_000);
+    const req = client.request({
+      ":method": "POST",
+      ":path": u.pathname,
+      authorization: `bearer ${jwt}`,
+      "apns-topic": bundleId,
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+      "content-type": "application/json",
+      "content-length": Buffer.byteLength(body),
+    });
+    req.setEncoding("utf8");
+    let status = 0;
+    let responseBody = "";
+    req.on("response", (headers) => {
+      status = Number(headers[":status"]) || 0;
+    });
+    req.on("data", (chunk: string) => { responseBody += chunk; });
+    req.on("end", () => {
+      clearTimeout(timeout);
+      safeResolve({ status, body: responseBody });
+    });
+    req.on("error", (err) => {
+      clearTimeout(timeout);
+      safeReject(err);
+    });
+    req.write(body);
+    req.end();
+  });
 }
 
 export async function POST(req: NextRequest) {

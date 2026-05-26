@@ -400,44 +400,128 @@ async function sendApnsPush(
       url: payload.url || "/dashboard",
     };
 
-    const res = await fetch(apnsUrl, {
-      method: "POST",
-      headers: {
-        authorization: `bearer ${jwt}`,
-        "apns-topic": bundleId,
-        "apns-push-type": "alert",
-        "apns-priority": "10",
-        "content-type": "application/json",
-      },
-      body: JSON.stringify(apnsPayload),
+    // APNs requer HTTP/2. Node fetch (undici) usa HTTP/1.1 por default em
+    // Node runtime — Apple responde com frames HTTP/2, undici não parseia,
+    // erro vira "fetch failed" / "Response does not match HTTP/1.1".
+    // Bug histórico 2026-05-26: capturado via teste manual com curl/node
+    // (`api.push.apple.com` recusa HTTP/1.1 conexões). Solução: usar
+    // `node:http2` nativo com session efêmera (1 por request — overhead
+    // mínimo dado raridade da chamada; pode evoluir pra pool se cron
+    // de push virar bottleneck).
+    const apnsPayloadJson = JSON.stringify(apnsPayload);
+    const { status: resStatus, body: resBody } = await sendApnsViaHttp2({
+      url: apnsUrl,
+      jwt,
+      bundleId,
+      body: apnsPayloadJson,
     });
 
-    if (res.ok) return { delivered: true };
+    if (resStatus >= 200 && resStatus < 300) return { delivered: true };
 
     // Apple's permanent-failure signals — see
     // https://developer.apple.com/documentation/usernotifications/sending_notification_requests_to_apns
     //   410 Gone           → device unregistered the app
     //   400 BadDeviceToken → token is bogus
     // 5xx + everything else = transient → keep token for next attempt.
-    if (res.status === 410) {
+    if (resStatus === 410) {
       return { delivered: false, removeToken: true, reason: "unregistered" };
     }
-    if (res.status === 400) {
+    if (resStatus === 400) {
       try {
-        const body = (await res.json()) as { reason?: string };
-        if (body?.reason === "BadDeviceToken") {
+        const parsed = JSON.parse(resBody) as { reason?: string };
+        if (parsed?.reason === "BadDeviceToken") {
           return { delivered: false, removeToken: true, reason: "bad_token" };
         }
       } catch {
         // body parse failed — treat as transient.
       }
     }
-    return { delivered: false, removeToken: false, reason: `http_${res.status}` };
+    return { delivered: false, removeToken: false, reason: `http_${resStatus}` };
   } catch (err) {
     console.warn("[APNs] Failed to send:", err);
     // Network/crypto error — never delete; will retry on next push.
     return { delivered: false, removeToken: false, reason: "network_error" };
   }
+}
+
+/**
+ * Envia POST `/3/device/<token>` via HTTP/2 nativo do Node.
+ *
+ * Por que não fetch:
+ *   Apple's api.push.apple.com aceita SOMENTE HTTP/2. O fetch global do Node
+ *   (undici) negocia HTTP/1.1 por default — Apple responde com frames HTTP/2
+ *   e o parser do undici quebra com:
+ *     "HTTPParserError: Response does not match the HTTP/1.1 protocol".
+ *   Testado manualmente 2026-05-26: undici falha consistente, http2 nativo
+ *   funciona. Vercel Edge runtime tem fetch HTTP/2 transparente, mas Node
+ *   runtime (que é onde push.ts roda — cron/server actions) não tem.
+ *
+ * Sessão efêmera (1 por chamada):
+ *   Push individual via cron tem volume baixo (~dezenas/min). Overhead do
+ *   handshake TLS é ~50ms — aceitável vs complexidade de manter pool
+ *   compartilhado em serverless (cold starts matam connection reuse).
+ *   Quando volume crescer, refatorar pra session pool com keepAlive.
+ */
+async function sendApnsViaHttp2({
+  url,
+  jwt,
+  bundleId,
+  body,
+}: {
+  url: string;
+  jwt: string;
+  bundleId: string;
+  body: string;
+}): Promise<{ status: number; body: string }> {
+  const http2 = await import("node:http2");
+  const u = new URL(url);
+  return new Promise((resolve, reject) => {
+    const client = http2.connect(u.origin);
+    let settled = false;
+    const safeReject = (err: Error) => {
+      if (settled) return;
+      settled = true;
+      try { client.close(); } catch {}
+      reject(err);
+    };
+    const safeResolve = (val: { status: number; body: string }) => {
+      if (settled) return;
+      settled = true;
+      try { client.close(); } catch {}
+      resolve(val);
+    };
+    client.on("error", safeReject);
+    // 10s timeout — Apple raramente passa de 1-2s; após isso é stuck.
+    const timeout = setTimeout(() => safeReject(new Error("apns http2 timeout")), 10_000);
+
+    const req = client.request({
+      ":method": "POST",
+      ":path": u.pathname,
+      authorization: `bearer ${jwt}`,
+      "apns-topic": bundleId,
+      "apns-push-type": "alert",
+      "apns-priority": "10",
+      "content-type": "application/json",
+      "content-length": Buffer.byteLength(body),
+    });
+    req.setEncoding("utf8");
+    let status = 0;
+    let responseBody = "";
+    req.on("response", (headers) => {
+      status = Number(headers[":status"]) || 0;
+    });
+    req.on("data", (chunk: string) => { responseBody += chunk; });
+    req.on("end", () => {
+      clearTimeout(timeout);
+      safeResolve({ status, body: responseBody });
+    });
+    req.on("error", (err) => {
+      clearTimeout(timeout);
+      safeReject(err);
+    });
+    req.write(body);
+    req.end();
+  });
 }
 
 /**
