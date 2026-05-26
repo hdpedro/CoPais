@@ -85,6 +85,20 @@ export const EVENTS = {
   EXPENSE_CANCEL_APPROVED: 'expense_cancel_approved',
   EXPENSE_CANCEL_REJECTED: 'expense_cancel_rejected',
   EXPENSE_REOPENED: 'expense_reopened',
+
+  // Push notifications — soft prompt + register pipeline (instrumentação
+  // adicionada 2026-05-25 após regressão silenciosa: `analytics.capture`
+  // usado em vez de `track` quebrava o handler antes de registrar token,
+  // resultado: zero apns_token em prod desde 2026-05-22).
+  SOFT_PROMPT_SHOWN: 'soft_prompt_shown',
+  SOFT_PROMPT_ACCEPTED: 'soft_prompt_accepted',
+  SOFT_PROMPT_DECLINED: 'soft_prompt_declined',
+  SOFT_PROMPT_OUTCOME: 'soft_prompt_outcome',
+  PUSH_TOKEN_OBTAINED: 'push_token_obtained',
+  PUSH_TOKEN_EMPTY: 'push_token_empty',
+  PUSH_TOKEN_OBTAIN_FAILED: 'push_token_obtain_failed',
+  PUSH_TOKEN_REGISTER_SUCCEEDED: 'push_token_register_succeeded',
+  PUSH_TOKEN_REGISTER_FAILED: 'push_token_register_failed',
 } as const;
 
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
