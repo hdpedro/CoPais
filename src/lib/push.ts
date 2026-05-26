@@ -344,14 +344,28 @@ async function sendApnsPush(
     sign.update(signingInput);
     const signature = sign.sign(key);
 
-    // Convert DER signature to raw r||s format for ES256
-    const r = signature.subarray(4, 4 + signature[3]);
-    const sOffset = 4 + signature[3] + 2;
-    const s = signature.subarray(sOffset, sOffset + signature[sOffset - 1]);
-    const rawSig = Buffer.concat([
-      Buffer.alloc(32 - r.length), r,
-      Buffer.alloc(32 - s.length), s,
-    ]).toString("base64url");
+    // Convert DER signature to raw r||s format for ES256 (JOSE format).
+    //
+    // ASN.1 DER ECDSA signature shape:
+    //   0x30 [total_len] 0x02 [r_len] [r_bytes] 0x02 [s_len] [s_bytes]
+    //
+    // r/s podem chegar com 33 bytes quando o byte mais significativo tem
+    // bit 7 setado (DER prepende 0x00 pra forçar interpretação positiva).
+    // O pad/concat antigo fazia `Buffer.alloc(32 - r.length)` que estoura
+    // com `RangeError: size out of range` quando length > 32. Bug histórico
+    // 2026-05-26: tela Diagnóstico de push capturou "size out of range.
+    // Received -1" no envio de teste pra Henrique. Fix: strip leading zero
+    // quando length > 32, pad com zeros quando length < 32.
+    const rLen = signature[3];
+    let r = signature.subarray(4, 4 + rLen);
+    const sOffset = 4 + rLen + 2;
+    const sLen = signature[sOffset - 1];
+    let s = signature.subarray(sOffset, sOffset + sLen);
+    if (r.length > 32) r = r.subarray(r.length - 32);
+    if (s.length > 32) s = s.subarray(s.length - 32);
+    const rPad = r.length < 32 ? Buffer.alloc(32 - r.length) : Buffer.alloc(0);
+    const sPad = s.length < 32 ? Buffer.alloc(32 - s.length) : Buffer.alloc(0);
+    const rawSig = Buffer.concat([rPad, r, sPad, s]).toString("base64url");
 
     const jwt = `${signingInput}.${rawSig}`;
 

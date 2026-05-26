@@ -130,13 +130,19 @@ async function sendApnsDebug(token: string): Promise<ApnsAttempt> {
     const sign = crypto.createSign("SHA256");
     sign.update(signingInput);
     const signature = sign.sign(key);
-    const r = signature.subarray(4, 4 + signature[3]);
-    const sOffset = 4 + signature[3] + 2;
-    const s = signature.subarray(sOffset, sOffset + signature[sOffset - 1]);
-    const rawSig = Buffer.concat([
-      Buffer.alloc(32 - r.length), r,
-      Buffer.alloc(32 - s.length), s,
-    ]).toString("base64url");
+    // DER → raw (JOSE) ES256 — strip leading zero quando r/s vêm com 33 bytes
+    // (DER positive sign normalization). Sem isso, Buffer.alloc(32 - 33)
+    // estoura com "RangeError: size out of range. Received -1".
+    const rLen = signature[3];
+    let r = signature.subarray(4, 4 + rLen);
+    const sOffset = 4 + rLen + 2;
+    const sLen = signature[sOffset - 1];
+    let s = signature.subarray(sOffset, sOffset + sLen);
+    if (r.length > 32) r = r.subarray(r.length - 32);
+    if (s.length > 32) s = s.subarray(s.length - 32);
+    const rPad = r.length < 32 ? Buffer.alloc(32 - r.length) : Buffer.alloc(0);
+    const sPad = s.length < 32 ? Buffer.alloc(32 - s.length) : Buffer.alloc(0);
+    const rawSig = Buffer.concat([rPad, r, sPad, s]).toString("base64url");
     const jwt = `${signingInput}.${rawSig}`;
 
     const apnsUrl = `https://api.push.apple.com/3/device/${token}`;
