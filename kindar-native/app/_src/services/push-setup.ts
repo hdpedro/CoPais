@@ -12,6 +12,8 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { supabase } from '../lib/supabase';
+import { reportError } from '../lib/error-reporter';
+import * as analytics from '../lib/analytics';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
@@ -132,11 +134,22 @@ export async function registerForPushNotificationsAsync(
       token = fcm.data as string;
     }
   } catch (e) {
-    console.warn('[push-setup] failed to obtain token:', e);
+    // Falha aqui = capability iOS faltando no provisioning profile, ou
+    // Google Services não configurado no Android. Sem visibilidade, esse
+    // erro mata push pra todos os users do device sem deixar rastro.
+    reportError(e, {
+      filePath: 'services/push-setup',
+      metadata: { phase: 'getDevicePushTokenAsync', platform: Platform.OS },
+    });
+    analytics.track('push_token_obtain_failed', { platform: Platform.OS });
     return null;
   }
 
-  if (!token) return null;
+  if (!token) {
+    analytics.track('push_token_empty', { platform: Platform.OS });
+    return null;
+  }
+  analytics.track('push_token_obtained', { platform: Platform.OS });
 
   // Android channel config (required since Android 8)
   if (Platform.OS === 'android') {
