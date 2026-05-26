@@ -45,10 +45,10 @@ export const PARENT_COLORS = {
   secondary: '#D4735A',
 } as const;
 
-export const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'] as const;
+export const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as const;
 
 export const MONTH_NAMES = [
-  'Janeiro', 'Fevereiro', 'Marco', 'Abril', 'Maio', 'Junho',
+  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
   'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
 ] as const;
 
@@ -56,7 +56,7 @@ export const CUSTODY_TYPE_LABELS: Record<string, string> = {
   regular: 'Regular',
   holiday: 'Feriado',
   swap: 'Troca',
-  vacation: 'Ferias',
+  vacation: 'Férias',
   special: 'Especial',
 };
 

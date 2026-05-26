@@ -25,7 +25,7 @@ const CHECKIN_EMOJI: Record<string, string> = {
 };
 
 const CHECKIN_LABELS: Record<string, string> = {
-  health: "Saude", sleep: "Sono", food: "Alimentacao", mood: "Humor",
+  health: "Saúde", sleep: "Sono", food: "Alimentação", mood: "Humor",
   school: "Escola", other: "Outro",
 };
 

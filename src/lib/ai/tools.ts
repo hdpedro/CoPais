@@ -154,10 +154,10 @@ function parseTime(raw: unknown): string | null {
 }
 
 const CAT_LABELS: Record<string, string> = {
-  education: "Educacao", health: "Saude", food: "Alimentacao",
-  clothing: "Vestuario", leisure: "Lazer", transport: "Transporte",
+  education: "Educação", health: "Saúde", food: "Alimentação",
+  clothing: "Vestuário", leisure: "Lazer", transport: "Transporte",
   housing: "Moradia", other: "Outros", sport: "Esporte",
-  art: "Arte", music: "Musica", therapy: "Terapia",
+  art: "Arte", music: "Música", therapy: "Terapia",
   school: "Escola", course: "Curso",
 };
 

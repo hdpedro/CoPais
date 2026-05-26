@@ -42,7 +42,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useAuth } from 'src/store/auth';
 import { useI18n } from 'src/i18n';
 import { setupOffline } from 'src/services/offline';
-import { installGlobalErrorHandlers } from 'src/lib/error-reporter';
+import { installGlobalErrorHandlers, reportError } from 'src/lib/error-reporter';
 import ErrorBoundary from 'src/components/ui/ErrorBoundary';
 import {
   setupNotificationHandler,
@@ -184,7 +184,9 @@ export default function RootLayout() {
       return;
     }
     // 1. Tenta registrar (no-op se ainda não temos permission)
-    registerForPushNotificationsAsync().catch(() => {});
+    registerForPushNotificationsAsync().catch((e) =>
+      reportError(e, { filePath: '_layout', metadata: { phase: 'push_register_post_login' }, severity: 'warning' }),
+    );
     // 2. Verifica se devemos mostrar o soft prompt depois de login
     // Delay pequeno pra não competir com splash/onboarding na primeira tela
     const t = setTimeout(async () => {
@@ -192,10 +194,10 @@ export default function RootLayout() {
         const status = await checkSoftPromptStatus();
         if (status === 'show_modal') {
           setShowSoftPrompt(true);
-          analytics.capture('soft_prompt_shown', { context: 'post_login_delay' });
+          analytics.track('soft_prompt_shown', { context: 'post_login_delay' });
         }
-      } catch {
-        // Não-fatal
+      } catch (e) {
+        reportError(e, { filePath: '_layout', metadata: { phase: 'soft_prompt_check' }, severity: 'warning' });
       }
     }, 1500);
     identifyUser(userId).catch(() => {});
@@ -214,7 +216,9 @@ export default function RootLayout() {
       }
       if (next === 'active' && lastState !== 'active') {
         // Re-register push (idempotente)
-        registerForPushNotificationsAsync().catch(() => {});
+        registerForPushNotificationsAsync().catch((e) =>
+          reportError(e, { filePath: '_layout', metadata: { phase: 'push_register_foreground' }, severity: 'warning' }),
+        );
 
         // OTA auto-apply: só age se ficou > 30min em background.
         // Bug Carolina 2026-05-20: threshold antigo de 5min disparava
@@ -249,22 +253,37 @@ export default function RootLayout() {
   }, [userId]);
 
   // Soft prompt handlers — chamados pelo SoftPromptModal abaixo.
+  //
+  // ORDEM CRÍTICA (bug 2026-05-25): fechar o modal + disparar register ANTES
+  // de qualquer chamada de analytics. Versão anterior chamava `analytics.
+  // capture(...)` na primeira linha, mas a função exportada é `analytics.
+  // track(...)` — TypeError quebrava o handler antes do registerForPush-
+  // NotificationsAsync({forceRequest:true}), por isso ZERO apns_token foram
+  // registrados em prod desde o refactor de soft prompt. Mesmo com a função
+  // certa, mantemos analytics POR ÚLTIMO pra qualquer regressão futura de
+  // telemetria não bloquear o caminho crítico de registro.
   const handleSoftPromptAccept = async () => {
-    analytics.capture('soft_prompt_accepted');
-    await markSoftPromptShown().catch(() => {});
+    await markSoftPromptShown().catch((e) =>
+      reportError(e, { filePath: '_layout', metadata: { phase: 'soft_prompt_mark_shown' } }),
+    );
     setShowSoftPrompt(false);
-    // Agora SIM dispara o hard prompt iOS, mostrando o nativo
-    const token = await registerForPushNotificationsAsync({ forceRequest: true }).catch(() => null);
-    // Telemetria de outcome final pós hard prompt
-    analytics.capture('soft_prompt_outcome', {
+    // Dispara o hard prompt iOS + registra token APNs/FCM no backend.
+    const token = await registerForPushNotificationsAsync({ forceRequest: true }).catch((e) => {
+      reportError(e, { filePath: '_layout', metadata: { phase: 'soft_prompt_register' } });
+      return null;
+    });
+    analytics.track('soft_prompt_accepted');
+    analytics.track('soft_prompt_outcome', {
       outcome: token ? 'granted' : 'denied_at_native',
     });
   };
 
   const handleSoftPromptDecline = async () => {
-    analytics.capture('soft_prompt_declined');
-    await markSoftPromptShown().catch(() => {});
+    await markSoftPromptShown().catch((e) =>
+      reportError(e, { filePath: '_layout', metadata: { phase: 'soft_prompt_mark_shown_decline' } }),
+    );
     setShowSoftPrompt(false);
+    analytics.track('soft_prompt_declined');
     // Não dispara hard prompt — user pode reativar via /perfil/notificacoes
     // depois (que mostra banner permissionUndetermined + CTA "Ativar
     // notificações" que chama o hard prompt diretamente).
