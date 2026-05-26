@@ -98,6 +98,25 @@ function fmtHHMM(h: number, m: number) { return `${String(h).padStart(2, '0')}:$
 
 type PermissionStatus = 'granted' | 'denied' | 'undetermined' | 'unknown';
 
+/**
+ * Default prefs usados como fallback quando GET /api/notifications/prefs
+ * falha (network, middleware bouncando pra session-recovery, server down).
+ *
+ * Bug histórico (Henrique 2026-05-26): sem esse fallback, prefs ficava null
+ * forever e a tela travava em spinner infinito — usuário não conseguia nem
+ * desabilitar UMA notificação porque a UI nunca renderizava. Aqui ABRE com
+ * defaults permissivos (tudo on, quiet hours off) + mostra banner discreto
+ * de erro com botão Tentar novamente.
+ *
+ * Mantém sincronizado com `services/notification-prefs.ts:DEFAULT_PREFS` no
+ * server — qualquer drift e o estado otimista vai divergir do persistido.
+ */
+const FALLBACK_PREFS: Prefs = {
+  quiet_hours: { enabled: false, start: '22:00', end: '07:00' },
+  mute_until: null,
+  categories: {},
+};
+
 export default function NotificacoesScreen() {
   const t = useI18n((s) => s.t);
   const toast = useToast();
@@ -108,18 +127,39 @@ export default function NotificacoesScreen() {
   const [showStartPicker, setShowStartPicker] = useState(false);
   const [showEndPicker, setShowEndPicker] = useState(false);
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  // Estado da última tentativa de fetch — drives o banner "offline" + retry.
+  // null = sem erro; string = mensagem pra mostrar ao usuário.
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const [prefsR, permR] = await Promise.all([
         apiFetch<Prefs>('/api/notifications/prefs'),
         Notifications.getPermissionsAsync().catch(() => null),
       ]);
-      if (prefsR.ok && prefsR.data) setPrefs(prefsR.data);
+      if (prefsR.ok && prefsR.data) {
+        setPrefs(prefsR.data);
+      } else {
+        // Fetch falhou — usa defaults pra UI abrir + sinaliza erro com banner
+        // discreto. PATCHes ainda tentam server (idempotente); se voltarem
+        // a funcionar, próxima abertura sincroniza.
+        setPrefs(FALLBACK_PREFS);
+        setFetchError(prefsR.error || 'Não foi possível carregar suas preferências');
+        reportError(new Error(`prefs fetch failed: ${prefsR.error ?? 'unknown'}`), {
+          filePath: 'app/perfil/notificacoes.tsx',
+          severity: 'warning',
+          metadata: { phase: 'load', httpStatus: prefsR.status, error: prefsR.error },
+        });
+      }
       if (permR) setPermissionStatus(permR.status as PermissionStatus);
       else setPermissionStatus('unknown');
     } catch (e) {
+      // Exception inesperada (apiFetch normalmente não throws) — mesmo
+      // fallback pra não travar UI.
+      setPrefs(FALLBACK_PREFS);
+      setFetchError(e instanceof Error ? e.message : 'Erro inesperado');
       reportError(e, { filePath: 'app/perfil/notificacoes.tsx', metadata: { phase: 'load' } });
     } finally {
       setLoading(false);
@@ -276,6 +316,35 @@ export default function NotificacoesScreen() {
             </View>
           ) : null}
         </View>
+
+        {/* Banner de erro de fetch com retry — só aparece se GET falhou.
+            Garante que a UI continua renderizando (com defaults) em vez de
+            ficar em spinner infinito. Bug histórico: middleware bouncava
+            /api/notifications/prefs pra session-recovery sem whitelist
+            (corrigido em commit separado), travando a tela. */}
+        {fetchError ? (
+          <View style={{
+            padding: spacing.sm + 2, backgroundColor: '#FEF3C7', borderRadius: radius.md,
+            borderWidth: 1, borderColor: '#FCD34D', marginBottom: spacing.md,
+            flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
+          }}>
+            <Ionicons name="cloud-offline-outline" size={18} color="#92400E" />
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: '#92400E', fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
+                Mostrando padrões enquanto sincroniza
+              </Text>
+              <Text style={{ color: '#92400E', fontSize: font.sizes.xs, marginTop: 2 }}>
+                Suas mudanças serão salvas no servidor.
+              </Text>
+            </View>
+            <TouchableOpacity onPress={load} disabled={loading}
+              style={{ paddingHorizontal: spacing.sm, paddingVertical: 6, backgroundColor: '#92400E', borderRadius: radius.sm }}>
+              <Text style={{ color: '#fff', fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>
+                Tentar
+              </Text>
+            </TouchableOpacity>
+          </View>
+        ) : null}
 
         {/* Permission state banner */}
         {permissionStatus === 'denied' ? (
