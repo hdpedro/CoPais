@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
@@ -12,13 +12,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
  *
  * Stores under the same notifications table (no schema change needed) using
  * the marker rows pattern. See `src/lib/push.ts` for sender wiring.
+ *
+ * Auth: usa resolveAuthenticatedUser (Bearer-aware) porque o native SEMPRE
+ * passa Authorization: Bearer <jwt>. O createClient() do PWA SSR só lê
+ * cookies — sem cookies, retorna user=null → 401. Bug histórico
+ * (Henrique 2026-05-26): tinha createClient aqui, native batia em loop com
+ * 401 silencioso, zero tokens registravam em prod.
  */
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await resolveAuthenticatedUser(req);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

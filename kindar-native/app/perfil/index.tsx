@@ -217,6 +217,25 @@ export default function PerfilScreen() {
           <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
         </TouchableOpacity>
 
+        {/* Diagnóstico de push — tela técnica pra validar pipeline APNs end-to-end.
+            Visível em TODAS builds por enquanto pra debug crítico do bug do push iOS.
+            Mover pra dev-only quando confirmado que push funciona em produção. */}
+        <TouchableOpacity onPress={() => router.push('/perfil/push-debug')}
+          testID="perfil-push-debug"
+          accessibilityRole="button"
+          accessibilityLabel="Diagnóstico de push"
+          style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm,
+            flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: '#F59E0B' }}>
+          <Ionicons name="bug-outline" size={20} color="#F59E0B" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontSize: font.sizes.md, color: colors.text }}>Diagnóstico de push</Text>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
+              Validar pipeline APNs (técnico)
+            </Text>
+          </View>
+          <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
+        </TouchableOpacity>
+
         {/* Subscription */}
         <TouchableOpacity onPress={() => router.push('/pricing')}
           accessibilityRole="button"

@@ -183,6 +183,11 @@ export async function updateSession(request: NextRequest) {
     "/api/children/education",
     "/api/notifications/mark-read",
     "/api/notifications/mark-all-read",
+    // GET prefs + PATCH prefs (tela /perfil/notificacoes do native). Sem
+    // essa entry, middleware bouncava pra /session-recovery → native via
+    // HTML 200, apiFetch.JSON.parse falhava, tela ficava em spinner
+    // infinito (Henrique 2026-05-26).
+    "/api/notifications/prefs",
     "/api/school",
     // /api/children/* — Native chama create/edit/delete + subrotas
     // (sizes, education). Cada handler valida Bearer via resolveAuthenticatedUser.

@@ -124,12 +124,7 @@ export async function registerForPushNotificationsAsync(
       const apns = await Notifications.getDevicePushTokenAsync();
       token = apns.data as string;
     } else if (Platform.OS === 'android') {
-      // Android uses FCM; the native side uses the FCM token.
-      // PWA /api/push/register-apns expects APNs string; for Android we'd
-      // need a /api/push/register-fcm companion — for now, still register
-      // with the same endpoint and let the backend detect platform via
-      // user-agent or add a field. Minimal viable: getDevicePushTokenAsync
-      // returns an FCM token on Android.
+      // Android uses FCM. PWA endpoint detecta platform via field.
       const fcm = await Notifications.getDevicePushTokenAsync();
       token = fcm.data as string;
     }
@@ -146,6 +141,13 @@ export async function registerForPushNotificationsAsync(
   }
 
   if (!token) {
+    // getDevicePushTokenAsync retornou sem throw mas com data vazio.
+    // Conhecido em iOS 26.5+ se sistema ainda não terminou handshake APNs.
+    reportError(new Error('push_token_empty: getDevicePushTokenAsync returned empty data'), {
+      filePath: 'services/push-setup',
+      severity: 'warning',
+      metadata: { phase: 'token_empty', platform: Platform.OS },
+    });
     analytics.track('push_token_empty', { platform: Platform.OS });
     return null;
   }
@@ -176,6 +178,8 @@ export async function registerForPushNotificationsAsync(
     const body = JSON.stringify({ token, platform: Platform.OS });
 
     let lastErr: unknown = null;
+    let lastStatus: number | null = null;
+    let lastBody: string | null = null;
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         const res = await fetch(url, {
@@ -188,9 +192,12 @@ export async function registerForPushNotificationsAsync(
         });
         if (res.ok) {
           lastErr = null;
+          lastStatus = res.status;
           break;
         }
-        // Backend retornou erro — registra mas nao falha o app
+        // Backend retornou erro — captura status + body pra diagnóstico
+        lastStatus = res.status;
+        try { lastBody = (await res.text()).slice(0, 500); } catch { lastBody = null; }
         lastErr = new Error(`push register HTTP ${res.status}`);
       } catch (e) {
         lastErr = e;
@@ -198,10 +205,25 @@ export async function registerForPushNotificationsAsync(
       if (attempt === 0) await new Promise(r => setTimeout(r, 2000));
     }
     if (lastErr) {
-      console.warn('[push-setup] failed to register token with backend (after retry):', lastErr);
+      reportError(lastErr, {
+        filePath: 'services/push-setup',
+        metadata: {
+          phase: 'register_apns_backend',
+          platform: Platform.OS,
+          httpStatus: lastStatus,
+          responseBody: lastBody,
+          url,
+        },
+      });
+      analytics.track('push_token_register_failed', { platform: Platform.OS, http_status: lastStatus });
+    } else {
+      analytics.track('push_token_register_succeeded', { platform: Platform.OS });
     }
   } catch (e) {
-    console.warn('[push-setup] failed to register token with backend:', e);
+    reportError(e, {
+      filePath: 'services/push-setup',
+      metadata: { phase: 'register_apns_outer', platform: Platform.OS },
+    });
   }
 
   return token;
