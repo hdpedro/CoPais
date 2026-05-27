@@ -230,23 +230,26 @@ export async function toggleChecklistItem(
  * Called by cron job API route.
  */
 /**
- * D-1 noite (20:00 BRT, agendada via /api/cron/activity-reminders).
+ * Briefing Matinal (07:00 BRT, agendado via /api/cron/activity-reminders).
  *
- * Foi N-pushes-por-atividade-pra-todo-mundo (atividade de Jiu-Jitsu virava
- * 1 push, Inglês outro, Médico outro — 3 atividades amanhã = 3 pushes).
+ * Evolução premium: era digest D-1 noite às 20h (legacy: sendDailyActivity
+ * Digest); agora é **briefing matinal** às 7h BRT — momento ritual onde pai
+ * cansado abre o celular pela 1ª vez no dia.
  *
- * Agora é **digest agregado por grupo**: "Amanhã: 3 atividades. Jiu-Jitsu 09h
- * + Inglês 14h + Médico 16h. 8 itens pra preparar." em 1 push só.
+ * Características premium (vide sendMorningBriefing em activity-reminders.ts):
+ *   - **1 push agregado per-user** cobrindo TODAS suas crianças/grupos
+ *   - Body inclui responsável de cada atividade ("você" vs "Aline")
+ *   - Smart sorting por hora; preview top 3 + counter
+ *   - i18n per recipient (pt/en/es/fr/de)
  *
- * Lembrete T-(lead) pré-evento foi extraído pra
- * /api/cron/activity-due-reminders (a cada 15min, respeita responsible_id
- * e reminder_lead_minutes — vide src/lib/services/activity-reminders.ts).
+ * Lembrete T-(lead) pré-evento (cron 15min /api/cron/activity-due-reminders)
+ * complementa: avisos individuais perto da hora pra coisas time-sensitive.
  *
  * Mantém shape `{ sent: number }` pro contrato do cron endpoint não quebrar.
  */
 export async function sendActivityReminders() {
-  const { sendDailyActivityDigest } = await import("@/lib/services/activity-reminders");
-  const result = await sendDailyActivityDigest();
+  const { sendMorningBriefing } = await import("@/lib/services/activity-reminders");
+  const result = await sendMorningBriefing();
   return { sent: result.sent };
 }
 

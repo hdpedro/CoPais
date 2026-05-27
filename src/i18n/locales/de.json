@@ -2728,6 +2728,12 @@
       "title": "Dein Plan für morgen",
       "body": "{summary}",
       "bodyWithItems": "{summary} · {count} Sachen vorzubereiten"
+    },
+    "briefing": {
+      "title": "{count, plural, one {🌅 Heute: # Termin} other {🌅 Heute: # Termine}}",
+      "respYou": "du",
+      "moreCount": "{count, plural, one {+# weitere} other {+# weitere}}",
+      "itemsToPrep": "{count, plural, one {# Sache vorzubereiten} other {# Sachen vorzubereiten}}"
     }
   },
   "notifPrefs": {

@@ -2728,6 +2728,12 @@
       "title": "Tomorrow's agenda",
       "body": "{summary}",
       "bodyWithItems": "{summary} · {count} items to prep"
+    },
+    "briefing": {
+      "title": "{count, plural, one {🌅 Today: # event} other {🌅 Today: # events}}",
+      "respYou": "you",
+      "moreCount": "{count, plural, one {+# more} other {+# more}}",
+      "itemsToPrep": "{count, plural, one {# item to prep} other {# items to prep}}"
     }
   },
   "notifPrefs": {

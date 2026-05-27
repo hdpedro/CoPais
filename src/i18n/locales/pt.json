@@ -2728,6 +2728,12 @@
       "title": "Sua agenda de amanhã",
       "body": "{summary}",
       "bodyWithItems": "{summary} · {count} itens pra preparar"
+    },
+    "briefing": {
+      "title": "{count, plural, one {🌅 Hoje: # compromisso} other {🌅 Hoje: # compromissos}}",
+      "respYou": "você",
+      "moreCount": "{count, plural, one {+# mais} other {+# mais}}",
+      "itemsToPrep": "{count, plural, one {# item pra preparar} other {# itens pra preparar}}"
     }
   },
   "notifPrefs": {

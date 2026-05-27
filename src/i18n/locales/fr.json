@@ -2728,6 +2728,12 @@
       "title": "Ton agenda de demain",
       "body": "{summary}",
       "bodyWithItems": "{summary} · {count} choses à préparer"
+    },
+    "briefing": {
+      "title": "{count, plural, one {🌅 Aujourd'hui : # rendez-vous} other {🌅 Aujourd'hui : # rendez-vous}}",
+      "respYou": "toi",
+      "moreCount": "{count, plural, one {+# de plus} other {+# de plus}}",
+      "itemsToPrep": "{count, plural, one {# chose à préparer} other {# choses à préparer}}"
     }
   },
   "notifPrefs": {

@@ -46,7 +46,23 @@ const SLOT_WINDOW_AFTER_MIN = 7;
 
 /**
  * Default lead time quando child_activities.reminder_lead_minutes IS NULL.
- * Decisão produto: "1h antes" é a promessa premium do app pra v1.
+ *
+ * v1 ("1h antes pra tudo") era simples mas inadequado por contexto:
+ *   - Médico às 8h da manhã → push T-60 = 7h da manhã = user perde
+ *   - Jiu Jitsu → 1h não dá pra preparar uniforme + kit
+ *   - Buscar na escola T-30min = ideal (sair de casa)
+ *
+ * v2 (premium): default por **categoria** da atividade. Backwards-compatible
+ * — só aplica quando `child_activities.reminder_lead_minutes IS NULL`. User
+ * que setou explícito mantém sua preferência.
+ *
+ * Smart defaults derivados de research informal + UX comum de família:
+ *   - medical, dentist, exam       → -2 (véspera 20h BRT — prepara documento/jejum)
+ *   - birthday                     → -2 (véspera — comprar presente)
+ *   - class, sport, lesson         → 180 (T-3h — uniforme, material, lanche)
+ *   - school, pickup, dropoff      → 30 (T-30min — sair de casa)
+ *   - meeting, parents             → 60 (T-1h — preparar contexto)
+ *   - other / sem categoria        → 60 (T-1h — fallback v1)
  */
 const DEFAULT_LEAD_MINUTES = 60;
 
@@ -57,6 +73,39 @@ const DEFAULT_LEAD_MINUTES = 60;
  */
 const SENTINEL_MORNING_OF = -1;
 const SENTINEL_EVENING_BEFORE = -2;
+
+/**
+ * Lead default por categoria da atividade. Aplicado apenas quando a row
+ * tem `reminder_lead_minutes IS NULL`. Caso a categoria não bata em nenhum
+ * branch, cai pro DEFAULT_LEAD_MINUTES = 60min.
+ *
+ * Exportado pra testes e pra UI mostrar preview do default em criar/editar
+ * atividade ("Padrão pra Médico: véspera 20h").
+ */
+export function categoryDefaultLead(category: string | null | undefined): number {
+  const c = (category ?? "").toLowerCase().trim();
+  // Saúde (preparação na véspera é o que separa "tomei café" de "perdi consulta")
+  if (c === "medical" || c === "dentist" || c === "exam" || c === "health") {
+    return SENTINEL_EVENING_BEFORE; // -2
+  }
+  // Aniversários e datas — precisa comprar presente / lembrar
+  if (c === "birthday" || c === "anniversary") {
+    return SENTINEL_EVENING_BEFORE; // -2
+  }
+  // Aulas e esportes — uniforme, material, lanche
+  if (c === "class" || c === "lesson" || c === "sport" || c === "extracurricular") {
+    return 180; // T-3h
+  }
+  // Logística de escola — sair de casa
+  if (c === "school" || c === "pickup" || c === "dropoff" || c === "daycare") {
+    return 30; // T-30min
+  }
+  // Reuniões e contextuais
+  if (c === "meeting" || c === "parents" || c === "therapy") {
+    return 60; // T-1h
+  }
+  return DEFAULT_LEAD_MINUTES;
+}
 
 /**
  * Brasília fixed offset (BR não tem DST desde 2019).
@@ -278,7 +327,10 @@ export async function runActivityDueReminders(now: Date = new Date()): Promise<S
   type DueRow = OccurrenceRow & { leadMinutes: number; triggerAt: Date };
   const due: DueRow[] = [];
   for (const occ of occurrences) {
-    const leadMinutes = occ.reminder_lead_minutes ?? DEFAULT_LEAD_MINUTES;
+    // Smart default por categoria quando user não setou lead explícito.
+    // Médico véspera 20h, aula T-3h, pickup T-30min, etc. — vide
+    // categoryDefaultLead() pra tabela completa + rationale UX.
+    const leadMinutes = occ.reminder_lead_minutes ?? categoryDefaultLead(occ.category);
     if (leadMinutes === 0) {
       // Lead=0 = "sem lembrete" — user opted out pra essa atividade.
       continue;
@@ -451,84 +503,120 @@ export async function runActivityDueReminders(now: Date = new Date()): Promise<S
 }
 
 /**
- * Digest D-1 noite (20:00 BRT). Pra cada user com 1+ atividade amanhã,
- * agrega tudo em UM push só priority=info.
+ * Briefing Matinal (07:00 BRT). Pra cada user com 1+ atividade HOJE, agrega
+ * tudo num único push ritual de manhã.
  *
- * Substitui o comportamento N-pushes do legacy sendActivityReminders.
- * Body de exemplo:
- *   "Amanhã: 3 atividades. Jiu-Jitsu 09h + Inglês 14h + Médico 16h.
- *    8 itens pra preparar."
+ * Filosofia "pai cansado" (UX rationale):
+ *   - Substitui o digest noturno 20h. Pais que dormem cedo perdiam; quem
+ *     acorda às 5h pra trabalhar, 12h depois tava obsoleto.
+ *   - 7h é o momento ritual: café, primeiro celular do dia, planejamento.
+ *   - 1 push agregado é melhor que 6 fragmentos ao longo do dia.
+ *   - Body inclui RESPONSÁVEL ("você leva" vs "Aline leva") — resolve a
+ *     pergunta tácita "quem vai buscar?". Conflito #1 de coparente.
  *
- * Recipient: TODOS membros do grupo (digest é awareness compartilhada,
- * não acionável pelo responsável individual — pais querem ver agenda
- * geral mesmo das atividades em que não são responsáveis).
+ * Agregação: PER-USER (não per-group). Um user em múltiplos grupos recebe
+ * UM briefing único cobrindo todas suas crianças/atividades. O digest legado
+ * era per-group → user com 2 grupos recebia 2 pushes consecutivos.
  *
- * Idempotência: 1 row por (user, channel='digest', any activity, date=tomorrow).
- * Usamos um pseudo activity_id constante (zero UUID) na PK pra agrupar.
+ * Filtros:
+ *   - is_active = true (ignora atividades pausadas)
+ *   - reminder_lead_minutes ≠ 0 (respeita opt-out por atividade)
+ *   - User é responsable OU member do grupo (todos veem a agenda do grupo)
+ *
+ * Idempotência: 1 row por (user_id, channel='briefing', activity_id=âncora,
+ * date=hoje). Re-rodar no mesmo dia = 0 dup. Âncora = primeira activity
+ * (alfabética) do user pra ter PK estável.
+ *
+ * Recipient locale: getServerT(locale) per user — body localizado pro
+ * locale dele (pt/en/es/fr/de). Mesma mecânica de runActivityDueReminders.
  */
-export async function sendDailyActivityDigest(now: Date = new Date()): Promise<SendResult> {
+export async function sendMorningBriefing(now: Date = new Date()): Promise<SendResult> {
   const admin = createAdminClient();
   let sent = 0;
   let skipped = 0;
   let errors = 0;
 
-  const tomorrowDate = new Date(now.getTime() + 86400000);
-  const tomorrowKey = tomorrowDate.toISOString().slice(0, 10);
+  // Briefing cobre o DIA DE HOJE — diferente do digest legado que olhava amanhã.
+  // Rationale: pais querem saber "o que vou fazer ao acordar?", não "o que terei
+  // que fazer daqui 24h?". Combina com o cron T-lead que cobre lembretes
+  // intra-dia se algo precisar de aviso mais próximo.
+  const todayKey = now.toISOString().slice(0, 10);
 
-  // Mesma query do cron 15min mas filtrada exclusivamente em tomorrow.
+  // Query: occurrences de hoje + atividade ativa + grupo + criança +
+  // responsible_id + checklist count.
   const { data: rawOccs, error } = await admin
     .from("calendar_occurrences")
     .select(
       "id, activity_id, occurrence_date, group_id, child_id, " +
-        "child_activities!inner(name, time_start, reminder_lead_minutes, is_active, " +
-        "activity_checklist_items(id))",
+        "child_activities!inner(name, category, time_start, location, responsible_id, " +
+        "reminder_lead_minutes, is_active, " +
+        "activity_checklist_items(id), " +
+        "children(full_name))",
     )
-    .eq("occurrence_date", tomorrowKey);
+    .eq("occurrence_date", todayKey);
 
   if (error) {
-    console.error("[CRON activity-digest] query failed:", error);
+    console.error("[CRON morning-briefing] query failed:", error);
     return { sent: 0, skipped: 0, errors: 1 };
   }
   if (!rawOccs || rawOccs.length === 0) return { sent: 0, skipped: 0, errors: 0 };
 
-  type DigestRow = {
+  type BriefingRow = {
     activity_id: string;
     group_id: string;
+    child_id: string | null;
     activity_name: string;
+    category: string;
     time_start: string | null;
-    leadMinutes: number;
+    location: string | null;
+    responsible_id: string | null;
+    child_name: string | null;
     checklistCount: number;
   };
-  const rows: DigestRow[] = (rawOccs as unknown as Array<{
+
+  const rows: BriefingRow[] = (rawOccs as unknown as Array<{
     activity_id: string;
     group_id: string;
+    child_id: string | null;
     child_activities:
       | {
           name: string;
+          category: string;
           time_start: string | null;
+          location: string | null;
+          responsible_id: string | null;
           reminder_lead_minutes: number | null;
           is_active: boolean | null;
           activity_checklist_items: { id: string }[] | null;
+          children: { full_name: string | null } | { full_name: string | null }[] | null;
         }
       | Array<{
           name: string;
+          category: string;
           time_start: string | null;
+          location: string | null;
+          responsible_id: string | null;
           reminder_lead_minutes: number | null;
           is_active: boolean | null;
           activity_checklist_items: { id: string }[] | null;
+          children: { full_name: string | null } | { full_name: string | null }[] | null;
         }>;
   }>).flatMap((row) => {
     const act = Array.isArray(row.child_activities) ? row.child_activities[0] : row.child_activities;
     if (!act || act.is_active === false) return [];
-    // Skip atividades opt-out de lembrete.
     if (act.reminder_lead_minutes === 0) return [];
+    const child = Array.isArray(act.children) ? act.children[0] : act.children;
     return [
       {
         activity_id: row.activity_id,
         group_id: row.group_id,
+        child_id: row.child_id,
         activity_name: act.name,
+        category: act.category,
         time_start: act.time_start,
-        leadMinutes: act.reminder_lead_minutes ?? DEFAULT_LEAD_MINUTES,
+        location: act.location,
+        responsible_id: act.responsible_id,
+        child_name: child?.full_name ?? null,
         checklistCount: (act.activity_checklist_items ?? []).length,
       },
     ];
@@ -536,97 +624,179 @@ export async function sendDailyActivityDigest(now: Date = new Date()): Promise<S
 
   if (rows.length === 0) return { sent: 0, skipped: 0, errors: 0 };
 
-  // Agrega POR GRUPO. Cada user do grupo recebe o digest do grupo.
-  const byGroup = new Map<string, DigestRow[]>();
-  for (const r of rows) {
-    const arr = byGroup.get(r.group_id) ?? [];
-    arr.push(r);
-    byGroup.set(r.group_id, arr);
-  }
-
-  const groupIds = Array.from(byGroup.keys());
+  // Membership: pra cada grupo, mapa user_id → role. Usado tanto pra
+  // descobrir os recipients quanto pra montar o "você leva" vs "X leva".
+  const groupIds = Array.from(new Set(rows.map((r) => r.group_id)));
   const { data: members } = await admin
     .from("group_members")
     .select("group_id, user_id")
     .in("group_id", groupIds)
     .in("role", ["admin", "member"]);
-  const membersByGroup = new Map<string, string[]>();
+
+  // user_id → set of group_ids the user is in
+  const userGroups = new Map<string, Set<string>>();
   for (const m of (members ?? []) as { group_id: string; user_id: string }[]) {
-    const arr = membersByGroup.get(m.group_id) ?? [];
-    arr.push(m.user_id);
-    membersByGroup.set(m.group_id, arr);
+    const set = userGroups.get(m.user_id) ?? new Set<string>();
+    set.add(m.group_id);
+    userGroups.set(m.user_id, set);
   }
 
-  // Idempotência: PK exige activity_id NOT NULL. Usamos a primeira atividade
-  // do digest como "âncora" — se essa atividade já tem channel='digest' pro
-  // user hoje (occurrence_date=tomorrow), skip.
-  const allUserIds = Array.from(
-    new Set(Array.from(membersByGroup.values()).flat()),
+  // Resolve nome do responsável (display first name) pra todos os
+  // responsible_ids encontrados — bulk pra evitar N+1.
+  const responsibleIds = Array.from(
+    new Set(rows.map((r) => r.responsible_id).filter((id): id is string => !!id)),
   );
-  if (allUserIds.length === 0) return { sent: 0, skipped: 0, errors: 0 };
+  const { data: respProfiles } = responsibleIds.length > 0
+    ? await admin
+        .from("profiles")
+        .select("id, full_name")
+        .in("id", responsibleIds)
+    : { data: [] };
+  const respFirstName = new Map<string, string>();
+  for (const p of (respProfiles ?? []) as { id: string; full_name: string | null }[]) {
+    const first = (p.full_name ?? "").trim().split(" ")[0];
+    if (first) respFirstName.set(p.id, first);
+  }
+
+  // Per-user aggregation. User vê SOMENTE atividades dos grupos em que é
+  // membro (privacy + relevância).
+  type UserBriefing = { userId: string; items: BriefingRow[] };
+  const briefingsByUser = new Map<string, UserBriefing>();
+  for (const r of rows) {
+    for (const [userId, groups] of userGroups.entries()) {
+      if (!groups.has(r.group_id)) continue;
+      const ub = briefingsByUser.get(userId) ?? { userId, items: [] };
+      ub.items.push(r);
+      briefingsByUser.set(userId, ub);
+    }
+  }
+
+  if (briefingsByUser.size === 0) return { sent: 0, skipped: 0, errors: 0 };
+
+  // Localize per user.
+  const allUserIds = Array.from(briefingsByUser.keys());
   const tByUser = await buildTByUser(allUserIds);
 
-  for (const [groupId, list] of byGroup.entries()) {
-    const userIds = membersByGroup.get(groupId) ?? [];
-    if (userIds.length === 0) continue;
-    const sorted = list
-      .slice()
-      .sort((a, b) => (a.time_start ?? "").localeCompare(b.time_start ?? ""));
+  // Idempotência: check sends prévios pro briefing de hoje (canal='briefing').
+  // Âncora = primeira atividade alfabética do briefing do user (estável).
+  const { data: priorSends } = await admin
+    .from("activity_reminder_sends")
+    .select("user_id, activity_id")
+    .eq("occurrence_date", todayKey)
+    .eq("channel", "briefing")
+    .in("user_id", allUserIds);
+  const alreadySent = new Set(
+    (priorSends ?? []).map((p: { user_id: string }) => p.user_id),
+  );
+
+  for (const { userId, items } of briefingsByUser.values()) {
+    if (alreadySent.has(userId)) {
+      skipped += 1;
+      continue;
+    }
+
+    // Sort: time_start crescente (atividades sem hora vão pro fim).
+    const sorted = items.slice().sort((a, b) => {
+      const ta = a.time_start ?? "99:99";
+      const tb = b.time_start ?? "99:99";
+      return ta.localeCompare(tb);
+    });
+
+    const t = tByUser.get(userId);
+    const total = sorted.length;
     const totalChecklistItems = sorted.reduce((acc, r) => acc + r.checklistCount, 0);
-    const summary = sorted
-      .map((r) => `${r.activity_name}${r.time_start ? ` ${r.time_start.slice(0, 5)}` : ""}`)
-      .join(" + ");
-    const anchorActivityId = sorted[0].activity_id;
 
-    // Check prior digest sends pra esses users.
-    const { data: prior } = await admin
-      .from("activity_reminder_sends")
-      .select("user_id")
-      .eq("activity_id", anchorActivityId)
-      .eq("occurrence_date", tomorrowKey)
-      .eq("channel", "digest")
-      .in("user_id", userIds);
-    const alreadySent = new Set((prior ?? []).map((p: { user_id: string }) => p.user_id));
+    // Title: "🌅 Hoje: 3 compromissos" / "🌅 Hoje: 1 compromisso"
+    const title = t
+      ? t("reminders.briefing.title", { count: total })
+      : `🌅 Hoje: ${total} compromisso${total > 1 ? "s" : ""}`;
 
-    for (const userId of userIds) {
-      if (alreadySent.has(userId)) {
-        skipped += 1;
-        continue;
+    // Body: linha por atividade (até 3 itens), formato:
+    //   "09h Otto na Natação (Aline) · 14h Martim no Inglês (você)"
+    // > 3 itens: "09h Otto · 14h Martim · 18h Festa +2"
+    const previewCount = Math.min(3, total);
+    const previewLines: string[] = [];
+    for (let i = 0; i < previewCount; i++) {
+      const r = sorted[i];
+      const timeShort = r.time_start ? r.time_start.slice(0, 5) : "";
+      const childFirst = (r.child_name ?? "").trim().split(" ")[0];
+
+      // Responsable badge: "(você)" se userId === responsible_id;
+      // "(Aline)" se outro membro; "" se NULL (atividade do grupo todo).
+      let respBadge = "";
+      if (r.responsible_id) {
+        if (r.responsible_id === userId) {
+          respBadge = t
+            ? ` (${t("reminders.briefing.respYou")})`
+            : " (você)";
+        } else {
+          const name = respFirstName.get(r.responsible_id);
+          if (name) respBadge = ` (${name})`;
+        }
       }
-      const t = tByUser.get(userId);
-      const title = t
-        ? t("reminders.digest.title", { count: list.length })
-        : `Amanhã: ${list.length} atividade${list.length > 1 ? "s" : ""}`;
-      const bodyKey = totalChecklistItems > 0
-        ? "reminders.digest.bodyWithItems"
-        : "reminders.digest.body";
-      const body = t
-        ? t(bodyKey, { summary, count: totalChecklistItems })
-        : `${summary}${totalChecklistItems > 0 ? ` · ${totalChecklistItems} itens pra preparar` : ""}`;
-      const link = `/calendario?date=${tomorrowKey}`;
 
-      try {
-        await createNotificationWithPush(userId, "activity_digest", title, body, link);
-        await admin.from("activity_reminder_sends").insert({
-          activity_id: anchorActivityId,
-          occurrence_date: tomorrowKey,
-          lead_minutes: SENTINEL_EVENING_BEFORE,
-          user_id: userId,
-          channel: "digest",
-        });
-        captureServerEvent(userId, "activity_reminder_sent", {
-          channel: "digest",
-          activity_count: list.length,
-          checklist_count: totalChecklistItems,
-          group_id: groupId,
-        });
-        sent += 1;
-      } catch (e) {
-        console.error("[CRON activity-digest] push fail:", e);
-        errors += 1;
-      }
+      const pieces: string[] = [];
+      if (timeShort) pieces.push(timeShort);
+      if (childFirst) pieces.push(childFirst);
+      pieces.push(r.activity_name);
+      previewLines.push(pieces.join(" ") + respBadge);
+    }
+
+    let body = previewLines.join(" · ");
+    if (total > previewCount) {
+      const extra = total - previewCount;
+      body += t
+        ? ` ${t("reminders.briefing.moreCount", { count: extra })}`
+        : ` +${extra}`;
+    }
+    if (totalChecklistItems > 0) {
+      body += t
+        ? ` · ${t("reminders.briefing.itemsToPrep", { count: totalChecklistItems })}`
+        : ` · ${totalChecklistItems} ${totalChecklistItems === 1 ? "item" : "itens"} pra preparar`;
+    }
+
+    // Deep link: agenda de hoje. Se 1 atividade só, link direto pra ela.
+    const link = total === 1
+      ? `/atividades/${sorted[0].activity_id}?occurrence=${todayKey}&briefing=1`
+      : `/calendario?date=${todayKey}&briefing=1`;
+
+    // Âncora pra idempotência: primeira atividade alfabética.
+    const anchorActivityId = sorted
+      .map((r) => r.activity_id)
+      .slice()
+      .sort()[0];
+
+    try {
+      // Briefing é info (não interrompe Foco/DND) — pais querem checar de
+      // manhã, não ser acordados. iOS Time-Sensitive OFF, Android importance
+      // default. Quem quer som forte → cron T-lead pré-evento cobre.
+      await createNotificationWithPush(userId, "activity_digest", title, body, link);
+      await admin.from("activity_reminder_sends").insert({
+        activity_id: anchorActivityId,
+        occurrence_date: todayKey,
+        lead_minutes: SENTINEL_MORNING_OF,
+        user_id: userId,
+        channel: "briefing",
+      });
+      captureServerEvent(userId, "activity_reminder_sent", {
+        channel: "briefing",
+        activity_count: total,
+        checklist_count: totalChecklistItems,
+        items_with_time: sorted.filter((r) => !!r.time_start).length,
+        items_user_responsible: sorted.filter((r) => r.responsible_id === userId).length,
+      });
+      sent += 1;
+    } catch (e) {
+      console.error("[CRON morning-briefing] push fail:", e);
+      errors += 1;
     }
   }
 
   return { sent, skipped, errors };
 }
+
+/**
+ * @deprecated use sendMorningBriefing instead. Mantido só pra back-compat de
+ * callers que ainda importam o nome antigo (drop em sprint futuro).
+ */
+export const sendDailyActivityDigest = sendMorningBriefing;
