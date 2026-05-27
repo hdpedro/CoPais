@@ -2358,6 +2358,10 @@ export type TranslationKey =
   | "reminders.activity.title"
   | "reminders.activity.titleEvening"
   | "reminders.activity.titleMorning"
+  | "reminders.briefing.itemsToPrep"
+  | "reminders.briefing.moreCount"
+  | "reminders.briefing.respYou"
+  | "reminders.briefing.title"
   | "reminders.digest.body"
   | "reminders.digest.bodyWithItems"
   | "reminders.digest.title"
@@ -4940,6 +4944,10 @@ export const TRANSLATION_KEYS = [
   "reminders.activity.title",
   "reminders.activity.titleEvening",
   "reminders.activity.titleMorning",
+  "reminders.briefing.itemsToPrep",
+  "reminders.briefing.moreCount",
+  "reminders.briefing.respYou",
+  "reminders.briefing.title",
   "reminders.digest.body",
   "reminders.digest.bodyWithItems",
   "reminders.digest.title",
