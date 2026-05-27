@@ -1,36 +1,26 @@
 import { NextResponse } from "next/server";
 import { revalidateTag } from "next/cache";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { createChild } from "@/lib/services/children";
 import { grantTrialIfEligible } from "@/lib/billing";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { recordQuestStepServer } from "@/lib/quest-server";
 
 export async function POST(request: Request) {
-  // Dual auth: Bearer (native) + cookie (PWA). Without Bearer support
-  // native onboarding fails because the middleware redirects unauth
-  // requests to /session-recovery and the route never sees them.
-  const authHeader = request.headers.get("authorization");
-  let userId: string | null = null;
+  // Dual auth via helper centralizado — antes era boilerplate inline de 13
+  // linhas que tinha variações sutis entre rotas. Consolidado pra impedir
+  // que alguém esqueça o branch Bearer (foi a causa do bug em /api/native/
+  // notify, 2026-05-27).
+  const user = await resolveAuthenticatedUser(request);
 
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.slice(7);
-    const admin = createAdminClient();
-    const { data, error } = await admin.auth.getUser(token);
-    if (!error && data.user) userId = data.user.id;
-  } else {
-    const cookieClient = await createClient();
-    const { data: { user: cookieUser } } = await cookieClient.auth.getUser();
-    if (cookieUser) userId = cookieUser.id;
-  }
-
-  if (!userId) {
+  if (!user) {
     return NextResponse.json(
       { error: "Sessao expirada. Faca login novamente." },
       { status: 401 },
     );
   }
+  const userId = user.id;
 
   const body = await request.json();
   const {

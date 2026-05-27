@@ -20,34 +20,20 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { stripe } from "@/lib/stripe";
 import { revokeAppleToken } from "@/lib/apple-siwa-revoke";
 
 export async function POST(req: NextRequest) {
   try {
-    // Auth: aceita tanto cookie (web) quanto Bearer (native)
-    const authHeader = req.headers.get("authorization");
-    let userId: string | null = null;
-
-    if (authHeader?.startsWith("Bearer ")) {
-      const token = authHeader.slice(7);
-      const admin = createAdminClient();
-      const { data, error } = await admin.auth.getUser(token);
-      if (error || !data.user) {
-        return NextResponse.json({ error: "Sessao invalida" }, { status: 401 });
-      }
-      userId = data.user.id;
-    } else {
-      const supabase = await createClient();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
-      }
-      userId = user.id;
+    // Dual auth via helper (Bearer pro native, cookies pro PWA).
+    const user = await resolveAuthenticatedUser(req);
+    if (!user) {
+      return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
     }
+    const userId = user.id;
 
     // Body: exige confirmacao tipada
     const body = await req.json().catch(() => ({}));

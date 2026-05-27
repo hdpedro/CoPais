@@ -1,3 +1,5 @@
+// kindar/api-route-auth-helper: pwa-only — Stripe Checkout só roda no PWA;
+// native usa Apple/Google IAP. Native NUNCA chama essa rota.
 import { NextRequest, NextResponse } from "next/server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";

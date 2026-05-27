@@ -1,16 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 /**
  * Lightweight endpoint that returns children and member names
  * for the local AI parser. No Groq calls — just a quick DB lookup.
+ *
+ * Auth: dual via resolveAuthenticatedUser (Bearer pro native, cookies PWA).
  */
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+    const user = await resolveAuthenticatedUser(req);
 
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -23,6 +23,8 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
+
+    const supabase = createAdminClient();
 
     // Verify user belongs to group
     const { data: membership } = await supabase

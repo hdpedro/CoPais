@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendPushToUser } from "@/lib/push";
 import { pushChatRateLimiter } from "@/lib/rate-limit";
 import { getServerT } from "@/i18n/server";
@@ -8,11 +9,12 @@ import type { Locale } from "@/i18n";
 
 /**
  * POST /api/push/chat
- * Called by ChatRoom when a message is sent to notify other members
+ * Called by ChatRoom when a message is sent to notify other members.
+ *
+ * Auth: dual via resolveAuthenticatedUser (Bearer pro native, cookies PWA).
  */
 export async function POST(request: NextRequest) {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const user = await resolveAuthenticatedUser(request);
 
   if (!user) {
     return NextResponse.json({ error: "Nao autenticado" }, { status: 401 });
@@ -28,6 +30,8 @@ export async function POST(request: NextRequest) {
   if (!groupId || !messageText) {
     return NextResponse.json({ error: "Dados incompletos" }, { status: 400 });
   }
+
+  const supabase = createAdminClient();
 
   // Verify user is a member of the group
   const { data: membership } = await supabase

@@ -1,3 +1,5 @@
+// kindar/api-route-auth-helper: pwa-only — Coupon validation só roda no fluxo
+// de assinatura PWA. Native não tem coupon UI (Apple/Google IAP gerencia promos).
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 

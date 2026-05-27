@@ -1,3 +1,5 @@
+// kindar/api-route-auth-helper: pwa-only — paginação histórica do chat só PWA;
+// native usa Supabase JS client direto (realtime + paginate via supabase-js).
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getSignedFileUrl } from "@/lib/storage-signed-url";

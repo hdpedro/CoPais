@@ -1,3 +1,5 @@
+// kindar/api-route-auth-helper: pwa-only — Web Push VAPID subscription só PWA;
+// native registra via /api/push/register-apns (APNs/FCM token).
 import { NextRequest, NextResponse } from "next/server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";

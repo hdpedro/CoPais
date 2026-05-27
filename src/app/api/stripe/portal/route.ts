@@ -1,3 +1,5 @@
+// kindar/api-route-auth-helper: pwa-only — Stripe Customer Portal só PWA;
+// gerencia assinatura web (IAP do native usa Apple/Google subscriptions).
 import { NextRequest, NextResponse } from "next/server";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { createClient } from "@/lib/supabase/server";

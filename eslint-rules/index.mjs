@@ -7,9 +7,11 @@
  * Wired in eslint.config.mjs via `plugins: { kindar: kindarPlugin }`.
  */
 import noPtLiteral from "./no-pt-literal.mjs";
+import apiRouteAuthHelper from "./api-route-auth-helper.mjs";
 
 export default {
   rules: {
     "no-pt-literal": noPtLiteral,
+    "api-route-auth-helper": apiRouteAuthHelper,
   },
 };

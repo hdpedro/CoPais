@@ -1,3 +1,5 @@
+// kindar/api-route-auth-helper: pwa-only — PDF export do chat só PWA (native
+// reimplementa via expo-print/sharing localmente sem chamar essa rota).
 import { createClient } from "@/lib/supabase/server";
 import { PDFDocument, StandardFonts, rgb, PDFFont, PDFPage } from "pdf-lib";
 

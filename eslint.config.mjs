@@ -16,6 +16,11 @@ const eslintConfig = defineConfig([
     plugins: { kindar: kindarPlugin },
     rules: {
       "kindar/no-pt-literal": "error",
+      // Trava regressão do bug de 2026-05-27: rotas API que usam createClient
+      // SSR (cookies-only) + auth.getUser() retornam 401 silencioso pra TODO
+      // caller native (Bearer). Force resolveAuthenticatedUser ou opt-out
+      // explícito. Vide eslint-rules/api-route-auth-helper.mjs.
+      "kindar/api-route-auth-helper": "error",
     },
   },
   // Legal / marketing / admin-only pages are deliberately pt-only:
