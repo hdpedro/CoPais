@@ -12,7 +12,8 @@
  */
 
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { resolveAuthenticatedUser } from "@/lib/api-auth";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { createNotificationWithPush } from "@/lib/push";
 import { postChatNotification } from "@/lib/chat-notify";
 import { captureServerEvent } from "@/lib/posthog-server";
@@ -317,10 +318,24 @@ const ACTION_CONFIGS: Record<ActionType, {
   },
 };
 
+/**
+ * Auth: usa resolveAuthenticatedUser (Bearer-aware) porque o native sempre
+ * passa Authorization: Bearer <jwt>. createClient() SSR só lê cookies — sem
+ * cookies, retorna user=null → 401 silencioso.
+ *
+ * Bug histórico (Angelino 2026-05-27): rota usava createClient → 401 em todas
+ * as chamadas native → ZERO notificações no inbox de TODOS os eventos/swaps/
+ * decisões criados via app native nas últimas semanas (7+ eventos validados,
+ * 5+ users afetados). Sintoma: criou no app, ninguém recebeu.
+ *
+ * Mesmo bug que /api/push/register-apns (fix commit 28e9cca).
+ *
+ * Queries pós-auth usam createAdminClient (service role) pra evitar RLS no
+ * lookup de group_members / profiles — user já foi validado pelo Bearer.
+ */
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
+    const user = await resolveAuthenticatedUser(req);
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -337,8 +352,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: `Unknown action: ${action}` }, { status: 400 });
     }
 
+    const admin = createAdminClient();
+
     // Verify user belongs to group
-    const { data: membership } = await supabase
+    const { data: membership } = await admin
       .from("group_members")
       .select("user_id")
       .eq("group_id", groupId)
@@ -350,7 +367,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get sender name
-    const { data: profile } = await supabase
+    const { data: profile } = await admin
       .from("profiles")
       .select("full_name")
       .eq("id", user.id)
@@ -358,7 +375,7 @@ export async function POST(req: NextRequest) {
     const senderName = profile?.full_name?.split(" ")[0] || "Alguem";
 
     // Get other group members
-    const { data: otherMembers } = await supabase
+    const { data: otherMembers } = await admin
       .from("group_members")
       .select("user_id")
       .eq("group_id", groupId)
@@ -382,11 +399,11 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. Chat channel notification
+    // 2. Chat channel notification (admin client — auth já validada acima)
     if (config.chatMessageFn) {
       promises.push(
         postChatNotification(
-          supabase, groupId, user.id,
+          admin, groupId, user.id,
           config.chatMessageFn(senderName, data)
         ).catch(() => {})
       );
