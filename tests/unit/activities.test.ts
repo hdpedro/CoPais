@@ -88,8 +88,12 @@ function chainMock(result: { data: any; error: any }) {
     select: vi.fn().mockReturnThis(),
     eq: vi.fn().mockReturnThis(),
     neq: vi.fn().mockReturnThis(),
+    in: vi.fn().mockReturnThis(),
     single: vi.fn().mockResolvedValue(result),
     maybeSingle: vi.fn().mockResolvedValue(result),
+    // .order() é awaitable (resolveChildrenName/buildChildrenNameResolver usam)
+    // mas também precisa ser thenable + chainable. Mock como promessa direta.
+    order: vi.fn().mockResolvedValue(result),
     insert: vi.fn().mockReturnThis(),
     update: vi.fn().mockReturnThis(),
     upsert: vi.fn().mockResolvedValue(result),

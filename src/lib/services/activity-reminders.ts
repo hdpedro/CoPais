@@ -34,6 +34,7 @@ import { createNotificationWithPush } from "@/lib/push";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { getServerT } from "@/i18n/server";
 import { getUsersLocale } from "@/lib/locale-utils";
+import { buildChildrenNameResolver } from "@/lib/services/family-names";
 import type { Locale } from "@/i18n";
 
 /**
@@ -351,6 +352,18 @@ export async function runActivityDueReminders(now: Date = new Date()): Promise<S
   // 6. Resolve t() per user (bulk).
   const tByUser = await buildTByUser(userIds);
 
+  // 6b. Resolve child names em batch: pra atividades família-wide (child_id NULL)
+  // listamos TODAS as crianças do grupo ("Otto e Martim"). Sem isso, o push body
+  // saía "Crianca teve Jiu Jitsu" — frio, impessoal. Famílias com 2 filhos +
+  // atividade compartilhada (Jiu Jitsu, Inglês, etc.) cadastram UMA atividade
+  // só, esperando UMA push com nome correto.
+  const groupIdsNeedingResolver = Array.from(
+    new Set(due.filter((d) => d.child_id === null).map((d) => d.group_id)),
+  );
+  const resolveChildren = groupIdsNeedingResolver.length > 0
+    ? await buildChildrenNameResolver(admin, groupIdsNeedingResolver)
+    : null;
+
   // 7. Fanout.
   for (const { occ, userId, role } of candidatePairs) {
     const dedupeKey = `${occ.activity_id}::${occ.occurrence_date}::${occ.leadMinutes}::${userId}`;
@@ -360,7 +373,12 @@ export async function runActivityDueReminders(now: Date = new Date()): Promise<S
     }
 
     const t = tByUser.get(userId);
-    const childFirst = (occ.child_name ?? "").split(" ")[0];
+    // child_id set: usa embedded child_name (fast path, sem query extra).
+    // child_id NULL: usa resolver batched (1 query no setup, O(1) no loop).
+    let childFirst = (occ.child_name ?? "").split(" ")[0];
+    if (!childFirst && occ.child_id === null && resolveChildren) {
+      childFirst = resolveChildren(null, occ.group_id);
+    }
     const timeShort = occ.time_start ? occ.time_start.slice(0, 5) : "";
     const checklistPreview = formatChecklistPreview(occ.checklist);
 

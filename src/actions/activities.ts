@@ -4,6 +4,10 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { createNotificationWithPush } from "@/lib/push";
+import {
+  resolveChildrenName,
+  buildChildrenNameResolver,
+} from "@/lib/services/family-names";
 // recurrence-utils no longer used — occurrences are pre-computed in calendar_occurrences table
 import { formatDateKey, getBrazilToday } from "@/lib/calendar-utils";
 import { captureServerEvent } from "@/lib/posthog-server";
@@ -126,15 +130,12 @@ export async function createActivity(formData: FormData) {
     .eq("group_id", membership.groupId)
     .neq("user_id", user.id);
 
-  let childName = "As criancas";
-  if (childId) {
-    const { data: child } = await supabase
-      .from("children")
-      .select("full_name")
-      .eq("id", childId)
-      .single();
-    childName = child?.full_name?.split(" ")[0] || "Crianca";
-  }
+  // Resolve nome natural pt-BR: 1 filho → "Otto"; família-wide → "Otto e Martim";
+  // 0 → "as crianças". Evita push genérico "Crianca" pra atividades compartilhadas.
+  const childName = await resolveChildrenName(supabase, {
+    childId: childId || null,
+    groupId: membership.groupId,
+  });
 
   if (members && members.length > 0) {
     try {
@@ -332,7 +333,12 @@ export async function submitActivityReport(formData: FormData) {
 
   // Send notification to other parent about the activity report
   try {
-    const childName = (activity.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
+    const childName = await resolveChildrenName(supabase, {
+      childId: activity.child_id,
+      groupId: activeGroup.groupId,
+      embeddedFullName:
+        (activity.children as unknown as { full_name: string | null } | null)?.full_name ?? null,
+    });
     const statusLabels: Record<string, string> = {
       completed: "foi realizada ✅",
       missed: "nao aconteceu ❌",
@@ -517,6 +523,11 @@ export async function sendMissedReportReminders() {
     byGroup[occ.group_id].push(act as unknown as ActivityFromOcc);
   }
 
+  // Pre-fetch nomes de todas as crianças dos grupos envolvidos em 1 query única.
+  // Resolver closure: O(1) lookup no loop, zero N+1.
+  const allGroupIds = Object.keys(byGroup);
+  const resolveChildName = await buildChildrenNameResolver(supabase, allGroupIds);
+
   for (const [groupId, groupActivities] of Object.entries(byGroup)) {
     const actIds = groupActivities.map((a) => a.id);
     const { data: existingReports } = await supabase
@@ -539,7 +550,8 @@ export async function sendMissedReportReminders() {
 
     try {
       const notificationPromises = unreported.flatMap((act) => {
-        const childName = (act.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
+        // child_id NULL (família-wide) → "Otto e Martim"; child_id set → "Otto".
+        const childName = resolveChildName(act.child_id, groupId);
         return members.map((member) =>
           createNotificationWithPush(
             member.user_id,
@@ -674,7 +686,12 @@ export async function changeActivityResponsible(
     .single();
 
   const newResponsibleName = newResponsibleProfile?.full_name?.split(" ")[0] || "Alguem";
-  const childName = (activity.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
+  const childName = await resolveChildrenName(supabase, {
+    childId: activity.child_id,
+    groupId: activeGroup.groupId,
+    embeddedFullName:
+      (activity.children as unknown as { full_name: string | null } | null)?.full_name ?? null,
+  });
 
   // Send push notification to the new responsible
   if (newResponsibleId !== user.id) {
@@ -915,7 +932,12 @@ export async function changeActivityResponsibleAll(
     .single();
 
   const newResponsibleName = newResponsibleProfile?.full_name?.split(" ")[0] || "Alguem";
-  const childName = (activity.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Crianca";
+  const childName = await resolveChildrenName(adminDb, {
+    childId: activity.child_id,
+    groupId: activeGroup.groupId,
+    embeddedFullName:
+      (activity.children as unknown as { full_name: string | null } | null)?.full_name ?? null,
+  });
 
   // Send push notification to the new responsible
   if (newResponsibleId !== user.id) {
