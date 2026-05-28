@@ -5,6 +5,9 @@
     },
     "src/app/api/ai/assistant/route.ts": {
       "maxDuration": 30
+    },
+    "src/app/api/push/register-apns/route.ts": {
+      "maxDuration": 20
     }
   },
   "crons": [

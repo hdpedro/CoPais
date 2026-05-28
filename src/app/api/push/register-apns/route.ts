@@ -20,10 +20,20 @@ import { createAdminClient } from "@/lib/supabase/admin";
  * 401 silencioso, zero tokens registravam em prod.
  */
 export async function POST(req: NextRequest) {
+  // Mede duration end-to-end. Anomalia 2026-05-28 10:56 UTC: 504 Vercel
+  // Timeout (>10s default). Cause provável: connection pool exhaustion
+  // ou peak latency Supabase. Logamos `durationMs` em TODA resposta pra
+  // detectar trend de slowness antes que vire timeout sistêmico.
+  // maxDuration: 20s configurado em vercel.json como safety net (era 10s
+  // default hobby; 30s já é o limit pra outras funções premium do projeto).
+  const startMs = Date.now();
   try {
     const user = await resolveAuthenticatedUser(req);
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json(
+        { error: "Unauthorized", durationMs: Date.now() - startMs },
+        { status: 401 },
+      );
     }
 
     const { token, platform } = (await req.json()) as {
@@ -32,8 +42,8 @@ export async function POST(req: NextRequest) {
     };
     if (!token || typeof token !== "string") {
       return NextResponse.json(
-        { error: "Missing token" },
-        { status: 400 }
+        { error: "Missing token", durationMs: Date.now() - startMs },
+        { status: 400 },
       );
     }
 
@@ -55,7 +65,11 @@ export async function POST(req: NextRequest) {
     if (existing) {
       for (const row of existing) {
         if (row.message === token) {
-          return NextResponse.json({ success: true, existing: true });
+          return NextResponse.json({
+            success: true,
+            existing: true,
+            durationMs: Date.now() - startMs,
+          });
         }
       }
     }
@@ -82,12 +96,31 @@ export async function POST(req: NextRequest) {
       is_read: true, // Hidden from notification UI
     });
 
-    return NextResponse.json({ success: true, platform: tokenTitle });
+    const durationMs = Date.now() - startMs;
+    // Heurística de slowness: se demorar mais que 5s, logar pra trend
+    // tracking (Vercel default timeout era 10s, tivemos 504 hoje). Permite
+    // detectar antes de virar problema sistêmico.
+    if (durationMs > 5000) {
+      console.warn(`[push/register] slow path durationMs=${durationMs}`);
+    }
+    return NextResponse.json({
+      success: true,
+      platform: tokenTitle,
+      durationMs,
+    });
   } catch (error) {
-    console.error("[push/register] Register error:", error);
+    const durationMs = Date.now() - startMs;
+    console.error("[push/register] Register error:", {
+      message: error instanceof Error ? error.message : String(error),
+      durationMs,
+    });
     return NextResponse.json(
-      { error: "Registration failed" },
-      { status: 500 }
+      {
+        error: "Registration failed",
+        detail: error instanceof Error ? error.message : String(error),
+        durationMs,
+      },
+      { status: 500 },
     );
   }
 }

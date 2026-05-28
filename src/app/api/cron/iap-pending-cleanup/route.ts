@@ -74,11 +74,24 @@ export async function GET(request: NextRequest) {
       })),
     });
   } catch (error) {
-    console.error("[CRON] iap-pending-cleanup failed:", error);
+    // Antes printava "[object PostgrestError]" sem code/details/hint — bug
+    // de 2026-05-28 11:00 UTC ficou opaco e tive que reproduzir manualmente.
+    // Agora todo o detail vai pro Vercel logs + response body.
+    const err = error as { message?: string; code?: string; details?: string; hint?: string };
+    const detail = {
+      message: err?.message ?? String(error),
+      code: err?.code,
+      details: err?.details,
+      hint: err?.hint,
+    };
+    console.error("[CRON] iap-pending-cleanup failed:", detail);
     reportServerError(error, {
       filePath: "src/app/api/cron/iap-pending-cleanup/route.ts",
       severity: "warning",
     });
-    return NextResponse.json({ error: "Cleanup failed" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Cleanup failed", ...detail },
+      { status: 500 },
+    );
   }
 }
