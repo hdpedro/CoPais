@@ -364,7 +364,11 @@ export function useDashboard() {
         // Pending swap requests (details for actionable card)
         activeGroup.custodyEnabled
           ? supabase.from('swap_requests')
-              .select('id, original_date, proposed_date, reason, type, created_at, requester_id, profiles!swap_requests_requester_id_fkey(full_name)')
+              // NB: swap_requests não tem coluna `type` no schema (nunca teve, ver
+              // initial_schema.sql). Pedir o campo gera PostgREST 400 + spam no
+              // postgres.log. Fix 2026-05-29: remover do select; type sempre 'swap'
+              // no map abaixo (o app ainda não modela trocas que não sejam swap).
+              .select('id, original_date, proposed_date, reason, created_at, requester_id, profiles!swap_requests_requester_id_fkey(full_name)')
               .eq('group_id', groupId)
               .eq('status', 'pending')
               .eq('target_user_id', userId)
@@ -375,7 +379,8 @@ export function useDashboard() {
         // Meus pedidos enviados aguardando o coparente (cancelar pedido inline).
         activeGroup.custodyEnabled
           ? supabase.from('swap_requests')
-              .select('id, original_date, proposed_date, reason, type, target_user_id, profiles!swap_requests_target_user_id_fkey(full_name)')
+              // Idem: coluna `type` não existe no schema.
+              .select('id, original_date, proposed_date, reason, target_user_id, profiles!swap_requests_target_user_id_fkey(full_name)')
               .eq('group_id', groupId)
               .eq('status', 'pending')
               .eq('requester_id', userId)
@@ -888,7 +893,8 @@ export function useDashboard() {
         originalDate: s.original_date,
         proposedDate: s.proposed_date,
         reason: s.reason,
-        type: s.type || 'swap',
+        // Sem coluna `type` no schema; hardcode 'swap' até modelarmos outros tipos.
+        type: 'swap',
         createdAt: s.created_at,
       }));
 
@@ -900,7 +906,7 @@ export function useDashboard() {
         originalDate: s.original_date,
         proposedDate: s.proposed_date,
         reason: s.reason,
-        type: s.type || 'swap',
+        type: 'swap',
       }));
 
       // Banner "Amanha: troca de guarda" — compara owner de hoje vs amanha

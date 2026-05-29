@@ -166,7 +166,9 @@ export default async function DashboardPage() {
     // Pending swaps (skip when custody not enabled)
     custodyEnabled
       ? supabase.from("swap_requests")
-          .select("id, status, created_at, original_date, proposed_date, reason, type, requester_id, target_user_id, requester:profiles!swap_requests_requester_id_fkey(full_name)")
+          // swap_requests não tem coluna `type` no schema (ver initial_schema.sql);
+          // remover evita PostgREST 400 + spam "column does not exist" no postgres.log.
+          .select("id, status, created_at, original_date, proposed_date, reason, requester_id, target_user_id, requester:profiles!swap_requests_requester_id_fkey(full_name)")
           .eq("group_id", groupId).eq("status", "pending").eq("target_user_id", user.id)
           .order("created_at", { ascending: false }).limit(3)
           .then(r => r, () => ({ data: [] as never[] }))

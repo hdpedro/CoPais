@@ -76,7 +76,9 @@ export default async function SemanaPage() {
       : Promise.resolve({ data: [] as never[] }),
     custodyEnabled
       ? supabase.from("swap_requests")
-          .select("id, status, original_date, proposed_date, type, requester_id, target_user_id")
+          // swap_requests não tem coluna `type` no schema (ver initial_schema.sql);
+          // remover evita PostgREST 400 + spam de "column does not exist" no log.
+          .select("id, status, original_date, proposed_date, requester_id, target_user_id")
           .eq("group_id", groupId).eq("status", "pending").limit(5)
           .then(r => r, () => ({ data: [] as never[] }))
       : Promise.resolve({ data: [] as never[] }),
@@ -315,7 +317,8 @@ export default async function SemanaPage() {
       pendingActions={pendingActions.slice(0, 3)}
       childSummaries={childSummaries}
       nextSwaps={(swapRequests || []).slice(0, 3).map(s => ({
-        id: s.id, date: s.original_date, type: s.type,
+        // type fixo 'swap' — sem coluna no schema, mesma decisão do useDashboard native.
+        id: s.id, date: s.original_date, type: 'swap',
         isIncoming: s.target_user_id === user.id,
       }))}
       custodyEnabled={custodyEnabled}
