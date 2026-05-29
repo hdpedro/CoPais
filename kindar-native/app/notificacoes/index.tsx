@@ -32,6 +32,10 @@ const TYPE_ROUTES: Record<string, string> = {
   invitation: '/familia',
   activity_reminder: '/atividades',
   activity: '/atividades',
+  // Types adicionados 2026-05-29: garantia de fallback pra notifs antigas
+  // que ficaram sem `link` específico (pré-fix dos deep links).
+  activity_report: '/atividades',
+  activity_digest: '/(tabs)/calendario',
   event_request: '/eventos/pedidos',
   decision_new: '/decisoes',
   agreement_new: '/acordos',
