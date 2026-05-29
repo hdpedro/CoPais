@@ -416,7 +416,16 @@ async function sendApnsPush(
       body: apnsPayloadJson,
     });
 
-    if (resStatus >= 200 && resStatus < 300) return { delivered: true };
+    // Token preview pra correlacionar logs sem expor o token inteiro.
+    const tokenSuffix = token.length > 8 ? "…" + token.slice(-8) : token;
+
+    if (resStatus >= 200 && resStatus < 300) {
+      // 2026-05-28: usuários reportam push NÃO chega apesar de Apple
+      // retornar 200. Logamos sempre que dá OK pra distinguir delivered-
+      // Apple-confirmed vs delivered-but-not-on-device (Foco, DND, etc).
+      console.log(`[APNs] sent OK token=${tokenSuffix} status=${resStatus}`);
+      return { delivered: true };
+    }
 
     // Apple's permanent-failure signals — see
     // https://developer.apple.com/documentation/usernotifications/sending_notification_requests_to_apns
@@ -424,17 +433,34 @@ async function sendApnsPush(
     //   400 BadDeviceToken → token is bogus
     // 5xx + everything else = transient → keep token for next attempt.
     if (resStatus === 410) {
+      console.warn(
+        `[APNs] removed-stale token=${tokenSuffix} status=410 reason=unregistered`,
+      );
       return { delivered: false, removeToken: true, reason: "unregistered" };
     }
     if (resStatus === 400) {
       try {
         const parsed = JSON.parse(resBody) as { reason?: string };
         if (parsed?.reason === "BadDeviceToken") {
+          console.warn(
+            `[APNs] removed-stale token=${tokenSuffix} status=400 reason=BadDeviceToken`,
+          );
           return { delivered: false, removeToken: true, reason: "bad_token" };
         }
+        // outros reasons de 400 ainda úteis: BadTopic, ExpiredProviderToken, etc.
+        console.warn(
+          `[APNs] fail token=${tokenSuffix} status=400 reason=${parsed?.reason ?? "unknown"}`,
+        );
       } catch {
-        // body parse failed — treat as transient.
+        console.warn(
+          `[APNs] fail token=${tokenSuffix} status=400 reason=unparseable body=${resBody.slice(0, 200)}`,
+        );
       }
+    } else {
+      // 403 InvalidProviderToken, 5xx server, etc. Logar pra detectar trends.
+      console.warn(
+        `[APNs] fail token=${tokenSuffix} status=${resStatus} body=${resBody.slice(0, 200)}`,
+      );
     }
     return { delivered: false, removeToken: false, reason: `http_${resStatus}` };
   } catch (err) {

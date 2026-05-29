@@ -66,12 +66,13 @@ describe("BUG #1 — token lifecycle (no wipe on transient errors)", () => {
   it("APNs 410 Unregistered returns removeToken: true", () => {
     // Local var renomeada de `res.status` pra `resStatus` em 2026-05-26
     // quando refatorou fetch → http2 nativo (Apple requer HTTP/2).
-    // Aceita ambas formas pra não quebrar testes em mudanças similares.
-    expect(PUSH).toMatch(/(?:res\.status|resStatus) === 410[\s\S]{0,150}removeToken: true[^}]*reason: ["']unregistered/);
+    // Janela ampliada em 2026-05-28 pra acomodar console.warn antes do
+    // return (logging detalhado pra debug Apple status code real).
+    expect(PUSH).toMatch(/(?:res\.status|resStatus) === 410[\s\S]{0,400}removeToken: true[^}]*reason: ["']unregistered/);
   });
 
   it("APNs 400 BadDeviceToken returns removeToken: true", () => {
-    expect(PUSH).toMatch(/BadDeviceToken[\s\S]{0,200}removeToken: true[^}]*reason: ["']bad_token/);
+    expect(PUSH).toMatch(/BadDeviceToken[\s\S]{0,400}removeToken: true[^}]*reason: ["']bad_token/);
   });
 
   it("APNs caller only deletes when removeToken === true", () => {
