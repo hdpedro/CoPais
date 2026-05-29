@@ -605,11 +605,13 @@ describe("BLOCO C — Saúde (25)", () => {
   });
 
   it("C82 · criança saudável: query active_medications.status='active' filtra", () => {
+    // A query antiga era client-side no useDashboard.ts; a partir de 00101 a
+    // mesma regra (.status='active') vive no SQL da RPC get_dashboard_payload.
     const file = fs.readFileSync(
-      path.resolve(__dirname, "../../kindar-native/app/_src/hooks/useDashboard.ts"),
+      path.resolve(__dirname, "../../supabase/migrations/00101_get_dashboard_payload.sql"),
       "utf8",
     );
-    expect(file).toMatch(/active_medications[\s\S]{0,300}\.eq\(['"]status['"],\s*['"]active['"]/);
+    expect(file).toMatch(/active_medications[\s\S]{0,300}status\s*=\s*'active'/);
   });
 
   it("C83 · criança em tratamento: illness_episodes.status='active' suportado", () => {
