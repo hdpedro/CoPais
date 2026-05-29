@@ -253,151 +253,109 @@ export function useDashboard() {
       const sixtyDaysFromToday = new Date();
       sixtyDaysFromToday.setDate(sixtyDaysFromToday.getDate() + 60);
       const sixtyDaysFromTodayStr = formatDateKey(sixtyDaysFromToday);
+      // Janela pendingReports — datas usadas pela RPC pra trazer ocorrências
+      // de DIAS PASSADOS (7d) sem activity_report. Subiu pra cá pra alimentar
+      // os params da RPC; antes era local ao try-block de pendingReports.
+      const weekAgo = new Date();
+      weekAgo.setDate(weekAgo.getDate() - 7);
+      const weekAgoStr = formatDateKey(weekAgo);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayStr = formatDateKey(yesterday);
 
-      // All queries in parallel (resilient — each with fallback).
-      // Envolto em withTimeout: se qualquer query do Supabase pendurar
-      // (TLS travado, token expirado em refresh storm), o TimeoutError
-      // dispara em 15s e cai no catch — UI sai do "Carregando..." em vez
-      // de bloquear pra sempre. Telemetria via error-reporter.
-      const [
-        { data: members },
-        { data: children },
-        { data: custodyEvents },
-        { data: todayOccurrences },
-        { data: tomorrowOccurrences },
-        { data: notifications },
-        { data: pendingExp },
-        { data: illnessData },
-        { data: medsData },
-        { data: openDecisions },
-        { data: approvedExpenses },
-        { data: pendingSwapsData },
-        { data: mySentSwapsData },
-        { data: tomorrowCustodyData },
-      ] = await withTimeout(Promise.all([
-        supabase.from('group_members')
-          .select('user_id, role, profiles(full_name)')
-          .eq('group_id', groupId)
-          .then(r => r, () => ({ data: [] as never[] })),
-        supabase.from('children')
-          .select('id, full_name, birth_date, photo_url')
-          .eq('group_id', groupId)
-          .then(r => r, () => ({ data: [] as never[] })),
-        // Range expandido até +60 dias pra findNextCustodyHandover ter
-        // visibilidade dos swaps futuros. Antes a query filtrava só HOJE
-        // (.lte start <= today .gte end >= today), mascarando o bug Barata:
-        // pra calcular a "próxima troca", o helper precisa enxergar o swap
-        // aprovado pra sex 15/16/17 (não só o regular Amanda 14-18). Sem o
-        // range expandido, helper achava handover errado em sex 15 (regular
-        // Amanda) em vez de seg 18 (Amanda assume após fim dos swaps).
-        // Filtro: events que TERMINAM em hoje ou depois, COMEÇAM em até 60d.
-        activeGroup.custodyEnabled
-          ? supabase.from('custody_events')
-              .select('id, start_date, end_date, responsible_user_id, child_id, custody_type, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)')
-              .eq('group_id', groupId)
-              .gte('end_date', today)
-              .lte('start_date', sixtyDaysFromTodayStr)
-              .order('start_date')
-              .then(r => r, () => ({ data: [] as never[] }))
-          : Promise.resolve({ data: [] as never[] }),
-        // calendar_occurrences has NO status column (migration 00038); filtering
-        // .eq('status','active') silently returned 0 rows and hid the day card.
-        // Same query shape as line 354 below — kept consistent on purpose.
-        supabase.from('calendar_occurrences')
-          .select('id, activity_id, occurrence_date, child_activities(id, name, category, time_start, time_end, location, child_id, children(full_name))')
-          .eq('group_id', groupId)
-          .eq('occurrence_date', today)
-          .limit(20)
-          .then(r => r, () => ({ data: [] as never[] })),
-        supabase.from('calendar_occurrences')
-          .select('id, activity_id, occurrence_date, child_activities(id, name, category, time_start, time_end, location, child_id, children(full_name))')
-          .eq('group_id', groupId)
-          .eq('occurrence_date', tomorrowStr)
-          .limit(20)
-          .then(r => r, () => ({ data: [] as never[] })),
-        supabase.from('notifications')
-          .select('id', { count: 'exact', head: true })
-          .eq('user_id', userId)
-          .eq('is_read', false)
-          .then(r => r, () => ({ data: null, count: 0 } as never)),
-        // Pending expenses awaiting my approval (details for actionable card)
-        supabase.from('expenses')
-          .select('id, description, amount, category, expense_date, paid_by, profiles!expenses_paid_by_fkey(full_name)')
-          .eq('group_id', groupId)
-          .eq('status', 'pending')
-          .neq('paid_by', userId)
-          .order('created_at', { ascending: false })
-          .limit(5)
-          .then(r => r, () => ({ data: [] as never[] })),
-        // Active illnesses for health summary
-        supabase.from('illness_episodes')
-          .select('id, title, status, child_id, children(full_name)')
-          .eq('group_id', groupId)
-          .eq('status', 'active')
-          .limit(10)
-          .then(r => r, () => ({ data: [] as never[] })),
-        // Active medications — apenas cursos agudos (com end_date definida).
-        // Medicacao sem end_date = uso continuo/cronico, fica fora da home pra
-        // evitar poluicao visual; ainda visivel em /saude/medicamentos.
-        supabase.from('active_medications')
-          .select('id, name, child_id, children(full_name)')
-          .eq('group_id', groupId)
-          .eq('status', 'active')
-          .not('end_date', 'is', null)
-          .limit(10)
-          .then(r => r, () => ({ data: [] as never[] })),
-        // Open decisions with details (for actionable card)
-        supabase.from('decisions')
-          .select('id, title, category, deadline, status')
-          .eq('group_id', groupId)
-          .eq('status', 'aberta')
-          .order('created_at', { ascending: false })
-          .limit(10)
-          .then(r => r, () => ({ data: [] as never[] })),
-        // Approved expenses for balance calculation
-        supabase.from('expenses')
-          .select('amount, paid_by')
-          .eq('group_id', groupId)
-          .eq('status', 'approved')
-          .limit(10000)
-          .then(r => r, () => ({ data: [] as never[] })),
-        // Pending swap requests (details for actionable card)
-        activeGroup.custodyEnabled
-          ? supabase.from('swap_requests')
-              // NB: swap_requests não tem coluna `type` no schema (nunca teve, ver
-              // initial_schema.sql). Pedir o campo gera PostgREST 400 + spam no
-              // postgres.log. Fix 2026-05-29: remover do select; type sempre 'swap'
-              // no map abaixo (o app ainda não modela trocas que não sejam swap).
-              .select('id, original_date, proposed_date, reason, created_at, requester_id, profiles!swap_requests_requester_id_fkey(full_name)')
-              .eq('group_id', groupId)
-              .eq('status', 'pending')
-              .eq('target_user_id', userId)
-              .order('created_at', { ascending: false })
-              .limit(3)
-              .then(r => r, () => ({ data: [] as never[] }))
-          : Promise.resolve({ data: [] as never[] }),
-        // Meus pedidos enviados aguardando o coparente (cancelar pedido inline).
-        activeGroup.custodyEnabled
-          ? supabase.from('swap_requests')
-              // Idem: coluna `type` não existe no schema.
-              .select('id, original_date, proposed_date, reason, target_user_id, profiles!swap_requests_target_user_id_fkey(full_name)')
-              .eq('group_id', groupId)
-              .eq('status', 'pending')
-              .eq('requester_id', userId)
-              .order('created_at', { ascending: false })
-              .limit(5)
-              .then(r => r, () => ({ data: [] as never[] }))
-          : Promise.resolve({ data: [] as never[] }),
-        // Custodia de AMANHA (banner laranja "Amanha: troca de guarda").
-        activeGroup.custodyEnabled
-          ? supabase.from('custody_events')
-              .select('id, start_date, end_date, responsible_user_id, child_id, custody_type, children(full_name)')
-              .eq('group_id', groupId)
-              .lte('start_date', tomorrowStr)
-              .gte('end_date', tomorrowStr)
-              .then(r => r, () => ({ data: [] as never[] }))
-          : Promise.resolve({ data: [] as never[] }),
-      ]), FETCH_TIMEOUT_MS, 'useDashboard:mainQueries');
+      // === RPC consolidada (migration 00101, 2026-05-29) =====================
+      // Antes: 17 SELECTs em 7 batches sequenciais (worst-case 74s timeout
+      // budget). Qualquer transient — PostgREST schema reload, cron pressure,
+      // pool contention — batia no 15s ceiling do withTimeout e mostrava
+      // empty state mesmo pra returning user.
+      // Agora: 1 round-trip + 1 plan + 1 RLS context. EXPLAIN ANALYZE: 35ms.
+      // RLS continua aplicada (SECURITY INVOKER) — corrigida em 00098-00100.
+      const rpcRes = await withTimeout(
+        supabase.rpc('get_dashboard_payload', {
+          p_group_id: groupId,
+          p_today: today,
+          p_tomorrow: tomorrowStr,
+          p_sixty_days_from_today: sixtyDaysFromTodayStr,
+          p_week_ago: weekAgoStr,
+          p_yesterday: yesterdayStr,
+        }),
+        FETCH_TIMEOUT_MS,
+        'useDashboard:rpc',
+      );
+      if (rpcRes.error) throw new Error(rpcRes.error.message || 'rpc failed');
+      const payload = (rpcRes.data || {}) as any;
+
+      // Re-shape payload pra bater com os formatos que o resto do hook espera
+      // (mantém código de custody-resolve, healthSummaries, balance etc. intacto).
+      // O custo de reshape é trivial — só evita refactor cascata downstream.
+      const members = (payload.members || []).map((m: any) => ({
+        user_id: m.user_id,
+        role: m.role,
+        profiles: { full_name: m.full_name },
+      }));
+      const children = payload.children || [];
+      const custodyEvents = activeGroup.custodyEnabled
+        ? (payload.custody_window || []).map((ce: any) => ({
+            id: ce.id, start_date: ce.start_date, end_date: ce.end_date,
+            responsible_user_id: ce.responsible_user_id, child_id: ce.child_id,
+            custody_type: ce.custody_type,
+            children: ce.child_full_name ? { full_name: ce.child_full_name } : null,
+            profiles: ce.responsible_full_name ? { full_name: ce.responsible_full_name } : null,
+          }))
+        : [];
+      const tomorrowCustodyData = activeGroup.custodyEnabled
+        ? (payload.tomorrow_custody || []).map((ce: any) => ({
+            id: ce.id, start_date: ce.start_date, end_date: ce.end_date,
+            responsible_user_id: ce.responsible_user_id, child_id: ce.child_id,
+            custody_type: ce.custody_type,
+            children: ce.child_full_name ? { full_name: ce.child_full_name } : null,
+          }))
+        : [];
+      const reshapeOccurrence = (o: any) => ({
+        id: o.id, activity_id: o.activity_id, occurrence_date: o.occurrence_date,
+        child_activities: o.activity ? {
+          id: o.activity.id, name: o.activity.name, category: o.activity.category,
+          time_start: o.activity.time_start, time_end: o.activity.time_end,
+          location: o.activity.location, child_id: o.activity.child_id,
+          children: o.activity.child_full_name ? { full_name: o.activity.child_full_name } : null,
+        } : null,
+      });
+      const todayOccurrences = (payload.today_occurrences || []).map(reshapeOccurrence);
+      const tomorrowOccurrences = (payload.tomorrow_occurrences || []).map(reshapeOccurrence);
+      const notifications = { count: payload.notifications_unread_count || 0 } as any;
+      const pendingExp = (payload.pending_expenses_list || []).map((e: any) => ({
+        id: e.id, description: e.description, amount: e.amount, category: e.category,
+        expense_date: e.expense_date, paid_by: e.paid_by,
+        profiles: e.paid_by_full_name ? { full_name: e.paid_by_full_name } : null,
+      }));
+      const illnessData = (payload.illness_active || []).map((i: any) => ({
+        id: i.id, title: i.title, child_id: i.child_id,
+        children: i.child_full_name ? { full_name: i.child_full_name } : null,
+      }));
+      const medsData = (payload.meds_active || []).map((m: any) => ({
+        id: m.id, name: m.name, child_id: m.child_id,
+        children: m.child_full_name ? { full_name: m.child_full_name } : null,
+      }));
+      // openDecisions agora já vem com has_my_vote pré-computado pelo SQL —
+      // eliminamos o batch extra de decision_votes (antes era 14º query).
+      const openDecisions = (payload.open_decisions || []);
+      // Balance já agregado server-side (SUM FILTER) em vez de baixar até
+      // 10000 expenses pra somar no client. Saves bandwidth + CPU.
+      const balanceBuckets = payload.balance_buckets || { my: 0, other: 0 };
+      const pendingSwapsData = activeGroup.custodyEnabled
+        ? (payload.pending_swaps_target || []).map((s: any) => ({
+            id: s.id, original_date: s.original_date, proposed_date: s.proposed_date,
+            reason: s.reason, created_at: s.created_at, requester_id: s.requester_id,
+            profiles: s.requester_full_name ? { full_name: s.requester_full_name } : null,
+          }))
+        : [];
+      const mySentSwapsData = activeGroup.custodyEnabled
+        ? (payload.my_sent_swaps || []).map((s: any) => ({
+            id: s.id, original_date: s.original_date, proposed_date: s.proposed_date,
+            reason: s.reason, target_user_id: s.target_user_id,
+            profiles: s.target_full_name ? { full_name: s.target_full_name } : null,
+          }))
+        : [];
 
       // Build member color map — chip de cor + nome curto, firstOnly=true
       const memberList = (members || []).map((m: any, i: number) => ({
@@ -492,7 +450,7 @@ export function useDashboard() {
           const next = new Date(handover.dateKey + 'T12:00:00');
           nextSwapLabel = `${weekdays[next.getDay()]} ${next.getDate()}/${months[next.getMonth()]}`;
           const memberOfHandover = memberList.find(
-            (m) => m.user_id === handover.event.responsible_user_id,
+            (m: any) => m.user_id === handover.event.responsible_user_id,
           );
           nextSwapPerson = memberOfHandover?.name?.toUpperCase() ?? null;
         }
@@ -574,203 +532,48 @@ export function useDashboard() {
         }
       }
 
-      // Pending activity reports: ocorrencias de DIAS PASSADOS (>=7d ago,
-      // <today) sem activity_report. Atividades de HOJE encerradas ficam na
-      // secao "Atividades de hoje" com pill "Relatar" inline (state-aware
-      // rendering em (tabs)/index.tsx). Sem duplicacao entre as duas secoes.
-      const pendingReports: PendingReport[] = [];
-      const todayReportedActivityIds = new Set<string>();
-      try {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        const weekAgoStr = formatDateKey(weekAgo);
-        const yesterday = new Date();
-        yesterday.setDate(yesterday.getDate() - 1);
-        const yesterdayStr = formatDateKey(yesterday);
+      // Pending activity reports + counters consolidados agora vêm da RPC
+      // (ver get_dashboard_payload em 00101). Antes eram 4 batches sequenciais
+      // adicionais de queries (pendingReports + schoolUnread + expensesUnread
+      // + saudeUnread + vaccinePending = 14 SELECTs extras). Agora: extração
+      // direta do payload, sem round-trips.
 
-        const [{ data: pastOccs }, { data: existingReports }, { data: todayReportsData }] = await withTimeout(Promise.all([
-          // NOTE: calendar_occurrences has NO status column (see migration
-          // 00038_calendar_occurrences.sql) — filtering by status silently
-          // returned 0 rows and hid the Pendentes section. Mirror the PWA
-          // dashboard query which only filters by group + date range.
-          supabase.from('calendar_occurrences')
-            .select('activity_id, occurrence_date, child_activities!inner(id, name, child_id, children(full_name))')
-            .eq('group_id', groupId)
-            .gte('occurrence_date', weekAgoStr)
-            .lte('occurrence_date', yesterdayStr)
-            .order('occurrence_date', { ascending: false })
-            .limit(30)
-            .then(r => r, () => ({ data: [] as never[] })),
-          supabase.from('activity_reports')
-            .select('activity_id, occurrence_date')
-            .eq('group_id', groupId)
-            .gte('occurrence_date', weekAgoStr)
-            .lte('occurrence_date', yesterdayStr)
-            .limit(200)
-            .then(r => r, () => ({ data: [] as never[] })),
-          // Reports de HOJE — usados pra marcar visualmente atividades ja
-          // relatadas (mostra check + line-through), distinguindo das que
-          // ainda precisam de Relatar (mostra pill amber).
-          supabase.from('activity_reports')
-            .select('activity_id')
-            .eq('group_id', groupId)
-            .eq('occurrence_date', today)
-            .limit(50)
-            .then(r => r, () => ({ data: [] as never[] })),
-        ]), FETCH_TIMEOUT_MS, 'useDashboard:pendingReports');
-
-        for (const r of (todayReportsData as any[])) todayReportedActivityIds.add(r.activity_id);
-
-        const reported = new Set((existingReports || []).map((r: any) => `${r.activity_id}__${r.occurrence_date}`));
-        const seenKeys = new Set<string>();
-        for (const o of (pastOccs as any[])) {
-          const act = o.child_activities;
-          if (!act) continue;
-          const key = `${o.activity_id}__${o.occurrence_date}`;
-          if (reported.has(key) || seenKeys.has(key)) continue;
-          seenKeys.add(key);
-          const occDate = new Date(o.occurrence_date + 'T12:00:00');
+      const todayReportedActivityIds = new Set<string>(
+        ((payload.today_reported_activity_ids || []) as string[]),
+      );
+      // Pre-computed server-side já filtrando reportadas (NOT EXISTS no SQL).
+      // Client só calcula daysAgo + limita a 5 (UI mostra 3 + "Ver todos").
+      const pendingReports: PendingReport[] = ((payload.past_pending_reports || []) as any[])
+        .slice(0, 5)
+        .map((r: any) => {
+          const occDate = new Date(r.occurrence_date + 'T12:00:00');
           const daysAgo = Math.max(0, Math.floor((Date.now() - occDate.getTime()) / 86400000));
-          pendingReports.push({
-            activityId: o.activity_id,
-            activityName: act.name,
-            childName: getDisplayName(act.children?.full_name) || 'Geral',
-            childId: act.child_id || null,
-            occurrenceDate: o.occurrence_date,
+          return {
+            activityId: r.activity_id,
+            activityName: r.activity_name,
+            childName: getDisplayName(r.child_full_name) || 'Geral',
+            childId: r.child_id || null,
+            occurrenceDate: r.occurrence_date,
             daysAgo,
-          });
-          if (pendingReports.length >= 5) break;
-        }
-      } catch { /* pending reports are a nice-to-have */ }
+          };
+        });
 
-      // ── School unread count (Collab Foundation — Fase 1) ─────────
-      // Two-query approach: all school_log ids in group + reads by user.
-      // Run in parallel inside a small try so a Storage/RLS hiccup
-      // doesn't tank the whole dashboard.
-      let schoolUnreadCount = 0;
-      try {
-        const [{ data: schoolIdsRows }, { data: readsRows }] = await withTimeout(Promise.all([
-          supabase.from('school_logs').select('id').eq('group_id', groupId)
-            .then(r => r, () => ({ data: [] as never[] })),
-          supabase.from('collab_reads').select('record_id')
-            .eq('user_id', userId).eq('record_type', 'school_log')
-            .then(r => r, () => ({ data: [] as never[] })),
-        ]), 8_000, 'useDashboard:schoolUnread');
-        const ids = ((schoolIdsRows || []) as { id: string }[]).map(r => r.id);
-        const reads = new Set(((readsRows || []) as { record_id: string }[]).map(r => r.record_id));
-        schoolUnreadCount = ids.filter(id => !reads.has(id)).length;
-      } catch { /* unread badge is a nice-to-have */ }
+      // Counters agregados — SQL faz NOT EXISTS contra collab_reads server-side
+      // (mesma regra de unreadCollabCount em src/lib/services/collab.ts).
+      const schoolUnreadCount = Number(payload.school_unread_count || 0);
+      const expensesUnreadCount = Number(payload.expenses_unread_count || 0);
+      const saudeUnreadCount = Number(payload.saude_unread_count || 0);
 
-      // ── Expenses unread (Fase 1B) — só pending/cancel_pending ────────
-      let expensesUnreadCount = 0;
-      try {
-        const [{ data: expenseIdsRows }, { data: expenseReadsRows }] = await withTimeout(Promise.all([
-          supabase.from('expenses').select('id').eq('group_id', groupId)
-            .in('status', ['pending', 'cancel_pending'])
-            .then(r => r, () => ({ data: [] as never[] })),
-          supabase.from('collab_reads').select('record_id')
-            .eq('user_id', userId).eq('record_type', 'expense')
-            .then(r => r, () => ({ data: [] as never[] })),
-        ]), 8_000, 'useDashboard:expensesUnread');
-        const ids = ((expenseIdsRows || []) as { id: string }[]).map(r => r.id);
-        const reads = new Set(((expenseReadsRows || []) as { record_id: string }[]).map(r => r.record_id));
-        expensesUnreadCount = ids.filter(id => !reads.has(id)).length;
-      } catch { /* idem */ }
-
-      // ── Saúde unread (Fase 3, migration 00080) — soma dos 5 ──────────
-      // Agregado pra evitar 5 tiles no dashboard. Status filters batem
-      // com unreadCollabCount em src/lib/services/collab.ts (mesma regra
-      // PWA/native). Falha silenciosa: 0 quando algum query der hiccup.
-      let saudeUnreadCount = 0;
-      try {
-        const [
-          { data: aptRows },
-          { data: illRows },
-          { data: medRows },
-          { data: algRows },
-          { data: vacRows },
-          { data: saudeReadsRows },
-        ] = await withTimeout(Promise.all([
-          supabase.from('medical_appointments').select('id')
-            .eq('group_id', groupId).eq('status', 'scheduled')
-            .then(r => r, () => ({ data: [] as never[] })),
-          supabase.from('illness_episodes').select('id')
-            .eq('group_id', groupId).eq('status', 'active')
-            .then(r => r, () => ({ data: [] as never[] })),
-          supabase.from('active_medications').select('id')
-            .eq('group_id', groupId).eq('status', 'active')
-            .then(r => r, () => ({ data: [] as never[] })),
-          supabase.from('child_allergies').select('id')
-            .eq('group_id', groupId)
-            .then(r => r, () => ({ data: [] as never[] })),
-          supabase.from('vaccination_records').select('id')
-            .eq('group_id', groupId)
-            .then(r => r, () => ({ data: [] as never[] })),
-          supabase.from('collab_reads').select('record_id, record_type')
-            .eq('user_id', userId)
-            .in('record_type', [
-              'medical_appointment',
-              'illness_episode',
-              'active_medication',
-              'child_allergy',
-              'vaccination_record',
-            ])
-            .then(r => r, () => ({ data: [] as never[] })),
-        ]), 8_000, 'useDashboard:saudeUnread');
-        const readsByType = new Map<string, Set<string>>();
-        for (const r of ((saudeReadsRows || []) as { record_id: string; record_type: string }[])) {
-          if (!readsByType.has(r.record_type)) {
-            readsByType.set(r.record_type, new Set());
+      // Saúde Preventiva: SQL agrega overdue+due_soon das crianças com
+      // total_taken > 0 (F#25 paridade PWA — supprime alerta pra criança
+      // recém-cadastrada sem histórico). Server retorna pending_count + next_due.
+      const vaccinePendingCount = Number(payload.vaccine_summary?.pending_count || 0);
+      const vaccineNextDue = payload.vaccine_summary?.next_due
+        ? {
+            dueDate: payload.vaccine_summary.next_due.due_date as string,
+            vaccineName: (payload.vaccine_summary.next_due.vaccine_name as string) || '',
           }
-          readsByType.get(r.record_type)!.add(r.record_id);
-        }
-        const countUnread = (rt: string, rows: { id: string }[] | null | undefined) => {
-          const reads = readsByType.get(rt) || new Set();
-          return ((rows || []) as { id: string }[]).filter(r => !reads.has(r.id)).length;
-        };
-        saudeUnreadCount =
-          countUnread('medical_appointment', aptRows) +
-          countUnread('illness_episode', illRows) +
-          countUnread('active_medication', medRows) +
-          countUnread('child_allergy', algRows) +
-          countUnread('vaccination_record', vacRows);
-      } catch { /* idem */ }
-
-      // Saúde Preventiva: agrega overdue+due_soon de todas crianças.
-      let vaccinePendingCount = 0;
-      let vaccineNextDue: { dueDate: string; vaccineName: string } | null = null;
-      try {
-        const { data: coverageRows } = await withTimeout(
-          supabase
-            .from('child_vaccine_coverage')
-            .select('overdue_count, due_soon_count, total_taken, next_due_date, next_due_vaccine_name')
-            .eq('group_id', activeGroup.groupId),
-          5_000,
-          'useDashboard:vaccinePending',
-        );
-        // F#25 (E2E PRD 2026-05-25) — paridade PWA: pra criança recém-
-        // cadastrada sem NENHUM registro vacinal, suprime alerta de
-        // "overdue/due_soon" porque o motor classifica doses passadas
-        // pela idade que ainda não foram registradas. Banner alarma
-        // user antes dele adicionar o histórico. Fix: filtra crianças
-        // com `total_taken > 0`.
-        for (const r of (coverageRows || []) as Array<{
-          overdue_count: number | null;
-          due_soon_count: number | null;
-          total_taken: number | null;
-          next_due_date: string | null;
-          next_due_vaccine_name: string | null;
-        }>) {
-          if (Number(r.total_taken || 0) <= 0) continue;
-          vaccinePendingCount += Number(r.overdue_count || 0) + Number(r.due_soon_count || 0);
-          if (r.next_due_date && (!vaccineNextDue || r.next_due_date < vaccineNextDue.dueDate)) {
-            vaccineNextDue = {
-              dueDate: r.next_due_date,
-              vaccineName: r.next_due_vaccine_name || '',
-            };
-          }
-        }
-      } catch { /* idem */ }
+        : null;
 
       // Map occurrences to ActivityItems. Para hoje, classificamos o estado
       // (upcoming / ended-unreported / ended-reported) pra a UI distinguir
@@ -806,7 +609,7 @@ export function useDashboard() {
       // sem fallback pra inicial). Assinatura em paralelo pra todos os
       // filhos pra nao bloquear o resto do dashboard.
       const rawCards = (children || []).map((c: any) => ({ row: c, signedUrl: null as string | null }));
-      const signTasks = rawCards.map(async (item) => {
+      const signTasks = rawCards.map(async (item: any) => {
         const raw = item.row.photo_url as string | null | undefined;
         if (!raw) return;
         if (/^https?:\/\//i.test(raw)) {
@@ -825,7 +628,7 @@ export function useDashboard() {
       await withTimeout(Promise.all(signTasks), 5_000, 'useDashboard:signAvatars')
         .catch(() => { /* avatars sao opcionais */ });
 
-      const childCards: ChildCard[] = rawCards.map(({ row: c, signedUrl }) => {
+      const childCards: ChildCard[] = rawCards.map(({ row: c, signedUrl }: any) => {
         const bd = new Date(c.birth_date + 'T12:00:00');
         const ageDiff = Date.now() - bd.getTime();
         const age = Math.floor(ageDiff / (365.25 * 24 * 60 * 60 * 1000));
@@ -877,13 +680,11 @@ export function useDashboard() {
         return order[a.status] - order[b.status];
       });
 
-      // Calculate balance
-      let myTotal = 0;
-      let otherTotal = 0;
-      (approvedExpenses || []).forEach((e: any) => {
-        if (e.paid_by === userId) myTotal += e.amount;
-        else otherTotal += e.amount;
-      });
+      // Balance agora vem agregado server-side (SUM FILTER em
+      // balanceBuckets). Antes baixava até 10.000 rows de approved expenses
+      // só pra somar no client — gasto desnecessário de banda + CPU.
+      const myTotal = Number(balanceBuckets.my || 0);
+      const otherTotal = Number(balanceBuckets.other || 0);
 
       // Build actionable pending lists — requester/target em chip compacto, firstOnly
       const pendingSwapsList: PendingSwap[] = (pendingSwapsData || []).map((s: any) => ({
@@ -939,7 +740,7 @@ export function useDashboard() {
           const tmwOwner = pickOwner(tomorrowCustodyData as any[], childId);
           if (!todayOwner || !tmwOwner) continue;
           if (todayOwner.uid === tmwOwner.uid) continue;
-          const tmwPerson = memberList.find(m => m.user_id === tmwOwner.uid);
+          const tmwPerson = memberList.find((m: any) => m.user_id === tmwOwner.uid);
           tomorrowSwapInfo = {
             childName: tmwOwner.childName,
             nextPerson: tmwPerson?.name || 'o outro responsavel',
@@ -949,26 +750,10 @@ export function useDashboard() {
         }
       }
 
-      // Decisions — filter out those the user already voted on
-      const openDecisionList = (openDecisions || []) as any[];
-      const openDecisionIds = openDecisionList.map((d: any) => d.id);
-      let votedIds = new Set<string>();
-      if (openDecisionIds.length > 0) {
-        try {
-          const { data: votes } = await withTimeout(
-            supabase
-              .from('decision_votes')
-              .select('decision_id')
-              .eq('user_id', userId)
-              .in('decision_id', openDecisionIds),
-            10_000,
-            'useDashboard:decisionVotes',
-          );
-          votedIds = new Set((votes || []).map((v: any) => v.decision_id));
-        } catch { /* sem votos: assume nada votado */ }
-      }
-      const pendingDecisionsList: PendingDecision[] = openDecisionList
-        .filter((d: any) => !votedIds.has(d.id))
+      // Decisions — has_my_vote já vem pré-computado pela RPC (EXISTS no SQL),
+      // eliminando o batch extra de decision_votes (antes era 14º query).
+      const pendingDecisionsList: PendingDecision[] = ((openDecisions || []) as any[])
+        .filter((d: any) => !d.has_my_vote)
         .map((d: any) => ({
           id: d.id,
           title: d.title,
@@ -1061,7 +846,35 @@ export function useDashboard() {
     }
   }, [userId, activeGroup, profile]);
 
-  // Reload every time tab gains focus
+  // Cache-first hydration: hidrata data com o último snapshot ANTES do fetch.
+  // Returning user nunca vê "Não consegui carregar" / skeleton infinito porque
+  // sempre tem cache de uma sessão anterior. Quando o fetch completa, UI
+  // atualiza em silêncio (loading não toggla pra true em refetches).
+  //
+  // Antes desse cache-first, qualquer transient no PostgREST (schema reload,
+  // pool pressure de crons matinais) batia no 15s timeout e empurrava a UI
+  // pro empty state. Agora o empty state SÓ acontece pra first-time user
+  // genuíno (sem cache E sem fetch bem-sucedido).
+  useEffect(() => {
+    if (!activeGroup) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const cached = await cacheGet<DashboardData>(`dashboard_${activeGroup.groupId}`);
+        if (cancelled) return;
+        if (cached) {
+          // Só hidrata se ainda não temos data — evita sobrescrever fetch
+          // que já completou antes do cache resolver (race benigna).
+          setData(prev => prev ?? cached);
+          setLoading(false);
+        }
+      } catch { /* cache indisponível: deixa loadData rodar normal */ }
+    })();
+    return () => { cancelled = true; };
+  }, [activeGroup?.groupId]);
+
+  // Reload every time tab gains focus. Loading só toggla pra true via init
+  // state ou se loadData precisar — refetches em returning user são silenciosos.
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
   // Live update: re-fetch when a notification is created/updated so the
