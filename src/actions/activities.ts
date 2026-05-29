@@ -555,13 +555,18 @@ export async function sendMissedReportReminders() {
       const notificationPromises = unreported.flatMap((act) => {
         // child_id NULL (família-wide) → "Otto e Martim"; child_id set → "Otto".
         const childName = resolveChildName(act.child_id, groupId);
+        // Deep link específico pra atividade do dia anterior + flag report=1.
+        // Antes era `/calendario` genérico — tap abria calendário e user
+        // ficava perdido (bug feedback: "clico na notif e abre calendário").
+        // Agora vai direto pra atividade com modal de relatório aberto.
+        const link = `/atividades/${act.id}?date=${yesterdayKey}&report=1`;
         return members.map((member) =>
           createNotificationWithPush(
             member.user_id,
             "activity_report",
             `${act.name} de ontem - como foi?`,
             `${childName} teve ${act.name} ontem. Como foi a atividade?`,
-            "/calendario"
+            link,
           ).catch(() => {/* notification failure is non-critical */})
         );
       });

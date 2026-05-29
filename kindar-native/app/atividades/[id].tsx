@@ -13,7 +13,14 @@
  * Trocar por uma rota elimina o problema de raiz: nao ha 2 Modals
  * concorrentes, e o tap nao tem onde "vazar".
  *
- * Aceita: /atividades/[id]?date=YYYY-MM-DD
+ * Aceita query params:
+ *   - date=YYYY-MM-DD     → data da ocorrência (default hoje)
+ *   - report=1            → flag de origem (vem dos pushes
+ *                          activity_report do cron). User chega na
+ *                          tela da atividade direto e pode clicar no
+ *                          botão "Como foi?" interno do sheet — fluxo
+ *                          curto vs. abrir calendário e procurar.
+ *   - reminder=1, briefing=1 → tracking pro PostHog (notif tap origin)
  */
 import { useEffect } from 'react';
 import { View } from 'react-native';

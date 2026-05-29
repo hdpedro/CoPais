@@ -459,7 +459,12 @@ export async function runActivityDueReminders(now: Date = new Date()): Promise<S
     if (checklistPreview) pieces.push(`${itemsLabel} ${checklistPreview}`);
     const body = pieces.join(" · ");
 
-    const link = `/atividades/${occ.activity_id}?occurrence=${occ.occurrence_date}&reminder=1`;
+    // Deep link inteligente: param `date` (não `occurrence`) bate com
+    // `useLocalSearchParams<{ date }>` em kindar-native/app/atividades/[id].tsx.
+    // PWA `/atividades/[id]` aceita ambos via getter resiliente.
+    // Bug fix 2026-05-28: antes era `?occurrence=` e native ignorava o param,
+    // abrindo a atividade no dia errado. Padronizado pra `?date=`.
+    const link = `/atividades/${occ.activity_id}?date=${occ.occurrence_date}&reminder=1`;
 
     try {
       // Premium flags: iOS Time-Sensitive atravessa Foco/DND (entitlement em
@@ -756,8 +761,10 @@ export async function sendMorningBriefing(now: Date = new Date()): Promise<SendR
     }
 
     // Deep link: agenda de hoje. Se 1 atividade só, link direto pra ela.
+    // Padronizado em `?date=` pra bater com o native router (vide fix
+    // similar em runActivityDueReminders acima).
     const link = total === 1
-      ? `/atividades/${sorted[0].activity_id}?occurrence=${todayKey}&briefing=1`
+      ? `/atividades/${sorted[0].activity_id}?date=${todayKey}&briefing=1`
       : `/calendario?date=${todayKey}&briefing=1`;
 
     // Âncora pra idempotência: primeira atividade alfabética.
