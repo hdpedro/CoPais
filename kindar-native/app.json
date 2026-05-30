@@ -17,7 +17,7 @@
       "supportsTablet": false,
       "requireFullScreen": true,
       "bundleIdentifier": "com.kindar.app",
-      "buildNumber": "107",
+      "buildNumber": "108",
       "usesAppleSignIn": true,
       "entitlements": {
         "com.apple.developer.usernotifications.time-sensitive": true
