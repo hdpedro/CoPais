@@ -40,8 +40,10 @@ const HEALTH = fs.readFileSync(
   path.resolve(__dirname, "../../src/actions/health.ts"),
   "utf8",
 );
+// Lógica de push migrou pro service compartilhado em 2026-05-29 (fix bug
+// Angelino — paridade PWA/Native via API REST). Action virou thin wrapper.
 const BALANCE = fs.readFileSync(
-  path.resolve(__dirname, "../../src/actions/balance-operations.ts"),
+  path.resolve(__dirname, "../../src/lib/services/balance-operations.ts"),
   "utf8",
 );
 const INBOX_PWA = fs.readFileSync(
