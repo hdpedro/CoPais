@@ -1234,8 +1234,17 @@ function AfterScene() {
    ────────────────────────────────────────────────────────────── */
 type Period = "monthly" | "yearly";
 
-export function PricingSection() {
+export function PricingSection({
+  earlyBirdRemaining,
+}: {
+  earlyBirdRemaining?: number;
+} = {}) {
   const [period, setPeriod] = useState<Period>("monthly");
+  const earlyBirdNote =
+    "Early Bird: R$ 14,90/mês vitalício pras primeiras 1.000 famílias" +
+    (typeof earlyBirdRemaining === "number" && earlyBirdRemaining > 0
+      ? ` · restam ${earlyBirdRemaining.toLocaleString("pt-BR")} vagas`
+      : "");
   const plans = [
     {
       name: "Grátis",
@@ -1260,7 +1269,7 @@ export function PricingSection() {
       cta: "Garantir o Early Bird",
       ctaStyle: "primary" as const,
       badge: "Mais escolhido",
-      note: "Early Bird: R$ 14,90/mês vitalício pras primeiras 1.000 famílias",
+      note: earlyBirdNote,
       features: [
         "Crianças ilimitadas",
         "Calendário de guarda + trocas",
