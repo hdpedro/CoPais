@@ -27,6 +27,7 @@ import { useI18n } from 'src/i18n';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { apiFetch } from 'src/lib/api-fetch';
 import { reportError } from 'src/lib/error-reporter';
+import { withTimeout, TimeoutError } from 'src/lib/with-timeout';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { resetSoftPromptFlag } from 'src/services/push-soft-prompt';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -135,10 +136,14 @@ export default function NotificacoesScreen() {
     setLoading(true);
     setFetchError(null);
     try {
-      const [prefsR, permR] = await Promise.all([
-        apiFetch<Prefs>('/api/notifications/prefs'),
-        Notifications.getPermissionsAsync().catch(() => null),
-      ]);
+      const [prefsR, permR] = await withTimeout(
+        Promise.all([
+          apiFetch<Prefs>('/api/notifications/prefs'),
+          Notifications.getPermissionsAsync().catch(() => null),
+        ]),
+        15_000,
+        'perfil:notificacoes:load',
+      );
       if (prefsR.ok && prefsR.data) {
         setPrefs(prefsR.data);
       } else {
@@ -156,11 +161,13 @@ export default function NotificacoesScreen() {
       if (permR) setPermissionStatus(permR.status as PermissionStatus);
       else setPermissionStatus('unknown');
     } catch (e) {
-      // Exception inesperada (apiFetch normalmente não throws) — mesmo
-      // fallback pra não travar UI.
+      // Exception inesperada — fallback pra UI nao travar. TimeoutError ja
+      // foi reportado como 'info' pelo withTimeout; outros viram 'error'.
       setPrefs(FALLBACK_PREFS);
       setFetchError(e instanceof Error ? e.message : 'Erro inesperado');
-      reportError(e, { filePath: 'app/perfil/notificacoes.tsx', metadata: { phase: 'load' } });
+      if (!(e instanceof TimeoutError)) {
+        reportError(e, { filePath: 'app/perfil/notificacoes.tsx', metadata: { phase: 'load' } });
+      }
     } finally {
       setLoading(false);
     }

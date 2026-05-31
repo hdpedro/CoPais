@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { fetchChildren, type Child } from 'src/services/children';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
@@ -19,16 +19,12 @@ function calcAge(birthDate: string): number {
 export default function CriancasScreen() {
   const t = useI18n(s => s.t);
   const { activeGroup } = useAuth();
-  const [children, setChildren] = useState<Child[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    setChildren(await fetchChildren(activeGroup.groupId));
-    setLoading(false);
-  }, [activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data: children, loading, refresh: load } = useCachedFetch<Child[]>({
+    cacheKey: activeGroup ? `criancas_${activeGroup.groupId}` : null,
+    tag: 'criancas:load',
+    empty: [],
+    fetcher: () => fetchChildren(activeGroup!.groupId),
+  });
 
   const renderItem = ({ item }: { item: Child }) => {
     const age = calcAge(item.birth_date);

@@ -5,18 +5,19 @@
  * remove-only menu.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator,
   Modal,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from 'src/lib/supabase';
 import { apiFetch } from 'src/lib/api-fetch';
 import { useAuth } from 'src/store/auth';
 import { listInvitations, cancelInvitation, type Invitation } from 'src/services/invitations';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
@@ -54,53 +55,62 @@ export default function FamiliaScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { activeGroup, userId, signOut } = useAuth();
-  const [members, setMembers] = useState<Member[]>([]);
-  const [children, setChildren] = useState<ChildPreview[]>([]);
-  const [childAges, setChildAges] = useState<Record<string, number>>({});
-  const [pendingInvites, setPendingInvites] = useState<Invitation[]>([]);
-  const [acceptedInvites, setAcceptedInvites] = useState<Invitation[]>([]);
-  const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
   const [roleModalMember, setRoleModalMember] = useState<Member | null>(null);
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    const [memRes, childRes, invites] = await Promise.all([
-      supabase
-        .from('group_members')
-        .select('user_id, role, profiles(full_name, email)')
-        .eq('group_id', activeGroup.groupId),
-      supabase
-        .from('children')
-        .select('id, full_name, birth_date')
-        .eq('group_id', activeGroup.groupId)
-        .order('birth_date'),
-      listInvitations(activeGroup.groupId),
-    ]);
-    setMembers(((memRes.data || []) as any[]).map((m: any) => ({
-      userId: m.user_id,
-      fullName: m.profiles?.full_name || '',
-      role: m.role,
-      email: m.profiles?.email || null,
-    })));
-    const childList = (childRes.data || []) as ChildPreview[];
-    setChildren(childList);
-    // Compute ages outside render (React purity rule). Recomputed on each load.
-    const now = Date.now();
-    const ages: Record<string, number> = {};
-    childList.forEach((c) => {
-      ages[c.id] = Math.floor(
-        (now - new Date(c.birth_date + 'T12:00:00').getTime()) /
-          (365.25 * 24 * 60 * 60 * 1000)
-      );
-    });
-    setChildAges(ages);
-    setPendingInvites(invites.filter(i => i.status === 'pending'));
-    setAcceptedInvites(invites.filter(i => i.status === 'accepted').slice(0, 5));
-    setLoading(false);
-  }, [activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  interface FamiliaCache {
+    members: Member[];
+    children: ChildPreview[];
+    childAges: Record<string, number>;
+    pendingInvites: Invitation[];
+    acceptedInvites: Invitation[];
+  }
+  const EMPTY_FAM: FamiliaCache = { members: [], children: [], childAges: {}, pendingInvites: [], acceptedInvites: [] };
+  const { data: fam, loading, refresh: load } = useCachedFetch<FamiliaCache>({
+    cacheKey: activeGroup ? `familia_${activeGroup.groupId}` : null,
+    tag: 'familia:load',
+    empty: EMPTY_FAM,
+    fetcher: async () => {
+      const [memRes, childRes, invites] = await Promise.all([
+        supabase
+          .from('group_members')
+          .select('user_id, role, profiles(full_name, email)')
+          .eq('group_id', activeGroup!.groupId),
+        supabase
+          .from('children')
+          .select('id, full_name, birth_date')
+          .eq('group_id', activeGroup!.groupId)
+          .order('birth_date'),
+        listInvitations(activeGroup!.groupId),
+      ]);
+      const childList = (childRes.data || []) as ChildPreview[];
+      const now = Date.now();
+      const ages: Record<string, number> = {};
+      childList.forEach((c) => {
+        ages[c.id] = Math.floor(
+          (now - new Date(c.birth_date + 'T12:00:00').getTime()) /
+            (365.25 * 24 * 60 * 60 * 1000)
+        );
+      });
+      return {
+        members: ((memRes.data || []) as any[]).map((m: any) => ({
+          userId: m.user_id,
+          fullName: m.profiles?.full_name || '',
+          role: m.role,
+          email: m.profiles?.email || null,
+        })),
+        children: childList,
+        childAges: ages,
+        pendingInvites: invites.filter(i => i.status === 'pending'),
+        acceptedInvites: invites.filter(i => i.status === 'accepted').slice(0, 5),
+      };
+    },
+  });
+  const members = fam.members;
+  const children = fam.children;
+  const childAges = fam.childAges;
+  const pendingInvites = fam.pendingInvites;
+  const acceptedInvites = fam.acceptedInvites;
 
   const myRole = members.find(m => m.userId === userId)?.role;
   const amAdmin = myRole === 'admin';

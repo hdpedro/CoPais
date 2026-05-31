@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl,
   Modal, TextInput, ScrollView,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
@@ -11,6 +11,7 @@ import {
   fetchDecisions, createDecision, voteOnDecision, closeDecision,
   type Decision, type DecisionCategory, type VoteChoice,
 } from 'src/services/decisions';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
@@ -54,8 +55,6 @@ function formatDeadline(deadline: string | null): { label: string; urgent: boole
 export default function DecisoesScreen() {
   const t = useI18n(s => s.t);
   const { activeGroup, userId } = useAuth();
-  const [decisions, setDecisions] = useState<Decision[]>([]);
-  const [loading, setLoading] = useState(true);
   const [voting, setVoting] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -64,14 +63,12 @@ export default function DecisoesScreen() {
   const [newDeadline, setNewDeadline] = useState<string>('');
   const [submitting, setSubmitting] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!activeGroup || !userId) return;
-    const data = await fetchDecisions(activeGroup.groupId, userId);
-    setDecisions(data);
-    setLoading(false);
-  }, [activeGroup, userId]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data: decisions, loading, refresh: load } = useCachedFetch<Decision[]>({
+    cacheKey: activeGroup && userId ? `decisoes_${activeGroup.groupId}_${userId}` : null,
+    tag: 'decisoes:load',
+    empty: [],
+    fetcher: () => fetchDecisions(activeGroup!.groupId, userId!),
+  });
 
   // Real-time entre coparentes — votos do outro pai aparecem na hora.
   useCollabRealtime({

@@ -9,14 +9,14 @@
  * atomicamente) — exceto approve/reject que ainda usam safeWrite legado
  * (offline support). Ver kindar-native/app/_src/services/expenses.ts.
  */
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator,
   Modal, Image, Pressable, TextInput, ScrollView,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from 'src/store/auth';
 import {
@@ -49,6 +49,7 @@ import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
 
@@ -104,11 +105,7 @@ export default function DespesasScreen() {
   const { activeGroup, userId } = useAuth();
   const { highlight } = useLocalSearchParams<{ highlight?: string }>();
 
-  const [expenses, setExpenses] = useState<Expense[]>([]);
-  const [reads, setReads] = useState<ExpenseRead[]>([]);
   const [optimisticReads, setOptimisticReads] = useState<Set<string>>(new Set());
-  const [balance, setBalance] = useState<{ myTotal: number; otherTotal: number; balance: number; totalMonth: number } | null>(null);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [responding, setResponding] = useState<string | null>(null);
   const [viewingReceipt, setViewingReceipt] = useState<string | null>(null);
@@ -124,28 +121,36 @@ export default function DespesasScreen() {
   const [reopening, setReopening] = useState<Expense | null>(null);
   const [respondingCancel, setRespondingCancel] = useState<Expense | null>(null);
 
-  const load = useCallback(async () => {
-    if (!activeGroup || !userId) return;
-    const [list, summary, readsList] = await Promise.all([
-      fetchExpenses(activeGroup.groupId),
-      fetchFinancialSummary(activeGroup.groupId, userId),
-      fetchExpenseReads(activeGroup.groupId),
-    ]);
-    setExpenses(list);
-    setBalance(summary);
-    setReads(readsList);
-    // Limpa optimistic reads que já chegaram do server.
-    const serverReadIds = new Set(readsList.filter(r => r.user_id === userId).map(r => r.expense_id));
-    setOptimisticReads(prev => {
-      const next = new Set<string>();
-      for (const id of prev) if (!serverReadIds.has(id)) next.add(id);
-      return next;
-    });
-    setLoading(false);
-    setLoadTime(Date.now());
-  }, [activeGroup, userId]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  interface DespesasCache {
+    expenses: Expense[];
+    reads: ExpenseRead[];
+    balance: { myTotal: number; otherTotal: number; balance: number; totalMonth: number } | null;
+  }
+  const EMPTY_CACHE: DespesasCache = { expenses: [], reads: [], balance: null };
+  const { data, loading, refresh: load } = useCachedFetch<DespesasCache>({
+    cacheKey: activeGroup && userId ? `despesas_${activeGroup.groupId}_${userId}` : null,
+    tag: 'despesas:load',
+    empty: EMPTY_CACHE,
+    fetcher: async () => {
+      const [list, summary, readsList] = await Promise.all([
+        fetchExpenses(activeGroup!.groupId),
+        fetchFinancialSummary(activeGroup!.groupId, userId!),
+        fetchExpenseReads(activeGroup!.groupId),
+      ]);
+      // Limpa optimistic reads que ja chegaram do server.
+      const serverReadIds = new Set(readsList.filter(r => r.user_id === userId).map(r => r.expense_id));
+      setOptimisticReads(prev => {
+        const next = new Set<string>();
+        for (const id of prev) if (!serverReadIds.has(id)) next.add(id);
+        return next;
+      });
+      setLoadTime(Date.now());
+      return { expenses: list, balance: summary, reads: readsList };
+    },
+  });
+  const expenses = data.expenses;
+  const reads = data.reads;
+  const balance = data.balance;
 
   // Real-time entre coparentes (Foundation Collab): quando o outro pai
   // adiciona/edita despesa em outro device, lista atualiza sozinha + toast.
@@ -203,12 +208,12 @@ export default function DespesasScreen() {
     track(EVENTS.UNREAD_COUNT, { record_type: 'expense', count: unreadCount });
   }, [unreadCount]);
 
-  const onRefresh = useCallback(async () => {
+  async function onRefresh() {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     await load();
     setRefreshing(false);
-  }, [load]);
+  }
 
   function handleOpenCard(expense: Expense) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

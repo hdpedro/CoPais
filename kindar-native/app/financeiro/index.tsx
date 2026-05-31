@@ -16,12 +16,12 @@
  * Mantemos Alert removido — toda prevenção é via UI (não renderizar
  * botão de ação inválida em vez de bloquear no clique).
  */
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, RefreshControl, Modal,
   TextInput, Alert,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +39,7 @@ import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { formatBRL } from 'src/lib/currency';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 
 interface MemberOption {
   user_id: string;
@@ -66,10 +67,6 @@ export default function FinanceiroScreen() {
   const toast = useToast();
   const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
-  const [summary, setSummary] = useState<{ myTotal: number; otherTotal: number; balance: number; totalMonth: number } | null>(null);
-  const [settlements, setSettlements] = useState<Settlement[]>([]);
-  const [members, setMembers] = useState<MemberOption[]>([]);
-  const [allMembers, setAllMembers] = useState<{ user_id: string; name: string; color: string }[]>([]);
   const [refreshing, setRefreshing] = useState(false);
 
   const [viewMode, setViewMode] = useState<ViewMode>('dashboard');
@@ -77,11 +74,6 @@ export default function FinanceiroScreen() {
   const today = useMemo(() => new Date(), []);
   const [selectedMonth, setSelectedMonth] = useState<number>(today.getMonth());
   const [selectedYear, setSelectedYear] = useState<number>(today.getFullYear());
-  const [monthlySpending, setMonthlySpending] = useState<{
-    totalMonth: number;
-    memberSpending: Record<string, number>;
-    expensesCount: number;
-  }>({ totalMonth: 0, memberSpending: {}, expensesCount: 0 });
 
   // Settlement modal
   const [modalOpen, setModalOpen] = useState(false);
@@ -92,42 +84,56 @@ export default function FinanceiroScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [balanceForCounter, setBalanceForCounter] = useState<number | null>(null);
 
-  // ── Derived state ───────────────────────────────────────────────
-  // Single source of truth for the entire module's behavior.
+  interface FinanceiroCache {
+    summary: { myTotal: number; otherTotal: number; balance: number; totalMonth: number } | null;
+    settlements: Settlement[];
+    members: MemberOption[];
+    allMembers: { user_id: string; name: string; color: string }[];
+    monthlySpending: { totalMonth: number; memberSpending: Record<string, number>; expensesCount: number };
+  }
+  const EMPTY_FIN: FinanceiroCache = {
+    summary: null, settlements: [], members: [], allMembers: [],
+    monthlySpending: { totalMonth: 0, memberSpending: {}, expensesCount: 0 },
+  };
+  const { data: fin, refresh: load } = useCachedFetch<FinanceiroCache>({
+    cacheKey: activeGroup && userId ? `financeiro_${activeGroup.groupId}_${userId}_${selectedYear}_${selectedMonth}` : null,
+    tag: 'financeiro:load',
+    empty: EMPTY_FIN,
+    fetcher: async () => {
+      const groupId = activeGroup!.groupId;
+      const [summaryData, settlementsData, monthlyData, { data: memberRows }] = await Promise.all([
+        fetchFinancialSummary(groupId, userId!),
+        listSettlements(groupId, 100),
+        fetchMonthlySpending(groupId, selectedMonth, selectedYear),
+        supabase
+          .from('group_members')
+          .select('user_id, role, profiles(full_name)')
+          .eq('group_id', groupId)
+          .eq('role', 'parent'),
+      ]);
+      type MemberRow = { user_id: string; profiles: { full_name: string | null } | null };
+      const allRows = ((memberRows as MemberRow[] | null) || []).map((m, idx) => ({
+        user_id: m.user_id,
+        name: m.profiles?.full_name?.split(' ')[0] ?? 'Co-responsável',
+        color: MEMBER_COLORS[idx % MEMBER_COLORS.length],
+      }));
+      return {
+        summary: summaryData,
+        settlements: settlementsData,
+        monthlySpending: monthlyData,
+        allMembers: allRows,
+        members: allRows
+          .filter((m) => m.user_id !== userId)
+          .map((m) => ({ user_id: m.user_id, name: m.name })),
+      };
+    },
+  });
+  const summary = fin.summary;
+  const settlements = fin.settlements;
+  const members = fin.members;
+  const allMembers = fin.allMembers;
+  const monthlySpending = fin.monthlySpending;
   const isShared = members.length > 0;
-
-  const load = useCallback(async () => {
-    if (!activeGroup || !userId) return;
-    const groupId = activeGroup.groupId;
-
-    const [summaryData, settlementsData, monthlyData, { data: memberRows }] = await Promise.all([
-      fetchFinancialSummary(groupId, userId),
-      listSettlements(groupId, 100),
-      fetchMonthlySpending(groupId, selectedMonth, selectedYear),
-      supabase
-        .from('group_members')
-        .select('user_id, role, profiles(full_name)')
-        .eq('group_id', groupId)
-        .eq('role', 'parent'),
-    ]);
-
-    setSummary(summaryData);
-    setSettlements(settlementsData);
-    setMonthlySpending(monthlyData);
-
-    type MemberRow = { user_id: string; profiles: { full_name: string | null } | null };
-    const allRows = ((memberRows as MemberRow[] | null) || []).map((m, idx) => ({
-      user_id: m.user_id,
-      name: m.profiles?.full_name?.split(' ')[0] ?? 'Co-responsável',
-      color: MEMBER_COLORS[idx % MEMBER_COLORS.length],
-    }));
-    setAllMembers(allRows);
-    setMembers(
-      allRows
-        .filter((m) => m.user_id !== userId)
-        .map((m) => ({ user_id: m.user_id, name: m.name })),
-    );
-  }, [activeGroup, userId, selectedMonth, selectedYear]);
 
   function navigateMonth(delta: number) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -153,13 +159,11 @@ export default function FinanceiroScreen() {
       .map((key) => ({ key, items: groups[key] }));
   }, [settlements]);
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
-
-  const onRefresh = useCallback(async () => {
+  async function onRefresh() {
     setRefreshing(true);
     await load();
     setRefreshing(false);
-  }, [load]);
+  }
 
   const balanceColor = (summary?.balance || 0) >= 0 ? colors.success : colors.error;
   const balanceLabel = (summary?.balance || 0) >= 0 ? 'A receber' : 'A pagar';

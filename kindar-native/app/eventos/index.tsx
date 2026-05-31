@@ -1,13 +1,14 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
   ScrollView, Alert,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from 'src/store/auth';
 import { fetchEvents, updateEvent, deleteEvent, type SocialEvent } from 'src/services/events';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
@@ -32,8 +33,6 @@ export default function EventosScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { activeGroup } = useAuth();
-  const [events, setEvents] = useState<SocialEvent[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState<SocialEvent | null>(null);
   const [saving, setSaving] = useState(false);
@@ -45,14 +44,12 @@ export default function EventosScreen() {
   const [timeHHMM, setTimeHHMM] = useState<string | null>(null);
   const [location, setLocation] = useState('');
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    const data = await fetchEvents(activeGroup.groupId);
-    setEvents(data);
-    setLoading(false);
-  }, [activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data: events, loading, refresh: load } = useCachedFetch<SocialEvent[]>({
+    cacheKey: activeGroup ? `eventos_${activeGroup.groupId}` : null,
+    tag: 'eventos:load',
+    empty: [],
+    fetcher: () => fetchEvents(activeGroup!.groupId),
+  });
 
   function openEditor(ev: SocialEvent) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

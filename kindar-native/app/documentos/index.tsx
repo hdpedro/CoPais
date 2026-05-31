@@ -9,7 +9,7 @@
  * pressionar e upload via expo-document-picker / expo-image-picker.
  */
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -20,7 +20,6 @@ import {
   Alert,
   Linking,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
@@ -31,6 +30,7 @@ import {
   DOCUMENT_CATEGORIES,
   type Document,
 } from 'src/services/documents';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
@@ -53,38 +53,24 @@ export default function DocumentosScreen() {
   const { activeGroup, userId } = useAuth();
   const groupId = activeGroup?.groupId;
 
-  const [docs, setDocs] = useState<Document[]>([]);
-  const [children, setChildren] = useState<Child[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-
   const [search, setSearch] = useState('');
   const [activeCategory, setActiveCategory] = useState<string | 'all'>('all');
   const [activeChild, setActiveChild] = useState<string | 'all'>('all');
-
   const [uploadOpen, setUploadOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!groupId) return;
-    const [d, c] = await Promise.all([fetchDocuments(groupId), fetchChildren(groupId)]);
-    setDocs(d);
-    setChildren(c);
-  }, [groupId]);
-
-  // setState dentro do effect é intencional — bridge entre React state
-  // e Supabase (que só pode rodar client-side, depois do mount).
-  useEffect(() => {
-    if (!groupId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    load().finally(() => setLoading(false));
-  }, [groupId, load]);
-
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  interface DocumentosCache { docs: Document[]; children: Child[] }
+  const { data, loading, refresh: load } = useCachedFetch<DocumentosCache>({
+    cacheKey: groupId ? `documentos_${groupId}` : null,
+    tag: 'documentos:load',
+    empty: { docs: [], children: [] },
+    fetcher: async () => {
+      const [d, c] = await Promise.all([fetchDocuments(groupId!), fetchChildren(groupId!)]);
+      return { docs: d, children: c };
+    },
+  });
+  const docs = data.docs;
+  const children = data.children;
 
   async function onRefresh() {
     setRefreshing(true);

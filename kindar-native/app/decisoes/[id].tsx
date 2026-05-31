@@ -2,12 +2,12 @@
  * Decisao — detail view with arguments thread + votes.
  * Mirrors PWA /decisoes detail experience.
  */
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
   TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { useLocalSearchParams, useFocusEffect, router } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -16,6 +16,7 @@ import {
   fetchDecisions, fetchArguments, postArgument, voteOnDecision, closeDecision,
   type Decision, type DecisionArgument, type VoteChoice,
 } from 'src/services/decisions';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import { supabase } from 'src/lib/supabase';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
@@ -63,40 +64,39 @@ export default function DecisionDetailScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { activeGroup, userId } = useAuth();
-  const [decision, setDecision] = useState<Decision | null>(null);
-  const [args, setArgs] = useState<DecisionArgument[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [newArg, setNewArg] = useState('');
   const [newStance, setNewStance] = useState<'pro' | 'contra'>('pro');
   const [posting, setPosting] = useState(false);
   const [voting, setVoting] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!activeGroup || !userId || !id) return;
-    const [all, argList] = await Promise.all([
-      fetchDecisions(activeGroup.groupId, userId),
-      fetchArguments(id),
-    ]);
-    const found = all.find(d => d.id === id) || null;
-    setDecision(found);
-    setArgs(argList);
-    setLoading(false);
-  }, [activeGroup, userId, id]);
+  interface DecisionDetailCache { decision: Decision | null; args: DecisionArgument[] }
+  const { data, loading, refresh: load } = useCachedFetch<DecisionDetailCache>({
+    cacheKey: activeGroup && userId && id ? `decisao_detail_${id}_${userId}` : null,
+    tag: 'decisao:detail:load',
+    empty: { decision: null, args: [] },
+    fetcher: async () => {
+      const [all, argList] = await Promise.all([
+        fetchDecisions(activeGroup!.groupId, userId!),
+        fetchArguments(id!),
+      ]);
+      return { decision: all.find(d => d.id === id) || null, args: argList };
+    },
+  });
+  const decision = data.decision;
+  const args = data.args;
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
-
-  // Subscribe to realtime argument inserts
-  useFocusEffect(useCallback(() => {
-    if (!id) return undefined;
+  // Realtime: novos arguments via outro pai disparam refresh.
+  useEffect(() => {
+    if (!id) return;
     const channel = supabase
       .channel(`decision-args-${id}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'decision_arguments', filter: `decision_id=eq.${id}` }, () => {
-        fetchArguments(id).then(setArgs);
+        load();
       })
       .subscribe();
     return () => { supabase.removeChannel(channel); };
-  }, [id]));
+  }, [id, load]);
 
   async function onRefresh() {
     setRefreshing(true);

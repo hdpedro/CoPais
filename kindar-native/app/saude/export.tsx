@@ -3,17 +3,18 @@
  * Mirrors PWA /saude/export (versao simplificada — sem geracao de PDF nativo,
  * mas com share textual completo que cabe em email/WhatsApp).
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Share,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { supabase } from 'src/lib/supabase';
 import { fetchChildren, type Child } from 'src/services/children';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -49,66 +50,62 @@ function calcAge(birthDate: string): string {
 export default function ExportScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup } = useAuth();
-  const [children, setChildren] = useState<Child[]>([]);
+  const groupId = activeGroup?.groupId;
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
-  const [data, setData] = useState<HealthExportData | null>(null);
-  const [loading, setLoading] = useState(true);
+
+  const { data: children } = useCachedFetch<Child[]>({
+    cacheKey: groupId ? `saude_export_children_${groupId}` : null,
+    tag: 'saude:export:children',
+    empty: [],
+    fetcher: () => fetchChildren(groupId!),
+  });
 
   useEffect(() => {
-    if (activeGroup) {
-      fetchChildren(activeGroup.groupId).then(list => {
-        setChildren(list);
-        if (list.length > 0) setSelectedChildId(list[0].id);
-      });
-    }
-  }, [activeGroup]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!selectedChildId && children.length > 0) setSelectedChildId(children[0].id);
+  }, [children, selectedChildId]);
 
-  const load = useCallback(async () => {
-    if (!selectedChildId) { setLoading(false); return; }
-    const child = children.find(c => c.id === selectedChildId);
-    if (!child) return;
-
-    const [medical, allergies, meds, appts, ills, vacs, growth] = await Promise.all([
-      supabase.from('child_medical_info').select('blood_type, insurance_name, sus_number, primary_pediatrician_id').eq('child_id', selectedChildId).maybeSingle(),
-      supabase.from('child_allergies').select('name, severity').eq('child_id', selectedChildId).order('severity', { ascending: false }),
-      supabase.from('active_medications').select('name, dosage, frequency').eq('child_id', selectedChildId).eq('status', 'active'),
-      supabase.from('medical_appointments').select('title, appointment_date').eq('child_id', selectedChildId).order('appointment_date', { ascending: false }).limit(10),
-      supabase.from('illness_episodes').select('title, start_date, end_date').eq('child_id', selectedChildId).order('start_date', { ascending: false }).limit(10),
-      // Schema: vaccination_records uses `vaccine_name`/`administered_date`,
-      // growth_records uses `measured_date` (NOT `name`/`applied_at`/`date`).
-      // Pre-existing column-name bug fixed 2026-04-27.
-      supabase.from('vaccination_records').select('vaccine_name, dose_label, administered_date').eq('child_id', selectedChildId).order('administered_date', { ascending: false }).limit(30),
-      supabase.from('growth_records').select('measured_date, height_cm, weight_kg').eq('child_id', selectedChildId).order('measured_date', { ascending: false }).limit(1).maybeSingle(),
-    ]);
-
-    let pediatrician = null;
-    const pedId = (medical as any).data?.primary_pediatrician_id;
-    if (pedId) {
-      const { data: ped } = await supabase
-        .from('medical_professionals')
-        .select('name, phone, specialty')
-        .eq('id', pedId)
-        .maybeSingle();
-      pediatrician = ped as any;
-    }
-
-    setData({
-      child,
-      bloodType: (medical as any).data?.blood_type || null,
-      insurance: (medical as any).data?.insurance_name || null,
-      sus: (medical as any).data?.sus_number || null,
-      allergies: (allergies.data || []) as any,
-      medications: (meds.data || []) as any,
-      pediatrician,
-      appointments: (appts.data || []) as any,
-      illnesses: (ills.data || []) as any,
-      vaccines: (vacs.data || []) as any,
-      growthLast: (growth as any).data || null,
-    });
-    setLoading(false);
-  }, [selectedChildId, children]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data, loading } = useCachedFetch<HealthExportData | null>({
+    cacheKey: selectedChildId ? `saude_export_data_${selectedChildId}` : null,
+    tag: 'saude:export:data',
+    empty: null,
+    fetcher: async () => {
+      const child = children.find(c => c.id === selectedChildId);
+      if (!child) return null;
+      const [medical, allergies, meds, appts, ills, vacs, growth] = await Promise.all([
+        supabase.from('child_medical_info').select('blood_type, insurance_name, sus_number, primary_pediatrician_id').eq('child_id', selectedChildId!).maybeSingle(),
+        supabase.from('child_allergies').select('name, severity').eq('child_id', selectedChildId!).order('severity', { ascending: false }),
+        supabase.from('active_medications').select('name, dosage, frequency').eq('child_id', selectedChildId!).eq('status', 'active'),
+        supabase.from('medical_appointments').select('title, appointment_date').eq('child_id', selectedChildId!).order('appointment_date', { ascending: false }).limit(10),
+        supabase.from('illness_episodes').select('title, start_date, end_date').eq('child_id', selectedChildId!).order('start_date', { ascending: false }).limit(10),
+        supabase.from('vaccination_records').select('vaccine_name, dose_label, administered_date').eq('child_id', selectedChildId!).order('administered_date', { ascending: false }).limit(30),
+        supabase.from('growth_records').select('measured_date, height_cm, weight_kg').eq('child_id', selectedChildId!).order('measured_date', { ascending: false }).limit(1).maybeSingle(),
+      ]);
+      let pediatrician = null;
+      const pedId = (medical as any).data?.primary_pediatrician_id;
+      if (pedId) {
+        const { data: ped } = await supabase
+          .from('medical_professionals')
+          .select('name, phone, specialty')
+          .eq('id', pedId)
+          .maybeSingle();
+        pediatrician = ped as any;
+      }
+      return {
+        child,
+        bloodType: (medical as any).data?.blood_type || null,
+        insurance: (medical as any).data?.insurance_name || null,
+        sus: (medical as any).data?.sus_number || null,
+        allergies: (allergies.data || []) as any,
+        medications: (meds.data || []) as any,
+        pediatrician,
+        appointments: (appts.data || []) as any,
+        illnesses: (ills.data || []) as any,
+        vaccines: (vacs.data || []) as any,
+        growthLast: (growth as any).data || null,
+      };
+    },
+  });
 
   async function handleShare() {
     if (!data) return;
@@ -205,7 +202,7 @@ export default function ExportScreen() {
       <ChildPicker
         items={children}
         selectedId={selectedChildId}
-        onSelect={(id) => { setSelectedChildId(id); setLoading(true); }}
+        onSelect={(id) => { setSelectedChildId(id); }}
         containerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}
         testID="export-child-picker"
       />

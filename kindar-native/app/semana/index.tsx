@@ -31,6 +31,8 @@ import {
 } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import EmptyState from 'src/components/ui/EmptyState';
+import { withTimeout, TimeoutError } from 'src/lib/with-timeout';
+import { reportError } from 'src/lib/error-reporter';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -191,7 +193,7 @@ export default function SemanaScreen() {
         { data: apptRows },
         { data: illnessRows },
         { data: medRows },
-      ] = await Promise.all([
+      ] = await withTimeout(Promise.all([
         supabase.from('group_members')
           .select('user_id, profiles(full_name, display_name, email)')
           .eq('group_id', groupId)
@@ -244,7 +246,7 @@ export default function SemanaScreen() {
           .eq('status', 'active')
           .limit(20)
           .then(r => r, () => ({ data: [] as never[] })),
-      ]);
+      ]), 15_000, 'semana:load:mainQueries');
 
       // Members + colors (sage / terracota — same convention as calendário)
       // firstOnly: chip de membro com cor é compacto, primeiro nome basta.
@@ -383,8 +385,12 @@ export default function SemanaScreen() {
         activeIllnesses,
         activeMeds,
       });
-    } catch {
-      // Silent fail — keep stale data if any
+    } catch (e) {
+      // TimeoutError ja foi logado como 'info' pelo withTimeout. Outros
+      // viram 'error' — antes era silent fail (zero telemetria).
+      if (!(e instanceof TimeoutError)) {
+        reportError(e, { severity: 'error', filePath: 'semana.load' }).catch(() => {});
+      }
     } finally {
       setLoading(false);
     }

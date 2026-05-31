@@ -1,9 +1,9 @@
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
   ScrollView,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useAuth } from 'src/store/auth';
@@ -11,6 +11,7 @@ import { supabase } from 'src/lib/supabase';
 import {
   fetchActivities, updateActivity, deleteActivity, type Activity,
 } from 'src/services/activities';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import { ACTIVITY_CATEGORIES } from 'src/lib/constants';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
@@ -64,8 +65,6 @@ export default function AtividadesScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { activeGroup, userId } = useAuth();
-  const [activities, setActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [editing, setEditing] = useState<Activity | null>(null);
   const [saving, setSaving] = useState(false);
@@ -80,14 +79,12 @@ export default function AtividadesScreen() {
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    const data = await fetchActivities(activeGroup.groupId);
-    setActivities(data);
-    setLoading(false);
-  }, [activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data: activities, loading, refresh: load } = useCachedFetch<Activity[]>({
+    cacheKey: activeGroup ? `atividades_${activeGroup.groupId}` : null,
+    tag: 'atividades:load',
+    empty: [],
+    fetcher: () => fetchActivities(activeGroup!.groupId),
+  });
 
   // Real-time entre coparentes
   useCollabRealtime({

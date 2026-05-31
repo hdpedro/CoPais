@@ -1,16 +1,16 @@
 /**
  * Notas Privadas — CRUD completo. Notas visiveis apenas ao autor.
  */
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
   ScrollView, Alert,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { fetchNotes, createNote, updateNote, deleteNote, type Note } from 'src/services/notes';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
@@ -37,8 +37,6 @@ export default function NotasScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
-  const [notes, setNotes] = useState<Note[]>([]);
-  const [loading, setLoading] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
   const [editing, setEditing] = useState<Note | null>(null);
   const [title, setTitle] = useState('');
@@ -46,16 +44,14 @@ export default function NotasScreen() {
   const [category, setCategory] = useState<NoteCategory>('lembrete');
   const [submitting, setSubmitting] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!userId || !activeGroup) return;
-    // Pass BOTH user_id AND group_id — the previous implementation passed
-    // only user_id, which leaks notes between groups when the user has more
-    // than one membership. Schema requires both columns NOT NULL.
-    setNotes(await fetchNotes(userId, activeGroup.groupId));
-    setLoading(false);
-  }, [userId, activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data: notes, loading, refresh: load } = useCachedFetch<Note[]>({
+    cacheKey: userId && activeGroup ? `notas_${activeGroup.groupId}_${userId}` : null,
+    tag: 'notas:load',
+    empty: [],
+    // Pass BOTH user_id AND group_id — schema requires both NOT NULL e
+    // previne leak entre grupos quando o user tem mais de uma membership.
+    fetcher: () => fetchNotes(userId!, activeGroup!.groupId),
+  });
 
   function openCreate() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);

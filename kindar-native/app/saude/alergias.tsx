@@ -1,15 +1,15 @@
 /**
  * Alergias — Lista + Criar alergia por criança (com type picker e severidade).
  */
-import { useState, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, ScrollView } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { supabase } from 'src/lib/supabase';
 import { safeWrite } from 'src/services/offline';
 import { notifyAction } from 'src/services/notify';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
@@ -22,6 +22,13 @@ import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Allergy { id: string; name: string; allergy_type: string; severity: string; reaction: string | null; childName: string; child_id: string; }
+
+interface AlergiasCache {
+  allergies: Allergy[];
+  children: Array<{ id: string; full_name: string }>;
+}
+
+const EMPTY_CACHE: AlergiasCache = { allergies: [], children: [] };
 
 const SEV_ICONS: Record<string, { icon: string; color: string }> = {
   severe: { icon: '🔴', color: '#E53935' }, moderate: { icon: '🟡', color: '#E8A228' }, mild: { icon: '🟢', color: '#4CAF50' },
@@ -39,47 +46,56 @@ export default function AlergiasScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
-  const [allergies, setAllergies] = useState<Allergy[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState('');
   const [type, setType] = useState('food');
   const [severity, setSeverity] = useState('mild');
   const [reaction, setReaction] = useState('');
   const [selectedChild, setSelectedChild] = useState('');
-  const [children, setChildren] = useState<Array<{id: string; full_name: string}>>([]);
   const [saving, setSaving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    const [{ data: a }, { data: c }] = await Promise.all([
-      supabase.from('child_allergies').select('id, name, allergy_type, severity, reaction, child_id, children(full_name)').eq('group_id', activeGroup.groupId),
-      supabase.from('children').select('id, full_name').eq('group_id', activeGroup.groupId),
-    ]);
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    setAllergies((a || []).map((x: any) => ({ ...x, childName: getDisplayName(x.children?.full_name) })));
-    setChildren(c || []);
-    if (c && c.length > 0 && !selectedChild) setSelectedChild(c[0].id);
-    setLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeGroup]);
+  const { data, loading, refresh } = useCachedFetch<AlergiasCache>({
+    cacheKey: activeGroup ? `saude_alergias_${activeGroup.groupId}` : null,
+    tag: 'saude:alergias:load',
+    empty: EMPTY_CACHE,
+    fetcher: async () => {
+      const [{ data: a }, { data: c }] = await Promise.all([
+        supabase.from('child_allergies').select('id, name, allergy_type, severity, reaction, child_id, children(full_name)').eq('group_id', activeGroup!.groupId),
+        supabase.from('children').select('id, full_name').eq('group_id', activeGroup!.groupId),
+      ]);
+      return {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        allergies: (a || []).map((x: any) => ({ ...x, childName: getDisplayName(x.children?.full_name) })),
+        children: c || [],
+      };
+    },
+  });
+  const allergies = data.allergies;
+  const children = data.children;
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  // Auto-select primeira crianca quando o payload chega — antes vivia
+  // dentro do load(); separar deixa o helper generico. Inline set
+  // intencional (bridge React state <- Supabase async): so dispara uma
+  // vez quando children popula, nao causa render loop.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!selectedChild && children.length > 0) setSelectedChild(children[0].id);
+  }, [children, selectedChild]);
 
   // Real-time: quando o co-responsável adiciona/edita/apaga uma alergia,
   // a lista atualiza sozinha + toast "Amanda adicionou uma alergia"
   useCollabRealtime({
     table: 'child_allergies',
     groupId: activeGroup?.groupId,
-    onChange: load,
+    onChange: refresh,
     displayLabel: 'alergia',
     myUserId: userId,
   });
 
   async function onRefresh() {
     setRefreshing(true);
-    await load();
+    await refresh();
     setRefreshing(false);
   }
 
@@ -94,7 +110,7 @@ export default function AlergiasScreen() {
       if (!result.queued) notifyAction('health_event_created', activeGroup.groupId, { title: `Alergia: ${name}`, childName: children.find(c => c.id === selectedChild)?.full_name?.split(' ')[0] || '' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowForm(false); setName(''); setReaction('');
-      load();
+      refresh();
     } else { toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' }); }
     setSaving(false);
   }
@@ -103,7 +119,7 @@ export default function AlergiasScreen() {
     // Confirmação fica no SwipeToDelete (Alert.alert ali). Aqui executamos
     // direto. Mantém compat com long-press caller (sem swipe).
     await safeWrite({ table: 'child_allergies', operation: 'delete', payload: { id } });
-    load();
+    refresh();
   }
 
   return (

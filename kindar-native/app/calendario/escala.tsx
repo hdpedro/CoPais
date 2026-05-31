@@ -19,6 +19,8 @@ import { PARENT_COLORS } from 'src/lib/constants';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
+import { withTimeout, TimeoutError } from 'src/lib/with-timeout';
+import { reportError } from 'src/lib/error-reporter';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -61,43 +63,59 @@ export default function EscalaScreen() {
   const [generating, setGenerating] = useState(false);
 
   const load = useCallback(async () => {
-    if (!activeGroup || !userId) return;
-
-    const [childList, memberResp] = await Promise.all([
-      fetchChildren(activeGroup.groupId),
-      supabase.from('group_members').select('user_id, profiles(full_name, display_name, email)').eq('group_id', activeGroup.groupId),
-    ]);
-
-    setChildren(childList);
-    const targetChildId = childId || childList[0]?.id || '';
-    if (!childId && targetChildId) setChildId(targetChildId);
-
-    const memList: Member[] = ((memberResp.data || []) as any[]).map((m: any, i: number) => {
-      const p = m.profiles || {};
-      const raw = p.display_name
-        || p.full_name?.split(' ')[0]
-        || (p.email ? p.email.split('@')[0].split('.')[0] : '')
-        || 'Membro';
-      return {
-        userId: m.user_id,
-        name: raw.charAt(0).toUpperCase() + raw.slice(1),
-        color: i === 0 ? PARENT_COLORS.primary : PARENT_COLORS.secondary,
-      };
-    });
-    setMembers(memList);
-
-    // Load pattern specifically for the selected child (fallback: any regular event)
-    if (targetChildId) {
-      const existing = await fetchSchedulePattern(activeGroup.groupId, targetChildId);
-      if (existing.pattern && existing.pattern.length === 14) {
-        setPattern(existing.pattern);
-      }
-      if (existing.startDate) {
-        setStartDateIso(existing.startDate);
-        setStartDateDisplay(displayDate(existing.startDate));
-      }
+    if (!activeGroup || !userId) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+    try {
+      const [childList, memberResp] = await withTimeout(
+        Promise.all([
+          fetchChildren(activeGroup.groupId),
+          supabase.from('group_members').select('user_id, profiles(full_name, display_name, email)').eq('group_id', activeGroup.groupId),
+        ]),
+        15_000,
+        'calendario:escala:mainQueries',
+      );
+
+      setChildren(childList);
+      const targetChildId = childId || childList[0]?.id || '';
+      if (!childId && targetChildId) setChildId(targetChildId);
+
+      const memList: Member[] = ((memberResp.data || []) as any[]).map((m: any, i: number) => {
+        const p = m.profiles || {};
+        const raw = p.display_name
+          || p.full_name?.split(' ')[0]
+          || (p.email ? p.email.split('@')[0].split('.')[0] : '')
+          || 'Membro';
+        return {
+          userId: m.user_id,
+          name: raw.charAt(0).toUpperCase() + raw.slice(1),
+          color: i === 0 ? PARENT_COLORS.primary : PARENT_COLORS.secondary,
+        };
+      });
+      setMembers(memList);
+
+      if (targetChildId) {
+        const existing = await withTimeout(
+          fetchSchedulePattern(activeGroup.groupId, targetChildId),
+          15_000,
+          'calendario:escala:pattern',
+        );
+        if (existing.pattern && existing.pattern.length === 14) {
+          setPattern(existing.pattern);
+        }
+        if (existing.startDate) {
+          setStartDateIso(existing.startDate);
+          setStartDateDisplay(displayDate(existing.startDate));
+        }
+      }
+    } catch (e) {
+      if (!(e instanceof TimeoutError)) {
+        reportError(e, { severity: 'error', filePath: 'calendario.escala.load' }).catch(() => {});
+      }
+    } finally {
+      setLoading(false);
+    }
   }, [activeGroup, userId, childId]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));

@@ -3,12 +3,11 @@
  * Mirrors PWA /checkin.
  */
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useCallback, useEffect } from 'react';
+import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
   ScrollView,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { supabase } from 'src/lib/supabase';
 import { safeWrite } from 'src/services/offline';
@@ -16,6 +15,7 @@ import { notifyAction } from 'src/services/notify';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName, CHECKIN_CATEGORIES } from 'src/lib/constants';
 import { fetchChildren, type Child } from 'src/services/children';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
@@ -41,9 +41,6 @@ export default function CheckinScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
-  const [items, setItems] = useState<CheckinItem[]>([]);
-  const [children, setChildren] = useState<Child[]>([]);
-  const [loading, setLoading] = useState(true);
   const [composerOpen, setComposerOpen] = useState(false);
   const [childId, setChildId] = useState<string | null>(null);
   const [category, setCategory] = useState<string>('mood');
@@ -52,27 +49,32 @@ export default function CheckinScreen() {
   const [dateIso, setDateIso] = useState<string>(dateToIso(new Date()));
   const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    if (activeGroup) fetchChildren(activeGroup.groupId).then(setChildren);
-  }, [activeGroup]);
-
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    const { data } = await supabase.from('daily_checkins')
-      .select('id, category, title, notes, checkin_date, child_id, children(full_name), profiles!daily_checkins_logged_by_fkey(full_name)')
-      .eq('group_id', activeGroup.groupId)
-      .order('checkin_date', { ascending: false }).limit(100);
-    setItems((data || []).map((d: any) => ({
-      id: d.id, category: d.category, title: d.title, notes: d.notes,
-      checkin_date: d.checkin_date, child_id: d.child_id,
-      childName: getDisplayName(d.children?.full_name) || 'Geral',
-      // "Registrado por X" em lista compacta, firstOnly
-      loggedByName: getDisplayName(d.profiles?.full_name, true),
-    })));
-    setLoading(false);
-  }, [activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  interface CheckinCache { items: CheckinItem[]; children: Child[] }
+  const { data, loading, refresh: load } = useCachedFetch<CheckinCache>({
+    cacheKey: activeGroup ? `checkin_${activeGroup.groupId}` : null,
+    tag: 'checkin:load',
+    empty: { items: [], children: [] },
+    fetcher: async () => {
+      const [{ data: rows }, kids] = await Promise.all([
+        supabase.from('daily_checkins')
+          .select('id, category, title, notes, checkin_date, child_id, children(full_name), profiles!daily_checkins_logged_by_fkey(full_name)')
+          .eq('group_id', activeGroup!.groupId)
+          .order('checkin_date', { ascending: false }).limit(100),
+        fetchChildren(activeGroup!.groupId),
+      ]);
+      return {
+        items: (rows || []).map((d: any) => ({
+          id: d.id, category: d.category, title: d.title, notes: d.notes,
+          checkin_date: d.checkin_date, child_id: d.child_id,
+          childName: getDisplayName(d.children?.full_name) || 'Geral',
+          loggedByName: getDisplayName(d.profiles?.full_name, true),
+        })),
+        children: kids,
+      };
+    },
+  });
+  const items = data.items;
+  const children = data.children;
 
   async function handleSubmit() {
     if (!activeGroup || !userId || !title.trim()) return;

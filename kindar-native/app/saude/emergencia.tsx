@@ -3,12 +3,12 @@
  * com escola/babysitter/socorro.
  * Mirrors PWA /saude/emergencia.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl,
   Share, Alert,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,6 +16,7 @@ import { useAuth } from 'src/store/auth';
 import { fetchChildren, type Child } from 'src/services/children';
 import { regenerateEmergencyToken } from 'src/services/health';
 import { supabase } from 'src/lib/supabase';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
@@ -44,98 +45,97 @@ export default function EmergenciaScreen() {
   const { activeGroup } = useAuth();
   const t = useI18n(s => s.t);
   const toast = useToast();
-  const [children, setChildren] = useState<(Child & { emergency_token: string | null })[]>([]);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
-  const [summary, setSummary] = useState<HealthSummary | null>(null);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [rotating, setRotating] = useState(false);
 
-  useEffect(() => {
-    async function loadChildren() {
-      if (!activeGroup) return;
-      const list = await fetchChildren(activeGroup.groupId);
-      // Query emergency_token separately
+  const groupId = activeGroup?.groupId;
+
+  type ChildrenList = (Child & { emergency_token: string | null })[];
+  const { data: children, refresh: refreshChildren } = useCachedFetch<ChildrenList>({
+    cacheKey: groupId ? `saude_emergencia_children_${groupId}` : null,
+    tag: 'saude:emergencia:children',
+    empty: [],
+    fetcher: async () => {
+      const list = await fetchChildren(groupId!);
       const { data: withTokens } = await supabase
         .from('children')
         .select('id, emergency_token')
-        .eq('group_id', activeGroup.groupId);
+        .eq('group_id', groupId!);
       const tokenMap: Record<string, string | null> = {};
       (withTokens || []).forEach((c: any) => { tokenMap[c.id] = c.emergency_token; });
-      const merged = list.map(c => ({ ...c, emergency_token: tokenMap[c.id] || null }));
-      setChildren(merged);
-      if (merged.length > 0) setSelectedChildId(merged[0].id);
-    }
-    loadChildren();
-  }, [activeGroup]);
+      return list.map(c => ({ ...c, emergency_token: tokenMap[c.id] || null }));
+    },
+  });
 
-  const groupId = activeGroup?.groupId;
-  const loadSummary = useCallback(async () => {
-    if (!selectedChildId) { setLoading(false); return; }
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!selectedChildId && children.length > 0) setSelectedChildId(children[0].id);
+  }, [children, selectedChildId]);
 
-    const [medicalRes, allergiesRes, medsRes] = await Promise.all([
-      supabase
-        .from('child_medical_info')
-        .select('blood_type, insurance_name, sus_number, primary_pediatrician_id')
-        .eq('child_id', selectedChildId)
-        .maybeSingle(),
-      supabase
-        .from('child_allergies')
-        .select('id, name, severity')
-        .eq('child_id', selectedChildId)
-        .order('severity', { ascending: false })
-        .limit(20),
-      supabase
-        .from('active_medications')
-        .select('id, name, dosage')
-        .eq('child_id', selectedChildId)
-        .eq('status', 'active')
-        .limit(20),
-    ]);
-
-    const medical = (medicalRes as any).data || null;
-    let pediatricianName = null;
-    let pediatricianPhone = null;
-    if (medical?.primary_pediatrician_id) {
-      const { data: ped } = await supabase
-        .from('medical_professionals')
-        .select('name, phone')
-        .eq('id', medical.primary_pediatrician_id)
-        .maybeSingle();
-      pediatricianName = (ped as any)?.name || null;
-      pediatricianPhone = (ped as any)?.phone || null;
-    } else if (groupId) {
-      // Fallback: pega o pediatra mais antigo cadastrado no grupo quando ninguem marcou explicitamente
-      const { data: ped } = await supabase
-        .from('medical_professionals')
-        .select('name, phone')
-        .eq('group_id', groupId)
-        .eq('specialty', 'pediatra')
-        .order('created_at', { ascending: true })
-        .limit(1)
-        .maybeSingle();
-      pediatricianName = (ped as any)?.name || null;
-      pediatricianPhone = (ped as any)?.phone || null;
-    }
-
-    setSummary({
-      bloodType: medical?.blood_type || null,
-      allergies: (allergiesRes.data || []) as any,
-      medications: (medsRes.data || []) as any,
-      pediatricianName,
-      pediatricianPhone,
-      insurance: medical?.insurance_name || null,
-      sus: medical?.sus_number || null,
-    });
-    setLoading(false);
-  }, [selectedChildId, groupId]);
-
-  useFocusEffect(useCallback(() => { loadSummary(); }, [loadSummary]));
+  const { data: summary, loading, refresh: refreshSummary } = useCachedFetch<HealthSummary | null>({
+    cacheKey: selectedChildId ? `saude_emergencia_summary_${selectedChildId}` : null,
+    tag: 'saude:emergencia:summary',
+    empty: null,
+    fetcher: async () => {
+      const [medicalRes, allergiesRes, medsRes] = await Promise.all([
+        supabase
+          .from('child_medical_info')
+          .select('blood_type, insurance_name, sus_number, primary_pediatrician_id')
+          .eq('child_id', selectedChildId!)
+          .maybeSingle(),
+        supabase
+          .from('child_allergies')
+          .select('id, name, severity')
+          .eq('child_id', selectedChildId!)
+          .order('severity', { ascending: false })
+          .limit(20),
+        supabase
+          .from('active_medications')
+          .select('id, name, dosage')
+          .eq('child_id', selectedChildId!)
+          .eq('status', 'active')
+          .limit(20),
+      ]);
+      const medical = (medicalRes as any).data || null;
+      let pediatricianName = null;
+      let pediatricianPhone = null;
+      if (medical?.primary_pediatrician_id) {
+        const { data: ped } = await supabase
+          .from('medical_professionals')
+          .select('name, phone')
+          .eq('id', medical.primary_pediatrician_id)
+          .maybeSingle();
+        pediatricianName = (ped as any)?.name || null;
+        pediatricianPhone = (ped as any)?.phone || null;
+      } else if (groupId) {
+        const { data: ped } = await supabase
+          .from('medical_professionals')
+          .select('name, phone')
+          .eq('group_id', groupId)
+          .eq('specialty', 'pediatra')
+          .order('created_at', { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        pediatricianName = (ped as any)?.name || null;
+        pediatricianPhone = (ped as any)?.phone || null;
+      }
+      return {
+        bloodType: medical?.blood_type || null,
+        allergies: (allergiesRes.data || []) as any,
+        medications: (medsRes.data || []) as any,
+        pediatricianName,
+        pediatricianPhone,
+        insurance: medical?.insurance_name || null,
+        sus: medical?.sus_number || null,
+      };
+    },
+  });
 
   async function onRefresh() {
     setRefreshing(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    await loadSummary();
+    await Promise.all([refreshChildren(), refreshSummary()]);
     setRefreshing(false);
   }
 
@@ -155,7 +155,10 @@ export default function EmergenciaScreen() {
             const r = await regenerateEmergencyToken({ groupId: activeGroup.groupId, childId: child.id });
             setRotating(false);
             if (r.success) {
-              setChildren(prev => prev.map(c => c.id === child.id ? { ...c, emergency_token: r.emergency_token } : c));
+              // Re-fetch pra pegar o novo emergency_token do banco (mais
+              // robusto que mutate inline — garante que outros campos
+              // tambem chegam atualizados se algum trigger mexer).
+              await refreshChildren();
               Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               toast.show({ message: t('toasts.common.updated'), variant: 'success' });
             } else {
@@ -204,7 +207,7 @@ export default function EmergenciaScreen() {
       <ChildPicker
         items={children}
         selectedId={selectedChildId}
-        onSelect={(id) => { setSelectedChildId(id); setLoading(true); }}
+        onSelect={(id) => { setSelectedChildId(id); }}
         containerStyle={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}
         testID="emergencia-child-picker"
       />

@@ -11,11 +11,12 @@
  * outro instantaneamente (com pull-to-refresh ou re-foco da tela).
  */
 
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { View, Text, ActivityIndicator, RefreshControl, ScrollView } from 'react-native';
-import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAuth } from 'src/store/auth';
 import { fetchChildDetail, type ChildDetail } from 'src/services/children';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import ChildHeader from 'src/components/criancas/ChildHeader';
 import TabBar, { type ChildTab } from 'src/components/criancas/TabBar';
@@ -36,34 +37,15 @@ export default function ChildDetailScreen() {
   const groupId = activeGroup?.groupId;
 
   const [tab, setTab] = useState<ChildTab>((initialTab as ChildTab) || 'geral');
-  const [data, setData] = useState<ChildDetail | null>(null);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!id || !groupId) return;
-    const result = await fetchChildDetail(id, groupId);
-    setData(result);
-  }, [id, groupId]);
-
-  // Initial fetch — setState dentro do effect é intencional aqui
-  // (precisamos coordenar loading state com a chamada async ao Supabase
-  // que só pode rodar no client). É um bridge entre React state e o
-  // backend, exatamente o caso permitido pela regra.
-  useEffect(() => {
-    if (!id || !groupId) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true);
-    load().finally(() => setLoading(false));
-  }, [id, groupId, load]);
-
-  // Refresh when screen regains focus (came back from /saude/* etc)
-  useFocusEffect(
-    useCallback(() => {
-      load();
-    }, [load])
-  );
+  const { data, loading, refresh: load } = useCachedFetch<ChildDetail | null>({
+    cacheKey: id && groupId ? `crianca_detail_${id}_${groupId}` : null,
+    tag: 'criancas:detail:load',
+    empty: null,
+    fetcher: () => fetchChildDetail(id!, groupId!),
+  });
 
   async function onRefresh() {
     setRefreshing(true);

@@ -8,12 +8,13 @@
  * Antes do 2026-04-27 essa tela so editava `child_education`. A timeline
  * de `school_logs` era PWA-only — fechado por essa migracao.
  */
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import {
   View, Text, ScrollView, RefreshControl, TouchableOpacity, Modal, TextInput,
   Alert,
 } from 'react-native';
-import { useFocusEffect, useLocalSearchParams } from 'expo-router';
+import { useLocalSearchParams } from 'expo-router';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
@@ -113,8 +114,6 @@ export default function EscolaScreen() {
   const [tab, setTab] = useState<Tab>(highlight || openEditFor ? 'logs' : 'info');
 
   // Info tab state
-  const [schools, setSchools] = useState<ChildSchool[]>([]);
-  const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<ChildSchool | null>(null);
   const [saving, setSaving] = useState(false);
   const [schoolName, setSchoolName] = useState('');
@@ -129,9 +128,6 @@ export default function EscolaScreen() {
   const [extracurriculars, setExtracurriculars] = useState('');
 
   // Logs tab state
-  const [logs, setLogs] = useState<SchoolLog[]>([]);
-  const [logsLoading, setLogsLoading] = useState(true);
-  const [childOptions, setChildOptions] = useState<ChildOption[]>([]);
   const [composer, setComposer] = useState<ComposerStage>({ stage: 'closed' });
   const [editingLog, setEditingLog] = useState<SchoolLog | null>(null);
   const [savingLog, setSavingLog] = useState(false);
@@ -146,15 +142,65 @@ export default function EscolaScreen() {
   const [logPriority, setLogPriority] = useState<SchoolPriority>('info');
   const [filterKind, setFilterKind] = useState<'all' | SchoolKind>('all');
 
-  // Collab reads — receipts for all logs in this group (current user +
-  // coparents). Powers "Novo" badge, unread count, "Visto por X · 14:32".
-  const [reads, setReads] = useState<SchoolLogRead[]>([]);
   // Optimistic local reads — instant feedback when user opens a card.
   // Server-authoritative reads come back in the next loadLogs() cycle.
   const [optimisticReads, setOptimisticReads] = useState<Set<string>>(new Set());
   // Expanded card — tapping a card expands it AND marks it read. Only
   // one expansion at a time. Deep link from push starts expanded.
   const [expandedLogId, setExpandedLogId] = useState<string | null>(highlight || null);
+
+  interface EscolaInfoCache { schools: ChildSchool[]; childOptions: ChildOption[] }
+  const { data: infoData, loading, refresh: load } = useCachedFetch<EscolaInfoCache>({
+    cacheKey: groupId ? `escola_info_${groupId}` : null,
+    tag: 'escola:info:load',
+    empty: { schools: [], childOptions: [] },
+    fetcher: async () => {
+      const children = await fetchChildren(groupId!);
+      const results: ChildSchool[] = [];
+      const opts: ChildOption[] = [];
+      for (const child of children) {
+        const edu = await fetchChildEducation(child.id);
+        results.push({
+          childId: child.id,
+          childFullName: child.full_name,
+          childName: child.full_name.split(' ')[0],
+          education: edu,
+        });
+        opts.push({
+          id: child.id,
+          full_name: child.full_name,
+          short_name: child.full_name.split(' ')[0],
+        });
+      }
+      return { schools: results, childOptions: opts };
+    },
+  });
+  const schools = infoData.schools;
+  const childOptions = infoData.childOptions;
+
+  interface EscolaLogsCache { logs: SchoolLog[]; reads: SchoolLogRead[] }
+  const { data: logsData, loading: logsLoading, refresh: loadLogs } = useCachedFetch<EscolaLogsCache>({
+    cacheKey: groupId ? `escola_logs_${groupId}` : null,
+    tag: 'escola:logs:load',
+    empty: { logs: [], reads: [] },
+    fetcher: async () => {
+      const [rows, readsRows] = await Promise.all([
+        fetchSchoolLogs(groupId!),
+        fetchSchoolLogReads(groupId!),
+      ]);
+      const serverReadIds = new Set(
+        readsRows.filter((r) => r.user_id === userId).map((r) => r.log_id),
+      );
+      setOptimisticReads((prev) => {
+        const next = new Set<string>();
+        for (const id of prev) if (!serverReadIds.has(id)) next.add(id);
+        return next;
+      });
+      return { logs: rows, reads: readsRows };
+    },
+  });
+  const logs = logsData.logs;
+  const reads = logsData.reads;
 
   // Push deep link → explicit open. Fire notification_opened AND
   // mark as read. Mirrors PWA EscolaClient behavior — without this,
@@ -191,54 +237,6 @@ export default function EscolaScreen() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openEditFor, logs.length]);
-
-  const load = useCallback(async () => {
-    if (!groupId) return;
-    const children = await fetchChildren(groupId);
-    const results: ChildSchool[] = [];
-    const opts: ChildOption[] = [];
-    for (const child of children) {
-      const edu = await fetchChildEducation(child.id);
-      results.push({
-        childId: child.id,
-        childFullName: child.full_name,
-        childName: child.full_name.split(' ')[0],
-        education: edu,
-      });
-      opts.push({
-        id: child.id,
-        full_name: child.full_name,
-        short_name: child.full_name.split(' ')[0],
-      });
-    }
-    setSchools(results);
-    setChildOptions(opts);
-    setLoading(false);
-  }, [groupId]);
-
-  const loadLogs = useCallback(async () => {
-    if (!groupId) return;
-    setLogsLoading(true);
-    // Fetch logs + reads in parallel — reads drives the "Novo" badge so
-    // we need both before painting.
-    const [rows, readsRows] = await Promise.all([
-      fetchSchoolLogs(groupId),
-      fetchSchoolLogReads(groupId),
-    ]);
-    setLogs(rows);
-    setReads(readsRows);
-    // Drop optimistic reads that are now reflected on the server — keeps
-    // the set small and avoids stale state if a coparent unreads (future).
-    const serverReadIds = new Set(
-      readsRows.filter((r) => r.user_id === userId).map((r) => r.log_id),
-    );
-    setOptimisticReads((prev) => {
-      const next = new Set<string>();
-      for (const id of prev) if (!serverReadIds.has(id)) next.add(id);
-      return next;
-    });
-    setLogsLoading(false);
-  }, [groupId, userId]);
 
   // ── Read-receipt helpers ───────────────────────────────────────────
   // Indexed by log_id for O(1) lookup. Memoized so mutation only happens
@@ -278,12 +276,7 @@ export default function EscolaScreen() {
     }
   }
 
-  useFocusEffect(
-    useCallback(() => {
-      load();
-      loadLogs();
-    }, [load, loadLogs]),
-  );
+  // useCachedFetch ja roda useFocusEffect internamente (load + loadLogs).
 
   // Real-time entre coparentes: novos registros escolares aparecem na hora.
   useCollabRealtime({
@@ -491,14 +484,13 @@ export default function EscolaScreen() {
 
   async function handleToggleCompleted(log: SchoolLog) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // optimistic flip
-    setLogs(prev => prev.map(l => l.id === log.id ? { ...l, completed: !l.completed } : l));
+    // Optimistic flip removido na migracao pra useCachedFetch (state vem
+    // do helper, nao mais setLogs local). Re-fetch garante consistencia.
     const res = await toggleSchoolLogCompleted(log.id, log.completed);
     if (!res.success) {
-      // rollback on failure
-      setLogs(prev => prev.map(l => l.id === log.id ? { ...l, completed: log.completed } : l));
       toast.show({ message: res.error || t('toasts.common.updateFailed'), variant: 'error' });
     }
+    await loadLogs();
   }
 
   return (

@@ -2,17 +2,18 @@
  * Enviar Convite — form + lista de convites existentes.
  * Mirrors PWA /convite/enviar.
  */
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView, ActivityIndicator,
   KeyboardAvoidingView, Platform, Alert, Share,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { createInvitation, listInvitations, cancelInvitation, type Invitation } from 'src/services/invitations';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -38,19 +39,16 @@ export default function EnviarConviteScreen() {
   const { activeGroup, userId, profile } = useAuth();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('parent');
-  const [invites, setInvites] = useState<Invitation[]>([]);
   const [sending, setSending] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successToken, setSuccessToken] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    setInvites(await listInvitations(activeGroup.groupId));
-    setLoading(false);
-  }, [activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data: invites, loading, refresh: load } = useCachedFetch<Invitation[]>({
+    cacheKey: activeGroup ? `convites_${activeGroup.groupId}` : null,
+    tag: 'convite:enviar:load',
+    empty: [],
+    fetcher: () => listInvitations(activeGroup!.groupId),
+  });
 
   async function handleSend() {
     if (!activeGroup || !userId) return;

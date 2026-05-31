@@ -2,12 +2,11 @@
  * Temas Sensiveis — notas sensiveis com fluxo de aprovacao de exclusao (workflow 8 of 8).
  * Mirrors PWA /temas-sensiveis.
  */
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
   ScrollView, Alert,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
@@ -16,6 +15,7 @@ import {
   type SensitiveNote, type SensitiveTopic,
 } from 'src/services/sensitive';
 import { fetchChildren, type Child } from 'src/services/children';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
@@ -52,9 +52,6 @@ export default function TemasSensiveisScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { activeGroup, userId } = useAuth();
-  const [notes, setNotes] = useState<SensitiveNote[]>([]);
-  const [children, setChildren] = useState<Child[]>([]);
-  const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -64,17 +61,21 @@ export default function TemasSensiveisScreen() {
   const [newUrgent, setNewUrgent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    const [n, c] = await Promise.all([
-      fetchSensitiveNotes(activeGroup.groupId),
-      fetchChildren(activeGroup.groupId),
-    ]);
-    setNotes(n); setChildren(c);
-    setLoading(false);
-  }, [activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  interface TemasCache { notes: SensitiveNote[]; children: Child[] }
+  const { data, loading, refresh: load } = useCachedFetch<TemasCache>({
+    cacheKey: activeGroup ? `temas_sensiveis_${activeGroup.groupId}` : null,
+    tag: 'temas-sensiveis:load',
+    empty: { notes: [], children: [] },
+    fetcher: async () => {
+      const [n, c] = await Promise.all([
+        fetchSensitiveNotes(activeGroup!.groupId),
+        fetchChildren(activeGroup!.groupId),
+      ]);
+      return { notes: n, children: c };
+    },
+  });
+  const notes = data.notes;
+  const children = data.children;
 
   async function handleRequestDelete(note: SensitiveNote) {
     if (!userId || !activeGroup) return;

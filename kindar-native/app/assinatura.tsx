@@ -45,6 +45,8 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
+import { withTimeout, TimeoutError } from 'src/lib/with-timeout';
+import { reportError } from 'src/lib/error-reporter';
 
 interface SplitMember {
   user_id: string;
@@ -108,7 +110,11 @@ export default function AssinaturaScreen() {
   const [splitBusy, setSplitBusy] = useState(false);
 
   const loadAll = useCallback(async () => {
-    const [status, pkgs] = await Promise.all([getBillingStatus(), getAvailablePackages()]);
+    const [status, pkgs] = await withTimeout(
+      Promise.all([getBillingStatus(), getAvailablePackages()]),
+      15_000,
+      'assinatura:loadAll',
+    );
     setBilling(status);
     setPackages(pkgs.map(classifyPackage));
 
@@ -182,8 +188,16 @@ export default function AssinaturaScreen() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      await loadAll();
-      setLoading(false);
+      try {
+        await loadAll();
+      } catch (e) {
+        if (!(e instanceof TimeoutError)) {
+          reportError(e, { severity: 'error', filePath: 'assinatura.loadAll' }).catch(() => {});
+        }
+      } finally {
+        // Invariante: spinner SEMPRE termina mesmo em timeout/erro.
+        setLoading(false);
+      }
     })();
   }, [loadAll]);
 

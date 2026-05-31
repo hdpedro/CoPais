@@ -2,12 +2,11 @@
  * Acordos — lista + composer + aceite pelo outro co-responsavel.
  * Mirrors PWA /acordos (workflow 7 of 8 — Acordos).
  */
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Modal, TextInput,
   ScrollView, Alert,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
@@ -15,6 +14,7 @@ import {
   fetchAgreements, createAgreement, acceptAgreement, deleteAgreement,
   type Agreement, type AgreementCategory,
 } from 'src/services/agreements';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
@@ -35,8 +35,6 @@ const CAT_META: Record<string, { label: string; icon: string; color: string }> =
 export default function AcordosScreen() {
   const t = useI18n(s => s.t);
   const { activeGroup, userId } = useAuth();
-  const [agreements, setAgreements] = useState<Agreement[]>([]);
-  const [loading, setLoading] = useState(true);
   const [accepting, setAccepting] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -45,13 +43,12 @@ export default function AcordosScreen() {
   const [newNonNegotiable, setNewNonNegotiable] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    setAgreements(await fetchAgreements(activeGroup.groupId));
-    setLoading(false);
-  }, [activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data: agreements, loading, refresh: load } = useCachedFetch<Agreement[]>({
+    cacheKey: activeGroup ? `acordos_${activeGroup.groupId}` : null,
+    tag: 'acordos:load',
+    empty: [],
+    fetcher: () => fetchAgreements(activeGroup!.groupId),
+  });
 
   async function handleAccept(a: Agreement) {
     if (!userId || !activeGroup) return;

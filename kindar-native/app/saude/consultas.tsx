@@ -1,10 +1,10 @@
 /**
  * Consultas — Lista de consultas + criar nova.
  */
-/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
-import { useState, useCallback } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, Modal, ScrollView } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { supabase } from 'src/lib/supabase';
@@ -12,6 +12,7 @@ import { safeWrite } from 'src/services/offline';
 import { notifyAction } from 'src/services/notify';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { DatePickerField, TimePickerField, dateToIso } from 'src/components/ui/DateTimeField';
@@ -25,6 +26,14 @@ import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens
 
 interface Appt { id: string; title: string; appointment_date: string; location: string | null; status: string; notes: string | null; childName: string; profName: string | null; child_id: string; }
 
+interface ConsultasCache {
+  appts: Appt[];
+  children: Array<{ id: string; full_name: string }>;
+  professionals: Array<{ id: string; name: string; specialty: string }>;
+}
+
+const EMPTY_CACHE: ConsultasCache = { appts: [], children: [], professionals: [] };
+
 const STATUS_COLORS: Record<string, { label: string; color: string }> = {
   scheduled: { label: 'Agendada', color: '#3b82f6' }, completed: { label: 'Realizada', color: '#4CAF50' }, cancelled: { label: 'Cancelada', color: '#8A8A8A' },
 };
@@ -33,10 +42,7 @@ export default function ConsultasScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
-  const [appts, setAppts] = useState<Appt[]>([]);
-  const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [children, setChildren] = useState<Array<{id: string; full_name: string}>>([]);
   const [selectedChild, setSelectedChild] = useState('');
   const [title, setTitle] = useState('');
   const [dateIso, setDateIso] = useState<string>(dateToIso(new Date()));
@@ -44,33 +50,39 @@ export default function ConsultasScreen() {
   const [location, setLocation] = useState('');
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
-
-  // Optional medical_professional_id to link the appointment to a saved
-  // profissional. Mirrors PWA `AppointmentFormClient.tsx`.
-  const [professionals, setProfessionals] = useState<Array<{ id: string; name: string; specialty: string }>>([]);
   const [selectedProfessional, setSelectedProfessional] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    const [{ data: a }, { data: c }, { data: p }] = await Promise.all([
-      supabase.from('medical_appointments').select('id, title, appointment_date, location, status, notes, child_id, children(full_name), medical_professionals(name)')
-        .eq('group_id', activeGroup.groupId).order('appointment_date', { ascending: false }).limit(50),
-      supabase.from('children').select('id, full_name').eq('group_id', activeGroup.groupId),
-      supabase.from('medical_professionals').select('id, name, specialty').eq('group_id', activeGroup.groupId).order('name'),
-    ]);
-    setAppts((a || []).map((x: any) => ({ ...x, childName: getDisplayName(x.children?.full_name), profName: x.medical_professionals?.name || null })));
-    setChildren(c || []);
-    setProfessionals((p || []) as Array<{ id: string; name: string; specialty: string }>);
-    if (c && c.length > 0 && !selectedChild) setSelectedChild(c[0].id);
-    setLoading(false);
-  }, [activeGroup]);
+  const { data, loading, refresh } = useCachedFetch<ConsultasCache>({
+    cacheKey: activeGroup ? `saude_consultas_${activeGroup.groupId}` : null,
+    tag: 'saude:consultas:load',
+    empty: EMPTY_CACHE,
+    fetcher: async () => {
+      const [{ data: a }, { data: c }, { data: p }] = await Promise.all([
+        supabase.from('medical_appointments').select('id, title, appointment_date, location, status, notes, child_id, children(full_name), medical_professionals(name)')
+          .eq('group_id', activeGroup!.groupId).order('appointment_date', { ascending: false }).limit(50),
+        supabase.from('children').select('id, full_name').eq('group_id', activeGroup!.groupId),
+        supabase.from('medical_professionals').select('id, name, specialty').eq('group_id', activeGroup!.groupId).order('name'),
+      ]);
+      return {
+        appts: (a || []).map((x: any) => ({ ...x, childName: getDisplayName(x.children?.full_name), profName: x.medical_professionals?.name || null })),
+        children: c || [],
+        professionals: (p || []) as Array<{ id: string; name: string; specialty: string }>,
+      };
+    },
+  });
+  const appts = data.appts;
+  const children = data.children;
+  const professionals = data.professionals;
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!selectedChild && children.length > 0) setSelectedChild(children[0].id);
+  }, [children, selectedChild]);
 
   useCollabRealtime({
     table: 'medical_appointments',
     groupId: activeGroup?.groupId,
-    onChange: load,
+    onChange: refresh,
     displayLabel: 'consulta',
     myUserId: userId,
   });
@@ -98,7 +110,7 @@ export default function ConsultasScreen() {
       if (!result.queued) notifyAction('health_event_created', activeGroup.groupId, { title: title, childName: children.find(c => c.id === selectedChild)?.full_name?.split(' ')[0] || '', eventType: 'appointment' });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowForm(false); setTitle(''); setDateIso(dateToIso(new Date())); setTimeHHMM(''); setLocation(''); setNotes(''); setSelectedProfessional(null);
-      load();
+      refresh();
     } else { toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' }); }
     setSaving(false);
   }
@@ -148,7 +160,7 @@ export default function ConsultasScreen() {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setCompleting(null);
-      await load();
+      await refresh();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
@@ -164,7 +176,7 @@ export default function ConsultasScreen() {
         onPress: async () => {
           await safeWrite({ table: 'medical_appointments', operation: 'update', payload: { id, status: 'cancelled' } });
           Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          load();
+          refresh();
         },
       },
     ]);
@@ -195,7 +207,7 @@ export default function ConsultasScreen() {
     });
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      await load();
+      await refresh();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.show({ message: result.error || t('toasts.common.deleteFailed'), variant: 'error' });
@@ -255,7 +267,7 @@ export default function ConsultasScreen() {
     if (result.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setEditing(null);
-      await load();
+      await refresh();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
@@ -371,7 +383,7 @@ export default function ConsultasScreen() {
       <FlatList data={appts} keyExtractor={item => item.id}
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100, flexGrow: 1 }}
-        refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
+        refreshControl={<RefreshControl refreshing={false} onRefresh={refresh} tintColor={colors.brand} />}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={true}
         ListEmptyComponent={loading ? null : (

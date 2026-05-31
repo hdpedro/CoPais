@@ -1,12 +1,11 @@
 /**
  * Medicamentos — Lista + criar + confirm dose tracking (paridade PWA).
  */
-/* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
-import { useState, useCallback } from 'react';
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { useState, useEffect } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl, Alert, ActivityIndicator, Modal, ScrollView,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from 'src/lib/supabase';
@@ -15,6 +14,7 @@ import { notifyAction } from 'src/services/notify';
 import { logMedicationDose } from 'src/services/health';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName, getBrazilToday } from 'src/lib/constants';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
@@ -38,6 +38,13 @@ interface DoseLog {
   id: string; administered_at: string; administered_by: string;
   administeredByName: string; notes: string | null;
 }
+
+interface MedicamentosCache {
+  meds: Med[];
+  children: Array<{ id: string; full_name: string }>;
+}
+
+const EMPTY_CACHE: MedicamentosCache = { meds: [], children: [] };
 
 // Extract hourly frequency heuristically (matches PWA behavior).
 function parseFrequencyHours(freq: string): number | null {
@@ -67,11 +74,8 @@ export default function MedicamentosScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
-  const [meds, setMeds] = useState<Med[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [children, setChildren] = useState<Array<{id: string; full_name: string}>>([]);
   const [selectedChild, setSelectedChild] = useState('');
   const [name, setName] = useState('');
   const [dosage, setDosage] = useState('');
@@ -85,53 +89,59 @@ export default function MedicamentosScreen() {
   const [doseHistory, setDoseHistory] = useState<DoseLog[]>([]);
   const [historyLoading, setHistoryLoading] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    const [{ data: m }, { data: c }] = await Promise.all([
-      supabase.from('active_medications').select('id, name, dosage, frequency, status, start_date, end_date, reason, child_id, children(full_name)')
-        .eq('group_id', activeGroup.groupId).order('created_at', { ascending: false }),
-      supabase.from('children').select('id, full_name').eq('group_id', activeGroup.groupId),
-    ]);
-
-    // Fetch latest dose per medication in a single query
-    const medIds = (m || []).map((x: any) => x.id);
-    const lastDoses: Record<string, { at: string; by: string }> = {};
-    if (medIds.length > 0) {
-      const { data: doses } = await supabase.from('medication_doses')
-        .select('medication_id, administered_at, administered_by')
-        .in('medication_id', medIds)
-        .order('administered_at', { ascending: false });
-      for (const d of (doses || []) as any[]) {
-        if (!lastDoses[d.medication_id]) {
-          lastDoses[d.medication_id] = { at: d.administered_at, by: d.administered_by };
+  const { data, loading, refresh } = useCachedFetch<MedicamentosCache>({
+    cacheKey: activeGroup ? `saude_medicamentos_${activeGroup.groupId}` : null,
+    tag: 'saude:medicamentos:load',
+    empty: EMPTY_CACHE,
+    fetcher: async () => {
+      const [{ data: m }, { data: c }] = await Promise.all([
+        supabase.from('active_medications').select('id, name, dosage, frequency, status, start_date, end_date, reason, child_id, children(full_name)')
+          .eq('group_id', activeGroup!.groupId).order('created_at', { ascending: false }),
+        supabase.from('children').select('id, full_name').eq('group_id', activeGroup!.groupId),
+      ]);
+      const medIds = (m || []).map((x: any) => x.id);
+      const lastDoses: Record<string, { at: string; by: string }> = {};
+      if (medIds.length > 0) {
+        const { data: doses } = await supabase.from('medication_doses')
+          .select('medication_id, administered_at, administered_by')
+          .in('medication_id', medIds)
+          .order('administered_at', { ascending: false });
+        for (const d of (doses || []) as any[]) {
+          if (!lastDoses[d.medication_id]) {
+            lastDoses[d.medication_id] = { at: d.administered_at, by: d.administered_by };
+          }
         }
       }
-    }
+      return {
+        meds: (m || []).map((x: any) => ({
+          ...x,
+          childName: getDisplayName(x.children?.full_name),
+          lastDoseAt: lastDoses[x.id]?.at || null,
+          lastDoseBy: lastDoses[x.id]?.by || null,
+        })),
+        children: c || [],
+      };
+    },
+  });
+  const meds = data.meds;
+  const children = data.children;
 
-    setMeds((m || []).map((x: any) => ({
-      ...x,
-      childName: getDisplayName(x.children?.full_name),
-      lastDoseAt: lastDoses[x.id]?.at || null,
-      lastDoseBy: lastDoses[x.id]?.by || null,
-    })));
-    setChildren(c || []);
-    if (c && c.length > 0 && !selectedChild) setSelectedChild(c[0].id);
-    setLoading(false);
-  }, [activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!selectedChild && children.length > 0) setSelectedChild(children[0].id);
+  }, [children, selectedChild]);
 
   useCollabRealtime({
     table: 'active_medications',
     groupId: activeGroup?.groupId,
-    onChange: load,
+    onChange: refresh,
     displayLabel: 'medicamento',
     myUserId: userId,
   });
 
   async function onRefresh() {
     setRefreshing(true);
-    await load();
+    await refresh();
     setRefreshing(false);
   }
 
@@ -159,7 +169,7 @@ export default function MedicamentosScreen() {
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowForm(false); setName(''); setDosage(''); setFrequency(''); setReason('');
-      load();
+      refresh();
     } else { toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' }); }
     setSaving(false);
   }
@@ -170,7 +180,7 @@ export default function MedicamentosScreen() {
       { text: 'Finalizar', onPress: async () => {
         await safeWrite({ table: 'active_medications', operation: 'update', payload: { id, status: 'completed', end_date: getBrazilToday() } });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        load();
+        refresh();
       }},
     ]);
   }
@@ -200,7 +210,7 @@ export default function MedicamentosScreen() {
       // Half-interval crossed but >30min — log and surface a soft warning.
       toast.show({ message: result.warning, variant: 'warning' });
     }
-    await load();
+    await refresh();
   }
 
   function handleConfirmDose(med: Med) {

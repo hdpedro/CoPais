@@ -7,15 +7,15 @@
  *   - chave de FlatList agora estavel via id (era spread perigoso antes)
  */
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
-import { useState, useCallback, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, ScrollView, Alert } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from 'src/lib/supabase';
 import { safeWrite } from 'src/services/offline';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
@@ -47,6 +47,13 @@ interface ChildInfo {
   birth_date: string;
   sex: 'M' | 'F' | null;
 }
+
+interface CrescimentoCache {
+  records: GrowthRecord[];
+  children: ChildInfo[];
+}
+
+const EMPTY_CACHE: CrescimentoCache = { records: [], children: [] };
 
 // Idade em meses pra percentil WHO. Espelha src/lib/who-growth-data.ts.
 function monthsBetween(birthDate: string, measureDate: string): number {
@@ -82,11 +89,8 @@ function percentileBg(p: number | null): string {
 export default function CrescimentoScreen() {
   const t = useI18n(s => s.t);
   const { userId, activeGroup } = useAuth();
-  const [records, setRecords] = useState<GrowthRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [children, setChildren] = useState<ChildInfo[]>([]);
   const [selectedChild, setSelectedChild] = useState('');
   const [weight, setWeight] = useState('');
   const [height, setHeight] = useState('');
@@ -102,39 +106,49 @@ export default function CrescimentoScreen() {
   // immediately. Cleared after the network round-trip.
   const submittingRef = useRef(false);
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    const [{ data: r }, { data: c }] = await Promise.all([
-      supabase.from('growth_records').select('id, child_id, measured_date, weight_kg, height_cm, head_cm, children(full_name)')
-        .eq('group_id', activeGroup.groupId).order('measured_date', { ascending: false }),
-      // Fetch birth_date + sex pra calcular percentil WHO no hero card (paridade PWA).
-      supabase.from('children').select('id, full_name, birth_date, sex').eq('group_id', activeGroup.groupId),
-    ]);
-    setRecords((r || []).map((x: any) => ({ ...x, childName: getDisplayName(x.children?.full_name) })));
-    setChildren((c || []) as ChildInfo[]);
-    if (c && c.length > 0 && !selectedChild) setSelectedChild(c[0].id);
-    setLoading(false);
-  }, [activeGroup]);
+  const { data, loading, refresh } = useCachedFetch<CrescimentoCache>({
+    cacheKey: activeGroup ? `saude_crescimento_${activeGroup.groupId}` : null,
+    tag: 'saude:crescimento:load',
+    empty: EMPTY_CACHE,
+    fetcher: async () => {
+      const [{ data: r }, { data: c }] = await Promise.all([
+        supabase.from('growth_records').select('id, child_id, measured_date, weight_kg, height_cm, head_cm, children(full_name)')
+          .eq('group_id', activeGroup!.groupId).order('measured_date', { ascending: false }),
+        supabase.from('children').select('id, full_name, birth_date, sex').eq('group_id', activeGroup!.groupId),
+      ]);
+      return {
+        records: (r || []).map((x: any) => ({ ...x, childName: getDisplayName(x.children?.full_name) })),
+        children: (c || []) as ChildInfo[],
+      };
+    },
+  });
+  const records = data.records;
+  const children = data.children;
 
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (!selectedChild && children.length > 0) setSelectedChild(children[0].id);
+  }, [children, selectedChild]);
 
   useCollabRealtime({
     table: 'growth_records',
     groupId: activeGroup?.groupId,
-    onChange: load,
+    onChange: refresh,
     displayLabel: 'medida',
     myUserId: userId,
   });
 
   async function onRefresh() {
     setRefreshing(true);
-    await load();
+    await refresh();
     setRefreshing(false);
   }
 
-  // Realtime: refletir mudancas vindas de outro dispositivo (ou do
+  // Realtime extra: refletir mudancas vindas de outro dispositivo (ou do
   // co-pai) sem precisar refresh manual. Filtra por group_id pra nao
-  // receber broadcast de outros grupos.
+  // receber broadcast de outros grupos. (useCollabRealtime acima ja faz
+  // isso pra eventos colaborativos; esse canal extra cobre o caso de
+  // multi-device do mesmo user.)
   useEffect(() => {
     if (!activeGroup) return;
     const ch = supabase
@@ -142,11 +156,11 @@ export default function CrescimentoScreen() {
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'growth_records', filter: `group_id=eq.${activeGroup.groupId}` },
-        () => load(),
+        () => refresh(),
       )
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [activeGroup?.groupId, load]);
+  }, [activeGroup?.groupId, refresh]);
 
   function resetForm() {
     setEditingId(null);
@@ -218,7 +232,7 @@ export default function CrescimentoScreen() {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         setShowForm(false);
         resetForm();
-        await load();
+        await refresh();
       } else {
         toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
       }
@@ -246,7 +260,7 @@ export default function CrescimentoScreen() {
     if (r.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       toast.show({ message: `Registro de ${dateBr} removido`, variant: 'success' });
-      await load();
+      await refresh();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.show({ message: r.error || 'Não consegui excluir. Tente de novo.', variant: 'error' });

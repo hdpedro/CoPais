@@ -16,11 +16,10 @@
  * Edit/Delete reusam o fluxo da página de listagem — esta tela navega
  * de volta pra `/escola?openEditFor=<id>` ou aciona delete inline.
  */
-import { useState, useCallback } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, Alert,
 } from 'react-native';
-import { useLocalSearchParams, router, useFocusEffect } from 'expo-router';
+import { useLocalSearchParams, router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
@@ -30,6 +29,7 @@ import {
   SUBTYPE_LABEL, SUBTYPE_ICON, getKind,
   type SchoolLog, type SchoolPriority, type SchoolLogRead,
 } from 'src/services/school';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import { useAuth } from 'src/store/auth';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
@@ -73,46 +73,43 @@ export default function EscolaDetailScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
 
-  const [log, setLog] = useState<SchoolLog | null>(null);
-  const [eventTime, setEventTime] = useState<string | null>(null);
-  const [reads, setReads] = useState<SchoolLogRead[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  const load = useCallback(async () => {
-    if (!id) return;
-    setLoading(true);
-    const row = await fetchSchoolLogById(id);
-    setLog(row);
-
-    let allReads: SchoolLogRead[] = [];
-    if (row?.group_id) {
-      allReads = await fetchSchoolLogReads(row.group_id);
-      setReads(allReads.filter(r => r.log_id === id));
-    }
-
-    if (row && getKind(row.log_type) === 'event') {
-      const time = await fetchSchoolLogEventTime(row.id);
-      setEventTime(time);
-    } else {
-      setEventTime(null);
-    }
-
-    setLoading(false);
-
-    // Mark as read on first view — explicit open via detail page conta como
-    // "user saw it". Mirrors PWA EscolaClient + Native useFocusEffect pattern.
-    // Idempotente no server (PK em collab_reads), mas guardamos o evento de
-    // analytics pra não disparar duplicado em refoco.
-    if (row && userId) {
-      const alreadyRead = allReads.some(r => r.user_id === userId && r.log_id === id);
-      if (!alreadyRead) {
-        track(EVENTS.NOTIFICATION_OPENED, { record_type: 'school_log', record_id: id });
-        void markSchoolLogRead(id);
+  interface SchoolDetailCache {
+    log: SchoolLog | null;
+    reads: SchoolLogRead[];
+    eventTime: string | null;
+  }
+  const { data, loading, refresh: load } = useCachedFetch<SchoolDetailCache>({
+    cacheKey: id ? `escola_detail_${id}` : null,
+    tag: 'escola:detail:load',
+    empty: { log: null, reads: [], eventTime: null },
+    fetcher: async () => {
+      const row = await fetchSchoolLogById(id!);
+      let allReads: SchoolLogRead[] = [];
+      let scopedReads: SchoolLogRead[] = [];
+      if (row?.group_id) {
+        allReads = await fetchSchoolLogReads(row.group_id);
+        scopedReads = allReads.filter(r => r.log_id === id);
       }
-    }
-  }, [id, userId]);
-
-  useFocusEffect(useCallback(() => { void load(); }, [load]));
+      let eventTime: string | null = null;
+      if (row && getKind(row.log_type) === 'event') {
+        eventTime = await fetchSchoolLogEventTime(row.id);
+      }
+      // Mark as read on first view — explicit open via detail page conta como
+      // "user saw it". Idempotente no server (PK em collab_reads), mas
+      // guardamos o evento de analytics pra nao disparar duplicado em refoco.
+      if (row && userId) {
+        const alreadyRead = allReads.some(r => r.user_id === userId && r.log_id === id);
+        if (!alreadyRead) {
+          track(EVENTS.NOTIFICATION_OPENED, { record_type: 'school_log', record_id: id! });
+          void markSchoolLogRead(id!);
+        }
+      }
+      return { log: row, reads: scopedReads, eventTime };
+    },
+  });
+  const log = data.log;
+  const reads = data.reads;
+  const eventTime = data.eventTime;
 
   async function handleDelete() {
     if (!log) return;
@@ -141,13 +138,13 @@ export default function EscolaDetailScreen() {
   async function handleToggleCompleted() {
     if (!log) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    // optimistic flip
-    setLog(prev => prev ? { ...prev, completed: !prev.completed } : prev);
+    // Optimistic flip removido na migracao pra useCachedFetch (state vem
+    // do helper). Re-fetch garante consistencia.
     const res = await toggleSchoolLogCompleted(log.id, log.completed);
     if (!res.success) {
-      setLog(prev => prev ? { ...prev, completed: log.completed } : prev);
       toast.show({ message: res.error || t('toasts.common.updateFailed'), variant: 'error' });
     }
+    await load();
   }
 
   function handleEdit() {

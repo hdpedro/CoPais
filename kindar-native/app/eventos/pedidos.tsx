@@ -2,11 +2,11 @@
  * Pedidos de alteracao de evento — inbox de event_requests que me afetam.
  * Mirrors PWA EventRequestList.
  */
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl, Alert,
 } from 'react-native';
-import { router, useFocusEffect } from 'expo-router';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,6 +15,7 @@ import {
   fetchMyPendingEventRequests, respondToEventRequest, cancelEventRequest,
   type EventRequest,
 } from 'src/services/event-requests';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useToast } from 'src/components/ui/ToastProvider';
@@ -50,19 +51,15 @@ export default function PedidosEventosScreen() {
   const toast = useToast();
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
-  const [requests, setRequests] = useState<EventRequest[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [responding, setResponding] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    if (!activeGroup || !userId) return;
-    const data = await fetchMyPendingEventRequests(activeGroup.groupId, userId);
-    setRequests(data);
-    setLoading(false);
-  }, [activeGroup, userId]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data: requests, loading, refresh: load } = useCachedFetch<EventRequest[]>({
+    cacheKey: activeGroup && userId ? `eventos_pedidos_${activeGroup.groupId}_${userId}` : null,
+    tag: 'eventos:pedidos:load',
+    empty: [],
+    fetcher: () => fetchMyPendingEventRequests(activeGroup!.groupId, userId!),
+  });
 
   async function onRefresh() {
     setRefreshing(true);

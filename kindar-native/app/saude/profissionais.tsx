@@ -2,17 +2,17 @@
  * Profissionais de Saúde — Lista + criar com address/CRM/notes,
  * matching PWA `/saude/profissionais/novo` form.
  */
-import { useState, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, TextInput, RefreshControl,
   KeyboardAvoidingView, Platform, ScrollView, Modal, Linking,
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { supabase } from 'src/lib/supabase';
 import { safeWrite } from 'src/services/offline';
 import { useAuth } from 'src/store/auth';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
 import EmptyState from 'src/components/ui/EmptyState';
@@ -56,8 +56,6 @@ export default function ProfissionaisScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
-  const [profs, setProfs] = useState<Professional[]>([]);
-  const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<Professional | null>(null);
@@ -71,30 +69,31 @@ export default function ProfissionaisScreen() {
   const [notes, setNotes] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (!activeGroup) return;
-    const { data } = await supabase
-      .from('medical_professionals')
-      .select('id, name, specialty, phone, whatsapp, address, crm, notes')
-      .eq('group_id', activeGroup.groupId)
-      .order('name');
-    setProfs((data || []) as Professional[]);
-    setLoading(false);
-  }, [activeGroup]);
-
-  useFocusEffect(useCallback(() => { load(); }, [load]));
+  const { data: profs, loading, refresh } = useCachedFetch<Professional[]>({
+    cacheKey: activeGroup ? `saude_profissionais_${activeGroup.groupId}` : null,
+    tag: 'saude:profissionais:load',
+    empty: [],
+    fetcher: async () => {
+      const { data } = await supabase
+        .from('medical_professionals')
+        .select('id, name, specialty, phone, whatsapp, address, crm, notes')
+        .eq('group_id', activeGroup!.groupId)
+        .order('name');
+      return (data || []) as Professional[];
+    },
+  });
 
   useCollabRealtime({
     table: 'medical_professionals',
     groupId: activeGroup?.groupId,
-    onChange: load,
+    onChange: refresh,
     displayLabel: 'profissional',
     myUserId: userId,
   });
 
   async function onRefresh() {
     setRefreshing(true);
-    await load();
+    await refresh();
     setRefreshing(false);
   }
 
@@ -141,7 +140,7 @@ export default function ProfissionaisScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setShowForm(false);
       resetForm();
-      load();
+      refresh();
     } else {
       toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' });
     }
@@ -177,7 +176,7 @@ export default function ProfissionaisScreen() {
     // explícito (mais abaixo).
     await safeWrite({ table: 'medical_professionals', operation: 'delete', payload: { id: p.id } });
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    load();
+    refresh();
   }
 
   /**
