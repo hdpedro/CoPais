@@ -11,6 +11,11 @@ import { supabase } from 'src/lib/supabase';
 import { apiFetch } from 'src/lib/api-fetch';
 import { useAuth } from 'src/store/auth';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
+import { withTimeout, TimeoutError } from 'src/lib/with-timeout';
+import { reportError } from 'src/lib/error-reporter';
+import { cacheGet, cacheSet, isOnline } from 'src/services/offline';
+
+const FETCH_TIMEOUT_MS = 15_000;
 
 interface Channel {
   id: string;
@@ -31,29 +36,49 @@ export default function ChatScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const loadChannels = useCallback(async () => {
-    if (!activeGroup || !userId) return;
+    if (!activeGroup || !userId) {
+      setLoading(false);
+      return;
+    }
     const groupId = activeGroup.groupId;
+    const cacheKey = `chat_channels_${groupId}_${userId}`;
+
+    // Offline early-return: usa cache se houver, senao empty state.
+    if (!isOnline()) {
+      const cached = await cacheGet<Channel[]>(cacheKey);
+      if (cached) setChannels(prev => prev.length ? prev : cached);
+      setLoading(false);
+      return;
+    }
 
     try {
       // 3 parallel queries: channels, reads, children. Mirrors PWA
       // `chat/page.tsx:getChannels` so we can auto-create the default
       // "geral" channel + per-child channels when the user opens chat
       // in a brand-new group for the first time.
-      const [{ data: rawChannels }, { data: reads }, { data: kids }] = await Promise.all([
-        supabase
-          .from('chat_channels')
-          .select('id, slug, name, channel_type, icon, sort_order')
-          .eq('group_id', groupId)
-          .order('sort_order'),
-        supabase
-          .from('chat_channel_reads')
-          .select('channel_id, last_read_at')
-          .eq('user_id', userId),
-        supabase
-          .from('children')
-          .select('id, full_name')
-          .eq('group_id', groupId),
-      ]);
+      //
+      // withTimeout obrigatorio: sem ele, qualquer query travada deixa
+      // "Carregando canais..." pra sempre (regra
+      // project_kindar_native_hook_pattern + bug Henrique 2026-05-30 cluster).
+      const [{ data: rawChannels }, { data: reads }, { data: kids }] = await withTimeout(
+        Promise.all([
+          supabase
+            .from('chat_channels')
+            .select('id, slug, name, channel_type, icon, sort_order')
+            .eq('group_id', groupId)
+            .order('sort_order'),
+          supabase
+            .from('chat_channel_reads')
+            .select('channel_id, last_read_at')
+            .eq('user_id', userId),
+          supabase
+            .from('children')
+            .select('id, full_name')
+            .eq('group_id', groupId),
+        ]),
+        FETCH_TIMEOUT_MS,
+        'chat:loadChannels:mainQueries',
+      );
 
       let channels: any[] = rawChannels || [];
 
@@ -87,41 +112,83 @@ export default function ChatScreen() {
       (reads || []).forEach((r: any) => { readMap[r.channel_id] = r.last_read_at; });
 
       // Fetch last message per channel in ONE batch (rpc or limited parallel)
-      // Use parallel but bounded (same as PWA page.tsx pattern)
-      const channelsWithMessages = await Promise.all(
-        channelData.map(async (ch: any) => {
-          const { data: msgs } = await supabase
-            .from('chat_messages')
-            .select('text, created_at, sender_id')
-            .eq('channel_id', ch.id)
-            .order('created_at', { ascending: false })
-            .limit(1);
+      // Use parallel but bounded (same as PWA page.tsx pattern).
+      // withTimeout aqui tambem — sem ele o N+1 de last-message escala mal
+      // em rede flaky.
+      const channelsWithMessages = await withTimeout(
+        Promise.all(
+          channelData.map(async (ch: any) => {
+            const { data: msgs } = await supabase
+              .from('chat_messages')
+              .select('text, created_at, sender_id')
+              .eq('channel_id', ch.id)
+              .order('created_at', { ascending: false })
+              .limit(1);
 
-          const lastMsg = msgs?.[0];
-          const lastRead = readMap[ch.id];
-          // Unread if last message is newer than last read, and not by current user
-          const isUnread = lastMsg && lastMsg.sender_id !== userId &&
-            (!lastRead || new Date(lastMsg.created_at) > new Date(lastRead));
+            const lastMsg = msgs?.[0];
+            const lastRead = readMap[ch.id];
+            // Unread if last message is newer than last read, and not by current user
+            const isUnread = lastMsg && lastMsg.sender_id !== userId &&
+              (!lastRead || new Date(lastMsg.created_at) > new Date(lastRead));
 
-          return {
-            id: ch.id,
-            slug: ch.slug,
-            name: ch.name,
-            channel_type: ch.channel_type,
-            icon: ch.icon,
-            lastMessage: lastMsg?.text?.slice(0, 60) || '',
-            lastMessageAt: lastMsg?.created_at || '',
-            unread: isUnread ? 1 : 0,
-          } as Channel;
-        })
+            return {
+              id: ch.id,
+              slug: ch.slug,
+              name: ch.name,
+              channel_type: ch.channel_type,
+              icon: ch.icon,
+              lastMessage: lastMsg?.text?.slice(0, 60) || '',
+              lastMessageAt: lastMsg?.created_at || '',
+              unread: isUnread ? 1 : 0,
+            } as Channel;
+          }),
+        ),
+        FETCH_TIMEOUT_MS,
+        'chat:loadChannels:lastMessages',
       );
 
       setChannels(channelsWithMessages);
-    } catch {
-      // Silent fail
+      cacheSet(cacheKey, channelsWithMessages);
+    } catch (e) {
+      // Fallback stale: returning user nunca fica com tela vazia (paridade
+      // com useDashboard / useCalendar). Race-safe: so popula se ainda nao
+      // temos canais carregados.
+      try {
+        const stale = await cacheGet<Channel[]>(cacheKey);
+        if (stale) setChannels(prev => prev.length ? prev : stale);
+      } catch { /* cache miss */ }
+      // TimeoutError ja foi logado pelo withTimeout como 'info'. Outros
+      // erros viram 'error' pra disparar alarm. ANTES tinha `catch {}`
+      // silencioso — zero telemetria, regressao do padrao
+      // project_kindar_native_hook_pattern (Henrique 2026-05-30).
+      if (!(e instanceof TimeoutError)) {
+        reportError(e, { severity: 'error', filePath: 'chat.loadChannels' }).catch(() => {});
+      }
     } finally {
+      // Invariante: spinner SEMPRE termina.
       setLoading(false);
     }
+  }, [activeGroup, userId]);
+
+  // Cache-first hydration: returning user ve a lista de canais imediatamente
+  // mesmo se Supabase estiver lento/offline. Padrao identico ao useDashboard
+  // (commit 07a5bf9). Race-safe via `prev.length ? prev : cached`. Inclui
+  // `activeGroup` (e nao apenas .groupId) nas deps pra satisfazer
+  // exhaustive-deps — re-rodar a hidratacao em troca de groupId e cheap
+  // e idempotente.
+  useEffect(() => {
+    if (!activeGroup || !userId) return;
+    const groupId = activeGroup.groupId;
+    let cancelled = false;
+    (async () => {
+      try {
+        const cached = await cacheGet<Channel[]>(`chat_channels_${groupId}_${userId}`);
+        if (cancelled || !cached) return;
+        setChannels(prev => prev.length ? prev : cached);
+        setLoading(false);
+      } catch { /* cache indisponivel: loadChannels roda normal */ }
+    })();
+    return () => { cancelled = true; };
   }, [activeGroup, userId]);
 
   useFocusEffect(useCallback(() => { loadChannels(); }, [loadChannels]));

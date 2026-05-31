@@ -3,7 +3,7 @@
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
@@ -16,8 +16,19 @@ import { withTimeout, TimeoutError } from '../lib/with-timeout';
 import { reportError } from '../lib/error-reporter';
 import { detectCustodyOverlap } from '../lib/calendar-overlap-detect';
 import { track, EVENTS } from '../lib/analytics';
+import { cacheGet, cacheSet, isOnline } from '../services/offline';
 
 const FETCH_TIMEOUT_MS = 15_000;
+
+interface CalendarCache {
+  events: CalendarEvent[];
+  custodyEvents: CustodyEventRaw[];
+  members: MemberColor[];
+  pendingSwaps: SwapRequestDetail[];
+  mySentSwaps: SwapRequestDetail[];
+  balanceOps: BalanceOperation[];
+  pendingEventRequests: EventRequest[];
+}
 
 export interface CalendarEvent {
   id: string;
@@ -58,6 +69,20 @@ export function useCalendar() {
   const [pendingEventRequests, setPendingEventRequests] = useState<EventRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Aplica snapshot de cache de forma race-safe: so preenche slots ainda
+  // vazios. Evita sobrescrever dados frescos quando loadData ja completou
+  // parcialmente antes de errar (catch do try) ou quando o cache hidrata
+  // logo depois de um fetch rapido ja ter populado state.
+  const applyCalendarCache = useCallback((c: CalendarCache) => {
+    setEvents(prev => prev.length ? prev : c.events);
+    setCustodyEvents(prev => prev.length ? prev : c.custodyEvents);
+    setMembers(prev => prev.length ? prev : c.members);
+    setPendingSwaps(prev => prev.length ? prev : c.pendingSwaps);
+    setMySentSwaps(prev => prev.length ? prev : c.mySentSwaps);
+    setBalanceOps(prev => prev.length ? prev : c.balanceOps);
+    setPendingEventRequests(prev => prev.length ? prev : c.pendingEventRequests);
+  }, []);
+
   const loadData = useCallback(async () => {
     // Libera o spinner ate em caminhos sem auth — sem isso a tela pode ficar
     // travada se userId/activeGroup nunca aparecerem (bug similar useDashboard
@@ -67,6 +92,15 @@ export function useCalendar() {
       return;
     }
     const groupId = activeGroup.groupId;
+    const cacheKey = `calendar_${groupId}_${userId}`;
+
+    // Offline + sem cache: empty state, nao "Carregando..." eterno.
+    if (!isOnline()) {
+      const cached = await cacheGet<CalendarCache>(cacheKey);
+      if (cached) applyCalendarCache(cached);
+      setLoading(false);
+      return;
+    }
 
     // Range: 1 month back + 12 months ahead
     const now = new Date();
@@ -270,6 +304,10 @@ export function useCalendar() {
       setEvents(allEvents);
 
       // Pending swap requests + event-action requests addressed to me
+      let nextSwaps: SwapRequestDetail[] = [];
+      let nextSentSwaps: SwapRequestDetail[] = [];
+      let nextOps: BalanceOperation[] = [];
+      let nextEventReqs: EventRequest[] = [];
       if (activeGroup.custodyEnabled) {
         const [swaps, sentSwaps, ops, eventReqs] = await withTimeout(Promise.all([
           loadMyPendingSwaps(groupId, userId),
@@ -277,21 +315,46 @@ export function useCalendar() {
           listBalanceOperations(groupId),
           fetchMyPendingEventRequests(groupId, userId),
         ]), FETCH_TIMEOUT_MS, 'useCalendar:swapsAndOps');
-        setPendingSwaps(swaps);
-        setMySentSwaps(sentSwaps);
-        setBalanceOps(ops);
-        setPendingEventRequests(eventReqs);
+        nextSwaps = swaps; nextSentSwaps = sentSwaps; nextOps = ops; nextEventReqs = eventReqs;
       } else {
-        setPendingSwaps([]);
-        setMySentSwaps([]);
-        setBalanceOps([]);
-        setPendingEventRequests(await withTimeout(
+        nextEventReqs = await withTimeout(
           fetchMyPendingEventRequests(groupId, userId),
           FETCH_TIMEOUT_MS,
           'useCalendar:eventRequests',
-        ));
+        );
       }
+      setPendingSwaps(nextSwaps);
+      setMySentSwaps(nextSentSwaps);
+      setBalanceOps(nextOps);
+      setPendingEventRequests(nextEventReqs);
+
+      // Cache snapshot pro proximo cold-start: returning user nao ve tela
+      // vazia se a rede do device falhar (cluster de timeout Henrique
+      // 2026-05-30 22:17 BRT atingiu Cal/Health/Dashboard simultaneamente —
+      // so o Dashboard "abriu" porque ja tinha cache-first via migration
+      // 00101. Esse hook fecha o mesmo gap pro Calendario).
+      cacheSet(cacheKey, {
+        events: allEvents,
+        custodyEvents: stable.map((ce: any) => ({
+          id: ce.id,
+          responsible_user_id: ce.responsible_user_id,
+          start_date: ce.start_date,
+          end_date: ce.end_date,
+          custody_type: ce.custody_type,
+        })),
+        members: memberList,
+        pendingSwaps: nextSwaps,
+        mySentSwaps: nextSentSwaps,
+        balanceOps: nextOps,
+        pendingEventRequests: nextEventReqs,
+      });
     } catch (e) {
+      // Fallback stale: mostra snapshot anterior (<5min TTL) em vez de
+      // tela vazia. Padrao copiado de useDashboard.loadData.
+      try {
+        const stale = await cacheGet<CalendarCache>(cacheKey);
+        if (stale) applyCalendarCache(stale);
+      } catch { /* cache miss: estado anterior do useState fica intacto */ }
       // TimeoutError já foi reportado como 'info' pelo withTimeout (defesa em
       // profundidade funcionando). Re-reportar como 'error' duplica row e
       // acorda Discord à toa pra um cenário esperado.
@@ -302,7 +365,24 @@ export function useCalendar() {
       // Invariante: spinner SEMPRE termina, mesmo em timeout/erro/early return.
       setLoading(false);
     }
-  }, [userId, activeGroup]);
+  }, [userId, activeGroup, applyCalendarCache]);
+
+  // Cache-first hydration: returning user nunca ve tela vazia. Mesmo padrao
+  // de useDashboard (commit 07a5bf9 / migration 00101). applyCalendarCache
+  // ja e race-safe (so popula slots vazios).
+  useEffect(() => {
+    if (!activeGroup || !userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const cached = await cacheGet<CalendarCache>(`calendar_${activeGroup.groupId}_${userId}`);
+        if (cancelled || !cached) return;
+        applyCalendarCache(cached);
+        setLoading(false);
+      } catch { /* cache indisponivel: loadData roda normal */ }
+    })();
+    return () => { cancelled = true; };
+  }, [activeGroup?.groupId, userId, applyCalendarCache]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 

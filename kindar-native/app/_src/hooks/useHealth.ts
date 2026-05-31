@@ -4,13 +4,14 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars -- supabase row shapes resolvidos dinamicamente; refactor pra tipagem estrita pendente */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../store/auth';
 import { getDisplayName } from '../lib/constants';
 import { withTimeout, TimeoutError } from '../lib/with-timeout';
 import { reportError } from '../lib/error-reporter';
+import { cacheGet, cacheSet, isOnline } from '../services/offline';
 
 const FETCH_TIMEOUT_MS = 15_000;
 
@@ -132,6 +133,15 @@ export function useHealth(selectedChildId?: string) {
       return;
     }
     const groupId = activeGroup.groupId;
+    const cacheKey = `health_${groupId}_${selectedChildId || 'all'}`;
+
+    // Offline + sem cache: empty state em vez de spinner eterno.
+    if (!isOnline()) {
+      const cached = await cacheGet<HealthData>(cacheKey);
+      if (cached) setData(prev => prev ?? cached);
+      setLoading(false);
+      return;
+    }
 
     try {
       // Members for name lookup (com timeout pra nao pendurar a tela inteira
@@ -302,7 +312,7 @@ export function useHealth(selectedChildId?: string) {
       // Sort timeline by date descending
       timeline.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-      setData({
+      const fresh: HealthData = {
         children: children || [],
         childStates,
         illnesses: mappedIllnesses,
@@ -310,8 +320,20 @@ export function useHealth(selectedChildId?: string) {
         appointments: mappedAppts,
         allergies: mappedAllergies,
         timeline,
-      });
+      };
+      setData(fresh);
+      // Cache snapshot pro proximo cold-start: returning user nao ve tela
+      // vazia se a rede falhar (cluster Henrique 2026-05-30 22:17 BRT
+      // atingiu useHealth:members junto com useDashboard:rpc e
+      // useCalendar:mainQueries — paridade com useDashboard/useCalendar).
+      cacheSet(cacheKey, fresh);
     } catch (e) {
+      // Fallback stale: prefere mostrar snapshot anterior (<5min TTL) a
+      // tela vazia. Padrao identico a useDashboard/useCalendar.
+      try {
+        const stale = await cacheGet<HealthData>(cacheKey);
+        if (stale) setData(prev => prev ?? stale);
+      } catch { /* cache miss */ }
       // TimeoutError já foi reportado como 'info' pelo withTimeout (defesa em
       // profundidade funcionando). Re-reportar como 'error' duplica row e
       // acorda Discord à toa pra um cenário esperado.
@@ -323,6 +345,24 @@ export function useHealth(selectedChildId?: string) {
       setLoading(false);
     }
   }, [userId, activeGroup, selectedChildId]);
+
+  // Cache-first hydration: returning user nunca ve tela vazia. Mesmo padrao
+  // de useDashboard (commit 07a5bf9 / migration 00101).
+  useEffect(() => {
+    if (!activeGroup || !userId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const key = `health_${activeGroup.groupId}_${selectedChildId || 'all'}`;
+        const cached = await cacheGet<HealthData>(key);
+        if (cancelled || !cached) return;
+        // Race-safe: so hidrata se fetch ainda nao trouxe dados frescos.
+        setData(prev => prev ?? cached);
+        setLoading(false);
+      } catch { /* cache indisponivel: loadData roda normal */ }
+    })();
+    return () => { cancelled = true; };
+  }, [activeGroup?.groupId, userId, selectedChildId]);
 
   useFocusEffect(useCallback(() => { loadData(); }, [loadData]));
 
