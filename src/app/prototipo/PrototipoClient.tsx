@@ -442,7 +442,11 @@ export function AnimatedCounter({
           if (!e.isIntersecting) continue;
           const start = performance.now();
           const tick = (now: number) => {
-            const t = Math.min(1, (now - start) / duration);
+            // Clamp t to [0,1]: a rAF timestamp can be slightly *before* the
+            // `start` captured via performance.now() in the IO callback, making
+            // (now - start) negative on the first frame. Without the lower clamp,
+            // easeOutCubic 1-(1-t)^3 goes negative → counter flashes "-137".
+            const t = Math.max(0, Math.min(1, (now - start) / duration));
             // cubic-bezier(0.22,1,0.36,1) approx via 1 - (1-t)^3
             const eased = 1 - Math.pow(1 - t, 3);
             setValue(to * eased);
@@ -1093,21 +1097,23 @@ export function BeforeAfterSlider() {
       onTouchMove={(e) => dragging.current && move(e.touches[0].clientX)}
       onTouchEnd={() => (dragging.current = false)}
     >
-      {/* ANTES — camada de base (visível à DIREITA do handle) */}
+      {/* DEPOIS (Kindar) — camada de base (visível à DIREITA do handle).
+          A cópia da seção diz "À direita, a mesma semana no Kindar", então o
+          Kindar fica na DIREITA e o caos na ESQUERDA (convenção antes→depois). */}
       <div className="absolute inset-0">
-        <BeforeScene />
-        <span className="absolute bottom-4 right-4 z-[5] text-[10.5px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[var(--proto-ink)] text-white shadow-lg">
-          Antes · grupo no caos
+        <AfterScene />
+        <span className="absolute bottom-4 right-4 z-[5] text-[10.5px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[var(--proto-teal)] text-white shadow-lg">
+          Com Kindar
         </span>
       </div>
-      {/* DEPOIS — recortado por clip-path (visível à ESQUERDA do handle) */}
+      {/* ANTES — recortado por clip-path (visível à ESQUERDA do handle) */}
       <div
         className="absolute inset-0"
         style={{ clipPath: `inset(0 ${100 - pct}% 0 0)` }}
       >
-        <AfterScene />
-        <span className="absolute bottom-4 left-4 z-[5] text-[10.5px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[var(--proto-teal)] text-white shadow-lg">
-          Com Kindar
+        <BeforeScene />
+        <span className="absolute bottom-4 left-4 z-[5] text-[10.5px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full bg-[var(--proto-ink)] text-white shadow-lg">
+          Antes · grupo no caos
         </span>
       </div>
       {/* Handle */}
