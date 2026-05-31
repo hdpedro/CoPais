@@ -505,7 +505,7 @@ export function AvatarStack() {
           {" "}famílias
         </span>
         <span className="text-[11.5px] text-[var(--proto-mute-2)]">
-          usando agora · beta aberta
+          meta da beta · número ilustrativo
         </span>
       </span>
     </div>

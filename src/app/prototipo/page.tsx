@@ -188,11 +188,16 @@ export default function PrototipoPage() {
           <div className="max-w-6xl mx-auto">
             <Reveal>
               <div className="proto-glass rounded-3xl grid grid-cols-2 lg:grid-cols-4 divide-y lg:divide-y-0 lg:divide-x divide-[var(--proto-line)]">
-                <StatItem kicker="Famílias" value={<AnimatedCounter to={1842} format="br" />} detail="usando agora" />
+                <StatItem kicker="Famílias" value={<AnimatedCounter to={1842} format="br" />} detail="meta da beta" />
                 <StatItem kicker="Filhos organizados" value={<AnimatedCounter to={3210} format="br" />} detail="agenda + saúde num lugar" />
                 <StatItem kicker="Combinados / mês" value={<AnimatedCounter to={11400} format="br" />} detail="trocas, despesas, acordos" />
-                <StatItem kicker="Menos atrito" value={<><AnimatedCounter to={92} />%</>} detail="dos usuários relatam" highlight />
+                <StatItem kicker="Menos atrito" value={<><AnimatedCounter to={92} />%</>} detail="é a meta de NPS" highlight />
               </div>
+            </Reveal>
+            <Reveal>
+              <p className="mt-3 text-center text-[11px] text-[var(--proto-mute-2)]">
+                Números ilustrativos do protótipo — dados reais entram no lançamento.
+              </p>
             </Reveal>
             <Reveal delay={120}>
               <div className="mt-6">
@@ -435,6 +440,10 @@ export default function PrototipoPage() {
                   Menos atrito.{" "}
                   <span className="proto-serif text-[var(--proto-mute-2)]">Mais clareza.</span>
                 </h2>
+                <p className="mt-5 inline-flex items-center gap-1.5 text-[11.5px] font-medium text-[var(--proto-mute-2)] px-3 py-1 rounded-full border border-[var(--proto-line-2)]">
+                  <span className="w-1.5 h-1.5 rounded-full bg-[var(--proto-mute-2)]" />
+                  Depoimentos ilustrativos — beta aberta, ainda sem clientes reais
+                </p>
               </div>
             </Reveal>
 
