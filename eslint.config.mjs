@@ -40,6 +40,7 @@ const eslintConfig = defineConfig([
       "src/app/pricing/**/*.{ts,tsx}",
       "src/app/admin/**/*.{ts,tsx}",
       "src/app/page.tsx",
+      "src/app/prototipo/**/*.{ts,tsx}",
       "src/components/landing/**/*.{ts,tsx}",
     ],
     rules: {

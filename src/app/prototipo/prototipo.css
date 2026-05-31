@@ -1,0 +1,456 @@
+/* ════════════════════════════════════════════════════════════════════
+   Prototipo Kindar — CSS escopado. Carregado APENAS na rota /prototipo.
+   Conceito visual: DOIS LARES. Terracota = Casa A, Teal = Casa B,
+   o Kindar é a costura luminosa que une os dois mundos da criança.
+   ════════════════════════════════════════════════════════════════════ */
+
+.prototipo-root {
+  /* ── Marca (constantes em ambos os temas) ── */
+  --proto-terra: #C07055;
+  --proto-terra-deep: #A85D47;
+  --proto-teal: #2E7268;
+  --proto-teal-bright: #3C8E80;
+  --proto-peach: #E8C5A4;
+
+  /* ── Tema claro (default) ── */
+  --proto-bg: #FAFAF8;
+  --proto-bg-deep: #F2EDE6;
+  --proto-card: #FFFFFF;
+  --proto-soft: #FAFAF8;
+  --proto-ink: #0E0C0A;
+  --proto-ink-soft: #1A1614;
+  --proto-on-ink: #FAFAF8; /* texto/ícone sobre superfícies cor `ink` */
+  --proto-mute: #6B6560;
+  --proto-mute-2: #9A8878;
+  --proto-line: rgba(14, 12, 10, 0.06);
+  --proto-line-2: rgba(14, 12, 10, 0.1);
+  --proto-glass-bg: rgba(255, 255, 255, 0.78);
+  --proto-glass-brd: rgba(14, 12, 10, 0.06);
+  --proto-glass-hi: rgba(255, 255, 255, 0.6);
+  --proto-mesh-1: rgba(192, 112, 85, 0.18);
+  --proto-mesh-2: rgba(46, 114, 104, 0.14);
+  --proto-mesh-3: rgba(232, 197, 164, 0.35);
+  --proto-grid-line: rgba(14, 12, 10, 0.045);
+  --proto-noise-alpha: 0.05;
+
+  color-scheme: light;
+  font-family: var(--font-prototipo-sans), ui-sans-serif, system-ui, sans-serif;
+  font-feature-settings: "cv11", "ss01", "ss03";
+  letter-spacing: -0.011em;
+  background: var(--proto-bg);
+  color: var(--proto-ink);
+  transition: background 600ms ease, color 600ms ease;
+}
+
+/* ── Tema escuro — warm, nunca cinza-azulado.
+   Atributo `data-proto-theme` fica no próprio .prototipo-root (escopado em
+   /prototipo). Anti-flash via script inline + suppressHydrationWarning. ── */
+.prototipo-root[data-proto-theme="dark"] {
+  --proto-bg: #0C0A09;
+  --proto-bg-deep: #100D0B;
+  --proto-card: #161210;
+  --proto-soft: #1C1714;
+  --proto-ink: #F6F1EB;
+  --proto-ink-soft: #EAE3DA;
+  --proto-on-ink: #14110F; /* texto escuro sobre o `ink` cream do dark */
+  --proto-mute: #ABA199;
+  --proto-mute-2: #7E756C;
+  --proto-line: rgba(255, 255, 255, 0.08);
+  --proto-line-2: rgba(255, 255, 255, 0.14);
+  --proto-glass-bg: rgba(22, 18, 16, 0.72);
+  --proto-glass-brd: rgba(255, 255, 255, 0.08);
+  --proto-glass-hi: rgba(255, 255, 255, 0.06);
+  --proto-mesh-1: rgba(192, 112, 85, 0.26);
+  --proto-mesh-2: rgba(46, 114, 104, 0.22);
+  --proto-mesh-3: rgba(232, 197, 164, 0.12);
+  --proto-grid-line: rgba(255, 255, 255, 0.05);
+  --proto-noise-alpha: 0.14;
+
+  color-scheme: dark;
+}
+
+.proto-serif {
+  font-family: var(--font-prototipo-serif), "Iowan Old Style", Georgia, serif;
+  font-style: italic;
+  font-weight: 400;
+  letter-spacing: -0.015em;
+}
+
+/* ════════════════════════════════════════
+   Superfícies semânticas (theme-aware)
+   ════════════════════════════════════════ */
+.proto-card {
+  background: var(--proto-card);
+  border-color: var(--proto-line);
+}
+.proto-soft {
+  background: var(--proto-soft);
+}
+
+/* Escopo de luz: força tokens claros localmente. Usado nos mocks de
+   produto ("prints") pra que pareçam screenshots claros mesmo no dark. */
+.proto-lightscope {
+  --proto-bg: #FAFAF8;
+  --proto-bg-deep: #F2EDE6;
+  --proto-card: #FFFFFF;
+  --proto-soft: #FAFAF8;
+  --proto-ink: #0E0C0A;
+  --proto-ink-soft: #1A1614;
+  --proto-on-ink: #FAFAF8;
+  --proto-mute: #6B6560;
+  --proto-mute-2: #9A8878;
+  --proto-line: rgba(14, 12, 10, 0.06);
+  --proto-line-2: rgba(14, 12, 10, 0.1);
+  --proto-glass-bg: rgba(255, 255, 255, 0.82);
+  --proto-glass-brd: rgba(14, 12, 10, 0.06);
+  --proto-glass-hi: rgba(255, 255, 255, 0.6);
+  color: var(--proto-ink);
+}
+
+/* ════════════════════════════════════════
+   Gradient mesh + grain (theme-aware via vars)
+   ════════════════════════════════════════ */
+.proto-mesh {
+  position: relative;
+  background:
+    radial-gradient(60% 70% at 18% 22%, var(--proto-mesh-1), transparent 60%),
+    radial-gradient(45% 60% at 82% 28%, var(--proto-mesh-2), transparent 60%),
+    radial-gradient(70% 70% at 50% 100%, var(--proto-mesh-3), transparent 65%),
+    linear-gradient(180deg, var(--proto-bg) 0%, var(--proto-bg-deep) 100%);
+}
+.proto-mesh::after,
+.proto-mesh-dark::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.5;
+  mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.05 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+.proto-mesh-dark {
+  position: relative;
+  background:
+    radial-gradient(60% 60% at 20% 30%, rgba(192, 112, 85, 0.35), transparent 60%),
+    radial-gradient(50% 60% at 80% 70%, rgba(46, 114, 104, 0.32), transparent 60%),
+    linear-gradient(180deg, #100E0C 0%, #0A0907 100%);
+}
+.proto-mesh-dark::after {
+  opacity: 0.4;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 0.18 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+}
+
+/* ════════════════════════════════════════
+   CONCEITO DOIS LARES — split + costura luminosa
+   ════════════════════════════════════════ */
+.proto-twohomes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.proto-twohomes::before {
+  /* lado esquerdo: Casa A (terracota) | lado direito: Casa B (teal) */
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(50% 80% at 0% 40%, color-mix(in oklab, var(--proto-terra) 12%, transparent), transparent 70%),
+    radial-gradient(50% 80% at 100% 40%, color-mix(in oklab, var(--proto-teal) 12%, transparent), transparent 70%);
+}
+.proto-seam {
+  position: absolute;
+  top: -10%;
+  bottom: -10%;
+  left: 50%;
+  width: 2px;
+  transform: translateX(-50%);
+  background: linear-gradient(
+    180deg,
+    transparent,
+    color-mix(in oklab, var(--proto-terra) 60%, var(--proto-teal)) 30%,
+    color-mix(in oklab, var(--proto-teal) 60%, var(--proto-terra)) 70%,
+    transparent
+  );
+  filter: blur(0.4px);
+  opacity: 0.55;
+}
+.proto-seam::after {
+  content: "";
+  position: absolute;
+  inset: -2px -10px;
+  background: linear-gradient(180deg, transparent, rgba(192, 112, 85, 0.18), rgba(46, 114, 104, 0.18), transparent);
+  filter: blur(14px);
+  animation: seam-breathe 6s ease-in-out infinite;
+}
+@keyframes seam-breathe {
+  0%, 100% { opacity: 0.5; }
+  50%      { opacity: 1; }
+}
+/* nó da costura que desce */
+.proto-stitch-dot {
+  position: absolute;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  border-radius: 9999px;
+  background: var(--proto-card);
+  box-shadow: 0 0 0 2px color-mix(in oklab, var(--proto-terra) 50%, var(--proto-teal)), 0 0 18px rgba(192,112,85,0.5);
+  animation: stitch-fall 5.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+@keyframes stitch-fall {
+  0%   { top: 8%; opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { top: 92%; opacity: 0; }
+}
+
+/* ════════════════════════════════════════
+   Grid overlay sutil
+   ════════════════════════════════════════ */
+.proto-grid {
+  background-image:
+    linear-gradient(var(--proto-grid-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--proto-grid-line) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 35%, #000 25%, transparent 78%);
+}
+
+/* ════════════════════════════════════════
+   Orbs gigantes "respirando"
+   ════════════════════════════════════════ */
+.proto-orb {
+  position: absolute;
+  border-radius: 9999px;
+  filter: blur(58px);
+  opacity: 0.6;
+  mix-blend-mode: multiply;
+  will-change: transform;
+  contain: paint;
+}
+/* Mobile: menos blur e um orb a menos = bem mais leve no celular. */
+@media (max-width: 640px) {
+  .proto-orb { filter: blur(40px); }
+  .proto-orb--peach { display: none; }
+}
+[data-proto-theme="dark"] .proto-orb { mix-blend-mode: screen; opacity: 0.5; }
+.proto-orb--terra { background: radial-gradient(circle, var(--proto-terra) 0%, transparent 70%); animation: orb-a 22s ease-in-out infinite; }
+.proto-orb--teal  { background: radial-gradient(circle, var(--proto-teal) 0%, transparent 70%);  animation: orb-b 26s ease-in-out infinite; opacity: 0.42; }
+.proto-orb--peach { background: radial-gradient(circle, var(--proto-peach) 0%, transparent 70%); animation: orb-c 30s ease-in-out infinite; }
+@keyframes orb-a { 0%,100% { transform: translate3d(0,0,0) scale(1);} 50% { transform: translate3d(50px,40px,0) scale(1.06);} }
+@keyframes orb-b { 0%,100% { transform: translate3d(0,0,0) scale(1);} 50% { transform: translate3d(-70px,60px,0) scale(0.95);} }
+@keyframes orb-c { 0%,100% { transform: translate3d(0,0,0) scale(1);} 50% { transform: translate3d(40px,-50px,0) scale(1.1);} }
+
+/* ════════════════════════════════════════
+   Shimmer pro CTA primário
+   ════════════════════════════════════════ */
+.proto-shimmer { position: relative; overflow: hidden; isolation: isolate; }
+.proto-shimmer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(255,255,255,0.22) 50%, transparent 70%);
+  transform: translateX(-100%);
+  transition: transform 0.85s ease;
+}
+.proto-shimmer:hover::before { transform: translateX(100%); }
+
+/* ════════════════════════════════════════
+   Marquee infinito
+   ════════════════════════════════════════ */
+.proto-marquee { animation: marquee 50s linear infinite; }
+@keyframes marquee { from { transform: translateX(0);} to { transform: translateX(-50%);} }
+
+/* ════════════════════════════════════════
+   Underline SVG desenhando
+   ════════════════════════════════════════ */
+.proto-underline-path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: draw-underline 1.6s 0.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+@keyframes draw-underline { to { stroke-dashoffset: 0; } }
+
+/* ════════════════════════════════════════
+   Pulse premium
+   ════════════════════════════════════════ */
+@keyframes proto-pulse { 0%,100% { opacity: 0.55; transform: scale(1);} 50% { opacity: 1; transform: scale(1.04);} }
+.proto-pulse { animation: proto-pulse 2.6s ease-in-out infinite; }
+
+/* ════════════════════════════════════════
+   Glass (theme-aware)
+   ════════════════════════════════════════ */
+.proto-glass {
+  background: var(--proto-glass-bg);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid var(--proto-glass-brd);
+  box-shadow: 0 1px 0 var(--proto-glass-hi) inset, 0 30px 80px -40px rgba(14, 12, 10, 0.25);
+}
+.proto-glass-dark {
+  background: rgba(16, 14, 12, 0.7);
+  backdrop-filter: blur(20px) saturate(1.4);
+  -webkit-backdrop-filter: blur(20px) saturate(1.4);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.06) inset, 0 30px 80px -40px rgba(0, 0, 0, 0.6);
+}
+
+/* ════════════════════════════════════════
+   Device frame — molдura de "screenshot" do app.
+   Mantém aparência clara mesmo no dark (parece print).
+   ════════════════════════════════════════ */
+.proto-device {
+  position: relative;
+  border-radius: 24px;
+  padding: 8px;
+  background: linear-gradient(145deg, rgba(255,255,255,0.9), rgba(240,237,230,0.85));
+  border: 1px solid var(--proto-line);
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.7) inset,
+    0 50px 120px -50px rgba(14, 12, 10, 0.45),
+    0 20px 50px -30px rgba(192, 112, 85, 0.25);
+}
+[data-proto-theme="dark"] .proto-device {
+  background: linear-gradient(145deg, rgba(40,34,30,0.9), rgba(22,18,16,0.9));
+  box-shadow:
+    0 1px 0 rgba(255,255,255,0.06) inset,
+    0 50px 120px -50px rgba(0,0,0,0.7),
+    0 20px 50px -30px rgba(192, 112, 85, 0.3);
+}
+.proto-screen {
+  border-radius: 18px;
+  overflow: hidden;
+  background: #FFFFFF; /* tela do app sempre clara — vira "print" */
+  border: 1px solid rgba(14, 12, 10, 0.06);
+}
+
+/* ════════════════════════════════════════
+   DEMO FLOW — animações do "combinado acontecendo"
+   ════════════════════════════════════════ */
+@keyframes demo-push-in {
+  0%   { transform: translateY(-12px) scale(0.96); opacity: 0; }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+@keyframes demo-pop {
+  0%   { transform: scale(0.6); opacity: 0; }
+  60%  { transform: scale(1.12); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes demo-fly {
+  0%   { transform: translate(0,0) scale(1); opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translate(var(--fx, 240px), var(--fy, 0)) scale(0.8); opacity: 0; }
+}
+@keyframes demo-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+/* ════════════════════════════════════════
+   Comparativo — destaque coluna Kindar
+   ════════════════════════════════════════ */
+.proto-compare-hl {
+  position: relative;
+}
+.proto-compare-hl::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(160deg, var(--proto-terra), transparent 45%, var(--proto-teal));
+  -webkit-mask: linear-gradient(#000,#000) content-box, linear-gradient(#000,#000);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* ════════════════════════════════════════
+   WOW — gradiente fluindo nas palavras serif
+   ════════════════════════════════════════ */
+.proto-flow {
+  background-size: 240% 240%;
+  animation: proto-flow 7s ease-in-out infinite;
+}
+@keyframes proto-flow {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* ════════════════════════════════════════
+   WOW — aurora que segue o cursor
+   ════════════════════════════════════════ */
+.proto-aurora {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.85;
+  background:
+    radial-gradient(280px circle at var(--ax, 50%) var(--ay, 28%),
+      color-mix(in oklab, var(--proto-terra) 22%, transparent), transparent 60%),
+    radial-gradient(360px circle at var(--ax, 50%) var(--ay, 28%),
+      color-mix(in oklab, var(--proto-teal) 12%, transparent), transparent 65%);
+  mix-blend-mode: multiply;
+  transition: opacity 600ms ease;
+}
+[data-proto-theme="dark"] .proto-aurora { mix-blend-mode: screen; opacity: 0.7; }
+
+/* ════════════════════════════════════════
+   WOW — confete da marca no "combinado fechado"
+   ════════════════════════════════════════ */
+.proto-confetti {
+  position: absolute;
+  width: 7px;
+  height: 10px;
+  border-radius: 2px;
+  will-change: transform, opacity;
+  animation: confetti-pop 950ms cubic-bezier(0.18, 0.7, 0.3, 1) forwards;
+}
+@keyframes confetti-pop {
+  0%   { transform: translate(0, 0) rotate(0deg) scale(1); opacity: 1; }
+  100% { transform: translate(var(--dx, 0), var(--dy, -60px)) rotate(var(--dr, 200deg)) scale(0.6); opacity: 0; }
+}
+
+/* ════════════════════════════════════════
+   WOW — hero 3D tilt (profundidade)
+   ════════════════════════════════════════ */
+.proto-tilt-inner {
+  transition: transform 360ms cubic-bezier(0.22, 1, 0.36, 1);
+  transform-style: preserve-3d;
+}
+
+/* ════════════════════════════════════════
+   Theme toggle knob
+   ════════════════════════════════════════ */
+.proto-toggle-knob { transition: transform 420ms cubic-bezier(0.22,1,0.36,1); }
+[data-proto-theme="dark"] .proto-toggle-knob { transform: translateX(20px); }
+
+/* ════════════════════════════════════════
+   Selection + reduce motion
+   ════════════════════════════════════════ */
+.prototipo-root *::selection {
+  background: color-mix(in oklab, var(--proto-terra) 30%, transparent);
+  color: var(--proto-ink);
+}
+
+/* A11y: anel de foco visível só pra navegação por teclado. */
+.prototipo-root a:focus-visible,
+.prototipo-root button:focus-visible,
+.prototipo-root [role="slider"]:focus-visible,
+.prototipo-root [tabindex]:focus-visible {
+  outline: 2px solid var(--proto-terra);
+  outline-offset: 3px;
+  border-radius: 6px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .proto-orb, .proto-marquee, .proto-shimmer::before, .proto-pulse,
+  .proto-underline-path, .proto-seam::after, .proto-stitch-dot,
+  .proto-flow, .proto-confetti {
+    animation: none !important;
+  }
+  .proto-aurora { display: none; }
+  .proto-tilt-inner { transition: none; }
+}
