@@ -449,8 +449,8 @@ export default function PrototipoPage() {
 
             <Reveal delay={120}>
               <figure className="mt-16 max-w-4xl mx-auto text-center">
-                <svg width="44" height="44" viewBox="0 0 24 24" fill="none" className="text-[var(--proto-terra)] mx-auto mb-6">
-                  <path d="M9 7H5a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2v3a2 2 0 0 1-2 2H4M19 7h-4a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h2v3a2 2 0 0 1-2 2h-1" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="text-[var(--proto-terra)] mx-auto mb-6">
+                  <path d="M4.583 17.321C3.553 16.227 3 15 3 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311 1.804.167 3.226 1.648 3.226 3.489a3.5 3.5 0 0 1-3.5 3.5c-1.073 0-2.099-.49-2.748-1.179zm10 0C13.553 16.227 13 15 13 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311 1.804.167 3.226 1.648 3.226 3.489a3.5 3.5 0 0 1-3.5 3.5c-1.073 0-2.099-.49-2.748-1.179z" />
                 </svg>
                 <blockquote className="proto-serif text-[28px] sm:text-[42px] leading-[1.2] text-[var(--proto-ink)] tracking-[-0.01em]">
                   Em três semanas o grupo &ldquo;logística da Manu&rdquo; simplesmente
