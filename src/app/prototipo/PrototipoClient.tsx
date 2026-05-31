@@ -92,6 +92,7 @@ export function MobileNav() {
   const links: [string, string][] = [
     ["#produto", "Produto"],
     ["#demo", "Como funciona"],
+    ["#whatsapp", "WhatsApp"],
     ["#comparativo", "Comparar"],
     ["#planos", "Planos"],
     ["#faq", "FAQ"],
@@ -1238,49 +1239,51 @@ export function PricingSection() {
   const plans = [
     {
       name: "Grátis",
-      desc: "Pra conhecer o Kindar",
+      desc: "Pra começar e organizar o essencial",
       monthly: 0,
       yearly: 0,
-      cta: "Começar agora",
+      cta: "Começar grátis",
       ctaStyle: "ghost" as const,
       features: [
         "Calendário compartilhado",
-        "1 criança",
-        "Convite pra coparente",
-        "Histórico de 30 dias",
+        "Saúde e atividades das crianças",
+        "Convite pro coparente e convidados",
+        "Histórico recente",
       ],
       highlight: false,
     },
     {
-      name: "Família",
-      desc: "Pra usar de verdade",
+      name: "Harmonia",
+      desc: "A família inteira, organizada",
       monthly: 19.9,
-      yearly: 16.6,
-      cta: "Quero o Família",
+      yearly: 16.66,
+      cta: "Garantir o Early Bird",
       ctaStyle: "primary" as const,
-      badge: "Early bird vitalício",
+      badge: "Mais escolhido",
+      note: "Early Bird: R$ 14,90/mês vitalício pras primeiras 1.000 famílias",
       features: [
-        "Tudo do Grátis",
-        "Filhos ilimitados",
-        "Saúde preventiva completa",
-        "Despesas com split",
-        "Escala de guarda + trocas",
+        "Crianças ilimitadas",
+        "Calendário de guarda + trocas",
+        "Saúde completa + carteirinha de vacina",
+        "Assistente no WhatsApp + OCR de receita",
+        "Despesas com split e acertos",
+        "Convidados ilimitados (avós, babá, advogado)",
         "Histórico ilimitado",
       ],
       highlight: true,
     },
     {
-      name: "Família+",
-      desc: "Pra operação grande",
-      monthly: 34.9,
-      yearly: 28.9,
-      cta: "Falar com a gente",
+      name: "Premium Jurídico",
+      desc: "Pra quem tem processo ativo",
+      monthly: 39.9,
+      yearly: 31.92,
+      cta: "Assinar Premium Jurídico",
       ctaStyle: "ghost" as const,
       features: [
-        "Tudo do Família",
-        "Até 8 responsáveis",
-        "Resumo semanal por IA",
-        "Exportação fiscal anual",
+        "Tudo do Harmonia",
+        "Export legal em PDF com audit trail",
+        "Backup jurídico das conversas",
+        "Alertas inteligentes de receita",
         "Suporte prioritário",
       ],
       highlight: false,
@@ -1303,7 +1306,7 @@ export function PricingSection() {
               {p === "monthly" ? "Mensal" : "Anual"}
               {p === "yearly" ? (
                 <span className="ml-2 text-[10.5px] font-bold text-[var(--proto-teal)] bg-[var(--proto-teal)]/12 px-1.5 py-0.5 rounded">
-                  −17%
+                  até −20%
                 </span>
               ) : null}
             </button>
@@ -1368,8 +1371,13 @@ export function PricingSection() {
                   /mês
                 </span>
               </div>
+              {p.note ? (
+                <p className={`text-[11.5px] mt-2 font-semibold leading-snug ${p.highlight ? "text-[var(--proto-peach)]" : "text-[var(--proto-terra)]"}`}>
+                  {p.note}
+                </p>
+              ) : null}
               {period === "yearly" && p.monthly > 0 ? (
-                <p className={`text-[11.5px] mt-1 ${p.highlight ? "text-[var(--proto-peach)]" : "text-[var(--proto-teal)]"}`}>
+                <p className={`text-[11.5px] mt-1 ${p.highlight ? "text-white/55" : "text-[var(--proto-mute-2)]"}`}>
                   Economia de R${" "}
                   {((p.monthly - p.yearly) * 12).toFixed(2).replace(".", ",")}/ano
                 </p>
@@ -1420,28 +1428,44 @@ export function PricingSection() {
    ────────────────────────────────────────────────────────────── */
 const FAQ_ITEMS = [
   {
-    q: "O Kindar funciona pra famílias com guarda compartilhada?",
-    a: "É o cenário em que mais investimos. Escala de guarda, trocas com histórico, despesas com split e split de assinatura. Ambos os responsáveis veem a mesma informação em tempo real, sem precisar de planilha ou print pra provar combinado.",
+    q: "O Kindar é só pra pais separados?",
+    a: "Não. O Kindar organiza a rotina de qualquer família — casais juntos, separados, monoparentais, homoafetivas, e famílias onde avós ou tutores cuidam. As ferramentas de guarda compartilhada aparecem quando fazem sentido, sem atrapalhar quem não precisa delas.",
   },
   {
-    q: "Preciso instalar app pra usar?",
-    a: "Não. Funciona no navegador (PWA) e também tem app iOS na App Store. Android sai em breve. Tudo sincroniza entre eles automaticamente.",
+    q: "Funciona pra famílias com guarda compartilhada?",
+    a: "É o cenário em que mais investimos. Escala de guarda, trocas com histórico, despesas com split e split da própria assinatura. Os dois responsáveis veem a mesma informação em tempo real — sem planilha nem print pra provar combinado.",
+  },
+  {
+    q: "Quem precisa pagar? Avós, babá e advogado também?",
+    a: "Não. Só os responsáveis legais (pai, mãe ou tutor com guarda) assinam. Avós, babás, mediadores e advogados entram de graça como convidados, com acesso completo ao plano da família.",
+  },
+  {
+    q: "Quanto custa? E o que é o Early Bird?",
+    a: "Tem um plano gratuito pra começar. O Harmonia, com tudo liberado, é R$ 19,90/mês pela família inteira. As primeiras 1.000 famílias garantem o Early Bird: R$ 14,90/mês para sempre — uma vez assinado, o preço nunca muda. Pra quem tem processo ativo, o Premium Jurídico é R$ 39,90/mês.",
+  },
+  {
+    q: "Tem teste grátis?",
+    a: "Tem. Ao criar a conta, você ganha 7 dias do Premium Jurídico — o plano mais completo — sem pagar e sem cadastrar cartão. No fim, você escolhe um plano ou fica no Grátis (com limites). Ninguém é cobrado sem avisar.",
+  },
+  {
+    q: "Dá pra dividir o custo com o coparente?",
+    a: "Sim, com um clique. Depois de assinar, é só ativar o split da assinatura — o Kindar cria uma despesa recorrente de 50% no módulo de Despesas, com notificação automática. Zero fricção pra rachar.",
+  },
+  {
+    q: "Preciso instalar app? Funciona em tudo?",
+    a: "Funciona nos três: app iOS na App Store, Android em breve no Google Play, e versão web em kindar.com.br (que dá pra instalar como PWA). A assinatura vale em todos — pagou num, funciona nos outros — e tudo sincroniza automaticamente.",
   },
   {
     q: "E se a outra pessoa não quiser usar?",
-    a: "Você usa sozinho. O valor cresce quando o coparente entra, mas a organização individual já vale por si. E o convite é simples — link direto, ela aceita em 1 toque.",
+    a: "Você usa sozinho. A organização individual já vale por si; o valor só cresce quando o coparente entra. E o convite é simples — link direto, a pessoa aceita em um toque.",
   },
   {
-    q: "Quanto custa de verdade?",
-    a: "Tem plano gratuito pra começar. Os planos pagos começam em R$ 19,90/mês (early bird vitalício enquanto durar) e cobrem a família inteira — sem cobrança por assento extra.",
+    q: "Meus dados estão seguros? E a LGPD?",
+    a: "Sim. Banco em região brasileira com Row Level Security em todas as tabelas, criptografia em trânsito e em repouso, e conformidade com a LGPD. Você exporta ou apaga tudo a qualquer momento pelo perfil. O chat é imutável por conformidade legal — serve como prova documental se você precisar.",
   },
   {
-    q: "Meus dados estão seguros?",
-    a: "Sim. Banco em região brasileira, criptografia em trânsito e em repouso, conformidade LGPD. Você pode exportar ou apagar tudo a qualquer momento, sem fricção.",
-  },
-  {
-    q: "Funciona se a família é 'tradicional' (sem separação)?",
-    a: "Funciona perfeitamente. Casal junto, avós envolvidos, babá — todo mundo que cuida na mesma agenda. Não é só pra co-cuidado pós-separação, é pra qualquer família que quer reduzir ruído.",
+    q: "Como eu cancelo?",
+    a: "No próprio app, em Assinatura. Para assinaturas no iOS, pelos Ajustes do iPhone. Não tem fidelidade nem burocracia — cancelou, acabou.",
   },
 ];
 

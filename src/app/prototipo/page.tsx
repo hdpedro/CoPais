@@ -49,6 +49,7 @@ export default function PrototipoPage() {
           <div className="hidden md:flex items-center gap-1 text-[13px] font-medium text-[var(--proto-mute)]">
             <a href="#produto" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">Produto</a>
             <a href="#demo" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">Como funciona</a>
+            <a href="#whatsapp" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">WhatsApp</a>
             <a href="#comparativo" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">Comparar</a>
             <a href="#planos" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">Planos</a>
             <a href="#faq" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">FAQ</a>
@@ -152,6 +153,19 @@ export default function PrototipoPage() {
             <Reveal delay={380}>
               <div className="mt-9 flex justify-center">
                 <AvatarStack />
+              </div>
+            </Reveal>
+
+            <Reveal delay={440}>
+              <div className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[12.5px] text-[var(--proto-mute-2)]">
+                {["Sem cartão de crédito", "Pronto em 2 minutos", "Funciona no celular"].map((t) => (
+                  <span key={t} className="inline-flex items-center gap-1.5">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" className="text-[var(--proto-teal)]">
+                      <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    {t}
+                  </span>
+                ))}
               </div>
             </Reveal>
           </div>
@@ -342,6 +356,171 @@ export default function PrototipoPage() {
                 </TiltCard>
               </Reveal>
             </div>
+
+            <Reveal delay={120}>
+              <div className="mt-4 rounded-3xl border border-[var(--proto-line)] bg-[var(--proto-bg)] p-7 sm:p-9">
+                <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--proto-terra)] mb-5">
+                  E ainda cabe tudo isto
+                </p>
+                <div className="flex flex-wrap gap-2.5">
+                  {[
+                    "Atividades e check-in diário",
+                    "Medicamentos e doses",
+                    "Consultas com profissionais e endereços",
+                    "Carteirinha de vacina",
+                    "Documentos: certidão, laudos, receitas, boletins",
+                    "Escola e reuniões",
+                    "OCR de receita médica",
+                    "Acordos e decisões com votação",
+                    "Temas sensíveis com privacidade",
+                    "Exportação e backup dos dados",
+                  ].map((f) => (
+                    <span
+                      key={f}
+                      className="inline-flex items-center gap-1.5 text-[13px] text-[var(--proto-ink)]/80 bg-[var(--proto-card)] border border-[var(--proto-line)] rounded-full px-3.5 py-1.5"
+                    >
+                      <span className="w-1 h-1 rounded-full bg-[var(--proto-teal)]" />
+                      {f}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════ ASSISTENTE NO WHATSAPP ════════════════════════════════ */}
+        <section id="whatsapp" className="py-24 sm:py-32 px-5 sm:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+              {/* Copy */}
+              <Reveal>
+                <div>
+                  <p className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#1FA855] mb-5">
+                    <span className="relative flex w-2 h-2">
+                      <span className="absolute inline-flex w-full h-full rounded-full bg-[#25D366] opacity-75 animate-ping" />
+                      <span className="relative inline-flex w-2 h-2 rounded-full bg-[#25D366]" />
+                    </span>
+                    Assistente no WhatsApp
+                  </p>
+                  <h2 className="text-[30px] sm:text-[56px] leading-[1.0] tracking-[-0.025em] font-bold">
+                    A rotina dos seus filhos,{" "}
+                    <span className="proto-serif text-[var(--proto-mute-2)]">no WhatsApp.</span>
+                  </h2>
+                  <p className="mt-6 text-[17px] text-[var(--proto-mute)] leading-relaxed max-w-xl">
+                    Manda texto, áudio ou foto. O Kindar entende, organiza e salva no
+                    app — <strong className="text-[var(--proto-ink)] font-semibold">sem você precisar abrir nada</strong>.
+                    Ideal pra registrar no momento que acontece.
+                  </p>
+
+                  <div className="mt-8 grid sm:grid-cols-2 gap-2.5">
+                    {[
+                      { icon: "💸", text: "Despesa: “paguei 120 da escola”" },
+                      { icon: "🩺", text: "Consulta: “pediatra dia 20 às 14h”" },
+                      { icon: "🤒", text: "Saúde: “Joaquim com febre 38.5”" },
+                      { icon: "🔄", text: "Troca: “trocar dia 15 com o coparente”" },
+                    ].map((f) => (
+                      <div
+                        key={f.text}
+                        className="flex items-start gap-2.5 p-3 rounded-xl bg-[var(--proto-card)] border border-[var(--proto-line)]"
+                      >
+                        <span className="text-base shrink-0">{f.icon}</span>
+                        <p className="text-[13px] text-[var(--proto-ink)]/85 leading-snug">{f.text}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="mt-9 flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                    <a
+                      href="https://wa.me/5521999605044?text=Oi%20Kindar!%20Quero%20conhecer."
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2.5 bg-[#25D366] text-white text-[15px] font-semibold px-7 py-4 rounded-2xl hover:bg-[#1FA855] transition-all shadow-lg shadow-[#25D366]/25 hover:-translate-y-0.5 active:scale-[0.98]"
+                    >
+                      <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                      </svg>
+                      Conversar com o Kindar
+                    </a>
+                    <Link
+                      href="/signup"
+                      className="inline-flex items-center justify-center gap-2 text-[15px] font-semibold px-7 py-4 rounded-2xl border border-[var(--proto-line-2)] text-[var(--proto-ink)] hover:border-[var(--proto-ink)]/40 hover:bg-[var(--proto-card)] transition-all"
+                    >
+                      Criar conta primeiro
+                    </Link>
+                  </div>
+
+                  <p className="mt-6 text-[12.5px] text-[var(--proto-mute-2)] leading-relaxed">
+                    Número oficial{" "}
+                    <span className="font-bold text-[var(--proto-ink)] tabular-nums">+55 21 99960-5044</span>{" "}
+                    · Verificado pela Meta · Confirma toda ação antes de salvar.
+                  </p>
+                </div>
+              </Reveal>
+
+              {/* Phone mock */}
+              <Reveal delay={140}>
+                <div className="relative mx-auto w-full max-w-[330px]">
+                  <div aria-hidden className="absolute inset-0 -z-10 rounded-[3rem] bg-[#25D366]/15 blur-3xl" />
+                  <div className="proto-lightscope rounded-[2.6rem] bg-[#0E0C0A] p-2.5 shadow-[0_40px_90px_-30px_rgba(14,12,10,0.5)]">
+                    <div className="rounded-[2.1rem] overflow-hidden" style={{ background: "#ECE5DD" }}>
+                      <div className="flex items-center gap-2.5 px-4 py-3" style={{ background: "#075E54" }}>
+                        <span className="w-8 h-8 rounded-full bg-gradient-to-br from-[#C07055] to-[#A85D47] grid place-items-center text-white text-[13px] font-bold">K</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12.5px] font-bold text-white leading-tight">Kindar</p>
+                          <p className="text-[10px] text-white/70 leading-tight">conta business · online</p>
+                        </div>
+                      </div>
+                      <div
+                        className="px-3 py-4 space-y-2"
+                        style={{
+                          backgroundImage: "radial-gradient(circle at 1px 1px, rgba(0,0,0,0.04) 1px, transparent 0)",
+                          backgroundSize: "20px 20px",
+                        }}
+                      >
+                        <div className="flex justify-center">
+                          <span className="px-3 py-1 rounded-full bg-white/85 text-[10px] font-medium text-[#54656F] shadow-sm">HOJE</span>
+                        </div>
+                        <div className="flex justify-end">
+                          <div className="max-w-[80%] rounded-2xl rounded-br-md px-3 py-2 text-[12.5px] text-[#111B21] shadow-sm" style={{ background: "#DCF8C6" }}>
+                            Joaquim com febre 38.5
+                          </div>
+                        </div>
+                        <div className="flex justify-start">
+                          <div className="max-w-[82%] rounded-2xl rounded-bl-md bg-white px-3 py-2 text-[12.5px] text-[#111B21] shadow-sm">
+                            Registrar febre do <span className="font-semibold">Joaquim</span> — 38.5°C agora?
+                          </div>
+                        </div>
+                        <div className="flex justify-start">
+                          <div className="max-w-[82%] rounded-2xl rounded-bl-md bg-white shadow-sm overflow-hidden">
+                            <div className="px-3 py-2 text-[12.5px] text-[#111B21]">Confirma o registro?</div>
+                            <div className="grid grid-cols-2 border-t border-black/5 text-[12px] font-semibold text-[#128C7E]">
+                              <span className="px-3 py-2 text-center border-r border-black/5">✅ Sim</span>
+                              <span className="px-3 py-2 text-center">✗ Cancelar</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex justify-start">
+                          <div className="max-w-[82%] rounded-2xl rounded-bl-md bg-white px-3 py-2 text-[12.5px] text-[#111B21] shadow-sm">
+                            🤒 Febre registrada para <span className="font-semibold">Joaquim</span>. O coparente foi avisado pelo app.
+                          </div>
+                        </div>
+                        <div className="flex justify-end">
+                          <div className="max-w-[80%] rounded-2xl rounded-br-md px-3 py-2 text-[12.5px] text-[#111B21] shadow-sm" style={{ background: "#DCF8C6" }}>
+                            🎙️ áudio · 0:08
+                          </div>
+                        </div>
+                        <div className="flex justify-start">
+                          <div className="max-w-[82%] rounded-2xl rounded-bl-md bg-white px-3 py-2 text-[12.5px] text-[#111B21] shadow-sm">
+                            Entendi: “paguei 120 na escola do Joaquim”. Lançar despesa de <span className="font-semibold">R$ 120,00</span> em Educação?
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+            </div>
           </div>
         </section>
 
@@ -453,15 +632,14 @@ export default function PrototipoPage() {
                   <path d="M4.583 17.321C3.553 16.227 3 15 3 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311 1.804.167 3.226 1.648 3.226 3.489a3.5 3.5 0 0 1-3.5 3.5c-1.073 0-2.099-.49-2.748-1.179zm10 0C13.553 16.227 13 15 13 13.011c0-3.5 2.457-6.637 6.03-8.188l.893 1.378c-3.335 1.804-3.987 4.145-4.247 5.621.537-.278 1.24-.375 1.929-.311 1.804.167 3.226 1.648 3.226 3.489a3.5 3.5 0 0 1-3.5 3.5c-1.073 0-2.099-.49-2.748-1.179z" />
                 </svg>
                 <blockquote className="proto-serif text-[28px] sm:text-[42px] leading-[1.2] text-[var(--proto-ink)] tracking-[-0.01em]">
-                  Em três semanas o grupo &ldquo;logística da Manu&rdquo; simplesmente
-                  parou de existir. Tá tudo no Kindar — e a gente só fala da Manu
-                  de novo, não da planilha dela.
+                  Era caos no WhatsApp com meu ex. Agora a agenda da minha filha
+                  está em um lugar só — até a avó dela acompanha.
                 </blockquote>
                 <figcaption className="mt-8 inline-flex items-center gap-3">
-                  <span className="grid place-items-center w-11 h-11 rounded-full bg-[var(--proto-terra)] text-white text-[14px] font-bold">A</span>
+                  <span className="grid place-items-center w-11 h-11 rounded-full bg-[var(--proto-terra)] text-white text-[14px] font-bold">M</span>
                   <span className="text-left">
-                    <p className="text-[14px] font-bold text-[var(--proto-ink)]">Amanda P.</p>
-                    <p className="text-[12.5px] text-[var(--proto-mute-2)]">Mãe da Manu · São Paulo, SP</p>
+                    <p className="text-[14px] font-bold text-[var(--proto-ink)]">Mariana</p>
+                    <p className="text-[12.5px] text-[var(--proto-mute-2)]">Mãe · separada · São Paulo</p>
                   </span>
                 </figcaption>
               </figure>
@@ -469,8 +647,8 @@ export default function PrototipoPage() {
 
             <div className="mt-20 grid sm:grid-cols-2 gap-4 max-w-5xl mx-auto">
               {[
-                { q: "Despesa virou conversa civilizada. Antes era planilha + print + 'mas eu já mandei'. Hoje é um clique.", who: "Bruno R.", role: "Pai do Lucas · Recife, PE", initial: "B", bg: "var(--proto-teal)" },
-                { q: "A carteirinha de vacina sozinha já valeu. Saber em um toque que a próxima dose é em 12 dias é outro nível.", who: "Carolina M.", role: "Mãe da Helena · Curitiba, PR", initial: "C", bg: "var(--proto-terra)" },
+                { q: "A IA que lê receita médica salvou minha vida. Meu filho tem asma e eu sempre esquecia o que a pediatra prescreveu.", who: "Carlos", role: "Pai · casado · Belo Horizonte", initial: "C", bg: "var(--proto-teal)" },
+                { q: "Como advogada, uso o export legal: o cliente entrega um PDF com o histórico de comunicação e acordos, e o processo anda mais rápido.", who: "Dra. Juliana", role: "Advogada de família", initial: "J", bg: "var(--proto-terra)" },
               ].map((t) => (
                 <Reveal key={t.who}>
                   <figure className="h-full p-7 rounded-3xl border border-[var(--proto-line)] bg-[var(--proto-soft)] flex flex-col">
@@ -532,7 +710,8 @@ export default function PrototipoPage() {
                   <span className="proto-serif text-[var(--proto-mute-2)]">Pague quando o valor for óbvio.</span>
                 </h2>
                 <p className="mt-6 text-[16px] text-[var(--proto-mute)]">
-                  Toda a família entra no mesmo plano. Sem assento extra, sem surpresa.
+                  Só os responsáveis legais pagam. Avós, babá, advogado e mediador
+                  entram de graça como convidados — a família inteira num plano só.
                 </p>
               </div>
             </Reveal>
@@ -543,7 +722,7 @@ export default function PrototipoPage() {
             </Reveal>
             <Reveal delay={220}>
               <p className="mt-10 text-center text-[12.5px] text-[var(--proto-mute-2)]">
-                Beta aberta · Cancele quando quiser · Reembolso integral em 14 dias
+                7 dias de Premium Jurídico no cadastro · Sem cartão · Cancele quando quiser
               </p>
             </Reveal>
           </div>
@@ -565,6 +744,18 @@ export default function PrototipoPage() {
               <div className="mt-14">
                 <FaqAccordion />
               </div>
+            </Reveal>
+            <Reveal delay={200}>
+              <p className="mt-12 text-center text-[14px] text-[var(--proto-mute-2)]">
+                Outra dúvida? Escreve pra gente em{" "}
+                <a
+                  href="mailto:contato@kindar.com.br"
+                  className="text-[var(--proto-terra)] font-semibold hover:underline"
+                >
+                  contato@kindar.com.br
+                </a>
+                .
+              </p>
             </Reveal>
           </div>
         </section>
