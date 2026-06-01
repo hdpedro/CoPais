@@ -36,14 +36,15 @@ const PREMIUM_JURIDICO_FEATURES = new Set([
 ]);
 
 export function canAccessFeature(feature: string, tier: PlanTier): boolean {
-  if (PREMIUM_JURIDICO_FEATURES.has(feature)) {
-    return tier === "premium_juridico";
+  // Single-plan model (jun/2026): pagar = APP INTEIRO. O Harmonia absorveu as
+  // features do antigo Premium Jurídico — qualquer tier pago (harmonia, ou
+  // premium_juridico via trial/grandfathered) libera TODAS as features.
+  if (tier === "harmonia" || tier === "premium_juridico") return true;
+  // free (coorte grandfathered): features pagas continuam bloqueadas.
+  if (PREMIUM_JURIDICO_FEATURES.has(feature) || HARMONIA_FEATURES.has(feature)) {
+    return false;
   }
-  if (HARMONIA_FEATURES.has(feature)) {
-    return tier === "harmonia" || tier === "premium_juridico";
-  }
-  // Unknown feature = free-by-default so we never accidentally lock a
-  // feature the grader has not classified.
+  // Feature não classificada = livre por padrão (nunca trava por engano).
   return true;
 }
 

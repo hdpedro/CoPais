@@ -22,11 +22,10 @@ const ELITE_FEATURES = new Set([
 ]);
 
 export function canAccess(feature: string, tier: PlanTier): boolean {
-  if (ELITE_FEATURES.has(feature)) {
-    return tier === "elite";
-  }
-  if (PREMIUM_FEATURES.has(feature)) {
-    return tier === "premium" || tier === "elite";
-  }
+  // Single-plan model (jun/2026): pagar = app inteiro. "premium" (Harmonia) e
+  // "elite" (trial / grandfathered) liberam TODAS as features.
+  if (tier === "premium" || tier === "elite") return true;
+  // free: features pagas continuam bloqueadas (coorte grandfathered).
+  if (ELITE_FEATURES.has(feature) || PREMIUM_FEATURES.has(feature)) return false;
   return true;
 }

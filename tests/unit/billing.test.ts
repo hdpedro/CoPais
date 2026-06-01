@@ -74,14 +74,19 @@ describe("canAccessFeature", () => {
     expect(canAccessFeature("unlimited_children", "harmonia")).toBe(true);
   });
 
-  it("restricts Premium Jurídico features to premium_juridico tier", () => {
-    expect(canAccessFeature("export_pdf", "harmonia")).toBe(false);
-    expect(canAccessFeature("legal_backup", "harmonia")).toBe(false);
-    expect(canAccessFeature("audit_trail", "harmonia")).toBe(false);
+  it("unlocks ALL features for any paid tier (single-plan: pagar = app inteiro)", () => {
+    // jun/2026: Harmonia absorveu o Premium Jurídico — harmonia libera tudo.
+    expect(canAccessFeature("export_pdf", "harmonia")).toBe(true);
+    expect(canAccessFeature("legal_backup", "harmonia")).toBe(true);
+    expect(canAccessFeature("audit_trail", "harmonia")).toBe(true);
 
     expect(canAccessFeature("export_pdf", "premium_juridico")).toBe(true);
     expect(canAccessFeature("legal_backup", "premium_juridico")).toBe(true);
     expect(canAccessFeature("audit_trail", "premium_juridico")).toBe(true);
+
+    // free (grandfathered) continua sem as features pagas.
+    expect(canAccessFeature("export_pdf", "free")).toBe(false);
+    expect(canAccessFeature("ai_assistant", "free")).toBe(false);
   });
 
   it("premium_juridico tier also unlocks all harmonia features", () => {
@@ -109,9 +114,9 @@ describe("isPremiumFeature", () => {
     ).toBe(true);
   });
 
-  it("returns false for Premium Jurídico feature on harmonia tier", () => {
+  it("unlocks Premium Jurídico features on harmonia tier (pagar = app inteiro)", () => {
     expect(
       isPremiumFeature("export_pdf", { tier: "harmonia", isActive: true })
-    ).toBe(false);
+    ).toBe(true);
   });
 });
