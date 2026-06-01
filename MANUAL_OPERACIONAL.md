@@ -821,7 +821,8 @@ Todos idempotentes — re-rodar é seguro.
 ## 16. Reprecificação jun/2026 — Plano único Harmonia + paywall 30d
 
 Implementado em código (PR `feat/harmonia-single-plan-paywall`). Só **Harmonia** visível
-(**R$19,90/mês + anual R$226,80**, 5% off), **trial 30d**, e **bloqueio total** pós-trial pra
+(**R$19,90/mês + anual R$226,80**, 5% off), **trial de 30 dias com o APP INTEIRO liberado**
+(tier topo `premium_juridico`, depois converte pra Harmonia), e **bloqueio total** pós-trial pra
 **NOVOS** cadastros (coorte `coparenting_groups.paywall_enforced`). Existentes = grandfathered.
 
 ### Ordem de deploy (TUDO junto — não aplicar parcial em prod, senão regride o site no ar)

@@ -1,17 +1,23 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trialDaysInApp } from "./promo";
 
-export const TRIAL_PLAN_ID = "harmonia_monthly";
+// The trial grants the TOP tier so the WHOLE app is unlocked for 30 days
+// ("show the ceiling"). premium_juridico unlocks every feature in the gate;
+// after the trial the user converts to the only purchasable plan, Harmonia.
+// Note: premium_juridico is is_active=false (unpurchasable, migration 00106),
+// but the trial is a DIRECT grant — is_active only gates checkout, not this.
+export const TRIAL_PLAN_ID = "premium_juridico_monthly";
 /**
- * Trial duration for the single-plan model (jun/2026): 30 days of Harmonia,
- * no card. `trialDaysInApp()` returns this same value while the promo flag
- * is off (which it must be in this model).
+ * Trial duration for the single-plan model (jun/2026): 30 days with the whole
+ * app unlocked, no card. `trialDaysInApp()` returns 30 while the promo flag is
+ * off (which it must be in this model).
  */
 export const TRIAL_DURATION_DAYS = 30;
 
 /**
- * Idempotently grants a 30-day Harmonia trial to a user's first
- * group. Called from createGroup on signup.
+ * Idempotently grants a 30-day full-access trial (top tier = whole app) to a
+ * user's first group. Called from createGroup on signup. After expiry the
+ * group is hard-locked (enforced cohort) until it subscribes to Harmonia.
  *
  * Business rules:
  *   - One trial per user, EVER — even across multiple groups. Re-joining

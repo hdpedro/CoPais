@@ -11,7 +11,7 @@ interface Props {
  * 'expired') because the parent page only renders this when
  * subscription.isTrial is true; after that the hard paywall takes over.
  */
-export default function TrialBanner({ daysRemaining, planLabel = "Harmonia" }: Props) {
+export default function TrialBanner({ daysRemaining, planLabel = "App completo" }: Props) {
   // Urgency threshold scales with trial length: 2 days is "urgent" for
   // 7-day trial; for 60-day trial, 7 days remaining is the new "urgent".
   const urgent = daysRemaining <= (daysRemaining > 30 ? 7 : 2);

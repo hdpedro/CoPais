@@ -14,7 +14,7 @@
  * causes user-visible inconsistency.
  *
  * Single-plan model (jun/2026) trial durations — promo flag stays OFF:
- *   - In-app trial (Harmonia)                : 30 days
+ *   - In-app trial (app completo / top tier) : 30 days
  *   - Stripe checkout (first sub)            : 30 days
  *   - Apple/Google Introductory Offer        : 30 days (configured in stores)
  */

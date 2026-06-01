@@ -16,7 +16,8 @@ migration `00105`):
   atuais desses planos seguem **grandfathered** (continuam renovando; produtos seguem nas lojas).
 - **Preço Harmonia: R$19,90/mês** (já vigente desde `00060`) **+ anual R$226,80 (5% off)**
   — o anual subiu de R$199,90 → R$226,80 (menos desconto, a pedido).
-- **Trial: 30 dias de Harmonia**, sem cartão (`trial.ts` → `harmonia_monthly`/30d).
+- **Trial: 30 dias com o APP INTEIRO liberado**, sem cartão (`trial.ts` concede o tier
+  topo `premium_juridico` = todas as features — "show the ceiling"; depois converte pra Harmonia).
 - **Fim do trial = BLOQUEIO TOTAL** do app até assinar (`src/lib/billing/access.ts:getGroupAccessState`
   → `locked`; gate no PWA `(app)/layout.tsx` via `PaywallScreen` e no Native `BillingGate`).
   Fonte de verdade: `/api/billing/status` agora retorna `locked`/`paywallEnforced`.

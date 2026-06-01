@@ -18,7 +18,6 @@ import { enableSubscriptionSplit, disableSubscriptionSplit } from "@/actions/sub
 import { trackEvent, EVENTS } from "@/lib/analytics";
 
 const PIX_ENABLED = process.env.NEXT_PUBLIC_PIX_ENABLED === "true";
-const PROMO_2M_FREE = process.env.NEXT_PUBLIC_PROMO_2M_FREE === "true";
 
 interface SubscriptionView {
   subscriptionId: string;
@@ -219,12 +218,12 @@ export default function AssinaturaClient({
 
         <div className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${tierBadgeColor[subscription.tier]}`}>
-              {tierLabels[subscription.tier]}
+            <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${subscription.isTrial ? "bg-emerald-100 text-emerald-800" : tierBadgeColor[subscription.tier]}`}>
+              {subscription.isTrial ? "Degustação · app completo" : tierLabels[subscription.tier]}
             </span>
             {subscription.isTrial && (
               <span className="text-xs text-emerald-700 font-medium">
-                Degustação · {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? "dia" : "dias"} restantes
+                {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? "dia restante" : "dias restantes"}
               </span>
             )}
           </div>
@@ -256,26 +255,12 @@ export default function AssinaturaClient({
         e mediadores entram grátis.
       </p>
 
-      {PROMO_2M_FREE && !subscription.isActive && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl">
-          <div className="flex items-start gap-3">
-            <div className="text-2xl shrink-0">🎁</div>
-            <div>
-              <p className="text-sm font-bold text-amber-900">Promoção de lançamento</p>
-              <p className="text-xs text-amber-800 mt-1">
-                <strong>2 meses grátis</strong> em qualquer plano pago. Sem fidelidade,
-                sem cartão durante o período de teste. Cancele quando quiser.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {subscription.isActive && (
         <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl">
           <p className="text-sm font-semibold text-emerald-900">
-            Plano atual: {tierLabels[subscription.tier]}
-            {subscription.isTrial && ` · Degustação (${subscription.trialDaysRemaining} ${subscription.trialDaysRemaining === 1 ? "dia" : "dias"} restantes)`}
+            {subscription.isTrial
+              ? `Degustação · app completo (${subscription.trialDaysRemaining} ${subscription.trialDaysRemaining === 1 ? "dia" : "dias"} restantes)`
+              : `Plano atual: ${tierLabels[subscription.tier]}`}
           </p>
           {subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
             <p className="text-xs text-emerald-800 mt-1">
