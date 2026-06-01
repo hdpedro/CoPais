@@ -5,6 +5,7 @@ import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { createChild } from "@/lib/services/children";
 import { grantTrialIfEligible } from "@/lib/billing";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { getAttribution, attributionEventProps } from "@/lib/attribution";
 import { recordQuestStepServer } from "@/lib/quest-server";
 
 export async function POST(request: Request) {
@@ -140,7 +141,25 @@ export async function POST(request: Request) {
   //    Idempotente, user-scoped, non-fatal — se falhar o grupo continua válido.
   const trialResult = await grantTrialIfEligible(admin, userId, groupId);
   if (trialResult.granted) {
-    captureServerEvent(userId, "trial_started", { group_id: groupId, via: "onboarding_wizard" });
+    const attribution = await getAttribution();
+    captureServerEvent(userId, "trial_started", {
+      group_id: groupId,
+      via: "onboarding_wizard",
+      ...attributionEventProps(attribution),
+    });
+  } else if (trialResult.reason !== "user_had_prior_subscription") {
+    // Grant FALHOU pra um user elegível. Esse silêncio custou 41 grupos o
+    // trial em mai/2026 (12 dias sem ninguém perceber — trial.ts engole o
+    // erro). Agora é ALTO: log no Vercel + evento PostHog alertável. Nunca
+    // mais um vazamento de receita silencioso.
+    console.error(
+      `[create-group] trial grant FAILED for eligible user ${userId}: ${trialResult.reason}`,
+    );
+    captureServerEvent(userId, "trial_grant_failed", {
+      group_id: groupId,
+      via: "onboarding_wizard",
+      reason: trialResult.reason,
+    });
   }
 
   // 6) Telemetria. Sem `group_created` capturado, a galáxia entre signup_completed
