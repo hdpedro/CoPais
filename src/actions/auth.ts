@@ -5,6 +5,7 @@ import { cookies, headers } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { getAttribution, attributionEventProps } from "@/lib/attribution";
 import { sendWelcomeEmail } from "@/lib/emails/welcome";
 import { verifyTurnstileToken } from "@/lib/turnstile";
 import { recordLoginDevice } from "@/lib/auth-login-device";
@@ -139,7 +140,29 @@ export async function signUp(formData: FormData) {
       .eq("id", data.user.id);
   }
 
-  captureServerEvent(email, "user_signup", { has_invite: !!convite });
+  // ---------- Marketing attribution (first-touch) ----------
+  // Lê o cookie escrito client-side na primeira visita, persiste no perfil
+  // (pro webhook do Stripe carimbar a conversão paga depois) e carimba os
+  // eventos de cadastro. Fecha o loop "Instagram → cadastro → pagante".
+  // DB write é fire-and-forget; o stamp do evento é inline (já temos o cookie).
+  const attribution = await getAttribution();
+  if (data.user?.id && attribution) {
+    const signupUserId = data.user.id;
+    void (async () => {
+      try {
+        const admin = createAdminClient();
+        await admin
+          .from("profiles")
+          .update({ first_touch_utm: attribution })
+          .eq("id", signupUserId);
+      } catch (err) {
+        console.error("[signUp] first_touch_utm persist failed (non-blocking):", err);
+      }
+    })();
+  }
+  const attributionProps = attributionEventProps(attribution);
+
+  captureServerEvent(email, "user_signup", { has_invite: !!convite, ...attributionProps });
   captureServerEvent(email, "signup_completed", {
     has_invite: !!convite,
     has_referral: !!refCode,
@@ -147,6 +170,7 @@ export async function signUp(formData: FormData) {
     locale: signupLocale,
     terms_version: APP_TERMS_VERSION,
     privacy_version: APP_PRIVACY_VERSION,
+    ...attributionProps,
   });
 
   void sendWelcomeEmail(email, fullName, { locale: signupLocale });

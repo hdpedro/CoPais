@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname, useSearchParams } from "next/navigation";
 import { getPostHogClient } from "@/lib/posthog";
 import { detectClientPlatform } from "@/lib/platform";
+import { ATTRIBUTION_COOKIE } from "@/lib/attribution";
 
 /**
  * Writes the `kindar-platform` cookie used by `posthog-server` to stamp
@@ -16,6 +17,56 @@ function syncPlatformCookie() {
   // 1 year, root path, lax — readable by Server Actions via cookies()
   const oneYear = 60 * 60 * 24 * 365;
   document.cookie = `kindar-platform=${platform}; Max-Age=${oneYear}; Path=/; SameSite=Lax`;
+}
+
+/**
+ * Marketing attribution (first-touch). Grava o cookie `kindar-attribution` na
+ * PRIMEIRA visita com sinal de aquisição (utm_* na URL ou referrer externo).
+ * Lido server-side no cadastro (signUp + OAuth) → persistido em
+ * `profiles.first_touch_utm` → carimbado nos eventos de conversão. É o que
+ * liga "veio do Instagram" a "cadastrou" e "pagou" sem depender de stitching.
+ *
+ * First-touch: NÃO sobrescreve um cookie existente. Assim o primeiro toque
+ * (geralmente o anúncio) vence, mesmo que o user volte depois por outro canal.
+ */
+function captureFirstTouch(
+  searchParams: ReturnType<typeof useSearchParams>,
+  pathname: string | null,
+) {
+  if (typeof document === "undefined") return;
+  // First-touch — preserva o cookie já existente.
+  if (document.cookie.includes(`${ATTRIBUTION_COOKIE}=`)) return;
+
+  const get = (k: string) => searchParams?.get(k) || null;
+  const utmSource = get("utm_source");
+  const utmCampaign = get("utm_campaign");
+
+  let referrer: string | null = null;
+  try {
+    referrer = document.referrer ? new URL(document.referrer).hostname : null;
+  } catch {
+    referrer = null;
+  }
+  // Referrer do próprio domínio não é aquisição — ignora pra deixar uma visita
+  // externa posterior vencer o first-touch.
+  if (referrer && /(^|\.)kindar\.com\.br$/.test(referrer)) referrer = null;
+
+  // Sem nenhum sinal real, não grava — uma visita taggeada futura pode vencer.
+  if (!utmSource && !utmCampaign && !referrer) return;
+
+  const attribution = {
+    source: utmSource,
+    medium: get("utm_medium"),
+    campaign: utmCampaign,
+    content: get("utm_content"),
+    term: get("utm_term"),
+    referrer,
+    landing: pathname || null,
+    ts: new Date().toISOString(),
+  };
+  const value = encodeURIComponent(JSON.stringify(attribution));
+  const ninetyDays = 60 * 60 * 24 * 90;
+  document.cookie = `${ATTRIBUTION_COOKIE}=${value}; Max-Age=${ninetyDays}; Path=/; SameSite=Lax`;
 }
 
 /**
@@ -52,6 +103,14 @@ export default function PostHogAnonymousInit() {
       }
     }
   }, [searchParams]);
+
+  // First-touch attribution — grava o cookie de origem (utm_*/referrer) na
+  // primeira visita com sinal de aquisição. Roda em TODA rota (inclusive a
+  // landing onde o clique do Instagram cai); self-guard preserva o primeiro
+  // toque. Lido server-side no cadastro pra carimbar a conversão.
+  useEffect(() => {
+    captureFirstTouch(searchParams, pathname);
+  }, [pathname, searchParams]);
 
   // Track page views for anonymous routes. The authenticated provider
   // does the same thing inside (app)/, so we exclude that prefix to
