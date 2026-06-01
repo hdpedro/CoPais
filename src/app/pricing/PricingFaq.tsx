@@ -16,24 +16,20 @@ const FAQS = [
     a: "Ele(a) entra de graça como co-responsável. Você paga uma vez, toda a família acessa. Se preferir, ative o 'split automático' na tela de assinatura: criamos uma despesa recorrente de 50% do valor no módulo de Despesas para ele(a). Resolver o rateio é decisão da família — a gente só dá a ferramenta.",
   },
   {
-    q: "O Early Bird realmente fica R$ 14,90 para sempre?",
-    a: "Sim, para sempre. Os primeiros 1.000 assinantes travam R$ 14,90/mês no valor de lançamento. Mesmo em 2030, mesmo quando o plano padrão for R$ 40 ou R$ 50, sua assinatura não sobe. É o tipo de compromisso que a gente assume porque os primeiros clientes são quem valida o produto.",
+    q: "O que está incluído no Harmonia?",
+    a: "Tudo. Crianças e convidados ilimitados, calendário de guarda, despesas com split, chat com IA mediadora, saúde completa (vacinas, consultas, medicamentos), OCR de receita, assistente de IA no app e no WhatsApp, export legal em PDF com audit trail, backup jurídico, alertas de receita e suporte prioritário. Não tem recurso travado atrás de um plano superior — assinou, libera o app inteiro.",
   },
   {
-    q: "O que acontece quando as 1.000 vagas acabarem?",
-    a: "Quem já entrou: preço travado. Novos assinantes: começam em R$19,90/mês. O contador na página mostra ao vivo quantas vagas restam.",
+    q: "Como funciona o período grátis?",
+    a: "Ao criar a conta, você ganha 30 dias com o app inteiro liberado, sem cadastrar cartão. No fim do período, é só assinar o Harmonia (R$19,90/mês ou R$226,80/ano) para continuar. Ninguém é cobrado sem escolher.",
   },
   {
-    q: "Posso trocar de plano depois?",
-    a: "Sim, a qualquer momento. Upgrade vale imediatamente e você paga proporcional. Downgrade vale na próxima renovação (você continua com o plano atual até o período pago terminar).",
-  },
-  {
-    q: "Como o Premium Jurídico é diferente do Harmonia?",
-    a: "Pense nele como Harmonia + 'eu tenho um processo rolando'. Ganha: export de tudo em PDF com audit trail (válido em processo), backup jurídico automático, alertas inteligentes nas receitas (detecta alergias cruzadas com histórico), suporte VIP. Se você não tem processo e não prevê ter, Harmonia basta.",
+    q: "Mensal ou anual?",
+    a: "Você decide. O mensal é R$19,90. O anual sai R$226,80 (equivale a R$18,90/mês — cerca de 5% de desconto). Dá pra trocar entre eles a qualquer momento.",
   },
   {
     q: "PIX funciona mensal? Ou só anual?",
-    a: "Estamos ativando PIX Automático (recorrência mensal via PIX). Se o seu cartão for estrangeiro ou não tiver crédito, PIX é a melhor escolha — R$5 mais barato que o cartão. Anual via PIX tem o mesmo preço do anual normal.",
+    a: "Estamos ativando PIX Automático (recorrência mensal via PIX). Se o seu cartão for estrangeiro ou não tiver crédito, PIX é a melhor escolha. Anual via PIX tem o mesmo preço do anual normal.",
   },
   {
     q: "Já tenho 2 grupos familiares (família antiga + nova). Preciso de 2 assinaturas?",
@@ -41,7 +37,7 @@ const FAQS = [
   },
   {
     q: "E se meu filho crescer e não precisar mais? Cancelo fácil?",
-    a: "Em um clique: /assinatura > Gerenciar > Cancelar. Sem ligação, sem chat de retenção. Você mantém acesso até o fim do período já pago, depois cai para o plano Grátis (pode voltar a usar se quiser).",
+    a: "Em um clique: /assinatura > Gerenciar > Cancelar. Sem ligação, sem chat de retenção. Você mantém o acesso até o fim do período já pago.",
   },
 ];
 

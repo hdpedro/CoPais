@@ -134,7 +134,7 @@ export default function TermosPage() {
 
           <section>
             <h2 className="text-xl font-semibold mt-8 mb-3">9. Assinaturas e Pagamentos</h2>
-            <p>A Plataforma Kindar oferece uma versao gratuita com funcionalidades basicas e planos pagos (Premium e Elite) com funcionalidades adicionais.</p>
+            <p>A Plataforma Kindar oferece um período de teste gratuito de {trialDays} dias e o plano pago Harmonia, que libera todas as funcionalidades para o grupo familiar.</p>
             <p><strong>Assinaturas auto-renovaveis:</strong></p>
             <ul className="list-disc pl-6 space-y-1">
               <li>As assinaturas sao renovadas automaticamente ao final de cada periodo (mensal ou anual), salvo cancelamento previo pelo Usuario.</li>

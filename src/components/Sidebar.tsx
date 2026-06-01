@@ -219,7 +219,12 @@ export default function Sidebar({ initial, fullName, groups, activeGroupId, user
   const pathname = usePathname();
   const { t } = useI18n();
   const subscription = useSubscription();
-  const chip = tierChip(subscription.planId);
+  // Durante a degustação o plano é premium_juridico (tier topo = app inteiro),
+  // mas esse plano é oculto no modelo de plano único — mostramos "Degustação"
+  // em vez de vazar o nome "Premium Jurídico".
+  const chip = subscription.status === "trialing"
+    ? { label: "Degustação", bg: "bg-emerald-100", text: "text-emerald-700" }
+    : tierChip(subscription.planId);
 
   return (
     <aside role="navigation" aria-label={t("nav.sectionOrganization")} className="flex flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-100 z-40">
