@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { verifyGroupMembership } from "@/lib/auth-utils";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { grantTrialIfEligible } from "@/lib/billing";
+import { getAttribution, attributionEventProps } from "@/lib/attribution";
 import { markQuestStep } from "@/actions/onboarding-quest";
 import { createChild, updateChild as updateChildService } from "@/lib/services/children";
 
@@ -66,7 +67,21 @@ export async function createGroup(formData: FormData): Promise<{ error?: string;
   // signup or if the user already had a prior sub.
   const trialResult = await grantTrialIfEligible(supabase, user.id, groupId);
   if (trialResult.granted) {
-    captureServerEvent(user.id, "trial_started", { group_id: groupId });
+    const attribution = await getAttribution();
+    captureServerEvent(user.id, "trial_started", {
+      group_id: groupId,
+      ...attributionEventProps(attribution),
+    });
+  } else if (trialResult.reason !== "user_had_prior_subscription") {
+    // Grant FALHOU pra um user elegível — mesmo silêncio que custou 41 grupos
+    // o trial em mai/2026. Agora é ALTO (log + evento alertável).
+    console.error(
+      `[createGroup] trial grant FAILED for eligible user ${user.id}: ${trialResult.reason}`,
+    );
+    captureServerEvent(user.id, "trial_grant_failed", {
+      group_id: groupId,
+      reason: trialResult.reason,
+    });
   }
 
   captureServerEvent(user.id, "group_created");
