@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { sendWelcomeEmail } from "@/lib/emails/welcome";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { getAttribution, attributionEventProps } from "@/lib/attribution";
 import {
   mapOAuthCallbackError,
   type AuthErrorCode,
@@ -97,7 +99,28 @@ export async function GET(request: Request) {
               givenFamily ||
               emailLocal.replace(/[._-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()) ||
               "";
-            captureServerEvent(user.id, "user_signup", { provider: "oauth" });
+            // Marketing attribution (first-touch) — mesmo padrão da signUp
+            // action: persiste no perfil pro webhook do Stripe carimbar a
+            // conversão paga, e carimba o user_signup deste login OAuth.
+            const attribution = await getAttribution();
+            if (attribution) {
+              try {
+                const admin = createAdminClient();
+                await admin
+                  .from("profiles")
+                  .update({ first_touch_utm: attribution })
+                  .eq("id", user.id);
+              } catch (err) {
+                console.error(
+                  "[auth/callback] first_touch_utm persist failed (non-blocking):",
+                  err,
+                );
+              }
+            }
+            captureServerEvent(user.id, "user_signup", {
+              provider: "oauth",
+              ...attributionEventProps(attribution),
+            });
             void sendWelcomeEmail(user.email!, fullName);
           }
         }

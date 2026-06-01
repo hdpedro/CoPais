@@ -8,6 +8,7 @@ import { sendTrialEndingSoonEmail } from "@/lib/emails/trial";
 import { sendPaymentFailedEmail } from "@/lib/emails/payment-failed";
 import { claimReferralReward } from "@/lib/referral-claim";
 import { captureServerEvent } from "@/lib/posthog-server";
+import { attributionEventProps, type Attribution } from "@/lib/attribution";
 import { mapStripeStatus } from "@/lib/billing/stripe-status";
 import type Stripe from "stripe";
 
@@ -219,6 +220,25 @@ export async function POST(req: NextRequest) {
         const mappedStatus = mapStripeStatus(sub.status);
         const lineItem = sub.items.data[0];
         const amountBrl = lineItem?.price?.unit_amount ?? null;
+
+        // Marketing attribution — o webhook não tem cookie, então lemos o
+        // first-touch UTM persistido no perfil no cadastro (migration 00104).
+        // Carimbar a conversão paga com a campanha de origem é o que fecha o
+        // funil "Instagram → cadastro → pagante" por campanha. Não-fatal.
+        let attributionProps: Record<string, string> = {};
+        try {
+          const { data: attrProfile } = await supabase
+            .from("profiles")
+            .select("first_touch_utm")
+            .eq("id", userId)
+            .maybeSingle();
+          attributionProps = attributionEventProps(
+            (attrProfile?.first_touch_utm ?? null) as Attribution | null,
+          );
+        } catch (err) {
+          console.warn("[stripe/webhook] attribution lookup failed (non-fatal):", err);
+        }
+
         captureServerEvent(userId, "checkout_completed", {
           provider: "stripe",
           plan_id: planId,
@@ -227,6 +247,7 @@ export async function POST(req: NextRequest) {
           is_trial: !!sub.trial_end,
           amount_brl_cents: amountBrl,
           group_id: groupId,
+          ...attributionProps,
         });
         captureServerEvent(userId, "subscription_started", {
           provider: "stripe",
@@ -237,6 +258,7 @@ export async function POST(req: NextRequest) {
           coupon_code: couponCode,
           amount_brl_cents: amountBrl,
           stripe_subscription_id: subscriptionId,
+          ...attributionProps,
         });
 
         console.log(`[stripe/webhook] Subscription created for user ${userId}, plan ${planId}`);
