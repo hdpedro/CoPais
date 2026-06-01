@@ -21,7 +21,9 @@ const PLAN_AMOUNTS: Record<string, number> = {
   harmonia_earlybird_monthly: 14.9,
   harmonia_earlybird_annual: 149.9,
   harmonia_monthly: 19.9,
-  harmonia_annual: 199.9,
+  // Anual repreçado pra 5% off (jun/2026): 19,90×12×0,95 = R$226,80.
+  // DEVE bater com o novo Stripe Price + Apple/Google annual (passo manual).
+  harmonia_annual: 226.8,
   premium_juridico_monthly: 39.9,
   premium_juridico_annual: 399.9,
   // Legacy — grandfathered subs keep splitting at their original amount.

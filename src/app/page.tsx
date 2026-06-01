@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { Inter, Instrument_Serif } from "next/font/google";
 import { createClient } from "@/lib/supabase/server";
-import { getEarlyBirdStatus, EARLY_BIRD_MONTHLY_PLAN } from "@/lib/billing/early-bird";
 import { getLandingStats } from "@/lib/landing-stats";
 import { EVENTS } from "@/lib/analytics";
 import PageViewTracker from "@/components/analytics/PageViewTracker";
@@ -47,21 +46,13 @@ export default async function Home() {
     }
   }
 
-  const [earlyBird, landingStats] = await Promise.all([
-    getEarlyBirdStatus(),
-    getLandingStats(),
-  ]);
-  const earlyBirdMonthly = earlyBird.find((e) => e.planId === EARLY_BIRD_MONTHLY_PLAN);
-  const earlyBirdRemaining = earlyBirdMonthly?.isSoldOut
-    ? undefined
-    : earlyBirdMonthly?.slotsRemaining;
+  const landingStats = await getLandingStats();
 
   return (
     <>
       <PageViewTracker
         event={EVENTS.LANDING_VIEWED}
         properties={{
-          early_bird_remaining: earlyBirdMonthly?.slotsRemaining ?? 0,
           active_families: landingStats.activeFamilies,
         }}
       />
@@ -70,7 +61,7 @@ export default async function Home() {
         suppressHydrationWarning
         className={`prototipo-root ${inter.variable} ${instrumentSerif.variable}`}
       >
-        <KindarLandingV2 earlyBirdRemaining={earlyBirdRemaining} />
+        <KindarLandingV2 />
       </div>
       {/* Anti-flash: aplica o tema salvo no #proto-root antes do primeiro
           paint (o script roda depois que a div acima foi parseada). */}

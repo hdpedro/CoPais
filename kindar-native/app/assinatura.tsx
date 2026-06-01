@@ -116,7 +116,17 @@ export default function AssinaturaScreen() {
       'assinatura:loadAll',
     );
     setBilling(status);
-    setPackages(pkgs.map(classifyPackage));
+    // Plano único (jun/2026): só Harmonia é vendável. Early Bird e Premium
+    // Jurídico ficam ocultos pra novos compradores (grandfathered no servidor).
+    setPackages(
+      pkgs
+        .filter(
+          (p) =>
+            p.product.identifier.includes('harmonia') &&
+            !p.product.identifier.includes('earlybird'),
+        )
+        .map(classifyPackage),
+    );
 
     // Load eligible co-payers (parent role, not self) for the split picker.
     if (status.canPay && status.isActive && !status.isTrial && activeGroup?.groupId && userId) {
@@ -267,10 +277,6 @@ export default function AssinaturaScreen() {
     Linking.openURL('https://play.google.com/store/account/subscriptions');
   }
 
-  const earlyBirdMonthly = billing.earlyBird.find(
-    (e) => e.planId === 'harmonia_earlybird_monthly'
-  );
-
   if (loading) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
@@ -384,45 +390,6 @@ export default function AssinaturaScreen() {
           </View>
         )}
 
-        {/* Early Bird counter (always visible if slots remain, even after sub) */}
-        {earlyBirdMonthly && !earlyBirdMonthly.isSoldOut && billing.tier === 'free' && (
-          <View
-            style={{
-              backgroundColor: colors.brand,
-              borderRadius: radius.lg,
-              padding: spacing.lg,
-              ...shadows.md,
-            }}
-          >
-            <Text style={{ fontSize: font.sizes.xs, color: 'white', fontWeight: '700', opacity: 0.9 }}>
-              PREÇO DE LANÇAMENTO
-            </Text>
-            <Text style={{ fontSize: font.sizes['2xl'], color: 'white', fontWeight: '800', marginTop: 4 }}>
-              R$ 19,90<Text style={{ fontSize: font.sizes.sm, fontWeight: '500' }}>/mês para sempre</Text>
-            </Text>
-            <Text style={{ fontSize: font.sizes.sm, color: 'white', opacity: 0.9, marginTop: 6 }}>
-              Restam {earlyBirdMonthly.slotsRemaining}/{earlyBirdMonthly.maxSubscribers} vagas Early Bird
-            </Text>
-            <View
-              style={{
-                marginTop: spacing.sm,
-                height: 4,
-                backgroundColor: 'rgba(255,255,255,0.25)',
-                borderRadius: 2,
-                overflow: 'hidden',
-              }}
-            >
-              <View
-                style={{
-                  height: '100%',
-                  width: `${((earlyBirdMonthly.maxSubscribers - earlyBirdMonthly.slotsRemaining) / earlyBirdMonthly.maxSubscribers) * 100}%`,
-                  backgroundColor: 'white',
-                }}
-              />
-            </View>
-          </View>
-        )}
-
         {/* Manage subscription — for active paid subs, point to Apple/Google */}
         {billing.isActive && !billing.isTrial && billing.paymentProvider !== 'trial' && (
           <TouchableOpacity
@@ -479,23 +446,6 @@ export default function AssinaturaScreen() {
                 ...shadows.md,
               }}
             >
-              {view.isEarlyBird && (
-                <View
-                  style={{
-                    alignSelf: 'flex-start',
-                    backgroundColor: colors.brand,
-                    paddingHorizontal: spacing.sm,
-                    paddingVertical: 4,
-                    borderRadius: radius.sm,
-                    marginBottom: spacing.sm,
-                  }}
-                >
-                  <Text style={{ fontSize: font.sizes.xs, color: 'white', fontWeight: '700' }}>
-                    EARLY BIRD — {earlyBirdMonthly?.slotsRemaining ?? 0} VAGAS
-                  </Text>
-                </View>
-              )}
-
               <Text style={{ fontSize: font.sizes.lg, fontWeight: '700', color: colors.text }}>
                 {view.title}
               </Text>

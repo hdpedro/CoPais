@@ -41,6 +41,18 @@ export const PRODUCT_IDS = {
   premium_juridico_annual: 'com.kindar.juridico.annual',
 } as const;
 
+/**
+ * Produtos vendáveis a NOVOS compradores hoje — plano único Harmonia
+ * (mensal + anual). Early Bird e Premium Jurídico seguem ativos nas lojas
+ * pra renovação de assinantes grandfathered, mas não aparecem em nenhum
+ * paywall. getAvailablePackages() filtra por esta lista na fonte, cobrindo
+ * todos os consumidores (assinatura, BillingGate, pricing).
+ */
+export const VISIBLE_PRODUCT_IDS: readonly string[] = [
+  PRODUCT_IDS.harmonia_monthly,
+  PRODUCT_IDS.harmonia_annual,
+];
+
 /** @deprecated use PRODUCT_IDS — kept for compat with pricing screen */
 export const APPLE_PRODUCT_IDS = {
   premium_monthly: 'com.kindar.premium.monthly',
@@ -137,8 +149,9 @@ export async function getAvailablePackages(): Promise<PurchasesPackage[]> {
     console.warn('[iap] getOfferings failed:', err);
   }
 
-  // 2. Fill gaps with synthetic packages from StoreKit products
-  const missingIds = Object.values(PRODUCT_IDS).filter((id) => !coveredProductIds.has(id));
+  // 2. Fill gaps with synthetic packages from StoreKit products — só pros
+  //    produtos visíveis (Harmonia). Não materializamos Early Bird/Jurídico.
+  const missingIds = VISIBLE_PRODUCT_IDS.filter((id) => !coveredProductIds.has(id));
   if (missingIds.length > 0) {
     try {
       const products = await Purchases.getProducts(missingIds);
@@ -165,7 +178,10 @@ export async function getAvailablePackages(): Promise<PurchasesPackage[]> {
     }
   }
 
-  return result;
+  // Plano único (jun/2026): só Harmonia (mensal/anual) é ofertado. Filtra na
+  // fonte pra cobrir todos os consumidores — mesmo se o Offering remoto ainda
+  // listar Early Bird/Jurídico, eles não chegam a nenhum paywall.
+  return result.filter((p) => VISIBLE_PRODUCT_IDS.includes(p.product.identifier));
 }
 
 function isSyntheticPackage(pkg: PurchasesPackage): boolean {

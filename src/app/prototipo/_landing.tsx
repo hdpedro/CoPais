@@ -20,11 +20,7 @@ import {
   MobileNav,
 } from "./PrototipoClient";
 
-export default function KindarLandingV2({
-  earlyBirdRemaining,
-}: {
-  earlyBirdRemaining?: number;
-}) {
+export default function KindarLandingV2() {
   return (
     <div className="relative min-h-screen text-[var(--proto-ink)] overflow-x-hidden">
       <ScrollProgress />
@@ -809,7 +805,7 @@ export default function KindarLandingV2({
             </Reveal>
             <Reveal delay={120}>
               <div className="mt-16">
-                <PricingSection earlyBirdRemaining={earlyBirdRemaining} />
+                <PricingSection />
               </div>
             </Reveal>
             <Reveal delay={220}>

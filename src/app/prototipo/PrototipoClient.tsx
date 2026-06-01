@@ -1235,42 +1235,30 @@ function AfterScene() {
    ────────────────────────────────────────────────────────────── */
 type Period = "monthly" | "yearly";
 
-export function PricingSection({
-  earlyBirdRemaining,
-}: {
-  earlyBirdRemaining?: number;
-} = {}) {
+export function PricingSection() {
   const [period, setPeriod] = useState<Period>("monthly");
-  const earlyBirdNote =
-    "Early Bird: R$ 14,90/mês vitalício pras primeiras 1.000 famílias" +
-    (typeof earlyBirdRemaining === "number" && earlyBirdRemaining > 0
-      ? ` · restam ${earlyBirdRemaining.toLocaleString("pt-BR")} vagas`
-      : "");
-  const plans = [
-    {
-      name: "Grátis",
-      desc: "Pra começar e organizar o essencial",
-      monthly: 0,
-      yearly: 0,
-      cta: "Começar grátis",
-      ctaStyle: "ghost" as const,
-      features: [
-        "Calendário compartilhado",
-        "Saúde e atividades das crianças",
-        "Convite pro coparente e convidados",
-        "Histórico recente",
-      ],
-      highlight: false,
-    },
+  // Plano único (jun/2026): só Harmonia. 30 dias grátis, depois R$19,90/mês
+  // (ou R$226,80/ano, 5% off). Grátis/Early Bird/Jurídico saíram da landing.
+  const plans: Array<{
+    name: string;
+    desc: string;
+    monthly: number;
+    yearly: number;
+    cta: string;
+    ctaStyle: "primary" | "ghost";
+    badge?: string;
+    note?: string;
+    features: string[];
+    highlight: boolean;
+  }> = [
     {
       name: "Harmonia",
       desc: "A família inteira, organizada",
       monthly: 19.9,
-      yearly: 16.66,
-      cta: "Garantir o Early Bird",
-      ctaStyle: "primary" as const,
-      badge: "Mais escolhido",
-      note: earlyBirdNote,
+      yearly: 18.9,
+      cta: "Começar 30 dias grátis",
+      ctaStyle: "primary",
+      badge: "30 dias grátis",
       features: [
         "Crianças ilimitadas",
         "Calendário de guarda + trocas",
@@ -1281,22 +1269,6 @@ export function PricingSection({
         "Histórico ilimitado",
       ],
       highlight: true,
-    },
-    {
-      name: "Premium Jurídico",
-      desc: "Pra quem tem processo ativo",
-      monthly: 39.9,
-      yearly: 31.92,
-      cta: "Assinar Premium Jurídico",
-      ctaStyle: "ghost" as const,
-      features: [
-        "Tudo do Harmonia",
-        "Export legal em PDF com audit trail",
-        "Backup jurídico das conversas",
-        "Alertas inteligentes de receita",
-        "Suporte prioritário",
-      ],
-      highlight: false,
     },
   ];
 
@@ -1316,7 +1288,7 @@ export function PricingSection({
               {p === "monthly" ? "Mensal" : "Anual"}
               {p === "yearly" ? (
                 <span className="ml-2 text-[10.5px] font-bold text-[var(--proto-teal)] bg-[var(--proto-teal)]/12 px-1.5 py-0.5 rounded">
-                  até −20%
+                  −5%
                 </span>
               ) : null}
             </button>
@@ -1332,7 +1304,7 @@ export function PricingSection({
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-3 gap-4">
+      <div className="grid max-w-sm mx-auto gap-4">
         {plans.map((p) => {
           const price = period === "monthly" ? p.monthly : p.yearly;
           const priceStr =
@@ -1450,12 +1422,12 @@ const FAQ_ITEMS = [
     a: "Não. Só os responsáveis legais (pai, mãe ou tutor com guarda) assinam. Avós, babás, mediadores e advogados entram de graça como convidados, com acesso completo ao plano da família.",
   },
   {
-    q: "Quanto custa? E o que é o Early Bird?",
-    a: "Tem um plano gratuito pra começar. O Harmonia, com tudo liberado, é R$ 19,90/mês pela família inteira. As primeiras 1.000 famílias garantem o Early Bird: R$ 14,90/mês para sempre — uma vez assinado, o preço nunca muda. Pra quem tem processo ativo, o Premium Jurídico é R$ 39,90/mês.",
+    q: "Quanto custa?",
+    a: "O Harmonia, com tudo liberado pela família inteira, é R$ 19,90/mês — ou R$ 226,80/ano (5% off). Você começa com 30 dias grátis, sem cadastrar cartão.",
   },
   {
     q: "Tem teste grátis?",
-    a: "Tem. Ao criar a conta, você ganha 7 dias do Premium Jurídico — o plano mais completo — sem pagar e sem cadastrar cartão. No fim, você escolhe um plano ou fica no Grátis (com limites). Ninguém é cobrado sem avisar.",
+    a: "Tem. Ao criar a conta, você ganha 30 dias grátis do Harmonia completo, sem pagar e sem cadastrar cartão. No fim do período, é só assinar pra continuar usando. Ninguém é cobrado sem avisar.",
   },
   {
     q: "Dá pra dividir o custo com o coparente?",

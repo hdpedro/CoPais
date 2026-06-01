@@ -10,6 +10,8 @@ import { I18nProvider } from "@/i18n/provider";
 import { getRequestLocale } from "@/i18n/server";
 import { SubscriptionProvider } from "@/components/SubscriptionProvider";
 import { getUserSubscription } from "@/lib/subscription";
+import { getGroupAccessState } from "@/lib/billing";
+import PaywallScreen from "@/components/billing/PaywallScreen";
 import { getCachedProfileByUser } from "@/lib/cached-queries";
 import { getDisplayName } from "@/lib/constants";
 
@@ -58,6 +60,24 @@ export default async function AppLayout({
       }))
     : [];
   const activeGroupId = activeGroup?.groupId || "";
+
+  // Hard paywall (single-plan model, jun/2026). Only the enforced cohort
+  // (new groups, migration 00105) can be locked; grandfathered groups and
+  // users still mid-onboarding (no group) always pass. When locked, replace
+  // the entire app shell with the Harmonia paywall — no navigation while
+  // locked. /pricing and /suporte stay reachable (public, outside this layout).
+  const access = await getGroupAccessState(supabase, activeGroupId || null);
+  if (access.locked) {
+    return (
+      <Suspense fallback={null}>
+        <I18nProvider initialLocale={locale}>
+          <PostHogProvider userId={user.id} userEmail={user.email}>
+            <PaywallScreen groupId={activeGroupId} viewerName={fullName} />
+          </PostHogProvider>
+        </I18nProvider>
+      </Suspense>
+    );
+  }
 
   return (
     <Suspense fallback={null}>

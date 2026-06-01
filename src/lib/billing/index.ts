@@ -31,6 +31,9 @@ export type { EarlyBirdStatus } from "./early-bird";
 
 export { canAccessFeature, isPremiumFeature } from "./feature-gate";
 
+export { getGroupAccessState } from "./access";
+export type { GroupAccessState } from "./access";
+
 export { grantTrialIfEligible, TRIAL_PLAN_ID, TRIAL_DURATION_DAYS } from "./trial";
 
 export {

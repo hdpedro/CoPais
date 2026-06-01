@@ -13,17 +13,17 @@
  * banner, landing copy). They MUST be kept in sync — flipping only one
  * causes user-visible inconsistency.
  *
- * Default trial durations when flag is off:
- *   - In-app trial (Premium Jurídico)        : 7 days
- *   - Stripe checkout (first sub)            : 14 days
- *   - Apple Introductory Offer               : not set
+ * Single-plan model (jun/2026) trial durations — promo flag stays OFF:
+ *   - In-app trial (Harmonia)                : 30 days
+ *   - Stripe checkout (first sub)            : 30 days
+ *   - Apple/Google Introductory Offer        : 30 days (configured in stores)
  */
 
-/** In-app trial when the promo is OFF. */
-export const TRIAL_DURATION_DAYS_DEFAULT = 7;
+/** In-app trial (Harmonia) when the promo is OFF — the canonical value. */
+export const TRIAL_DURATION_DAYS_DEFAULT = 30;
 
 /** Stripe checkout trial when the promo is OFF (first sub only). */
-export const STRIPE_TRIAL_DAYS_DEFAULT = 14;
+export const STRIPE_TRIAL_DAYS_DEFAULT = 30;
 
 /** Trial duration during the promo, in days, on both flows. */
 export const PROMO_TRIAL_DAYS = 60;
@@ -51,7 +51,7 @@ export function isPromoActivePublic(): boolean {
   return process.env.NEXT_PUBLIC_PROMO_2M_FREE === "true";
 }
 
-/** Trial days in-app (Premium Jurídico): 60 if promo, else 7. */
+/** Trial days in-app (Harmonia): 60 if promo on, else 30 (canonical). */
 export function trialDaysInApp(): number {
   return isPromoActiveServer() ? PROMO_TRIAL_DAYS : TRIAL_DURATION_DAYS_DEFAULT;
 }

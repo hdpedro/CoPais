@@ -85,9 +85,12 @@ SUPABASE_SERVICE_ROLE_KEY=<service-role>
 STRIPE_PIX_COUPON_ID=                   # preencher após §5.2
 NEXT_PUBLIC_PIX_ENABLED=false           # mudar para true após §5.1 liberar PIX Automatico
 
-# Promo "2 meses grátis" (lançamento — desligar quando saturar):
-PROMO_2M_FREE=true                      # estende trial in-app + Stripe checkout pra 60d
-NEXT_PUBLIC_PROMO_2M_FREE=true          # exibe banner "🎁 2 meses grátis" no UI
+# Promo "2 meses grátis" (60d) — RETIRADA pra novos cadastros (jun/2026, §11).
+# Setar AMBAS pra false NO MESMO DEPLOY do modelo de plano único — senão, com o
+# código antigo ainda em prod + flag false, novos cairiam pra 7d em vez de 30d.
+# Quem JÁ tem os 60 dias mantém (trial_end já está gravado por assinatura).
+PROMO_2M_FREE=false                     # com o novo código: trial in-app/Stripe = 30d
+NEXT_PUBLIC_PROMO_2M_FREE=false         # esconde o banner "2 meses grátis"
 ```
 
 **Onde cada uma é lida**:
@@ -812,3 +815,61 @@ A submissão de IAPs via `subscriptionSubmissions` retorna `FIRST_SUBSCRIPTION_M
 | `asc-diagnose-testers.mjs` | Diagnóstico: por que tester X não recebe build Y |
 
 Todos idempotentes — re-rodar é seguro.
+
+---
+
+## 16. Reprecificação jun/2026 — Plano único Harmonia + paywall 30d
+
+Implementado em código (PR `feat/harmonia-single-plan-paywall`). Só **Harmonia** visível
+(**R$19,90/mês + anual R$226,80**, 5% off), **trial 30d**, e **bloqueio total** pós-trial pra
+**NOVOS** cadastros (coorte `coparenting_groups.paywall_enforced`). Existentes = grandfathered.
+
+### Ordem de deploy (TUDO junto — não aplicar parcial em prod, senão regride o site no ar)
+
+1. **Stripe** (conta `acct_1TIgIBPn762kMKC9`): no produto **Harmonia Anual**, crie um **novo Price
+   R$ 226,80/ano** (BRL, recurring yearly). Prices são imutáveis — o antigo
+   `price_1TRgfPPn762kMKC9bJ3W0XLj` (R$199,90) fica pros assinantes atuais. Anote o novo `price_id`.
+   O **mensal NÃO muda** (`price_1TRgfNPn762kMKC9YhOEWtA0` já é R$19,90).
+
+2. **Supabase** (`jquaysfeeuwvoydsgssi`): aplique na ordem `00105` → `00106`
+   (`npx supabase db push` ou SQL Editor). Depois aponte o anual pro novo price:
+   ```sql
+   UPDATE public.plans SET stripe_price_id = '<novo price_id R$226,80>' WHERE id = 'harmonia_annual';
+   ```
+   Validação:
+   ```sql
+   SELECT id, price_brl, is_active FROM plans
+   WHERE id IN ('harmonia_monthly','harmonia_annual','harmonia_earlybird_monthly','premium_juridico_monthly');
+   -- harmonia_* active=true (1990 / 22680); earlybird + juridico active=false
+   SELECT bool_and(paywall_enforced = false) FROM coparenting_groups;  -- t (existentes grandfathered)
+   ```
+
+3. **App Store Connect** (`com.kindar.harmonia.annual`, id `6764693944`): preço anual ≈R$226,80 +
+   **Introductory Offer 30 dias grátis** (`node scripts/asc-iap-intro-offer.mjs`). ATENÇÃO: subir o
+   anual (~R$199,90 → R$226,80) é AUMENTO → Apple dispara consentimento pros anuais atuais. Mensal
+   não muda. NÃO remover Early Bird/Jurídico (grandfathered).
+
+4. **Google Play Console** (`com.kindar.harmonia.annual`): mesmo ajuste de preço anual + free trial 30d.
+
+5. **RevenueCat** (offering `ofrng956af1b391` / `default`): já tem só `$rc_monthly` + `$rc_annual`
+   (Harmonia). Confirmar que não há package de Early Bird/Jurídico no offering current — nada a mudar.
+
+6. **Vercel** (projeto `kindar`): flipe AMBOS no MESMO deploy do código novo:
+   ```bash
+   vercel env rm PROMO_2M_FREE production -y && printf 'false' | vercel env add PROMO_2M_FREE production
+   vercel env rm NEXT_PUBLIC_PROMO_2M_FREE production -y && printf 'false' | vercel env add NEXT_PUBLIC_PROMO_2M_FREE production
+   ```
+   (Se flipar ANTES do código novo: novos cadastros caem pra 7d em vez de 30d na janela.)
+
+7. **Deploy**: PWA = merge do PR → Vercel prod. Nativo = EAS build + submit (§13.4) — o `BillingGate`
+   precisa do bundle novo (filtro de produtos é OTA-safe, mas o gate não).
+
+### Rollback
+`UPDATE plans SET is_active=true ...` + reverter `harmonia_annual` (price_brl/stripe_price_id) +
+`ALTER TABLE coparenting_groups DROP COLUMN paywall_enforced`; Vercel envs de volta pra `true`.
+Os prices/produtos antigos continuam existindo — é só reapontar.
+
+### Por que não foi aplicado autonomamente
+Stripe/Apple/Google/RevenueCat mutam cobrança ao vivo (chaves de produção + consentimento de
+aumento no anual) e a aplicação em prod tem que ser sincronizada com o deploy do código. Código,
+commit, PR (com preview automático), 1380 testes verde e este runbook estão prontos.

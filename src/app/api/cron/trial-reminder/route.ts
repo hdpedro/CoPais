@@ -9,19 +9,19 @@ import { getUsersLocale } from "@/lib/locale-utils";
 import type { Locale } from "@/i18n";
 
 /**
- * Runs daily at ~14:00 BRT. Sends:
- *   - Email on day 5 ("2 days left")
- *   - Push notification on day 6 ("trial acaba amanhã")
+ * Runs daily. Sends reminders relative to trial_end (works for any trial
+ * length — now a 30-day Harmonia trial):
+ *   - Email ~2 days before expiry ("faltam 2 dias")
+ *   - Push notification ~1 day before expiry ("acaba amanhã")
  *
- * We compute the day relative to trial_end so a user created at
- * different hours still gets a single reminder per channel. The query
- * buckets trial_end by the number of days from now (2 for email,
- * 1 for push) with a 24h window.
+ * We bucket trial_end by days-from-now (2 for email, 1 for push) with a
+ * 24h window so a user created at any hour still gets a single reminder
+ * per channel.
  *
  * Defensive: we don't dedupe via state on the subscription row (no
  * "last_reminder_sent_at" column), we rely on the 24h windows being
  * non-overlapping. If the cron is paused then restarted, users could
- * in theory get a double reminder — acceptable risk for a 7-day flow.
+ * in theory get a double reminder — acceptable risk for this flow.
  */
 export async function GET(request: NextRequest) {
   const authHeader = request.headers.get("authorization");

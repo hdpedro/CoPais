@@ -49,6 +49,11 @@ export interface BillingStatus {
   autoSplitCoUserId?: string | null;
   /** Co-user's percentage share (1–99) of the bill. */
   autoSplitCoShare?: number | null;
+  /** Hard paywall (single-plan model): true → block the whole app and show
+   *  the Harmonia paywall. Only the enforced cohort (new groups) is ever locked. */
+  locked?: boolean;
+  /** Whether this group is in the enforced (hard-paywall) cohort. */
+  paywallEnforced?: boolean;
 }
 
 export const FREE_BILLING: BillingStatus = {
@@ -66,6 +71,8 @@ export const FREE_BILLING: BillingStatus = {
   payerUserId: null,
   canPay: false,
   earlyBird: [],
+  locked: false,
+  paywallEnforced: false,
 };
 
 export async function getBillingStatus(
