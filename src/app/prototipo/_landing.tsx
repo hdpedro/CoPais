@@ -795,7 +795,7 @@ export default function KindarLandingV2() {
                 <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--proto-terra)] mb-4">Planos</p>
                 <h2 className="text-[30px] sm:text-[60px] leading-[0.98] tracking-[-0.025em] font-bold">
                   Comece grátis.{" "}
-                  <span className="proto-serif text-[var(--proto-mute-2)]">Pague quando o valor for óbvio.</span>
+                  <span className="proto-serif text-[var(--proto-mute-2)]">Tudo liberado por 30 dias.</span>
                 </h2>
                 <p className="mt-6 text-[16px] text-[var(--proto-mute)]">
                   Só os responsáveis legais pagam. Avós, babá, advogado e mediador
@@ -810,11 +810,11 @@ export default function KindarLandingV2() {
             </Reveal>
             <Reveal delay={220}>
               <p className="mt-10 text-center text-[12.5px] text-[var(--proto-mute-2)]">
-                7 dias de Premium Jurídico no cadastro · Sem cartão · Cancele quando quiser
+                30 dias com tudo liberado · Sem cartão · Cancele quando quiser
               </p>
               <p className="mt-3 text-center">
                 <Link href="/pricing" className="text-[13px] font-semibold text-[var(--proto-terra)] hover:underline">
-                  Comparar os planos em detalhe →
+                  Ver o plano em detalhe →
                 </Link>
               </p>
             </Reveal>
