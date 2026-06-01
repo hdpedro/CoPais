@@ -26,6 +26,8 @@ import QuickActionsModal from 'src/components/QuickActionsModal';
 import ChildAvatar from 'src/components/ui/ChildAvatar';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { track, EVENTS } from 'src/lib/analytics';
+import { getBillingStatus } from 'src/services/billing';
+import TrialBanner from 'src/components/billing/TrialBanner';
 
 // i18n keys for greetings — same keys the PWA uses
 // (`dashboard.goodMorning` / `goodAfternoon` / `goodEvening`).
@@ -77,6 +79,26 @@ export default function DashboardScreen() {
   const { data, loading, refresh } = useDashboard();
   const t = useI18n(s => s.t);
   const toast = useToast();
+  // Degustação — paridade com o banner do dashboard PWA. getBillingStatus
+  // NUNCA lança (retorna FREE_BILLING em erro) e tem cache 60s, então é seguro
+  // no mount da home. Só seta um número quando o grupo está em trial ativo;
+  // o banner só renderiza nesse caso (zero efeito pra quem não está em trial).
+  const [trialDays, setTrialDays] = useState<number | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    getBillingStatus(activeGroup?.groupId)
+      .then((b) => {
+        if (!cancelled) {
+          setTrialDays(
+            b.isTrial && b.trialDaysRemaining >= 0 ? b.trialDaysRemaining : null,
+          );
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activeGroup?.groupId]);
   const [refreshing, setRefreshing] = useState(false);
   const [showQAModal, setShowQAModal] = useState(false);
   const [reportModal, setReportModal] = useState<{
@@ -232,6 +254,9 @@ export default function DashboardScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={colors.brand} />}
         showsVerticalScrollIndicator={false}
       >
+        {/* === DEGUSTAÇÃO (paridade com TrialBanner do dashboard PWA) === */}
+        {trialDays !== null && <TrialBanner daysRemaining={trialDays} />}
+
         {/* === HEADER === */}
         <Animated.View entering={FadeInDown.delay(0).duration(400)}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: spacing.lg }}>
