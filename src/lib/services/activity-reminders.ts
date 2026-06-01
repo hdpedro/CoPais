@@ -108,6 +108,54 @@ export function categoryDefaultLead(category: string | null | undefined): number
 }
 
 /**
+ * Tom adaptativo por janela temporal — fix UX 2026-06-01.
+ *
+ * Bug feedback (Henrique, push T-24h às 18:31 seg pro Jiu Jitsu ter 18:30):
+ *   "Em breve: Jiu Jitsu" soa como SE FOSSE AGORA. User não percebe que é
+ *   amanhã. Texto deveria refletir tempo restante: "Amanhã" (>12h), "Em
+ *   breve" (1-12h), "Quase lá" (<1h).
+ *
+ * Antes (v1): 3 estados fixos
+ *   - SENTINEL_MORNING_OF (-1) → titleMorning
+ *   - SENTINEL_EVENING_BEFORE (-2) → titleEvening
+ *   - qualquer outro >0 → title (genérico "Em breve")
+ *
+ * Agora (v2): 4 buckets por janela temporal real
+ *   - tomorrow: lead > 720min (>12h) OR sentinel -2 (véspera)
+ *               → "🎒 Amanhã: …"           verbo "Prepara"
+ *   - today: sentinel -1 (manhã do dia)
+ *               → "☀️ Hoje: …"             verbo "Leva"
+ *   - soon: 60-720min (1h-12h) — intra-day
+ *               → "⏰ Em breve: …"          verbo "Separa"
+ *   - almostThere: <60min — imanente
+ *               → "🏃 Quase lá: …"         verbo "Já está com"
+ *
+ * Backwards-compat: sentinels -1/-2 ainda funcionam (mapeiam aos buckets
+ * today/tomorrow). Activities com lead=1440 (T-24h) que antes caíam no
+ * "Em breve" agora ficam no "Amanhã" — fix do bug original.
+ *
+ * Exportado pra testes.
+ */
+export type ReminderTone = "tomorrow" | "today" | "soon" | "almostThere";
+
+export function selectReminderTone(leadMinutes: number): ReminderTone {
+  // Sentinel véspera (-2) ou lead > 12h = "amanhã"
+  if (leadMinutes === SENTINEL_EVENING_BEFORE || leadMinutes > 720) {
+    return "tomorrow";
+  }
+  // Sentinel manhã do dia (-1) = "hoje"
+  if (leadMinutes === SENTINEL_MORNING_OF) {
+    return "today";
+  }
+  // <1h = "quase lá"
+  if (leadMinutes < 60) {
+    return "almostThere";
+  }
+  // 1-12h = "em breve"
+  return "soon";
+}
+
+/**
  * Brasília fixed offset (BR não tem DST desde 2019).
  * Suficiente pra v1; pós-MVP child_activities.timezone TEXT.
  */
@@ -434,29 +482,48 @@ export async function runActivityDueReminders(now: Date = new Date()): Promise<S
     const timeShort = occ.time_start ? occ.time_start.slice(0, 5) : "";
     const checklistPreview = formatChecklistPreview(occ.checklist);
 
-    // Copy contextual: lead sentinel determina o tom do título.
-    //   -1 = "Hoje", -2 = "Amanhã", >0 = "Falta pouco"
-    const titleKey =
-      occ.leadMinutes === SENTINEL_MORNING_OF
-        ? "reminders.activity.titleMorning"
-        : occ.leadMinutes === SENTINEL_EVENING_BEFORE
-          ? "reminders.activity.titleEvening"
-          : "reminders.activity.title";
+    // Copy adaptativa por janela temporal (v2 — 2026-06-01):
+    //   tomorrow (>12h ou sentinel -2) → "🎒 Amanhã"      verbo "Prepara"
+    //   today    (sentinel -1)         → "☀️ Hoje"        verbo "Leva"
+    //   soon     (1h-12h)              → "⏰ Em breve"    verbo "Separa"
+    //   almostThere (<1h)              → "🏃 Quase lá"   verbo "Já está com"
+    //
+    // Fix UX: T-24h (lead=1440) antes caía no "Em breve" genérico, soava
+    // como agora. Agora vai pro bucket "Amanhã" com verbo "Prepara".
+    const tone = selectReminderTone(occ.leadMinutes);
+    const titleKey = `reminders.activity.titleV2.${tone}`;
+    const itemsLabelKey = `reminders.activity.itemsLabelV2.${tone}`;
 
     const titleVars: Record<string, string | number> = {
       activityName: occ.activity_name,
       childName: childFirst || occ.activity_name,
     };
-    const title = t ? t(titleKey, titleVars) : `${occ.activity_name} — ${childFirst}`;
+    // Fallbacks pt-BR caso t() não exista (cron fora de contexto i18n).
+    const titleFallback = ({
+      tomorrow: `🎒 Amanhã: ${occ.activity_name}`,
+      today: `☀️ Hoje: ${occ.activity_name}`,
+      soon: `⏰ Em breve: ${occ.activity_name}`,
+      almostThere: `🏃 Quase lá: ${occ.activity_name}`,
+    } as Record<ReminderTone, string>)[tone];
+    const title = t ? t(titleKey, titleVars) : titleFallback;
 
-    // Body montado concatenando pedaços traduzidos. Separador " · " é
-    // universal (mesmo em DE/FR/EN/ES). Pieces opcionais entram só quando
-    // existem — evita "  · " vazio.
-    const itemsLabel = t ? t("reminders.activity.itemsLabel") : "Levar:";
+    // Body: pieces concatenados por " · ". Verbo adaptado ao tom.
+    const itemsLabelFallback = ({
+      tomorrow: "Prepara",
+      today: "Leva",
+      soon: "Separa",
+      almostThere: "Já está com",
+    } as Record<ReminderTone, string>)[tone];
+    const itemsLabel = t ? t(itemsLabelKey) : itemsLabelFallback;
+
     const pieces: string[] = [];
     if (timeShort) pieces.push(timeShort);
     if (occ.location) pieces.push(occ.location);
-    if (checklistPreview) pieces.push(`${itemsLabel} ${checklistPreview}`);
+    if (checklistPreview) {
+      // Pra "almostThere" usamos "?" no final: "Já está com Kimono, Chinelo?"
+      const sep = tone === "almostThere" ? "?" : "";
+      pieces.push(`${itemsLabel} ${checklistPreview}${sep}`);
+    }
     const body = pieces.join(" · ");
 
     // Deep link inteligente: param `date` (não `occurrence`) bate com

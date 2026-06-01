@@ -2722,7 +2722,19 @@
       "title": "Demnächst: {activityName}",
       "titleMorning": "Heute: {activityName}",
       "titleEvening": "Morgen: {activityName}",
-      "itemsLabel": "Mitbringen"
+      "itemsLabel": "Mitbringen",
+      "titleV2": {
+        "tomorrow": "🎒 Morgen: {activityName}",
+        "today": "☀️ Heute: {activityName}",
+        "soon": "⏰ Bald: {activityName}",
+        "almostThere": "🏃 Fast da: {activityName}"
+      },
+      "itemsLabelV2": {
+        "tomorrow": "Pack ein",
+        "today": "Nimm mit",
+        "soon": "Leg bereit",
+        "almostThere": "Hast du"
+      }
     },
     "digest": {
       "title": "Dein Plan für morgen",

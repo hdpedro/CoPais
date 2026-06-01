@@ -2722,7 +2722,19 @@
       "title": "Coming up: {activityName}",
       "titleMorning": "Today: {activityName}",
       "titleEvening": "Tomorrow: {activityName}",
-      "itemsLabel": "Bring"
+      "itemsLabel": "Bring",
+      "titleV2": {
+        "tomorrow": "🎒 Tomorrow: {activityName}",
+        "today": "☀️ Today: {activityName}",
+        "soon": "⏰ Coming up: {activityName}",
+        "almostThere": "🏃 Almost there: {activityName}"
+      },
+      "itemsLabelV2": {
+        "tomorrow": "Pack",
+        "today": "Bring",
+        "soon": "Set aside",
+        "almostThere": "Got"
+      }
     },
     "digest": {
       "title": "Tomorrow's agenda",

@@ -18,7 +18,7 @@ import { describe, expect, test, vi } from "vitest";
 // "server-only" que faria throw em ambiente node test puro.
 vi.mock("server-only", () => ({}));
 
-const { categoryDefaultLead } = await import("../../src/lib/services/activity-reminders");
+const { categoryDefaultLead, selectReminderTone } = await import("../../src/lib/services/activity-reminders");
 
 describe("categoryDefaultLead — smart defaults por categoria", () => {
   describe("saúde (véspera 20h BRT pra prep documento/jejum)", () => {
@@ -114,6 +114,56 @@ describe("categoryDefaultLead — smart defaults por categoria", () => {
     });
     test("SCHOOL → 30", () => {
       expect(categoryDefaultLead("SCHOOL")).toBe(30);
+    });
+  });
+});
+
+describe("selectReminderTone — copy adaptativa por janela temporal", () => {
+  describe("tomorrow (>12h ou sentinel -2)", () => {
+    test("T-24h (1440) → tomorrow (fix bug Henrique 2026-06-01)", () => {
+      expect(selectReminderTone(1440)).toBe("tomorrow");
+    });
+    test("T-13h (780) → tomorrow", () => {
+      expect(selectReminderTone(780)).toBe("tomorrow");
+    });
+    test("T-7d (10080) → tomorrow", () => {
+      expect(selectReminderTone(10080)).toBe("tomorrow");
+    });
+    test("sentinel véspera (-2) → tomorrow", () => {
+      expect(selectReminderTone(-2)).toBe("tomorrow");
+    });
+  });
+
+  describe("today (sentinel manhã do dia -1)", () => {
+    test("sentinel -1 → today", () => {
+      expect(selectReminderTone(-1)).toBe("today");
+    });
+  });
+
+  describe("soon (60-720min)", () => {
+    test("T-1h (60) → soon", () => {
+      expect(selectReminderTone(60)).toBe("soon");
+    });
+    test("T-2h (120) → soon", () => {
+      expect(selectReminderTone(120)).toBe("soon");
+    });
+    test("T-3h (180, smart default class) → soon", () => {
+      expect(selectReminderTone(180)).toBe("soon");
+    });
+    test("T-12h (720) → soon (boundary)", () => {
+      expect(selectReminderTone(720)).toBe("soon");
+    });
+  });
+
+  describe("almostThere (<60min)", () => {
+    test("T-15min → almostThere", () => {
+      expect(selectReminderTone(15)).toBe("almostThere");
+    });
+    test("T-30min (smart default school) → almostThere", () => {
+      expect(selectReminderTone(30)).toBe("almostThere");
+    });
+    test("T-59min → almostThere (boundary)", () => {
+      expect(selectReminderTone(59)).toBe("almostThere");
     });
   });
 });

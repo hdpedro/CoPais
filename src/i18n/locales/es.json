@@ -2722,7 +2722,19 @@
       "title": "Pronto: {activityName}",
       "titleMorning": "Hoy: {activityName}",
       "titleEvening": "Mañana: {activityName}",
-      "itemsLabel": "Llevar"
+      "itemsLabel": "Llevar",
+      "titleV2": {
+        "tomorrow": "🎒 Mañana: {activityName}",
+        "today": "☀️ Hoy: {activityName}",
+        "soon": "⏰ Próximamente: {activityName}",
+        "almostThere": "🏃 Ya casi: {activityName}"
+      },
+      "itemsLabelV2": {
+        "tomorrow": "Prepara",
+        "today": "Lleva",
+        "soon": "Separa",
+        "almostThere": "Ya tienes"
+      }
     },
     "digest": {
       "title": "Tu agenda de mañana",
