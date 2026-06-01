@@ -91,6 +91,7 @@ export function MobileNav() {
   const ref = useRef<HTMLDivElement>(null);
   const links: [string, string][] = [
     ["#produto", "Produto"],
+    ["#saude", "Saúde"],
     ["#demo", "Como funciona"],
     ["#whatsapp", "WhatsApp"],
     ["#comparativo", "Comparar"],
@@ -1608,7 +1609,7 @@ const DEMO_STEPS = [
   { label: "Notificação voa pra Amanda" },
   { label: "Amanda recebe e revisa" },
   { label: "Amanda aprova num toque" },
-  { label: "Fecha nos dois lares · split 50/50" },
+  { label: "Fecha pros dois · split 50/50" },
 ];
 
 export function DemoFlow() {
@@ -1737,7 +1738,7 @@ export function DemoFlow() {
             {step === 4 ? <Confetti /> : null}
             <span className="relative inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wide text-white shadow-lg" style={{ background: "linear-gradient(90deg,var(--proto-terra),var(--proto-teal))" }}>
               <span className="w-1.5 h-1.5 rounded-full bg-white proto-pulse" />
-              Combinado fechado · registrado nos dois lares
+              Combinado fechado · registrado pros dois
             </span>
           </div>
         </div>

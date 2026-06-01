@@ -5,7 +5,7 @@ import KindarLandingV2 from "./_landing";
 // (KindarLandingV2), mantido aqui com `noindex` pra QA/preview sem afetar o
 // SEO da home. O wrapper de tema/fontes vem de ./layout.tsx.
 export const metadata: Metadata = {
-  title: "Kindar — Dois lares, uma rotina (preview)",
+  title: "Kindar — a rotina das crianças num lugar só (preview)",
   robots: { index: false, follow: false },
 };
 

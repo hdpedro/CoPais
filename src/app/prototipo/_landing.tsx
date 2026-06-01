@@ -40,6 +40,7 @@ export default function KindarLandingV2({
 
           <div className="hidden md:flex items-center gap-1 text-[13px] font-medium text-[var(--proto-mute)]">
             <a href="#produto" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">Produto</a>
+            <a href="#saude" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">Saúde</a>
             <a href="#demo" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">Como funciona</a>
             <a href="#whatsapp" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">WhatsApp</a>
             <a href="#comparativo" className="px-3 py-1.5 rounded-lg hover:text-[var(--proto-ink)] hover:bg-[var(--proto-soft)] transition-colors">Comparar</a>
@@ -98,9 +99,8 @@ export default function KindarLandingV2({
 
             <Reveal delay={80}>
               <h1 className="mt-7 text-[38px] sm:text-[76px] leading-[0.98] sm:leading-[0.95] tracking-[-0.035em] font-bold">
-                Dois lares.
+                A rotina das crianças,
                 <br />
-                Uma só rotina,{" "}
                 <span className="relative inline-block">
                   <span className="proto-serif proto-flow text-transparent bg-clip-text bg-gradient-to-br from-[var(--proto-terra)] to-[var(--proto-teal)]">
                     viva
@@ -114,17 +114,16 @@ export default function KindarLandingV2({
                       </linearGradient>
                     </defs>
                   </svg>
-                </span>
-                <br />
-                no mesmo lugar.
+                </span>{" "}
+                num lugar só.
               </h1>
             </Reveal>
 
             <Reveal delay={180}>
               <p className="mt-7 text-[17px] sm:text-[19px] leading-relaxed text-[var(--proto-mute)] max-w-xl mx-auto">
                 Calendário, saúde, despesas e combinados — sincronizados entre
-                todos os responsáveis. Vivam na mesma casa ou em duas: a rotina
-                das crianças fica organizada, sem ruído e sem nada esquecido.
+                todos os responsáveis. Numa casa ou em duas, tudo fica
+                organizado, sem ruído e sem nada esquecido.
               </p>
             </Reveal>
 
@@ -280,7 +279,7 @@ export default function KindarLandingV2({
                 <h2 className="text-[30px] sm:text-[60px] leading-[0.98] tracking-[-0.025em] font-bold">
                   Da despesa lançada ao{" "}
                   <span className="proto-serif text-[var(--proto-mute-2)]">&ldquo;fechado&rdquo;</span>{" "}
-                  nos dois lares.
+                  pros dois lados.
                 </h2>
                 <p className="mt-6 text-[17px] text-[var(--proto-mute)] leading-relaxed max-w-xl">
                   Sem print, sem cobrança constrangedora, sem &ldquo;você viu minha
@@ -378,6 +377,107 @@ export default function KindarLandingV2({
                 </div>
               </div>
             </Reveal>
+          </div>
+        </section>
+
+        {/* ════════════════════════════════ SAÚDE PREVENTIVA ════════════════════════════════ */}
+        <section id="saude" className="py-24 sm:py-32 px-5 sm:px-8">
+          <div className="max-w-6xl mx-auto">
+            <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+              {/* Copy */}
+              <Reveal>
+                <div>
+                  <p className="inline-flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--proto-teal)] mb-5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-[var(--proto-teal)] proto-pulse" />
+                    Saúde preventiva
+                  </p>
+                  <h2 className="text-[30px] sm:text-[56px] leading-[1.0] tracking-[-0.025em] font-bold">
+                    A saúde da criança,{" "}
+                    <span className="proto-serif text-[var(--proto-mute-2)]">sem susto.</span>
+                  </h2>
+                  <p className="mt-6 text-[17px] text-[var(--proto-mute)] leading-relaxed max-w-xl">
+                    Um motor de vacinas PNI/SBIm 2026 que avisa suave — 30, 7 e 1
+                    dia antes de cada dose. Carteirinha digital, medicamentos,
+                    consultas, alergias e até{" "}
+                    <strong className="text-[var(--proto-ink)] font-semibold">OCR de receita médica</strong>.
+                    Sem pânico, sem vermelho: só o que importa, na hora certa.
+                  </p>
+
+                  <ul className="mt-8 space-y-3.5">
+                    {[
+                      "Carteirinha de vacina sempre em dia (PNI + SBIm 2026)",
+                      "Avisos calmos: 30, 7 e 1 dia antes — nunca “atrasado”",
+                      "Medicamentos, doses, consultas e alergias num lugar só",
+                      "OCR de receita: fotografou, virou registro",
+                    ].map((f) => (
+                      <li key={f} className="flex items-start gap-3 text-[15px] text-[var(--proto-ink)]/85">
+                        <span className="shrink-0 mt-0.5 grid place-items-center w-5 h-5 rounded-full bg-[var(--proto-teal)]/12 text-[var(--proto-teal)]">
+                          <svg width="11" height="11" viewBox="0 0 24 24" fill="none">
+                            <path d="M5 13l4 4L19 7" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                          </svg>
+                        </span>
+                        {f}
+                      </li>
+                    ))}
+                  </ul>
+
+                  <p className="mt-8 text-[12.5px] text-[var(--proto-mute-2)] leading-relaxed max-w-md">
+                    O Kindar não é assistente médico — não diagnostica nem prescreve.
+                    Ele organiza, lembra e guarda o histórico pra você conversar
+                    melhor com o pediatra.
+                  </p>
+                </div>
+              </Reveal>
+
+              {/* Carteirinha mock */}
+              <Reveal delay={140}>
+                <div className="proto-lightscope relative">
+                  <div aria-hidden className="absolute -inset-4 -z-10 rounded-[2.5rem] bg-[var(--proto-teal)]/10 blur-3xl" />
+                  <div className="rounded-3xl border border-[var(--proto-line)] bg-[var(--proto-bg)] overflow-hidden shadow-[0_30px_70px_-30px_rgba(14,12,10,0.25)]">
+                    <div className="px-6 pt-6 pb-4 flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <span className="w-9 h-9 rounded-full bg-[var(--proto-terra)] text-white grid place-items-center text-[13px] font-bold">K</span>
+                        <div>
+                          <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--proto-mute-2)]">Carteirinha · Manu, 8 anos</p>
+                          <p className="text-[12px] font-semibold text-[var(--proto-ink)]">Saúde preventiva</p>
+                        </div>
+                      </div>
+                      <span className="inline-flex items-center gap-1.5 text-[9.5px] font-bold tracking-wider text-[var(--proto-teal)]">
+                        <span className="w-1 h-1 rounded-full bg-[var(--proto-teal)] proto-pulse" />
+                        SINCRONIZADO
+                      </span>
+                    </div>
+                    <div className="px-6">
+                      <p className="proto-serif text-[26px] sm:text-[30px] text-[var(--proto-ink)] leading-tight">Em dia · 96% de cobertura</p>
+                      <div className="mt-3 h-2 rounded-full bg-[var(--proto-line)] overflow-hidden">
+                        <div className="h-full rounded-full" style={{ width: "96%", background: "linear-gradient(90deg, var(--proto-teal), var(--proto-terra))" }} />
+                      </div>
+                    </div>
+                    <div className="mt-5 px-6 pb-6 space-y-2.5">
+                      {[
+                        { v: "HPV · 2ª dose", s: "Em 12 dias", up: true },
+                        { v: "Hepatite A · reforço", s: "Concluído · 12/04", up: false },
+                        { v: "Tríplice viral", s: "Concluído · 09/03", up: false },
+                        { v: "Febre amarela", s: "Concluído · 2024", up: false },
+                      ].map((d) => (
+                        <div key={d.v} className="flex items-center justify-between text-[13px]">
+                          <span className="flex items-center gap-2 text-[var(--proto-ink)]/85">
+                            <span className={`w-1.5 h-1.5 rounded-full ${d.up ? "bg-[var(--proto-terra)]" : "bg-[var(--proto-teal)]"}`} />
+                            {d.v}
+                          </span>
+                          <span className={d.up ? "font-semibold text-[var(--proto-terra)]" : "text-[var(--proto-mute-2)]"}>{d.s}</span>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="px-6 py-3.5 border-t border-[var(--proto-line)] bg-[var(--proto-card)]">
+                      <p className="text-[12px] text-[var(--proto-mute)]">
+                        💛 Sem urgência — a gente te lembra 30, 7 e 1 dia antes.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </Reveal>
+            </div>
           </div>
         </section>
 
@@ -771,12 +871,12 @@ export default function KindarLandingV2({
           <div className="relative max-w-4xl mx-auto text-center">
             <Reveal>
               <h2 className="text-[36px] sm:text-[80px] leading-[0.98] sm:leading-[0.95] tracking-[-0.03em] font-bold">
-                Dois lares.{" "}
-                <span className="proto-serif text-[var(--proto-mute-2)]">Uma rotina.</span>
+                Tudo da criança.{" "}
+                <span className="proto-serif text-[var(--proto-mute-2)]">Num lugar só.</span>
                 <br />
-                Um{" "}
+                Com{" "}
                 <span className="proto-serif proto-flow text-transparent bg-clip-text bg-gradient-to-br from-[var(--proto-terra)] to-[var(--proto-teal)]">
-                  só lugar.
+                  o Kindar.
                 </span>
               </h2>
             </Reveal>
@@ -827,8 +927,8 @@ export default function KindarLandingV2({
                 <span className="text-[18px] font-bold">Kindar</span>
               </div>
               <p className="mt-4 text-[14.5px] text-[var(--proto-mute)] leading-relaxed max-w-md">
-                Dois lares, uma rotina. O sistema operacional do co-cuidado,
-                pensado por quem vive a rotina das crianças.
+                O sistema operacional do co-cuidado, pensado por quem vive a
+                rotina das crianças — numa casa ou em duas.
               </p>
               <p className="mt-6 text-[12px] text-[var(--proto-mute-2)]">
                 Feito com cuidado para quem cuida.
@@ -975,7 +1075,7 @@ function ComparisonTable() {
     "Lembrete de vacina automático",
     "Escala de guarda e trocas com saldo",
     "Nada se perde no scroll",
-    "Feito pra co-cuidado entre dois lares",
+    "Feito pra quem divide o cuidado",
   ];
   // 0 = não, 1 = mais ou menos, 2 = sim
   const wa = [0, 1, 0, 0, 0, 0, 0];
