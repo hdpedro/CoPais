@@ -6,6 +6,7 @@ import {
   getPrimaryGroupId,
   trialDaysRemaining,
   canStartSubscription,
+  getGroupAccessState,
 } from "@/lib/billing";
 import { getEarlyBirdStatus } from "@/lib/billing/early-bird";
 
@@ -54,12 +55,16 @@ export async function GET(req: NextRequest) {
       trialEnd: null,
       canPay: false,
       earlyBird: await getEarlyBirdStatus(),
+      // No group → nothing to lock (onboarding still in progress).
+      locked: false,
+      paywallEnforced: false,
     });
   }
 
-  const [subscription, payerCheck] = await Promise.all([
+  const [subscription, payerCheck, accessState] = await Promise.all([
     getGroupSubscription(supabase, groupId),
     canStartSubscription(supabase, user.id, groupId),
+    getGroupAccessState(supabase, groupId),
   ]);
 
   // Pull auto-split fields directly from `subscriptions` — the
@@ -105,6 +110,11 @@ export async function GET(req: NextRequest) {
     autoSplit,
     autoSplitCoUserId,
     autoSplitCoShare,
+    // Hard paywall (jun/2026, single-plan model). `locked=true` → client
+    // must block the whole app and show the Harmonia paywall. Only the
+    // enforced cohort (new groups) can ever be locked.
+    locked: accessState.locked,
+    paywallEnforced: accessState.paywallEnforced,
   };
 
   const response = NextResponse.json(payload);

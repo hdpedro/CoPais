@@ -61,6 +61,7 @@ import { colors } from 'src/design-system/tokens';
 // AIFab removed 2026-05-05 — was overlapping buttons on other screens.
 import AIAssistantSheet from 'src/components/ai/AIAssistantSheet';
 import LockGate from 'src/components/LockGate';
+import BillingGate from 'src/components/BillingGate';
 import AnalyticsTree from 'src/components/AnalyticsTree';
 import { ToastProvider, useToast } from 'src/components/ui/ToastProvider';
 import OfflineBanner from 'src/components/ui/OfflineBanner';
@@ -357,6 +358,7 @@ export default function RootLayout() {
         <OtaUpdatedToastTrigger show={showOtaToast} onShown={() => setShowOtaToast(false)} />
         <AnalyticsTree>
         <LockGate>
+        <BillingGate>
         <View style={{ flex: 1, backgroundColor: colors.bg }}>
           <Stack screenOptions={{
             headerShown: false,
@@ -399,6 +401,7 @@ export default function RootLayout() {
               mostra durante o lock screen). */}
           <OfflineBanner />
         </View>
+        </BillingGate>
         </LockGate>
         </AnalyticsTree>
         </ToastProvider>

@@ -2138,8 +2138,8 @@
       "fallbackSender": "Alguien"
     },
     "trialReminder": {
-      "title": "Tu prueba Premium termina mañana",
-      "body": "Elige un plan para mantener la IA, la lectura de recetas y la agenda completa."
+      "title": "Tu período gratuito termina mañana",
+      "body": "Suscríbete a Harmonía para no perder el acceso a la rutina de la familia."
     },
     "renewalReminder": {
       "title": "Renovación de Kindar en {days} días",

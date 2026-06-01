@@ -5,6 +5,41 @@
 
 ---
 
+## ⚡ ATUALIZAÇÃO jun/2026 — Plano único + trial 30d com bloqueio
+
+A estratégia abaixo (4 planos, trial 7d, freemium permanente) foi **simplificada**.
+Modelo vigente para **novos cadastros** (coorte `coparenting_groups.paywall_enforced=true`,
+migration `00105`):
+
+- **Plano único visível: Harmonia.** Early Bird e Premium Jurídico ficam **ocultos** pra
+  novos compradores (linhas `is_active=false` em `plans`, migration `00106`). Assinantes
+  atuais desses planos seguem **grandfathered** (continuam renovando; produtos seguem nas lojas).
+- **Preço Harmonia: R$19,90/mês** (já vigente desde `00060`) **+ anual R$226,80 (5% off)**
+  — o anual subiu de R$199,90 → R$226,80 (menos desconto, a pedido).
+- **Harmonia (pago) libera o APP INTEIRO** — sem features travadas atrás de tier; o antigo
+  Premium Jurídico foi absorvido. `feature-gate` (`canAccessFeature`) e o legado (`canAccess`):
+  **qualquer tier pago/trial = todas as features**. Pagar = tudo. (free grandfathered segue limitado.)
+- **Trial: 30 dias com o APP INTEIRO liberado**, sem cartão (`trial.ts` concede o tier
+  topo `premium_juridico` = todas as features — "show the ceiling"; depois converte pra Harmonia).
+- **Fim do trial = BLOQUEIO TOTAL** do app até assinar (`src/lib/billing/access.ts:getGroupAccessState`
+  → `locked`; gate no PWA `(app)/layout.tsx` via `PaywallScreen` e no Native `BillingGate`).
+  Fonte de verdade: `/api/billing/status` agora retorna `locked`/`paywallEnforced`.
+- **Coorte antiga** (`paywall_enforced=false`): inalterada — freemium + gating por-feature de hoje.
+
+**Promo "2 meses grátis" (60 dias) retirado pra novos cadastros**: flag
+`PROMO_2M_FREE`/`NEXT_PUBLIC_PROMO_2M_FREE` → `false`. **Quem já está nos 60 dias mantém**
+(o `trial_end` já está gravado por assinatura; nada encurta). Com o flag off, novos trials
+são 30 dias, o banner some e o trial do Stripe cai pra 30d.
+
+**Passos manuais de loja/config** (ver `MANUAL_OPERACIONAL.md`): **Vercel: `PROMO_2M_FREE` e
+`NEXT_PUBLIC_PROMO_2M_FREE` = `false`**; Stripe novo Price anual R$226,80; Apple/Google subir
+o preço anual (consentimento de aumento) — mensal já está R$19,90; RevenueCat Offering só com
+Harmonia. O mensal NÃO precisa de mudança de preço nas lojas.
+
+As seções abaixo são **históricas** (modelo de 4 planos / trial 7d).
+
+---
+
 ## 1. POSICIONAMENTO
 
 **Kindar atende pais separados (ICP principal) e estende para o universo familiar**.

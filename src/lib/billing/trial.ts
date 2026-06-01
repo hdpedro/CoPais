@@ -1,17 +1,23 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { trialDaysInApp } from "./promo";
 
+// The trial grants the TOP tier so the WHOLE app is unlocked for 30 days
+// ("show the ceiling"). premium_juridico unlocks every feature in the gate;
+// after the trial the user converts to the only purchasable plan, Harmonia.
+// Note: premium_juridico is is_active=false (unpurchasable, migration 00106),
+// but the trial is a DIRECT grant — is_active only gates checkout, not this.
 export const TRIAL_PLAN_ID = "premium_juridico_monthly";
 /**
- * Default trial duration kept for legacy callers (cron, UI). Live
- * duration is dynamic — `trialDaysInApp()` returns 60 during the
- * "2 meses grátis" promo, 7 otherwise.
+ * Trial duration for the single-plan model (jun/2026): 30 days with the whole
+ * app unlocked, no card. `trialDaysInApp()` returns 30 while the promo flag is
+ * off (which it must be in this model).
  */
-export const TRIAL_DURATION_DAYS = 7;
+export const TRIAL_DURATION_DAYS = 30;
 
 /**
- * Idempotently grants a 7-day Premium Jurídico trial to a user's first
- * group. Called from createGroup on signup.
+ * Idempotently grants a 30-day full-access trial (top tier = whole app) to a
+ * user's first group. Called from createGroup on signup. After expiry the
+ * group is hard-locked (enforced cohort) until it subscribes to Harmonia.
  *
  * Business rules:
  *   - One trial per user, EVER — even across multiple groups. Re-joining
@@ -43,8 +49,7 @@ export async function grantTrialIfEligible(
   }
 
   const now = new Date();
-  // Use the dynamic helper so the "2 meses grátis" promo (60 days)
-  // overrides the 7-day default when PROMO_2M_FREE=true.
+  // Single source for trial length — 30 days in the single-plan model.
   const days = trialDaysInApp();
   const trialEnd = new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 

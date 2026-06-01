@@ -6,12 +6,12 @@ interface Props {
 }
 
 /**
- * Shown on the dashboard during the Premium Jurídico trial. Duration is
- * 7 days normally or 60 days during the "2 meses grátis" promo. Banner
- * disappears when the trial ends (status flips to 'expired') because the
- * parent page only renders this when subscription.isTrial is true.
+ * Shown on the dashboard during the 30-day Harmonia trial (single-plan
+ * model, jun/2026). Banner disappears when the trial ends (status flips to
+ * 'expired') because the parent page only renders this when
+ * subscription.isTrial is true; after that the hard paywall takes over.
  */
-export default function TrialBanner({ daysRemaining, planLabel = "Premium Jurídico" }: Props) {
+export default function TrialBanner({ daysRemaining, planLabel = "App completo" }: Props) {
   // Urgency threshold scales with trial length: 2 days is "urgent" for
   // 7-day trial; for 60-day trial, 7 days remaining is the new "urgent".
   const urgent = daysRemaining <= (daysRemaining > 30 ? 7 : 2);

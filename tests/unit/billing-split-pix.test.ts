@@ -12,7 +12,8 @@ describe("getPlanAmountBrl", () => {
     expect(getPlanAmountBrl("harmonia_earlybird_monthly")).toBe(14.9);
     expect(getPlanAmountBrl("harmonia_monthly")).toBe(19.9);
     expect(getPlanAmountBrl("premium_juridico_monthly")).toBe(39.9);
-    expect(getPlanAmountBrl("harmonia_annual")).toBe(199.9);
+    // Anual repreçado pra 5% off (jun/2026): R$226,80.
+    expect(getPlanAmountBrl("harmonia_annual")).toBe(226.8);
     expect(getPlanAmountBrl("premium_juridico_annual")).toBe(399.9);
   });
 

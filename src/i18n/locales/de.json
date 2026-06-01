@@ -2138,8 +2138,8 @@
       "fallbackSender": "Jemand"
     },
     "trialReminder": {
-      "title": "Deine Premium-Testphase endet morgen",
-      "body": "Wähle einen Tarif, um KI, Rezept-Scan und den vollständigen Kalender zu behalten."
+      "title": "Deine kostenlose Testphase endet morgen",
+      "body": "Abonniere Harmonia, um den Zugriff auf den Familienalltag zu behalten."
     },
     "renewalReminder": {
       "title": "Kindar verlängert sich in {days} Tagen",

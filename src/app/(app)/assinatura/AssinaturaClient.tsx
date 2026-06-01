@@ -18,7 +18,6 @@ import { enableSubscriptionSplit, disableSubscriptionSplit } from "@/actions/sub
 import { trackEvent, EVENTS } from "@/lib/analytics";
 
 const PIX_ENABLED = process.env.NEXT_PUBLIC_PIX_ENABLED === "true";
-const PROMO_2M_FREE = process.env.NEXT_PUBLIC_PROMO_2M_FREE === "true";
 
 interface SubscriptionView {
   subscriptionId: string;
@@ -81,7 +80,6 @@ export default function AssinaturaClient({
   canPay,
   payerReason,
   payerName,
-  earlyBird,
   coCandidates = [],
   splitState,
 }: Props) {
@@ -220,12 +218,12 @@ export default function AssinaturaClient({
 
         <div className="bg-white rounded-2xl border border-stone-100 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-3">
-            <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${tierBadgeColor[subscription.tier]}`}>
-              {tierLabels[subscription.tier]}
+            <span className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${subscription.isTrial ? "bg-emerald-100 text-emerald-800" : tierBadgeColor[subscription.tier]}`}>
+              {subscription.isTrial ? "Degustação · app completo" : tierLabels[subscription.tier]}
             </span>
             {subscription.isTrial && (
               <span className="text-xs text-emerald-700 font-medium">
-                Degustação · {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? "dia" : "dias"} restantes
+                {subscription.trialDaysRemaining} {subscription.trialDaysRemaining === 1 ? "dia restante" : "dias restantes"}
               </span>
             )}
           </div>
@@ -246,9 +244,9 @@ export default function AssinaturaClient({
     );
   }
 
-  // Payer view — show plan cards + checkout buttons.
-  const earlyBirdAvailable = !earlyBird.isSoldOut;
-
+  // Payer view — single plan (Harmonia). Early Bird and Premium Jurídico
+  // are hidden for new buyers (single-plan model, jun/2026); grandfathered
+  // subs keep working server-side.
   return (
     <div className="max-w-2xl mx-auto p-6">
       <h1 className="text-2xl font-bold text-stone-900 mb-2">Assinatura da família</h1>
@@ -257,26 +255,12 @@ export default function AssinaturaClient({
         e mediadores entram grátis.
       </p>
 
-      {PROMO_2M_FREE && !subscription.isActive && (
-        <div className="mb-6 p-4 bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl">
-          <div className="flex items-start gap-3">
-            <div className="text-2xl shrink-0">🎁</div>
-            <div>
-              <p className="text-sm font-bold text-amber-900">Promoção de lançamento</p>
-              <p className="text-xs text-amber-800 mt-1">
-                <strong>2 meses grátis</strong> em qualquer plano pago. Sem fidelidade,
-                sem cartão durante o período de teste. Cancele quando quiser.
-              </p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {subscription.isActive && (
         <div className="mb-6 p-4 bg-emerald-50 border border-emerald-100 rounded-xl">
           <p className="text-sm font-semibold text-emerald-900">
-            Plano atual: {tierLabels[subscription.tier]}
-            {subscription.isTrial && ` · Degustação (${subscription.trialDaysRemaining} ${subscription.trialDaysRemaining === 1 ? "dia" : "dias"} restantes)`}
+            {subscription.isTrial
+              ? `Degustação · app completo (${subscription.trialDaysRemaining} ${subscription.trialDaysRemaining === 1 ? "dia" : "dias"} restantes)`
+              : `Plano atual: ${tierLabels[subscription.tier]}`}
           </p>
           {subscription.cancelAtPeriodEnd && subscription.currentPeriodEnd && (
             <p className="text-xs text-emerald-800 mt-1">
@@ -424,49 +408,7 @@ export default function AssinaturaClient({
       ) : null}
 
       <div className="space-y-4">
-        {/* Early Bird — só esconde quando user JÁ tem sub paga ativa
-            (não-trial). Users em trial (subscription.isTrial=true) DEVEM
-            ver pra poder travar a oferta antes do trial expirar.
-            Bug F#28 (E2E 2026-05-25): trial user via plan_id =
-            premium_juridico_monthly → tier='premium_juridico' → check
-            antigo bloqueava Early Bird mesmo o user ainda não tendo
-            pago nada. Fix: incluir isTrial como motivo pra mostrar. */}
-        {earlyBirdAvailable && (subscription.isTrial || (subscription.tier !== "harmonia" && subscription.tier !== "premium_juridico")) && (
-          <article className="relative bg-white rounded-2xl border-2 border-emerald-300 p-6 shadow-sm">
-            <div className="absolute -top-3 left-6 bg-emerald-500 text-white text-xs font-bold px-3 py-1 rounded-full">
-              Early Bird · Restam {earlyBird.slotsRemaining}/{earlyBird.maxSubscribers}
-            </div>
-            <h2 className="text-xl font-bold text-stone-900 mt-2">Harmonia — Early Bird</h2>
-            <p className="text-stone-600 text-sm mb-3">
-              Preço travado para sempre. Apenas para as primeiras {earlyBird.maxSubscribers} famílias.
-            </p>
-            <p className="text-3xl font-bold text-stone-900 mb-1">
-              R$ 19,90
-              <span className="text-base font-normal text-stone-500"> /mês para sempre</span>
-            </p>
-            <ul className="text-sm text-stone-600 my-4 space-y-1">
-              <li>✓ Crianças ilimitadas</li>
-              <li>✓ IA assistente</li>
-              <li>✓ OCR de receitas médicas</li>
-              <li>✓ Saúde completa + inferência clínica</li>
-              <li>✓ Convidados ilimitados (avós, babá, advogado)</li>
-            </ul>
-            <button
-              onClick={() => startCheckout("harmonia_earlybird_monthly")}
-              disabled={busyPlan === "harmonia_earlybird_monthly" || !recurringConsent}
-              className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-xl transition disabled:opacity-60"
-            >
-              {busyPlan === "harmonia_earlybird_monthly" ? "Abrindo checkout…" : "Garantir Early Bird"}
-            </button>
-          </article>
-        )}
-
-        {/* Harmonia — regular. Enquanto Early Bird tem vagas, exibimos o
-            preço FUTURO (R$ 24,90/mês — vide MONETIZACAO.md §3) com riscado
-            do R$ 19,90 atual + chamada "oferta inicial" pra deixar claro o
-            valor pós-Early Bird. Resolve a confusão #4 da auditoria UX:
-            antes ambos cards mostravam R$ 19,90/mês e usuário pensava
-            "qual a diferença?". */}
+        {/* Harmonia — plano único (R$19,90/mês). */}
         <article className="relative bg-white rounded-2xl border-2 border-[#C07055] p-6 shadow-lg shadow-[#C07055]/15 md:scale-[1.02]">
           <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[#C07055] text-white text-xs font-bold rounded-full uppercase tracking-wider whitespace-nowrap">
             Mais popular
@@ -481,19 +423,9 @@ export default function AssinaturaClient({
               </p>
               <p className="text-xs text-stone-500 line-through mb-1">R$ 19,90 /mês no cartão</p>
             </>
-          ) : earlyBirdAvailable ? (
-            <>
-              <p className="text-4xl font-extrabold text-stone-900">
-                R$ 19,90
-                <span className="text-base font-normal text-stone-500"> /mês</span>
-              </p>
-              <p className="text-xs text-stone-500 mt-0.5">
-                Oferta inicial · <span className="line-through">R$ 24,90/mês</span> após Early Bird
-              </p>
-            </>
           ) : (
             <p className="text-4xl font-extrabold text-stone-900 mb-1">
-              R$ 24,90
+              R$ 19,90
               <span className="text-base font-normal text-stone-500"> /mês</span>
             </p>
           )}
@@ -513,55 +445,13 @@ export default function AssinaturaClient({
           </button>
         </article>
 
-        {/* Premium Jurídico — secondary (não-recommended). Cor neutra
-            stone-900 ao invés do laranja contrastante anterior (B5 fix).
-            Hierarquia: Harmonia = brand primária (mais popular), Jurídico
-            = secundário neutro pra não competir visualmente. */}
-        <article className="bg-white rounded-2xl border border-stone-200 p-6 hover:border-stone-300 transition-colors">
-          <div className="inline-block bg-stone-100 text-stone-700 text-xs font-semibold px-2.5 py-1 rounded-full mb-2">
-            Para quem tem processo ou precisa de audit trail
-          </div>
-          <h2 className="text-xl font-bold text-stone-900">Premium Jurídico</h2>
-          <p className="text-stone-600 text-sm mb-3">Tudo do Harmonia + suporte jurídico.</p>
-          {paymentMethod === "pix" && PIX_ENABLED ? (
-            <>
-              <p className="text-3xl font-bold text-stone-900 mb-0.5">
-                R$ 34,90
-                <span className="text-base font-normal text-stone-500"> /mês via PIX</span>
-              </p>
-              <p className="text-xs text-stone-500 line-through mb-1">R$ 39,90 /mês no cartão</p>
-            </>
-          ) : (
-            <p className="text-3xl font-bold text-stone-900 mb-1">
-              R$ 39,90
-              <span className="text-base font-normal text-stone-500"> /mês</span>
-            </p>
-          )}
-          <ul className="text-sm text-stone-600 my-4 space-y-1.5">
-            <li>✓ Tudo do Harmonia</li>
-            <li>✓ Export legal (PDF com audit trail)</li>
-            <li>✓ Backup jurídico automático</li>
-            <li>✓ Suporte VIP</li>
-            <li>✓ Alertas inteligentes de receita</li>
-          </ul>
-          <button
-            onClick={() => startCheckout("premium_juridico_monthly")}
-            disabled={busyPlan === "premium_juridico_monthly" || !recurringConsent}
-            className="w-full bg-stone-900 hover:bg-stone-800 text-white font-semibold py-3.5 rounded-xl shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-60 disabled:hover:shadow-md disabled:hover:translate-y-0"
-          >
-            {busyPlan === "premium_juridico_monthly" ? "Abrindo checkout…" : "Assinar Premium Jurídico"}
-          </button>
-        </article>
-
-        {/* Atalho pro plano anual — economiza ~17% vs mensal. /pricing
-            tem o toggle Mensal/Anual completo + Early Bird. Quem está
-            logado vê esse link inline pra não precisar pesquisar.
-            F#30 (E2E 2026-05-25): /assinatura logado SÓ tinha mensal. */}
+        {/* Atalho pro plano anual (5% off). /pricing tem o toggle
+            Mensal/Anual. Quem está logado vê esse link inline. */}
         <a
           href="/pricing"
           className="block text-center text-sm text-[#C07055] font-medium mt-2 py-3 rounded-xl border border-dashed border-[#C07055]/40 hover:bg-[#C07055]/5 transition-colors"
         >
-          Prefere pagar 1× por ano? Economize ~17% no plano anual →
+          Prefere pagar 1× por ano? Economize 5% no plano anual →
         </a>
       </div>
 

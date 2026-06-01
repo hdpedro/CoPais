@@ -35,7 +35,16 @@ export async function getUserSubscription(
 
   return {
     planId: data.plan_id,
-    tier: data.plan_id.startsWith("elite") ? "elite" : data.plan_id.startsWith("premium") ? "premium" : "free",
+    // Map new + legacy plan IDs to the legacy tiers used by canAccess().
+    // premium_juridico (the 30-day full-access trial grant) → "elite" so the
+    // WHOLE app is unlocked during the trial. Harmonia (the paid plan) →
+    // "premium". Fixes the stale mapping that sent harmonia → "free".
+    tier:
+      data.plan_id.startsWith("premium_juridico") || data.plan_id.startsWith("elite")
+        ? "elite"
+        : data.plan_id.startsWith("harmonia") || data.plan_id.startsWith("premium")
+          ? "premium"
+          : "free",
     status: data.status,
     currentPeriodEnd: data.current_period_end,
     cancelAtPeriodEnd: data.cancel_at_period_end,

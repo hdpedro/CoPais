@@ -2138,8 +2138,8 @@
       "fallbackSender": "Someone"
     },
     "trialReminder": {
-      "title": "Your Premium trial ends tomorrow",
-      "body": "Pick a plan to keep AI, prescription scanning, and the full calendar."
+      "title": "Your free trial ends tomorrow",
+      "body": "Subscribe to Harmonia to keep access to your family's routine."
     },
     "renewalReminder": {
       "title": "Kindar renews in {days} days",

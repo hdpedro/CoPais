@@ -44,20 +44,17 @@ interface PricingClientProps {
 type Tier = { name: string; tagline: string; monthly: Plan | null; annual: Plan | null };
 
 function groupByTier(plans: Plan[]): Tier[] {
-  const free = plans.find((p) => p.id === "free");
-  const harmoniaM = plans.find((p) => p.id === "harmonia_monthly") ?? plans.find((p) => p.id === "premium_monthly");
-  const harmoniaA = plans.find((p) => p.id === "harmonia_annual") ?? plans.find((p) => p.id === "premium_annual");
-  const juridicoM = plans.find((p) => p.id === "premium_juridico_monthly") ?? plans.find((p) => p.id === "elite_monthly");
-  const juridicoA = plans.find((p) => p.id === "premium_juridico_annual") ?? plans.find((p) => p.id === "elite_annual");
+  // Single-plan model (jun/2026): só Harmonia é ofertado. Grátis e Premium
+  // Jurídico saíram da página; subs grandfathered continuam server-side.
+  const harmoniaM = plans.find((p) => p.id === "harmonia_monthly");
+  const harmoniaA = plans.find((p) => p.id === "harmonia_annual");
 
   return [
-    { name: "Grátis", tagline: "Organização básica pra começar", monthly: free || null, annual: null },
     { name: "Harmonia", tagline: "Uma assinatura, família inteira acessa", monthly: harmoniaM || null, annual: harmoniaA || null },
-    { name: "Premium Jurídico", tagline: "Pra quem precisa de audit trail e export legal", monthly: juridicoM || null, annual: juridicoA || null },
   ];
 }
 
-export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyBird = [], landingStats }: PricingClientProps) {
+export default function PricingClient({ plans, currentPlanId, isLoggedIn, landingStats }: PricingClientProps) {
   const [loading, setLoading] = useState<string | null>(null);
   const [billingCycle, setBillingCycle] = useState<"monthly" | "annual">("annual");
   const router = useRouter();
@@ -66,10 +63,6 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
   // Promo "2 meses grátis": quando NEXT_PUBLIC_PROMO_2M_FREE=true mostra
   // 60 dias em todos os textos. Sem o flag, mantém 7 dias original.
   const trialDays = trialDaysInAppPublic();
-
-  const earlyBirdMonthly = earlyBird.find((e) => e.planId === "harmonia_earlybird_monthly");
-  const earlyBirdPlan = plans.find((p) => p.id === "harmonia_earlybird_monthly");
-  const showEarlyBird = earlyBirdMonthly && !earlyBirdMonthly.isSoldOut && earlyBirdPlan;
 
   const isPaidUser =
     currentPlanId.startsWith("premium") ||
@@ -196,7 +189,7 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
           Escolha o plano ideal para sua família
         </h1>
         <p className="mt-4 text-[#9A8878] text-lg sm:text-xl max-w-2xl mx-auto leading-relaxed">
-          Comece com {trialDays} dias grátis de Premium Jurídico. Cancele quando quiser.
+          Comece com {trialDays} dias grátis. Cancele quando quiser.
         </p>
 
         {/* Social proof band — só renderiza com volume real (>= 10 famílias)
@@ -240,61 +233,14 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
         >
           Anual
           <span className="absolute -top-2.5 -right-3 px-1.5 py-0.5 bg-[#2E7268] text-white text-[10px] font-bold rounded-full">
-            -17%
+            -5%
           </span>
         </button>
       </div>
 
-      {/* Early Bird highlight — only visible while slots remain */}
-      {showEarlyBird && earlyBirdPlan && earlyBirdMonthly && (
-        <div className="max-w-6xl mx-auto px-4 mb-8">
-          <div className="relative bg-gradient-to-br from-emerald-500 to-teal-600 rounded-3xl p-6 sm:p-8 text-white shadow-xl overflow-hidden">
-            <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-16 translate-x-16" />
-            <div className="relative">
-              <div className="inline-block bg-white/25 backdrop-blur text-white text-xs font-bold uppercase tracking-wider px-3 py-1 rounded-full mb-3">
-                Preço de lançamento
-              </div>
-              <h2 className="text-3xl sm:text-4xl font-extrabold mb-2">Harmonia Early Bird</h2>
-              <p className="text-white/90 text-sm sm:text-base mb-4 max-w-xl leading-relaxed">
-                R$ 14,90/mês <strong>para sempre</strong> — só para as primeiras {earlyBirdMonthly.maxSubscribers.toLocaleString("pt-BR")} famílias.
-                Depois, o plano Harmonia volta a R$ 19,90/mês.
-              </p>
-
-              <div className="bg-white/20 backdrop-blur rounded-full h-2 overflow-hidden mb-2">
-                <div
-                  className="bg-white h-full transition-all"
-                  style={{
-                    width: `${Math.round(
-                      ((earlyBirdMonthly.maxSubscribers - earlyBirdMonthly.slotsRemaining) /
-                        earlyBirdMonthly.maxSubscribers) *
-                        100,
-                    )}%`,
-                  }}
-                />
-              </div>
-              <p className="text-xs sm:text-sm font-medium text-white/90 mb-5">
-                Restam <strong className="text-white">{earlyBirdMonthly.slotsRemaining.toLocaleString("pt-BR")}</strong> de{" "}
-                {earlyBirdMonthly.maxSubscribers.toLocaleString("pt-BR")} vagas
-              </p>
-
-              <button
-                onClick={() => handleSubscribe(earlyBirdPlan)}
-                disabled={loading === earlyBirdPlan.id}
-                className="inline-flex items-center justify-center bg-white text-emerald-700 font-bold px-6 py-3.5 rounded-xl hover:bg-stone-50 transition-all shadow-lg hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98] disabled:opacity-70"
-              >
-                {loading === earlyBirdPlan.id ? "Abrindo…" : "Garantir R$ 14,90 para sempre"}
-                <svg className="ml-2 w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                </svg>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Plans Grid */}
       <div className="max-w-6xl mx-auto px-4 pb-16">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 gap-6 max-w-md mx-auto">
           {tiers.map((tier) => {
             // Grátis tier só tem monthly; pago alterna conforme billing toggle.
             const activePlan = tier.name === "Grátis"
@@ -333,10 +279,8 @@ export default function PricingClient({ plans, currentPlanId, isLoggedIn, earlyB
 
             // Savings text (annual plans save 20% vs. 12× monthly)
             const savingsText = billingCycle === "annual" && isPremium
-              ? "Economize R$ 59,80"
-              : billingCycle === "annual" && isElite
-                ? "Economize R$ 95,80"
-                : null;
+              ? "Economize R$ 12,00"
+              : null;
 
             // Feature list for display (curated, not raw)
             const displayFeatures = isFree
