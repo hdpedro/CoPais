@@ -1986,6 +1986,7 @@
     "aiResponse": "KI-verarbeitet"
   },
   "newForm": {
+    "multiDayCapNotice": "Mehrtägige Termine erstellen höchstens {max} Einträge. Da dieser Zeitraum länger ist, werden nur die ersten {max} Tage erstellt.",
     "categoryTitle": "Art des Termins",
     "catSport": "Sport",
     "catHealth": "Gesundheit",

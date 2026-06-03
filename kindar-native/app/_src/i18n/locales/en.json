@@ -1986,6 +1986,7 @@
     "aiResponse": "AI processed"
   },
   "newForm": {
+    "multiDayCapNotice": "Multi-day events create at most {max} entries. Since this range is longer, only the first {max} days will be created.",
     "categoryTitle": "Type of appointment",
     "catSport": "Sport",
     "catHealth": "Health",
