@@ -49,6 +49,7 @@ import {
   registerForPushNotificationsAsync,
   addNotificationResponseListener,
   registerNotificationChannels,
+  registerNotificationCategories,
 } from 'src/services/push-setup';
 import {
   checkSoftPromptStatus,
@@ -290,9 +291,43 @@ export default function RootLayout() {
     // notificações" que chama o hard prompt diretamente).
   };
 
-  // Navigate on notification tap
+  // Notificações: registra categorias de quick action + trata tap/ação.
   useEffect(() => {
-    const remove = addNotificationResponseListener(url => {
+    // Quick actions "Aconteceu? Sim/Não/Adiar" do follow-up de atividade.
+    registerNotificationCategories().catch(() => {});
+
+    const OUTCOME: Record<string, 'happened' | 'missed' | 'snoozed'> = {
+      act_happened: 'happened',
+      act_missed: 'missed',
+      act_snooze: 'snoozed',
+    };
+
+    const remove = addNotificationResponseListener((url, actionIdentifier) => {
+      // Botão da notificação (Sim/Não/Adiar): registra o desfecho via API SEM
+      // abrir tela. activity_id + date vêm do deep link
+      // (/atividades/{id}?date=YYYY-MM-DD&followup=1). Feedback Amanda: marcar
+      // sem ter que abrir o app.
+      const status = OUTCOME[actionIdentifier];
+      if (status && url) {
+        const activityId = url.split('?')[0].split('/').filter(Boolean).pop();
+        const dateMatch = url.match(/[?&]date=([^&]+)/);
+        const occurrenceDate = dateMatch ? decodeURIComponent(dateMatch[1]) : null;
+        if (activityId && occurrenceDate) {
+          (async () => {
+            try {
+              const { apiFetch } = await import('src/lib/api-fetch');
+              await apiFetch('/api/activities/outcome', {
+                method: 'POST',
+                body: { activityId, occurrenceDate, status },
+              });
+            } catch (e) {
+              reportError(e, { filePath: '_layout', metadata: { phase: 'followup_quick_action', status } });
+            }
+          })();
+        }
+        return;
+      }
+
       if (!url) return;
       // Parse full URLs (kindar://...) via Linking, relative paths via router
       if (url.startsWith('http') || url.startsWith('kindar://')) {

@@ -2746,6 +2746,10 @@
       "respYou": "você",
       "moreCount": "{count, plural, one {+# mais} other {+# mais}}",
       "itemsToPrep": "{count, plural, one {# item pra preparar} other {# itens pra preparar}}"
+    },
+    "followup": {
+      "title": "✅ {activityName} aconteceu?",
+      "body": "Toque em Sim, Não ou Adiar."
     }
   },
   "notifPrefs": {

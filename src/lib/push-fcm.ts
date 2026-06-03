@@ -29,6 +29,13 @@ interface FcmPayload {
    * silenciosamente (não quebra entrega).
    */
   androidChannelId?: string;
+  /**
+   * Categoria de quick actions (mesmo id do iOS). Vai pro `data.categoryId`
+   * pra o handler native anexar os botões da categoria registrada via
+   * setNotificationCategoryAsync. Campo herdado estruturalmente do PushPayload
+   * (chamamos sendFcmPush(token, payload) com o PushPayload inteiro).
+   */
+  iosCategoryId?: string;
 }
 
 /**
@@ -146,6 +153,8 @@ export async function sendFcmPush(
         // native handler reads `data.url` consistently across platforms.
         url: payload.url || "/dashboard",
         ...(payload.tag ? { tag: payload.tag } : {}),
+        // categoryId pro handler native anexar quick actions (Sim/Não/Adiar).
+        ...(payload.iosCategoryId ? { categoryId: payload.iosCategoryId } : {}),
       },
       android: {
         priority: "high" as const,

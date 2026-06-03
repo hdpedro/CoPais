@@ -73,6 +73,30 @@ export async function registerNotificationChannels() {
 }
 
 /**
+ * Registra categorias de quick actions (botões inline na notificação) — iOS
+ * + Android. Idempotente, roda a cada boot. Match com `iosCategoryId`/
+ * `data.categoryId` no payload (src/lib/push.ts + push-fcm.ts), com
+ * OUTCOME_ACTIONS no public/sw.js e com FOLLOWUP_ACTIONS no cron
+ * (services/activity-reminders.ts).
+ *
+ * 'activity_followup' = "Aconteceu?" → Sim / Não / Adiar. `opensAppToForeground
+ * false`: tocar o botão NÃO abre o app — dispara o response listener (mesmo em
+ * background), que chama POST /api/activities/outcome. Feedback Amanda: marcar
+ * sem ter que abrir o app.
+ */
+export async function registerNotificationCategories() {
+  try {
+    await Notifications.setNotificationCategoryAsync('activity_followup', [
+      { identifier: 'act_happened', buttonTitle: 'Sim', options: { opensAppToForeground: false } },
+      { identifier: 'act_missed', buttonTitle: 'Não', options: { opensAppToForeground: false } },
+      { identifier: 'act_snooze', buttonTitle: 'Adiar 1h', options: { opensAppToForeground: false } },
+    ]);
+  } catch {
+    // non-fatal — sem categoria registrada o push vira normal (sem botões)
+  }
+}
+
+/**
  * Request permission + get push token. Sends to backend to register on push_subscriptions.
  * Returns null if user denies permission or not on a physical device.
  *
@@ -234,11 +258,13 @@ export async function registerForPushNotificationsAsync(
  * embedded in the notification's data payload (url field).
  */
 export function addNotificationResponseListener(
-  onTap: (url: string) => void
+  onResponse: (url: string | undefined, actionIdentifier: string) => void
 ): () => void {
   const sub = Notifications.addNotificationResponseReceivedListener(response => {
     const url = (response.notification.request.content.data as any)?.url as string | undefined;
-    if (url) onTap(url);
+    // actionIdentifier: DEFAULT_ACTION_IDENTIFIER no tap normal, ou
+    // 'act_happened'/'act_missed'/'act_snooze' nos quick-action buttons.
+    onResponse(url, response.actionIdentifier);
   });
   return () => sub.remove();
 }

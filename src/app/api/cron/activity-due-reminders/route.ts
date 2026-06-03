@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { runActivityDueReminders } from "@/lib/services/activity-reminders";
+import {
+  runActivityDueReminders,
+  runActivityFollowUps,
+} from "@/lib/services/activity-reminders";
 
 /**
  * Cron a cada 15min (Vercel schedule). Dispara push de lembrete pré-evento
@@ -18,10 +21,16 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const result = await runActivityDueReminders();
+    // Pré-evento ("tem natação") + pós-evento ("aconteceu? Sim/Não/Adiar")
+    // no mesmo slot de 15min. São disjuntos no tempo (antes vs depois do fim).
+    const [reminders, followups] = await Promise.all([
+      runActivityDueReminders(),
+      runActivityFollowUps(),
+    ]);
     return NextResponse.json({
       ok: true,
-      ...result,
+      reminders,
+      followups,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

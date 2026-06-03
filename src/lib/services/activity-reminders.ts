@@ -575,6 +575,250 @@ export async function runActivityDueReminders(now: Date = new Date()): Promise<S
 }
 
 /**
+ * Follow-up "Aconteceu?" — dispara DEPOIS que a atividade terminou, com quick
+ * actions (Sim / Não / Adiar). Feedback Amanda (themes 1+2): o app pergunta em
+ * vez de exigir que ela lembre de abrir pra marcar.
+ *
+ * Trigger: o FIM da ocorrência (time_end, ou time_start + 60min quando não há
+ * fim) caindo na janela do slot atual. Só atividades COM time_start (sem hora
+ * não dá pra saber quando acabou).
+ *
+ * Skip:
+ *   - opt-out (lead === 0)
+ *   - já tem desfecho em activity_occurrence_outcomes (happened/missed)
+ *   - já mandou follow-up (activity_reminder_sends channel='followup')
+ *
+ * Snooze re-fire: outcome status='snoozed' cujo snooze_until cai no slot →
+ * re-pergunta (idempotência natural: o timestamp preciso cai em 1 slot só, e
+ * o re-envio NÃO grava no ledger pra não colidir com o PK do 1º follow-up).
+ */
+export async function runActivityFollowUps(now: Date = new Date()): Promise<SendResult> {
+  const admin = createAdminClient();
+  let sent = 0;
+  let skipped = 0;
+  let errors = 0;
+
+  const tomorrow = new Date(now.getTime() + 86400000).toISOString().slice(0, 10);
+  const yesterday = new Date(now.getTime() - 86400000).toISOString().slice(0, 10);
+
+  const { data: rawOccs, error: occErr } = await admin
+    .from("calendar_occurrences")
+    .select(
+      "id, activity_id, occurrence_date, group_id, child_id, " +
+        "child_activities!inner(name, category, time_start, time_end, location, responsible_id, reminder_lead_minutes, is_active, created_by, " +
+        "children(full_name))",
+    )
+    .gte("occurrence_date", yesterday)
+    .lte("occurrence_date", tomorrow);
+
+  if (occErr) {
+    console.error("[CRON activity-followups] occurrences query failed:", occErr);
+    return { sent: 0, skipped: 0, errors: 1 };
+  }
+  if (!rawOccs || rawOccs.length === 0) return { sent: 0, skipped: 0, errors: 0 };
+
+  // Normaliza (mesmo shape de runActivityDueReminders).
+  const occurrences: OccurrenceRow[] = (rawOccs as unknown as Array<{
+    id: string;
+    activity_id: string;
+    occurrence_date: string;
+    group_id: string;
+    child_id: string | null;
+    child_activities: {
+      name: string; category: string; time_start: string | null; time_end: string | null;
+      location: string | null; responsible_id: string | null; reminder_lead_minutes: number | null;
+      is_active: boolean | null; created_by: string;
+      children: { full_name: string | null } | { full_name: string | null }[] | null;
+    } | Array<{
+      name: string; category: string; time_start: string | null; time_end: string | null;
+      location: string | null; responsible_id: string | null; reminder_lead_minutes: number | null;
+      is_active: boolean | null; created_by: string;
+      children: { full_name: string | null } | { full_name: string | null }[] | null;
+    }>;
+  }>).flatMap((row) => {
+    const act = Array.isArray(row.child_activities) ? row.child_activities[0] : row.child_activities;
+    if (!act || act.is_active === false) return [];
+    const child = Array.isArray(act.children) ? act.children[0] : act.children;
+    return [{
+      occurrence_id: row.id, activity_id: row.activity_id, occurrence_date: row.occurrence_date,
+      group_id: row.group_id, child_id: row.child_id, activity_name: act.name, category: act.category,
+      time_start: act.time_start, time_end: act.time_end, location: act.location,
+      responsible_id: act.responsible_id, reminder_lead_minutes: act.reminder_lead_minutes,
+      created_by: act.created_by, child_name: child?.full_name ?? null, checklist: [],
+    }];
+  });
+
+  // Já reportadas (activity_reports = desfecho terminal, mig 00023) → skip.
+  // Snoozes ativos (activity_followup_snoozes, mig 00107) → re-fire na janela.
+  const candActivityIds = Array.from(new Set(occurrences.map((o) => o.activity_id)));
+  const reportedKeys = new Set<string>();
+  const snoozeByKey = new Map<string, string>();
+  if (candActivityIds.length > 0) {
+    const [{ data: reports }, { data: snoozes }] = await Promise.all([
+      admin
+        .from("activity_reports")
+        .select("activity_id, occurrence_date")
+        .in("activity_id", candActivityIds),
+      admin
+        .from("activity_followup_snoozes")
+        .select("activity_id, occurrence_date, snooze_until")
+        .in("activity_id", candActivityIds),
+    ]);
+    for (const r of (reports ?? []) as { activity_id: string; occurrence_date: string }[]) {
+      reportedKeys.add(`${r.activity_id}::${r.occurrence_date}`);
+    }
+    for (const s of (snoozes ?? []) as { activity_id: string; occurrence_date: string; snooze_until: string }[]) {
+      snoozeByKey.set(`${s.activity_id}::${s.occurrence_date}`, s.snooze_until);
+    }
+  }
+
+  const slotStart = new Date(now.getTime() - SLOT_WINDOW_AFTER_MIN * 60_000);
+  const slotEnd = new Date(now.getTime() + SLOT_WINDOW_BEFORE_MIN * 60_000);
+
+  type DueRow = OccurrenceRow & { leadMinutes: number; reason: "post_end" | "snooze_refire" };
+  const due: DueRow[] = [];
+  for (const occ of occurrences) {
+    const leadMinutes = occ.reminder_lead_minutes ?? categoryDefaultLead(occ.category);
+    if (leadMinutes === 0) continue; // opt-out
+    if (!occ.time_start) continue; // sem horário não dá pra saber o fim
+    const eventStart = eventDateBrazil(occ.occurrence_date, occ.time_start);
+    if (!eventStart) continue;
+    const eventEnd = occ.time_end
+      ? eventDateBrazil(occ.occurrence_date, occ.time_end) ?? new Date(eventStart.getTime() + 60 * 60_000)
+      : new Date(eventStart.getTime() + 60 * 60_000);
+
+    const key = `${occ.activity_id}::${occ.occurrence_date}`;
+    let reason: DueRow["reason"] | null = null;
+    if (reportedKeys.has(key)) {
+      // Já reportado (Sim/Não) — terminal, não pergunta de novo.
+    } else if (snoozeByKey.has(key)) {
+      const su = new Date(snoozeByKey.get(key) as string);
+      if (su >= slotStart && su <= slotEnd) reason = "snooze_refire";
+    } else if (eventEnd >= slotStart && eventEnd <= slotEnd) {
+      reason = "post_end";
+    }
+    if (!reason) continue;
+    due.push({ ...occ, leadMinutes, reason });
+  }
+
+  if (due.length === 0) return { sent: 0, skipped: 0, errors: 0 };
+
+  // Recipients: responsible_id, ou todos os membros (fallback) — igual aos reminders.
+  const groupsNeedingMembers = Array.from(
+    new Set(due.filter((d) => d.responsible_id === null).map((d) => d.group_id)),
+  );
+  const membersByGroup = new Map<string, string[]>();
+  if (groupsNeedingMembers.length > 0) {
+    const { data: members } = await admin
+      .from("group_members")
+      .select("group_id, user_id, role")
+      .in("group_id", groupsNeedingMembers)
+      .in("role", ["admin", "member"]);
+    for (const m of (members ?? []) as { group_id: string; user_id: string }[]) {
+      const arr = membersByGroup.get(m.group_id) ?? [];
+      arr.push(m.user_id);
+      membersByGroup.set(m.group_id, arr);
+    }
+  }
+
+  const candidatePairs: Array<{ occ: DueRow; userId: string }> = [];
+  for (const occ of due) {
+    if (occ.responsible_id) {
+      candidatePairs.push({ occ, userId: occ.responsible_id });
+    } else {
+      for (const userId of membersByGroup.get(occ.group_id) ?? []) {
+        candidatePairs.push({ occ, userId });
+      }
+    }
+  }
+  if (candidatePairs.length === 0) return { sent: 0, skipped: 0, errors: 0 };
+
+  // Idempotência do follow-up (só pro path post_end; snooze_refire usa a janela).
+  const postEndActivityIds = Array.from(
+    new Set(candidatePairs.filter((p) => p.occ.reason === "post_end").map((p) => p.occ.activity_id)),
+  );
+  const postEndUserIds = Array.from(
+    new Set(candidatePairs.filter((p) => p.occ.reason === "post_end").map((p) => p.userId)),
+  );
+  const sentKeys = new Set<string>();
+  if (postEndActivityIds.length > 0) {
+    const { data: priorSends } = await admin
+      .from("activity_reminder_sends")
+      .select("activity_id, occurrence_date, user_id")
+      .eq("channel", "followup")
+      .in("activity_id", postEndActivityIds)
+      .in("user_id", postEndUserIds);
+    for (const r of (priorSends ?? []) as { activity_id: string; occurrence_date: string; user_id: string }[]) {
+      sentKeys.add(`${r.activity_id}::${r.occurrence_date}::${r.user_id}`);
+    }
+  }
+
+  const userIds = Array.from(new Set(candidatePairs.map((p) => p.userId)));
+  const tByUser = await buildTByUser(userIds);
+  const groupIdsNeedingResolver = Array.from(
+    new Set(due.filter((d) => d.child_id === null).map((d) => d.group_id)),
+  );
+  const resolveChildren = groupIdsNeedingResolver.length > 0
+    ? await buildChildrenNameResolver(admin, groupIdsNeedingResolver)
+    : null;
+
+  const FOLLOWUP_ACTIONS = [
+    { action: "act_happened", title: "Sim, aconteceu" },
+    { action: "act_missed", title: "Não" },
+    { action: "act_snooze", title: "Adiar 1h" },
+  ];
+
+  for (const { occ, userId } of candidatePairs) {
+    if (occ.reason === "post_end" && sentKeys.has(`${occ.activity_id}::${occ.occurrence_date}::${userId}`)) {
+      skipped += 1;
+      continue;
+    }
+
+    const t = tByUser.get(userId);
+    let childFirst = (occ.child_name ?? "").split(" ")[0];
+    if (!childFirst && occ.child_id === null && resolveChildren) {
+      childFirst = resolveChildren(null, occ.group_id);
+    }
+
+    const titleVars = { activityName: occ.activity_name, childName: childFirst || occ.activity_name };
+    const title = t
+      ? t("reminders.followup.title", titleVars)
+      : `✅ ${occ.activity_name} aconteceu?`;
+    const body = t ? t("reminders.followup.body") : "Sim · Não · Adiar";
+    const link = `/atividades/${occ.activity_id}?date=${occ.occurrence_date}&followup=1`;
+
+    try {
+      await createNotificationWithPush(userId, "activity_followup", title, body, link, {
+        androidChannelId: "activity_reminders",
+        iosCategoryId: "activity_followup",
+        actions: FOLLOWUP_ACTIONS,
+      });
+      if (occ.reason === "post_end") {
+        await admin.from("activity_reminder_sends").insert({
+          activity_id: occ.activity_id,
+          occurrence_date: occ.occurrence_date,
+          lead_minutes: occ.leadMinutes,
+          user_id: userId,
+          channel: "followup",
+        });
+      }
+      captureServerEvent(userId, "activity_followup_sent", {
+        activity_id: occ.activity_id,
+        occurrence_date: occ.occurrence_date,
+        reason: occ.reason,
+        category: occ.category,
+      });
+      sent += 1;
+    } catch (e) {
+      console.error("[CRON activity-followups] push fail:", e);
+      errors += 1;
+    }
+  }
+
+  return { sent, skipped, errors };
+}
+
+/**
  * Briefing Matinal (07:00 BRT). Pra cada user com 1+ atividade HOJE, agrega
  * tudo num único push ritual de manhã.
  *

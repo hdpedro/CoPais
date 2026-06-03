@@ -2746,6 +2746,10 @@
       "respYou": "du",
       "moreCount": "{count, plural, one {+# weitere} other {+# weitere}}",
       "itemsToPrep": "{count, plural, one {# Sache vorzubereiten} other {# Sachen vorzubereiten}}"
+    },
+    "followup": {
+      "title": "✅ Hat {activityName} stattgefunden?",
+      "body": "Tippe zum Bestätigen: ja, nein oder verschieben."
     }
   },
   "notifPrefs": {
