@@ -124,11 +124,48 @@ self.addEventListener("push", (event) => {
   );
 });
 
+// Quick-action ids do follow-up de atividade ("Aconteceu? Sim/Não/Adiar")
+// → status do desfecho. Mantém em sincronia com FOLLOWUP_ACTIONS no cron
+// (src/lib/services/activity-reminders.ts) e com a categoria iOS/Android.
+const OUTCOME_ACTIONS = {
+  act_happened: "happened",
+  act_missed: "missed",
+  act_snooze: "snoozed",
+};
+
 // Handle notification click — open the app at the right page
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
 
   const targetUrl = event.notification.data?.url || "/dashboard";
+
+  // Quick action: registra o desfecho via API SEM abrir o app. O activity_id
+  // e a data vêm do deep link (/atividades/{id}?date=YYYY-MM-DD&followup=1).
+  // O SW manda os cookies de sessão (credentials:include) → auth por cookie.
+  const outcomeStatus = OUTCOME_ACTIONS[event.action];
+  if (outcomeStatus) {
+    event.waitUntil(
+      (async () => {
+        try {
+          const u = new URL(targetUrl, self.location.origin);
+          const activityId = u.pathname.split("/")[2];
+          const occurrenceDate = u.searchParams.get("date");
+          if (activityId && occurrenceDate) {
+            await fetch("/api/activities/outcome", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              credentials: "include",
+              body: JSON.stringify({ activityId, occurrenceDate, status: outcomeStatus }),
+            });
+          }
+        } catch {
+          // Falhou (offline/sessão) — abre o app pro user marcar manualmente.
+          await clients.openWindow(targetUrl);
+        }
+      })(),
+    );
+    return;
+  }
 
   event.waitUntil(
     clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {

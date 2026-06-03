@@ -2746,6 +2746,10 @@
       "respYou": "you",
       "moreCount": "{count, plural, one {+# more} other {+# more}}",
       "itemsToPrep": "{count, plural, one {# item to prep} other {# items to prep}}"
+    },
+    "followup": {
+      "title": "✅ Did {activityName} happen?",
+      "body": "Tap to confirm — yes, no, or snooze."
     }
   },
   "notifPrefs": {

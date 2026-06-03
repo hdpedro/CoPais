@@ -2746,6 +2746,10 @@
       "respYou": "toi",
       "moreCount": "{count, plural, one {+# de plus} other {+# de plus}}",
       "itemsToPrep": "{count, plural, one {# chose à préparer} other {# choses à préparer}}"
+    },
+    "followup": {
+      "title": "✅ {activityName} a eu lieu ?",
+      "body": "Touchez pour confirmer : oui, non ou reporter."
     }
   },
   "notifPrefs": {

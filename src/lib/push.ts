@@ -710,6 +710,7 @@ export function mapTypeToCategory(type: string): string | null {
   if (type === "activity_digest") return "activity_digest";
   if (
     type === "activity_reminder" ||
+    type === "activity_followup" ||  // "aconteceu? Sim/Não/Adiar" — mesma categoria/opt-out
     type === "activity_status_update" ||
     type === "custody_change" ||  // mudança de guarda = info de agenda
     type.startsWith("activity_reminder")
@@ -777,6 +778,7 @@ export async function createNotificationWithPush(
     androidChannelId?: string;
     iosCategoryId?: string;
     urgent?: boolean;  // bypass prefs (saúde crítica)
+    actions?: Array<{ action: string; title: string }>;  // quick actions (Sim/Não/Adiar)
   },
 ) {
   const supabase = getAdminClient();
@@ -807,5 +809,6 @@ export async function createNotificationWithPush(
     timeSensitive: opts?.timeSensitive,
     androidChannelId: opts?.androidChannelId,
     iosCategoryId: opts?.iosCategoryId,
+    actions: opts?.actions,
   });
 }
