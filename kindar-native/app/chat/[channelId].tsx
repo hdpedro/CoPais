@@ -222,16 +222,26 @@ export default function ChatRoomScreen() {
         let msgsQuery = supabase
           .from('chat_messages')
           .select('id, text, sender_id, created_at, image_url, reply_to_id, read_by')
-          .order('created_at', { ascending: true })
+          // Buscar as 100 mais NOVAS (DESC), igual ao PWA
+          // `api/chat/messages/route.ts`. Antes era `ascending: true` (100 mais
+          // ANTIGAS): num canal com >100 msgs, as mais recentes ficavam fora da
+          // janela — a lista mostrava o preview (DESC LIMIT 1) mas a thread não
+          // exibia a mensagem (bug Amanda 2026-06). Revertidas p/ ASC abaixo.
+          .order('created_at', { ascending: false })
           .limit(100);
         if (isGeral) {
           msgsQuery = msgsQuery.or(`channel_id.eq.${channelId},channel_id.is.null`);
         } else {
           msgsQuery = msgsQuery.eq('channel_id', channelId);
         }
-        const { data: msgs, error: msgsError } = await msgsQuery;
+        const { data: rawMsgs, error: msgsError } = await msgsQuery;
         if (loadIdRef.current !== myLoadId) return; // stale fetch
         if (msgsError) throw msgsError;
+        // Fetch foi DESC (mais novas primeiro); reverte p/ ASC (exibição
+        // cronológica), igual ao PWA `signedRows.reverse()`. Assim toda a lógica
+        // abaixo — assinatura de imagens, messageItems() e o slice(-20) de
+        // não-lidas — segue intacta operando sobre ordem ascendente.
+        const msgs = (rawMsgs ?? []).slice().reverse();
 
         // image_url is path-only after migration 062 — sign in parallel.
         const { getSignedFileUrl } = await import('src/services/storage');
