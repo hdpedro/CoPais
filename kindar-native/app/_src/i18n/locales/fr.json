@@ -2212,6 +2212,7 @@
     "aiResponse": "Traite par IA"
   },
   "newForm": {
+    "multiDayCapNotice": "Les événements sur plusieurs jours créent au maximum {max} entrées. Comme cette période est plus longue, seuls les {max} premiers jours seront créés.",
     "categoryTitle": "Type de rendez-vous",
     "catSport": "Sport",
     "catHealth": "Sante",
