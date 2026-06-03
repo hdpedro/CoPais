@@ -344,12 +344,25 @@ export default function ChatRoomScreen() {
         }
         setMessages(prev => {
           if (prev.some(m => m.id === msg.id)) return prev;
-          return [...prev, {
+          const realMsg = {
             id: msg.id, text: msg.text, sender_id: msg.sender_id,
             senderName: membersRef.current[msg.sender_id] || 'Usuario',
             created_at: msg.created_at, image_url: imageUrl,
             reply_to_id: msg.reply_to_id, read_by: msg.read_by || null,
-          }];
+          };
+          // Reconcilia com a mensagem otimista do próprio envio (id sentinela
+          // 'optimistic-'): substitui em vez de duplicar quando o echo chega.
+          const optimisticIdx = prev.findIndex(m =>
+            m.id.startsWith('optimistic-')
+            && m.sender_id === msg.sender_id
+            && (m.text === (msg.text || '') || (!!m.image_url && !!msg.image_url))
+          );
+          if (optimisticIdx !== -1) {
+            const next = [...prev];
+            next[optimisticIdx] = realMsg;
+            return next;
+          }
+          return [...prev, realMsg];
         });
         // Mark as read — single-id call to /api/chat/read (Wave I).
         if (userId && msg.sender_id !== userId) {
@@ -539,11 +552,29 @@ export default function ChatRoomScreen() {
     setShowSuggestion(false);
     setToneResult(null);
 
+    // Insert otimista — a mensagem aparece na hora, sem depender do echo do
+    // realtime (que no Android/rede instável muitas vezes não chega no próprio
+    // envio → a msg só surgia ao sair e voltar da tela). O handler de INSERT
+    // reconcilia (substitui pelo row real) e o dedupe por id evita duplicata.
+    // Espelha o padrão do PWA (ChatRoom.tsx). Bug oferret2008 2026-06-03.
+    const optimisticId = `optimistic-${Date.now()}`;
+    setMessages(prev => [...prev, {
+      id: optimisticId,
+      text: text || '',
+      sender_id: userId,
+      senderName: membersRef.current[userId] || '',
+      created_at: new Date().toISOString(),
+      image_url: img ? img.uri : null,
+      reply_to_id: reply?.id ?? null,
+      read_by: null,
+    }]);
+
     let imageUrl: string | null = null;
     if (img) {
       imageUrl = await uploadChatImage(img.uri, img.mime, activeGroup.groupId);
       if (!imageUrl) {
         toast.show({ message: t('toasts.chat.imageUploadFailed'), variant: 'error' });
+        setMessages(prev => prev.filter(m => m.id !== optimisticId));
         setNewMessage(text);
         setPendingImage(img);
         setReplyTo(reply);
@@ -565,6 +596,7 @@ export default function ChatRoomScreen() {
     if (result.success && !result.queued) {
       notifyAction('chat_message_sent', activeGroup.groupId, { text: text || '[imagem]' });
     } else if (!result.success && !result.queued) {
+      setMessages(prev => prev.filter(m => m.id !== optimisticId));
       setNewMessage(text);
       setPendingImage(img);
       setReplyTo(reply);

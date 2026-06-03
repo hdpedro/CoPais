@@ -34,7 +34,7 @@ import { FamilySummary } from './_components/FamilySummary';
 import { ProgressDots } from './_components/ProgressDots';
 import { isAbortError, resolveFetchErrorMessage } from './_lib/errors';
 import {
-  applyBirthDateMask, brFromIso, isoFromBR, withTimeout,
+  applyBirthDateMask, birthDateErrorKey, brFromIso, isoFromBR, withTimeout,
 } from './_lib/format';
 import type { ChildSex, InviteRole, WizardChild } from './_lib/types';
 import {
@@ -226,7 +226,12 @@ export default function OnboardingScreen() {
   // ────────────────────────────────────────────────────────────────────
 
   const saveFirstChild = useCallback(async () => {
-    if (!userId || !groupName.trim() || !form.name.trim() || !form.birthDate) return;
+    if (!userId || !groupName.trim() || !form.name.trim()) return;
+    if (!form.birthDate) {
+      dispatch({ type: 'FORM_SUBMIT_ERROR', message: t(birthDateErrorKey(form.birthDateInput)) });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
     dispatch({ type: 'FORM_SUBMIT_START' });
 
     const controller = makeController();
@@ -281,10 +286,15 @@ export default function OnboardingScreen() {
     } finally {
       disposeController(controller);
     }
-  }, [form.birthDate, form.name, form.sex, groupName, t, userId]);
+  }, [form.birthDate, form.birthDateInput, form.name, form.sex, groupName, t, userId]);
 
   const saveAnotherChild = useCallback(async () => {
-    if (!userId || !groupId || !form.name.trim() || !form.birthDate) return;
+    if (!userId || !groupId || !form.name.trim()) return;
+    if (!form.birthDate) {
+      dispatch({ type: 'FORM_SUBMIT_ERROR', message: t(birthDateErrorKey(form.birthDateInput)) });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
     dispatch({ type: 'FORM_SUBMIT_START' });
 
     const controller = makeController();
@@ -335,10 +345,15 @@ export default function OnboardingScreen() {
     } finally {
       disposeController(controller);
     }
-  }, [form.birthDate, form.name, form.sex, groupId, t, userId]);
+  }, [form.birthDate, form.birthDateInput, form.name, form.sex, groupId, t, userId]);
 
   const saveEditChild = useCallback(async () => {
-    if (!userId || !groupId || !form.editingChildId || !form.name.trim() || !form.birthDate) return;
+    if (!userId || !groupId || !form.editingChildId || !form.name.trim()) return;
+    if (!form.birthDate) {
+      dispatch({ type: 'FORM_SUBMIT_ERROR', message: t(birthDateErrorKey(form.birthDateInput)) });
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
     dispatch({ type: 'FORM_SUBMIT_START' });
 
     const controller = makeController();
@@ -389,7 +404,7 @@ export default function OnboardingScreen() {
     } finally {
       disposeController(controller);
     }
-  }, [form.birthDate, form.editingChildId, form.name, form.sex, groupId, t, userId]);
+  }, [form.birthDate, form.birthDateInput, form.editingChildId, form.name, form.sex, groupId, t, userId]);
 
   /**
    * Optimistic delete — remove o card imediatamente; em falha, restaura

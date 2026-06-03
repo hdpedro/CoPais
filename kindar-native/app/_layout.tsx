@@ -6,6 +6,8 @@ import { Stack, router } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import {
   View,
+  Text,
+  TextInput,
   Linking,
   AppState,
   AccessibilityInfo,
@@ -69,6 +71,21 @@ import OfflineBanner from 'src/components/ui/OfflineBanner';
 // Asset estático do splash — ES import (regra eslint no-require-imports).
 // Mesmo PNG que o native splash do Expo usa, garantindo continuidade visual.
 import splashLogo from '../assets/splash-icon.png';
+
+// ── Cap global de escala de fonte do SO ─────────────────────────────────────
+// Sem isto, um aparelho com fonte do sistema aumentada (acessibilidade) estoura
+// layouts de largura/altura fixa e CORTA o fim do texto em várias telas (cards
+// de Saúde "Medicament(os)", abas "Educaçã(o)", chips de despesa, empty-states).
+// Reportado no teste fechado Android 2026-06-03. Cap em 1.3 ainda honra fontes
+// grandes (a11y) mas evita o overflow — NÃO encolhe texto em aparelho normal.
+// Aplica a TODO <Text>/<TextInput> via defaultProps (host components do RN;
+// segue válido na New Arch). Roda 1× no import do root layout.
+const MAX_FONT_SCALE = 1.3;
+type ScalableDefaults = { defaultProps?: { maxFontSizeMultiplier?: number; allowFontScaling?: boolean } };
+const TextDefaults = Text as unknown as ScalableDefaults;
+TextDefaults.defaultProps = { ...TextDefaults.defaultProps, maxFontSizeMultiplier: MAX_FONT_SCALE };
+const TextInputDefaults = TextInput as unknown as ScalableDefaults;
+TextInputDefaults.defaultProps = { ...TextInputDefaults.defaultProps, maxFontSizeMultiplier: MAX_FONT_SCALE };
 
 export default function RootLayout() {
   const { isLoading, initialize, userId } = useAuth();
