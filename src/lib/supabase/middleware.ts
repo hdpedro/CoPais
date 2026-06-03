@@ -189,6 +189,14 @@ export async function updateSession(request: NextRequest) {
     // infinito (Henrique 2026-05-26).
     "/api/notifications/prefs",
     "/api/school",
+    // /api/expenses — Native edita/cancela/reabre/responde-cancelamento via
+    // apiFetch PATCH (create/approve/reject/delete usam safeWrite direto e NÃO
+    // passam por aqui — por isso só editar falhava). Sem essa entry, middleware
+    // bouncava PATCH /api/expenses pra /session-recovery → HTML 200, o
+    // apiFetch.JSON.parse falhava, r.data ficava null → toast "Falha ao editar"
+    // no Native (Alexandre 2026-06-03). Mesmo padrão de /api/notifications/prefs
+    // (Henrique 2026-05-26) e /api/children/sizes (Henrique 2026-05-19).
+    "/api/expenses",
     // /api/children/* — Native chama create/edit/delete + subrotas
     // (sizes, education). Cada handler valida Bearer via resolveAuthenticatedUser.
     // Sem esse prefix, middleware bouncava /api/children/<id>/sizes pra
