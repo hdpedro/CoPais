@@ -660,17 +660,21 @@ export type TranslationKey =
   | "dashboard.balanced"
   | "dashboard.bornIn"
   | "dashboard.childWith"
+  | "dashboard.childrenWith"
   | "dashboard.consecutive"
   | "dashboard.custodyActivationCta"
   | "dashboard.custodyActivationDescription"
   | "dashboard.custodyActivationDismiss"
   | "dashboard.custodyActivationTitle"
+  | "dashboard.custodyGroupWith"
   | "dashboard.custodyServer.endLabelException"
   | "dashboard.custodyServer.endLabelRegular"
   | "dashboard.custodyServer.endLabelSwap"
   | "dashboard.custodyServer.summaryWithChild"
+  | "dashboard.custodyServer.summaryWithChildren"
   | "dashboard.custodyServer.withYou"
   | "dashboard.custodyUntil"
+  | "dashboard.custodyWhereToday"
   | "dashboard.customizeActions"
   | "dashboard.day"
   | "dashboard.daysAgo"
@@ -2355,9 +2359,17 @@ export type TranslationKey =
   | "push.trialReminder.body"
   | "push.trialReminder.title"
   | "reminders.activity.itemsLabel"
+  | "reminders.activity.itemsLabelV2.almostThere"
+  | "reminders.activity.itemsLabelV2.soon"
+  | "reminders.activity.itemsLabelV2.today"
+  | "reminders.activity.itemsLabelV2.tomorrow"
   | "reminders.activity.title"
   | "reminders.activity.titleEvening"
   | "reminders.activity.titleMorning"
+  | "reminders.activity.titleV2.almostThere"
+  | "reminders.activity.titleV2.soon"
+  | "reminders.activity.titleV2.today"
+  | "reminders.activity.titleV2.tomorrow"
   | "reminders.briefing.itemsToPrep"
   | "reminders.briefing.moreCount"
   | "reminders.briefing.respYou"
@@ -2365,6 +2377,8 @@ export type TranslationKey =
   | "reminders.digest.body"
   | "reminders.digest.bodyWithItems"
   | "reminders.digest.title"
+  | "reminders.followup.body"
+  | "reminders.followup.title"
   | "schedule.alreadyConfigured"
   | "schedule.buildPattern"
   | "schedule.clearConfirm"
@@ -3246,17 +3260,21 @@ export const TRANSLATION_KEYS = [
   "dashboard.balanced",
   "dashboard.bornIn",
   "dashboard.childWith",
+  "dashboard.childrenWith",
   "dashboard.consecutive",
   "dashboard.custodyActivationCta",
   "dashboard.custodyActivationDescription",
   "dashboard.custodyActivationDismiss",
   "dashboard.custodyActivationTitle",
+  "dashboard.custodyGroupWith",
   "dashboard.custodyServer.endLabelException",
   "dashboard.custodyServer.endLabelRegular",
   "dashboard.custodyServer.endLabelSwap",
   "dashboard.custodyServer.summaryWithChild",
+  "dashboard.custodyServer.summaryWithChildren",
   "dashboard.custodyServer.withYou",
   "dashboard.custodyUntil",
+  "dashboard.custodyWhereToday",
   "dashboard.customizeActions",
   "dashboard.day",
   "dashboard.daysAgo",
@@ -4941,9 +4959,17 @@ export const TRANSLATION_KEYS = [
   "push.trialReminder.body",
   "push.trialReminder.title",
   "reminders.activity.itemsLabel",
+  "reminders.activity.itemsLabelV2.almostThere",
+  "reminders.activity.itemsLabelV2.soon",
+  "reminders.activity.itemsLabelV2.today",
+  "reminders.activity.itemsLabelV2.tomorrow",
   "reminders.activity.title",
   "reminders.activity.titleEvening",
   "reminders.activity.titleMorning",
+  "reminders.activity.titleV2.almostThere",
+  "reminders.activity.titleV2.soon",
+  "reminders.activity.titleV2.today",
+  "reminders.activity.titleV2.tomorrow",
   "reminders.briefing.itemsToPrep",
   "reminders.briefing.moreCount",
   "reminders.briefing.respYou",
@@ -4951,6 +4977,8 @@ export const TRANSLATION_KEYS = [
   "reminders.digest.body",
   "reminders.digest.bodyWithItems",
   "reminders.digest.title",
+  "reminders.followup.body",
+  "reminders.followup.title",
   "schedule.alreadyConfigured",
   "schedule.buildPattern",
   "schedule.clearConfirm",
