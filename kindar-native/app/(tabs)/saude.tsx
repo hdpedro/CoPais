@@ -244,7 +244,7 @@ export default function SaudeScreen() {
                 accessibilityLabel={mod.label}
                 style={{ width: '31%', backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.md, alignItems: 'center', gap: spacing.xs, ...shadows.sm }}>
                 <Text style={{ fontSize: 20 }}>{mod.icon}</Text>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.text, fontWeight: font.weights.medium, textAlign: 'center' }}>{mod.label}</Text>
+                <Text numberOfLines={2} style={{ fontSize: font.sizes.xs, color: colors.text, fontWeight: font.weights.medium, textAlign: 'center' }}>{mod.label}</Text>
               </TouchableOpacity>
             ))}
           </View>

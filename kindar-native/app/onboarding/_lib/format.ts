@@ -28,6 +28,28 @@ export function isoFromBR(value: string): string | null {
 }
 
 /**
+ * Decide a i18n key de erro quando o submit é tentado mas o ISO está vazio.
+ * `isoFromBR` zera o ISO tanto pra data futura quanto pra formato inválido;
+ * aqui distinguimos os dois pra dar a mensagem certa.
+ *
+ * Existe por causa do bug Apollo (2026-06-03): no onboarding o usuário digitou
+ * 05/05/2045 (futuro), o ISO ficou vazio e o handler dava `return` SILENCIOSO
+ * — o botão "Salvar e continuar" parecia morto. Agora o handler chama isto e
+ * mostra o erro em vez de não fazer nada.
+ */
+export function birthDateErrorKey(display: string): string {
+  const m = display.trim().match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (m) {
+    const [, d, mo, y] = m;
+    const dt = new Date(+y, +mo - 1, +d);
+    const validCalendar =
+      dt.getFullYear() === +y && dt.getMonth() === +mo - 1 && dt.getDate() === +d;
+    if (validCalendar && dt > new Date()) return 'onboardingForm.errorFutureBirthdate';
+  }
+  return 'onboardingForm.errorInvalidDate';
+}
+
+/**
  * Mask DD/MM/AAAA aplicada incrementalmente em um TextInput numérico.
  * Aceita só dígitos, descarta o resto e insere as barras conforme o
  * usuário digita. Usada no `onChangeText` do form de criança.
