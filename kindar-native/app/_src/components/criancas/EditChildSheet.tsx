@@ -165,9 +165,13 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
 
   const cpfValid = useMemo(() => cpf.trim().length === 0 || isValidCpf(cpf), [cpf]);
+  // CPF (opcional) NÃO desabilita o botão: se inválido, o handleSave dá toast
+  // "CPF inválido" no toque. Antes o botão ficava desabilitado em silêncio →
+  // o tester tocava em Salvar, nada acontecia e não associava ao CPF
+  // (mecoelho 2026-06-03). A borda vermelha + mensagem inline continuam.
   const canSave = useMemo(
-    () => fullName.trim().length > 0 && !!birthDate && cpfValid && !saving && !uploadingPhoto,
-    [fullName, birthDate, cpfValid, saving, uploadingPhoto]
+    () => fullName.trim().length > 0 && !!birthDate && !saving && !uploadingPhoto,
+    [fullName, birthDate, saving, uploadingPhoto]
   );
 
   function addAllergy() {
@@ -263,6 +267,11 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
 
   async function handleSave() {
     if (!canSave) return;
+    if (!cpfValid) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.show({ message: 'CPF inválido', variant: 'error' });
+      return;
+    }
     setSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
