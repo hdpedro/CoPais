@@ -230,6 +230,9 @@
     "goodEvening": "Buenas noches",
     "activeCustody": "Custodia activa",
     "childWith": "está con {parent}",
+    "childrenWith": "Los niños están con {parent}",
+    "custodyWhereToday": "Dónde están hoy",
+    "custodyGroupWith": "Con {parent}",
     "you": "ti",
     "custodyUntil": "{type} - {day}",
     "day": "Día",
@@ -331,6 +334,7 @@
     "custodyServer": {
       "withYou": "ti",
       "summaryWithChild": "{child} con {parent} hoy",
+      "summaryWithChildren": "Los niños con {parent} hoy",
       "endLabelSwap": "intercambio · {day}",
       "endLabelException": "ajuste · {day}",
       "endLabelRegular": "hasta {day}"

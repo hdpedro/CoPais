@@ -19,6 +19,7 @@ import { getQuestProgress } from "@/actions/onboarding-quest";
 import TrialBanner from "@/components/billing/TrialBanner";
 import OnboardingQuest from "@/components/billing/OnboardingQuest";
 import { formatDateKey, computeSwapBalance, getBrazilNow, getBrazilToday, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
+import { buildCustodyHero } from "@/lib/custody-hero";
 // getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
 import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
 import dynamic from "next/dynamic";
@@ -606,6 +607,18 @@ export default async function DashboardPage() {
   }
   const hasTodayCustody = Object.keys(todayCustodyByChild).length > 0;
 
+  // Agrega a custódia de hoje de TODAS as crianças (não só children[0]).
+  // Classifica em single / together / split — ver src/lib/custody-hero.ts.
+  const heroChildren = (children || []).map((c) => ({
+    id: (c as { id: string }).id,
+    firstName: (((c as { full_name: string | null }).full_name) || "").split(" ")[0] || "",
+  }));
+  const custodyHeroData = buildCustodyHero(heroChildren, todayCustodyByChild);
+  // Criança "representante" pro streak + end-date do herói: a 1ª COM
+  // custódia hoje (não children[0], que pode não ter evento hoje).
+  const repChild =
+    (children || []).find((c) => todayCustodyByChild[(c as { id: string }).id]) ?? null;
+
   // Streak — agora calcula sobre o BLOCO consecutivo de dias com o mesmo
   // responsável (aplicando swap > exception > regular dia a dia), não só
   // sobre o range do evento winner.
@@ -622,19 +635,15 @@ export default async function DashboardPage() {
   // memória.
   let streakDays = 0;
   let streakTotal = 0;
-  if (hasTodayCustody && children && children.length > 0) {
-    const firstChild = children[0];
-    const custody = todayCustodyByChild[firstChild.id];
-    if (custody) {
-      const streak = computeCustodyStreak(
-        safeAllCustody as CustodyEventRow[],
-        firstChild.id,
-        today,
-      );
-      if (streak) {
-        streakDays = streak.streakDays;
-        streakTotal = streak.streakTotal;
-      }
+  if (hasTodayCustody && repChild) {
+    const streak = computeCustodyStreak(
+      safeAllCustody as CustodyEventRow[],
+      (repChild as { id: string }).id,
+      today,
+    );
+    if (streak) {
+      streakDays = streak.streakDays;
+      streakTotal = streak.streakTotal;
     }
   }
 
@@ -823,15 +832,27 @@ export default async function DashboardPage() {
   }).format(todayDateObj);
 
   const firstChild = children && children.length > 0 ? children[0] : null;
-  const firstCustody = firstChild ? todayCustodyByChild[firstChild.id] : null;
-  const custodySummary = firstCustody
-    ? t("dashboard.custodyServer.summaryWithChild", {
-        child: firstChild!.full_name?.split(" ")[0] || "",
-        parent: firstCustody.isWithMe
-          ? t("dashboard.custodyServer.withYou")
-          : firstCustody.responsibleName,
-      })
-    : null;
+  // firstCustody passa a refletir a criança REPRESENTANTE (1ª com custódia
+  // hoje), não mais children[0]. Alimenta o streak bar e o end-date do herói
+  // e cobre o caso de children[0] não ter evento hoje.
+  const firstCustody = repChild ? todayCustodyByChild[(repChild as { id: string }).id] : null;
+  // Subtítulo do cumprimento, agregado: single → "{nome} com {pai} hoje";
+  // together → "As crianças com {pai} hoje"; split/none → sem cláusula.
+  const custodySummary =
+    custodyHeroData.mode === "single"
+      ? t("dashboard.custodyServer.summaryWithChild", {
+          child: custodyHeroData.group.childNames[0],
+          parent: custodyHeroData.group.isWithMe
+            ? t("dashboard.custodyServer.withYou")
+            : custodyHeroData.group.responsibleName,
+        })
+      : custodyHeroData.mode === "together"
+        ? t("dashboard.custodyServer.summaryWithChildren", {
+            parent: custodyHeroData.group.isWithMe
+              ? t("dashboard.custodyServer.withYou")
+              : custodyHeroData.group.responsibleName,
+          })
+        : null;
 
   // End date label for hero — bug Barata 2026-05-14 still applies (don't
   // leak technical types "swap"/"regular"/"exception" to user). Now also
@@ -919,6 +940,32 @@ export default async function DashboardPage() {
     endDate: firstCustody.endDate,
     custodyType: firstCustody.custodyType,
   } : null;
+
+  // Hero agregado (single / together / split) — ver src/lib/custody-hero.ts.
+  const custodyHeroProp: DashboardClientProps["custodyHero"] = (() => {
+    const colorFor = (uid: string, isWithMe: boolean) =>
+      parentColors[uid]?.color || (isWithMe ? PARENT_COLORS.primary : PARENT_COLORS.secondary);
+    if (custodyHeroData.mode === "none") return null;
+    if (custodyHeroData.mode === "split") {
+      return {
+        mode: "split",
+        groups: custodyHeroData.groups.map((g) => ({
+          responsibleName: g.responsibleName,
+          isWithMe: g.isWithMe,
+          colorHex: colorFor(g.responsibleId, g.isWithMe),
+          childNames: g.childNames,
+        })),
+      };
+    }
+    const g = custodyHeroData.group;
+    return {
+      mode: custodyHeroData.mode,
+      responsibleName: g.responsibleName,
+      isWithMe: g.isWithMe,
+      childName: custodyHeroData.mode === "single" ? g.childNames[0] : null,
+      showStreak: custodyHeroData.mode === "single" ? true : custodyHeroData.allSameEnd,
+    };
+  })();
 
   // Illnesses
   const illnessProps: DashboardClientProps["activeIllnesses"] = (activeIllnesses || []).map((illness) => {
@@ -1110,6 +1157,7 @@ export default async function DashboardPage() {
     groupName,
     hasChildren: !!(children && children.length > 0),
     endDateLabel,
+    custodyHero: custodyHeroProp,
     weekDays: weekDaysData,
     weekCustodyMap: weekCustodyEntries,
     parentColorEntries,

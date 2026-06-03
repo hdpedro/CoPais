@@ -185,6 +185,12 @@ export interface DashboardClientProps {
   groupName: string;
   hasChildren: boolean;
   endDateLabel: string;
+  // Herói de guarda agregado: 1 filho (single), todos com o mesmo
+  // responsável (together) ou divididos entre responsáveis (split).
+  custodyHero:
+    | { mode: "single" | "together"; responsibleName: string; isWithMe: boolean; childName: string | null; showStreak: boolean }
+    | { mode: "split"; groups: { responsibleName: string; isWithMe: boolean; colorHex: string; childNames: string[] }[] }
+    | null;
 
   // Week strip
   weekDays: WeekDay[];
@@ -302,6 +308,7 @@ export default function DashboardClient(props: DashboardClientProps) {
     groupName,
     hasChildren,
     endDateLabel,
+    custodyHero,
     // weekDays, weekCustodyMap, parentColorEntries — removed with weekStrip
     // hasHealthAlerts, activeIllnesses, activeMedications, criticalAllergies, upcomingAppointments — replaced by healthBlock
     hasTomorrowActivities,
@@ -541,7 +548,7 @@ export default function DashboardClient(props: DashboardClientProps) {
             </Link>
           )}
         </div>
-      ) : hasTodayCustody && firstChildName && firstCustody ? (
+      ) : hasTodayCustody && custodyHero ? (
         <div className="relative rounded-2xl overflow-hidden bg-[#2C2C2C] p-5 text-white">
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent" />
           <div className="relative">
@@ -559,40 +566,82 @@ export default function DashboardClient(props: DashboardClientProps) {
               )}
             </div>
 
-            {/* Main info */}
-            <h2 className="text-[24px] font-bold tracking-tight leading-tight">
-              <span className="text-[#D4735A]">{firstChildName}</span>{" "}
-              {t("dashboard.childWith", {
-                parent: firstCustody.isWithMe
-                  ? t("dashboard.you")
-                  : firstCustody.responsibleName,
-              })}
-            </h2>
-            <p className="text-white/50 text-[13px] mt-1">
-              {firstChildName} &middot; {endDateLabel}
-            </p>
-
-            {/* Progress bar */}
-            {streakTotal > 1 && (
-              <div className="mt-4">
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-[10px] text-white/40 uppercase tracking-wider font-medium">
-                    {t("dashboard.day")}
-                  </span>
-                  <span className="text-[11px] text-white/60 font-medium">
-                    {t("dashboard.consecutive", { current: streakDays, total: streakTotal })}
-                  </span>
-                </div>
-                <div className="flex gap-1">
-                  {streakBarItems.map((item) => (
-                    <div
-                      key={item.key}
-                      className="h-2 rounded-full flex-1"
-                      style={item.style}
-                    />
+            {/* Main info — agrega a família: 1 filho, todos juntos, ou divididos */}
+            {custodyHero.mode === "split" ? (
+              <>
+                <h2 className="text-[20px] font-bold tracking-tight leading-tight">
+                  {t("dashboard.custodyWhereToday")}
+                </h2>
+                <div className="mt-3 space-y-2">
+                  {custodyHero.groups.map((g, i) => (
+                    <div key={i} className="flex items-center gap-2.5">
+                      <span
+                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: g.colorHex }}
+                      />
+                      <span className="text-[11px] text-white/50 uppercase tracking-wide font-medium flex-shrink-0">
+                        {t("dashboard.custodyGroupWith", {
+                          parent: g.isWithMe ? t("dashboard.you") : g.responsibleName,
+                        })}
+                      </span>
+                      <span className="text-[13px] text-white/90 font-medium truncate">
+                        {g.childNames.join(" · ")}
+                      </span>
+                    </div>
                   ))}
                 </div>
-              </div>
+              </>
+            ) : (
+              <>
+                <h2 className="text-[24px] font-bold tracking-tight leading-tight">
+                  {custodyHero.mode === "single" ? (
+                    <>
+                      <span className="text-[#D4735A]">{custodyHero.childName}</span>{" "}
+                      {t("dashboard.childWith", {
+                        parent: custodyHero.isWithMe
+                          ? t("dashboard.you")
+                          : custodyHero.responsibleName,
+                      })}
+                    </>
+                  ) : (
+                    t("dashboard.childrenWith", {
+                      parent: custodyHero.isWithMe
+                        ? t("dashboard.you")
+                        : custodyHero.responsibleName,
+                    })
+                  )}
+                </h2>
+                {custodyHero.showStreak && endDateLabel && (
+                  <p className="text-white/50 text-[13px] mt-1">
+                    {custodyHero.mode === "single"
+                      ? <>{custodyHero.childName} &middot; {endDateLabel}</>
+                      : endDateLabel}
+                  </p>
+                )}
+
+                {/* Progress bar */}
+                {custodyHero.showStreak && streakTotal > 1 && (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-[10px] text-white/40 uppercase tracking-wider font-medium">
+                        {t("dashboard.day")}
+                      </span>
+                      <span className="text-[11px] text-white/60 font-medium">
+                        {t("dashboard.consecutive", { current: streakDays, total: streakTotal })}
+                      </span>
+                    </div>
+                    <div className="flex gap-1">
+                      {streakBarItems.map((item) => (
+                        <div
+                          key={item.key}
+                          className="h-2 rounded-full flex-1"
+                          style={item.style}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
