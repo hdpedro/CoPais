@@ -24,4 +24,17 @@ export default defineConfig({
       "@": path.resolve(__dirname, "./src"),
     },
   },
+  // Os testes de paridade native importam kindar-native/app/_src/lib/*.ts. Sem
+  // isto o transform (oxc) resolve o tsconfig de cada arquivo e sobe até
+  // kindar-native/tsconfig.json, que faz `extends "expo/tsconfig.base"`. O job
+  // de teste da raiz no CI não instala as deps do native, então esse extends
+  // não resolve → "Tsconfig not found". Um tsconfig inline em `oxc.tsconfig`
+  // desliga o lookup por arquivo; o transform só precisa stripar tipos.
+  oxc: {
+    // @ts-expect-error rolldown-vite aceita `tsconfig` em runtime, mas o tipo
+    // OxcOptions desta versão ainda não declara essa propriedade.
+    tsconfig: {
+      compilerOptions: { jsx: "react-jsx", jsxImportSource: "react" },
+    },
+  },
 });

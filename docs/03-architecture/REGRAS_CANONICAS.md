@@ -2,7 +2,7 @@
 
 > Estas regras são **inegociáveis** e se aplicam a TODO código, copy, UI, comentário visível ao usuário, mensagem de erro, toast, e-mail, push notification e qualquer texto do app — em **toda** funcionalidade existente, nova ou futura, tanto no front Next.js (web/PWA) quanto no React Native/Expo (iOS/Android).
 >
-> **Versão:** 1.0 — 2026-05-16
+> **Versão:** 1.1 — 2026-06-03
 > **Dono:** Henrique
 > **Revisão:** trimestral (próxima: 2026-08-16)
 > **Status:** ATIVAS — toda PR que violar é bloqueada no CI
@@ -13,7 +13,7 @@
 
 Kindar é app cross-platform (PWA + iOS + Android) com 5 idiomas e copy emocionalmente sensível (família, saúde, dinheiro, guarda). Cada string mal escrita, mal traduzida, ou hardcoded é um momento de fricção com um pai cansado às 22h. Premium não é só design — é cada palavra.
 
-Estas 18 regras representam o state-of-the-art 2025 ajustado pra estágio do Kindar. Comparáveis ao stack de Mozilla, Stripe, Spotify. Acima da média do mercado.
+Estas 19 regras representam o state-of-the-art 2025 ajustado pra estágio do Kindar — copy, i18n e arquitetura de plataforma. Comparáveis ao stack de Mozilla, Stripe, Spotify. Acima da média do mercado.
 
 ---
 
@@ -310,6 +310,48 @@ Primeira impressão. Telas `/login`, `/signup`, onboarding completo (criar famí
 
 ---
 
+## Regra 19 — Separação inteligente de plataforma
+
+Kindar é **um produto só**: uma visão de negócio, uma lógica, uma experiência funcional. iOS, Android e PWA **não são três produtos** — são três **apresentações** do mesmo produto. O objetivo nunca é criar apps diferentes; é desenvolver com inteligência, separando só o que naturalmente pertence a cada sistema.
+
+**A regra de negócio é uma só. iOS = Android = PWA. Só a camada de apresentação pode divergir.**
+
+### A pergunta que decide tudo
+
+Antes de qualquer mudança: **"isto é regra de negócio ou comportamento de plataforma?"**
+
+**Regra de negócio → compartilhada, implementada UMA vez.** Cadastro de criança, responsáveis, escala, calendário, despesas, vacinas, guarda, decisões, validações, permissões, segurança, quem recebe qual notificação, contratos de API, banco, correções de lógica. Mora em `src/lib/services/<dominio>.ts` (fonte única de verdade). Os três callers são wrappers finos — `actions/*` (PWA), `api/*/route.ts` (Native), `ai/tools.ts` (assistente + WhatsApp) — e só fazem auth + parsing + adaptação do retorno. Detalhe completo na seção "Regra crítica: paridade PWA ↔ Nativo ↔ WhatsApp" do `CLAUDE.md`.
+
+**Comportamento de plataforma → separado, só onde o usuário ganha.** Material Design vs Human Interface Guidelines, navegação e gestos nativos, botão voltar do Android, sheets e modais, date picker (dialog nativo no Android vs wheel no iOS — `kindar-native/app/_src/components/ui/DateTimeField.tsx`), safe-area e insets, haptics, APNs vs FCM, Apple Sign In vs Google, RevenueCat Apple/Google. Separar **inline** com `Platform.OS` / `Platform.select()` no ponto de uso — nunca forkar arquivo (`.ios.tsx`/`.android.tsx`) nem duplicar a lógica por trás.
+
+### Ordem de decisão (sempre o caminho mais simples)
+
+1. Resolver **compartilhado** (iOS + Android + PWA).
+2. Se houver diferença real de UX nativa, separar **só a apresentação**.
+3. Nunca forkar regra de negócio, nunca duplicar, nunca criar solução paralela.
+4. Uma fonte de verdade pra dados e estado.
+5. Na dúvida, **compartilhar**. Separação é exceção justificada, nunca o default.
+
+Todos os incidentes de divergência nasceram de regra de negócio **vazando** pra camada de apresentação: swap `2026-05-01`, calendar_occurrences `2026-05-07`, decisions stance `2026-05-18`, balance-operations `2026-05-29`, chat `2026-06-02`. Service compartilhado — com trigger no banco como rede de segurança — fecha a porta.
+
+❌ Native reescreve `directionForType()` com valores próprios → diverge do PWA → viola CHECK em produção
+✅ `direction` derivado uma vez no service `balance-operations.ts`; trigger no banco reescreve como defesa
+
+❌ `if (Platform.OS === 'ios') { /* recalcula o split de despesa diferente */ }`
+✅ `Platform.OS` decide só picker, inset, haptic — **nunca** o split
+
+### Publicação é independente por plataforma
+
+Builds já são independentes (binários EAS separados por perfil iOS/Android). **OTA não é por padrão:** `eas update` sem `--platform` publica numa branch única e atinge **iOS E Android** no mesmo `runtimeVersion`. Por isso:
+
+- OTA que toca comportamento de plataforma → **sempre** por plataforma: `npm run ota:android` ou `npm run ota:ios`.
+- `npm run ota:all` (sem `--platform`, atinge os dois) → **só** pra lógica/JS compartilhada e segura nos dois sistemas.
+- Android só impacta Android. iOS só impacta iOS. Ambos **só quando explicitamente pedido**. Nunca assumir publicação multiplataforma por default.
+
+> ✅ **Mecanismo no repo:** `kindar-native/scripts/publish-ota-all-versions.mjs` aceita `--platform android|ios` e avisa quando publica pros dois; os scripts npm `ota:android` / `ota:ios` / `ota:all` cobrem os três casos.
+
+---
+
 ## Checklist obrigatório antes de qualquer PR/commit
 
 Cole no template do PR:
@@ -327,6 +369,8 @@ Cole no template do PR:
 - [ ] Limites de caracteres respeitados em push/email (Regra 15)
 - [ ] Visual regression rodou em 5 locales (CI)
 - [ ] Onboarding/signup, se tocado, com tradução humana (Regra 17)
+- [ ] Lógica de negócio nova vive em `services/` (uma vez, pros 3 surfaces) — só apresentação diverge via `Platform.OS` (Regra 19)
+- [ ] OTA que afeta um SO só usa `--platform` (`ota:android`/`ota:ios`); `ota:all` apenas pra mudança compartilhada e segura nos dois (Regra 19)
 
 ---
 
@@ -340,6 +384,7 @@ Ao gerar qualquer código, copy ou sugestão:
 4. Se não tiver certeza da tradução para outro idioma, marque `TODO` explicitamente em vez de inventar.
 5. Naming segue Regra 9 estritamente — não invente convenção própria.
 6. Chaves existentes são imutáveis (Regra 3) — para renomear, siga o processo.
+7. Antes de implementar, pergunte: **"regra de negócio ou plataforma?"** Negócio → `services/` (uma vez, pros 3 surfaces); plataforma → diverge só na apresentação via `Platform.OS`. Na dúvida, compartilhe (Regra 19).
 
 ---
 
@@ -388,3 +433,4 @@ Regras viram código, não recomendação. Toda PR passa por:
 | Data | Mudança | Autor |
 |---|---|---|
 | 2026-05-16 | v1.0 — 18 regras canônicas iniciais | Henrique + Claude |
+| 2026-06-03 | v1.1 — +Regra 19 (separação inteligente de plataforma: lógica única iOS/Android/PWA, divergência só na apresentação; publicação por `--platform`) | Henrique + Claude |

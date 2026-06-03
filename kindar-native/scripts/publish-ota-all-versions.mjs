@@ -10,6 +10,14 @@
  *
  * Uso:
  *   node scripts/publish-ota-all-versions.mjs --message "fix(...): ..."
+ *   node scripts/publish-ota-all-versions.mjs --message "..." --platform android
+ *   node scripts/publish-ota-all-versions.mjs --message "..." --platform ios
+ *
+ * --platform (Regra 19 — separação inteligente de plataforma):
+ *   Sem --platform a OTA atinge iOS E Android no mesmo runtimeVersion. Use
+ *   --platform android|ios pra publicar só num sistema (mudança que toca
+ *   comportamento nativo de um SO). Sem a flag = ambos, reservado pra
+ *   lógica/JS compartilhada e segura nos dois.
  *
  * Por que precisa de trocar version no app.json:
  *   `runtimeVersion.policy: "appVersion"` faz o EAS resolver a
@@ -64,6 +72,22 @@ if (messageIdx === -1 || !args[messageIdx + 1]) {
 }
 const baseMessage = args[messageIdx + 1];
 
+// --platform (Regra 19): publica só num SO quando a mudança é de plataforma.
+// Sem a flag, o EAS publica pra iOS E Android (default "all" do eas update).
+const VALID_PLATFORMS = ["android", "ios", "all"];
+const platformIdx = args.indexOf("--platform");
+const platform = platformIdx !== -1 ? args[platformIdx + 1] : null;
+if (platform && !VALID_PLATFORMS.includes(platform)) {
+  console.error(`--platform inválido: "${platform}". Use android | ios | all.`);
+  process.exit(1);
+}
+if (!platform || platform === "all") {
+  console.warn(
+    "\n⚠️  Sem --platform: a OTA vai pra iOS E Android (mesmo runtimeVersion).\n" +
+    "   Use --platform android|ios se a mudança afeta só um sistema (Regra 19).\n"
+  );
+}
+
 const original = JSON.parse(readFileSync(APP_JSON, "utf8"));
 const originalVersion = original.expo.version;
 
@@ -112,17 +136,20 @@ function runEas(args) {
 
 try {
   for (const v of TARGET_VERSIONS) {
-    console.log(`\n=== Publishing OTA pra runtimeVersion ${v} ===`);
+    console.log(`\n=== Publishing OTA [${platform || "all"}] pra runtimeVersion ${v} ===`);
     setVersion(v);
-    const msg = `${baseMessage} (${v})`;
+    const msg = platform && platform !== "all"
+      ? `${baseMessage} (${v}, ${platform})`
+      : `${baseMessage} (${v})`;
     await runEas([
       "update",
       "--branch", "production",
+      ...(platform ? ["--platform", platform] : []),
       "--message", msg,
       "--non-interactive",
     ]);
   }
-  console.log(`\nOK ${TARGET_VERSIONS.length} OTAs publicadas com sucesso.`);
+  console.log(`\nOK ${TARGET_VERSIONS.length} OTAs [${platform || "all"}] publicadas com sucesso.`);
 } finally {
   restore();
 }

@@ -1,7 +1,7 @@
 
 ## Regras Canônicas (INEGOCIÁVEIS — leia antes de tocar qualquer texto)
 
-**18 regras** sobre português impecável + i18n obrigatória pra TODO texto visível ao usuário (JSX, atributos, push, email, OG images, a11y labels, mensagens de erro). Doc oficial: [`docs/03-architecture/REGRAS_CANONICAS.md`](../docs/03-architecture/REGRAS_CANONICAS.md).
+**19 regras** sobre português impecável + i18n obrigatória pra TODO texto visível ao usuário (JSX, atributos, push, email, OG images, a11y labels, mensagens de erro) + separação inteligente de plataforma (Regra 19). Doc oficial: [`docs/03-architecture/REGRAS_CANONICAS.md`](../docs/03-architecture/REGRAS_CANONICAS.md).
 
 **Resumo do que NÃO pode passar em PR**:
 
@@ -15,6 +15,7 @@
 8. Datas/números/moedas sem `Intl.*` respeitando locale
 9. Naming de chave fora da convenção: `<scope>.<entity>.<property>` / `action.<verb>` / `status.<entity>.<state>` / `error.<domain>.<specific>` / `empty.<screen>` / `a11y.<context>.<role>`
 10. Copy legal/médica/financeira/onboarding traduzida por LLM (essas DEVEM ser humano nativo)
+11. Regra de negócio forkada/duplicada por plataforma — deve viver em `services/` (uma vez, pros 3 surfaces), só apresentação diverge via `Platform.OS`; idem OTA que afeta um SO só publicada sem `--platform` (Regra 19)
 
 **Linguagem inclusiva** (Regra 12): "coparente"/"responsável" > "marido/esposa/pais"; sem pressupor número de pais; pronome neutro em EN; informal em DE/ES/FR (du/tú/tu).
 
