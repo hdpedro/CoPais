@@ -6,6 +6,8 @@
     "eas-build-pre-install": "chmod -R u+w . 2>/dev/null; rm -rf node_modules 2>/dev/null; mkdir -p node_modules && chmod 755 node_modules; true",
     "start": "expo start",
     "ota:all": "node scripts/publish-ota-all-versions.mjs",
+    "ota:android": "node scripts/publish-ota-all-versions.mjs --platform android",
+    "ota:ios": "node scripts/publish-ota-all-versions.mjs --platform ios",
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run",
     "test:unit:watch": "vitest",
