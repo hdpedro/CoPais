@@ -39,6 +39,7 @@ export type ChildErrorCode =
   | "missing_fields"
   | "invalid_date"
   | "future_birthdate"
+  | "birthdate_out_of_range"
   | "fk_blocked"
   | "check_violation"
   | "unique_violation"
@@ -138,6 +139,21 @@ function isFutureDate(iso: string): boolean {
   // Comparamos contra fim do dia local pra não brigar com timezone:
   // birthdate "hoje" deve ser válido em qualquer fuso.
   return new Date(`${iso}T12:00:00`).getTime() > Date.now();
+}
+
+/**
+ * Idade impossível pra um ser humano. Pega typo de ano — ex: 11/11/1111
+ * passava por `isIsoDate` + `isFutureDate` (é data passada e bem-formada) e
+ * gerava "914 anos" no onboarding (bug reportado 2026-06-04). Limite generoso
+ * de 120 anos: é sanidade, não regra de negócio — nunca rejeita criança real.
+ */
+const MAX_HUMAN_AGE_YEARS = 120;
+
+function isTooOldDate(iso: string): boolean {
+  const floor = new Date();
+  floor.setFullYear(floor.getFullYear() - MAX_HUMAN_AGE_YEARS);
+  // Mesmo critério de fuso do isFutureDate (meio-dia local).
+  return new Date(`${iso}T12:00:00`).getTime() < floor.getTime();
 }
 
 /**
@@ -316,6 +332,14 @@ export async function createChild(
       status: 400,
     };
   }
+  if (isTooOldDate(birthDate)) {
+    return {
+      ok: false,
+      errorCode: "birthdate_out_of_range",
+      error: "Data de nascimento inválida. Verifique o ano.",
+      status: 400,
+    };
+  }
 
   // ── Membership gate (admin client only) ──────────────────────────
   if (ctx.enforceMembership && ctx.actorId) {
@@ -436,6 +460,14 @@ export async function updateChild(
         ok: false,
         errorCode: "future_birthdate",
         error: "Data de nascimento não pode ser futura.",
+        status: 400,
+      };
+    }
+    if (isTooOldDate(patch.birthDate)) {
+      return {
+        ok: false,
+        errorCode: "birthdate_out_of_range",
+        error: "Data de nascimento inválida. Verifique o ano.",
         status: 400,
       };
     }
