@@ -84,7 +84,8 @@
         {
           "calendarPermission": "O Kindar sincroniza seus eventos de guarda compartilhada (ex: sextas no Lar A) e atividades das crianças (ex: consulta dentista terça 15h, natação quinta 17h) com o app Calendário do iPhone, para você visualizá-los junto com seus outros compromissos."
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin"
     ],
     "extra": {
       "eas": {

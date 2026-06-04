@@ -15,6 +15,7 @@ import { useAuth } from 'src/store/auth';
 import {
   signInWithApple,
   signInWithGoogleToken,
+  signInWithGoogleNative,
   GOOGLE_IOS_CLIENT_ID_EXPORTED,
   GOOGLE_ANDROID_CLIENT_ID_EXPORTED,
   GOOGLE_SIGN_IN_CONFIGURED,
@@ -336,11 +337,31 @@ export default function LoginScreen() {
             accessibilityLabel="Entrar com Google"
             accessibilityState={{ disabled: loading }}
             onPress={async () => {
+              setError('');
+              Haptics.selectionAsync();
+              // Android: o Google descontinuou o esquema de URI personalizado, então
+              // o fluxo do expo-auth-session morreu lá. Usa o SDK nativo (Credential
+              // Manager). iOS continua no expo-auth-session (promptGoogle).
+              if (Platform.OS === 'android') {
+                setLoading(true);
+                const result = await signInWithGoogleNative();
+                if (result.success) {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+                  await useAuth.getState().initialize();
+                  const accepted = await tryAutoAcceptInvitation();
+                  if (accepted) await useAuth.getState().loadActiveGroup();
+                  const state = useAuth.getState();
+                  router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
+                } else if (result.error !== 'Cancelado') {
+                  Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+                  setError(result.error || t('auth.googleSignInError'));
+                }
+                setLoading(false);
+                return;
+              }
               try {
-                setError('');
-                Haptics.selectionAsync();
                 await promptGoogle();
-                // Result is handled by the useEffect on googleResponse above.
+                // Result is handled by the useEffect on googleResponse above (iOS).
               } catch {
                 setError('Não foi possível iniciar o login com Google');
               }

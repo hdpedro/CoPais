@@ -34,6 +34,12 @@ const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 // no login fica escondido. Comportamento intencional pra builds sem credencial.
 const GOOGLE_IOS_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID || '';
 const GOOGLE_ANDROID_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID || '';
+// Web client ID — usado pelo SDK NATIVO do Android (@react-native-google-signin)
+// como audience do id_token. O Google DESCONTINUOU o esquema de URI personalizado
+// pro Android (2026), o que matou o fluxo do expo-auth-session lá. O SDK nativo
+// (Credential Manager) casa o Android client por package+SHA-1 no GCP e usa este
+// webClientId pro id_token. Backend /api/auth/google-native já aceita o aud Web.
+const GOOGLE_WEB_CLIENT_ID = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || '';
 
 interface BackendSession {
   access_token: string;
@@ -167,7 +173,7 @@ export const GOOGLE_SIGN_IN_CONFIGURED =
   Platform.OS === 'ios'
     ? !!GOOGLE_IOS_CLIENT_ID
     : Platform.OS === 'android'
-      ? !!GOOGLE_ANDROID_CLIENT_ID
+      ? !!GOOGLE_WEB_CLIENT_ID
       : false;
 
 /**
@@ -185,6 +191,47 @@ export async function signInWithGoogleToken(idToken: string): Promise<{ success:
     return { success: false, error: `Falha no servidor: ${(err as Error).message}` };
   }
   return applyBackendSession(session);
+}
+
+/**
+ * Google Sign-In NATIVO pro Android via @react-native-google-signin (Credential
+ * Manager). Substitui o expo-auth-session no Android, que quebrou porque o Google
+ * descontinuou o esquema de URI personalizado (erro 400 invalid_request: "Custom
+ * URI scheme is not enabled for your Android client"). Pega o id_token e troca por
+ * sessao Supabase no mesmo backend (/api/auth/google-native, que aceita o aud Web).
+ *
+ * iOS continua no expo-auth-session (que funciona). Import dinamico pra nunca
+ * carregar o modulo nativo no iOS.
+ */
+export async function signInWithGoogleNative(): Promise<{ success: boolean; error?: string }> {
+  if (Platform.OS !== 'android') {
+    return { success: false, error: 'Google nativo disponivel apenas no Android' };
+  }
+  if (!GOOGLE_WEB_CLIENT_ID) {
+    return { success: false, error: 'Google nao configurado (webClientId ausente)' };
+  }
+  const { GoogleSignin, statusCodes } = await import('@react-native-google-signin/google-signin');
+  try {
+    GoogleSignin.configure({ webClientId: GOOGLE_WEB_CLIENT_ID, offlineAccess: false });
+    await GoogleSignin.hasPlayServices({ showPlayServicesUpdateDialog: true });
+    const response = await GoogleSignin.signIn();
+    if (response.type === 'cancelled') {
+      return { success: false, error: 'Cancelado' };
+    }
+    const idToken = response.data?.idToken;
+    if (!idToken) {
+      return { success: false, error: 'Google nao retornou id_token' };
+    }
+    return signInWithGoogleToken(idToken);
+  } catch (e: unknown) {
+    const err = e as { code?: string; message?: string };
+    if (err.code === statusCodes.SIGN_IN_CANCELLED) return { success: false, error: 'Cancelado' };
+    if (err.code === statusCodes.IN_PROGRESS) return { success: false, error: 'Login com Google ja em andamento' };
+    if (err.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
+      return { success: false, error: 'Google Play Services indisponivel ou desatualizado.' };
+    }
+    return { success: false, error: err.message || 'Erro no login com Google' };
+  }
 }
 
 /**
