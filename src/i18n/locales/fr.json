@@ -984,6 +984,7 @@
     "medicationName": "Nom du médicament",
     "dosageLabel": "Posologie",
     "dosagePlaceholder": "Ex : 5ml, 12 gouttes, 1 comprimé",
+    "confirmSaveWithoutDosageFrequency": "Vous n'avez pas indiqué la posologie et/ou la fréquence. Vous pourrez les ajouter plus tard. Enregistrer quand même ?",
     "reasonPlaceholder": "Ex : Otite",
     "prescribedByLabel": "Prescrit par",
     "doctorNamePlaceholder": "Nom du médecin",

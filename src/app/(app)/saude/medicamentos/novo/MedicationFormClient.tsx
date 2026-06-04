@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { type FormEvent } from "react";
 import { useI18n } from "@/i18n/provider";
 import { MEDICATION_FREQUENCIES } from "@/lib/health-constants";
 import FrequencySelect from "../FrequencySelect";
@@ -16,6 +17,19 @@ interface Props {
 export default function MedicationFormClient({ groupId, children, today, createAction }: Props) {
   const { t } = useI18n();
 
+  // Meio-termo (paridade com o native, decisão do dono 2026-06-04): dosagem e
+  // frequência não são mais obrigatórias, mas se vierem em branco confirmamos
+  // antes de salvar — em vez de bloquear (regra antiga do PWA) ou aceitar
+  // silenciosamente. Report iOS (martins.00542).
+  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+    const fd = new FormData(e.currentTarget);
+    const dosage = ((fd.get("dosage") as string) || "").trim();
+    const frequency = ((fd.get("frequency") as string) || "").trim();
+    if ((!dosage || !frequency) && !window.confirm(t("health.confirmSaveWithoutDosageFrequency"))) {
+      e.preventDefault();
+    }
+  }
+
   return (
     <div className="max-w-lg mx-auto pb-20 space-y-6">
       <div className="flex items-center gap-3">
@@ -25,7 +39,7 @@ export default function MedicationFormClient({ groupId, children, today, createA
         <h1 className="text-2xl font-bold text-[#2D2D2D]">{t("health.newMedication")}</h1>
       </div>
 
-      <form action={createAction} className="bg-white rounded-xl p-4 shadow-sm space-y-4">
+      <form action={createAction} onSubmit={handleSubmit} className="bg-white rounded-xl p-4 shadow-sm space-y-4">
         <input type="hidden" name="groupId" value={groupId} />
 
         <div>
@@ -52,7 +66,7 @@ export default function MedicationFormClient({ groupId, children, today, createA
 
         <div>
           <label className="block text-sm font-medium text-[#2D2D2D] mb-1">{t("health.dosageLabel")}</label>
-          <input type="text" name="dosage" required placeholder={t("health.dosagePlaceholder")} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5B9B8A]/50" />
+          <input type="text" name="dosage" placeholder={t("health.dosagePlaceholder")} className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#5B9B8A]/50" />
         </div>
 
         <div>

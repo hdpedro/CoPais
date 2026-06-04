@@ -1194,6 +1194,7 @@ export type TranslationKey =
   | "health.confirmDose.registering"
   | "health.confirmDose.veryRecentDose"
   | "health.confirmDose.warning"
+  | "health.confirmSaveWithoutDosageFrequency"
   | "health.consultPediatrician"
   | "health.continuousDay"
   | "health.continuousUse"
@@ -3794,6 +3795,7 @@ export const TRANSLATION_KEYS = [
   "health.confirmDose.registering",
   "health.confirmDose.veryRecentDose",
   "health.confirmDose.warning",
+  "health.confirmSaveWithoutDosageFrequency",
   "health.consultPediatrician",
   "health.continuousDay",
   "health.continuousUse",

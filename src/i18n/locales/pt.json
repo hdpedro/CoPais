@@ -984,6 +984,7 @@
     "medicationName": "Nome do medicamento",
     "dosageLabel": "Dosagem",
     "dosagePlaceholder": "Ex: 5ml, 12 gotas, 1 comprimido",
+    "confirmSaveWithoutDosageFrequency": "Você não informou a dosagem e/ou a frequência. Você pode adicionar depois. Salvar assim mesmo?",
     "reasonPlaceholder": "Ex: Infecção de ouvido",
     "prescribedByLabel": "Prescrito por",
     "doctorNamePlaceholder": "Nome do médico",
