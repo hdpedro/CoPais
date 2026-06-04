@@ -133,9 +133,14 @@ export default function GrowthChart({
 
     const childMaxMonth =
       childPoints.length > 0 ? Math.max(...childPoints.map((p) => p.month)) : 0;
+    // Sem o clamp em 60 meses: crianças > 5 anos (ex: 15 anos = 180 meses)
+    // ficavam com os pontos FORA do eixo X → o gráfico não mostrava o
+    // peso/altura registrados (bug reportado 2026-06-04, "não lê depois dos 60
+    // meses"). Agora o eixo X estica até a idade da criança; as faixas de
+    // percentil WHO (0–60 meses) ficam no início (só existem até 5 anos).
     const maxMonth = Math.max(
       12,
-      Math.min(60, Math.ceil(childMaxMonth / 6) * 6 + 6),
+      Math.ceil(childMaxMonth / 6) * 6 + 6,
     );
 
     const relevantWho = whoData.filter((d) => d.month <= maxMonth);
@@ -162,7 +167,7 @@ export default function GrowthChart({
     const yTicks: number[] = [];
     for (let v = yMin; v <= yMax; v += yStep) yTicks.push(v);
 
-    const xStep = maxMonth <= 12 ? 2 : maxMonth <= 24 ? 3 : 6;
+    const xStep = maxMonth <= 12 ? 2 : maxMonth <= 24 ? 3 : maxMonth <= 72 ? 6 : maxMonth <= 144 ? 12 : 24;
     const xTicks: number[] = [];
     for (let m = 0; m <= maxMonth; m += xStep) xTicks.push(m);
 
