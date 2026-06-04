@@ -425,7 +425,7 @@ Nivel 3: Escalacao
 
 ---
 
-## Correcoes de QA — Teste Fechado Android (2026-06-03)
+## Correcoes de QA — Teste Fechado Android (2026-06-03/04)
 
 > Ciclo de correcoes a partir do feedback dos testers do teste fechado Android (track `internal` do Play). Os testers estavam na build **1.0.11** enquanto o `main` ja estava em **1.0.19** — varios bugs ja corrigidos no main nunca chegaram (OTA nao atravessa runtime; ver "Entrega"). Diagnostico + correcao numa sessao unica, browser-assisted.
 
@@ -441,11 +441,12 @@ Nivel 3: Escalacao
 | 6 | Acordos: chaves i18n cruas (`AGREEMENTS.CATEGORYLABEL`, `agreements.nonNegotiableHint`) + "Comunicacao" estourando | Build 1.0.11 antiga (10 categorias + `t('agreements.categoryLabel')` inexistente). Main atual usa rotulo fixo + 5 categorias + `nonNegotiableHint` existe. | Ja resolvido no main | ✅ entregue com o build novo |
 | 7 | WhatsApp: codigo de vinculo nao chega (Alexandre, Amanda) | OTP enviado como **texto livre**, que a Meta so entrega dentro da janela de 24h. Usuario novo (zero inbound) nunca recebe; Meta retorna HTTP 200 sem erro. NAO e bug de plataforma (iOS/PWA "funcionam" porque tinham janela aberta). | Requer **template de Autenticacao aprovado na Meta** (ver M1 criterio #15) + trocar `sendTextMessage`→`sendTemplateMessage`. Pendente aprovacao Meta (assincrono). | ⏸️ Pendente acao na Meta |
 | 8 | Login Google → "Acesso bloqueado / Erro 400 invalid_request" (dias.m.augusto) | Reproduzido no navegador: **"Custom URI scheme is not enabled for your Android client"**. O Google DESCONTINUOU o esquema de URI personalizado pro Android (2026) → fluxo do `expo-auth-session` morto no Android. iOS/PWA funcionam (mecanismos diferentes). | Migracao pro SDK nativo **`@react-native-google-signin`** (Credential Manager + SHA-1 + webClientId `2Lares Web`); iOS mantem expo-auth-session via branch por plataforma. | ✅ build vc36 (PR #66) — validar no device |
+| 9 | Crianca com idade impossivel: data **11/11/1111** → "914 anos" (Magalhaes, onboarding, 2026-06-04) | `11/11/1111` e data passada e bem-formada → passava por `isIsoDate` (formato) + `isFutureDate` (nao-futura); faltava **limite inferior**. O fix do bug 2 so cobria data futura/malformada. | Guard `isTooOldDate` (>120 anos) no service consolidado `createChild`/`updateChild` → cobre create-group + /api/children + actions/group.ts numa tacada. Novo errorCode `birthdate_out_of_range` cai no fallback `serverMessage` (msg PT "Data de nascimento invalida. Verifique o ano."). | ✅ Server-side (PR #68) — chega a TODOS na hora, ate no 1.0.11 |
 
 ### Entrega (track `internal` do Play — auto-update pelos testers)
 - **vc35 / 1.0.19** (bugs 2-6): submetido + `completed` (live).
 - **vc36 / 1.0.19** (bug 8, Google nativo): build + submit.
-- **Server-side** (bug 1): live imediatamente, independe de build.
+- **Server-side** (bugs 1 e 9): live imediatamente (PR #61, #68), independe de build — backstop que vale ate no 1.0.11.
 - ⚠️ **Armadilha versionCode**: `app.json` estava em `3`, Play ja em `34` (via 1.0.20/alpha) → SEMPRE rodar `npm run play:status` antes de bumpar. Builds desta leva: vc35 → vc36.
 - ⚠️ **OTA nao atravessa runtime** (`runtimeVersion=appVersion`): pra entregar a quem esta numa build antiga = **BUILD NOVO no track** (Play auto-update), nao OTA.
 
