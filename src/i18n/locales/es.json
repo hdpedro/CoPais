@@ -984,6 +984,7 @@
     "medicationName": "Nombre del medicamento",
     "dosageLabel": "Dosis",
     "dosagePlaceholder": "Ej: 5ml, 12 gotas, 1 comprimido",
+    "confirmSaveWithoutDosageFrequency": "No indicaste la dosis o la frecuencia. Puedes agregarlas después. ¿Guardar de todos modos?",
     "reasonPlaceholder": "Ej: Infección de oído",
     "prescribedByLabel": "Recetado por",
     "doctorNamePlaceholder": "Nombre del médico",

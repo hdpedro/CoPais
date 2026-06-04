@@ -479,8 +479,9 @@ export async function createMedication(formData: FormData) {
   // Validate required NOT NULL fields
   if (!childId) redirect("/saude/medicamentos?error=" + encodeURIComponent("Selecione uma criança"));
   if (!name) redirect("/saude/medicamentos?error=" + encodeURIComponent("Nome do medicamento é obrigatório"));
-  if (!dosage) redirect("/saude/medicamentos?error=" + encodeURIComponent("Dosagem é obrigatória"));
-  if (!frequency) redirect("/saude/medicamentos?error=" + encodeURIComponent("Frequência é obrigatória"));
+  // Meio-termo (paridade com o native, decisão do dono 2026-06-04): dosagem e
+  // frequência NÃO são mais obrigatórias. Em branco viram "Conforme prescrição"
+  // no insert (colunas NOT NULL); o client confirma antes de salvar vazio.
   if (!startDate) redirect("/saude/medicamentos?error=" + encodeURIComponent("Data de início é obrigatória"));
 
   // .select("id").single() pra capturar o id do registro novo e usar em
@@ -491,8 +492,8 @@ export async function createMedication(formData: FormData) {
       group_id: groupId,
       child_id: childId,
       name,
-      dosage,
-      frequency,
+      dosage: dosage || "Conforme prescrição",
+      frequency: frequency || "Conforme prescrição",
       frequency_hours: frequencyHours ? parseInt(frequencyHours, 10) : null,
       reason: reason || null,
       prescribed_by: prescribedBy || null,

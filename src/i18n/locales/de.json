@@ -984,6 +984,7 @@
     "medicationName": "Medikamentenname",
     "dosageLabel": "Dosierung",
     "dosagePlaceholder": "Z.B.: 5ml, 12 Tropfen, 1 Tablette",
+    "confirmSaveWithoutDosageFrequency": "Sie haben Dosierung und/oder Häufigkeit nicht angegeben. Sie können sie später hinzufügen. Trotzdem speichern?",
     "reasonPlaceholder": "Z.B.: Ohrentzündung",
     "prescribedByLabel": "Verschrieben von",
     "doctorNamePlaceholder": "Name des Arztes",

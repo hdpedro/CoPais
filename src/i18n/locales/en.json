@@ -984,6 +984,7 @@
     "medicationName": "Medication name",
     "dosageLabel": "Dosage",
     "dosagePlaceholder": "E.g.: 5ml, 12 drops, 1 tablet",
+    "confirmSaveWithoutDosageFrequency": "You didn't enter the dosage and/or frequency. You can add them later. Save anyway?",
     "reasonPlaceholder": "E.g.: Ear infection",
     "prescribedByLabel": "Prescribed by",
     "doctorNamePlaceholder": "Doctor's name",
