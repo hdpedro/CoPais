@@ -403,6 +403,45 @@ export async function createChild(
     }
   }
 
+  // Espelha as alergias do array `children.allergies` (mostrado só na aba Geral)
+  // na tabela `child_allergies` — que é a fonte da aba Saúde + da tela de
+  // Alergias. Sem isto, alergia digitada no cadastro da criança aparecia na
+  // Geral mas NUNCA na Saúde ("Nenhuma alergia registrada" — bug reportado
+  // 2026-06-04). Best-effort: a criança já está criada, então falha aqui não
+  // derruba o cadastro. `allergy_type`/`severity` são NOT NULL sem default →
+  // 'other'/'moderate' (o responsável refina depois na tela de Alergias).
+  if (normAllergies && normAllergies.length > 0 && ctx.actorId) {
+    try {
+      const allergyRows = normAllergies.map((name) => ({
+        group_id: groupId,
+        child_id: (data as ChildRow).id,
+        name,
+        allergy_type: "other",
+        severity: "moderate",
+        created_by: ctx.actorId,
+      }));
+      const { error: allergyErr } = await supabase.from("child_allergies").insert(allergyRows);
+      if (allergyErr) {
+        void reportServerError(
+          new Error(`child_allergies sync on create failed: ${allergyErr.message}`),
+          {
+            filePath: ctx.callerPath,
+            severity: "warning",
+            userId: ctx.actorId,
+            metadata: { op: "create_allergy_sync", childId: (data as ChildRow).id, count: allergyRows.length },
+          },
+        );
+      }
+    } catch (e) {
+      void reportServerError(e, {
+        filePath: ctx.callerPath,
+        severity: "warning",
+        userId: ctx.actorId,
+        metadata: { op: "create_allergy_sync" },
+      });
+    }
+  }
+
   return { ok: true, data: data as ChildRow };
 }
 
