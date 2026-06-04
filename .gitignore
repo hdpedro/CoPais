@@ -71,3 +71,6 @@ scripts/app-screenshot-iphone65.png
 # Google Play service account (NEVER commit)
 google-service-account.json
 **/google-service-account.json
+
+# Firebase Android config (FCM) — repo publico, NUNCA commitar (key exposta). Vai por EAS secret GOOGLE_SERVICES_JSON.
+google-services.json
