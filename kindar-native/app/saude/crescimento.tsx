@@ -595,7 +595,7 @@ function StatCard({ label, value, unit, percentile, onPress }: StatCardProps) {
       <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: 4 }}>
         {label}
       </Text>
-      <Text style={{ fontSize: 22, fontWeight: font.weights.bold, color: colors.text, lineHeight: 26 }}>
+      <Text numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.5} style={{ fontSize: 22, fontWeight: font.weights.bold, color: colors.text, lineHeight: 26, textAlign: 'center' }}>
         {value}
       </Text>
       {hasPercentile ? (
@@ -613,7 +613,7 @@ function StatCard({ label, value, unit, percentile, onPress }: StatCardProps) {
           </Text>
         </View>
       ) : (
-        <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>{unit}</Text>
+        <Text numberOfLines={1} adjustsFontSizeToFit style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>{unit}</Text>
       )}
       {isEmpty && onPress ? (
         <Text style={{ fontSize: 9, color: colors.brand, marginTop: 2, fontWeight: font.weights.semibold }}>
