@@ -114,6 +114,7 @@ export default function ChildDetailScreen() {
             medications={medications}
             vaccinations={vaccinations}
             professionals={professionals}
+            onEditBloodType={() => setTab('geral')}
           />
         </ScrollView>
       )}

@@ -145,7 +145,33 @@ export default function MedicamentosScreen() {
     setRefreshing(false);
   }
 
+  // Meio-termo (tester iOS 2026-06-04: medicamento salvava sem dosagem/
+  // frequência e virava "Conforme prescrição" SILENCIOSAMENTE — parecia que
+  // o usuário tinha digitado isso). As colunas dosage/frequency são NOT NULL,
+  // então mantemos o fallback — mas só depois de uma confirmação explícita,
+  // pra a escolha de registrar "conforme prescrição" ser consciente.
   async function handleCreate() {
+    if (!name.trim() || !selectedChild || !userId || !activeGroup) return;
+    const hasDosage = !!dosage.trim();
+    const hasFrequency = !!frequency.trim();
+    if (!hasDosage || !hasFrequency) {
+      const missing = !hasDosage && !hasFrequency
+        ? 'a dosagem e a frequência'
+        : !hasDosage ? 'a dosagem' : 'a frequência';
+      Alert.alert(
+        'Salvar sem detalhes?',
+        `Você não informou ${missing}. Vai ficar registrado como "Conforme prescrição" — dá pra editar depois. Salvar assim?`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { text: 'Salvar assim', onPress: () => { void persistMedication(); } },
+        ],
+      );
+      return;
+    }
+    await persistMedication();
+  }
+
+  async function persistMedication() {
     if (!name.trim() || !selectedChild || !userId || !activeGroup) return;
     setSaving(true);
     // Derive frequency_hours from the user's text so the dose-interval

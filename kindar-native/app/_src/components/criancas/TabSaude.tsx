@@ -20,6 +20,8 @@ interface Props {
   medications: ActiveMedication[];
   vaccinations: Vaccination[];
   professionals: MedicalProfessional[];
+  /** Abre o editor da criança (tipo sanguíneo vive lá). Vem do [id].tsx. */
+  onEditBloodType?: () => void;
 }
 
 function Section({ title, action, children }: { title: string; action?: { label: string; onPress: () => void }; children: React.ReactNode }) {
@@ -83,7 +85,7 @@ function labelSeverity(s: string): string {
   }
 }
 
-export default function TabSaude({ medicalInfo, latestGrowth, allergies, medications, vaccinations, professionals }: Props) {
+export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies, medications, vaccinations, professionals, onEditBloodType }: Props) {
   return (
     <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }} showsVerticalScrollIndicator={false}>
       {/* Quick stats grid */}
@@ -94,6 +96,7 @@ export default function TabSaude({ medicalInfo, latestGrowth, allergies, medicat
           bg="#FFE4E1"
           label="Sangue"
           value={medicalInfo?.blood_type ?? '—'}
+          onPress={onEditBloodType}
         />
         <Stat
           icon="speedometer"
@@ -101,6 +104,7 @@ export default function TabSaude({ medicalInfo, latestGrowth, allergies, medicat
           bg={colors.brandLight}
           label="Peso"
           value={latestGrowth?.weight_kg ? `${latestGrowth.weight_kg}kg` : '—'}
+          onPress={() => router.push(`/saude/crescimento?childId=${childId}` as never)}
         />
         <Stat
           icon="resize"
@@ -108,6 +112,7 @@ export default function TabSaude({ medicalInfo, latestGrowth, allergies, medicat
           bg="#EAE5F5"
           label="Altura"
           value={latestGrowth?.height_cm ? `${latestGrowth.height_cm}cm` : '—'}
+          onPress={() => router.push(`/saude/crescimento?childId=${childId}` as never)}
         />
       </View>
 
@@ -286,14 +291,16 @@ function Stat({
   bg,
   label,
   value,
+  onPress,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   color: string;
   bg: string;
   label: string;
   value: string;
+  onPress?: () => void;
 }) {
-  return (
+  const card = (
     <View
       style={{
         flex: 1,
@@ -320,6 +327,27 @@ function Stat({
       <Text style={{ fontSize: font.sizes.md, color: colors.text, fontWeight: '700', marginTop: 2 }}>
         {value}
       </Text>
+      {/* Dica de descoberta: tester iOS (2026-06-04) tocou os cards esperando
+          editar e nada acontecia — eram só resumo. Agora levam ao editor
+          certo (Sangue → editar criança; Peso/Altura → Crescimento). */}
+      {onPress ? (
+        <Text style={{ fontSize: 10, color: colors.brand, fontWeight: '600', marginTop: 3 }}>
+          editar
+        </Text>
+      ) : null}
     </View>
+  );
+
+  if (!onPress) return card;
+  return (
+    <TouchableOpacity
+      style={{ flex: 1 }}
+      onPress={onPress}
+      activeOpacity={0.7}
+      accessibilityRole="button"
+      accessibilityLabel={`Editar ${label}`}
+    >
+      {card}
+    </TouchableOpacity>
   );
 }
