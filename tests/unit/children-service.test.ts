@@ -210,6 +210,12 @@ describe("createChild", () => {
     if (!r.ok) expect(r.errorCode).toBe("future_birthdate");
   });
 
+  it("rejeita ano absurdo no passado (typo tipo 11/11/1111 → 914 anos)", async () => {
+    const r = await createChild(sb, { ...baseInput, birthDate: "1111-11-11" }, CTX);
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errorCode).toBe("birthdate_out_of_range");
+  });
+
   it("retorna fk_blocked com mensagem humana quando PG 23503 (apesar de raro em INSERT)", async () => {
     stubSingle({
       data: null,
@@ -346,6 +352,16 @@ describe("updateChild", () => {
     );
     expect(r.ok).toBe(false);
     if (!r.ok) expect(r.errorCode).toBe("future_birthdate");
+  });
+
+  it("rejeita ano absurdo no passado no patch (birthdate_out_of_range)", async () => {
+    const r = await updateChild(
+      sb,
+      { childId: "c1", groupId: "g1", patch: { birthDate: "1011-01-01" } },
+      CTX,
+    );
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.errorCode).toBe("birthdate_out_of_range");
   });
 
   it("sucesso devolve ChildRow + dispara child_updated", async () => {
