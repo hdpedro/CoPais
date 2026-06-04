@@ -8,6 +8,7 @@
  */
 /* eslint-disable @typescript-eslint/no-explicit-any, react-hooks/exhaustive-deps */
 import { useState, useRef, useEffect } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { View, Text, FlatList, TouchableOpacity, RefreshControl, ScrollView, Alert } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
@@ -88,6 +89,9 @@ function percentileBg(p: number | null): string {
 
 export default function CrescimentoScreen() {
   const t = useI18n(s => s.t);
+  // Deep-link da aba Saúde: card Peso/Altura manda ?childId= pra pré-selecionar
+  // a criança certa (sem isso o ChildPicker cai sempre no primeiro filho).
+  const { childId: paramChildId } = useLocalSearchParams<{ childId?: string }>();
   const { userId, activeGroup } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [showForm, setShowForm] = useState(false);
@@ -126,9 +130,14 @@ export default function CrescimentoScreen() {
   const children = data.children;
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (!selectedChild && children.length > 0) setSelectedChild(children[0].id);
-  }, [children, selectedChild]);
+    if (!selectedChild && children.length > 0) {
+      const preferred = paramChildId && children.some(c => c.id === paramChildId)
+        ? paramChildId
+        : children[0].id;
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedChild(preferred);
+    }
+  }, [children, selectedChild, paramChildId]);
 
   useCollabRealtime({
     table: 'growth_records',
