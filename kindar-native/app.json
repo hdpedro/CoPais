@@ -51,7 +51,7 @@
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR"
       ],
-      "versionCode": 34
+      "versionCode": 35
     },
     "plugins": [
       "expo-router",
