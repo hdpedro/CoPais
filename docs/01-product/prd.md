@@ -422,3 +422,34 @@ Nivel 3: Escalacao
 | Custo de WhatsApp + IA inviabiliza free tier | Media | Alto | Limitar mensagens WhatsApp a 10/mes free. IA reformulacoes 5/dia free. |
 | Adocao baixa do segundo pai | Alta | Alto | Valor individual (saude, check-in funciona solo). Nudges. Convite via WhatsApp. |
 | LGPD: dados de menores | Media | Alto | Consentimento explicito. Data minimization. Direito de exclusao completa. |
+
+---
+
+## Correcoes de QA — Teste Fechado Android (2026-06-03)
+
+> Ciclo de correcoes a partir do feedback dos testers do teste fechado Android (track `internal` do Play). Os testers estavam na build **1.0.11** enquanto o `main` ja estava em **1.0.19** — varios bugs ja corrigidos no main nunca chegaram (OTA nao atravessa runtime; ver "Entrega"). Diagnostico + correcao numa sessao unica, browser-assisted.
+
+### Bugs reportados + correcoes
+
+| # | Bug (tester / e-mail) | Causa-raiz | Correcao | Entrega |
+|---|---|---|---|---|
+| 1 | Editar despesa → "Falha ao editar" (Alexandre) | `/api/expenses` faltava na allowlist Bearer do middleware → request do Native (sem cookie) era redirecionada 307 → /session-recovery → HTML → `apiFetch.JSON.parse` falha → `r.data` null → fallback generico. 3a recorrencia (apos `/api/notifications/prefs`, `/api/children/sizes`). create/approve/delete usam `safeWrite`, por isso so editar/cancelar/reabrir quebravam. | +`/api/expenses` na allowlist (`src/lib/supabase/middleware.ts`) | ✅ Server-side (PR #61) — chega a TODOS na hora, ate no 1.0.11 |
+| 2 | Adicionar crianca → "Salvar" nao fazia nada (Apollo, onboarding) | Data futura (2045): `isoFromBR` zera o ISO mas o botao habilita pelo campo de exibicao → os 3 handlers davam `return` SILENCIOSO sem erro. | Helper `birthDateErrorKey` + handlers mostram erro (`errorFutureBirthdate`/`errorInvalidDate`) | ✅ build vc35 (PR #62) |
+| 3 | Chat: msg enviada so aparecia ao sair/voltar (oferret2008, mecoelho) | Sem insert otimista; dependia 100% do echo do realtime, que nao chega no envio proprio (Android/rede instavel). Causava re-envio duplicado. 6a divergencia PWA↔Native. | Insert otimista + reconciliacao no handler INSERT + remocao em falha (espelha o PWA) | ✅ build vc35 (PR #62) |
+| 4 | Texto cortado no fim em varias telas | Sem cap global de font scale → aparelho com fonte do SO ampliada estoura layouts fixos. | `maxFontSizeMultiplier=1.3` global em Text/TextInput + `numberOfLines` no grid de Saude | ✅ build vc35 (PR #62) |
+| 5 | CPF invalido sem aviso (mecoelho) | `cpfValid` dentro de `canSave` → botao desabilitava em silencio; mensagem inline discreta. | CPF nao bloqueia o botao; toast "CPF invalido" no toque | ✅ build vc35 (PR #63) |
+| 6 | Acordos: chaves i18n cruas (`AGREEMENTS.CATEGORYLABEL`, `agreements.nonNegotiableHint`) + "Comunicacao" estourando | Build 1.0.11 antiga (10 categorias + `t('agreements.categoryLabel')` inexistente). Main atual usa rotulo fixo + 5 categorias + `nonNegotiableHint` existe. | Ja resolvido no main | ✅ entregue com o build novo |
+| 7 | WhatsApp: codigo de vinculo nao chega (Alexandre, Amanda) | OTP enviado como **texto livre**, que a Meta so entrega dentro da janela de 24h. Usuario novo (zero inbound) nunca recebe; Meta retorna HTTP 200 sem erro. NAO e bug de plataforma (iOS/PWA "funcionam" porque tinham janela aberta). | Requer **template de Autenticacao aprovado na Meta** (ver M1 criterio #15) + trocar `sendTextMessage`→`sendTemplateMessage`. Pendente aprovacao Meta (assincrono). | ⏸️ Pendente acao na Meta |
+| 8 | Login Google → "Acesso bloqueado / Erro 400 invalid_request" (dias.m.augusto) | Reproduzido no navegador: **"Custom URI scheme is not enabled for your Android client"**. O Google DESCONTINUOU o esquema de URI personalizado pro Android (2026) → fluxo do `expo-auth-session` morto no Android. iOS/PWA funcionam (mecanismos diferentes). | Migracao pro SDK nativo **`@react-native-google-signin`** (Credential Manager + SHA-1 + webClientId `2Lares Web`); iOS mantem expo-auth-session via branch por plataforma. | ✅ build vc36 (PR #66) — validar no device |
+
+### Entrega (track `internal` do Play — auto-update pelos testers)
+- **vc35 / 1.0.19** (bugs 2-6): submetido + `completed` (live).
+- **vc36 / 1.0.19** (bug 8, Google nativo): build + submit.
+- **Server-side** (bug 1): live imediatamente, independe de build.
+- ⚠️ **Armadilha versionCode**: `app.json` estava em `3`, Play ja em `34` (via 1.0.20/alpha) → SEMPRE rodar `npm run play:status` antes de bumpar. Builds desta leva: vc35 → vc36.
+- ⚠️ **OTA nao atravessa runtime** (`runtimeVersion=appVersion`): pra entregar a quem esta numa build antiga = **BUILD NOVO no track** (Play auto-update), nao OTA.
+
+### Duas linhas de release divergentes (atencao produto)
+- `main` (1.0.19) = os bug fixes acima, **SEM** paywall.
+- `chore/native-1.0.20` (alpha) = **paywall Harmonia #53** + monetizacao, **SEM** os bug fixes.
+- ⚠️ Antes de subir o paywall (1.0.20) pra producao, **mergear o `main`** — senao a producao vai sem as correcoes.
