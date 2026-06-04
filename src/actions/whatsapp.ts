@@ -3,7 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashPhone, normalizePhone } from "@/lib/whatsapp/signature";
-import { sendTemplateMessage, sendTextMessage } from "@/lib/whatsapp/client";
+import { sendAuthTemplate, sendTextMessage } from "@/lib/whatsapp/client";
 import { revalidatePath } from "next/cache";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 
@@ -76,22 +76,25 @@ export async function requestWhatsAppLink(formData: FormData) {
       });
   }
 
-  // Send OTP via WhatsApp
+  // Envio do OTP. Se `WHATSAPP_OTP_TEMPLATE` estiver setado, usa um template de
+  // AUTENTICACAO aprovado (entrega FORA da janela de 24h — fix do codigo que nao
+  // chegava pra quem nunca falou com o bot). Senao, cai no texto livre (so
+  // entrega dentro da janela). Inerte ate a env existir + template aprovado.
   const phoneWithout = phone.replace("+", "");
+  const otpTemplate = process.env.WHATSAPP_OTP_TEMPLATE;
+  const otpTemplateLang = process.env.WHATSAPP_OTP_TEMPLATE_LANG || "pt_BR";
   try {
-    await sendTextMessage(
-      phoneWithout,
-      `Kindar - Codigo de verificacao: *${otp}*\n\nDigite este codigo no app para vincular seu WhatsApp.\n\nExpira em 10 minutos.`
-    );
+    if (otpTemplate) {
+      await sendAuthTemplate(phoneWithout, otpTemplate, otpTemplateLang, otp);
+    } else {
+      await sendTextMessage(
+        phoneWithout,
+        `Kindar - Codigo de verificacao: *${otp}*\n\nDigite este codigo no app para vincular seu WhatsApp.\n\nExpira em 10 minutos.`
+      );
+    }
   } catch (err) {
     console.error("[WA-LINK] Failed to send OTP:", err);
     reportServerError(err, { filePath: "src/actions/whatsapp.ts" });
-    // Try template if text fails (24h window may not be open)
-    try {
-      await sendTemplateMessage(phoneWithout, "hello_world", "en_US");
-    } catch {
-      // If both fail, user can still manually enter OTP if they see it
-    }
     return { error: "Nao foi possivel enviar o codigo. Verifique se o numero esta correto e tem WhatsApp." };
   }
 

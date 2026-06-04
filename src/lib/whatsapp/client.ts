@@ -188,6 +188,48 @@ export async function sendTemplateMessage(
 }
 
 /* ------------------------------------------------------------------ */
+/* Send Authentication Template (OTP)                                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Envia um template de AUTENTICACAO (codigo de uso unico). A Meta exige o
+ * codigo tanto no corpo (`body`) quanto no botao copiar-codigo (`button`).
+ * Usado pro OTP de vinculo de WhatsApp, que precisa de template aprovado pra
+ * ser entregue FORA da janela de 24h — texto livre so entrega dentro da janela
+ * (bug Alexandre/Amanda 2026-06-03: usuario que nunca falou com o bot nunca
+ * recebia o codigo). Gateado por env `WHATSAPP_OTP_TEMPLATE`.
+ */
+export async function sendAuthTemplate(
+  to: string,
+  templateName: string,
+  languageCode: string,
+  code: string,
+): Promise<string> {
+  const payload = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to,
+    type: "template",
+    template: {
+      name: templateName,
+      language: { code: languageCode },
+      components: [
+        { type: "body", parameters: [{ type: "text", text: code }] },
+        {
+          type: "button",
+          sub_type: "url",
+          index: 0,
+          parameters: [{ type: "text", text: code }],
+        },
+      ],
+    },
+  } as unknown as WASendPayload;
+
+  const result = await sendMessage(payload);
+  return result.messages[0]?.id || "";
+}
+
+/* ------------------------------------------------------------------ */
 /* Download Media                                                      */
 /* ------------------------------------------------------------------ */
 

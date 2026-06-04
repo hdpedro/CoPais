@@ -19,7 +19,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { hashPhone, normalizePhone } from "@/lib/whatsapp/signature";
-import { sendTemplateMessage, sendTextMessage } from "@/lib/whatsapp/client";
+import { sendAuthTemplate, sendTextMessage } from "@/lib/whatsapp/client";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 
 type Body =
@@ -113,18 +113,21 @@ export async function POST(req: NextRequest) {
     }
 
     const phoneWithout = phone.replace("+", "");
+    // Igual ao PWA: template de AUTENTICACAO se `WHATSAPP_OTP_TEMPLATE` setado
+    // (entrega fora da janela 24h); senao texto livre. Inerte ate a env existir.
+    const otpTemplate = process.env.WHATSAPP_OTP_TEMPLATE;
+    const otpTemplateLang = process.env.WHATSAPP_OTP_TEMPLATE_LANG || "pt_BR";
     try {
-      await sendTextMessage(
-        phoneWithout,
-        `Kindar - Codigo de verificacao: *${otp}*\n\nDigite este codigo no app para vincular seu WhatsApp.\n\nExpira em 10 minutos.`
-      );
+      if (otpTemplate) {
+        await sendAuthTemplate(phoneWithout, otpTemplate, otpTemplateLang, otp);
+      } else {
+        await sendTextMessage(
+          phoneWithout,
+          `Kindar - Codigo de verificacao: *${otp}*\n\nDigite este codigo no app para vincular seu WhatsApp.\n\nExpira em 10 minutos.`
+        );
+      }
     } catch (err) {
       reportServerError(err, { filePath: "src/app/api/native/whatsapp/route.ts" });
-      try {
-        await sendTemplateMessage(phoneWithout, "hello_world", "en_US");
-      } catch {
-        // Both channels failed
-      }
       return NextResponse.json(
         { error: "Nao foi possivel enviar o codigo. Verifique o numero." },
         { status: 502 }
