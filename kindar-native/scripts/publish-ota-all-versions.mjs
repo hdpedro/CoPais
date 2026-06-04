@@ -55,14 +55,18 @@ const APP_JSON = resolve(__dirname, "..", "app.json");
 //   - 1.0.11: Skia rebuild (cradle hands splash + constelação 124).
 //   - 1.0.12: PULADA — cancelada (DEVELOPER_REJECTED), nunca chegou a users.
 //   - 1.0.13: **CURRENT LIVE APP STORE** (release 22-may) — MAIS IMPORTANTE.
+//   - 1.0.19: Android internal (vc35/vc36) — base atual dos testers Android
+//     (add 2026-06-04). vc36 foi buildado ANTES dos fixes de Saúde, então
+//     OTA pra este runtime é necessária pra eles receberem.
 //
 // Bundle JS atual inclui:
 //   - Soft prompt pre-permission iOS (anti-churn) — não viola native deps
 //   - Tela /perfil/notificacoes com 4 groups, send test, reset, deep link
 //   - Chat coalescing fix (threadId vs tag — preserva mensagens no Android)
+//   - Saúde: cards Sangue/Peso/Altura clicáveis + confirmação ao salvar med
 //   - All deps usadas já existem nos binários (expo-notifications, expo-
 //     secure-store, @react-native-community/datetimepicker, expo-haptics).
-const TARGET_VERSIONS = ["1.0.7", "1.0.8", "1.0.9", "1.0.10", "1.0.11", "1.0.13"];
+const TARGET_VERSIONS = ["1.0.7", "1.0.8", "1.0.9", "1.0.10", "1.0.11", "1.0.13", "1.0.19"];
 
 const args = process.argv.slice(2);
 const messageIdx = args.indexOf("--message");
