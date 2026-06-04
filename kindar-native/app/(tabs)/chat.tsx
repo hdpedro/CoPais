@@ -198,8 +198,13 @@ export default function ChatScreen() {
   // by `group_id` so unread badges on inactive channels update live.
   useEffect(() => {
     if (!activeGroup) return;
+    // Sufixo aleatório no nome do canal: sem ele, em re-run/remount do effect o
+    // `supabase.channel('chat-list:<grupo>')` reusava o canal JÁ inscrito e o
+    // `.on(...)` seguinte estourava "cannot add postgres_changes callbacks
+    // after subscribe()" (crash via ErrorBoundary, reportado 2026-06-04).
+    // Mesmo padrão do useCollabRealtime. Cada inscrição = canal único.
     const ch = supabase
-      .channel(`chat-list:${activeGroup.groupId}`)
+      .channel(`chat-list:${activeGroup.groupId}:${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         {
