@@ -304,6 +304,19 @@ export interface AppointmentInput {
   returnNotes?: string;
 }
 
+/**
+ * created_by pra RLS. As policies de INSERT das tabelas de saúde exigem
+ * `created_by = auth.uid()` (e a coluna é NOT NULL sem default). O native
+ * escreve DIRETO via safeWrite (sob RLS), então TEM que setar — senão "new row
+ * violates row-level security policy". getSession() é local (sem rede).
+ * Auditoria 2026-06-05 (a partir do bug Jhonatan da doença) achou o mesmo gap
+ * em consulta/medicação/vacina/crescimento.
+ */
+async function getCreatedBy(): Promise<string | null> {
+  const { data: { session } } = await supabase.auth.getSession();
+  return session?.user?.id ?? null;
+}
+
 export async function createAppointment(params: AppointmentInput) {
   // Combine date + time into TIMESTAMPTZ value (Brazil timezone -03:00) —
   // matches PWA src/actions/health.ts createAppointment exactly.
@@ -321,6 +334,10 @@ export async function createAppointment(params: AppointmentInput) {
   if (params.appointmentType) payload.appointment_type = params.appointmentType;
   if (params.returnDate) payload.return_date = params.returnDate;
   if (params.returnNotes) payload.return_notes = params.returnNotes.trim().slice(0, 2000);
+
+  const createdBy = await getCreatedBy();
+  if (!createdBy) return { success: false, error: 'Sessão expirada. Entre novamente.' };
+  payload.created_by = createdBy;
 
   const result = await safeWrite({
     table: 'medical_appointments',
@@ -390,12 +407,16 @@ export async function createMedication(params: MedicationInput) {
   if (!params.frequency.trim()) return { success: false, error: 'Frequência é obrigatória' };
   if (!params.startDate) return { success: false, error: 'Data de início é obrigatória' };
 
+  const createdBy = await getCreatedBy();
+  if (!createdBy) return { success: false, error: 'Sessão expirada. Entre novamente.' };
+
   const result = await safeWrite({
     table: 'active_medications',
     operation: 'insert',
     returnInsertedId: true,
     payload: {
       group_id: params.groupId,
+      created_by: createdBy,
       child_id: params.childId,
       name: params.name.trim().slice(0, 200),
       dosage: params.dosage.trim().slice(0, 200),
@@ -477,12 +498,16 @@ export interface VaccinationInput {
 export async function createVaccinationRecord(params: VaccinationInput) {
   if (!params.vaccineName.trim()) return { success: false, error: 'Nome da vacina é obrigatório' };
 
+  const createdBy = await getCreatedBy();
+  if (!createdBy) return { success: false, error: 'Sessão expirada. Entre novamente.' };
+
   const result = await safeWrite({
     table: 'vaccination_records',
     operation: 'insert',
     returnInsertedId: true,
     payload: {
       group_id: params.groupId,
+      created_by: createdBy,
       child_id: params.childId,
       vaccine_name: params.vaccineName.trim().slice(0, 200),
       dose_label: params.doseLabel?.trim().slice(0, 100) || null,
@@ -522,11 +547,15 @@ export interface GrowthInput {
 }
 
 export async function createGrowthRecord(params: GrowthInput) {
+  const createdBy = await getCreatedBy();
+  if (!createdBy) return { success: false, error: 'Sessão expirada. Entre novamente.' };
+
   const result = await safeWrite({
     table: 'growth_records',
     operation: 'insert',
     payload: {
       group_id: params.groupId,
+      created_by: createdBy,
       child_id: params.childId,
       measured_date: params.measuredDate,
       weight_kg: params.weightKg ?? null,
