@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kindar",
     "slug": "kindar",
-    "version": "1.0.19",
+    "version": "1.0.21",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -51,7 +51,7 @@
         "android.permission.READ_CALENDAR",
         "android.permission.WRITE_CALENDAR"
       ],
-      "versionCode": 37
+      "versionCode": 38
     },
     "plugins": [
       "expo-router",
