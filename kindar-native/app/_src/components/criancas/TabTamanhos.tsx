@@ -555,7 +555,9 @@ export default function TabTamanhos({ childId, groupId }: Props) {
       {/* Modal de Create/Edit */}
       <Modal visible={!!modal} animationType="slide" presentationStyle="pageSheet" onRequestClose={closeModal}>
         <KeyboardAvoidingView
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          // Android: 'height' (não undefined) — Modal abre janela própria, fora do
+          // alcance do adjustResize; sem isso o teclado cobre os inputs do sheet.
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={{ flex: 1, backgroundColor: colors.bg }}
         >
           <View style={{

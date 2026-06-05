@@ -186,7 +186,9 @@ export default function AIAssistantSheet() {
       presentationStyle="overFullScreen"
     >
       <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        // Android: 'height' (não undefined) — Modal abre janela própria, fora do
+        // alcance do adjustResize; sem isso o teclado cobre o input do chat.
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={0}
         style={{ flex: 1, backgroundColor: colors.bg }}
       >
