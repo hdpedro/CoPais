@@ -66,7 +66,10 @@ const APP_JSON = resolve(__dirname, "..", "app.json");
 //   - Saúde: cards Sangue/Peso/Altura clicáveis + confirmação ao salvar med
 //   - All deps usadas já existem nos binários (expo-notifications, expo-
 //     secure-store, @react-native-community/datetimepicker, expo-haptics).
-const TARGET_VERSIONS = ["1.0.7", "1.0.8", "1.0.9", "1.0.10", "1.0.11", "1.0.13", "1.0.19"];
+//   - 1.0.21: build de EQUALIZAÇÃO (vc38) — LIVE no internal+alpha (2026-06-04).
+//     Runtime novo dos testers; OTA aqui entrega os fixes JS pós-build (#82 data
+//     passada em Eventos, etc) ao binário vc38.
+const TARGET_VERSIONS = ["1.0.7", "1.0.8", "1.0.9", "1.0.10", "1.0.11", "1.0.13", "1.0.19", "1.0.21"];
 
 const args = process.argv.slice(2);
 const messageIdx = args.indexOf("--message");
