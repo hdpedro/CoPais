@@ -59,7 +59,12 @@ export default function ModalBackdrop({
 
   return (
     <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      // iOS: 'padding'. Android: 'height' (NÃO undefined) — um <Modal> abre uma
+      // janela PRÓPRIA onde o adjustResize da activity NÃO chega; sem behavior
+      // ativo o teclado cobre o conteúdo do sheet (bug Henrique 2026-06-05, tela
+      // "Editar atenção" da Escola). 'height' encolhe o KAV pra o sheet subir
+      // acima do teclado. Vale pra TODOS os modais que usam ModalBackdrop.
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       style={{ flex: 1 }}
     >
       <Pressable
