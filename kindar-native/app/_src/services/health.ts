@@ -193,6 +193,15 @@ export async function createIllness(params: {
           .filter(Boolean)
       : null;
 
+  // RLS de illness_episodes exige `created_by = auth.uid()` (policy "Group
+  // members can create episodes"). O native insere DIRETO via safeWrite (sob
+  // RLS), então TEM que setar created_by com o usuário autenticado — senão
+  // "new row violates row-level security policy" (bug Jhonatan 2026-06-05).
+  // getSession() é local (sem rede). Fixar no service cobre todos os callers.
+  const { data: { session } } = await supabase.auth.getSession();
+  const createdBy = session?.user?.id;
+  if (!createdBy) return { success: false, error: 'Sessão expirada. Entre novamente.' };
+
   const result = await safeWrite({
     table: 'illness_episodes',
     operation: 'insert',
@@ -208,6 +217,7 @@ export async function createIllness(params: {
       // Schema (migration original + 00040): coluna se chama `hospital_name`
       // (não `hospital`). Vide comentário em fetchIllnesses acima.
       hospital_name: params.hospital?.trim() || null,
+      created_by: createdBy,
       status: 'active',
     },
   });
