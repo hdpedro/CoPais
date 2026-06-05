@@ -11,6 +11,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
+import Constants from 'expo-constants';
 import { supabase } from '../lib/supabase';
 import { reportError } from '../lib/error-reporter';
 import * as analytics from '../lib/analytics';
@@ -156,11 +157,37 @@ export async function registerForPushNotificationsAsync(
     // Falha aqui = capability iOS faltando no provisioning profile, ou
     // Google Services não configurado no Android. Sem visibilidade, esse
     // erro mata push pra todos os users do device sem deixar rastro.
+    //
+    // Caso ESPERADO no Android: binários < vc37 saíram SEM google-services.json
+    // (o client fix entrou no vc37 — ver project_kindar_android_push_firebase).
+    // Neles o FCM SEMPRE lança "Default FirebaseApp is not initialized" — não é
+    // bug de código, é binário velho que só some com upgrade pro vc38. Reporta
+    // como 'info' (vai pro app_errors mas NÃO pinga o Discord — /api/log-error
+    // pula notifyDiscord pra info) pra não spammar o feed de erros a cada boot.
+    // Se acontecer num vc>=37 (que TEM google-services.json embutido), aí é real
+    // → mantém 'error' e aparece normalmente. buildVersion (versionCode do APK
+    // instalado, imune a OTA) vai no metadata pra correlacionar.
+    const msg = e instanceof Error ? e.message : String(e);
+    const isFirebaseNotInit = /FirebaseApp is not initialized/i.test(msg);
+    const buildVersion = parseInt(String(Constants.nativeBuildVersion ?? ''), 10) || 0;
+    const knownGoodBinary = buildVersion >= 37; // vc37+ embute google-services.json
+    const expectedOldBinary =
+      Platform.OS === 'android' && isFirebaseNotInit && !knownGoodBinary;
     reportError(e, {
       filePath: 'services/push-setup',
-      metadata: { phase: 'getDevicePushTokenAsync', platform: Platform.OS },
+      severity: expectedOldBinary ? 'info' : 'error',
+      metadata: {
+        phase: 'getDevicePushTokenAsync',
+        platform: Platform.OS,
+        buildVersion: buildVersion || null,
+        firebaseNotInit: isFirebaseNotInit,
+      },
     });
-    analytics.track('push_token_obtain_failed', { platform: Platform.OS });
+    analytics.track('push_token_obtain_failed', {
+      platform: Platform.OS,
+      build_version: buildVersion || null,
+      firebase_not_init: isFirebaseNotInit,
+    });
     return null;
   }
 
