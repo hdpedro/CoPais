@@ -9,6 +9,7 @@ import AuthSessionProvider from "@/components/AuthSessionProvider";
 import PWAInstallBanner from "@/components/PWAInstallBanner";
 import { WebOnly, NativeInit } from "@/components/NativeShellGuard";
 import PostHogAnonymousInit from "@/components/PostHogAnonymousInit";
+import ChunkReloadGuard from "@/components/ChunkReloadGuard";
 
 const jakarta = Plus_Jakarta_Sans({
   variable: "--font-jakarta",
@@ -107,6 +108,7 @@ export default function RootLayout({
         </WebOnly>
         <AuthSessionProvider />
         <ServiceWorkerRegister />
+        <ChunkReloadGuard />
         <PWAInstallBanner />
         <NativeInit />
       </body>
