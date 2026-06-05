@@ -573,7 +573,7 @@ function Segmented({
         // Para o segmented de sexo, tonalidade reflete o filho (azul/rosa)
         // pra reforçar a paridade visual da linha do gráfico.
         let activeBg = '#fff';
-        let activeColor = colors.text;
+        let activeColor: string = colors.text;
         if (variant === 'sex' && isActive) {
           activeBg = opt.value === 'M' ? '#DBEAFE' : '#FCE7F3';
           activeColor = opt.value === 'M' ? '#1D4ED8' : '#BE185D';
