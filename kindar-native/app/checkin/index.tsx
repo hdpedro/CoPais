@@ -57,14 +57,14 @@ export default function CheckinScreen() {
     fetcher: async () => {
       const [{ data: rows }, kids] = await Promise.all([
         supabase.from('daily_checkins')
-          .select('id, category, title, notes, checkin_date, child_id, children(full_name), profiles!daily_checkins_logged_by_fkey(full_name)')
+          .select('id, category, title, description, checkin_date, child_id, children(full_name), profiles!daily_checkins_logged_by_fkey(full_name)')
           .eq('group_id', activeGroup!.groupId)
           .order('checkin_date', { ascending: false }).limit(100),
         fetchChildren(activeGroup!.groupId),
       ]);
       return {
         items: (rows || []).map((d: any) => ({
-          id: d.id, category: d.category, title: d.title, notes: d.notes,
+          id: d.id, category: d.category, title: d.title, notes: d.description,
           checkin_date: d.checkin_date, child_id: d.child_id,
           childName: getDisplayName(d.children?.full_name) || 'Geral',
           loggedByName: getDisplayName(d.profiles?.full_name, true),
@@ -86,7 +86,7 @@ export default function CheckinScreen() {
         group_id: activeGroup.groupId,
         child_id: childId || null,
         category, title: title.trim(),
-        notes: notes.trim() || null,
+        description: notes.trim() || null,
         checkin_date: dateIso,
         logged_by: userId,
       },
