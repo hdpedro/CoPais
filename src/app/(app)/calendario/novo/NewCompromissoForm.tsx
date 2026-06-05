@@ -676,12 +676,12 @@ export default function NewCompromissoForm({ children, members, groupId, initial
                 <label className="block text-[11px] text-[#7A8C8B] mb-1">
                   {recurrence === "never" ? t("newForm.date") : t("newForm.startDate")} <span className="text-[#D4735A]">*</span>
                 </label>
-                <input name="startDate" type="date" required defaultValue={defaultDateStr} className={inputClass} />
+                <input name="startDate" type="date" required min={todayStr} defaultValue={defaultDateStr} className={inputClass} />
               </div>
               {recurrence !== "never" && (
                 <div>
                   <label className="block text-[11px] text-[#7A8C8B] mb-1">{t("newForm.endDateOpt")}</label>
-                  <input name="endDate" type="date" defaultValue={defaultDateStr} className={inputClass} />
+                  <input name="endDate" type="date" min={todayStr} defaultValue={defaultDateStr} className={inputClass} />
                 </div>
               )}
             </div>

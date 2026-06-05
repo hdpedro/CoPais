@@ -149,7 +149,16 @@ export default function NovoEventoScreen() {
   function validate(): boolean {
     const next: typeof errors = {};
     if (!title.trim()) next.title = 'Titulo obrigatorio';
-    if (!startDateIso) next.date = 'Data obrigatoria';
+    if (!startDateIso) {
+      next.date = 'Data obrigatoria';
+    } else if (startDateIso < dateToIso(new Date())) {
+      // Evento e' prospectivo: nao deixa criar numa data que ja passou
+      // (bug 2026-06-04: deu pra salvar 04/06/2003). Comparacao de strings
+      // YYYY-MM-DD == comparacao cronologica. O minimumDate do picker ja
+      // previne na UI; este guard cobre o ?date= vindo de tocar num dia
+      // passado do calendario.
+      next.date = 'Nao da pra criar um evento numa data que ja passou';
+    }
     if (multiDay && endDateIso && endDateIso < startDateIso) {
       next.date = 'Data final deve ser depois da inicial';
     }
@@ -272,6 +281,7 @@ export default function NovoEventoScreen() {
             <DatePickerField
               label={multiDay ? 'Data inicial *' : 'Data *'}
               value={startDateIso}
+              minimumDate={new Date(dateToIso(new Date()) + 'T00:00:00')}
               onChange={(iso) => {
                 setStartDateIso(iso);
                 if (errors.date) setErrors({ ...errors, date: undefined });
