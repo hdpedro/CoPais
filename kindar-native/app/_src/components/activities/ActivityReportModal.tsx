@@ -83,18 +83,36 @@ export default function ActivityReportModal({
   async function handleSubmit() {
     setSubmitting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    const res = await submitActivityReport({
-      groupId, activityId, childId,
-      occurrenceDate, status,
-      notes: notes.trim() || null,
-      childMood: mood,
-      reportedBy: reporterId,
-    });
+    let res: Awaited<ReturnType<typeof submitActivityReport>>;
+    try {
+      res = await submitActivityReport({
+        groupId, activityId, childId,
+        occurrenceDate, status,
+        notes: notes.trim() || null,
+        childMood: mood,
+        reportedBy: reporterId,
+      });
+    } catch {
+      // Throw inesperado (rede caiu mid-flight / cliente offline): sem este
+      // catch a exceção subia sem tratamento, `submitting` ficava travado e
+      // NADA aparecia — usuário via "salvei e não aconteceu nada" mesmo quando
+      // o registro tinha persistido (bug Gustavo 2026-06-04, gustavoricardo3dev).
+      setSubmitting(false);
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.show({ message: t('toasts.common.saveFailed'), variant: 'error' });
+      return;
+    }
     setSubmitting(false);
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      onSubmitted?.();
+      // Feedback explícito de sucesso. Antes só havia haptics (imperceptível em
+      // muitos Androids) + fechamento do modal — sem confirmação visível, o save
+      // (que FUNCIONA: dado persiste) parecia não ter feito nada. onClose() vem
+      // ANTES do onSubmitted pra garantir que o modal feche mesmo se o refetch
+      // do parent lançar.
+      toast.show({ message: t('toasts.common.saved'), variant: 'success' });
       onClose();
+      onSubmitted?.();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });
