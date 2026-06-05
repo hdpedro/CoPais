@@ -35,35 +35,43 @@ const KINDAR_CALENDAR_TITLE = 'Kindar';
  * Skip explícito de SUBSCRIBED e BIRTHDAYS (sempre read-only).
  */
 async function getWritableSource(): Promise<Calendar.Source | null> {
-  const sources = await Calendar.getSourcesAsync();
-
-  if (Platform.OS === 'ios') {
-    // 1. iCloud (CALDAV com "icloud" no nome — caso mais comum em iOS)
-    const icloud = sources.find(s =>
-      s.type === Calendar.SourceType.CALDAV &&
-      (s.name || '').toLowerCase().includes('icloud'),
-    );
-    if (icloud) return icloud;
-
-    // 2. Qualquer CALDAV (Google Calendar, Yahoo, etc.)
-    const caldav = sources.find(s => s.type === Calendar.SourceType.CALDAV);
-    if (caldav) return caldav;
-
-    // 3. LOCAL (sempre escrevível)
-    const local = sources.find(s => s.type === Calendar.SourceType.LOCAL);
-    if (local) return local;
-
-    // 4. Exchange / MobileMe / outros, mas NUNCA SUBSCRIBED nem BIRTHDAYS
-    const writable = sources.find(s =>
-      s.type !== Calendar.SourceType.SUBSCRIBED &&
-      s.type !== Calendar.SourceType.BIRTHDAYS,
-    );
-    return writable || null;
+  // Android: `getSourcesAsync` é iOS-only — no CalendarProvider do Android ela
+  // NÃO existe e lança "Calendar.getSourcesAsync is not available on android"
+  // (bug Jhonatan 2026-06-04). O padrão no Android é criar o calendário numa
+  // local account sintética (isLocalAccount), sem consultar sources. Por isso
+  // checamos a plataforma ANTES de chamar getSourcesAsync.
+  if (Platform.OS === 'android') {
+    return {
+      isLocalAccount: true,
+      name: KINDAR_CALENDAR_TITLE,
+      type: Calendar.SourceType.LOCAL,
+    } as Calendar.Source;
   }
 
-  // Android: criar via local account
+  // iOS (EventKit): lista as sources e escolhe a primeira escrevível.
+  const sources = await Calendar.getSourcesAsync();
+
+  // 1. iCloud (CALDAV com "icloud" no nome — caso mais comum em iOS)
+  const icloud = sources.find(s =>
+    s.type === Calendar.SourceType.CALDAV &&
+    (s.name || '').toLowerCase().includes('icloud'),
+  );
+  if (icloud) return icloud;
+
+  // 2. Qualquer CALDAV (Google Calendar, Yahoo, etc.)
+  const caldav = sources.find(s => s.type === Calendar.SourceType.CALDAV);
+  if (caldav) return caldav;
+
+  // 3. LOCAL (sempre escrevível)
   const local = sources.find(s => s.type === Calendar.SourceType.LOCAL);
-  return local || sources[0] || null;
+  if (local) return local;
+
+  // 4. Exchange / MobileMe / outros, mas NUNCA SUBSCRIBED nem BIRTHDAYS
+  const writable = sources.find(s =>
+    s.type !== Calendar.SourceType.SUBSCRIBED &&
+    s.type !== Calendar.SourceType.BIRTHDAYS,
+  );
+  return writable || null;
 }
 
 async function findOrCreateKindarCalendar(): Promise<string> {
