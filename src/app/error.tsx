@@ -2,6 +2,7 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { useEffect } from "react";
+import { isChunkLoadError, reloadForChunkError } from "@/components/ChunkReloadGuard";
 
 export default function Error({
   error,
@@ -11,6 +12,12 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
+    // Deploy skew: chunk antigo sumiu apos novo deploy. reset() nao resolve
+    // (o chunk continua ausente) — so um reload busca o deploy novo.
+    if (isChunkLoadError(error)) {
+      reloadForChunkError();
+      return;
+    }
     Sentry.captureException(error);
   }, [error]);
 
