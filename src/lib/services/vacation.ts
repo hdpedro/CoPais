@@ -123,19 +123,39 @@ export async function createVacationPeriod(
   // ── Insert ─────────────────────────────────────────────────────
   // Trigger 00079 (custody_events_prevent_overlap) rejeita vacation
   // sobreposta a outra vacation do mesmo (group, child).
+  // "Família" (childId null) = férias de TODAS as crianças. A resolução de
+  // custódia (view custody_resolved + custody-resolve.ts) é POR child_id; uma
+  // linha com child_id NULL não sobrepõe a escala de nenhuma criança (no-op
+  // silencioso) e viola o NOT NULL da coluna. Expandimos em 1 linha por criança
+  // (paridade com o Native). Bug Henrique 2026-06-06.
+  let targetChildIds: string[];
+  if (childId == null) {
+    const { data: kids } = await supabase
+      .from("children")
+      .select("id")
+      .eq("group_id", groupId);
+    targetChildIds = (kids ?? []).map((k) => k.id as string);
+    if (targetChildIds.length === 0) {
+      return { ok: false, error: "no_children", status: 400 };
+    }
+  } else {
+    targetChildIds = [childId];
+  }
+
   const { data, error } = await supabase
     .from("custody_events")
-    .insert({
-      group_id: groupId,
-      child_id: childId,
-      custody_type: "vacation",
-      responsible_user_id: responsibleUserId,
-      start_date: startDate,
-      end_date: endDate,
-      notes: notes?.trim() || null,
-    })
-    .select("id")
-    .single();
+    .insert(
+      targetChildIds.map((cid) => ({
+        group_id: groupId,
+        child_id: cid,
+        custody_type: "vacation",
+        responsible_user_id: responsibleUserId,
+        start_date: startDate,
+        end_date: endDate,
+        notes: notes?.trim() || null,
+      })),
+    )
+    .select("id");
 
   if (error) {
     // Postgres unique_violation = trigger overlap ou EXCLUDE constraint
@@ -207,7 +227,7 @@ export async function createVacationPeriod(
     /* analytics não-crítico */
   }
 
-  return { ok: true, data: { id: data.id as string } };
+  return { ok: true, data: { id: (data?.[0]?.id ?? "") as string } };
 }
 
 /* ------------------------------------------------------------------ */

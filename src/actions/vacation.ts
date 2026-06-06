@@ -35,6 +35,7 @@ const ERR_MESSAGES: Record<string, string> = {
   vacation_not_found: "Período de férias não encontrado.",
   no_changes: "Nenhuma alteração detectada.",
   db_error: "Erro ao salvar. Tente novamente.",
+  no_children: "Cadastre uma criança antes de marcar férias para a família toda.",
 };
 
 function userMessage(code: string): string {

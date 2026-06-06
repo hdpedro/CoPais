@@ -304,8 +304,17 @@ export default function ChatRoomScreen() {
     if (!channelId || !activeGroup) return;
     const groupId = activeGroup.groupId;
 
+    // Nome do canal DEVE ser único por mount. Um duplo-toque abre duas telas
+    // chat/[channelId] com o mesmo groupId+channelId; com nome igual, o 2º mount
+    // roda `.on(...)` depois do 1º já ter chamado `.subscribe()` → Supabase
+    // crasha "cannot add postgres_changes callbacks ... after subscribe()" (bug
+    // 2026-06-06). Sufixo aleatório espelha useCollabRealtime.ts; `subscribed`
+    // evita re-subscribe do mesmo canal se o effect rodar 2x antes do cleanup.
+    const channelKey = `chat:${groupId}:${channelId}:${Math.random().toString(36).slice(2, 8)}`;
+    let subscribed = false;
+
     const channel = supabase
-      .channel(`chat:${groupId}:${channelId}`)
+      .channel(channelKey)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
@@ -407,10 +416,17 @@ export default function ChatRoomScreen() {
           || (isGeralRoom && deleted.channel_id == null);
         if (!matchesActiveChannel) return;
         setMessages(prev => prev.filter(m => m.id !== deleted.id));
-      })
-      .subscribe();
+      });
 
-    return () => { supabase.removeChannel(channel); };
+    if (!subscribed) {
+      subscribed = true;
+      channel.subscribe();
+    }
+
+    return () => {
+      subscribed = false;
+      try { supabase.removeChannel(channel); } catch { /* non-fatal */ }
+    };
   }, [channelId, userId, activeGroup]);
 
   // Auto-scroll on new messages

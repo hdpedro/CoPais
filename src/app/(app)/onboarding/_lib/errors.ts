@@ -121,8 +121,20 @@ export function resolveFetchErrorMessage(
     if (key) return t(key);
   }
 
-  // Server message do JSON — fallback quando errorCode é unknown/absent
-  if (ctx.serverMessage) return ctx.serverMessage;
+  // Server message do JSON — fallback quando errorCode é unknown/absent.
+  // Coerção defensiva: o body pode trazer `error` como OBJETO (erro Postgrest/
+  // Supabase serializado {code, id, message}); renderizar objeto em JSX crasha
+  // ("Objects are not valid as a React child"). Força string (lendo .message).
+  const sm = ctx.serverMessage as unknown;
+  if (sm != null) {
+    const serverText =
+      typeof sm === "string"
+        ? sm
+        : typeof (sm as { message?: unknown }).message === "string"
+          ? (sm as { message: string }).message
+          : "";
+    if (serverText) return serverText;
+  }
 
   if (typeof ctx.status === "number") {
     if (ctx.status === 401) return t("common.sessionExpired");

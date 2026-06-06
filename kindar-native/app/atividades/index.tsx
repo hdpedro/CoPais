@@ -134,17 +134,22 @@ export default function AtividadesScreen() {
    * via calendar_occurrences (trigger 00074 mantém isso atualizado).
    */
   async function countActivityImpact(activityId: string): Promise<{ future: number; past: number }> {
-    const today = new Date().toISOString().slice(0, 10);
+    // data LOCAL (toISOString daria UTC; à noite no Brasil UTC vira o dia
+    // seguinte e o split futuro/passado erra por um dia).
+    const today = dateToIso(new Date());
     const [future, past] = await Promise.all([
       supabase
         .from('calendar_occurrences')
         .select('id', { count: 'exact', head: true })
-        .eq('source_id', activityId)
+        // coluna correta é activity_id — 'source_id' NÃO existe em
+        // calendar_occurrences, então o count caía sempre em 0 (aviso de delete
+        // mostrava "0 ocorrências"). Schema confirmado 2026-06-06.
+        .eq('activity_id', activityId)
         .gte('occurrence_date', today),
       supabase
         .from('calendar_occurrences')
         .select('id', { count: 'exact', head: true })
-        .eq('source_id', activityId)
+        .eq('activity_id', activityId)
         .lt('occurrence_date', today),
     ]);
     return { future: future.count ?? 0, past: past.count ?? 0 };

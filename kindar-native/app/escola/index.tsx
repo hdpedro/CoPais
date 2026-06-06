@@ -306,6 +306,13 @@ export default function EscolaScreen() {
 
   async function handleSave() {
     if (!editing || !groupId) return;
+    // Telefone: se preenchido, precisa ter dígitos de verdade (não só símbolos/
+    // letras). Bug dias.m.augusto 2026-06-06: o form aceitava "(/))/((((NN((/)".
+    if (schoolPhone.trim() && schoolPhone.replace(/\D/g, '').length < 8) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.show({ message: 'Telefone inválido — informe um número válido ou deixe em branco.', variant: 'error' });
+      return;
+    }
     const entryIso = entryTime ? `${entryTime}:00` : null;
     const exitIso = exitTime ? `${exitTime}:00` : null;
     const extras = extracurriculars.split(',').map(s => s.trim()).filter(Boolean);
@@ -825,7 +832,7 @@ export default function EscolaScreen() {
               <Input value={schoolAddress} onChangeText={setSchoolAddress} placeholder="Rua, numero, bairro" />
 
               <Label>Telefone</Label>
-              <Input value={schoolPhone} onChangeText={setSchoolPhone} placeholder="(11) 99999-9999" keyboardType="phone-pad" />
+              <Input value={schoolPhone} onChangeText={(text) => setSchoolPhone(text.replace(/[^\d\s()+\-]/g, ''))} placeholder="(11) 99999-9999" keyboardType="phone-pad" maxLength={20} />
 
               <Label>Atividades extras (separe por virgula)</Label>
               <Input value={extracurriculars} onChangeText={setExtracurriculars} placeholder="Natacao, ingles, balet" />
