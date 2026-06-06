@@ -950,7 +950,7 @@ export default function DashboardScreen() {
                   </Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() => router.push('/atividades')}
+                  onPress={() => router.push('/atividades/pendentes')}
                   accessibilityRole="link"
                   accessibilityLabel="Ver todos os relatos pendentes"
                 >
