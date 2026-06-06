@@ -80,20 +80,43 @@ export async function createVacationPeriod(params: VacationParams) {
     return { success: false, error: 'Período muito longo (máx 90 dias). Quebre em vários registros se necessário.' as const };
   }
 
-  const result = await safeWrite({
-    table: 'custody_events',
-    operation: 'insert',
-    payload: {
-      group_id: params.groupId,
-      child_id: params.childId,
-      custody_type: 'vacation',
-      responsible_user_id: params.responsibleUserId,
-      start_date: params.startDate,
-      end_date: params.endDate,
-      notes: params.notes?.trim() || null,
-      // created_by não é coluna padrão de custody_events; auditoria via created_at + responsible.
-    },
-  });
+  // "Família" (childId null) = férias de TODAS as crianças. Os consumidores de
+  // custódia (custody-resolve.ts, view custody_resolved, useDashboard/useCalendar)
+  // resolvem POR child_id — uma linha com child_id NULL não sobrepõe a escala de
+  // NENHUMA criança (vira no-op silencioso) E viola o NOT NULL da coluna. Então
+  // expandimos: 1 linha por criança do grupo. Bug Henrique 2026-06-06.
+  let targetChildIds: string[];
+  if (params.childId == null) {
+    const { data: kids } = await supabase
+      .from('children')
+      .select('id')
+      .eq('group_id', params.groupId);
+    targetChildIds = (kids ?? []).map((k) => k.id as string);
+    if (targetChildIds.length === 0) {
+      return { success: false, error: 'Cadastre uma criança antes de marcar férias.' as const };
+    }
+  } else {
+    targetChildIds = [params.childId];
+  }
+
+  let result: Awaited<ReturnType<typeof safeWrite>> = { success: true };
+  for (const cid of targetChildIds) {
+    result = await safeWrite({
+      table: 'custody_events',
+      operation: 'insert',
+      payload: {
+        group_id: params.groupId,
+        child_id: cid,
+        custody_type: 'vacation',
+        responsible_user_id: params.responsibleUserId,
+        start_date: params.startDate,
+        end_date: params.endDate,
+        notes: params.notes?.trim() || null,
+        // created_by não é coluna padrão de custody_events; auditoria via created_at + responsible.
+      },
+    });
+    if (!result.success) break; // aborta no primeiro erro (ex.: overlap 23505)
+  }
 
   if (result.success && !result.queued) {
     // Notifica coparentes via PWA endpoint /api/native/notify.
