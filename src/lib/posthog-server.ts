@@ -107,3 +107,33 @@ export function captureServerEvent(
     }
   })();
 }
+
+/**
+ * Awaitable variant of {@link captureServerEvent} for short-lived requests
+ * (e.g. redirect routes) where the function may freeze before a
+ * fire-and-forget flush completes. Pair it with Next's `after()` so the
+ * response is sent instantly while the event still reliably ships:
+ *
+ *   after(() => captureServerEventAndFlush(id, "store_link_click", {...}))
+ *
+ * Errors are swallowed — analytics never breaks the request.
+ */
+export async function captureServerEventAndFlush(
+  userId: string,
+  event: string,
+  properties?: Record<string, unknown>,
+): Promise<void> {
+  try {
+    const ph = getServerPostHog();
+    if (!ph) return;
+    const platform = await resolveServerPlatform();
+    ph.capture({
+      distinctId: userId,
+      event,
+      properties: { ...properties, platform },
+    });
+    await ph.flush();
+  } catch {
+    // analytics never breaks the app
+  }
+}
