@@ -25,6 +25,104 @@ export async function fetchActivities(groupId: string): Promise<Activity[]> {
   return (data || []).map((a: any) => ({ ...a, childName: a.children?.full_name?.split(' ')[0] || 'Todos' }));
 }
 
+export interface PendingActivityReport {
+  activityId: string;
+  activityName: string;
+  childId: string | null;
+  childName: string;
+  occurrenceDate: string; // YYYY-MM-DD
+  daysAgo: number;
+}
+
+/** Local YYYY-MM-DD. NUNCA toISOString() — à noite no Brasil (UTC-3) o UTC vira
+ *  o dia seguinte e a janela de datas sai errada (mesma armadilha do
+ *  formatDateKey/useDashboard). */
+function localDateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/**
+ * Lista TODOS os relatos de atividade pendentes — ocorrências dos últimos 7
+ * dias (de ONTEM pra trás) que ainda não têm `activity_report`. É a versão
+ * COMPLETA do que o dashboard mostra como "Status pendentes" (lá a RPC
+ * `get_dashboard_payload.past_pending_reports` é limitada a 5 no client).
+ *
+ * Replica a regra server-side — anti-join occurrence × report por
+ * (activity_id, occurrence_date), janela [hoje-7, ontem] — com 3 queries leves
+ * + join no client. Sem RPC nova → entrega por OTA.
+ *
+ * Bug Henrique 2026-06-05: "ver tudo" em Status pendentes levava à lista de
+ * atividades (definições), cujo "Relatar" reportava pra HOJE e nunca limpava o
+ * pendente (que é de uma data passada). Aqui cada item relata pela
+ * occurrence_date CERTA → some ao recarregar, igual ao dashboard.
+ */
+export async function fetchPendingReports(groupId: string): Promise<PendingActivityReport[]> {
+  const now = new Date();
+  const weekAgo = new Date(now); weekAgo.setDate(weekAgo.getDate() - 7);
+  const yesterday = new Date(now); yesterday.setDate(yesterday.getDate() - 1);
+  const weekAgoStr = localDateKey(weekAgo);
+  const yesterdayStr = localDateKey(yesterday);
+
+  const [occRes, repRes, actRes] = await Promise.all([
+    supabase
+      .from('calendar_occurrences')
+      .select('activity_id, occurrence_date')
+      .eq('group_id', groupId)
+      .not('activity_id', 'is', null)
+      .gte('occurrence_date', weekAgoStr)
+      .lte('occurrence_date', yesterdayStr),
+    supabase
+      .from('activity_reports')
+      .select('activity_id, occurrence_date')
+      .eq('group_id', groupId)
+      .gte('occurrence_date', weekAgoStr)
+      .lte('occurrence_date', yesterdayStr),
+    // SEM filtro is_active: a RPC do dashboard junta child_activities sem ele,
+    // então uma atividade desativada com ocorrência passada ainda conta como
+    // pendente. Manter paridade.
+    supabase
+      .from('child_activities')
+      .select('id, name, child_id, children(full_name)')
+      .eq('group_id', groupId),
+  ]);
+
+  if (occRes.error || !occRes.data) return [];
+
+  const reported = new Set<string>(
+    (repRes.data || []).map((r: any) => `${r.activity_id}|${r.occurrence_date}`),
+  );
+  const actMap = new Map<string, { name: string; childId: string | null; childName: string }>();
+  for (const a of (actRes.data || []) as any[]) {
+    actMap.set(a.id, {
+      name: a.name,
+      childId: a.child_id ?? null,
+      childName: a.children?.full_name?.split(' ')[0] || 'Geral',
+    });
+  }
+
+  const todayMs = now.getTime();
+  const seen = new Set<string>();
+  const out: PendingActivityReport[] = [];
+  for (const occ of occRes.data as any[]) {
+    const key = `${occ.activity_id}|${occ.occurrence_date}`;
+    if (reported.has(key) || seen.has(key)) continue; // já relatado / dedupe
+    const act = actMap.get(occ.activity_id);
+    if (!act) continue; // atividade removida — não dá pra relatar
+    seen.add(key);
+    const occMs = new Date(`${occ.occurrence_date}T12:00:00`).getTime();
+    out.push({
+      activityId: occ.activity_id,
+      activityName: act.name,
+      childId: act.childId,
+      childName: act.childName,
+      occurrenceDate: occ.occurrence_date,
+      daysAgo: Math.max(0, Math.floor((todayMs - occMs) / 86400000)),
+    });
+  }
+  out.sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate)); // mais antigo primeiro
+  return out;
+}
+
 export async function updateActivity(activityId: string, updates: {
   name?: string; category?: string; location?: string | null; notes?: string | null;
   time_start?: string | null; time_end?: string | null; days_of_week?: string | null;
