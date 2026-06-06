@@ -93,8 +93,22 @@ export function resolveFetchErrorMessage(
     if (key) return t(key);
   }
 
-  // Server message do JSON tem prioridade — vem da action/route com contexto
-  if (ctx.serverMessage) return ctx.serverMessage;
+  // Server message do JSON tem prioridade — vem da action/route com contexto.
+  // Coerção defensiva: o body do servidor pode trazer `error` como OBJETO (ex.:
+  // erro Postgrest/Supabase serializado {code, id, message}). Renderizar objeto
+  // em <Text> crasha a tela ("Objects are not valid as a React child" — bug
+  // Hailla 2026-06-06 no convite do onboarding). Forçamos string (lendo .message
+  // se houver); objeto sem string cai pro fallback de status abaixo.
+  const sm = ctx.serverMessage as unknown;
+  if (sm != null) {
+    const serverText =
+      typeof sm === 'string'
+        ? sm
+        : typeof (sm as { message?: unknown }).message === 'string'
+          ? (sm as { message: string }).message
+          : '';
+    if (serverText) return serverText;
+  }
 
   // Status code conhecido → mensagem específica
   if (typeof ctx.status === 'number') {
