@@ -153,6 +153,7 @@ export async function createVacationPeriod(
         start_date: startDate,
         end_date: endDate,
         notes: notes?.trim() || null,
+        created_by: createdBy, // NOT NULL em custody_events (sem default) — bug gustavoricardo 2026-06-07
       })),
     )
     .select("id");

@@ -1,0 +1,19 @@
+-- custody_events.created_by e NOT NULL SEM default, mas os services de ferias
+-- (native app/_src/services/vacation.ts + PWA src/lib/services/vacation.ts)
+-- historicamente NAO setavam created_by no insert -> "null value in column
+-- created_by violates not-null constraint" (bug gustavoricardo 2026-06-07, ao
+-- salvar ferias da "Familia").
+--
+-- O fix de APP (setar created_by = criador, nas duas plataformas) cobre quem
+-- esta no bundle atual (entregue por OTA/deploy). Este DEFAULT cobre binarios
+-- ANTIGOS que ainda nao puxaram a OTA: um insert que OMITE created_by passa a
+-- auto-preencher com auth.uid() (o user autenticado da request). E ADITIVO --
+-- quando o app manda created_by explicito, esse valor prevalece sobre o default.
+--
+-- Seguro: a RLS de insert de custody_events e so is_group_member(group_id), ou
+-- seja created_by e puramente auditoria (nao precisa ser = auth.uid()).
+--
+-- NOTA: aplicado em prod PELO DONO via SQL Editor (o classifier de seguranca
+-- barra DDL direto em producao). Este arquivo registra a mudanca pro repo e
+-- `supabase db reset` ficarem em sincronia.
+ALTER TABLE public.custody_events ALTER COLUMN created_by SET DEFAULT auth.uid();
