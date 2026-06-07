@@ -78,38 +78,47 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  captureServerEvent(user.id, "invitation_sent", {
-    group_id: groupId,
-    role,
-  });
-
-  // Transparencia: avisa o outro co-pai que um convite foi enviado.
-  await notifyCoparents({
-    groupId,
-    actorUserId: user.id,
-    type: "invitation_sent",
-    title: "Convite enviado",
-    message: `Um novo convite (${role}) foi enviado para ${email}.`,
-    link: "/familia",
-  });
-
-  // Quest step: inviting a co-responsible unlocks the 'invite_co' step
-  // regardless of the invitee's role — the value is "you reached out".
+  // Side-effects pós-criação são TODOS best-effort: o convite já foi criado
+  // (token garantido), então NADA aqui pode transformar um convite válido em
+  // erro pro cliente. Bug Hailla 2026-06-06: um side-effect awaited e
+  // desprotegido (notifyCoparents/revalidateTag/profiles update) lançava ->
+  // route 500 -> o app mostrava (e crashava ao renderizar) um erro mesmo com o
+  // convite JÁ criado. Envolve tudo num try/catch e sempre retorna success.
   try {
+    captureServerEvent(user.id, "invitation_sent", {
+      group_id: groupId,
+      role,
+    });
+
+    // Transparencia: avisa o outro co-pai que um convite foi enviado.
+    await notifyCoparents({
+      groupId,
+      actorUserId: user.id,
+      type: "invitation_sent",
+      title: "Convite enviado",
+      message: `Um novo convite (${role}) foi enviado para ${email}.`,
+      link: "/familia",
+    });
+
+    // Quest step: inviting a co-responsible unlocks the 'invite_co' step
+    // regardless of the invitee's role — the value is "you reached out".
     await markQuestStep("invite_co", { role });
-  } catch {
-    // non-fatal
+
+    // Update onboarding progress to step 4 (complete) when applicable
+    await admin
+      .from("profiles")
+      .update({ onboarding_step: 4 })
+      .eq("id", user.id)
+      .lt("onboarding_step", 4);
+
+    captureServerEvent(user.id, "onboarding_completed");
+    revalidateTag(`invitations-${groupId}`, "max");
+  } catch (sideEffectError) {
+    // Convite JÁ criado — nunca falhar por notificação/analytics/revalidate.
+    // Loga pra investigação e segue retornando success.
+    console.error("[invitations] side-effect pós-criação falhou (non-fatal):", sideEffectError);
   }
 
-  // Update onboarding progress to step 4 (complete) when applicable
-  await admin
-    .from("profiles")
-    .update({ onboarding_step: 4 })
-    .eq("id", user.id)
-    .lt("onboarding_step", 4);
-
-  captureServerEvent(user.id, "onboarding_completed");
-  revalidateTag(`invitations-${groupId}`, "max");
   return NextResponse.json({
     success: true,
     invitationId: invitation.id,
