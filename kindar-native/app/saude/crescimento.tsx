@@ -161,7 +161,9 @@ export default function CrescimentoScreen() {
   useEffect(() => {
     if (!activeGroup) return;
     const ch = supabase
-      .channel(`growth:list:${activeGroup.groupId}`)
+      // sufixo aleatorio: nome unico por mount evita "after subscribe()" no
+      // duplo-toque (mesma classe do chat, PR #95). Cleanup abaixo remove o canal.
+      .channel(`growth:list:${activeGroup.groupId}:${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'growth_records', filter: `group_id=eq.${activeGroup.groupId}` },

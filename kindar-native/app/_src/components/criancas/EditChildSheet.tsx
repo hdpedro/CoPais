@@ -149,7 +149,9 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
     fetchGrowth();
 
     const channel = supabase
-      .channel(`growth:${child.id}`)
+      // sufixo aleatorio: nome unico por mount evita "after subscribe()" se o
+      // sheet montar 2x (mesma classe do chat, PR #95). Cleanup abaixo remove.
+      .channel(`growth:${child.id}:${Math.random().toString(36).slice(2, 8)}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'growth_records', filter: `child_id=eq.${child.id}` },
