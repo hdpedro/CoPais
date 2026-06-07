@@ -105,6 +105,17 @@ export async function PUT(request: Request) {
     const trimmed = v.trim();
     payload[field] = trimmed ? trimmed.slice(0, 500) : null;
   }
+  // Telefone (se preenchido) precisa ter dígitos de verdade (não só símbolos/
+  // letras) — paridade com a validação do client native. Bug dias.m.augusto
+  // 2026-06-06: o form aceitava "(/))/((((NN((/)". Vale pra native (que posta
+  // aqui) e pra qualquer caller direto da API.
+  if (typeof payload.school_phone === "string" && payload.school_phone.replace(/\D/g, "").length < 8) {
+    return NextResponse.json(
+      { error: "Telefone inválido — informe um número válido ou deixe em branco." },
+      { status: 400 },
+    );
+  }
+
   if ("extracurricular_activities" in body) {
     const raw = body.extracurricular_activities;
     if (raw === null) {

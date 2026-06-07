@@ -921,6 +921,7 @@ function TabEducacao({
               <label className="block text-sm font-medium text-dark mb-1">{t("childProfile.schoolPhone")}</label>
               <input type="tel" name="school_phone" defaultValue={education?.school_phone || ""}
                 placeholder="(00) 0000-0000"
+                pattern="(?=(?:.*\d){8,})[\d\s()+-]+"
                 className="w-full px-3 py-2.5 border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary/50" />
             </div>
 
