@@ -112,7 +112,10 @@ export async function createVacationPeriod(params: VacationParams) {
         start_date: params.startDate,
         end_date: params.endDate,
         notes: params.notes?.trim() || null,
-        // created_by não é coluna padrão de custody_events; auditoria via created_at + responsible.
+        // created_by é NOT NULL em custody_events (sem default) — seta do criador.
+        // O comentário antigo ("não é coluna padrão") estava ERRADO e causava
+        // "null value in column created_by" (bug gustavoricardo 2026-06-07).
+        created_by: params.createdBy,
       },
     });
     if (!result.success) break; // aborta no primeiro erro (ex.: overlap 23505)
