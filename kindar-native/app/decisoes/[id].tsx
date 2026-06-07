@@ -90,7 +90,10 @@ export default function DecisionDetailScreen() {
   useEffect(() => {
     if (!id) return;
     const channel = supabase
-      .channel(`decision-args-${id}`)
+      // sufixo aleatorio: nome unico por mount evita "cannot add postgres_changes
+      // ... after subscribe()" no duplo-toque (2 mounts da mesma decisao). Bug
+      // 2026-06-06 (mesma classe do chat, PR #95). Cleanup abaixo remove o canal.
+      .channel(`decision-args-${id}:${Math.random().toString(36).slice(2, 8)}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'decision_arguments', filter: `decision_id=eq.${id}` }, () => {
         load();
       })
