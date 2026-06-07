@@ -26,6 +26,10 @@ const SUPPORT_URL = `${WEB_URL}/suporte`;
 const DEV_EMAIL_ALLOWLIST = [
   'henrique.de.pedro@gmail.com',
   'henrique.pedros@hotmail.com',
+  // Adicionado 2026-06-07: Angelino é maior user, reporta não receber push
+  // iOS apesar de backend enviar (13 notifs/7d). Precisa do Diagnóstico
+  // pra disparar push de teste e ver resposta APNs raw da Apple.
+  'angelino.barata@gmail.com',
 ];
 
 export default function PerfilScreen() {
