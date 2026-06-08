@@ -11,8 +11,10 @@ import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
+import * as FileSystem from 'expo-file-system/legacy';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from 'src/lib/supabase';
+import { uploadSizeError } from 'src/lib/upload-size';
 import { safeWrite } from 'src/services/offline';
 import { notifyAction } from 'src/services/notify';
 import { useAuth } from 'src/store/auth';
@@ -57,7 +59,26 @@ function formatDateBR(iso: string, intlLocale: string): string {
   });
 }
 
-async function uploadChatImage(uri: string, mimeType: string, groupId: string): Promise<string | null> {
+async function uploadChatImage(
+  uri: string,
+  mimeType: string,
+  groupId: string,
+): Promise<{ ok: true; path: string } | { ok: false; tooLarge?: string }> {
+  // Resolve the real on-disk size BEFORE reading the file into memory.
+  // ImagePicker reports fileSize=0 on Android; a huge image would otherwise hit
+  // fetch().arrayBuffer() → native OOM (the app "restarts" on send; nothing in
+  // app_errors = native crash). Mirrors services/documents.ts (bug Murilo,
+  // 2026-06-08). `tooLarge` carries the friendly message up to the toast.
+  let statSize: number | null = null;
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    if (info.exists && !info.isDirectory && typeof info.size === 'number') statSize = info.size;
+  } catch {
+    // best-effort
+  }
+  const sizeErr = uploadSizeError(0, statSize);
+  if (sizeErr) return { ok: false, tooLarge: sizeErr };
+
   try {
     const res = await fetch(uri);
     const arrayBuffer = await res.arrayBuffer();
@@ -66,11 +87,11 @@ async function uploadChatImage(uri: string, mimeType: string, groupId: string): 
     const { error } = await supabase.storage.from('documents').upload(path, arrayBuffer, {
       contentType: mimeType, upsert: false,
     });
-    if (error) return null;
+    if (error) return { ok: false };
     // Path-only after migration 062. Components sign URLs at render time.
-    return path;
+    return { ok: true, path };
   } catch {
-    return null;
+    return { ok: false };
   }
 }
 
@@ -587,9 +608,9 @@ export default function ChatRoomScreen() {
 
     let imageUrl: string | null = null;
     if (img) {
-      imageUrl = await uploadChatImage(img.uri, img.mime, activeGroup.groupId);
-      if (!imageUrl) {
-        toast.show({ message: t('toasts.chat.imageUploadFailed'), variant: 'error' });
+      const up = await uploadChatImage(img.uri, img.mime, activeGroup.groupId);
+      if (!up.ok) {
+        toast.show({ message: up.tooLarge || t('toasts.chat.imageUploadFailed'), variant: 'error' });
         setMessages(prev => prev.filter(m => m.id !== optimisticId));
         setNewMessage(text);
         setPendingImage(img);
@@ -597,6 +618,7 @@ export default function ChatRoomScreen() {
         setSending(false);
         return;
       }
+      imageUrl = up.path;
     }
 
     const result = await safeWrite({

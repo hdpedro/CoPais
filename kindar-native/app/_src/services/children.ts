@@ -10,6 +10,8 @@ import { supabase } from '../lib/supabase';
 import { apiFetch } from '../lib/api-fetch';
 import { safeWrite } from './offline';
 import { notifyAction } from './notify';
+import * as FileSystem from 'expo-file-system/legacy';
+import { uploadSizeError } from '../lib/upload-size';
 
 export interface Child {
   id: string;
@@ -286,6 +288,20 @@ export async function uploadChildAvatar(params: {
     return e && /^[a-z0-9]+$/.test(e) ? e.replace('jpeg', 'jpg') : 'jpg';
   })();
   const path = `${params.groupId}/_avatars/${params.childId}.${ext}`;
+
+  // Resolve the real on-disk size BEFORE reading the file into memory.
+  // ImagePicker reports fileSize=0 on Android; a huge image would otherwise hit
+  // fetch().arrayBuffer() → native OOM (the app "restarts"; nothing in app_errors
+  // = native crash). Mirrors services/documents.ts (bug Murilo, 2026-06-08).
+  let statSize: number | null = null;
+  try {
+    const info = await FileSystem.getInfoAsync(params.uri);
+    if (info.exists && !info.isDirectory && typeof info.size === 'number') statSize = info.size;
+  } catch {
+    // best-effort: fall back to no stat
+  }
+  const sizeErr = uploadSizeError(0, statSize);
+  if (sizeErr) return { success: false, error: sizeErr };
 
   // RN file → ArrayBuffer via fetch — supabase-js handles ArrayBuffer
   // natively in RN. `.blob()` returns a polyfill that supabase-js uploads
