@@ -66,7 +66,7 @@ export default function PerfilScreen() {
       return;
     }
 
-    Alert.alert(t('auth.logout'), 'Tem certeza que deseja sair?', [
+    Alert.alert(t('auth.logout'), t('profileScreen.logoutConfirm'), [
       { text: t('common.cancel'), style: 'cancel' },
       { text: t('auth.logout'), style: 'destructive', onPress: async () => {
         await useAuth.getState().signOut();
@@ -95,7 +95,7 @@ export default function PerfilScreen() {
             </Text>
           </View>
           <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text }}>
-            {profile?.full_name || 'Usuario'}
+            {profile?.full_name || t('profileScreen.defaultUserName')}
           </Text>
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>{profile?.email}</Text>
           {activeGroup ? <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>{activeGroup.groupName}</Text> : null}
@@ -105,7 +105,7 @@ export default function PerfilScreen() {
         <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm }}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
             <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Dados Pessoais
+              {t('profileScreen.personalData')}
             </Text>
             <TouchableOpacity
               testID={editing ? 'perfil-save' : 'perfil-edit'}
@@ -136,14 +136,14 @@ export default function PerfilScreen() {
                   style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
               </View>
               <View>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: 2 }}>Apelido (como aparece para outros)</Text>
-                <TextInput value={displayName} onChangeText={setDisplayName} placeholder="Ex: Ana"
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: 2 }}>{t('profileScreen.nicknameFieldLabel')}</Text>
+                <TextInput value={displayName} onChangeText={setDisplayName} placeholder={t('profileScreen.nicknamePlaceholder')}
                   placeholderTextColor={colors.textDim}
                   style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
               </View>
               <View>
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: 2 }}>{t('profile.phone')}</Text>
-                <TextInput value={phone} onChangeText={setPhone} placeholder="(11) 99999-9999"
+                <TextInput value={phone} onChangeText={setPhone} placeholder={t('profileScreen.phonePlaceholder')}
                   placeholderTextColor={colors.textDim} keyboardType="phone-pad"
                   style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
               </View>
@@ -151,12 +151,12 @@ export default function PerfilScreen() {
           ) : (
             <View style={{ gap: spacing.sm }}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Nome</Text>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>{t('profileScreen.nameLabel')}</Text>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>{profile?.full_name || '-'}</Text>
               </View>
               {profile?.display_name ? (
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                  <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Apelido</Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>{t('profileScreen.nicknameLabel')}</Text>
                   <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>{profile.display_name}</Text>
                 </View>
               ) : null}
@@ -167,7 +167,7 @@ export default function PerfilScreen() {
                 </View>
               ) : null}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Email</Text>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>{t('auth.email')}</Text>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>{profile?.email || '-'}</Text>
               </View>
             </View>
@@ -204,14 +204,14 @@ export default function PerfilScreen() {
         <TouchableOpacity onPress={() => router.push('/perfil/seguranca')}
           testID="perfil-seguranca"
           accessibilityRole="button"
-          accessibilityLabel="Segurança e bloqueio do app"
+          accessibilityLabel={t('profileScreen.securityA11y')}
           style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm,
             flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <Ionicons name="lock-closed-outline" size={20} color={colors.brand} />
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: font.sizes.md, color: colors.text }}>Seguranca</Text>
+            <Text style={{ fontSize: font.sizes.md, color: colors.text }}>{t('profile.security')}</Text>
             <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-              Bloqueio com Face ID / Touch ID
+              {t('profileScreen.securitySubtitle')}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
@@ -244,14 +244,14 @@ export default function PerfilScreen() {
           <TouchableOpacity onPress={() => router.push('/perfil/push-debug')}
             testID="perfil-push-debug"
             accessibilityRole="button"
-            accessibilityLabel="Diagnóstico de push"
+            accessibilityLabel={t('profileScreen.pushDebug')}
             style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm,
               flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderWidth: 1, borderColor: '#F59E0B' }}>
             <Ionicons name="bug-outline" size={20} color="#F59E0B" />
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: font.sizes.md, color: colors.text }}>Diagnóstico de push</Text>
+              <Text style={{ fontSize: font.sizes.md, color: colors.text }}>{t('profileScreen.pushDebug')}</Text>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-                Validar pipeline APNs (técnico)
+                {t('profileScreen.pushDebugSubtitle')}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
@@ -261,11 +261,11 @@ export default function PerfilScreen() {
         {/* Subscription */}
         <TouchableOpacity onPress={() => router.push('/pricing')}
           accessibilityRole="button"
-          accessibilityLabel="Assinatura"
+          accessibilityLabel={t('subscription.headerTitle')}
           style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.sm,
             flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
           <Ionicons name="diamond-outline" size={20} color={colors.accent} />
-          <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>Assinatura</Text>
+          <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>{t('subscription.headerTitle')}</Text>
           <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
         </TouchableOpacity>
 
@@ -276,44 +276,44 @@ export default function PerfilScreen() {
             onPress={() => Linking.openURL(PRIVACY_URL)}
             testID="perfil-privacy"
             accessibilityRole="link"
-            accessibilityLabel="Política de Privacidade"
+            accessibilityLabel={t('profileScreen.privacyPolicy')}
             style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}
           >
             <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
-            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>Politica de Privacidade</Text>
+            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>{t('profileScreen.privacyPolicy')}</Text>
             <Ionicons name="open-outline" size={16} color={colors.textDim} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => Linking.openURL(TERMS_URL)}
             testID="perfil-terms"
             accessibilityRole="link"
-            accessibilityLabel="Termos de Uso"
+            accessibilityLabel={t('profileScreen.termsOfUse')}
             style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}
           >
             <Ionicons name="document-text-outline" size={20} color={colors.textSecondary} />
-            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>Termos de Uso</Text>
+            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>{t('profileScreen.termsOfUse')}</Text>
             <Ionicons name="open-outline" size={16} color={colors.textDim} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => Linking.openURL(SUPPORT_URL)}
             testID="perfil-support"
             accessibilityRole="link"
-            accessibilityLabel="Suporte"
+            accessibilityLabel={t('profileScreen.support')}
             style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}
           >
             <Ionicons name="help-circle-outline" size={20} color={colors.textSecondary} />
-            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>Suporte</Text>
+            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>{t('profileScreen.support')}</Text>
             <Ionicons name="open-outline" size={16} color={colors.textDim} />
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.push('/perfil/deletar-conta')}
             testID="perfil-delete-account"
             accessibilityRole="button"
-            accessibilityLabel="Deletar conta"
+            accessibilityLabel={t('profileScreen.deleteAccount')}
             style={{ padding: spacing.xl, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
           >
             <Ionicons name="trash-outline" size={20} color={colors.error} />
-            <Text style={{ fontSize: font.sizes.md, color: colors.error, flex: 1 }}>Deletar conta</Text>
+            <Text style={{ fontSize: font.sizes.md, color: colors.error, flex: 1 }}>{t('profileScreen.deleteAccount')}</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
           </TouchableOpacity>
         </View>

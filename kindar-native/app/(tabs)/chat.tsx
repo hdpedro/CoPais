@@ -10,6 +10,7 @@ import Animated, { FadeInDown } from 'react-native-reanimated';
 import { supabase } from 'src/lib/supabase';
 import { apiFetch } from 'src/lib/api-fetch';
 import { useAuth } from 'src/store/auth';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { withTimeout, TimeoutError } from 'src/lib/with-timeout';
 import { reportError } from 'src/lib/error-reporter';
@@ -30,6 +31,7 @@ interface Channel {
 
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
+  const t = useI18n((s) => s.t);
   const { userId, activeGroup } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,7 +242,7 @@ export default function ChatScreen() {
     const diffMs = now.getTime() - d.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
     if (diffDays === 0) return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-    if (diffDays === 1) return 'Ontem';
+    if (diffDays === 1) return t('chatTab.yesterday');
     if (diffDays < 7) return ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'][d.getDay()];
     return `${d.getDate()}/${d.getMonth() + 1}`;
   };
@@ -255,7 +257,7 @@ export default function ChatScreen() {
         {/* Header */}
         <View style={{ paddingHorizontal: spacing.lg, marginBottom: spacing.xl }}>
           <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.text }}>
-            Chat
+            {t('chat.title')}
           </Text>
         </View>
 
@@ -263,11 +265,11 @@ export default function ChatScreen() {
         <View style={{ paddingHorizontal: spacing.lg }}>
           {loading ? (
             <Text style={{ color: colors.textMuted, textAlign: 'center', paddingVertical: spacing['4xl'] }}>
-              Carregando canais...
+              {t('chatTab.loadingChannels')}
             </Text>
           ) : channels.length === 0 ? (
             <Text style={{ color: colors.textMuted, textAlign: 'center', paddingVertical: spacing['4xl'] }}>
-              Nenhum canal disponivel
+              {t('chatTab.noChannels')}
             </Text>
           ) : (
             channels.map((ch, i) => (
@@ -279,7 +281,7 @@ export default function ChatScreen() {
                   }}
                   activeOpacity={0.7}
                   testID={`chat-channel-${ch.id}`}
-                  accessibilityLabel={`Abrir canal ${ch.name}`}
+                  accessibilityLabel={t('chatTab.openChannel', { name: ch.name })}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
                     backgroundColor: colors.bgElevated, borderRadius: radius.lg,
