@@ -5,6 +5,7 @@
 
 import { View, Text, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 import type { Child, MedicalInfo } from '../../services/children';
 
@@ -38,6 +39,7 @@ interface Props {
 }
 
 export default function ChildHeader({ child, medicalInfo }: Props) {
+  const t = useI18n((s) => s.t);
   const initials = child.full_name
     .split(' ')
     .filter(Boolean)
@@ -63,7 +65,7 @@ export default function ChildHeader({ child, medicalInfo }: Props) {
         // eslint-disable-next-line jsx-a11y/alt-text
         <Image
           source={{ uri: child.photo_url }}
-          accessibilityLabel={`Foto de ${child.full_name}`}
+          accessibilityLabel={t('childHeader.photoAlt', { name: child.full_name })}
           style={{ width: 80, height: 80, borderRadius: 40, backgroundColor: colors.bgSurface }}
         />
       ) : (

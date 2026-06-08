@@ -3430,5 +3430,53 @@
   "childEducation": {
     "schedule": "Horários",
     "extraActivities": "Atividades extras"
+  },
+  "editChild": {
+    "cpfInvalid": "CPF inválido",
+    "cpfPlaceholder": "000.000.000-00",
+    "datePlaceholder": "DD/MM/AAAA",
+    "sexNone": "Não informar",
+    "bloodType": "Tipo sanguíneo",
+    "clearSelection": "Limpar seleção",
+    "allergyPlaceholder": "Ex: Amendoim",
+    "growthEmptyTitle": "Adicionar peso e altura",
+    "growthEmptySubtitle": "Acompanhar o crescimento ao longo do tempo",
+    "photoTitle": "Foto da criança",
+    "photoPrompt": "De onde você quer pegar a foto?",
+    "photoLibrary": "Galeria",
+    "photoCamera": "Câmera",
+    "photoUploading": "Enviando foto…",
+    "photoTapToChange": "Toque para alterar a foto"
+  },
+  "uploadSheet": {
+    "title": "Novo documento",
+    "sourceLabel": "De onde?",
+    "cameraHint": "Documento, carteirinha…",
+    "fromGallery": "Da galeria",
+    "galleryHint": "JPG, PNG, HEIC",
+    "fromDevice": "Arquivo do dispositivo",
+    "deviceHint": "PDF ou Word, até 10MB",
+    "unknownSize": "Tamanho desconhecido",
+    "namePlaceholder": "Ex: Carteirinha do plano de saúde",
+    "uploadingToKindar": "Enviando para o Kindar…"
+  },
+  "childHeader": {
+    "photoAlt": "Foto de {name}"
+  },
+  "aiAssistant": {
+    "title": "Kindar AI",
+    "subtitle": "Assistente da família",
+    "greeting": "Oi! Sou o Kindar AI 👋\n\nPosso ajudar com despesas, eventos, consultas, resumos da família e muito mais. O que você precisa?",
+    "suggestionsLabel": "Sugestões",
+    "suggestionCustody": "Quem está com a guarda hoje?",
+    "suggestionActivities": "Quais as próximas atividades?",
+    "suggestionExpenses": "Qual meu saldo de despesas?",
+    "suggestionHealth": "Ver histórico de saúde das crianças",
+    "inputPlaceholder": "Pergunte qualquer coisa...",
+    "thinking": "Pensando...",
+    "sessionExpired": "Sessão expirada",
+    "errorStatus": "Erro {status}",
+    "noResponse": "Sem resposta.",
+    "errorGeneric": "Não consegui responder agora"
   }
 }

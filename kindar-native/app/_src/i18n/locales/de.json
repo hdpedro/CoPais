@@ -3430,5 +3430,53 @@
   "childEducation": {
     "schedule": "Uhrzeiten",
     "extraActivities": "Außerschulische Aktivitäten"
+  },
+  "editChild": {
+    "cpfInvalid": "Ungültige CPF",
+    "cpfPlaceholder": "000.000.000-00",
+    "datePlaceholder": "TT.MM.JJJJ",
+    "sexNone": "Keine Angabe",
+    "bloodType": "Blutgruppe",
+    "clearSelection": "Auswahl löschen",
+    "allergyPlaceholder": "Z. B.: Erdnuss",
+    "growthEmptyTitle": "Gewicht und Größe hinzufügen",
+    "growthEmptySubtitle": "Das Wachstum im Lauf der Zeit verfolgen",
+    "photoTitle": "Foto des Kindes",
+    "photoPrompt": "Woher möchten Sie das Foto nehmen?",
+    "photoLibrary": "Galerie",
+    "photoCamera": "Kamera",
+    "photoUploading": "Foto wird hochgeladen…",
+    "photoTapToChange": "Tippen, um das Foto zu ändern"
+  },
+  "uploadSheet": {
+    "title": "Neues Dokument",
+    "sourceLabel": "Von wo?",
+    "cameraHint": "Dokument, Ausweis…",
+    "fromGallery": "Aus der Galerie",
+    "galleryHint": "JPG, PNG, HEIC",
+    "fromDevice": "Datei vom Gerät",
+    "deviceHint": "PDF oder Word, bis 10MB",
+    "unknownSize": "Unbekannte Größe",
+    "namePlaceholder": "Z. B. Krankenversicherungskarte",
+    "uploadingToKindar": "Wird zu Kindar hochgeladen…"
+  },
+  "childHeader": {
+    "photoAlt": "Foto von {name}"
+  },
+  "aiAssistant": {
+    "title": "Kindar AI",
+    "subtitle": "Familienassistent",
+    "greeting": "Hi! Ich bin Kindar AI 👋\n\nIch kann bei Ausgaben, Terminen, Arztbesuchen, Familienübersichten und vielem mehr helfen. Was brauchst du?",
+    "suggestionsLabel": "Vorschläge",
+    "suggestionCustody": "Wer hat heute das Sorgerecht?",
+    "suggestionActivities": "Was sind die nächsten Aktivitäten?",
+    "suggestionExpenses": "Wie ist mein Ausgabensaldo?",
+    "suggestionHealth": "Gesundheitsverlauf der Kinder ansehen",
+    "inputPlaceholder": "Frag mich alles...",
+    "thinking": "Denke nach...",
+    "sessionExpired": "Sitzung abgelaufen",
+    "errorStatus": "Fehler {status}",
+    "noResponse": "Keine Antwort.",
+    "errorGeneric": "Ich konnte gerade nicht antworten"
   }
 }

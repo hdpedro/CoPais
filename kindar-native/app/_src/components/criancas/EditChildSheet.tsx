@@ -256,12 +256,12 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
     if (uploadingPhoto) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(
-      'Foto da criança',
-      'De onde você quer pegar a foto?',
+      t('editChild.photoTitle'),
+      t('editChild.photoPrompt'),
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Galeria', onPress: pickAvatarFromLibrary },
-        { text: 'Câmera', onPress: pickAvatarFromCamera },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('editChild.photoLibrary'), onPress: pickAvatarFromLibrary },
+        { text: t('editChild.photoCamera'), onPress: pickAvatarFromCamera },
       ],
       { cancelable: true }
     );
@@ -271,7 +271,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
     if (!canSave) return;
     if (!cpfValid) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show({ message: 'CPF inválido', variant: 'error' });
+      toast.show({ message: t('editChild.cpfInvalid'), variant: 'error' });
       return;
     }
     setSaving(true);
@@ -344,7 +344,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           }}
         >
           <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-            Editar informações
+            {t('childDetail.editInfo')}
           </Text>
           <TouchableOpacity onPress={onClose} hitSlop={8}>
             <Ionicons name="close" size={24} color={colors.textSecondary} />
@@ -368,7 +368,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
                 // eslint-disable-next-line jsx-a11y/alt-text
                 <Image
                   source={{ uri: photoUrl }}
-                  accessibilityLabel="Foto da criança"
+                  accessibilityLabel={t('editChild.photoTitle')}
                   style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: colors.bgSurface }}
                 />
               ) : (
@@ -401,27 +401,27 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               </View>
             </TouchableOpacity>
             <Text style={{ marginTop: 6, fontSize: font.sizes.xs, color: colors.textSecondary }}>
-              {uploadingPhoto ? 'Enviando foto…' : 'Toque para alterar a foto'}
+              {uploadingPhoto ? t('editChild.photoUploading') : t('editChild.photoTapToChange')}
             </Text>
           </View>
 
           {/* Nome completo */}
-          <Label>Nome completo</Label>
+          <Label>{t('children.fullName')}</Label>
           <TextInput
             testID="edit-child-name"
             value={fullName}
             onChangeText={setFullName}
-            placeholder="Nome completo"
+            placeholder={t('children.fullName')}
             placeholderTextColor={colors.textDim}
             style={inputStyle}
           />
 
           {/* Data de nascimento */}
-          <Label>Data de nascimento</Label>
+          <Label>{t('children.birthDate')}</Label>
           <DatePickerField
             value={birthDate || null}
             onChange={(iso) => setBirthDate(iso || '')}
-            placeholder="DD/MM/AAAA"
+            placeholder={t('editChild.datePlaceholder')}
           />
           {birthDate ? (
             <Text style={hintStyle}>
@@ -430,13 +430,13 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           ) : null}
 
           {/* Sexo */}
-          <Label>Sexo</Label>
+          <Label>{t('children.sex')}</Label>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             {(
               [
-                { v: 'M' as const, label: 'Masculino' },
-                { v: 'F' as const, label: 'Feminino' },
-                { v: null as 'M' | 'F' | null, label: 'Não informar' },
+                { v: 'M' as const, label: t('onboardingForm.sexMale') },
+                { v: 'F' as const, label: t('onboardingForm.sexFemale') },
+                { v: null as 'M' | 'F' | null, label: t('editChild.sexNone') },
               ]
             ).map((opt) => {
               const active = sex === opt.v;
@@ -471,12 +471,12 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           {/* CPF / RG */}
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
             <View style={{ flex: 1 }}>
-              <Label>CPF</Label>
+              <Label>{t('childGeneral.cpf')}</Label>
               <TextInput
                 testID="edit-child-cpf"
                 value={cpf}
-                onChangeText={(t) => setCpf(formatCpf(t))}
-                placeholder="000.000.000-00"
+                onChangeText={(v) => setCpf(formatCpf(v))}
+                placeholder={t('editChild.cpfPlaceholder')}
                 placeholderTextColor={colors.textDim}
                 keyboardType="number-pad"
                 maxLength={14}
@@ -487,17 +487,17 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               />
               {!cpfValid ? (
                 <Text style={{ fontSize: font.sizes.xs, color: colors.error, marginTop: 4 }}>
-                  CPF inválido
+                  {t('editChild.cpfInvalid')}
                 </Text>
               ) : null}
             </View>
             <View style={{ flex: 1 }}>
-              <Label>RG</Label>
+              <Label>{t('childGeneral.rg')}</Label>
               <TextInput
                 testID="edit-child-rg"
                 value={rg}
-                onChangeText={(t) => setRg(formatRg(t))}
-                placeholder="00.000.000-0"
+                onChangeText={(v) => setRg(formatRg(v))}
+                placeholder={t('childProfile.rgPlaceholder')}
                 placeholderTextColor={colors.textDim}
                 maxLength={12}
                 style={inputStyle}
@@ -506,15 +506,15 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           </View>
 
           {/* Tipo sanguíneo */}
-          <Label>Tipo sanguíneo</Label>
+          <Label>{t('editChild.bloodType')}</Label>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
-            {BLOOD_TYPES.map((t) => {
-              const active = bloodType === t;
+            {BLOOD_TYPES.map((bt) => {
+              const active = bloodType === bt;
               return (
                 <TouchableOpacity
-                  key={t}
-                  onPress={() => toggleBloodType(t)}
-                  testID={`edit-child-blood-${t}`}
+                  key={bt}
+                  onPress={() => toggleBloodType(bt)}
+                  testID={`edit-child-blood-${bt}`}
                   style={{
                     paddingHorizontal: spacing.md,
                     paddingVertical: 8,
@@ -535,7 +535,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
                       color: active ? '#C62828' : colors.textSecondary,
                     }}
                   >
-                    {t}
+                    {bt}
                   </Text>
                 </TouchableOpacity>
               );
@@ -543,12 +543,12 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           </View>
           {bloodType ? (
             <TouchableOpacity onPress={() => toggleBloodType(bloodType)} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Limpar seleção</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{t('editChild.clearSelection')}</Text>
             </TouchableOpacity>
           ) : null}
 
           {/* Alergias */}
-          <Label>Alergias</Label>
+          <Label>{t('childProfile.allergiesTitle')}</Label>
           {allergies.length > 0 ? (
             <View
               style={{
@@ -585,7 +585,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               value={allergyDraft}
               onChangeText={setAllergyDraft}
               onSubmitEditing={addAllergy}
-              placeholder="Ex: Amendoim"
+              placeholder={t('editChild.allergyPlaceholder')}
               placeholderTextColor={colors.textDim}
               returnKeyType="done"
               style={[inputStyle, { flex: 1, marginBottom: 0 }]}
@@ -610,7 +610,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               o dado vive em growth_records (historico datado), nao em
               children. Mostramos a ultima medida + tendencia aqui (visao
               derivada). Realtime channel garante atualizacao automatica. */}
-          <Label>Crescimento</Label>
+          <Label>{t('childProfile.latestGrowth')}</Label>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -649,10 +649,10 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               ) : (
                 <>
                   <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
-                    Adicionar peso e altura
+                    {t('editChild.growthEmptyTitle')}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-                    Acompanhar o crescimento ao longo do tempo
+                    {t('editChild.growthEmptySubtitle')}
                   </Text>
                 </>
               )}
@@ -661,12 +661,12 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           </Pressable>
 
           {/* Anotações */}
-          <Label>Anotações</Label>
+          <Label>{t('childGeneral.notesTitle')}</Label>
           <TextInput
             testID="edit-child-notes"
             value={notes}
             onChangeText={setNotes}
-            placeholder="Informações adicionais..."
+            placeholder={t('children.notesPlaceholder')}
             placeholderTextColor={colors.textDim}
             multiline
             style={[inputStyle, { minHeight: 88, textAlignVertical: 'top' }]}
@@ -675,7 +675,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           {/* Save button */}
           <View style={{ marginTop: spacing.xl }}>
             <PrimaryButton
-              label="Salvar alterações"
+              label={t('childDetail.saveChanges')}
               onPress={handleSave}
               loading={saving}
               disabled={!canSave && !saving}

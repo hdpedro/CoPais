@@ -3430,5 +3430,53 @@
   "childEducation": {
     "schedule": "Horarios",
     "extraActivities": "Actividades extra"
+  },
+  "editChild": {
+    "cpfInvalid": "CPF inválido",
+    "cpfPlaceholder": "000.000.000-00",
+    "datePlaceholder": "DD/MM/AAAA",
+    "sexNone": "Prefiero no decirlo",
+    "bloodType": "Tipo de sangre",
+    "clearSelection": "Borrar selección",
+    "allergyPlaceholder": "Ej.: Cacahuete",
+    "growthEmptyTitle": "Añadir peso y altura",
+    "growthEmptySubtitle": "Seguir el crecimiento a lo largo del tiempo",
+    "photoTitle": "Foto del niño",
+    "photoPrompt": "¿De dónde quieres tomar la foto?",
+    "photoLibrary": "Galería",
+    "photoCamera": "Cámara",
+    "photoUploading": "Subiendo foto…",
+    "photoTapToChange": "Toca para cambiar la foto"
+  },
+  "uploadSheet": {
+    "title": "Nuevo documento",
+    "sourceLabel": "¿Desde dónde?",
+    "cameraHint": "Documento, carné…",
+    "fromGallery": "De la galería",
+    "galleryHint": "JPG, PNG, HEIC",
+    "fromDevice": "Archivo del dispositivo",
+    "deviceHint": "PDF o Word, hasta 10MB",
+    "unknownSize": "Tamaño desconocido",
+    "namePlaceholder": "Ej.: Tarjeta del seguro de salud",
+    "uploadingToKindar": "Subiendo a Kindar…"
+  },
+  "childHeader": {
+    "photoAlt": "Foto de {name}"
+  },
+  "aiAssistant": {
+    "title": "Kindar AI",
+    "subtitle": "Asistente de la familia",
+    "greeting": "¡Hola! Soy Kindar AI 👋\n\nPuedo ayudarte con gastos, eventos, citas, resúmenes de la familia y mucho más. ¿Qué necesitas?",
+    "suggestionsLabel": "Sugerencias",
+    "suggestionCustody": "¿Quién tiene la custodia hoy?",
+    "suggestionActivities": "¿Cuáles son las próximas actividades?",
+    "suggestionExpenses": "¿Cuál es mi saldo de gastos?",
+    "suggestionHealth": "Ver el historial de salud de los niños",
+    "inputPlaceholder": "Pregunta lo que quieras...",
+    "thinking": "Pensando...",
+    "sessionExpired": "Sesión expirada",
+    "errorStatus": "Error {status}",
+    "noResponse": "Sin respuesta.",
+    "errorGeneric": "No pude responder ahora"
   }
 }

@@ -3430,5 +3430,53 @@
   "childEducation": {
     "schedule": "Hours",
     "extraActivities": "Extracurricular activities"
+  },
+  "editChild": {
+    "cpfInvalid": "Invalid CPF",
+    "cpfPlaceholder": "000.000.000-00",
+    "datePlaceholder": "DD/MM/YYYY",
+    "sexNone": "Prefer not to say",
+    "bloodType": "Blood type",
+    "clearSelection": "Clear selection",
+    "allergyPlaceholder": "E.g.: Peanut",
+    "growthEmptyTitle": "Add weight and height",
+    "growthEmptySubtitle": "Track growth over time",
+    "photoTitle": "Child's photo",
+    "photoPrompt": "Where do you want to get the photo from?",
+    "photoLibrary": "Gallery",
+    "photoCamera": "Camera",
+    "photoUploading": "Uploading photo…",
+    "photoTapToChange": "Tap to change the photo"
+  },
+  "uploadSheet": {
+    "title": "New document",
+    "sourceLabel": "From where?",
+    "cameraHint": "Document, ID card…",
+    "fromGallery": "From gallery",
+    "galleryHint": "JPG, PNG, HEIC",
+    "fromDevice": "File from device",
+    "deviceHint": "PDF or Word, up to 10MB",
+    "unknownSize": "Unknown size",
+    "namePlaceholder": "E.g. Health insurance card",
+    "uploadingToKindar": "Uploading to Kindar…"
+  },
+  "childHeader": {
+    "photoAlt": "Photo of {name}"
+  },
+  "aiAssistant": {
+    "title": "Kindar AI",
+    "subtitle": "Family assistant",
+    "greeting": "Hi! I'm Kindar AI 👋\n\nI can help with expenses, events, appointments, family summaries and much more. What do you need?",
+    "suggestionsLabel": "Suggestions",
+    "suggestionCustody": "Who has custody today?",
+    "suggestionActivities": "What are the upcoming activities?",
+    "suggestionExpenses": "What's my expense balance?",
+    "suggestionHealth": "View the children's health history",
+    "inputPlaceholder": "Ask anything...",
+    "thinking": "Thinking...",
+    "sessionExpired": "Session expired",
+    "errorStatus": "Error {status}",
+    "noResponse": "No response.",
+    "errorGeneric": "I couldn't respond right now"
   }
 }

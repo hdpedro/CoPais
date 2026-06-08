@@ -3430,5 +3430,53 @@
   "childEducation": {
     "schedule": "Horaires",
     "extraActivities": "Activités extrascolaires"
+  },
+  "editChild": {
+    "cpfInvalid": "CPF invalide",
+    "cpfPlaceholder": "000.000.000-00",
+    "datePlaceholder": "JJ/MM/AAAA",
+    "sexNone": "Ne pas préciser",
+    "bloodType": "Groupe sanguin",
+    "clearSelection": "Effacer la sélection",
+    "allergyPlaceholder": "Ex. : arachide",
+    "growthEmptyTitle": "Ajouter le poids et la taille",
+    "growthEmptySubtitle": "Suivre la croissance au fil du temps",
+    "photoTitle": "Photo de l'enfant",
+    "photoPrompt": "D'où voulez-vous prendre la photo ?",
+    "photoLibrary": "Galerie",
+    "photoCamera": "Appareil photo",
+    "photoUploading": "Envoi de la photo…",
+    "photoTapToChange": "Touchez pour changer la photo"
+  },
+  "uploadSheet": {
+    "title": "Nouveau document",
+    "sourceLabel": "D'où ?",
+    "cameraHint": "Document, carte…",
+    "fromGallery": "Depuis la galerie",
+    "galleryHint": "JPG, PNG, HEIC",
+    "fromDevice": "Fichier de l'appareil",
+    "deviceHint": "PDF ou Word, jusqu'à 10 Mo",
+    "unknownSize": "Taille inconnue",
+    "namePlaceholder": "Ex. : Carte d'assurance maladie",
+    "uploadingToKindar": "Envoi vers Kindar…"
+  },
+  "childHeader": {
+    "photoAlt": "Photo de {name}"
+  },
+  "aiAssistant": {
+    "title": "Kindar AI",
+    "subtitle": "Assistant de la famille",
+    "greeting": "Salut ! Je suis Kindar AI 👋\n\nJe peux vous aider avec les dépenses, les événements, les rendez-vous, les résumés de la famille et bien plus. De quoi avez-vous besoin ?",
+    "suggestionsLabel": "Suggestions",
+    "suggestionCustody": "Qui a la garde aujourd'hui ?",
+    "suggestionActivities": "Quelles sont les prochaines activités ?",
+    "suggestionExpenses": "Quel est mon solde de dépenses ?",
+    "suggestionHealth": "Voir l'historique de santé des enfants",
+    "inputPlaceholder": "Posez n'importe quelle question...",
+    "thinking": "Réflexion...",
+    "sessionExpired": "Session expirée",
+    "errorStatus": "Erreur {status}",
+    "noResponse": "Pas de réponse.",
+    "errorGeneric": "Je n'ai pas pu répondre pour le moment"
   }
 }
