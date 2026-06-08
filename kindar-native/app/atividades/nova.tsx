@@ -172,10 +172,10 @@ export default function NovaAtividadeScreen() {
           role: m.role,
           name: m.profiles?.display_name
             || m.profiles?.full_name?.split(' ')[0]
-            || 'Co-responsável',
+            || t('calendarTab.coResponsible'),
         })));
       });
-  }, [activeGroup]);
+  }, [activeGroup, t]);
 
   // Category-change handler — replaces an effect that called setState
   // (eslint react-hooks/set-state-in-effect). Mirrors PWA `handleCategoryChange`.
@@ -212,17 +212,17 @@ export default function NovaAtividadeScreen() {
 
   async function handleSave() {
     if (!activeGroup || !userId) return;
-    if (!name.trim()) { setError('Informe o nome da atividade'); return; }
-    if (timeStart && !validHHMM(timeStart)) { setError('Horário início inválido (HH:MM)'); return; }
-    if (timeEnd && !validHHMM(timeEnd)) { setError('Horário fim inválido (HH:MM)'); return; }
+    if (!name.trim()) { setError(t('activitiesNew.errorNameRequired')); return; }
+    if (timeStart && !validHHMM(timeStart)) { setError(t('activitiesNew.errorTimeStartInvalid')); return; }
+    if (timeEnd && !validHHMM(timeEnd)) { setError(t('activitiesNew.errorTimeEndInvalid')); return; }
     const showDayPicker = recurrence === 'weekly' || recurrence === 'biweekly';
     if (showDayPicker && selectedDays.length === 0) {
-      setError('Selecione ao menos um dia da semana');
+      setError(t('activitiesNew.errorSelectDay'));
       return;
     }
     const endDateIso = endDateBr ? parseBrDate(endDateBr) : null;
     if (endDateBr && !endDateIso) {
-      setError('Data fim inválida (DD/MM/AAAA)');
+      setError(t('activitiesNew.errorEndDateInvalid'));
       return;
     }
 
@@ -295,11 +295,11 @@ export default function NovaAtividadeScreen() {
       style={{ flex: 1, backgroundColor: colors.bg }}
     >
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Nova atividade
+          {t('activitiesNew.title')}
         </Text>
       </View>
 
@@ -311,10 +311,10 @@ export default function NovaAtividadeScreen() {
         ) : null}
 
         {/* Name */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Nome *</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('activitiesNew.nameLabel')}</Text>
         <TextInput
           value={name} onChangeText={setName}
-          placeholder="Ex: Judô, Inglês, Natação"
+          placeholder={t('activitiesNew.namePlaceholder')}
           placeholderTextColor={colors.textMuted}
           style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -324,7 +324,7 @@ export default function NovaAtividadeScreen() {
         />
 
         {/* Category chips */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Categoria</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('activities.fields.category')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           {ACTIVITY_CATEGORIES.map(c => {
             const active = category === c.value;
@@ -352,13 +352,13 @@ export default function NovaAtividadeScreen() {
         </View>
 
         {/* Child selector */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Criança</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('newForm.child')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           <TouchableOpacity
             onPress={() => setChildId(null)}
             accessibilityRole="radio"
             accessibilityState={{ selected: childId === null }}
-            accessibilityLabel="Todas as crianças"
+            accessibilityLabel={t('activitiesNew.allChildrenA11y')}
             style={{
               paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
               backgroundColor: childId === null ? colors.brand : colors.bgElevated,
@@ -366,7 +366,7 @@ export default function NovaAtividadeScreen() {
             }}
           >
             <Text style={{ fontSize: font.sizes.sm, color: childId === null ? '#fff' : colors.text, fontWeight: childId === null ? font.weights.semibold : font.weights.normal }}>
-              Todas
+              {t('newForm.allChildren')}
             </Text>
           </TouchableOpacity>
           {children.map(c => {
@@ -393,7 +393,7 @@ export default function NovaAtividadeScreen() {
         </View>
 
         {/* Recurrence */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Recorrência</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('activitiesNew.recurrence')}</Text>
         <View testID="atividade-recurrence" style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           {RECURRENCE_OPTS.map(r => {
             const active = recurrence === r.value;
@@ -404,7 +404,7 @@ export default function NovaAtividadeScreen() {
                 testID={`atividade-recurrence-${r.value}`}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                accessibilityLabel={`Recorrência ${r.label}`}
+                accessibilityLabel={t('activitiesNew.recurrenceA11y', { label: r.label })}
                 style={{
                   paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                   backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -422,7 +422,7 @@ export default function NovaAtividadeScreen() {
         {/* Days of week (only for weekly/biweekly) */}
         {showDayPicker ? (
           <>
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Dias da semana</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('activitiesNew.daysOfWeek')}</Text>
             <View style={{ flexDirection: 'row', gap: 6, marginBottom: spacing.lg }}>
               {DAYS.map(d => {
                 const active = selectedDays.includes(d.idx);
@@ -452,7 +452,7 @@ export default function NovaAtividadeScreen() {
         {/* Times */}
         <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Início</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('newForm.timeStart')}</Text>
             <TextInput
               value={timeStart}
               onChangeText={v => setTimeStart(formatHHMM(v))}
@@ -469,7 +469,7 @@ export default function NovaAtividadeScreen() {
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Fim</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('newForm.timeEnd')}</Text>
             <TextInput
               value={timeEnd}
               onChangeText={v => setTimeEnd(formatHHMM(v))}
@@ -489,7 +489,7 @@ export default function NovaAtividadeScreen() {
         {/* End date (only for recurring activities) */}
         {recurrence !== 'never' ? (
           <>
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Data fim (opcional)</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('newForm.endDateOpt')}</Text>
             <TextInput
               value={endDateBr}
               onChangeText={v => setEndDateBr(formatBrDate(v))}
@@ -509,13 +509,13 @@ export default function NovaAtividadeScreen() {
         {/* Responsible parent */}
         {members.length > 0 ? (
           <>
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Responsável</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('calendar.responsible')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               <TouchableOpacity
                 onPress={() => { Haptics.selectionAsync(); setResponsibleId(null); }}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: responsibleId === null }}
-                accessibilityLabel="Sem responsável definido"
+                accessibilityLabel={t('calendar.noResponsible')}
                 style={{
                   paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                   backgroundColor: responsibleId === null ? colors.brand : colors.bgElevated,
@@ -523,7 +523,7 @@ export default function NovaAtividadeScreen() {
                 }}
               >
                 <Text style={{ fontSize: font.sizes.sm, color: responsibleId === null ? '#fff' : colors.text, fontWeight: responsibleId === null ? font.weights.semibold : font.weights.normal }}>
-                  Sem definir
+                  {t('activitiesNew.noneSet')}
                 </Text>
               </TouchableOpacity>
               {members.map(m => {
@@ -583,9 +583,9 @@ export default function NovaAtividadeScreen() {
         </View>
 
         {/* Checklist items */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Checklist da mochila</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('newForm.checklistTitle')}</Text>
         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: spacing.sm }}>
-          Itens para preparar antes da atividade
+          {t('activitiesNew.checklistSubtitle')}
         </Text>
         {checklistItems.length > 0 ? (
           <View style={{ marginBottom: spacing.sm, gap: 6 }}>
@@ -605,7 +605,7 @@ export default function NovaAtividadeScreen() {
                   borderWidth: 1.5, borderColor: colors.border,
                 }} />
                 <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.text }}>{item}</Text>
-                <TouchableOpacity onPress={() => removeChecklistItem(i)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`Remover item ${item}`}>
+                <TouchableOpacity onPress={() => removeChecklistItem(i)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('activitiesNew.removeItemA11y', { item })}>
                   <Ionicons name="close-circle" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
               </View>
@@ -617,7 +617,7 @@ export default function NovaAtividadeScreen() {
             value={newChecklistItem}
             onChangeText={setNewChecklistItem}
             onSubmitEditing={addChecklistItem}
-            placeholder="Adicionar item..."
+            placeholder={t('newForm.addItem')}
             placeholderTextColor={colors.textMuted}
             returnKeyType="done"
             style={{
@@ -632,7 +632,7 @@ export default function NovaAtividadeScreen() {
             disabled={!newChecklistItem.trim()}
             testID="atividade-add-checklist-item"
             accessibilityRole="button"
-            accessibilityLabel="Adicionar item ao checklist"
+            accessibilityLabel={t('activitiesNew.addItemA11y')}
             accessibilityState={{ disabled: !newChecklistItem.trim() }}
             style={{
               paddingHorizontal: spacing.lg, justifyContent: 'center',
@@ -645,10 +645,10 @@ export default function NovaAtividadeScreen() {
         </View>
 
         {/* Location */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Local</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('newForm.location')}</Text>
         <TextInput
           value={location} onChangeText={setLocation}
-          placeholder="Ex: Clube, escola, casa"
+          placeholder={t('activitiesNew.locationPlaceholder')}
           placeholderTextColor={colors.textMuted}
           style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -658,10 +658,10 @@ export default function NovaAtividadeScreen() {
         />
 
         {/* Notes */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Observações</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('newForm.notes')}</Text>
         <TextInput
           value={notes} onChangeText={setNotes}
-          placeholder="Professor, material, regras..."
+          placeholder={t('activitiesNew.notesPlaceholder')}
           placeholderTextColor={colors.textMuted}
           multiline
           style={{
@@ -673,7 +673,7 @@ export default function NovaAtividadeScreen() {
         />
 
         <PrimaryButton
-          label="Salvar atividade"
+          label={t('newForm.saveActivity')}
           onPress={handleSave}
           loading={saving}
           disabled={!name.trim()}

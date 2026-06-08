@@ -14,6 +14,7 @@ import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useI18n } from 'src/i18n';
 import { useAuth } from 'src/store/auth';
 import { useHealth } from 'src/hooks/useHealth';
 import { safeWrite } from 'src/services/offline';
@@ -26,17 +27,23 @@ import PrimaryButton from 'src/components/ui/PrimaryButton';
 
 type EventType = 'illness' | 'medication' | 'appointment' | 'observation';
 
-const EVENT_TYPES: Array<{ type: EventType; icon: string; label: string; desc: string }> = [
-  { type: 'illness', icon: '🤒', label: 'Sintoma / Doença', desc: 'Febre, dor, gripe, etc.' },
-  { type: 'medication', icon: '💊', label: 'Medicamento', desc: 'Remédio, dosagem, frequência' },
-  { type: 'appointment', icon: '🏥', label: 'Consulta', desc: 'Médico, dentista, exame' },
-  { type: 'observation', icon: '📝', label: 'Observação', desc: 'Nota livre sobre a saúde' },
+// User-facing label/desc are resolved via t() inside the component (see
+// eventTypeLabel/eventTypeDesc) to avoid translating at module scope.
+const EVENT_TYPES: Array<{ type: EventType; icon: string }> = [
+  { type: 'illness', icon: '🤒' },
+  { type: 'medication', icon: '💊' },
+  { type: 'appointment', icon: '🏥' },
+  { type: 'observation', icon: '📝' },
 ];
 
 export default function RegistrarScreen() {
+  const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
   const { data: healthData } = useHealth();
+
+  const eventTypeLabel = (type: EventType) => t(`healthRegister.type_${type}`);
+  const eventTypeDesc = (type: EventType) => t(`healthRegister.typeDesc_${type}`);
   const [step, setStep] = useState(1);
   const [eventType, setEventType] = useState<EventType | null>(null);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
@@ -102,7 +109,7 @@ export default function RegistrarScreen() {
         operation: 'insert',
         payload: {
           group_id: groupId, child_id: selectedChildId, name: title,
-          dosage: dosage || 'Conforme prescricao', frequency: frequency || 'Conforme prescricao',
+          dosage: dosage || t('healthRegister.asPrescribed'), frequency: frequency || t('healthRegister.asPrescribed'),
           start_date: today, status: 'active', notes: notes || null, created_by: userId,
         },
       });
@@ -167,11 +174,11 @@ export default function RegistrarScreen() {
         borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
         flexDirection: 'row', alignItems: 'center', gap: spacing.md,
       }}>
-        <TouchableOpacity onPress={() => step > 1 ? setStep(step - 1) : router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel={step > 1 ? 'Voltar' : 'Fechar'}>
+        <TouchableOpacity onPress={() => step > 1 ? setStep(step - 1) : router.back()} hitSlop={8} accessibilityRole="button" accessibilityLabel={step > 1 ? t('common.back') : t('common.close')}>
           <Ionicons name={step > 1 ? 'arrow-back' : 'close'} size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text, flex: 1 }}>
-          Registrar evento
+          {t('healthRegister.title')}
         </Text>
         <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted }}>
           {step}/3
@@ -192,10 +199,10 @@ export default function RegistrarScreen() {
         {step === 1 ? (
           <View>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.xs }}>
-              O que aconteceu?
+              {t('healthRegister.step1Title')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.xl }}>
-              Selecione o tipo de evento e a criança
+              {t('healthRegister.step1Subtitle')}
             </Text>
 
             {/* Event type cards */}
@@ -209,8 +216,8 @@ export default function RegistrarScreen() {
                 activeOpacity={0.7}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: eventType === et.type }}
-                accessibilityLabel={et.label}
-                accessibilityHint={et.desc}
+                accessibilityLabel={eventTypeLabel(et.type)}
+                accessibilityHint={eventTypeDesc(et.type)}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: spacing.lg,
                   backgroundColor: eventType === et.type ? `${colors.brand}10` : colors.bgElevated,
@@ -222,9 +229,9 @@ export default function RegistrarScreen() {
                 <Text style={{ fontSize: 28 }}>{et.icon}</Text>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
-                    {et.label}
+                    {eventTypeLabel(et.type)}
                   </Text>
-                  <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{et.desc}</Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{eventTypeDesc(et.type)}</Text>
                 </View>
                 {eventType === et.type ? (
                   <Ionicons name="checkmark-circle" size={22} color={colors.brand} />
@@ -236,7 +243,7 @@ export default function RegistrarScreen() {
             {children.length > 1 ? (
               <View style={{ marginTop: spacing.xl }}>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textSecondary, marginBottom: spacing.md }}>
-                  Criança
+                  {t('health.child')}
                 </Text>
                 <ChildPicker
                   items={children}
@@ -254,26 +261,26 @@ export default function RegistrarScreen() {
         {step === 2 ? (
           <View>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.xs }}>
-              {eventType === 'illness' ? 'Descreva os sintomas'
-                : eventType === 'medication' ? 'Dados do medicamento'
-                  : eventType === 'appointment' ? 'Dados da consulta'
-                    : 'Observação'}
+              {eventType === 'illness' ? t('healthRegister.step2TitleIllness')
+                : eventType === 'medication' ? t('healthRegister.step2TitleMedication')
+                  : eventType === 'appointment' ? t('healthRegister.step2TitleAppointment')
+                    : t('healthRegister.step2TitleObservation')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.xl }}>
-              Preencha as informações principais
+              {t('healthRegister.step2Subtitle')}
             </Text>
 
             {/* Title (always) */}
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-              {eventType === 'medication' ? 'Nome do medicamento' : eventType === 'appointment' ? 'Título da consulta' : 'Título'}
+              {eventType === 'medication' ? t('health.medicationName') : eventType === 'appointment' ? t('healthRegister.appointmentTitleLabel') : t('healthRegister.titleLabel')}
             </Text>
             <TextInput
               value={title}
               onChangeText={setTitle}
-              placeholder={eventType === 'illness' ? 'Ex: Febre, Gripe, Dor de garganta'
-                : eventType === 'medication' ? 'Ex: Paracetamol, Amoxicilina'
-                  : eventType === 'appointment' ? 'Ex: Pediatra, Dentista'
-                    : 'Descreva a observação'}
+              placeholder={eventType === 'illness' ? t('healthRegister.titlePlaceholderIllness')
+                : eventType === 'medication' ? t('healthRegister.titlePlaceholderMedication')
+                  : eventType === 'appointment' ? t('healthRegister.titlePlaceholderAppointment')
+                    : t('healthRegister.titlePlaceholderObservation')}
               placeholderTextColor={colors.textDim}
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -288,12 +295,12 @@ export default function RegistrarScreen() {
             {eventType === 'illness' ? (
               <>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-                  Sintomas (separados por vírgula)
+                  {t('healthRegister.symptomsLabel')}
                 </Text>
                 <TextInput
                   value={symptoms}
                   onChangeText={setSymptoms}
-                  placeholder="Ex: febre, tosse, dor de cabeça"
+                  placeholder={t('healthRegister.symptomsPlaceholder')}
                   placeholderTextColor={colors.textDim}
                   style={{
                     backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -305,20 +312,20 @@ export default function RegistrarScreen() {
                 />
 
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.sm }}>
-                  Gravidade
+                  {t('health.severity')}
                 </Text>
                 <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
                   {([
-                    { val: 'leve' as const, label: 'Leve', icon: '🟢' },
-                    { val: 'moderado' as const, label: 'Moderado', icon: '🟡' },
-                    { val: 'grave' as const, label: 'Grave', icon: '🔴' },
+                    { val: 'leve' as const, label: t('health.severityMild'), icon: '🟢' },
+                    { val: 'moderado' as const, label: t('health.severityModerate'), icon: '🟡' },
+                    { val: 'grave' as const, label: t('health.severityGrave'), icon: '🔴' },
                   ]).map(s => (
                     <TouchableOpacity
                       key={s.val}
                       onPress={() => setSeverity(s.val)}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: severity === s.val }}
-                      accessibilityLabel={`Gravidade ${s.label}`}
+                      accessibilityLabel={t('healthRegister.severityA11y', { level: s.label })}
                       style={{
                         flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                         backgroundColor: severity === s.val ? `${colors.brand}10` : colors.bgElevated,
@@ -340,12 +347,12 @@ export default function RegistrarScreen() {
             {eventType === 'medication' ? (
               <>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-                  Dosagem
+                  {t('health.dosage')}
                 </Text>
                 <TextInput
                   value={dosage}
                   onChangeText={setDosage}
-                  placeholder="Ex: 5ml, 1 comprimido, 10 gotas"
+                  placeholder={t('healthRegister.dosagePlaceholder')}
                   placeholderTextColor={colors.textDim}
                   style={{
                     backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -356,12 +363,12 @@ export default function RegistrarScreen() {
                   }}
                 />
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-                  Frequência
+                  {t('health.frequency')}
                 </Text>
                 <TextInput
                   value={frequency}
                   onChangeText={setFrequency}
-                  placeholder="Ex: 8 em 8 horas, 2x ao dia"
+                  placeholder={t('healthRegister.frequencyPlaceholder')}
                   placeholderTextColor={colors.textDim}
                   style={{
                     backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -382,29 +389,29 @@ export default function RegistrarScreen() {
                 <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
                   <View style={{ flex: 3 }}>
                     <DatePickerField
-                      label="Data da consulta *"
+                      label={t('healthRegister.appointmentDateLabel')}
                       value={apptDate}
                       onChange={setApptDate}
-                      placeholder="DD/MM/AAAA"
+                      placeholder={t('healthRegister.datePlaceholder')}
                     />
                   </View>
                   <View style={{ flex: 2 }}>
                     <TimePickerField
-                      label="Hora *"
+                      label={t('healthRegister.appointmentTimeLabel')}
                       value={apptTime}
                       onChange={setApptTime}
-                      placeholder="HH:MM"
+                      placeholder={t('healthRegister.timePlaceholder')}
                     />
                   </View>
                 </View>
 
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-                  Local
+                  {t('health.location')}
                 </Text>
                 <TextInput
                   value={location}
                   onChangeText={setLocation}
-                  placeholder="Ex: Clínica São Lucas, Hospital XYZ"
+                  placeholder={t('healthRegister.locationPlaceholder')}
                   placeholderTextColor={colors.textDim}
                   style={{
                     backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -419,12 +426,12 @@ export default function RegistrarScreen() {
 
             {/* Notes (always) */}
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-              Observacoes (opcional)
+              {t('healthRegister.notesLabel')}
             </Text>
             <TextInput
               value={notes}
               onChangeText={setNotes}
-              placeholder="Detalhes adicionais..."
+              placeholder={t('healthRegister.notesPlaceholder')}
               placeholderTextColor={colors.textDim}
               multiline
               numberOfLines={3}
@@ -443,10 +450,10 @@ export default function RegistrarScreen() {
         {step === 3 ? (
           <View>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.xs }}>
-              Confirmar registro
+              {t('healthRegister.step3Title')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.xl }}>
-              Revise as informacoes antes de salvar
+              {t('healthRegister.step3Subtitle')}
             </Text>
 
             <View style={{
@@ -462,24 +469,24 @@ export default function RegistrarScreen() {
                     {title}
                   </Text>
                   <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-                    {EVENT_TYPES.find(e => e.type === eventType)?.label}
+                    {eventType ? eventTypeLabel(eventType) : ''}
                   </Text>
                 </View>
               </View>
 
               {/* Summary rows */}
               {[
-                { label: 'Crianca', value: children.find(c => c.id === selectedChildId)?.full_name?.split(' ')[0] },
-                eventType === 'illness' ? { label: 'Gravidade', value: severity } : null,
-                eventType === 'illness' && symptoms ? { label: 'Sintomas', value: symptoms } : null,
-                eventType === 'medication' && dosage ? { label: 'Dosagem', value: dosage } : null,
-                eventType === 'medication' && frequency ? { label: 'Frequencia', value: frequency } : null,
+                { label: t('health.child'), value: children.find(c => c.id === selectedChildId)?.full_name?.split(' ')[0] },
+                eventType === 'illness' ? { label: t('health.severity'), value: severity } : null,
+                eventType === 'illness' && symptoms ? { label: t('healthRegister.symptomsSummary'), value: symptoms } : null,
+                eventType === 'medication' && dosage ? { label: t('health.dosage'), value: dosage } : null,
+                eventType === 'medication' && frequency ? { label: t('health.frequency'), value: frequency } : null,
                 // Appointment summary: show the scheduled slot the user picked.
                 // Critical for catching mistakes BEFORE saving (e.g. defaulting
                 // to "amanhã 09:00" when intended next Friday 18:00).
-                eventType === 'appointment' ? { label: 'Data', value: `${isoDateToDisplay(apptDate)} às ${apptTime || '—'}` } : null,
-                eventType === 'appointment' && location ? { label: 'Local', value: location } : null,
-                notes ? { label: 'Observacoes', value: notes } : null,
+                eventType === 'appointment' ? { label: t('healthRegister.dateLabel'), value: t('healthRegister.dateTimeValue', { date: isoDateToDisplay(apptDate), time: apptTime || '—' }) } : null,
+                eventType === 'appointment' && location ? { label: t('health.location'), value: location } : null,
+                notes ? { label: t('healthRegister.notesSummary'), value: notes } : null,
               ].filter(Boolean).map((row, i) => (
                 <View key={i} style={{
                   flexDirection: 'row', justifyContent: 'space-between',
@@ -505,14 +512,14 @@ export default function RegistrarScreen() {
       }}>
         {step < 3 ? (
           <PrimaryButton
-            label="Continuar"
+            label={t('healthRegister.continueButton')}
             onPress={() => setStep(step + 1)}
             disabled={step === 1 ? !canProceedStep2 : !canProceedStep3}
             testID="saude-registrar-continuar"
           />
         ) : (
           <PrimaryButton
-            label="Salvar registro"
+            label={t('healthRegister.saveButton')}
             onPress={handleSave}
             loading={saving}
             testID="saude-registrar-salvar"
