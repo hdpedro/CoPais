@@ -1,21 +1,22 @@
 import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 export type ChildTab = 'geral' | 'saude' | 'tamanhos' | 'documentos' | 'educacao';
 
 interface Tab {
   id: ChildTab;
-  label: string;
+  labelKey: string;
   icon: keyof typeof Ionicons.glyphMap;
 }
 
 const TABS: Tab[] = [
-  { id: 'geral', label: 'Geral', icon: 'person-outline' },
-  { id: 'saude', label: 'Saúde', icon: 'medkit-outline' },
-  { id: 'tamanhos', label: 'Tamanhos', icon: 'shirt-outline' },
-  { id: 'documentos', label: 'Documentos', icon: 'document-text-outline' },
-  { id: 'educacao', label: 'Educação', icon: 'school-outline' },
+  { id: 'geral', labelKey: 'childProfile.tabGeneral', icon: 'person-outline' },
+  { id: 'saude', labelKey: 'childProfile.tabHealth', icon: 'medkit-outline' },
+  { id: 'tamanhos', labelKey: 'childProfile.tabSizes', icon: 'shirt-outline' },
+  { id: 'documentos', labelKey: 'childProfile.tabDocuments', icon: 'document-text-outline' },
+  { id: 'educacao', labelKey: 'childProfile.tabEducation', icon: 'school-outline' },
 ];
 
 interface Props {
@@ -25,6 +26,7 @@ interface Props {
 }
 
 export default function TabBar({ active, onChange, documentCount }: Props) {
+  const t = useI18n((s) => s.t);
   return (
     <View
       style={{
@@ -71,7 +73,7 @@ export default function TabBar({ active, onChange, documentCount }: Props) {
                   color: isActive ? colors.brand : colors.textSecondary,
                 }}
               >
-                {tab.label}
+                {t(tab.labelKey)}
               </Text>
               {showBadge ? (
                 <View

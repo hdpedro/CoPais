@@ -18,18 +18,19 @@ export const COLORS = {
   violet: '#7C6FAE',
 } as const;
 
-// Labels mirror PWA i18n `expenses.categories.*` so users see the same
-// names on web and native — previously the native form rendered the raw
-// `value` ("food" / "transport") instead of the translated label.
+// i18n key suffixes — resolve at render with t(`expenses.categories.${value}`).
+// Não hardcodar o label PT aqui; o texto visível vem do bundle de locale
+// (expenses.categories.*) em todos os 5 idiomas. Antes a tela renderizava o
+// `value` cru ("food" / "transport") ou um label PT fixo que vazava em EN.
 export const EXPENSE_CATEGORIES = [
-  { value: 'education', label: 'Educação', icon: '🎓' },
-  { value: 'health', label: 'Saúde', icon: '🏥' },
-  { value: 'food', label: 'Alimentação', icon: '🍔' },
-  { value: 'clothing', label: 'Vestuário', icon: '👕' },
-  { value: 'transport', label: 'Transporte', icon: '🚗' },
-  { value: 'leisure', label: 'Lazer', icon: '⚽' },
-  { value: 'housing', label: 'Moradia', icon: '🏠' },
-  { value: 'other', label: 'Outros', icon: '📦' },
+  { value: 'education', labelKey: 'expenses.categories.education', icon: '🎓' },
+  { value: 'health', labelKey: 'expenses.categories.health', icon: '🏥' },
+  { value: 'food', labelKey: 'expenses.categories.food', icon: '🍔' },
+  { value: 'clothing', labelKey: 'expenses.categories.clothing', icon: '👕' },
+  { value: 'transport', labelKey: 'expenses.categories.transport', icon: '🚗' },
+  { value: 'leisure', labelKey: 'expenses.categories.leisure', icon: '⚽' },
+  { value: 'housing', labelKey: 'expenses.categories.housing', icon: '🏠' },
+  { value: 'other', labelKey: 'expenses.categories.other', icon: '📦' },
 ] as const;
 
 export const USER_ROLES = [

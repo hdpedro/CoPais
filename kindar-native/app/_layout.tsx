@@ -483,15 +483,16 @@ export default function RootLayout() {
  */
 function OtaUpdatedToastTrigger({ show, onShown }: { show: boolean; onShown: () => void }) {
   const toast = useToast();
+  const t = useI18n((s) => s.t);
   useEffect(() => {
     if (!show) return;
     // Pequeno delay pra splash sumir antes do toast — animation mais limpa.
     const id = setTimeout(() => {
-      toast.show({ message: 'Kindar atualizado para a última versão', variant: 'success', durationMs: 3200 });
+      toast.show({ message: t('app.updatedToast'), variant: 'success', durationMs: 3200 });
       onShown();
     }, 600);
     return () => clearTimeout(id);
-  }, [show, toast, onShown]);
+  }, [show, toast, onShown, t]);
   return null;
 }
 

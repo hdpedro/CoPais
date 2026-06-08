@@ -29,35 +29,39 @@ import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
+// labelKey resolved at render via t(). Native ACTIVITY_CATEGORIES keys
+// reuse newForm.cat* where the wording matches exactly.
 const CAT_LABELS: Record<string, string> = {
-  sports: 'Esporte',
-  arts: 'Arte',
-  music: 'Música',
-  education: 'Educação',
-  health: 'Saúde',
-  therapy: 'Terapia',
-  social: 'Social',
-  other: 'Outro',
+  sports: 'newForm.catSport',
+  arts: 'newForm.catArt',
+  music: 'newForm.catMusic',
+  education: 'activitiesNew.catEducation',
+  health: 'newForm.catHealth',
+  therapy: 'newForm.catTherapy',
+  social: 'activitiesNew.catSocial',
+  other: 'newForm.catOther',
 };
 
 // Days mirror PWA's DAY_NAMES order: Sun=0..Sat=6 (`["Dom","Seg","Ter","Qua","Qui","Sex","Sab"]`).
 // `days_of_week` is stored as JSON array of indices, matching PWA action.
+// labelKey resolved at render via t().
 const DAYS = [
-  { idx: 1, label: 'Seg' },
-  { idx: 2, label: 'Ter' },
-  { idx: 3, label: 'Qua' },
-  { idx: 4, label: 'Qui' },
-  { idx: 5, label: 'Sex' },
-  { idx: 6, label: 'Sab' },
-  { idx: 0, label: 'Dom' },
+  { idx: 1, labelKey: 'activitiesNew.dayMon' },
+  { idx: 2, labelKey: 'activitiesNew.dayTue' },
+  { idx: 3, labelKey: 'activitiesNew.dayWed' },
+  { idx: 4, labelKey: 'activitiesNew.dayThu' },
+  { idx: 5, labelKey: 'activitiesNew.dayFri' },
+  { idx: 6, labelKey: 'activitiesNew.daySat' },
+  { idx: 0, labelKey: 'activitiesNew.daySun' },
 ];
 
+// labelKey resolved at render via t(). weekly/biweekly/monthly reuse newForm.rec*.
 const RECURRENCE_OPTS = [
-  { value: 'never', label: 'Nenhuma' },
-  { value: 'daily', label: 'Diária' },
-  { value: 'weekly', label: 'Semanal' },
-  { value: 'biweekly', label: 'Quinzenal' },
-  { value: 'monthly', label: 'Mensal' },
+  { value: 'never', labelKey: 'activitiesNew.recNone' },
+  { value: 'daily', labelKey: 'activitiesNew.recDaily' },
+  { value: 'weekly', labelKey: 'newForm.recWeekly' },
+  { value: 'biweekly', labelKey: 'newForm.recBiweekly' },
+  { value: 'monthly', labelKey: 'newForm.recMonthly' },
 ];
 
 // Lead time options pro lembrete pré-evento.
@@ -334,7 +338,7 @@ export default function NovaAtividadeScreen() {
                 onPress={() => handleCategoryChange(c.value)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                accessibilityLabel={CAT_LABELS[c.value] || c.value}
+                accessibilityLabel={CAT_LABELS[c.value] ? t(CAT_LABELS[c.value]) : c.value}
                 style={{
                   paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                   backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -344,7 +348,7 @@ export default function NovaAtividadeScreen() {
               >
                 <Text style={{ fontSize: 14 }}>{c.icon}</Text>
                 <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                  {CAT_LABELS[c.value] || c.value}
+                  {CAT_LABELS[c.value] ? t(CAT_LABELS[c.value]) : c.value}
                 </Text>
               </TouchableOpacity>
             );
@@ -404,7 +408,7 @@ export default function NovaAtividadeScreen() {
                 testID={`atividade-recurrence-${r.value}`}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                accessibilityLabel={t('activitiesNew.recurrenceA11y', { label: r.label })}
+                accessibilityLabel={t('activitiesNew.recurrenceA11y', { label: t(r.labelKey) })}
                 style={{
                   paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                   backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -412,7 +416,7 @@ export default function NovaAtividadeScreen() {
                 }}
               >
                 <Text style={{ fontSize: font.sizes.sm, color: active ? '#fff' : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                  {r.label}
+                  {t(r.labelKey)}
                 </Text>
               </TouchableOpacity>
             );
@@ -432,7 +436,7 @@ export default function NovaAtividadeScreen() {
                     onPress={() => toggleDay(d.idx)}
                     accessibilityRole="checkbox"
                     accessibilityState={{ checked: active }}
-                    accessibilityLabel={d.label}
+                    accessibilityLabel={t(d.labelKey)}
                     style={{
                       flex: 1, paddingVertical: 10, borderRadius: radius.md, alignItems: 'center',
                       backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -440,7 +444,7 @@ export default function NovaAtividadeScreen() {
                     }}
                   >
                     <Text style={{ fontSize: font.sizes.xs, color: active ? '#fff' : colors.text, fontWeight: active ? font.weights.bold : font.weights.medium }}>
-                      {d.label}
+                      {t(d.labelKey)}
                     </Text>
                   </TouchableOpacity>
                 );

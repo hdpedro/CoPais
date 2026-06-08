@@ -27,17 +27,18 @@ import { useI18n } from 'src/i18n';
 import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const TOPIC_META: Record<string, { label: string; icon: string; color: string }> = {
-  consumo: { label: 'Consumo', icon: '🚬', color: '#F59E0B' },
-  bullying: { label: 'Bullying', icon: '😞', color: '#EF4444' },
-  conflito: { label: 'Conflito', icon: '⚡', color: '#E8A228' },
-  saude_mental: { label: 'Saúde mental', icon: '🧠', color: '#8B5CF6' },
-  sexualidade: { label: 'Sexualidade', icon: '❤️', color: '#EC4899' },
-  morte_luto: { label: 'Morte/Luto', icon: '🕊️', color: '#6B7280' },
-  divorcio: { label: 'Divórcio', icon: '💔', color: '#D4735A' },
-  abuso: { label: 'Abuso', icon: '🚨', color: '#E53935' },
-  escola: { label: 'Escola', icon: '🎒', color: '#3B82F6' },
-  outro: { label: 'Outro', icon: '📝', color: '#5B9E85' },
+// labelKey resolved at render via t() — keep icon/color static.
+const TOPIC_META: Record<string, { labelKey: string; icon: string; color: string }> = {
+  consumo: { labelKey: 'sensitiveTopics.topicSubstance', icon: '🚬', color: '#F59E0B' },
+  bullying: { labelKey: 'sensitiveTopics.topicBullying', icon: '😞', color: '#EF4444' },
+  conflito: { labelKey: 'sensitiveTopics.topicConflict', icon: '⚡', color: '#E8A228' },
+  saude_mental: { labelKey: 'sensitiveTopics.topicMentalHealth', icon: '🧠', color: '#8B5CF6' },
+  sexualidade: { labelKey: 'sensitiveTopics.topicSexuality', icon: '❤️', color: '#EC4899' },
+  morte_luto: { labelKey: 'sensitiveTopics.topicGrief', icon: '🕊️', color: '#6B7280' },
+  divorcio: { labelKey: 'sensitiveTopics.topicDivorce', icon: '💔', color: '#D4735A' },
+  abuso: { labelKey: 'sensitiveTopics.topicAbuse', icon: '🚨', color: '#E53935' },
+  escola: { labelKey: 'sensitiveTopics.topicSchool', icon: '🎒', color: '#3B82F6' },
+  outro: { labelKey: 'sensitiveTopics.topicOther', icon: '📝', color: '#5B9E85' },
 };
 
 export default function TemasSensiveisScreen() {
@@ -190,7 +191,7 @@ export default function TemasSensiveisScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2, flexWrap: 'wrap' }}>
-                    <Text style={{ fontSize: font.sizes.xs, color: topic.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>{topic.label}</Text>
+                    <Text style={{ fontSize: font.sizes.xs, color: topic.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>{t(topic.labelKey)}</Text>
                     {n.is_urgent ? (
                       <View style={{ backgroundColor: `${colors.error}15`, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
                         <Text style={{ fontSize: 10, color: colors.error, fontWeight: font.weights.bold }}>{t('sensitiveTopics.urgentBadge')}</Text>
@@ -284,7 +285,7 @@ export default function TemasSensiveisScreen() {
                     >
                       <Text style={{ fontSize: 14 }}>{m.icon}</Text>
                       <Text style={{ fontSize: font.sizes.sm, color: active ? m.color : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                        {m.label}
+                        {t(m.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   );

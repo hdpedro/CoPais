@@ -152,20 +152,20 @@ export default function EscolaDetailScreen() {
   const rows: DetailRow[] = [];
   if (log) {
     if (log.child_full_name) {
-      rows.push({ label: 'Criança', value: log.child_full_name, icon: '👶' });
+      rows.push({ label: t('health.child'), value: log.child_full_name, icon: '👶' });
     }
     if (log.subject) {
-      rows.push({ label: 'Matéria', value: log.subject, icon: '📚' });
+      rows.push({ label: t('schoolPage.client.subjectLabel'), value: log.subject, icon: '📚' });
     }
     rows.push({ label: t('school.fieldDate'), value: formatLogDate(log.log_date), icon: '📅' });
     if (eventTime) {
-      rows.push({ label: 'Horário', value: eventTime.slice(0, 5), icon: '🕐' });
+      rows.push({ label: t('school.rowSchedule'), value: eventTime.slice(0, 5), icon: '🕐' });
     }
     if (log.score) {
       rows.push({ label: 'Nota', value: log.score, icon: '🏆', color: colors.brand });
     }
     if (log.description) {
-      rows.push({ label: 'Observação', value: log.description, icon: '📝' });
+      rows.push({ label: t('school.fieldNote'), value: log.description, icon: '📝' });
     }
     if (log.logged_by_name) {
       rows.push({ label: 'Registrado por', value: getDisplayName(log.logged_by_name, true), icon: '👤' });

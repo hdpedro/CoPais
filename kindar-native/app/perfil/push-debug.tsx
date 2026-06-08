@@ -27,6 +27,7 @@ import { apiFetch } from 'src/lib/api-fetch';
 import { registerForPushNotificationsAsync } from 'src/services/push-setup';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useIntl } from 'src/lib/intl';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 interface DebugStatus {
@@ -59,6 +60,7 @@ interface SendResult {
 
 export default function PushDebugScreen() {
   const intl = useIntl();
+  const t = useI18n((s) => s.t);
   const [permission, setPermission] = useState<string>('—');
   const [status, setStatus] = useState<DebugStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -77,27 +79,29 @@ export default function PushDebugScreen() {
       if (r.ok && r.data) {
         setStatus(r.data);
       } else {
-        setError(r.error ?? 'Falha ao carregar diagnóstico');
+        setError(r.error ?? t('pushDebug.loadFailed'));
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Erro inesperado');
+      setError(e instanceof Error ? e.message : t('pushDebug.unexpectedError'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
   async function handleForceRegister() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     setBusy('register');
-    setLastRegister('rodando...');
+    setLastRegister(t('pushDebug.registerRunning'));
     try {
       const token = await registerForPushNotificationsAsync({ forceRequest: true });
-      setLastRegister(token ? `OK · token ${token.slice(0, 12)}…${token.slice(-8)} (${token.length} chars)` : 'NULL — getDevicePushTokenAsync sem retorno');
+      setLastRegister(token
+        ? t('pushDebug.registerOk', { token: `${token.slice(0, 12)}…${token.slice(-8)}`, length: token.length })
+        : t('pushDebug.registerNull'));
       await load();
     } catch (e) {
-      setLastRegister(`ERRO · ${e instanceof Error ? e.message : String(e)}`);
+      setLastRegister(t('pushDebug.registerError', { message: e instanceof Error ? e.message : String(e) }));
     } finally {
       setBusy(null);
     }
@@ -110,7 +114,7 @@ export default function PushDebugScreen() {
     try {
       const r = await apiFetch<SendResult>('/api/push/debug-self', { method: 'POST' });
       if (r.ok && r.data) setLastSend(r.data);
-      else setLastSend({ ok: false, reason: r.error ?? 'Falha desconhecida' });
+      else setLastSend({ ok: false, reason: r.error ?? t('pushDebug.sendUnknownError') });
     } catch (e) {
       setLastSend({ ok: false, reason: e instanceof Error ? e.message : String(e) });
     } finally {
@@ -126,37 +130,37 @@ export default function PushDebugScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title="Diagnóstico de push" />
+      <ScreenHeader title={t('pushDebug.title')} />
       <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: 100 }}>
         <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.md }}>
-          Tela técnica para validar cada camada do pipeline de notificação push. Use somente quando o time pedir.
+          {t('pushDebug.intro')}
         </Text>
 
         {/* Camada 1: Permission iOS */}
-        <Card title="1. Permissão iOS" hint="iOS Settings → Notificações → Kindar">
-          <Row label="Status" value={permission} valueColor={permColor} />
+        <Card title={t('pushDebug.card1Title')} hint={t('pushDebug.card1Hint')}>
+          <Row label={t('pushDebug.statusLabel')} value={permission} valueColor={permColor} />
           {permission !== 'granted' ? (
-            <Button label="Abrir Ajustes do iPhone" onPress={handleOpenSettings} icon="open-outline" variant="ghost" />
+            <Button label={t('pushDebug.openSettings')} onPress={handleOpenSettings} icon="open-outline" variant="ghost" />
           ) : null}
         </Card>
 
         {/* Camada 2: Device token + Backend register */}
-        <Card title="2. Token registrado no backend" hint="POST /api/push/register-apns">
-          {loading ? <Row label="Carregando..." value="" /> : null}
-          {error ? <Row label="Erro" value={error} valueColor="#DC2626" /> : null}
+        <Card title={t('pushDebug.card2Title')} hint={t('pushDebug.card2Hint')}>
+          {loading ? <Row label={t('pushDebug.loading')} value="" /> : null}
+          {error ? <Row label={t('pushDebug.errorLabel')} value={error} valueColor="#DC2626" /> : null}
           {status && (
             <>
-              <Row label="APNs tokens" value={String(status.counts?.apns_tokens ?? 0)} valueColor={status.counts?.apns_tokens ? '#16A34A' : '#DC2626'} />
-              <Row label="FCM tokens" value={String(status.counts?.fcm_tokens ?? 0)} />
-              <Row label="Web subs" value={String(status.counts?.web_subscriptions ?? 0)} />
+              <Row label={t('pushDebug.apnsTokens')} value={String(status.counts?.apns_tokens ?? 0)} valueColor={status.counts?.apns_tokens ? '#16A34A' : '#DC2626'} />
+              <Row label={t('pushDebug.fcmTokens')} value={String(status.counts?.fcm_tokens ?? 0)} />
+              <Row label={t('pushDebug.webSubs')} value={String(status.counts?.web_subscriptions ?? 0)} />
               {status.apnsTokens?.map((tok, i) => (
-                <Row key={i} label={`Token ${i + 1}`} value={`${tok.suffix} (${tok.length} chars · ${intl.formatDateTime(tok.created_at)})`} small />
+                <Row key={i} label={t('pushDebug.tokenLabel', { n: i + 1 })} value={t('pushDebug.tokenValue', { suffix: tok.suffix, length: tok.length, date: intl.formatDateTime(tok.created_at) })} small />
               ))}
             </>
           )}
-          <Row label="Último registro" value={lastRegister} small />
+          <Row label={t('pushDebug.lastRegister')} value={lastRegister} small />
           <Button
-            label={busy === 'register' ? 'Registrando...' : 'Forçar registro agora'}
+            label={busy === 'register' ? t('pushDebug.registering') : t('pushDebug.forceRegister')}
             onPress={handleForceRegister}
             icon="refresh-outline"
             disabled={busy !== null}
@@ -164,36 +168,36 @@ export default function PushDebugScreen() {
         </Card>
 
         {/* Camada 3: Server config */}
-        <Card title="3. Configuração do servidor" hint="Env vars APNS no Vercel">
+        <Card title={t('pushDebug.card3Title')} hint={t('pushDebug.card3Hint')}>
           {status?.serverConfig && (
             <>
-              <Row label="APNS_KEY_ID" value={status.serverConfig.apns_key_id_set ? '✓ setado' : '✗ FALTANDO'} valueColor={status.serverConfig.apns_key_id_set ? '#16A34A' : '#DC2626'} />
-              <Row label="APNS_TEAM_ID" value={status.serverConfig.apns_team_id_set ? '✓ setado' : '✗ FALTANDO'} valueColor={status.serverConfig.apns_team_id_set ? '#16A34A' : '#DC2626'} />
-              <Row label="APNS_KEY_P8" value={status.serverConfig.apns_key_p8_set ? '✓ setado' : '✗ FALTANDO'} valueColor={status.serverConfig.apns_key_p8_set ? '#16A34A' : '#DC2626'} />
+              <Row label="APNS_KEY_ID" value={status.serverConfig.apns_key_id_set ? t('pushDebug.set') : t('pushDebug.missing')} valueColor={status.serverConfig.apns_key_id_set ? '#16A34A' : '#DC2626'} />
+              <Row label="APNS_TEAM_ID" value={status.serverConfig.apns_team_id_set ? t('pushDebug.set') : t('pushDebug.missing')} valueColor={status.serverConfig.apns_team_id_set ? '#16A34A' : '#DC2626'} />
+              <Row label="APNS_KEY_P8" value={status.serverConfig.apns_key_p8_set ? t('pushDebug.set') : t('pushDebug.missing')} valueColor={status.serverConfig.apns_key_p8_set ? '#16A34A' : '#DC2626'} />
               <Row label="APNS_BUNDLE_ID" value={status.serverConfig.apns_bundle_id} small />
             </>
           )}
         </Card>
 
         {/* Camada 4: Apple delivery */}
-        <Card title="4. Envio real pela Apple" hint="Envia push pra TODOS apns_token do user">
+        <Card title={t('pushDebug.card4Title')} hint={t('pushDebug.card4Hint')}>
           {lastSend && (
             <>
-              <Row label="Resultado" value={lastSend.ok ? '✓ DELIVERED' : '✗ FALHOU'} valueColor={lastSend.ok ? '#16A34A' : '#DC2626'} />
-              {lastSend.reason && <Row label="Reason" value={lastSend.reason} small />}
-              {lastSend.hint && <Row label="Dica" value={lastSend.hint} small />}
+              <Row label={t('pushDebug.resultLabel')} value={lastSend.ok ? t('pushDebug.delivered') : t('pushDebug.failed')} valueColor={lastSend.ok ? '#16A34A' : '#DC2626'} />
+              {lastSend.reason && <Row label={t('pushDebug.reasonLabel')} value={lastSend.reason} small />}
+              {lastSend.hint && <Row label={t('pushDebug.hintLabel')} value={lastSend.hint} small />}
               {lastSend.attempts?.map((a, i) => (
                 <View key={i} style={{ marginTop: spacing.xs, paddingTop: spacing.xs, borderTopWidth: 1, borderTopColor: colors.border }}>
                   <Row label={`#${i + 1} ${a.tokenSuffix}`} value={a.delivered ? '✓' : '✗'} valueColor={a.delivered ? '#16A34A' : '#DC2626'} small />
-                  <Row label="  status" value={String(a.status ?? '—')} small />
-                  <Row label="  reason" value={a.reason ?? '—'} small />
-                  {a.errorMessage && <Row label="  erro" value={a.errorMessage} small />}
+                  <Row label={t('pushDebug.attemptStatusLabel')} value={String(a.status ?? '—')} small />
+                  <Row label={t('pushDebug.attemptReasonLabel')} value={a.reason ?? '—'} small />
+                  {a.errorMessage && <Row label={t('pushDebug.attemptErrorLabel')} value={a.errorMessage} small />}
                 </View>
               ))}
             </>
           )}
           <Button
-            label={busy === 'send' ? 'Enviando...' : 'Enviar push de teste'}
+            label={busy === 'send' ? t('pushDebug.sending') : t('pushDebug.sendTest')}
             onPress={handleSendTest}
             icon="paper-plane-outline"
             disabled={busy !== null}
@@ -202,9 +206,9 @@ export default function PushDebugScreen() {
 
         {/* User info */}
         {status && (
-          <Card title="Identidade" hint="Quem o servidor enxerga">
-            <Row label="userId" value={status.userId ?? '—'} small />
-            <Row label="email" value={status.email ?? '—'} small />
+          <Card title={t('pushDebug.identityTitle')} hint={t('pushDebug.identityHint')}>
+            <Row label={t('pushDebug.userId')} value={status.userId ?? '—'} small />
+            <Row label={t('pushDebug.email')} value={status.email ?? '—'} small />
           </Card>
         )}
       </ScrollView>

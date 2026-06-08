@@ -23,21 +23,22 @@ import { useIntl } from 'src/lib/intl';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
-  escola: { icon: '🎒', color: '#3B82F6', label: 'Escola' },
-  saude: { icon: '🏥', color: '#EF4444', label: 'Saúde' },
-  atividade: { icon: '⚽', color: '#22C55E', label: 'Atividade' },
-  viagem: { icon: '✈️', color: '#8B5CF6', label: 'Viagem' },
-  financeiro: { icon: '💰', color: '#F59E0B', label: 'Financeiro' },
-  moradia: { icon: '🏠', color: '#5B9E85', label: 'Moradia' },
-  outro: { icon: '📋', color: '#6B7280', label: 'Outro' },
+// labelKey resolved at render via t() — keep icon/color static.
+const CAT_META: Record<string, { icon: string; color: string; labelKey: string }> = {
+  escola: { icon: '🎒', color: '#3B82F6', labelKey: 'decisions.categories.school' },
+  saude: { icon: '🏥', color: '#EF4444', labelKey: 'decisions.categories.health' },
+  atividade: { icon: '⚽', color: '#22C55E', labelKey: 'decisions.categories.activity' },
+  viagem: { icon: '✈️', color: '#8B5CF6', labelKey: 'decisions.categories.travel' },
+  financeiro: { icon: '💰', color: '#F59E0B', labelKey: 'decisions.categories.financial' },
+  moradia: { icon: '🏠', color: '#5B9E85', labelKey: 'decisions.categories.housing' },
+  outro: { icon: '📋', color: '#6B7280', labelKey: 'decisions.categories.other' },
 };
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  aberta: { label: 'Aberta', color: '#E8A228' },
-  aprovada: { label: 'Aprovada', color: '#4CAF50' },
-  rejeitada: { label: 'Rejeitada', color: '#E53935' },
-  expirada: { label: 'Expirada', color: '#8A8A8A' },
+const STATUS_META: Record<string, { labelKey: string; color: string }> = {
+  aberta: { labelKey: 'decisions.statusOpen', color: '#E8A228' },
+  aprovada: { labelKey: 'decisions.statusApproved', color: '#4CAF50' },
+  rejeitada: { labelKey: 'decisions.statusRejected', color: '#E53935' },
+  expirada: { labelKey: 'decisions.statusExpired', color: '#8A8A8A' },
 };
 
 export default function DecisoesScreen() {
@@ -163,10 +164,10 @@ export default function DecisoesScreen() {
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2 }}>
               <Text style={{ fontSize: font.sizes.xs, color: cat.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>
-                {cat.label}
+                {t(cat.labelKey)}
               </Text>
               <View style={{ backgroundColor: `${status.color}15`, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 1 }}>
-                <Text style={{ fontSize: font.sizes.xs, color: status.color, fontWeight: font.weights.medium }}>{status.label}</Text>
+                <Text style={{ fontSize: font.sizes.xs, color: status.color, fontWeight: font.weights.medium }}>{t(status.labelKey)}</Text>
               </View>
             </View>
             <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }} numberOfLines={2}>
@@ -346,7 +347,7 @@ export default function DecisoesScreen() {
                       onPress={() => setNewCategory(k)}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: active }}
-                      accessibilityLabel={m.label}
+                      accessibilityLabel={t(m.labelKey)}
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
                         borderRadius: radius.md,
@@ -357,7 +358,7 @@ export default function DecisoesScreen() {
                     >
                       <Text style={{ fontSize: 14 }}>{m.icon}</Text>
                       <Text style={{ fontSize: font.sizes.sm, color: active ? m.color : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                        {m.label}
+                        {t(m.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   );
