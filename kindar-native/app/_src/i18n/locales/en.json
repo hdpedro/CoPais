@@ -4493,5 +4493,14 @@
     "timeout1mDesc": "To switch apps quickly without re-authenticating",
     "timeout15mDesc": "A balance between convenience and security",
     "timeout1hDesc": "Most convenient — asks once an hour"
+  },
+  "lock": {
+    "unlockPrompt": "Unlock Kindar",
+    "biometric": "Biometrics",
+    "iris": "Iris recognition",
+    "timeoutImmediate": "Immediately",
+    "timeout1m": "After 1 minute",
+    "timeout15m": "After 15 minutes",
+    "timeout1h": "After 1 hour"
   }
 }

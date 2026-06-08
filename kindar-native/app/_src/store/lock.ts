@@ -24,6 +24,7 @@ import * as SecureStore from 'expo-secure-store';
 import { Platform } from 'react-native';
 import { authenticate as biometricAuthenticate, type AuthenticateResult } from '../services/biometric-lock';
 import { logLockTelemetry } from '../lib/lock-telemetry';
+import { useI18n } from '../i18n';
 
 /**
  * Cooldown pós-unlock — janela em que markBackground e evaluateOnForeground
@@ -63,11 +64,16 @@ const TIMEOUT_MS: Record<LockTimeout, number> = {
   '1h': 60 * 60 * 1000,
 };
 
-export const TIMEOUT_LABELS: Record<LockTimeout, string> = {
-  immediate: 'Imediatamente',
-  '1m': 'Apos 1 minuto',
-  '15m': 'Apos 15 minutos',
-  '1h': 'Apos 1 hora',
+/**
+ * Chaves i18n dos labels curtos de timeout. Resolvidas no consumidor
+ * (componente com o hook `t`) — este modulo nao e React, entao expor a KEY
+ * em vez do texto evita ler o locale fora de render. Ver `perfil/seguranca`.
+ */
+export const LOCK_TIMEOUT_KEYS: Record<LockTimeout, string> = {
+  immediate: 'lock.timeoutImmediate',
+  '1m': 'lock.timeout1m',
+  '15m': 'lock.timeout15m',
+  '1h': 'lock.timeout1h',
 };
 
 interface LockState {
@@ -205,7 +211,7 @@ export const useLock = create<LockState>((set, get) => ({
     set({ timeout });
   },
 
-  requestUnlock: async (promptMessage = 'Desbloquear Kindar') => {
+  requestUnlock: async (promptMessage = useI18n.getState().t('lock.unlockPrompt')) => {
     if (get().isAuthenticating) {
       logLockEvent('requestUnlock.skip.in_flight');
       return { success: false, error: 'in_flight' };

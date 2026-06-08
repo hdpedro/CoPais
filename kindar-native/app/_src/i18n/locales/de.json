@@ -4493,5 +4493,14 @@
     "timeout1mDesc": "Um schnell die App zu wechseln, ohne dich erneut anzumelden",
     "timeout15mDesc": "Ein Gleichgewicht zwischen Komfort und Sicherheit",
     "timeout1hDesc": "Am bequemsten – fragt einmal pro Stunde"
+  },
+  "lock": {
+    "unlockPrompt": "Kindar entsperren",
+    "biometric": "Biometrie",
+    "iris": "Iris-Erkennung",
+    "timeoutImmediate": "Sofort",
+    "timeout1m": "Nach 1 Minute",
+    "timeout15m": "Nach 15 Minuten",
+    "timeout1h": "Nach 1 Stunde"
   }
 }

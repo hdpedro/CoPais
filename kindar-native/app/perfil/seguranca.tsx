@@ -22,7 +22,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
-import { useLock, TIMEOUT_LABELS, type LockTimeout } from 'src/store/lock';
+import { useLock, LOCK_TIMEOUT_KEYS, type LockTimeout } from 'src/store/lock';
 import { authenticate, getBiometricCapability, type BiometricCapability } from 'src/services/biometric-lock';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -197,7 +197,7 @@ export default function SegurancaScreen() {
                 testID={`seguranca-timeout-${opt.value}`}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: timeout === opt.value }}
-                accessibilityLabel={`${TIMEOUT_LABELS[opt.value]}. ${t('security.' + opt.descKey)}`}
+                accessibilityLabel={`${t(LOCK_TIMEOUT_KEYS[opt.value])}. ${t('security.' + opt.descKey)}`}
                 style={{
                   paddingHorizontal: spacing.xl,
                   paddingVertical: spacing.md,
@@ -224,7 +224,7 @@ export default function SegurancaScreen() {
                     fontWeight: timeout === opt.value ? font.weights.semibold : font.weights.medium,
                     color: colors.text,
                   }}>
-                    {TIMEOUT_LABELS[opt.value]}
+                    {t(LOCK_TIMEOUT_KEYS[opt.value])}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
                     {t('security.' + opt.descKey)}

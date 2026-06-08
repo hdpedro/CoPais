@@ -4493,5 +4493,14 @@
     "timeout1mDesc": "Pra trocar de app rapidinho sem reautenticar",
     "timeout15mDesc": "Equilíbrio entre conveniência e segurança",
     "timeout1hDesc": "Mais conveniente — pede uma vez por hora"
+  },
+  "lock": {
+    "unlockPrompt": "Desbloquear Kindar",
+    "biometric": "Biometria",
+    "iris": "Reconhecimento de íris",
+    "timeoutImmediate": "Imediatamente",
+    "timeout1m": "Após 1 minuto",
+    "timeout15m": "Após 15 minutos",
+    "timeout1h": "Após 1 hora"
   }
 }

@@ -10,6 +10,7 @@
  * do dispositivo (LocalAuthentication.disableDeviceFallback=false).
  */
 import * as LocalAuthentication from 'expo-local-authentication';
+import { useI18n } from 'src/i18n';
 
 export type BiometricKind = 'faceId' | 'touchId' | 'iris' | 'none';
 
@@ -29,9 +30,11 @@ export async function getBiometricCapability(): Promise<BiometricCapability> {
   ]);
 
   let kind: BiometricKind = 'none';
-  let label = 'Biometria';
+  // Lido no momento da chamada → reflete o locale atual (modulo non-component).
+  let label = useI18n.getState().t('lock.biometric');
 
   // Ordem de preferencia: Face ID > Touch ID > iris (Android)
+  // 'Face ID'/'Touch ID' sao marcas — identicas em todos os locales.
   if (types.includes(LocalAuthentication.AuthenticationType.FACIAL_RECOGNITION)) {
     kind = 'faceId';
     label = 'Face ID';
@@ -40,7 +43,7 @@ export async function getBiometricCapability(): Promise<BiometricCapability> {
     label = 'Touch ID';
   } else if (types.includes(LocalAuthentication.AuthenticationType.IRIS)) {
     kind = 'iris';
-    label = 'Reconhecimento de íris';
+    label = useI18n.getState().t('lock.iris');
   }
 
   return { hasHardware, isEnrolled, kind, label };
@@ -58,11 +61,13 @@ export interface AuthenticateResult {
  * ou cancelar. NAO chama de dentro de useEffect sem control de
  * concorrencia — multipla chamada pode resultar em prompts empilhados.
  */
-export async function authenticate(promptMessage: string = 'Desbloquear Kindar'): Promise<AuthenticateResult> {
+export async function authenticate(
+  promptMessage: string = useI18n.getState().t('lock.unlockPrompt'),
+): Promise<AuthenticateResult> {
   try {
     const r = await LocalAuthentication.authenticateAsync({
       promptMessage,
-      cancelLabel: 'Cancelar',
+      cancelLabel: useI18n.getState().t('common.cancel'),
       // disableDeviceFallback=false permite "Usar senha do iPhone" como
       // fallback quando Face ID falha 3x. Nivel banco.
       disableDeviceFallback: false,
