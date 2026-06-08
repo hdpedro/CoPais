@@ -3561,7 +3561,11 @@
     "topicDivorce": "Divorce",
     "topicAbuse": "Abus",
     "topicSchool": "École",
-    "topicOther": "Autre"
+    "topicOther": "Autre",
+    "topicGenderViolence": "Violence de Genre",
+    "topicSexualViolence": "Violence Sexuelle",
+    "topicSubstanceAbuse": "Usage de Substances",
+    "topicSafety": "Sécurité"
   },
   "healthExport": {
     "screenTitle": "Export santé",
