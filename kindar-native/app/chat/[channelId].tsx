@@ -452,12 +452,12 @@ export default function ChatRoomScreen() {
   }, [t, toast]);
 
   const openAttachSheet = useCallback(() => {
-    Alert.alert('Anexar imagem', 'Escolha a origem', [
-      { text: 'Camera', onPress: () => pickImage('camera') },
-      { text: 'Galeria', onPress: () => pickImage('library') },
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('chatThread.attachImageTitle'), t('chatThread.chooseSource'), [
+      { text: t('editChild.photoCamera'), onPress: () => pickImage('camera') },
+      { text: t('editChild.photoLibrary'), onPress: () => pickImage('library') },
+      { text: t('common.cancel'), style: 'cancel' },
     ]);
-  }, [pickImage]);
+  }, [pickImage, t]);
 
   // Tone moderator — debounced inline (mirrors PWA `ChatRoom.tsx:504-522`).
   // Schedules an `analyzeTone` 1500ms after the user stops typing; if the
@@ -527,7 +527,7 @@ export default function ChatRoomScreen() {
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          options: ['Responder', 'Cancelar'],
+          options: [t('chatThread.reply'), t('common.cancel')],
           cancelButtonIndex: 1,
         },
         (idx) => {
@@ -537,15 +537,15 @@ export default function ChatRoomScreen() {
       );
     } else {
       Alert.alert(
-        'Mensagem',
+        t('chatThread.messageActions'),
         undefined,
         [
-          { text: 'Responder', onPress: () => beginReply(m) },
-          { text: 'Cancelar', style: 'cancel', onPress: () => Haptics.selectionAsync() },
+          { text: t('chatThread.reply'), onPress: () => beginReply(m) },
+          { text: t('common.cancel'), style: 'cancel', onPress: () => Haptics.selectionAsync() },
         ],
       );
     }
-  }, [userId, beginReply]);
+  }, [userId, beginReply, t]);
 
   const sendMessage = useCallback(async () => {
     const hasText = newMessage.trim().length > 0;
@@ -786,7 +786,7 @@ export default function ChatRoomScreen() {
       }
       await Sharing.shareAsync(uri, {
         mimeType: 'application/pdf',
-        dialogTitle: 'Exportar conversas',
+        dialogTitle: t('chat.exportConversations'),
         UTI: 'com.adobe.pdf',
       });
 
@@ -815,8 +815,8 @@ export default function ChatRoomScreen() {
       if (dayKey !== prevDay) {
         const d = new Date(m.created_at);
         let label: string;
-        if (dayKey === todayKey) label = 'Hoje';
-        else if (dayKey === yesterdayKey) label = 'Ontem';
+        if (dayKey === todayKey) label = t('dashboard.today');
+        else if (dayKey === yesterdayKey) label = t('chatTab.yesterday');
         else label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
         items.push({ kind: 'date', key: `date-${dayKey}`, label });
         prevDay = dayKey;
@@ -828,7 +828,7 @@ export default function ChatRoomScreen() {
       }
     }
     return items;
-  }, [messages, userId]);
+  }, [messages, userId, t]);
 
   const renderItem = useCallback(({ item }: { item: ReturnType<typeof messageItems>[number] }) => {
     if (item.kind === 'date') {
@@ -902,7 +902,7 @@ export default function ChatRoomScreen() {
           onLongPress={() => openMessageActions(m)}
           delayLongPress={350}
           testID={`chat-message-${m.id}`}
-          accessibilityLabel={`Mensagem de ${m.senderName}`}
+          accessibilityLabel={t('chatThread.messageFrom', { senderName: m.senderName })}
           style={{
             maxWidth: '78%',
             backgroundColor: isMe ? colors.brand : colors.bgElevated,
@@ -989,7 +989,7 @@ export default function ChatRoomScreen() {
         </TouchableOpacity>
       </View>
     );
-  }, [userId, messages, openMessageActions]);
+  }, [userId, messages, openMessageActions, t]);
 
   return (
     <KeyboardAvoidingView
@@ -1012,7 +1012,7 @@ export default function ChatRoomScreen() {
           </TouchableOpacity>
           <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-              {channelName === 'Geral' || channelName === 'geral' ? 'Chat do grupo' : channelName}
+              {channelName === 'Geral' || channelName === 'geral' ? t('chat.groupChat') : channelName}
             </Text>
             {memberCount > 0 ? (
               <View style={{
@@ -1020,7 +1020,7 @@ export default function ChatRoomScreen() {
                 borderRadius: radius.full,
               }}>
                 <Text style={{ fontSize: 11, color: colors.textSecondary, fontWeight: font.weights.medium }}>
-                  {memberCount} membro{memberCount !== 1 ? 's' : ''}
+                  {memberCount === 1 ? t('chatThread.memberCountOne', { count: memberCount }) : t('chatThread.memberCount', { count: memberCount })}
                 </Text>
               </View>
             ) : null}
@@ -1036,7 +1036,7 @@ export default function ChatRoomScreen() {
             }}
             hitSlop={8}
             testID="chat-export-open"
-            accessibilityLabel="Exportar mensagens"
+            accessibilityLabel={t('chatThread.exportMessages')}
             style={{
               width: 36, height: 36, borderRadius: 18,
               alignItems: 'center', justifyContent: 'center',
@@ -1064,7 +1064,7 @@ export default function ChatRoomScreen() {
                 <TouchableOpacity
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.replace(`/chat/${c.id}`); }}
                   testID={`chat-pill-${pillIndex}`}
-                  accessibilityLabel={`Canal ${displayLabel}`}
+                  accessibilityLabel={t('chatThread.channelLabelA11y', { name: displayLabel })}
                   style={{
                     flexDirection: 'row', alignItems: 'center', gap: 6,
                     paddingHorizontal: spacing.md, paddingVertical: 6,
@@ -1144,10 +1144,10 @@ export default function ChatRoomScreen() {
             <Text style={{ fontSize: 18 }}>⚠️</Text>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: '#8a5a00' }}>
-                Que tal reformular?
+                {t('chatThread.reformulateTitle')}
               </Text>
               <Text style={{ fontSize: 11, color: '#a37a3a', marginTop: 2 }}>
-                Sugestão da IA mediadora — você decide
+                {t('chatThread.aiMediatorHint')}
               </Text>
             </View>
           </View>
@@ -1174,7 +1174,7 @@ export default function ChatRoomScreen() {
               }}
             >
               <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                Usar sugestão
+                {t('chat.useSuggestion')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1187,7 +1187,7 @@ export default function ChatRoomScreen() {
               }}
             >
               <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
-                Enviar original
+                {t('chat.sendOriginal')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -1198,7 +1198,7 @@ export default function ChatRoomScreen() {
               }}
             >
               <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>
-                Descartar
+                {t('chat.discard')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -1216,13 +1216,13 @@ export default function ChatRoomScreen() {
           <View style={{ width: 3, alignSelf: 'stretch', backgroundColor: colors.brand, borderRadius: 2 }} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 11, color: colors.brand, fontWeight: font.weights.semibold }} numberOfLines={1}>
-              Respondendo a {replyTo.senderName}
+              {t('chatThread.replyingTo', { name: replyTo.senderName })}
             </Text>
             <Text style={{ fontSize: 12, color: colors.textSecondary, marginTop: 1 }} numberOfLines={1}>
               {replyTo.text}
             </Text>
           </View>
-          <TouchableOpacity onPress={clearReply} hitSlop={8} testID="chat-reply-clear" accessibilityLabel="Cancelar resposta">
+          <TouchableOpacity onPress={clearReply} hitSlop={8} testID="chat-reply-clear" accessibilityLabel={t('chatThread.cancelReply')}>
             <Ionicons name="close-circle" size={22} color={colors.textMuted} />
           </TouchableOpacity>
         </View>
@@ -1236,7 +1236,7 @@ export default function ChatRoomScreen() {
           borderTopWidth: 0.5, borderTopColor: colors.borderLight,
         }}>
           <Image source={{ uri: pendingImage.uri }} style={{ width: 56, height: 56, borderRadius: radius.sm, backgroundColor: colors.bgSurface }} />
-          <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.textSecondary }}>Imagem pronta para enviar</Text>
+          <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.textSecondary }}>{t('chatThread.imageReadyToSend')}</Text>
           <TouchableOpacity onPress={() => setPendingImage(null)} hitSlop={8}>
             <Ionicons name="close-circle" size={22} color={colors.textMuted} />
           </TouchableOpacity>
@@ -1260,7 +1260,7 @@ export default function ChatRoomScreen() {
           disabled={sending}
           hitSlop={6}
           testID="chat-attach"
-          accessibilityLabel="Anexar imagem"
+          accessibilityLabel={t('chatThread.attachImageTitle')}
           style={{
             width: 40, height: 40, borderRadius: 20,
             backgroundColor: colors.bgSurface,
@@ -1281,11 +1281,11 @@ export default function ChatRoomScreen() {
           <TextInput
             value={newMessage}
             onChangeText={handleTextChange}
-            placeholder="Mensagem..."
+            placeholder={t('chatThread.messagePlaceholder')}
             placeholderTextColor={colors.textDim}
             multiline
             testID="chat-input"
-            accessibilityLabel="Mensagem"
+            accessibilityLabel={t('chatThread.messageActions')}
             style={{
               fontSize: font.sizes.md,
               color: colors.text,
@@ -1301,7 +1301,7 @@ export default function ChatRoomScreen() {
             || (showSuggestion && !!toneResult?.isAggressive)
           }
           testID="chat-send"
-          accessibilityLabel="Enviar mensagem"
+          accessibilityLabel={t('chatThread.sendMessage')}
           style={{
             width: 40, height: 40, borderRadius: 20,
             backgroundColor: (newMessage.trim() || pendingImage) && !(showSuggestion && toneResult?.isAggressive)
@@ -1353,22 +1353,22 @@ export default function ChatRoomScreen() {
               <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight }} />
             </View>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: 4 }}>
-              Exportar conversas
+              {t('chat.exportConversations')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.lg }}>
-              Gera um PDF das mensagens do grupo. Você poderá salvar nos Arquivos ou compartilhar.
+              {t('chatThread.exportPdfDescription')}
             </Text>
 
             {/* Channel picker — horizontal scroll of pills */}
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.sm }}>
-              Canal
+              {t('chatThread.channel')}
             </Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={{ gap: spacing.sm, paddingBottom: spacing.md, paddingRight: spacing.lg }}
             >
-              {[{ id: '', name: 'Todos os canais' } as { id: string; name: string }, ...channels].map((c) => {
+              {[{ id: '', name: t('chatThread.allChannels') } as { id: string; name: string }, ...channels].map((c) => {
                 const active = c.id === selectedChannelId;
                 return (
                   <TouchableOpacity
@@ -1377,7 +1377,7 @@ export default function ChatRoomScreen() {
                       Haptics.selectionAsync();
                       setSelectedChannelId(c.id);
                     }}
-                    accessibilityLabel={`Canal ${c.name}`}
+                    accessibilityLabel={t('chatThread.channelLabelA11y', { name: c.name })}
                     style={{
                       paddingHorizontal: spacing.md, paddingVertical: 8,
                       borderRadius: radius.full,
@@ -1398,13 +1398,13 @@ export default function ChatRoomScreen() {
 
             {/* Month picker — vertical scroll list of months (cap at ~200pt) */}
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.sm }}>
-              Período
+              {t('health.period')}
             </Text>
             <ScrollView
               style={{ maxHeight: 220, marginBottom: spacing.md }}
               showsVerticalScrollIndicator={false}
             >
-              {[{ value: '', label: 'Todas as mensagens' }, ...generateMonthOptions()].map((opt) => {
+              {[{ value: '', label: t('chat.allMessages') }, ...generateMonthOptions()].map((opt) => {
                 const active = opt.value === selectedMonth;
                 return (
                   <TouchableOpacity
@@ -1414,7 +1414,7 @@ export default function ChatRoomScreen() {
                       setSelectedMonth(opt.value);
                     }}
                     testID={opt.value ? `chat-export-month-${opt.value}` : 'chat-export-month-all'}
-                    accessibilityLabel={`Período ${opt.label}`}
+                    accessibilityLabel={t('chatThread.periodLabelA11y', { label: opt.label })}
                     style={{
                       flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
                       paddingHorizontal: spacing.md, paddingVertical: 12,
@@ -1443,7 +1443,7 @@ export default function ChatRoomScreen() {
               <TouchableOpacity
                 onPress={() => !exporting && setShowExportModal(false)}
                 disabled={exporting}
-                accessibilityLabel="Cancelar exportação"
+                accessibilityLabel={t('chatThread.cancelExport')}
                 style={{
                   flex: 1,
                   backgroundColor: colors.bgSurface,
@@ -1454,14 +1454,14 @@ export default function ChatRoomScreen() {
                 }}
               >
                 <Text style={{ color: colors.textSecondary, fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  Cancelar
+                  {t('common.cancel')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
                 onPress={handleExport}
                 disabled={exporting}
                 testID="chat-export-submit"
-                accessibilityLabel="Exportar PDF"
+                accessibilityLabel={t('health.exportPdf')}
                 style={{
                   flex: 2,
                   backgroundColor: colors.brand,
@@ -1478,7 +1478,7 @@ export default function ChatRoomScreen() {
                   <Ionicons name="download-outline" size={18} color="#fff" />
                 )}
                 <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-                  {exporting ? 'Gerando…' : 'Exportar PDF'}
+                  {exporting ? t('chatThread.generating') : t('health.exportPdf')}
                 </Text>
               </TouchableOpacity>
             </View>

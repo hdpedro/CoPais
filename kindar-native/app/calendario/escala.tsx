@@ -86,7 +86,7 @@ export default function EscalaScreen() {
         const raw = p.display_name
           || p.full_name?.split(' ')[0]
           || (p.email ? p.email.split('@')[0].split('.')[0] : '')
-          || 'Membro';
+          || t('nav.member');
         return {
           userId: m.user_id,
           name: raw.charAt(0).toUpperCase() + raw.slice(1),
@@ -116,7 +116,7 @@ export default function EscalaScreen() {
     } finally {
       setLoading(false);
     }
-  }, [activeGroup, userId, childId]);
+  }, [activeGroup, userId, childId, t]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -214,12 +214,12 @@ export default function EscalaScreen() {
     // qualquer dia funciona. Sem bloqueio aqui.
 
     Alert.alert(
-      'Gerar escala',
-      `Isso vai gerar a escala para ${months} meses a partir de ${startDateDisplay}. Eventos anteriores (se existirem) nesse período serão substituídos. Continuar?`,
+      t('custodySchedule.generateTitle'),
+      t('custodySchedule.generateConfirmBody', { months, date: startDateDisplay }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Gerar',
+          text: t('custodySchedule.generate'),
           onPress: async () => {
             setGenerating(true);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -262,35 +262,35 @@ export default function EscalaScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg }}>
         <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-          <TouchableOpacity onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/'); }} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+          <TouchableOpacity onPress={() => { if (router.canGoBack()) router.back(); else router.replace('/'); }} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
             <Ionicons name="chevron-back" size={26} color={colors.text} />
           </TouchableOpacity>
           <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-            Escala de guarda
+            {t('calendar.custodySchedule')}
           </Text>
         </View>
 
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
           <Text style={{ fontSize: 48, marginBottom: spacing.md }}>👥</Text>
           <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, textAlign: 'center', marginBottom: spacing.sm }}>
-            Precisa de 2 responsáveis
+            {t('custodySchedule.needTwoGuardians')}
           </Text>
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }}>
-            A escala de guarda requer o outro co-responsável no grupo. Convide-o primeiro.
+            {t('custodySchedule.needTwoGuardiansDesc')}
           </Text>
           <TouchableOpacity
             onPress={() => router.push('/convite/enviar')}
             style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, paddingHorizontal: spacing['2xl'], marginBottom: spacing.md }}
           >
-            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Convidar co-responsável</Text>
+            <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>{t('onboardingForm.inviteCoparentTitle')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={() => router.replace('/')}
             style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.lg }}
             accessibilityRole="button"
-            accessibilityLabel="Voltar para o início"
+            accessibilityLabel={t('custodySchedule.backToHome')}
           >
-            <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>Voltar para o início</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>{t('custodySchedule.backToHome')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -300,11 +300,11 @@ export default function EscalaScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Escala de guarda
+          {t('calendar.custodySchedule')}
         </Text>
       </View>
 
@@ -312,7 +312,7 @@ export default function EscalaScreen() {
         {/* Child selector */}
         {children.length > 1 ? (
           <>
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Criança</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('health.child')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               {children.map(c => {
                 const active = childId === c.id;
@@ -349,16 +349,16 @@ export default function EscalaScreen() {
 
         {/* Presets */}
         <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
-          Modelos comuns
+          {t('custodySchedule.commonModels')}
         </Text>
         <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, marginBottom: spacing.lg }}>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             {/* Same preset library as PWA `ScheduleBuilder.tsx:81-118`. */}
-            <PresetBtn label="Semanas alternadas" onPress={() => applyPreset('alternating-weeks')} />
+            <PresetBtn label={t('custodySchedule.presetAlternatingWeeks')} onPress={() => applyPreset('alternating-weeks')} />
             <PresetBtn label="5-2-2-5" onPress={() => applyPreset('5-2-2-5')} />
             <PresetBtn label="3-4-4-3" onPress={() => applyPreset('3-4-4-3')} />
-            <PresetBtn label="2-3 com fins de semana" onPress={() => applyPreset('2-3-weekend')} />
-            <PresetBtn label="Limpar" onPress={() => applyPreset('clear')} />
+            <PresetBtn label={t('custodySchedule.presetWeekend')} onPress={() => applyPreset('2-3-weekend')} />
+            <PresetBtn label={t('custodySchedule.presetClear')} onPress={() => applyPreset('clear')} />
           </View>
         </ScrollView>
 
@@ -367,7 +367,7 @@ export default function EscalaScreen() {
           <View key={weekIdx} style={{ marginBottom: spacing.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 6 }}>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.semibold, textTransform: 'uppercase', letterSpacing: 1 }}>
-                Semana {weekIdx + 1}
+                {t('custodySchedule.week', { number: weekIdx + 1 })}
               </Text>
               <View style={{ flex: 1 }} />
               <TouchableOpacity onPress={() => fillWeek(weekIdx, members[0].userId)} style={{ paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm, backgroundColor: `${members[0].color}20` }}>
@@ -408,10 +408,10 @@ export default function EscalaScreen() {
         ))}
 
         {/* Start date */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginTop: spacing.lg, marginBottom: spacing.xs }}>Começar em</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginTop: spacing.lg, marginBottom: spacing.xs }}>{t('custodySchedule.startOn')}</Text>
         <TextInput
           value={startDateDisplay} onChangeText={handleDateChange}
-          placeholder="DD/MM/AAAA"
+          placeholder={t('custodySchedule.dateFormatPlaceholder')}
           placeholderTextColor={colors.textMuted}
           keyboardType="number-pad" maxLength={10}
           style={{
@@ -422,7 +422,7 @@ export default function EscalaScreen() {
         />
 
         {/* Months */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Duração</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('custodySchedule.duration')}</Text>
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
           {[3, 6, 12].map(m => {
             const active = months === m;
@@ -438,7 +438,7 @@ export default function EscalaScreen() {
                 }}
               >
                 <Text style={{ fontSize: font.sizes.md, color: active ? '#fff' : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                  {m} {m === 1 ? 'mês' : 'meses'}
+                  {m} {m === 1 ? t('health.month') : t('health.months')}
                 </Text>
               </TouchableOpacity>
             );
@@ -448,17 +448,17 @@ export default function EscalaScreen() {
         {/* Summary + generate */}
         <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm, marginBottom: spacing.lg }}>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textTransform: 'uppercase', fontWeight: font.weights.semibold, letterSpacing: 1, marginBottom: spacing.xs }}>
-            Resumo
+            {t('financial.summary')}
           </Text>
           <Text style={{ fontSize: font.sizes.sm, color: colors.text, lineHeight: 20 }}>
-            {members[0].name}: <Text style={{ fontWeight: font.weights.semibold }}>{pattern.filter(p => p === members[0].userId).length}</Text> de 14 dias
+            {members[0].name}: <Text style={{ fontWeight: font.weights.semibold }}>{pattern.filter(p => p === members[0].userId).length}</Text> {t('custodySchedule.ofFortnightDays')}
             {'\n'}
-            {members[1].name}: <Text style={{ fontWeight: font.weights.semibold }}>{pattern.filter(p => p === members[1].userId).length}</Text> de 14 dias
+            {members[1].name}: <Text style={{ fontWeight: font.weights.semibold }}>{pattern.filter(p => p === members[1].userId).length}</Text> {t('custodySchedule.ofFortnightDays')}
             {'\n'}
-            Não atribuído: {pattern.filter(p => p === null).length}
+            {t('custodySchedule.unassigned')}: {pattern.filter(p => p === null).length}
           </Text>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm }}>
-            A partir de {displayDate(startDateIso)} · gerando até {(() => { const d = new Date(startDateIso + 'T12:00:00'); d.setMonth(d.getMonth() + months); return `${d.getDate()} de ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`; })()}
+            {t('custodySchedule.summaryRange', { start: displayDate(startDateIso), end: (() => { const d = new Date(startDateIso + 'T12:00:00'); d.setMonth(d.getMonth() + months); return `${d.getDate()} de ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`; })() })}
           </Text>
         </View>
 
@@ -474,7 +474,7 @@ export default function EscalaScreen() {
         >
           {generating ? <ActivityIndicator color="#fff" /> : (
             <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Gerar escala
+              {t('custodySchedule.generateTitle')}
             </Text>
           )}
         </TouchableOpacity>

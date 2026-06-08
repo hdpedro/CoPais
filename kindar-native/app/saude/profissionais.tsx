@@ -126,12 +126,12 @@ export default function ProfissionaisScreen() {
     // 2026-06-07). >=8 dígitos ou em branco — mesma regra da Escola.
     if (phone.trim() && phone.replace(/\D/g, '').length < 8) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show({ message: 'Telefone inválido — informe um número válido ou deixe em branco.', variant: 'error' });
+      toast.show({ message: t('school.phoneInvalid'), variant: 'error' });
       return;
     }
     if (whatsapp.trim() && whatsapp.replace(/\D/g, '').length < 8) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show({ message: 'WhatsApp inválido — informe um número válido ou deixe em branco.', variant: 'error' });
+      toast.show({ message: t('professionals.whatsappInvalid'), variant: 'error' });
       return;
     }
     setSaving(true);
@@ -199,10 +199,10 @@ export default function ProfissionaisScreen() {
   async function handleDeleteWithContext(p: Professional) {
     const deps = await countDependencies(p.id);
     const ok = await confirmDestructive({
-      title: `Apagar ${p.name}?`,
+      title: t('professionals.deleteConfirmTitle', { name: p.name }),
       consequences: [
-        { count: deps.appointments, label: 'consultas usam ele/ela como profissional', impact: 'sem-vinculo' },
-        { count: deps.prescriptions, label: 'medicamentos prescritos por ele/ela', impact: 'preservado' },
+        { count: deps.appointments, label: t('professionals.deleteImpactAppointments'), impact: 'sem-vinculo' },
+        { count: deps.prescriptions, label: t('professionals.deleteImpactPrescriptions'), impact: 'preservado' },
       ],
     });
     if (!ok) return;
@@ -224,21 +224,21 @@ export default function ProfissionaisScreen() {
       {showForm ? (
         <ScrollView style={{ backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }} contentContainerStyle={{ padding: spacing.xl }}>
           <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
-            {editing ? 'Editar profissional' : 'Novo profissional'}
+            {editing ? t('professionals.editTitle') : t('professionals.newTitle')}
           </Text>
 
-          <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Nome *</Text>
-          <TextInput value={name} onChangeText={setName} placeholder="Ex: Dra. Maria Silva" placeholderTextColor={colors.textDim} style={fieldStyle()} />
+          <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('professionals.nameRequired')}</Text>
+          <TextInput value={name} onChangeText={setName} placeholder={t('professionals.namePlaceholder')} placeholderTextColor={colors.textDim} style={fieldStyle()} />
 
-          <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>Especialidade *</Text>
-          <TextInput value={specialty} onChangeText={setSpecialty} placeholder="Ex: Pediatra" placeholderTextColor={colors.textDim} style={fieldStyle()} />
+          <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>{t('professionals.specialtyRequired')}</Text>
+          <TextInput value={specialty} onChangeText={setSpecialty} placeholder={t('professionals.specialtyPlaceholder')} placeholderTextColor={colors.textDim} style={fieldStyle()} />
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginTop: spacing.xs }}>
             <View style={{ flexDirection: 'row', gap: 6 }}>
               {SPECIALTIES.map(s => (
                 <TouchableOpacity key={s} onPress={() => setSpecialty(s)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: specialty === s }}
-                  accessibilityLabel={`Especialidade ${s}`}
+                  accessibilityLabel={t('professionals.specialtyChipA11y', { specialty: s })}
                   style={{
                     paddingHorizontal: spacing.sm + 2, paddingVertical: 6, borderRadius: radius.full,
                     backgroundColor: specialty === s ? colors.brandLight : colors.bg,
@@ -254,27 +254,27 @@ export default function ProfissionaisScreen() {
 
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
             <View style={{ flex: 1 }}>
-              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>CRM/CRO</Text>
-              <TextInput value={crm} onChangeText={setCrm} placeholder="Ex: 226050/RJ" placeholderTextColor={colors.textDim} style={fieldStyle()} keyboardType="default" />
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('health.crmCro')}</Text>
+              <TextInput value={crm} onChangeText={setCrm} placeholder={t('professionals.crmPlaceholder')} placeholderTextColor={colors.textDim} style={fieldStyle()} keyboardType="default" />
             </View>
             <View style={{ flex: 2 }}>
-              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Telefone</Text>
-              <PhoneInput value={phone} onChangeText={setPhone} placeholder="(11) 99999-9999" style={fieldStyle()} />
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('health.phone')}</Text>
+              <PhoneInput value={phone} onChangeText={setPhone} placeholder={t('profileScreen.phonePlaceholder')} style={fieldStyle()} />
             </View>
           </View>
 
-          <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>WhatsApp</Text>
-          <PhoneInput value={whatsapp} onChangeText={setWhatsapp} placeholder="(11) 99999-9999" style={fieldStyle()} />
+          <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>{t('professionals.whatsapp')}</Text>
+          <PhoneInput value={whatsapp} onChangeText={setWhatsapp} placeholder={t('profileScreen.phonePlaceholder')} style={fieldStyle()} />
 
-          <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>Endereço</Text>
-          <TextInput value={address} onChangeText={setAddress} placeholder="Rua, nº, bairro, cidade" placeholderTextColor={colors.textDim} style={fieldStyle()} />
+          <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>{t('health.address')}</Text>
+          <TextInput value={address} onChangeText={setAddress} placeholder={t('professionals.addressPlaceholder')} placeholderTextColor={colors.textDim} style={fieldStyle()} />
 
-          <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>Observações</Text>
-          <TextInput value={notes} onChangeText={setNotes} placeholder="Convênio aceito, dia de plantão, particularidades…" placeholderTextColor={colors.textDim} multiline style={[fieldStyle(), { minHeight: 80, textAlignVertical: 'top' }]} />
+          <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs, marginTop: spacing.md }}>{t('health.notes')}</Text>
+          <TextInput value={notes} onChangeText={setNotes} placeholder={t('professionals.notesPlaceholder')} placeholderTextColor={colors.textDim} multiline style={[fieldStyle(), { minHeight: 80, textAlignVertical: 'top' }]} />
 
           <View style={{ marginTop: spacing.lg }}>
             <PrimaryButton
-              label={editing ? 'Salvar alterações' : 'Adicionar profissional'}
+              label={editing ? t('professionals.saveChanges') : t('empty.profissionais.actionLabel')}
               onPress={handleSave}
               loading={saving}
               disabled={!name.trim() || !specialty.trim()}
@@ -308,8 +308,8 @@ export default function ProfissionaisScreen() {
             <View style={{ marginBottom: spacing.sm }}>
               <SwipeToDelete
                 onDelete={() => handleDelete(item)}
-                confirmTitle="Remover profissional"
-                confirmMessage={`Remover ${item.name}? Consultas vinculadas ficam intactas.`}
+                confirmTitle={t('professionals.removeTitle')}
+                confirmMessage={t('professionals.removeMessage', { name: item.name })}
               >
                 <TouchableOpacity
                   onPress={() => {
@@ -318,7 +318,7 @@ export default function ProfissionaisScreen() {
                   }}
                   activeOpacity={0.85}
                   accessibilityRole="button"
-                  accessibilityLabel={`Ver detalhes de ${item.name}${item.specialty ? `, ${item.specialty}` : ''}`}
+                  accessibilityLabel={item.specialty ? t('professionals.viewDetailsWithSpecialtyA11y', { name: item.name, specialty: item.specialty }) : t('professionals.viewDetailsA11y', { name: item.name })}
                   style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm, flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
                 >
                   <Text style={{ fontSize: 20 }}>👨‍⚕️</Text>
@@ -365,6 +365,7 @@ function ProfessionalDetailModal({
   onEdit: (p: Professional) => void;
   onDelete: (p: Professional) => void;
 }) {
+  const t = useI18n(s => s.t);
   if (!professional) return null;
   const p = professional;
   const cleanCrm = formatCRM(p.crm);
@@ -388,21 +389,21 @@ function ProfessionalDetailModal({
                 <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 2 }}>{p.specialty}</Text>
               ) : null}
             </View>
-            <TouchableOpacity onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel="Fechar">
+            <TouchableOpacity onPress={onClose} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.close')}>
               <Ionicons name="close" size={22} color={colors.textSecondary} />
             </TouchableOpacity>
           </View>
 
           {/* Body */}
           <ScrollView style={{ maxHeight: 400 }} contentContainerStyle={{ paddingHorizontal: spacing.xl, paddingBottom: spacing.lg }}>
-            {cleanCrm ? <Field label="CRM/CRO" value={cleanCrm} /> : null}
-            {p.phone ? <Field label="Telefone" value={p.phone} /> : null}
-            {p.whatsapp ? <Field label="WhatsApp" value={p.whatsapp} /> : null}
-            {p.address ? <Field label="Endereço" value={p.address} /> : null}
-            {p.notes ? <Field label="Observações" value={p.notes} /> : null}
+            {cleanCrm ? <Field label={t('health.crmCro')} value={cleanCrm} /> : null}
+            {p.phone ? <Field label={t('health.phone')} value={p.phone} /> : null}
+            {p.whatsapp ? <Field label={t('professionals.whatsapp')} value={p.whatsapp} /> : null}
+            {p.address ? <Field label={t('health.address')} value={p.address} /> : null}
+            {p.notes ? <Field label={t('health.notes')} value={p.notes} /> : null}
             {!cleanCrm && !p.phone && !p.whatsapp && !p.address && !p.notes ? (
               <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, fontStyle: 'italic' }}>
-                Sem dados adicionais cadastrados.
+                {t('professionals.noAdditionalData')}
               </Text>
             ) : null}
           </ScrollView>
@@ -414,22 +415,22 @@ function ProfessionalDetailModal({
                 <TouchableOpacity
                   onPress={() => Linking.openURL(`tel:${p.phone!.replace(/\D/g, '')}`)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Ligar para ${p.name}`}
+                  accessibilityLabel={t('professionals.callA11y', { name: p.name })}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.bg, borderWidth: 1, borderColor: colors.borderLight }}
                 >
                   <Ionicons name="call" size={16} color={colors.brand} />
-                  <Text style={{ fontSize: font.sizes.sm, color: colors.brand, fontWeight: font.weights.medium }}>Ligar</Text>
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.brand, fontWeight: font.weights.medium }}>{t('professionals.call')}</Text>
                 </TouchableOpacity>
               ) : null}
               {waNumber ? (
                 <TouchableOpacity
                   onPress={() => Linking.openURL(`https://wa.me/${waNumber}`)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Abrir WhatsApp de ${p.name}`}
+                  accessibilityLabel={t('professionals.whatsappA11y', { name: p.name })}
                   style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: '#25D36615', borderWidth: 1, borderColor: '#25D366' }}
                 >
                   <Ionicons name="logo-whatsapp" size={16} color="#25D366" />
-                  <Text style={{ fontSize: font.sizes.sm, color: '#1f9e4d', fontWeight: font.weights.medium }}>WhatsApp</Text>
+                  <Text style={{ fontSize: font.sizes.sm, color: '#1f9e4d', fontWeight: font.weights.medium }}>{t('professionals.whatsapp')}</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -440,7 +441,7 @@ function ProfessionalDetailModal({
             <TouchableOpacity
               onPress={() => onDelete(p)}
               accessibilityRole="button"
-              accessibilityLabel={`Remover ${p.name}`}
+              accessibilityLabel={t('professionals.removeA11y', { name: p.name })}
               style={{ paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight }}
             >
               <Ionicons name="trash-outline" size={18} color={colors.error} />
@@ -448,11 +449,11 @@ function ProfessionalDetailModal({
             <TouchableOpacity
               onPress={() => onEdit(p)}
               accessibilityRole="button"
-              accessibilityLabel={`Editar ${p.name}`}
+              accessibilityLabel={t('professionals.editA11y', { name: p.name })}
               style={{ flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, paddingVertical: spacing.md, borderRadius: radius.md, backgroundColor: colors.brand }}
             >
               <Ionicons name="create-outline" size={18} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>Editar</Text>
+              <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>{t('common.edit')}</Text>
             </TouchableOpacity>
           </View>
         </View>
