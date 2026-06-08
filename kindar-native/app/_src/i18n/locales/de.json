@@ -2966,7 +2966,9 @@
     },
     "growth": {
       "weightOutOfRange": "Gewicht außerhalb des erwarteten Bereichs — bitte prüfen",
-      "heightOutOfRange": "Größe außerhalb des erwarteten Bereichs — bitte in cm prüfen"
+      "heightOutOfRange": "Größe außerhalb des erwarteten Bereichs — bitte in cm prüfen",
+      "weightImpossibleForAge": "Gewicht für dieses Alter unmöglich. Bitte prüfen — manchmal werden Kilo mit Gramm verwechselt.",
+      "heightImpossibleForAge": "Größe für dieses Alter unmöglich. Bitte prüfen Sie den Wert."
     },
     "emergency": {
       "tokenMissing": "Dieses Kind hat noch keinen Notfall-Token. Erstelle einen in der Web-App."

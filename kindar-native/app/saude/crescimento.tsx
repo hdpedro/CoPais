@@ -29,6 +29,7 @@ import PrimaryButton from 'src/components/ui/PrimaryButton';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
 import { calculatePercentile } from 'src/lib/who-growth-data';
+import { checkGrowthMeasurement } from 'src/lib/growth-validation';
 import GrowthChart from 'src/components/saude/GrowthChart';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -213,16 +214,21 @@ export default function CrescimentoScreen() {
       const normHeight = rawHeight != null && rawHeight > 0 && rawHeight < 3
         ? Math.round(rawHeight * 100)
         : rawHeight;
-      // Sanity check: peso > 500 = improvavel (kg). Avisa user.
       const rawWeight = weight ? parseFloat(weight.replace(',', '.')) : null;
-      if (rawWeight != null && (rawWeight < 0.5 || rawWeight > 250)) {
-        toast.show({ message: t('toasts.growth.weightOutOfRange'), variant: 'warning' });
-        submittingRef.current = false;
-        setSaving(false);
-        return;
-      }
-      if (normHeight != null && (normHeight < 20 || normHeight > 230)) {
-        toast.show({ message: t('toasts.growth.heightOutOfRange'), variant: 'warning' });
+      // Sanity check de peso/altura: limites absolutos + POR IDADE (WHO P97).
+      // Bug Nathy 2026-06-08: 10 meses aceitava 200 kg e 2 m — passavam os limites
+      // absolutos frouxos. Agora rejeita o impossível para a idade da criança.
+      const sChild = children.find((c) => c.id === selectedChild);
+      const ageMonths = sChild?.birth_date ? monthsBetween(sChild.birth_date, dateIso) : null;
+      const growthErr = checkGrowthMeasurement(ageMonths, sChild?.sex ?? null, rawWeight, normHeight);
+      if (growthErr) {
+        const errKeys = {
+          weight_out_of_range: 'toasts.growth.weightOutOfRange',
+          height_out_of_range: 'toasts.growth.heightOutOfRange',
+          weight_impossible_for_age: 'toasts.growth.weightImpossibleForAge',
+          height_impossible_for_age: 'toasts.growth.heightImpossibleForAge',
+        } as const;
+        toast.show({ message: t(errKeys[growthErr]), variant: 'warning' });
         submittingRef.current = false;
         setSaving(false);
         return;
