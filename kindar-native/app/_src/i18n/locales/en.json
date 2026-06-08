@@ -2966,7 +2966,9 @@
     },
     "growth": {
       "weightOutOfRange": "Weight out of expected range — please confirm",
-      "heightOutOfRange": "Height out of expected range — confirm the value in cm"
+      "heightOutOfRange": "Height out of expected range — confirm the value in cm",
+      "weightImpossibleForAge": "Weight impossible for this age. Please double-check — sometimes kg gets confused with grams.",
+      "heightImpossibleForAge": "Height impossible for this age. Please check the value."
     },
     "emergency": {
       "tokenMissing": "This child has no emergency token yet. Generate one on the web app."

@@ -2966,7 +2966,9 @@
     },
     "growth": {
       "weightOutOfRange": "Peso fuera del rango esperado — confirma el valor",
-      "heightOutOfRange": "Altura fuera del rango esperado — confirma el valor en cm"
+      "heightOutOfRange": "Altura fuera del rango esperado — confirma el valor en cm",
+      "weightImpossibleForAge": "Peso imposible para la edad. Revisa — a veces se confunden los kilos con los gramos.",
+      "heightImpossibleForAge": "Altura imposible para la edad. Revisa el valor."
     },
     "emergency": {
       "tokenMissing": "Este niño aún no tiene token de emergencia. Genéralo en la versión web."

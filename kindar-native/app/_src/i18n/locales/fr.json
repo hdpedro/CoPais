@@ -2966,7 +2966,9 @@
     },
     "growth": {
       "weightOutOfRange": "Poids hors de la plage attendue — confirmez la valeur",
-      "heightOutOfRange": "Taille hors de la plage attendue — confirmez en cm"
+      "heightOutOfRange": "Taille hors de la plage attendue — confirmez en cm",
+      "weightImpossibleForAge": "Poids impossible pour cet âge. Vérifiez — on confond parfois les kilos et les grammes.",
+      "heightImpossibleForAge": "Taille impossible pour cet âge. Vérifiez la valeur."
     },
     "emergency": {
       "tokenMissing": "Cet enfant n'a pas encore de jeton d'urgence. Générez-le sur la version web."
