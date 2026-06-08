@@ -20,6 +20,7 @@ import { deleteDocument, DOCUMENT_CATEGORIES } from '../../services/documents';
 import EmptyState from '../ui/EmptyState';
 import { useToast } from '../ui/ToastProvider';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 
 interface Props {
   childId: string;
@@ -51,6 +52,7 @@ export default function TabDocumentos({
   onRefresh,
 }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -66,12 +68,12 @@ export default function TabDocumentos({
 
   function handleDelete(doc: ChildDocument) {
     Alert.alert(
-      'Excluir documento',
-      `"${doc.name}" será removido permanentemente. Tem certeza?`,
+      t('school.deleteDocTitle'),
+      t('childDocs.deleteMessage', { name: doc.name }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             setDeletingId(doc.id);
@@ -126,10 +128,10 @@ export default function TabDocumentos({
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: font.sizes.md, color: 'white', fontWeight: '700' }}>
-            Adicionar documento
+            {t('empty.documentos.actionLabel')}
           </Text>
           <Text style={{ fontSize: font.sizes.xs, color: 'rgba(255,255,255,0.85)', marginTop: 2 }}>
-            Foto, PDF ou Word — até 10MB
+            {t('childDocs.uploadHint')}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.85)" />
@@ -193,7 +195,7 @@ export default function TabDocumentos({
                   ) : null}
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>·</Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                    {new Date(doc.created_at).toLocaleDateString('pt-BR', {
+                    {intl.formatDate(doc.created_at, {
                       day: '2-digit',
                       month: 'short',
                     })}
@@ -236,7 +238,7 @@ export default function TabDocumentos({
             marginTop: spacing.md,
           }}
         >
-          Toque para abrir · Lixeira ou pressione para excluir
+          {t('childDocs.listHint')}
         </Text>
       ) : null}
     </ScrollView>

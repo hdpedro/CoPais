@@ -247,7 +247,11 @@ export default function VacinasScreen() {
       <TouchableOpacity
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel={`${t('health.vaccineEngine.preventiveCareTitle')} de ${selectedChild.full_name.split(' ')[0]}: ${status.statusLabel}`}
+        accessibilityLabel={t('vaccinesScreen.heroA11yLabel', {
+          title: t('health.vaccineEngine.preventiveCareTitle'),
+          name: selectedChild.full_name.split(' ')[0],
+          status: status.statusLabel,
+        })}
         accessibilityHint={t('health.vaccineEngine.openDetails')}
         accessibilityState={{ expanded: heroExpanded }}
         onPress={() => {
@@ -629,7 +633,7 @@ export default function VacinasScreen() {
               {t('health.vaccineEngine.statusEmpty')}
             </Text>
             <Text style={{ color: colors.textMuted, fontSize: font.sizes.xs, marginTop: spacing.xs, textAlign: 'center' }}>
-              Adicione a data de nascimento de {selectedChild.full_name.split(' ')[0]} no perfil
+              {t('vaccinesScreen.addBirthDateBody', { name: selectedChild.full_name.split(' ')[0] })}
             </Text>
           </View>
         </View>
@@ -679,10 +683,10 @@ export default function VacinasScreen() {
             <Text style={{ fontSize: 22 }}>📡</Text>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
-                Não consegui carregar o calendário vacinal agora
+                {t('vaccinesScreen.loadErrorTitle')}
               </Text>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 4 }}>
-                Verifique sua conexão e tente novamente. Seu histórico continua disponível abaixo.
+                {t('vaccinesScreen.loadErrorBody')}
               </Text>
               <TouchableOpacity
                 onPress={() => {
@@ -691,7 +695,7 @@ export default function VacinasScreen() {
                   load();
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Tentar novamente"
+                accessibilityLabel={t('vaccinesScreen.retry')}
                 style={{
                   marginTop: spacing.sm,
                   alignSelf: 'flex-start',
@@ -702,7 +706,7 @@ export default function VacinasScreen() {
                 }}
               >
                 <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>
-                  Tentar novamente
+                  {t('vaccinesScreen.retry')}
                 </Text>
               </TouchableOpacity>
             </View>

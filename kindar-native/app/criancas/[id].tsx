@@ -56,7 +56,7 @@ export default function ChildDetailScreen() {
   if (!groupId || !userId) {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ color: colors.textSecondary }}>Sem grupo ativo.</Text>
+        <Text style={{ color: colors.textSecondary }}>{t('childDetail.noActiveGroup')}</Text>
       </View>
     );
   }

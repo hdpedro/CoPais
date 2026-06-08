@@ -150,7 +150,7 @@ export default function LoginScreen() {
 
   async function handleLogin() {
     if (!email || !password) {
-      setError('Preencha todos os campos');
+      setError(t('authSignup.fillAllFields'));
       return;
     }
     setLoading(true);
@@ -180,7 +180,7 @@ export default function LoginScreen() {
       router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(result.error || 'Erro ao entrar');
+      setError(result.error || t('authLogin.signInError'));
       // Detecta "email nao confirmado" pra revelar o botao de reenvio.
       // Match estavel por errorCode (Supabase auth-js code), nao por string.
       // Antes (ate 2026-05-22 / Bruna) dependiamos do texto PT-BR e quebraria
@@ -250,11 +250,11 @@ export default function LoginScreen() {
             {emailNotConfirmed && resendStatus !== 'sent' ? (
               <TouchableOpacity
                 accessibilityRole="button"
-                accessibilityLabel={resendStatus === 'sending' ? 'Reenviando e-mail de confirmação' : 'Reenviar e-mail de confirmação'}
+                accessibilityLabel={resendStatus === 'sending' ? t('authLogin.resending') : t('authLogin.resend')}
                 accessibilityState={{ disabled: resendStatus === 'sending', busy: resendStatus === 'sending' }}
                 onPress={async () => {
                   if (!email) {
-                    setError('Digite seu e-mail acima primeiro');
+                    setError(t('authLogin.enterEmailFirst'));
                     return;
                   }
                   setResendStatus('sending');
@@ -265,7 +265,7 @@ export default function LoginScreen() {
                     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
                   } else {
                     setResendStatus('error');
-                    setError(r.error || 'Não consegui reenviar. Tente em alguns minutos.');
+                    setError(r.error || t('authLogin.resendFailed'));
                   }
                 }}
                 disabled={resendStatus === 'sending'}
@@ -279,13 +279,13 @@ export default function LoginScreen() {
               >
                 <Ionicons name="mail-outline" size={14} color={colors.authPrimary} />
                 <Text style={{ color: colors.authPrimary, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                  {resendStatus === 'sending' ? 'Reenviando…' : 'Reenviar e-mail de confirmação'}
+                  {resendStatus === 'sending' ? t('authLogin.resendingShort') : t('authLogin.resend')}
                 </Text>
               </TouchableOpacity>
             ) : null}
             {resendStatus === 'sent' ? (
               <Text style={{ color: colors.success, fontSize: font.sizes.sm, marginTop: spacing.sm }}>
-                Enviado! Confira sua caixa de entrada e a pasta de spam.
+                {t('authLogin.resendSent')}
               </Text>
             ) : null}
           </View>
@@ -295,7 +295,7 @@ export default function LoginScreen() {
         {Platform.OS === 'ios' ? (
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Entrar com Apple"
+            accessibilityLabel={t('authLogin.signInApple')}
             onPress={async () => {
               setLoading(true);
               const result = await signInWithApple();
@@ -307,7 +307,7 @@ export default function LoginScreen() {
                 const state = useAuth.getState();
                 router.replace(state.activeGroup ? '/(tabs)' : '/onboarding');
               } else if (result.error !== 'Cancelado') {
-                setError(result.error || 'Erro');
+                setError(result.error || t('common.error'));
               }
               setLoading(false);
             }}
@@ -320,7 +320,7 @@ export default function LoginScreen() {
           >
             <Ionicons name="logo-apple" size={18} color="#fff" />
             <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Entrar com Apple
+              {t('authLogin.signInApple')}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -334,7 +334,7 @@ export default function LoginScreen() {
         {GOOGLE_SIGN_IN_CONFIGURED ? (
           <TouchableOpacity
             accessibilityRole="button"
-            accessibilityLabel="Entrar com Google"
+            accessibilityLabel={t('authLogin.signInGoogle')}
             accessibilityState={{ disabled: loading }}
             onPress={async () => {
               setError('');
@@ -363,7 +363,7 @@ export default function LoginScreen() {
                 await promptGoogle();
                 // Result is handled by the useEffect on googleResponse above (iOS).
               } catch {
-                setError('Não foi possível iniciar o login com Google');
+                setError(t('authLogin.googleStartError'));
               }
             }}
             disabled={loading}
@@ -379,7 +379,7 @@ export default function LoginScreen() {
           >
             <Ionicons name="logo-google" size={16} color="#4285F4" />
             <Text style={{ color: colors.authText, fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Entrar com Google
+              {t('authLogin.signInGoogle')}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -402,7 +402,7 @@ export default function LoginScreen() {
         <TextInput
           nativeID="email"
           testID="email-input"
-          accessibilityLabel={emailError ?? 'E-mail'}
+          accessibilityLabel={emailError ?? t('auth.email')}
           value={email}
           onChangeText={(v) => { setEmail(v); if (emailError) setEmailError(null); }}
           onBlur={() => setEmailError(validateEmailField(email))}
@@ -438,7 +438,7 @@ export default function LoginScreen() {
           <TextInput
             nativeID="password"
             testID="password-input"
-            accessibilityLabel={passwordError ?? 'Senha'}
+            accessibilityLabel={passwordError ?? t('auth.password')}
             value={password}
             onChangeText={(v) => { setPassword(v); if (passwordError) setPasswordError(null); }}
             onBlur={() => setPasswordError(validatePasswordField(password))}
@@ -454,7 +454,7 @@ export default function LoginScreen() {
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
             accessibilityRole="button"
-            accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            accessibilityLabel={showPassword ? t('authForm.hidePassword') : t('authForm.showPassword')}
             accessibilityState={{ selected: showPassword }}
             hitSlop={8}
           >
@@ -473,7 +473,7 @@ export default function LoginScreen() {
             onPress={() => setRememberMe(!rememberMe)}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: rememberMe }}
-            accessibilityLabel="Lembrar-me"
+            accessibilityLabel={t('authLogin.rememberMe')}
             style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}
             activeOpacity={0.7}
           >
@@ -486,7 +486,7 @@ export default function LoginScreen() {
             }}>
               {rememberMe ? <Ionicons name="checkmark" size={12} color="#fff" /> : null}
             </View>
-            <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>Lembrar-me</Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>{t('authLogin.rememberMe')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -504,7 +504,7 @@ export default function LoginScreen() {
         <TouchableOpacity
           testID="login-submit"
           accessibilityRole="button"
-          accessibilityLabel="Entrar"
+          accessibilityLabel={t('auth.login')}
           accessibilityState={{ disabled: loading, busy: loading }}
           onPress={handleLogin}
           disabled={loading}

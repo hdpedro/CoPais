@@ -133,6 +133,13 @@ export async function createVacationPeriod(params: VacationParams) {
         .maybeSingle();
       childName = child?.full_name?.split(' ')[0] ?? null;
     }
+    // NOTE: kept pt-BR on purpose. These labels are injected verbatim into a
+    // FIXED pt-BR push body (src/app/api/native/notify/route.ts → vacation_created
+    // messageFn: "marcou férias de … dia/dias"), which is NOT localized per
+    // recipient. The PWA source-of-truth (src/lib/services/vacation.ts) also
+    // hardcodes pt-BR here. Locale-formatting only the date inside an otherwise
+    // Portuguese sentence would create a worse mismatch, so this is NOT a
+    // display site to convert.
     const startLabel = new Date(params.startDate + 'T12:00:00').toLocaleDateString('pt-BR', {
       day: '2-digit', month: 'short',
     });

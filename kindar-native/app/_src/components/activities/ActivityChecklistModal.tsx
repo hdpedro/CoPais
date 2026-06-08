@@ -19,6 +19,7 @@ import {
 import { useToast } from '../ui/ToastProvider';
 import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface Props {
@@ -32,6 +33,7 @@ interface Props {
 
 export default function ActivityChecklistModal({ visible, onClose, activityId, activityName, occurrenceDate, completedBy }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
@@ -83,7 +85,8 @@ export default function ActivityChecklistModal({ visible, onClose, activityId, a
   const allDone = items.length > 0 && completedCount === items.length;
   const progress = items.length > 0 ? completedCount / items.length : 0;
 
-  const formattedDate = new Date(occurrenceDate + 'T12:00:00').toLocaleDateString('pt-BR', {
+  // ISO occurrence date → "seg., 8 de abr." (weekday + day + short month), locale-aware.
+  const formattedDate = intl.formatDate(occurrenceDate, {
     weekday: 'short', day: 'numeric', month: 'short',
   });
 

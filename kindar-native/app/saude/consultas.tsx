@@ -22,6 +22,7 @@ import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Appt { id: string; title: string; appointment_date: string; location: string | null; status: string; notes: string | null; childName: string; profName: string | null; child_id: string; }
@@ -34,12 +35,13 @@ interface ConsultasCache {
 
 const EMPTY_CACHE: ConsultasCache = { appts: [], children: [], professionals: [] };
 
-const STATUS_COLORS: Record<string, { label: string; color: string }> = {
-  scheduled: { label: 'Agendada', color: '#3b82f6' }, completed: { label: 'Realizada', color: '#4CAF50' }, cancelled: { label: 'Cancelada', color: '#8A8A8A' },
+const STATUS_COLORS: Record<string, { labelKey: string; color: string }> = {
+  scheduled: { labelKey: 'health.export.statusScheduled', color: '#3b82f6' }, completed: { labelKey: 'health.export.statusCompleted', color: '#4CAF50' }, cancelled: { labelKey: 'health.export.statusCancelled', color: '#8A8A8A' },
 };
 
 export default function ConsultasScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [showForm, setShowForm] = useState(false);
@@ -168,10 +170,10 @@ export default function ConsultasScreen() {
   }
 
   async function handleCancel(id: string) {
-    Alert.alert('Cancelar consulta', 'Marcar esta consulta como cancelada?', [
-      { text: 'Não', style: 'cancel' },
+    Alert.alert(t('appointments.cancelTitle'), t('appointments.cancelMessage'), [
+      { text: t('common.no'), style: 'cancel' },
       {
-        text: 'Cancelar consulta',
+        text: t('appointments.cancelTitle'),
         style: 'destructive',
         onPress: async () => {
           await safeWrite({ table: 'medical_appointments', operation: 'update', payload: { id, status: 'cancelled' } });
@@ -190,14 +192,14 @@ export default function ConsultasScreen() {
   // FK NOT NULL (return_notes / summary ficam no próprio row).
   async function handleDelete(appt: Appt) {
     const statusLabel = appt.status === 'scheduled'
-      ? 'Consulta agendada — vai sumir da agenda dos dois responsáveis.'
+      ? t('appointments.deleteWarnScheduled')
       : appt.status === 'completed'
-        ? 'Consulta realizada — apagar perde notas e histórico.'
-        : 'Consulta cancelada — apenas remoção do registro.';
+        ? t('appointments.deleteWarnCompleted')
+        : t('appointments.deleteWarnCancelled');
     const ok = await confirmDestructive({
-      title: `Excluir "${appt.title}"?`,
-      warning: statusLabel + '\n\nEsta ação não pode ser desfeita.',
-      destructiveLabel: 'Excluir',
+      title: t('appointments.deleteTitle', { title: appt.title }),
+      warning: statusLabel + '\n\n' + t('ui.destructiveConfirm.defaultWarning'),
+      destructiveLabel: t('common.delete'),
     });
     if (!ok) return;
     const result = await safeWrite({
@@ -287,17 +289,17 @@ export default function ConsultasScreen() {
             containerStyle={{ marginBottom: spacing.md }}
             testID="consulta-form-child-picker"
           />
-          <TextInput value={title} onChangeText={setTitle} placeholder="Tipo (Pediatra, Dentista...)" placeholderTextColor={colors.textDim}
+          <TextInput value={title} onChangeText={setTitle} placeholder={t('appointments.typePlaceholder')} placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
-            <View style={{ flex: 1 }}><DatePickerField value={dateIso} onChange={setDateIso} placeholder="Data" /></View>
-            <View style={{ flex: 1 }}><TimePickerField value={timeHHMM || null} onChange={setTimeHHMM} placeholder="Hora" /></View>
+            <View style={{ flex: 1 }}><DatePickerField value={dateIso} onChange={setDateIso} placeholder={t('health.whatsapp.date')} /></View>
+            <View style={{ flex: 1 }}><TimePickerField value={timeHHMM || null} onChange={setTimeHHMM} placeholder={t('appointments.timePlaceholder')} /></View>
           </View>
           {/* Professional picker (optional) */}
           {professionals.length > 0 ? (
             <View style={{ marginBottom: spacing.sm }}>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4 }}>
-                Profissional (opcional)
+                {t('appointments.professionalOptional')}
               </Text>
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -305,14 +307,14 @@ export default function ConsultasScreen() {
                     onPress={() => setSelectedProfessional(null)}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: selectedProfessional === null }}
-                    accessibilityLabel="Sem profissional"
+                    accessibilityLabel={t('appointments.noProfessional')}
                     style={{
                       paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full,
                       backgroundColor: selectedProfessional === null ? colors.brand : colors.bgSurface,
                     }}
                   >
                     <Text style={{ fontSize: font.sizes.xs, color: selectedProfessional === null ? '#fff' : colors.text }}>
-                      Sem profissional
+                      {t('appointments.noProfessional')}
                     </Text>
                   </TouchableOpacity>
                   {professionals.map(p => (
@@ -336,12 +338,12 @@ export default function ConsultasScreen() {
               </ScrollView>
             </View>
           ) : null}
-          <TextInput value={location} onChangeText={setLocation} placeholder="Local (opcional)" placeholderTextColor={colors.textDim}
+          <TextInput value={location} onChangeText={setLocation} placeholder={t('appointments.locationOptional')} placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
-          <TextInput value={notes} onChangeText={setNotes} placeholder="Observações (opcional)" placeholderTextColor={colors.textDim} multiline
+          <TextInput value={notes} onChangeText={setNotes} placeholder={t('appointments.notesOptional')} placeholderTextColor={colors.textDim} multiline
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md, minHeight: 60 }} />
           <PrimaryButton
-            label="Registrar consulta"
+            label={t('appointments.registerButton')}
             onPress={handleCreate}
             loading={saving}
             disabled={!title.trim()}
@@ -356,8 +358,8 @@ export default function ConsultasScreen() {
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/consultas/resumo'); }}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="Resumo para a próxima consulta"
-          accessibilityHint="Briefing clínico desde a última consulta concluída"
+          accessibilityLabel={t('appointments.nextSummaryTitle')}
+          accessibilityHint={t('appointments.nextSummaryDesc')}
           style={{
             margin: spacing.lg, marginBottom: 0,
             backgroundColor: colors.brandLight,
@@ -370,10 +372,10 @@ export default function ConsultasScreen() {
           <Ionicons name="document-text-outline" size={20} color={colors.brand} />
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
-              Resumo para a próxima consulta
+              {t('appointments.nextSummaryTitle')}
             </Text>
             <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-              Briefing clínico desde a última consulta concluída
+              {t('appointments.nextSummaryDesc')}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color={colors.brand} />
@@ -387,11 +389,10 @@ export default function ConsultasScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={true}
         ListEmptyComponent={loading ? null : (
-          <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'] }}><Text style={{ fontSize: 32, marginBottom: spacing.md }}>🏥</Text><Text style={{ color: colors.textMuted }}>Nenhuma consulta</Text></View>
+          <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'] }}><Text style={{ fontSize: 32, marginBottom: spacing.md }}>🏥</Text><Text style={{ color: colors.textMuted }}>{t('appointments.empty')}</Text></View>
         )}
         renderItem={({ item }) => {
           const st = STATUS_COLORS[item.status] || STATUS_COLORS.scheduled;
-          const date = new Date(item.appointment_date);
           const canComplete = item.status === 'scheduled';
           return (
             <View style={{
@@ -403,11 +404,11 @@ export default function ConsultasScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.title}</Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                    {item.childName} · {date.toLocaleDateString('pt-BR')}{item.location ? ` · ${item.location}` : ''}{item.profName ? ` · ${item.profName}` : ''}
+                    {item.childName} · {intl.formatDate(item.appointment_date)}{item.location ? ` · ${item.location}` : ''}{item.profName ? ` · ${item.profName}` : ''}
                   </Text>
                 </View>
                 <View style={{ backgroundColor: `${st.color}15`, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 }}>
-                  <Text style={{ fontSize: font.sizes.xs, color: st.color, fontWeight: font.weights.medium }}>{st.label}</Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: st.color, fontWeight: font.weights.medium }}>{t(st.labelKey)}</Text>
                 </View>
               </View>
               {canComplete ? (
@@ -417,21 +418,21 @@ export default function ConsultasScreen() {
                     <TouchableOpacity
                       onPress={() => openCompleteModal(item)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Concluir consulta ${item.title}`}
+                      accessibilityLabel={t('appointments.completeA11y', { title: item.title })}
                       style={{ flex: 1, backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: 10, alignItems: 'center' }}
                     >
                       <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                        Concluir
+                        {t('health.completeAppointment.complete')}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => handleCancel(item.id)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Cancelar consulta ${item.title}`}
+                      accessibilityLabel={t('appointments.cancelA11y', { title: item.title })}
                       style={{ paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight }}
                     >
                       <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
-                        Cancelar
+                        {t('common.cancel')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -444,23 +445,23 @@ export default function ConsultasScreen() {
                     <TouchableOpacity
                       onPress={() => openEditModal(item)}
                       accessibilityRole="button"
-                      accessibilityLabel="Editar consulta"
+                      accessibilityLabel={t('appointments.editTitle')}
                       style={{ flex: 1, paddingVertical: 12, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                     >
                       <Ionicons name="create-outline" size={16} color={colors.textSecondary} />
                       <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
-                        Editar
+                        {t('common.edit')}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       onPress={() => handleDelete(item)}
                       accessibilityRole="button"
-                      accessibilityLabel="Excluir consulta"
+                      accessibilityLabel={t('appointments.deleteA11y')}
                       style={{ paddingVertical: 12, paddingHorizontal: spacing.md, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: '#fee2e2', backgroundColor: '#fef2f2', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                     >
                       <Ionicons name="trash-outline" size={16} color="#b91c1c" />
                       <Text style={{ color: '#b91c1c', fontSize: font.sizes.sm }}>
-                        Excluir
+                        {t('common.delete')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -473,19 +474,19 @@ export default function ConsultasScreen() {
                   <TouchableOpacity
                     onPress={() => handleDelete(item)}
                     accessibilityRole="button"
-                    accessibilityLabel="Excluir consulta"
+                    accessibilityLabel={t('appointments.deleteA11y')}
                     style={{ paddingVertical: 12, paddingHorizontal: spacing.md, minHeight: 44, borderRadius: radius.md, borderWidth: 1, borderColor: '#fee2e2', backgroundColor: '#fef2f2', alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: 6 }}
                   >
                     <Ionicons name="trash-outline" size={16} color="#b91c1c" />
                     <Text style={{ color: '#b91c1c', fontSize: font.sizes.sm }}>
-                      Excluir
+                      {t('common.delete')}
                     </Text>
                   </TouchableOpacity>
                 </View>
               )}
               {item.status === 'completed' && item.notes ? (
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm, fontStyle: 'italic' }}>
-                  Notas: {item.notes}
+                  {t('appointments.notesPrefix', { notes: item.notes })}
                 </Text>
               ) : null}
             </View>
@@ -501,9 +502,9 @@ export default function ConsultasScreen() {
             <ScrollView keyboardShouldPersistTaps="handled">
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                  Concluir consulta
+                  {t('health.completeAppointment.completeButton')}
                 </Text>
-                <TouchableOpacity onPress={() => setCompleting(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fechar">
+                <TouchableOpacity onPress={() => setCompleting(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('common.close')}>
                   <Ionicons name="close" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -513,31 +514,31 @@ export default function ConsultasScreen() {
                 </Text>
               ) : null}
 
-              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Diagnóstico</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('health.diagnosis')}</Text>
               <TextInput
                 value={completeDiagnosis}
                 onChangeText={setCompleteDiagnosis}
-                placeholder="Ex: Otite média aguda"
+                placeholder={t('appointments.diagnosisPlaceholder')}
                 placeholderTextColor={colors.textDim}
                 style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg }}
               />
 
-              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Resumo / orientações</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('appointments.summaryLabel')}</Text>
               <TextInput
                 value={completeSummary}
                 onChangeText={setCompleteSummary}
-                placeholder="Receita, exames pedidos, recomendações..."
+                placeholder={t('appointments.summaryPlaceholder')}
                 placeholderTextColor={colors.textDim}
                 multiline
                 style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, minHeight: 100, textAlignVertical: 'top', marginBottom: spacing.lg }}
               />
 
-              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Data de retorno (opcional)</Text>
-              <DatePickerField value={completeReturnDate || null} onChange={d => setCompleteReturnDate(d || '')} placeholder="DD/MM/AAAA" />
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('appointments.returnDateLabel')}</Text>
+              <DatePickerField value={completeReturnDate || null} onChange={d => setCompleteReturnDate(d || '')} placeholder={t('appointments.datePlaceholder')} />
 
               <View style={{ marginTop: spacing.xl }}>
                 <PrimaryButton
-                  label="Marcar como concluída"
+                  label={t('appointments.completeSubmit')}
                   onPress={handleConfirmComplete}
                   loading={completeSaving}
                   testID="consultas-complete-submit"
@@ -556,9 +557,9 @@ export default function ConsultasScreen() {
             <ScrollView keyboardShouldPersistTaps="handled">
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.md }}>
                 <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                  Editar consulta
+                  {t('appointments.editTitle')}
                 </Text>
-                <TouchableOpacity onPress={() => setEditing(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Fechar">
+                <TouchableOpacity onPress={() => setEditing(null)} hitSlop={8} accessibilityRole="button" accessibilityLabel={t('common.close')}>
                   <Ionicons name="close" size={24} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
@@ -568,38 +569,38 @@ export default function ConsultasScreen() {
                 </Text>
               ) : null}
 
-              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Título *</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('appointments.titleRequired')}</Text>
               <TextInput
                 value={editTitle}
                 onChangeText={setEditTitle}
-                placeholder="Ex: Pediatra, Dentista"
+                placeholder={t('appointments.titlePlaceholder')}
                 placeholderTextColor={colors.textDim}
                 style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg }}
               />
 
               <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
                 <View style={{ flex: 3 }}>
-                  <DatePickerField label="Data *" value={editDateIso || null} onChange={d => setEditDateIso(d || '')} placeholder="DD/MM/AAAA" />
+                  <DatePickerField label={t('health.appointmentForm.date')} value={editDateIso || null} onChange={d => setEditDateIso(d || '')} placeholder={t('appointments.datePlaceholder')} />
                 </View>
                 <View style={{ flex: 2 }}>
-                  <TimePickerField label="Hora *" value={editTimeHHMM || null} onChange={t => setEditTimeHHMM(t || '')} placeholder="HH:MM" />
+                  <TimePickerField label={t('appointments.timeRequired')} value={editTimeHHMM || null} onChange={tv => setEditTimeHHMM(tv || '')} placeholder={t('appointments.timePlaceholderShort')} />
                 </View>
               </View>
 
-              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Local</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('health.appointmentForm.locationLabel')}</Text>
               <TextInput
                 value={editLocation}
                 onChangeText={setEditLocation}
-                placeholder="Ex: Clínica São Lucas"
+                placeholder={t('appointments.locationPlaceholder')}
                 placeholderTextColor={colors.textDim}
                 style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.lg }}
               />
 
-              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>Observações</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('health.notes')}</Text>
               <TextInput
                 value={editNotes}
                 onChangeText={setEditNotes}
-                placeholder="Detalhes adicionais..."
+                placeholder={t('appointments.notesPlaceholder')}
                 placeholderTextColor={colors.textDim}
                 multiline
                 style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, minHeight: 80, textAlignVertical: 'top', marginBottom: spacing.lg }}
@@ -607,7 +608,7 @@ export default function ConsultasScreen() {
 
               <View style={{ marginTop: spacing.lg }}>
                 <PrimaryButton
-                  label="Salvar alterações"
+                  label={t('childDetail.saveChanges')}
                   onPress={handleConfirmEdit}
                   loading={editSaving}
                   testID="consultas-edit-submit"

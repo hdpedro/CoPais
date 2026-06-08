@@ -25,25 +25,28 @@ import { supabase } from 'src/lib/supabase';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
-const FEATURES = [
-  { icon: 'calendar-outline', text: 'Calendário de guarda ilimitado' },
-  { icon: 'chatbubbles-outline', text: 'Chat sem limites' },
-  { icon: 'heart-outline', text: 'Saúde completa (consultas, vacinas, alergias)' },
-  { icon: 'document-text-outline', text: 'Documentos ilimitados' },
-  { icon: 'sparkles-outline', text: 'Assistente IA (Kindar AI)' },
-  { icon: 'pie-chart-outline', text: 'Relatórios financeiros' },
-  { icon: 'people-outline', text: 'Crianças e responsáveis ilimitados' },
-];
+const FEATURE_ICONS = [
+  { icon: 'calendar-outline', key: 'pricing.featureCustody' },
+  { icon: 'chatbubbles-outline', key: 'pricing.featureChat' },
+  { icon: 'heart-outline', key: 'pricing.featureHealth' },
+  { icon: 'document-text-outline', key: 'pricing.featureDocuments' },
+  { icon: 'sparkles-outline', key: 'pricing.featureAI' },
+  { icon: 'pie-chart-outline', key: 'pricing.featureFinance' },
+  { icon: 'people-outline', key: 'pricing.featureUnlimited' },
+] as const;
 
 export default function PricingScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { userId } = useAuth();
+  const FEATURES = FEATURE_ICONS.map((f) => ({ icon: f.icon, text: t(f.key) }));
   const [sub, setSub] = useState<UserSubscription | null>(null);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
   const [loadingPkgs, setLoadingPkgs] = useState(true);
@@ -176,12 +179,12 @@ export default function PricingScreen() {
         <View style={{ alignItems: 'center', marginBottom: spacing['2xl'] }}>
           <Text style={{ fontSize: 44, marginBottom: spacing.md }}>{isPremium ? '👑' : '✨'}</Text>
           <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.text, textAlign: 'center' }}>
-            {isPremium ? 'Você é Premium' : 'Kindar Premium'}
+            {isPremium ? t('pricing.heroPremiumTitle') : t('pricing.heroTitle')}
           </Text>
           <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs, lineHeight: 22 }}>
             {isPremium
-              ? 'Aproveite todos os recursos da rede de apoio e colaboração.'
-              : 'Desbloqueie a organização completa da família.'}
+              ? t('pricing.heroPremiumSubtitle')
+              : t('pricing.heroSubtitle')}
           </Text>
         </View>
 
@@ -211,22 +214,22 @@ export default function PricingScreen() {
           }}>
             <Ionicons name="checkmark-circle" size={32} color={colors.success} />
             <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.success, marginTop: spacing.sm }}>
-              Assinatura ativa
+              {t('pricing.activeSubscription')}
             </Text>
             {sub?.currentPeriodEnd ? (
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.xs }}>
-                Renova em {new Date(sub.currentPeriodEnd).toLocaleDateString('pt-BR')}
+                {t('pricing.renewsOn', { date: intl.formatDate(sub.currentPeriodEnd) })}
               </Text>
             ) : null}
             {Platform.OS === 'ios' ? (
               <TouchableOpacity
                 onPress={() => Linking.openURL('https://apps.apple.com/account/subscriptions')}
                 accessibilityRole="link"
-                accessibilityLabel="Gerenciar assinatura nas configurações da Apple"
+                accessibilityLabel={t('pricing.manageSubA11y')}
                 style={{ marginTop: spacing.md }}
               >
                 <Text style={{ fontSize: font.sizes.sm, color: colors.brand, textDecorationLine: 'underline' }}>
-                  Gerenciar assinatura
+                  {t('pricing.manageSub')}
                 </Text>
               </TouchableOpacity>
             ) : null}
@@ -235,7 +238,7 @@ export default function PricingScreen() {
           <View style={{ paddingVertical: spacing['2xl'], alignItems: 'center' }}>
             <ActivityIndicator color={colors.brand} />
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.md }}>
-              Carregando planos...
+              {t('pricing.loadingPlans')}
             </Text>
           </View>
         ) : packages.length === 0 ? (
@@ -245,7 +248,7 @@ export default function PricingScreen() {
           }}>
             <Ionicons name="alert-circle-outline" size={28} color={colors.textMuted} />
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm, lineHeight: 20 }}>
-              Planos indisponiveis no momento. Tente novamente em alguns instantes ou assine em kindar.com.br.
+              {t('pricing.plansUnavailable', { url: WEB_URL.replace('https://', '') })}
             </Text>
           </View>
         ) : (
@@ -261,7 +264,11 @@ export default function PricingScreen() {
                   disabled={!!purchasingId}
                   activeOpacity={0.85}
                   accessibilityRole="button"
-                  accessibilityLabel={`Assinar plano ${product.title.replace(' (Kindar)', '')} por ${product.priceString} ${isAnnual ? 'por ano' : 'por mês'}`}
+                  accessibilityLabel={t('pricing.subscribePlanA11y', {
+                    plan: product.title.replace(' (Kindar)', ''),
+                    price: product.priceString,
+                    period: isAnnual ? t('pricing.perYearWord') : t('pricing.perMonthWord'),
+                  })}
                   accessibilityState={{ disabled: !!purchasingId, busy: buying }}
                   style={{
                     backgroundColor: colors.bgElevated,
@@ -280,7 +287,7 @@ export default function PricingScreen() {
                       borderRadius: radius.full,
                     }}>
                       <Text style={{ fontSize: 10, color: '#fff', fontWeight: font.weights.bold, letterSpacing: 1 }}>
-                        MELHOR VALOR
+                        {t('pricing.bestValue')}
                       </Text>
                     </View>
                   ) : null}
@@ -295,13 +302,13 @@ export default function PricingScreen() {
                       {product.priceString}
                     </Text>
                     <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted }}>
-                      / {isAnnual ? 'ano' : 'mes'}
+                      / {isAnnual ? t('pricing.perYearWord') : t('pricing.perMonthWord')}
                     </Text>
                   </View>
                   {buying ? (
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: spacing.md }}>
                       <ActivityIndicator size="small" color={colors.brand} />
-                      <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>Processando...</Text>
+                      <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>{t('pricing.processing')}</Text>
                     </View>
                   ) : null}
                 </TouchableOpacity>
@@ -317,8 +324,9 @@ export default function PricingScreen() {
             before they initiate the auto-renewable subscription purchase,
             without scrolling". Moved here on 2026-05-25 to comply.
 
-            i18n-ignore: copy financeira/legal segue Regra Canônica 14 —
-            PT-BR é a fonte autorizada, sem tradução por LLM. */}
+            NOTA: copy financeira/legal — traduções EN/ES/FR/DE geradas para
+            cobertura 100% (decisão do dono jun/2026); revisar com humano antes
+            de liberar locales != pt (Regra Canônica 14). */}
         {!isPremium && packages.length > 0 ? (
           <View
             style={{
@@ -337,8 +345,8 @@ export default function PricingScreen() {
               }}
             >
               {Platform.OS === 'ios'
-                ? 'Assinatura autorrenovável. A cobrança ocorre na sua conta Apple ID a cada período até que você cancele em Ajustes > Apple ID > Assinaturas, pelo menos 24h antes do fim do período.'
-                : 'Assinatura autorrenovável. A cobrança ocorre na sua conta Google Play a cada período até que você cancele em Play Store > Pagamentos > Assinaturas, pelo menos 24h antes do fim do período.'}
+                ? t('pricing.autoRenewDisclosureApple')
+                : t('pricing.autoRenewDisclosureGoogle')}
             </Text>
           </View>
         ) : null}
@@ -349,12 +357,12 @@ export default function PricingScreen() {
             onPress={handleRestore}
             disabled={restoring || !!purchasingId}
             accessibilityRole="button"
-            accessibilityLabel="Restaurar compras"
+            accessibilityLabel={t('pricing.restorePurchases')}
             accessibilityState={{ disabled: restoring || !!purchasingId, busy: restoring }}
             style={{ alignItems: 'center', paddingVertical: spacing.md, marginBottom: spacing.sm }}
           >
             <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>
-              {restoring ? 'Restaurando...' : 'Restaurar compras'}
+              {restoring ? t('pricing.restoring') : t('pricing.restorePurchases')}
             </Text>
           </TouchableOpacity>
         ) : null}
@@ -364,26 +372,25 @@ export default function PricingScreen() {
           borderRadius: radius.md, marginTop: spacing.md,
         }}>
           <Text style={{ fontSize: 11, color: colors.textMuted, lineHeight: 16, textAlign: 'center' }}>
-            A assinatura renova automaticamente ate voce cancelar. Cancele a qualquer momento em Ajustes &gt;
-            Apple ID &gt; Assinaturas. O pagamento sera cobrado na conta Apple ID na confirmacao da compra.
+            {t('pricing.legalFooterApple')}
           </Text>
           <View style={{ flexDirection: 'row', justifyContent: 'center', gap: spacing.md, marginTop: spacing.sm }}>
             <TouchableOpacity
               onPress={() => Linking.openURL(`${WEB_URL}/termos`)}
               accessibilityRole="link"
-              accessibilityLabel="Termos de Uso"
+              accessibilityLabel={t('pricing.termsOfUse')}
             >
               <Text style={{ fontSize: 11, color: colors.brand, textDecorationLine: 'underline' }}>
-                Termos de Uso
+                {t('pricing.termsOfUse')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => Linking.openURL(`${WEB_URL}/privacidade`)}
               accessibilityRole="link"
-              accessibilityLabel="Política de Privacidade"
+              accessibilityLabel={t('pricing.privacyPolicyFull')}
             >
               <Text style={{ fontSize: 11, color: colors.brand, textDecorationLine: 'underline' }}>
-                Privacidade
+                {t('pricing.privacyShort')}
               </Text>
             </TouchableOpacity>
           </View>

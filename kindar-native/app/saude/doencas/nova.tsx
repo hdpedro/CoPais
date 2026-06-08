@@ -34,10 +34,10 @@ import { colors, spacing, radius, font } from 'src/design-system/tokens';
  * generico e abandonava o cadastro.
  */
 type Severity = 'leve' | 'moderado' | 'grave';
-const SEVERITIES: { value: Severity; label: string; color: string; icon: string }[] = [
-  { value: 'leve', label: 'Leve', color: '#4CAF50', icon: '🟢' },
-  { value: 'moderado', label: 'Moderado', color: '#E8A228', icon: '🟡' },
-  { value: 'grave', label: 'Grave', color: '#E53935', icon: '🔴' },
+const SEVERITIES: { value: Severity; labelKey: string; color: string; icon: string }[] = [
+  { value: 'leve', labelKey: 'health.illnessForm.severity_leve', color: '#4CAF50', icon: '🟢' },
+  { value: 'moderado', labelKey: 'health.illnessForm.severity_moderado', color: '#E8A228', icon: '🟡' },
+  { value: 'grave', labelKey: 'health.illnessForm.severity_grave', color: '#E53935', icon: '🔴' },
 ];
 
 function parseDate(display: string): string | null {
@@ -97,10 +97,10 @@ export default function NovaDoencaScreen() {
 
   async function handleSave() {
     if (!activeGroup) return;
-    if (!childId) { setError('Selecione uma crianca'); return; }
-    if (!title.trim()) { setError('Informe o titulo do episodio'); return; }
+    if (!childId) { setError(t('illnessNew.errorSelectChild')); return; }
+    if (!title.trim()) { setError(t('illnessNew.errorTitleRequired')); return; }
     const iso = parseDate(startDate);
-    if (!iso) { setError('Data invalida (DD/MM/AAAA)'); return; }
+    if (!iso) { setError(t('validation.field.birthDateInvalid')); return; }
 
     setError('');
     setSaving(true);
@@ -135,11 +135,11 @@ export default function NovaDoencaScreen() {
       style={{ flex: 1, backgroundColor: colors.bg }}
     >
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Nova doença
+          {t('illnessNew.headerTitle')}
         </Text>
       </View>
 
@@ -151,7 +151,7 @@ export default function NovaDoencaScreen() {
         ) : null}
 
         {/* Child */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Criança *</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('health.illnessForm.childRequired')}</Text>
         <ChildPicker
           items={children}
           selectedId={childId}
@@ -162,13 +162,13 @@ export default function NovaDoencaScreen() {
         />
 
         {/* Title */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Título *</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('illnessNew.titleLabel')}</Text>
         <TextInput
-          accessibilityLabel={titleError ?? 'Título do episódio'}
+          accessibilityLabel={titleError ?? t('illnessNew.titleA11y')}
           value={title}
           onChangeText={(v) => { setTitle(v); if (titleError) setTitleError(null); }}
           onBlur={() => setTitleError(validateTitleField(title))}
-          placeholder="Ex: Gripe, Covid, Virose"
+          placeholder={t('illnessNew.titlePlaceholder')}
           placeholderTextColor={colors.textMuted}
           style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -185,10 +185,10 @@ export default function NovaDoencaScreen() {
         ) : null}
 
         {/* Start date */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Inicio *</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('illnessNew.startLabel')}</Text>
         <TextInput
           value={startDate} onChangeText={handleDateChange}
-          placeholder="DD/MM/AAAA"
+          placeholder={t('illnessNew.datePlaceholder')}
           placeholderTextColor={colors.textMuted}
           keyboardType="number-pad" maxLength={10}
           style={{
@@ -199,7 +199,7 @@ export default function NovaDoencaScreen() {
         />
 
         {/* Severity */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Gravidade</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('health.illnessForm.severityLabel')}</Text>
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
           {SEVERITIES.map(s => {
             const active = severity === s.value;
@@ -209,7 +209,7 @@ export default function NovaDoencaScreen() {
                 onPress={() => setSeverity(s.value)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                accessibilityLabel={`Gravidade ${s.label}`}
+                accessibilityLabel={t('healthRegister.severityA11y', { level: t(s.labelKey) })}
                 style={{
                   flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                   backgroundColor: active ? `${s.color}20` : colors.bgElevated,
@@ -219,7 +219,7 @@ export default function NovaDoencaScreen() {
               >
                 <Text style={{ fontSize: 18 }}>{s.icon}</Text>
                 <Text style={{ fontSize: font.sizes.sm, color: active ? s.color : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                  {s.label}
+                  {t(s.labelKey)}
                 </Text>
               </TouchableOpacity>
             );
@@ -227,10 +227,10 @@ export default function NovaDoencaScreen() {
         </View>
 
         {/* Symptoms */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Sintomas</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('health.illnessForm.symptoms')}</Text>
         <TextInput
           value={symptoms} onChangeText={setSymptoms}
-          placeholder="Tosse, febre, dor de garganta..."
+          placeholder={t('illnessNew.symptomsPlaceholder')}
           placeholderTextColor={colors.textMuted}
           multiline
           style={{
@@ -242,10 +242,10 @@ export default function NovaDoencaScreen() {
         />
 
         {/* Hospital */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Hospital/clínica</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('illnessNew.hospitalLabel')}</Text>
         <TextInput
           value={hospital} onChangeText={setHospital}
-          placeholder="Onde foi atendido (se aplicável)"
+          placeholder={t('illnessNew.hospitalPlaceholder')}
           placeholderTextColor={colors.textMuted}
           style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -255,10 +255,10 @@ export default function NovaDoencaScreen() {
         />
 
         {/* Notes */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Observações</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('health.illnessForm.observations')}</Text>
         <TextInput
           value={notes} onChangeText={setNotes}
-          placeholder="Diagnóstico, medicação prescrita, evolução..."
+          placeholder={t('illnessNew.notesPlaceholder')}
           placeholderTextColor={colors.textMuted}
           multiline
           style={{
@@ -270,7 +270,7 @@ export default function NovaDoencaScreen() {
         />
 
         <PrimaryButton
-          label="Registrar doença"
+          label={t('illnessNew.submit')}
           onPress={handleSave}
           loading={saving}
           disabled={!title.trim() || !childId}

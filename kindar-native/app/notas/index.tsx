@@ -19,22 +19,26 @@ import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 // Categories must match the CHECK constraint on private_notes.category
 // (migration 00019). Aligning the labels with the PWA prevents UX drift
 // between web and native.
 type NoteCategory = 'lembrete' | 'observacao' | 'preparacao' | 'juridico' | 'outro';
-const CATEGORIES: { value: NoteCategory; label: string; icon: string; color: string }[] = [
-  { value: 'lembrete', label: 'Lembrete', icon: '📝', color: '#6B7280' },
-  { value: 'observacao', label: 'Observação', icon: '👀', color: '#3B82F6' },
-  { value: 'preparacao', label: 'Preparação', icon: '📋', color: '#F59E0B' },
-  { value: 'juridico', label: 'Jurídico', icon: '⚖️', color: '#5B9E85' },
-  { value: 'outro', label: 'Outro', icon: '✏️', color: '#E53935' },
+// labelKey resolved at render via t() — CATEGORIES is module-scope so we cannot
+// translate here. The category `value` is persisted as-is (DB CHECK constraint).
+const CATEGORIES: { value: NoteCategory; labelKey: string; icon: string; color: string }[] = [
+  { value: 'lembrete', labelKey: 'notes.categories.reminder', icon: '📝', color: '#6B7280' },
+  { value: 'observacao', labelKey: 'notes.categories.observation', icon: '👀', color: '#3B82F6' },
+  { value: 'preparacao', labelKey: 'notes.categories.preparation', icon: '📋', color: '#F59E0B' },
+  { value: 'juridico', labelKey: 'notes.categories.legal', icon: '⚖️', color: '#5B9E85' },
+  { value: 'outro', labelKey: 'notes.categories.other', icon: '✏️', color: '#E53935' },
 ];
 
 export default function NotasScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [composerOpen, setComposerOpen] = useState(false);
@@ -100,12 +104,12 @@ export default function NotasScreen() {
 
   function handleDelete(note: Note) {
     Alert.alert(
-      'Remover nota',
-      `Remover "${note.title}"? Esta acao nao pode ser desfeita.`,
+      t('notes.removeNote'),
+      t('notes.removeConfirm', { title: note.title }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Remover',
+          text: t('notes.remove'),
           style: 'destructive',
           onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -142,8 +146,8 @@ export default function NotasScreen() {
               onPress={() => openEdit(item)}
               onLongPress={() => handleDelete(item)}
               accessibilityRole="button"
-              accessibilityLabel={`Editar nota: ${item.title}`}
-              accessibilityHint="Toque para editar, pressione para remover"
+              accessibilityLabel={t('notes.cardEditA11y', { title: item.title })}
+              accessibilityHint={t('notes.cardHint')}
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.lg,
                 padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
@@ -153,7 +157,7 @@ export default function NotasScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2 }}>
                 <Text style={{ fontSize: 14 }}>{cat.icon}</Text>
                 <Text style={{ fontSize: font.sizes.xs, color: cat.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>
-                  {cat.label}
+                  {t(cat.labelKey)}
                 </Text>
               </View>
               <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
@@ -165,7 +169,7 @@ export default function NotasScreen() {
                 </Text>
               ) : null}
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.xs }}>
-                {new Date(item.updated_at).toLocaleDateString('pt-BR')}
+                {intl.formatDate(item.updated_at)}
               </Text>
             </TouchableOpacity>
           );
@@ -179,13 +183,13 @@ export default function NotasScreen() {
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                {editing ? 'Editar nota' : 'Nova nota'}
+                {editing ? t('notes.editNote') : t('notes.newNote')}
               </Text>
               {editing ? (
                 <TouchableOpacity
                   onPress={() => { setComposerOpen(false); handleDelete(editing); }}
                   accessibilityRole="button"
-                  accessibilityLabel="Remover nota"
+                  accessibilityLabel={t('notes.removeNote')}
                 >
                   <Ionicons name="trash-outline" size={22} color={colors.error} />
                 </TouchableOpacity>
@@ -193,7 +197,7 @@ export default function NotasScreen() {
             </View>
             <ScrollView>
               {/* Category picker shown in both create and edit modes (PWA parity). */}
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Categoria</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('notes.category')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                 {CATEGORIES.map(c => {
                   const active = category === c.value;
@@ -203,7 +207,7 @@ export default function NotasScreen() {
                       onPress={() => setCategory(c.value)}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: active }}
-                      accessibilityLabel={c.label}
+                      accessibilityLabel={t(c.labelKey)}
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                         backgroundColor: active ? `${c.color}20` : colors.bg,
@@ -213,7 +217,7 @@ export default function NotasScreen() {
                     >
                       <Text style={{ fontSize: 14 }}>{c.icon}</Text>
                       <Text style={{ fontSize: font.sizes.sm, color: active ? c.color : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                        {c.label}
+                        {t(c.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -222,7 +226,7 @@ export default function NotasScreen() {
 
               <TextInput
                 value={title} onChangeText={setTitle}
-                placeholder="Titulo"
+                placeholder={t('notes.titlePlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 style={{
                   backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -232,7 +236,7 @@ export default function NotasScreen() {
               />
               <TextInput
                 value={content} onChangeText={setContent}
-                placeholder="Conteudo (opcional)"
+                placeholder={t('notes.contentPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 multiline
                 style={{
@@ -244,7 +248,7 @@ export default function NotasScreen() {
               />
 
               <PrimaryButton
-                label={editing ? 'Salvar' : 'Criar nota'}
+                label={editing ? t('common.save') : t('notes.createNote')}
                 onPress={handleSubmit}
                 loading={submitting}
                 disabled={!title.trim()}

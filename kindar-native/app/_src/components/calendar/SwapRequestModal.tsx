@@ -19,6 +19,7 @@ import { useToast } from '../ui/ToastProvider';
 import PrimaryButton from '../ui/PrimaryButton';
 import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface SwapRequestModalProps {
@@ -41,6 +42,7 @@ export default function SwapRequestModal({
   isVisitRequest = false,
 }: SwapRequestModalProps) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [proposedDate, setProposedDate] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -82,11 +84,11 @@ export default function SwapRequestModal({
     onClose();
   }
 
-  const formatted = new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', {
+  const formatted = intl.formatDate(selectedDate, {
     weekday: 'long', day: 'numeric', month: 'long',
   });
-  const title = isVisitRequest ? 'Pedir para visitar' : 'Pedir troca de dia';
-  const submitLabel = isVisitRequest ? 'Pedir visita' : 'Pedir troca';
+  const title = isVisitRequest ? t('swapRequest.titleVisit') : t('swapRequest.titleSwap');
+  const submitLabel = isVisitRequest ? t('swapRequest.submitVisit') : t('swapRequest.submitSwap');
 
   // Minimum proposed date = today (can't offer past days)
   const todayIso = dateToIso(new Date());
@@ -110,14 +112,14 @@ export default function SwapRequestModal({
               padding: spacing.md, marginBottom: spacing.md,
               borderWidth: 1, borderColor: colors.borderLight,
             }}>
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Dia selecionado</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>{t('swapModal.selectedDay')}</Text>
               <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, textTransform: 'capitalize' }}>
                 {formatted}
               </Text>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
                 <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: targetColor }} />
                 <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-                  Responsavel: {targetUserName}
+                  {t('swapRequest.responsibleLabel', { name: targetUserName })}
                 </Text>
               </View>
             </View>
@@ -129,26 +131,25 @@ export default function SwapRequestModal({
                 padding: spacing.md, marginBottom: spacing.md,
               }}>
                 <Text style={{ fontSize: font.sizes.sm, color: '#1d4ed8', lineHeight: 18 }}>
-                  Voce esta pedindo para visitar mesmo quando o dia e do outro responsavel.
-                  Nao e uma troca — e um favor.
+                  {t('swapRequest.visitExplanation')}
                 </Text>
               </View>
             ) : (
               <View style={{ marginBottom: spacing.md }}>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
-                  Dia que voce oferece em troca
+                  {t('swapModal.dayYouOffer')}
                 </Text>
                 <DatePickerField
                   value={proposedDate}
                   onChange={setProposedDate}
-                  placeholder="Sem troca (conta como favor)"
+                  placeholder={t('swapRequest.noSwapPlaceholder')}
                   minimumDate={new Date(todayIso + 'T12:00:00')}
                 />
                 {!proposedDate ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
                     <Ionicons name="information-circle-outline" size={14} color="#b45309" />
                     <Text style={{ fontSize: font.sizes.xs, color: '#b45309' }}>
-                      Sem dia oferecido = conta como dia devido
+                      {t('swapRequest.noSwapHint')}
                     </Text>
                   </View>
                 ) : null}
@@ -156,12 +157,12 @@ export default function SwapRequestModal({
             )}
 
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
-              Motivo {isVisitRequest ? '' : '(opcional)'}
+              {isVisitRequest ? t('swapRequest.reasonLabel') : t('swapModal.reasonOptional')}
             </Text>
             <TextInput
               value={reason}
               onChangeText={setReason}
-              placeholder={isVisitRequest ? 'Aniversario da vovo, passeio especial...' : 'Compromisso de trabalho, viagem...'}
+              placeholder={isVisitRequest ? t('swapRequest.reasonPlaceholderVisit') : t('swapRequest.reasonPlaceholderSwap')}
               placeholderTextColor={colors.textMuted}
               multiline
               maxLength={500}
@@ -176,7 +177,7 @@ export default function SwapRequestModal({
             <View style={{ flexDirection: 'row', gap: spacing.sm }}>
               <View style={{ flex: 1 }}>
                 <PrimaryButton
-                  label="Cancelar"
+                  label={t('common.cancel')}
                   onPress={close}
                   loading={submitting}
                   variant="secondary"

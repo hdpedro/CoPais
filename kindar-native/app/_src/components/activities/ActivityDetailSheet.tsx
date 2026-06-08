@@ -37,6 +37,7 @@ import { ACTIVITY_CATEGORIES } from '../../lib/constants';
 import { useToast } from '../ui/ToastProvider';
 import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 
 const CATEGORY_LABEL: Record<string, string> = {
   sports: 'Esporte',
@@ -82,15 +83,10 @@ interface Props {
   onChanged?: () => void;
 }
 
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  if (!y || !m || !d) return iso;
-  const date = new Date(y, m - 1, d, 12, 0, 0);
-  const days = ['Domingo', 'Segunda-Feira', 'Terça-Feira', 'Quarta-Feira', 'Quinta-Feira', 'Sexta-Feira', 'Sábado'];
-  const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  return `${days[date.getDay()]}, ${d} de ${months[m - 1]}`;
-}
-
+// Time is a stored wall-clock string ("HH:MM:SS") — slice to "HH:MM". This is a
+// numeric mask, not locale formatting (using Intl here would risk 12h/AM-PM in
+// en-US for a value that has no timezone/instant). Date display IS localized via
+// the `intl` helper inside the component (see `formatDate` useCallback below).
 function formatTime(t: string | null): string {
   return t ? t.slice(0, 5) : '';
 }
@@ -101,6 +97,18 @@ export default function ActivityDetailSheet({
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
+  // Localized day-of-week + day + month (e.g. "segunda-feira, 9 de junho" in
+  // pt-BR). Replaces the old hardcoded pt-BR day/month arrays so the header,
+  // share text and title-card subtitle follow the active locale.
+  const formatDate = useCallback(
+    (iso: string): string => {
+      const [y, m, d] = iso.split('-').map(Number);
+      if (!y || !m || !d) return iso;
+      return intl.formatDate(iso, { weekday: 'long', day: 'numeric', month: 'long' });
+    },
+    [intl],
+  );
   const [activity, setActivity] = useState<ActivityFull | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());
@@ -128,7 +136,7 @@ export default function ActivityDetailSheet({
               time_end: r.data.time_end,
               location: r.data.location,
               notes: r.data.notes,
-              childName: child?.full_name?.split(' ')[0] || 'Todos',
+              childName: child?.full_name?.split(' ')[0] || t('common.all'),
               responsibleName: resp?.full_name || null,
               teacherName: r.data.teacher_name,
               className: r.data.class_name,
@@ -147,7 +155,7 @@ export default function ActivityDetailSheet({
     } finally {
       setLoading(false);
     }
-  }, [activityId, occurrenceDate]);
+  }, [activityId, occurrenceDate, t]);
 
   // Carga inicial quando o sheet abre / id muda.
   useEffect(() => {
@@ -211,36 +219,39 @@ export default function ActivityDetailSheet({
     // Quando + onde + quem
     lines.push(`🗓️ ${formatDate(occurrenceDate)}`);
     if (activity.time_start) {
-      const t = `${formatTime(activity.time_start)}${activity.time_end ? ` às ${formatTime(activity.time_end)}` : ''}`;
-      lines.push(`⏰ ${t}`);
+      const timeRange = `${formatTime(activity.time_start)}${activity.time_end ? ` ${t('activityDetail.shareTimeSeparator')} ${formatTime(activity.time_end)}` : ''}`;
+      lines.push(`⏰ ${timeRange}`);
     }
     if (activity.location) lines.push(`📍 ${activity.location}`);
     if (activity.childName) lines.push(`👶 ${activity.childName}`);
 
     // Contexto adicional (sem virar lista de debug)
     const extras: string[] = [];
-    if (activity.teacherName) extras.push(`Prof. ${activity.teacherName}`);
+    if (activity.teacherName) extras.push(t('activityDetail.teacherPrefix', { name: activity.teacherName }));
     if (activity.className) extras.push(activity.className);
-    if (activity.room) extras.push(`Sala ${activity.room}`);
+    if (activity.room) extras.push(t('activityDetail.roomPrefix', { room: activity.room }));
     if (extras.length > 0) {
       lines.push('');
       lines.push(extras.join(' · '));
     }
     if (activity.responsibleName) {
       lines.push('');
-      lines.push(`Responsável: ${activity.responsibleName}`);
+      lines.push(t('activityDetail.shareResponsible', { name: activity.responsibleName }));
     }
 
     // Progresso do checklist se houver
     if (items.length > 0) {
       lines.push('');
       const done = completed.size;
-      lines.push(`✅ ${done} de ${items.length} ${items.length === 1 ? 'item preparado' : 'itens preparados'}`);
+      const itemsLabel = items.length === 1
+        ? t('activityDetail.sharePreparedOne')
+        : t('activityDetail.sharePreparedOther', { count: items.length });
+      lines.push(`✅ ${done} ${t('activityDetail.shareOf')} ${items.length} ${itemsLabel}`);
     }
 
     // CTA discreto — ajuda o destinatario a saber a fonte. Sem virar spam.
     lines.push('');
-    lines.push('— compartilhado pelo Kindar');
+    lines.push(t('activityDetail.shareFooter'));
 
     try {
       await Share.share({
@@ -278,10 +289,10 @@ export default function ActivityDetailSheet({
         // Antes era Alert.alert que exigia tap "OK" — UX jarring pra ação
         // já confirmada destrutivamente no swipe.
         const msg = scope === 'occurrence'
-          ? 'Ocorrência deste dia removida do calendário.'
+          ? t('activityDetail.deletedOccurrence')
           : scope === 'future'
-          ? 'Esta ocorrência e as próximas foram removidas.'
-          : 'Atividade removida do calendário.';
+          ? t('activityDetail.deletedFuture')
+          : t('activityDetail.deletedAll');
         toast.show({ message: msg, variant: 'success' });
         onClose();
       } else {
@@ -321,9 +332,9 @@ export default function ActivityDetailSheet({
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
-          title: `Excluir "${activity.name}"`,
-          message: 'O que você quer apagar?',
-          options: ['Apenas este dia', 'Esta e as próximas', 'Toda a série', 'Cancelar'],
+          title: t('activityDetail.deleteTitle', { name: activity.name }),
+          message: t('activityDetail.deleteQuestion'),
+          options: [t('calendar.onlyThisDay'), t('activityDetail.deleteFuture'), t('activityDetail.deleteAll'), t('common.cancel')],
           destructiveButtonIndex: [0, 1, 2],
           cancelButtonIndex: 3,
         },
@@ -340,13 +351,13 @@ export default function ActivityDetailSheet({
     // Android: Alert ja funciona bem com varios botoes (botoes horizontais
     // + overflow vertical quando muitos).
     Alert.alert(
-      `Excluir "${activity.name}"`,
-      'O que você quer apagar?',
+      t('activityDetail.deleteTitle', { name: activity.name }),
+      t('activityDetail.deleteQuestion'),
       [
-        { text: 'Apenas este dia', onPress: () => performDelete('occurrence') },
-        { text: 'Esta e as próximas', style: 'destructive', onPress: () => performDelete('future') },
-        { text: 'Toda a série', style: 'destructive', onPress: () => performDelete('all') },
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('calendar.onlyThisDay'), onPress: () => performDelete('occurrence') },
+        { text: t('activityDetail.deleteFuture'), style: 'destructive', onPress: () => performDelete('future') },
+        { text: t('activityDetail.deleteAll'), style: 'destructive', onPress: () => performDelete('all') },
+        { text: t('common.cancel'), style: 'cancel' },
       ],
       { cancelable: true },
     );
@@ -391,7 +402,7 @@ export default function ActivityDetailSheet({
             <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="chevron-back" size={28} color={colors.brand} />
               <Text style={{ fontSize: font.sizes.md, color: colors.brand, marginLeft: -2, fontWeight: font.weights.medium }}>
-                Voltar
+                {t('common.back')}
               </Text>
             </View>
           </TouchableOpacity>
@@ -434,7 +445,7 @@ export default function ActivityDetailSheet({
                       {activity.name}
                     </Text>
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                      {[CATEGORY_LABEL[activity.category] || 'Atividade', activity.childName, formatTime(activity.time_start)].filter(Boolean).join(' · ')}
+                      {[CATEGORY_LABEL[activity.category] || t('calendar.activity'), activity.childName, formatTime(activity.time_start)].filter(Boolean).join(' · ')}
                     </Text>
                   </View>
                 </View>
@@ -450,15 +461,15 @@ export default function ActivityDetailSheet({
                   {activity.responsibleName ? (
                     <DetailRow
                       icon="person-outline"
-                      label={`Responsável pela atividade: ${activity.responsibleName}`}
-                      action={{ label: 'Alterar', onPress: handleEdit }}
+                      label={t('activityDetail.responsibleLabel', { name: activity.responsibleName })}
+                      action={{ label: t('activityDetail.change'), onPress: handleEdit }}
                     />
                   ) : null}
                   {activity.childName ? (
                     <DetailRow icon="people-outline" label={activity.childName} />
                   ) : null}
                   {activity.teacherName ? (
-                    <DetailRow icon="school-outline" label={`Prof. ${activity.teacherName}`} />
+                    <DetailRow icon="school-outline" label={t('activityDetail.teacherPrefix', { name: activity.teacherName })} />
                   ) : null}
                   {activity.className || activity.room ? (
                     <DetailRow icon="business-outline" label={[activity.className, activity.room].filter(Boolean).join(' · ')} />
@@ -471,7 +482,7 @@ export default function ActivityDetailSheet({
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 8 }}>
                       <Ionicons name="checkbox-outline" size={16} color={progress === 1 ? '#16a34a' : colors.secondary} />
                       <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: progress === 1 ? '#16a34a' : colors.text }}>
-                        {completedCount}/{items.length} {items.length === 1 ? 'item no checklist' : 'itens no checklist'}
+                        {completedCount}/{items.length} {items.length === 1 ? t('activityDetail.checklistItemOne') : t('activityDetail.checklistItemOther')}
                       </Text>
                     </View>
                     <View style={{ height: 4, borderRadius: 2, backgroundColor: colors.borderLight, overflow: 'hidden', marginBottom: spacing.sm }}>
@@ -516,11 +527,11 @@ export default function ActivityDetailSheet({
 
                 {/* Action row: share / edit / delete / report */}
                 <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md, paddingTop: spacing.md, borderTopWidth: 0.5, borderTopColor: `${colors.secondary}30` }}>
-                  <ActionButton icon="share-outline" label="Compartilhar" onPress={handleShare} />
-                  <ActionButton icon="create-outline" label="Editar" onPress={handleEdit} />
-                  <ActionButton icon="trash-outline" label="Excluir" onPress={handleDelete} destructive />
+                  <ActionButton icon="share-outline" label={t('activityDetail.share')} onPress={handleShare} />
+                  <ActionButton icon="create-outline" label={t('common.edit')} onPress={handleEdit} />
+                  <ActionButton icon="trash-outline" label={t('common.delete')} onPress={handleDelete} destructive />
                   {onReport ? (
-                    <ActionButton icon="clipboard-outline" label="Relatar" onPress={handleReport} primary />
+                    <ActionButton icon="clipboard-outline" label={t('activities.report')} onPress={handleReport} primary />
                   ) : null}
                 </View>
               </View>
@@ -528,7 +539,7 @@ export default function ActivityDetailSheet({
               {activity.notes ? (
                 <View style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.md }}>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.semibold, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 4 }}>
-                    Observações
+                    {t('activities.fields.notes')}
                   </Text>
                   <Text style={{ fontSize: font.sizes.sm, color: colors.text, lineHeight: 20 }}>
                     {activity.notes}

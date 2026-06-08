@@ -186,12 +186,12 @@ export default function VaccineDetailScreen() {
   function handleDelete() {
     if (!record) return;
     Alert.alert(
-      'Excluir este registro?',
-      'Se essa vacina estava cobrindo uma pendência, ela será reaberta como disponível no calendário.',
+      t('health.vaccineDetail.deleteTitle'),
+      t('health.vaccineDetail.deleteBody'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Sim, excluir',
+          text: t('health.vaccineDetail.deleteConfirm'),
           style: 'destructive',
           onPress: async () => {
             const r = await deleteVaccinationRecordViaEngine(record.id);
@@ -226,18 +226,18 @@ export default function VaccineDetailScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
           <Text style={{ fontSize: 40, marginBottom: spacing.md }}>🤔</Text>
           <Text style={{ color: colors.text, fontWeight: font.weights.semibold, marginBottom: spacing.xs }}>
-            Registro não encontrado
+            {t('health.vaccineDetail.notFoundTitle')}
           </Text>
           <Text style={{ color: colors.textMuted, textAlign: 'center', fontSize: font.sizes.xs }}>
-            Pode ter sido excluído ou você não tem acesso.
+            {t('health.vaccineDetail.notFoundBody')}
           </Text>
           <TouchableOpacity
             onPress={() => router.back()}
             accessibilityRole="button"
-            accessibilityLabel="Voltar"
+            accessibilityLabel={t('common.back')}
             style={{ marginTop: spacing.lg, paddingHorizontal: spacing.md, paddingVertical: spacing.sm }}
           >
-            <Text style={{ color: colors.brand, fontWeight: font.weights.semibold }}>← Voltar</Text>
+            <Text style={{ color: colors.brand, fontWeight: font.weights.semibold }}>← {t('common.back')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -277,7 +277,7 @@ export default function VaccineDetailScreen() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: 11, fontWeight: font.weights.semibold, color: '#047857', textTransform: 'uppercase', letterSpacing: 1 }}>
-              Vacina aplicada
+              {t('health.vaccineDetail.heroEyebrow')}
             </Text>
             <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: '#064E3B', marginTop: 2 }}>
               {record.vaccine_name}
@@ -286,7 +286,8 @@ export default function VaccineDetailScreen() {
               <Text style={{ fontSize: font.sizes.sm, color: '#065F46', marginTop: 4 }}>{record.dose_label}</Text>
             ) : null}
             <Text style={{ fontSize: font.sizes.xs, color: '#065F46', marginTop: 6 }}>
-              Tomada em <Text style={{ fontWeight: font.weights.semibold }}>{formatBrDate(record.administered_date)}</Text>
+              {t('health.vaccineDetail.takenOnPrefix')}{' '}
+              <Text style={{ fontWeight: font.weights.semibold }}>{formatBrDate(record.administered_date)}</Text>
             </Text>
           </View>
         </View>
@@ -303,25 +304,33 @@ export default function VaccineDetailScreen() {
               marginBottom: spacing.md,
             }}
           >
-            {record.batch_number ? <DetailRow label="Lote" value={record.batch_number} /> : null}
-            {record.location ? <DetailRow label="Local" value={record.location} /> : null}
-            {record.dose_number ? <DetailRow label="Dose número" value={String(record.dose_number)} /> : null}
-            {record.catalog_name ? <DetailRow label="Catálogo" value={record.catalog_name} muted /> : null}
-            {record.notes ? <DetailRow label="Observações" value={record.notes} /> : null}
+            {record.batch_number ? <DetailRow label={t('health.batchNumber')} value={record.batch_number} /> : null}
+            {record.location ? <DetailRow label={t('health.location')} value={record.location} /> : null}
+            {record.dose_number ? (
+              <DetailRow label={t('health.vaccineDetail.doseNumberLabel')} value={String(record.dose_number)} />
+            ) : null}
+            {record.catalog_name ? (
+              <DetailRow label={t('health.vaccineDetail.catalogLabel')} value={record.catalog_name} muted />
+            ) : null}
+            {record.notes ? <DetailRow label={t('health.vaccineDetail.notesLabel')} value={record.notes} /> : null}
             <DetailRow
-              label="Registrado"
-              value={`${record.author_name ? `por ${record.author_name} ` : ''}${formatRelative(record.created_at)}`}
+              label={t('health.vaccineDetail.registeredLabel')}
+              value={`${record.author_name ? t('health.vaccineDetail.registeredByPrefix', { name: record.author_name }) + ' ' : ''}${formatRelative(record.created_at)}`}
               muted
             />
             <DetailRow
-              label="Origem"
-              value={record.source === 'ocr' ? 'Importado da carteirinha' : 'Cadastro manual'}
+              label={t('health.vaccineDetail.sourceLabel')}
+              value={
+                record.source === 'ocr'
+                  ? t('health.vaccineDetail.sourceOcr')
+                  : t('health.vaccineDetail.sourceManual')
+              }
               muted
             />
           </View>
         ) : (
           <View style={{ marginBottom: spacing.md, gap: spacing.sm }}>
-            <FieldCard label="Nome da vacina" required>
+            <FieldCard label={t('health.vaccineDetail.vaccineNameLabel')} required>
               <TextInput
                 value={editVaccineName}
                 onChangeText={setEditVaccineName}
@@ -329,29 +338,29 @@ export default function VaccineDetailScreen() {
                 autoCapitalize="words"
               />
             </FieldCard>
-            <FieldCard label="Dose">
+            <FieldCard label={t('health.doseLabel')}>
               <TextInput
                 value={editDoseLabel}
                 onChangeText={setEditDoseLabel}
-                placeholder="Ex: 1ª dose, reforço"
+                placeholder={t('health.vaccineDetail.dosePlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 style={styles.input}
               />
             </FieldCard>
-            <FieldCard label="Data" required>
+            <FieldCard label={t('health.vaccineEngine.registerFieldDate')} required>
               <DatePickerField
                 value={editAdministeredDate}
                 onChange={(d) => setEditAdministeredDate(d || '')}
                 maximumDate={new Date()}
               />
             </FieldCard>
-            <FieldCard label="Lote">
+            <FieldCard label={t('health.batchNumber')}>
               <TextInput value={editBatchNumber} onChangeText={setEditBatchNumber} style={styles.input} />
             </FieldCard>
-            <FieldCard label="Local">
+            <FieldCard label={t('health.location')}>
               <TextInput value={editLocation} onChangeText={setEditLocation} style={styles.input} />
             </FieldCard>
-            <FieldCard label="Observações">
+            <FieldCard label={t('health.vaccineDetail.notesLabel')}>
               <TextInput
                 value={editNotes}
                 onChangeText={setEditNotes}
@@ -364,7 +373,7 @@ export default function VaccineDetailScreen() {
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
               <View style={{ flex: 1 }}>
                 <PrimaryButton
-                  label="Salvar mudanças"
+                  label={t('health.vaccineDetail.saveChanges')}
                   onPress={handleSave}
                   loading={saving}
                   testID="vacinas-id-save"
@@ -373,7 +382,7 @@ export default function VaccineDetailScreen() {
               <TouchableOpacity
                 onPress={() => setEditing(false)}
                 accessibilityRole="button"
-                accessibilityLabel="Cancelar"
+                accessibilityLabel={t('common.cancel')}
                 style={{
                   flex: 1,
                   backgroundColor: colors.bgSurface,
@@ -383,7 +392,7 @@ export default function VaccineDetailScreen() {
                 }}
               >
                 <Text style={{ color: colors.textMuted, fontSize: font.sizes.md, fontWeight: font.weights.medium }}>
-                  Cancelar
+                  {t('common.cancel')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -397,7 +406,7 @@ export default function VaccineDetailScreen() {
               onPress={() => setEditing(true)}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Editar registro"
+              accessibilityLabel={t('health.vaccineDetail.editRecord')}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -410,14 +419,14 @@ export default function VaccineDetailScreen() {
             >
               <Ionicons name="create-outline" size={18} color={colors.brand} />
               <Text style={{ color: colors.brand, fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                Editar registro
+                {t('health.vaccineDetail.editRecord')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleDelete}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Excluir registro"
+              accessibilityLabel={t('health.vaccineDetail.deleteRecord')}
               style={{
                 flexDirection: 'row',
                 alignItems: 'center',
@@ -432,7 +441,7 @@ export default function VaccineDetailScreen() {
             >
               <Ionicons name="trash-outline" size={18} color="#DC2626" />
               <Text style={{ color: '#DC2626', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                Excluir registro
+                {t('health.vaccineDetail.deleteRecord')}
               </Text>
             </TouchableOpacity>
           </View>

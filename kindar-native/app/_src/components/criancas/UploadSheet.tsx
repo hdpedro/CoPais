@@ -19,6 +19,7 @@ import { colors, spacing, radius, font } from '../../design-system/tokens';
 import { uploadDocument, DOCUMENT_CATEGORIES, type UploadDocumentInput } from '../../services/documents';
 import { useToast } from '../ui/ToastProvider';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 
 interface Props {
   visible: boolean;
@@ -44,6 +45,7 @@ const ALLOWED_MIME = [
 
 export default function UploadSheet({ visible, onClose, onUploaded, groupId, childId, uploadedBy }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   // Android + Modal pageSheet: presentationStyle="pageSheet" só funciona
   // como sheet com top inset automático no iOS. No Android cai pra
@@ -85,7 +87,7 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
       mimeType: asset.mimeType ?? 'image/jpeg',
       size: asset.fileSize ?? 0,
     });
-    if (!name) setName(asset.fileName ?? `Foto ${new Date().toLocaleDateString('pt-BR')}`);
+    if (!name) setName(asset.fileName ?? `Foto ${intl.formatDate(new Date())}`);
   }
 
   async function pickFromLibrary() {
@@ -198,10 +200,10 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
           }}
         >
           <TouchableOpacity onPress={handleClose} disabled={uploading}>
-            <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary }}>Cancelar</Text>
+            <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary }}>{t('common.cancel')}</Text>
           </TouchableOpacity>
           <Text style={{ fontSize: font.sizes.md, fontWeight: '700', color: colors.text }}>
-            Novo documento
+            {t('uploadSheet.title')}
           </Text>
           <TouchableOpacity onPress={handleUpload} disabled={uploading || !file || !name.trim()}>
             <Text
@@ -211,7 +213,7 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
                 color: !file || !name.trim() ? colors.textMuted : colors.brand,
               }}
             >
-              {uploading ? 'Enviando…' : 'Enviar'}
+              {uploading ? t('onboardingForm.inviteSending') : t('common.send')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -230,12 +232,12 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
                   marginBottom: spacing.sm,
                 }}
               >
-                De onde?
+                {t('uploadSheet.sourceLabel')}
               </Text>
               <View style={{ gap: spacing.sm }}>
-                <PickerOption icon="camera-outline" label="Tirar foto" hint="Documento, carteirinha…" onPress={pickFromCamera} />
-                <PickerOption icon="image-outline" label="Da galeria" hint="JPG, PNG, HEIC" onPress={pickFromLibrary} />
-                <PickerOption icon="document-attach-outline" label="Arquivo do dispositivo" hint="PDF ou Word, até 10MB" onPress={pickFromFiles} />
+                <PickerOption icon="camera-outline" label={t('health.prescription.takePhoto')} hint={t('uploadSheet.cameraHint')} onPress={pickFromCamera} />
+                <PickerOption icon="image-outline" label={t('uploadSheet.fromGallery')} hint={t('uploadSheet.galleryHint')} onPress={pickFromLibrary} />
+                <PickerOption icon="document-attach-outline" label={t('uploadSheet.fromDevice')} hint={t('uploadSheet.deviceHint')} onPress={pickFromFiles} />
               </View>
             </View>
           ) : (
@@ -270,7 +272,7 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
                   {file.fileName}
                 </Text>
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-                  {file.size > 0 ? `${Math.round(file.size / 1024)} KB` : 'Tamanho desconhecido'}
+                  {file.size > 0 ? `${Math.round(file.size / 1024)} KB` : t('uploadSheet.unknownSize')}
                 </Text>
               </View>
               <TouchableOpacity onPress={() => setFile(null)} disabled={uploading}>
@@ -291,12 +293,12 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
                 marginBottom: spacing.sm,
               }}
             >
-              Nome do documento
+              {t('documentsPage.documentName')}
             </Text>
             <TextInput
               value={name}
               onChangeText={setName}
-              placeholder="Ex: Carteirinha do plano de saúde"
+              placeholder={t('uploadSheet.namePlaceholder')}
               placeholderTextColor={colors.textMuted}
               editable={!uploading}
               style={{
@@ -322,7 +324,7 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
                 marginBottom: spacing.sm,
               }}
             >
-              Categoria
+              {t('activities.fields.category')}
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
               {DOCUMENT_CATEGORIES.map((c) => {
@@ -362,7 +364,7 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
             <View style={{ alignItems: 'center', paddingVertical: spacing.lg }}>
               <ActivityIndicator color={colors.brand} />
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.sm }}>
-                Enviando para o Kindar…
+                {t('uploadSheet.uploadingToKindar')}
               </Text>
             </View>
           ) : null}

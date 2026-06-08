@@ -86,7 +86,7 @@ export default function EditEventScreen() {
       }
       const memList: Member[] = ((memRows || []) as { user_id: string; profiles: { full_name: string | null; display_name: string | null; email: string | null } | { full_name: string | null; display_name: string | null; email: string | null }[] | null }[]).map((m) => {
         const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
-        const raw = p?.display_name || p?.full_name || (p?.email ? p.email.split('@')[0] : 'Membro');
+        const raw = p?.display_name || p?.full_name || (p?.email ? p.email.split('@')[0] : t('nav.member'));
         // Seletor de responsável — chip compacto, firstOnly
         return { user_id: m.user_id, name: getDisplayName(raw, true) };
       });
@@ -99,7 +99,7 @@ export default function EditEventScreen() {
       setLoading(false);
     })();
     return () => { cancelled = true; };
-  }, [eventId, activeGroup]);
+  }, [eventId, activeGroup, t]);
 
   async function handleSave() {
     if (!title.trim()) {
@@ -153,66 +153,66 @@ export default function EditEventScreen() {
         borderBottomWidth: 0.5,
         borderBottomColor: colors.borderLight,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="chevron-back" size={28} color={colors.brand} />
             <Text style={{ fontSize: font.sizes.md, color: colors.brand, marginLeft: -2, fontWeight: font.weights.medium }}>
-              Voltar
+              {t('common.back')}
             </Text>
           </View>
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
-          Editar evento
+          {t('events.editTitle')}
         </Text>
         <TouchableOpacity
           onPress={handleSave}
           disabled={saving || !title.trim()}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Salvar"
+          accessibilityLabel={t('common.save')}
           accessibilityState={{ disabled: saving || !title.trim(), busy: saving }}
         >
           <Text style={{
             fontSize: font.sizes.md, fontWeight: font.weights.bold,
             color: (saving || !title.trim()) ? colors.textMuted : colors.brand,
           }}>
-            {saving ? '...' : 'Salvar'}
+            {saving ? '...' : t('common.save')}
           </Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 80, paddingTop: spacing.md }}>
-        <Label>Título</Label>
+        <Label>{t('inviteParser.fieldTitle')}</Label>
         <TextInput
           value={title}
           onChangeText={setTitle}
-          placeholder="Ex: Reunião escolar"
+          placeholder={t('eventsEdit.titlePlaceholder')}
           placeholderTextColor={colors.textDim}
           style={inputStyle}
         />
 
-        <Label>Data</Label>
+        <Label>{t('events.fieldDate')}</Label>
         <DatePickerField value={eventDate} onChange={(v: string) => setEventDate(v)} />
 
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, marginBottom: spacing.lg }}>
           <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
-            Dia inteiro
+            {t('calendar.allDay')}
           </Text>
           <Switch value={allDay} onValueChange={setAllDay} trackColor={{ true: colors.brand, false: colors.border }} />
         </View>
 
         {!allDay ? (
           <>
-            <Label>Horário</Label>
+            <Label>{t('newForm.time')}</Label>
             <TimePickerField value={eventTime} onChange={setEventTime} placeholder="--:--" />
           </>
         ) : null}
 
-        <Label>Local</Label>
+        <Label>{t('newForm.location')}</Label>
         <TextInput
           value={location}
           onChangeText={setLocation}
-          placeholder="Ex: Colégio CVS"
+          placeholder={t('eventsEdit.locationPlaceholder')}
           placeholderTextColor={colors.textDim}
           style={inputStyle}
         />
@@ -220,9 +220,9 @@ export default function EditEventScreen() {
         {/* Crianca */}
         {children.length > 0 ? (
           <>
-            <Label>Criança</Label>
+            <Label>{t('newForm.child')}</Label>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
-              <Chip label="Nenhuma" active={childId === null} onPress={() => { Haptics.selectionAsync(); setChildId(null); }} />
+              <Chip label={t('eventsEdit.childNone')} active={childId === null} onPress={() => { Haptics.selectionAsync(); setChildId(null); }} />
               {children.map((c) => (
                 <Chip
                   key={c.id}
@@ -236,9 +236,9 @@ export default function EditEventScreen() {
         ) : null}
 
         {/* Responsavel */}
-        <Label>Responsável</Label>
+        <Label>{t('calendar.responsible')}</Label>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
-          <Chip label="Não definido" active={assignedTo === null} onPress={() => { Haptics.selectionAsync(); setAssignedTo(null); }} />
+          <Chip label={t('eventsEdit.assignedToNone')} active={assignedTo === null} onPress={() => { Haptics.selectionAsync(); setAssignedTo(null); }} />
           {members.map((m) => (
             <Chip
               key={m.user_id}
@@ -249,11 +249,11 @@ export default function EditEventScreen() {
           ))}
         </View>
 
-        <Label>Descrição</Label>
+        <Label>{t('newForm.description')}</Label>
         <TextInput
           value={description}
           onChangeText={setDescription}
-          placeholder="Detalhes adicionais..."
+          placeholder={t('eventsEdit.descriptionPlaceholder')}
           placeholderTextColor={colors.textDim}
           multiline
           style={[inputStyle, { minHeight: 80, textAlignVertical: 'top' }]}

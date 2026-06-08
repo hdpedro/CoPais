@@ -22,6 +22,7 @@ import {
   calculatePercentile,
   type GrowthDataPoint,
 } from 'src/lib/who-growth-data';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 type GrowthRecord = {
@@ -109,6 +110,7 @@ export default function GrowthChart({
   childName,
   childSex,
 }: Props) {
+  const t = useI18n((s) => s.t);
   const [metric, setMetric] = useState<Metric>('weight');
   const [sex, setSex] = useState<Sex>(childSex || 'M');
 
@@ -281,7 +283,7 @@ export default function GrowthChart({
             color: colors.text,
           }}
         >
-          Curva de Crescimento OMS
+          {t('growthChart.title')}
         </Text>
         {badgeStyle && view.currentPercentile !== null ? (
           <View
@@ -316,16 +318,16 @@ export default function GrowthChart({
       >
         <Segmented
           options={[
-            { value: 'weight', label: 'Peso' },
-            { value: 'height', label: 'Altura' },
+            { value: 'weight', label: t('health.weight') },
+            { value: 'height', label: t('health.height') },
           ]}
           selected={metric}
           onSelect={(v) => setMetric(v as Metric)}
         />
         <Segmented
           options={[
-            { value: 'M', label: 'Menino' },
-            { value: 'F', label: 'Menina' },
+            { value: 'M', label: t('children.boy') },
+            { value: 'F', label: t('children.girl') },
           ]}
           selected={sex}
           onSelect={(v) => setSex(v as Sex)}
@@ -486,7 +488,7 @@ export default function GrowthChart({
             fill="#6b7280"
             fontSize={9}
           >
-            Idade (meses)
+            {t('growthChart.axisAge')}
           </SvgText>
           <SvgText
             x={8}
@@ -496,7 +498,7 @@ export default function GrowthChart({
             fontSize={9}
             transform={`rotate(-90, 8, ${PAD_T + PLOT_H / 2})`}
           >
-            {metric === 'weight' ? 'Peso (kg)' : 'Altura (cm)'}
+            {metric === 'weight' ? t('health.weightKg') : t('health.heightCm')}
           </SvgText>
         </Svg>
       </ScrollView>
@@ -512,11 +514,11 @@ export default function GrowthChart({
       >
         <LegendItem
           swatch={<View style={{ width: 12, height: 8, borderRadius: 2, backgroundColor: '#D1FAE5' }} />}
-          label="Normal (P15-P85)"
+          label={t('growthChart.legendNormal')}
         />
         <LegendItem
           swatch={<View style={{ width: 12, height: 8, borderRadius: 2, backgroundColor: '#FEF3C7' }} />}
-          label="Atenção (P3-P15 / P85-P97)"
+          label={t('growthChart.legendAttention')}
         />
         <LegendItem
           swatch={<View style={{ width: 12, height: 2, borderRadius: 1, backgroundColor: childColor }} />}
@@ -533,8 +535,9 @@ export default function GrowthChart({
             marginTop: spacing.sm,
           }}
         >
-          Registre medidas de {metric === 'weight' ? 'peso' : 'altura'} para
-          ver os dados de {firstName} no gráfico.
+          {metric === 'weight'
+            ? t('growthChart.emptyWeight', { name: firstName })
+            : t('growthChart.emptyHeight', { name: firstName })}
         </Text>
       ) : null}
     </View>

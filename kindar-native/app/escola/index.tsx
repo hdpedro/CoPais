@@ -35,6 +35,7 @@ import { TimePickerField, DatePickerField } from 'src/components/ui/DateTimeFiel
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 
 interface ChildSchool {
@@ -59,22 +60,13 @@ const TYPE_ICONS = SUBTYPE_ICON;
 
 // Priority metadata — mirror of PWA EscolaClient PRIORITY_META.
 // rank drives the "unread first, then urgent first" sort below.
-const PRIORITY_META: Record<SchoolPriority, { label: string; chipBg: string; chipText: string; rank: number }> = {
-  info:      { label: 'Info',       chipBg: 'rgba(107,114,128,0.15)', chipText: '#4B5563',  rank: 0 },
-  important: { label: 'Importante', chipBg: 'rgba(245,158,11,0.18)',  chipText: '#B45309',  rank: 1 },
-  urgent:    { label: 'Urgente',    chipBg: 'rgba(239,68,68,0.18)',   chipText: '#B91C1C',  rank: 2 },
+// O label de exibição NÃO mora aqui: é resolvido no render via
+// t('collab.priority{Info|Important|Urgent}') pra reagir à troca de idioma.
+const PRIORITY_META: Record<SchoolPriority, { chipBg: string; chipText: string; rank: number }> = {
+  info:      { chipBg: 'rgba(107,114,128,0.15)', chipText: '#4B5563',  rank: 0 },
+  important: { chipBg: 'rgba(245,158,11,0.18)',  chipText: '#B45309',  rank: 1 },
+  urgent:    { chipBg: 'rgba(239,68,68,0.18)',   chipText: '#B91C1C',  rank: 2 },
 };
-
-function formatReadAt(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
-  if (diffMin < 1) return 'agora';
-  if (diffMin < 60) return `há ${diffMin}min`;
-  const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-}
 
 type ComposerStage =
   | { stage: 'closed' }
@@ -87,12 +79,6 @@ function displayTime(t: string | null): string {
   return t.slice(0, 5);
 }
 
-function formatLogDate(iso: string): string {
-  // log_date is YYYY-MM-DD — append T12:00 to avoid timezone walk
-  const d = new Date(`${iso}T12:00:00`);
-  return d.toLocaleDateString('pt-BR');
-}
-
 function todayIso(): string {
   // Data LOCAL — toISOString() retornaria UTC, que vira o dia seguinte
   // depois das 21h no Brasil (UTC-3) e o log fica com a data errada.
@@ -103,8 +89,24 @@ function todayIso(): string {
 export default function EscolaScreen() {
   const { activeGroup, userId } = useAuth();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const groupId = activeGroup?.groupId ?? null;
+
+  // log_date é YYYY-MM-DD; intl.formatDate normaliza pra meio-dia local.
+  const formatLogDate = (iso: string): string => intl.formatDate(iso);
+
+  // Read-receipt: "agora" / "há N min" (reusa health.*) → mesmo dia mostra
+  // a hora, dias anteriores mostram data curta. Tudo locale-aware via intl.
+  const formatReadAt = (iso: string): string => {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
+    if (diffMin < 1) return t('health.now');
+    if (diffMin < 60) return t('health.minutesAgo', { count: diffMin });
+    const sameDay = d.toDateString() === now.toDateString();
+    return sameDay ? intl.formatTime(d) : intl.formatDateShort(d);
+  };
 
   // Deep link from calendar: tap on event with school_log_id sets ?highlight=<id>
   // → land directly on Registros tab.
@@ -310,7 +312,7 @@ export default function EscolaScreen() {
     // letras). Bug dias.m.augusto 2026-06-06: o form aceitava "(/))/((((NN((/)".
     if (schoolPhone.trim() && schoolPhone.replace(/\D/g, '').length < 8) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show({ message: 'Telefone inválido — informe um número válido ou deixe em branco.', variant: 'error' });
+      toast.show({ message: t('school.phoneInvalid'), variant: 'error' });
       return;
     }
     const entryIso = entryTime ? `${entryTime}:00` : null;
@@ -468,12 +470,12 @@ export default function EscolaScreen() {
 
   async function handleDeleteLog(log: SchoolLog) {
     Alert.alert(
-      'Excluir registro',
-      `"${log.title}" sera removido permanentemente.`,
+      t('school.deleteLogTitle'),
+      t('school.deleteLogMessage', { title: log.title }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             const res = await deleteSchoolLog(log.id);
@@ -505,16 +507,18 @@ export default function EscolaScreen() {
       <ScreenHeader title={t('schoolPage.headerTitle')} />
 
       <View style={{ flexDirection: 'row', paddingHorizontal: spacing.lg, paddingTop: spacing.md, gap: spacing.sm }}>
-        <TabPill label="Informacoes" active={tab === 'info'} onPress={() => setTab('info')} />
+        <TabPill label={t('school.tabInfo')} active={tab === 'info'} onPress={() => setTab('info')} />
         {/* Registros tab shows total count and (em parênteses) the unread
             count when there are new ones — so user sees at a glance "8 (3 novos)". */}
         <TabPill
           label={(() => {
             const total = logs.length;
             const unread = logs.filter(isUnread).length;
-            if (total === 0) return 'Registros';
-            if (unread > 0) return `Registros (${total}) · ${unread} novo${unread > 1 ? 's' : ''}`;
-            return `Registros (${total})`;
+            if (total === 0) return t('health.records');
+            if (unread > 0) return unread === 1
+              ? t('school.tabLogsCountUnreadOne', { total })
+              : t('school.tabLogsCountUnread', { total, unread });
+            return t('school.tabLogsCount', { total });
           })()}
           active={tab === 'logs'}
           onPress={() => setTab('logs')}
@@ -534,24 +538,24 @@ export default function EscolaScreen() {
                 activeOpacity={0.8}
                 onPress={() => openEditor(s)}
                 accessibilityRole="button"
-                accessibilityLabel={`Editar informações escolares de ${s.childName}`}
+                accessibilityLabel={t('school.editInfoA11y', { name: s.childName })}
                 style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.md, ...shadows.sm }}
               >
                 <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
                   <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>{s.childName}</Text>
                   <Ionicons name="create-outline" size={18} color={colors.brand} />
                 </View>
-                {e?.school_name ? <Row icon="🏫" label="Escola" value={e.school_name} /> :
-                  <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, fontStyle: 'italic' }}>Toque para cadastrar a escola</Text>}
-                {e?.grade ? <Row icon="📚" label="Serie" value={e.grade} /> : null}
-                {e?.class_name ? <Row icon="🎒" label="Turma" value={e.class_name} /> : null}
-                {e?.teacher_name ? <Row icon="👩‍🏫" label="Professor" value={e.teacher_name} /> : null}
-                {e?.coordinator_name ? <Row icon="🗂️" label="Coordenador" value={e.coordinator_name} /> : null}
-                {e?.entry_time ? <Row icon="🕐" label="Horario" value={`${displayTime(e.entry_time)} - ${displayTime(e.exit_time)}`} /> : null}
-                {e?.school_address ? <Row icon="📍" label="Endereco" value={e.school_address} /> : null}
-                {e?.school_phone ? <Row icon="📞" label="Telefone" value={e.school_phone} /> : null}
+                {e?.school_name ? <Row icon="🏫" label={t('nav.school')} value={e.school_name} /> :
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, fontStyle: 'italic' }}>{t('school.tapToRegister')}</Text>}
+                {e?.grade ? <Row icon="📚" label={t('school.rowGrade')} value={e.grade} /> : null}
+                {e?.class_name ? <Row icon="🎒" label={t('children.className')} value={e.class_name} /> : null}
+                {e?.teacher_name ? <Row icon="👩‍🏫" label={t('school.rowTeacher')} value={e.teacher_name} /> : null}
+                {e?.coordinator_name ? <Row icon="🗂️" label={t('school.rowCoordinator')} value={e.coordinator_name} /> : null}
+                {e?.entry_time ? <Row icon="🕐" label={t('school.rowSchedule')} value={`${displayTime(e.entry_time)} - ${displayTime(e.exit_time)}`} /> : null}
+                {e?.school_address ? <Row icon="📍" label={t('health.address')} value={e.school_address} /> : null}
+                {e?.school_phone ? <Row icon="📞" label={t('health.phone')} value={e.school_phone} /> : null}
                 {e?.extracurricular_activities && e.extracurricular_activities.length > 0 ? (
-                  <Row icon="⚽" label="Extras" value={e.extracurricular_activities.join(', ')} />
+                  <Row icon="⚽" label={t('school.rowExtras')} value={e.extracurricular_activities.join(', ')} />
                 ) : null}
               </TouchableOpacity>
             );
@@ -564,9 +568,9 @@ export default function EscolaScreen() {
             {/* Filter chips */}
             {logs.length > 0 ? (
               <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.md }}>
-                <Chip label="Tudo" active={filterKind === 'all'} onPress={() => setFilterKind('all')} />
-                <Chip label="📅 Eventos" active={filterKind === 'event'} onPress={() => setFilterKind('event')} />
-                <Chip label="📝 Registros" active={filterKind === 'note'} onPress={() => setFilterKind('note')} />
+                <Chip label={t('school.filterAll')} active={filterKind === 'all'} onPress={() => setFilterKind('all')} />
+                <Chip label={t('school.filterEvents')} active={filterKind === 'event'} onPress={() => setFilterKind('event')} />
+                <Chip label={t('school.filterNotes')} active={filterKind === 'note'} onPress={() => setFilterKind('note')} />
               </View>
             ) : null}
 
@@ -617,7 +621,7 @@ export default function EscolaScreen() {
                     activeOpacity={0.85}
                     onPress={() => handleOpenCard(log)}
                     accessibilityRole="button"
-                    accessibilityLabel={`${log.title}. ${TYPE_LABELS[log.log_type]}${log.child_full_name ? ` de ${log.child_full_name}` : ''}${unread ? '. Novo' : ''}`}
+                    accessibilityLabel={`${log.title}. ${TYPE_LABELS[log.log_type]}${log.child_full_name ? t('school.cardA11yOfChild', { child: log.child_full_name }) : ''}${unread ? `. ${t('collab.new')}` : ''}`}
                     accessibilityState={{ expanded, selected: unread }}
                     style={{
                       backgroundColor: unread ? 'rgba(192,112,85,0.06)' : colors.bgElevated,
@@ -644,7 +648,7 @@ export default function EscolaScreen() {
                           onPress={(e) => { e.stopPropagation(); handleToggleCompleted(log); }}
                           accessibilityRole="checkbox"
                           accessibilityState={{ checked: log.completed }}
-                          accessibilityLabel={log.completed ? `Desmarcar ${log.title}` : `Marcar ${log.title} como concluído`}
+                          accessibilityLabel={log.completed ? t('school.uncheckA11y', { title: log.title }) : t('school.checkA11y', { title: log.title })}
                           hitSlop={8}
                           style={{ marginTop: 2 }}
                         >
@@ -703,7 +707,7 @@ export default function EscolaScreen() {
                         </Text>
                         {log.score ? (
                           <Text style={{ fontSize: font.sizes.sm, color: colors.brand, fontWeight: font.weights.semibold, marginTop: 4 }}>
-                            Nota: {log.score}
+                            {t('school.scoreLabel', { score: log.score })}
                           </Text>
                         ) : null}
                         {log.description ? (
@@ -716,7 +720,7 @@ export default function EscolaScreen() {
                         ) : null}
                         {log.logged_by_name ? (
                           <Text style={{ fontSize: font.sizes.xs, color: colors.textDim, marginTop: 4 }}>
-                            Por {log.logged_by_name}
+                            {t('schoolPage.by')} {log.logged_by_name}
                           </Text>
                         ) : null}
 
@@ -741,21 +745,21 @@ export default function EscolaScreen() {
                             <TouchableOpacity
                               onPress={(e) => { e.stopPropagation(); openEditLog(log); }}
                               accessibilityRole="button"
-                              accessibilityLabel={`Editar ${log.title}`}
+                              accessibilityLabel={t('school.editLogA11y', { title: log.title })}
                               hitSlop={8}
                             >
                               <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
-                                Editar
+                                {t('common.edit')}
                               </Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                               onPress={(e) => { e.stopPropagation(); handleDeleteLog(log); }}
                               accessibilityRole="button"
-                              accessibilityLabel={`Excluir ${log.title}`}
+                              accessibilityLabel={t('school.deleteLogA11y', { title: log.title })}
                               hitSlop={8}
                             >
                               <Text style={{ fontSize: font.sizes.xs, color: colors.error, fontWeight: font.weights.medium }}>
-                                Excluir
+                                {t('common.delete')}
                               </Text>
                             </TouchableOpacity>
                           </View>
@@ -772,7 +776,7 @@ export default function EscolaScreen() {
             onPress={openCreateLog}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Novo registro"
+            accessibilityLabel={t('school.newLog')}
             style={{
               position: 'absolute',
               bottom: spacing['3xl'],
@@ -789,7 +793,7 @@ export default function EscolaScreen() {
           >
             <Ionicons name="add" size={18} color="#fff" />
             <Text style={{ color: '#fff', fontWeight: font.weights.semibold, fontSize: font.sizes.md }}>
-              Novo registro
+              {t('school.newLog')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -801,45 +805,45 @@ export default function EscolaScreen() {
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
-              Escola de {editing?.childName}
+              {t('school.editTitle', { name: editing?.childName ?? '' })}
             </Text>
             <ScrollView>
-              <Label>Nome da escola</Label>
-              <Input value={schoolName} onChangeText={setSchoolName} placeholder="Ex: Colegio Sao Paulo" />
+              <Label>{t('children.schoolName')}</Label>
+              <Input value={schoolName} onChangeText={setSchoolName} placeholder={t('children.schoolNamePlaceholder')} />
 
-              <Label>Serie / Ano</Label>
-              <Input value={grade} onChangeText={setGrade} placeholder="Ex: 3º ano fundamental" />
+              <Label>{t('children.grade')}</Label>
+              <Input value={grade} onChangeText={setGrade} placeholder={t('children.gradePlaceholder')} />
 
-              <Label>Turma</Label>
-              <Input value={className} onChangeText={setClassName} placeholder="Ex: 3A" />
+              <Label>{t('children.className')}</Label>
+              <Input value={className} onChangeText={setClassName} placeholder={t('children.classNamePlaceholder')} />
 
-              <Label>Professor(a)</Label>
-              <Input value={teacherName} onChangeText={setTeacherName} placeholder="Ex: Maria" />
+              <Label>{t('children.teacherName')}</Label>
+              <Input value={teacherName} onChangeText={setTeacherName} placeholder={t('children.teacherNamePlaceholder')} />
 
-              <Label>Coordenador(a)</Label>
-              <Input value={coordinatorName} onChangeText={setCoordinatorName} placeholder="Ex: Joao" />
+              <Label>{t('children.coordinatorName')}</Label>
+              <Input value={coordinatorName} onChangeText={setCoordinatorName} placeholder={t('children.coordinatorNamePlaceholder')} />
 
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                 <View style={{ flex: 1 }}>
-                  <TimePickerField label="Entrada" value={entryTime || null} onChange={setEntryTime} placeholder="07:30" />
+                  <TimePickerField label={t('school.entryShort')} value={entryTime || null} onChange={setEntryTime} placeholder="07:30" />
                 </View>
                 <View style={{ flex: 1 }}>
-                  <TimePickerField label="Saida" value={exitTime || null} onChange={setExitTime} placeholder="12:00" />
+                  <TimePickerField label={t('school.exitShort')} value={exitTime || null} onChange={setExitTime} placeholder="12:00" />
                 </View>
               </View>
 
-              <Label>Endereco</Label>
-              <Input value={schoolAddress} onChangeText={setSchoolAddress} placeholder="Rua, numero, bairro" />
+              <Label>{t('health.address')}</Label>
+              <Input value={schoolAddress} onChangeText={setSchoolAddress} placeholder={t('children.schoolAddressPlaceholder')} />
 
-              <Label>Telefone</Label>
+              <Label>{t('health.phone')}</Label>
               <Input value={schoolPhone} onChangeText={(text) => setSchoolPhone(text.replace(/[^\d\s()+\-]/g, ''))} placeholder="(11) 99999-9999" keyboardType="phone-pad" maxLength={20} />
 
-              <Label>Atividades extras (separe por virgula)</Label>
-              <Input value={extracurriculars} onChangeText={setExtracurriculars} placeholder="Natacao, ingles, balet" />
+              <Label>{t('school.extrasLabel')}</Label>
+              <Input value={extracurriculars} onChangeText={setExtracurriculars} placeholder={t('children.extracurricularPlaceholder')} />
 
               <View style={{ marginTop: spacing.md }}>
                 <PrimaryButton
-                  label="Salvar"
+                  label={t('common.save')}
                   onPress={handleSave}
                   loading={saving}
                   testID="escola-save-info"
@@ -864,13 +868,13 @@ export default function EscolaScreen() {
             {composer.stage === 'pick-kind' ? (
               <>
                 <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.lg }}>
-                  O que você quer registrar?
+                  {t('schoolPage.client.composerWhatRegister')}
                 </Text>
                 <KindCard
                   emoji="📅"
-                  title="Evento"
-                  description="Algo que acontece em uma data"
-                  example="Ex: prova, reunião, tarefa, evento"
+                  title={t('newForm.catEvent')}
+                  description={t('school.kindEventDesc')}
+                  example={t('school.kindEventExample')}
                   accentBg={`${colors.secondary}10`}
                   accentBorder={`${colors.secondary}40`}
                   onPress={() => setComposer({ stage: 'pick-subtype', kind: 'event' })}
@@ -878,9 +882,9 @@ export default function EscolaScreen() {
                 <View style={{ height: spacing.sm }} />
                 <KindCard
                   emoji="📝"
-                  title="Registro"
-                  description="Uma informação sobre a escola"
-                  example="Ex: nota, comportamento, conquista"
+                  title={t('school.kindNote')}
+                  description={t('school.kindNoteDesc')}
+                  example={t('school.kindNoteExample')}
                   accentBg={`${colors.brand}10`}
                   accentBorder={`${colors.brand}40`}
                   onPress={() => setComposer({ stage: 'pick-subtype', kind: 'note' })}
@@ -895,12 +899,12 @@ export default function EscolaScreen() {
                     onPress={() => setComposer({ stage: 'pick-kind' })}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel="Voltar"
+                    accessibilityLabel={t('common.back')}
                   >
-                    <Text style={{ fontSize: font.sizes.sm, color: colors.secondary, fontWeight: font.weights.medium }}>‹ Voltar</Text>
+                    <Text style={{ fontSize: font.sizes.sm, color: colors.secondary, fontWeight: font.weights.medium }}>{`‹ ${t('common.back')}`}</Text>
                   </TouchableOpacity>
                   <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                    {composer.kind === 'event' ? '📅 Evento' : '📝 Registro'}
+                    {composer.kind === 'event' ? t('school.headerEvent') : t('school.headerNote')}
                   </Text>
                   <View style={{ width: 60 }} />
                 </View>
@@ -917,7 +921,7 @@ export default function EscolaScreen() {
                   {composer.kind === 'event' ? (
                     <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.secondary}08`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.secondary}30` }}>
                       <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
-                        📅 Eventos vão automaticamente para o calendário da família.
+                        {t('schoolPage.client.composerEventsAutoCalendar')}
                       </Text>
                     </View>
                   ) : null}
@@ -932,9 +936,9 @@ export default function EscolaScreen() {
                     onPress={() => setComposer({ stage: 'pick-subtype', kind: getKind(composer.subtype) })}
                     hitSlop={8}
                     accessibilityRole="button"
-                    accessibilityLabel="Voltar"
+                    accessibilityLabel={t('common.back')}
                   >
-                    <Text style={{ fontSize: font.sizes.sm, color: colors.secondary, fontWeight: font.weights.medium }}>‹ Voltar</Text>
+                    <Text style={{ fontSize: font.sizes.sm, color: colors.secondary, fontWeight: font.weights.medium }}>{`‹ ${t('common.back')}`}</Text>
                   </TouchableOpacity>
                   <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
                     {SUBTYPE_ICON[composer.subtype]} {SUBTYPE_LABEL[composer.subtype]}
@@ -942,7 +946,7 @@ export default function EscolaScreen() {
                   <View style={{ width: 60 }} />
                 </View>
 
-                <Label>Criança</Label>
+                <Label>{t('schoolPage.client.childLabel')}</Label>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
                   {childOptions.map((c) => (
                     <Chip key={c.id} label={c.short_name} active={logChildId === c.id} onPress={() => setLogChildId(c.id)} />
@@ -951,40 +955,40 @@ export default function EscolaScreen() {
 
                 {composer.subtype === 'exam' ? (
                   <>
-                    <Label>Matéria</Label>
-                    <Input value={logSubject} onChangeText={setLogSubject} placeholder="Ex: Matemática" />
+                    <Label>{t('schoolPage.client.subjectLabel')}</Label>
+                    <Input value={logSubject} onChangeText={setLogSubject} placeholder={t('schoolPage.client.subjectPlaceholder')} />
                   </>
                 ) : null}
 
-                <Label>{composer.subtype === 'exam' ? 'Conteúdo / Tópico' : 'Título'}</Label>
+                <Label>{composer.subtype === 'exam' ? t('school.contentLabel') : t('school.titleLabel')}</Label>
                 <Input
                   value={logTitle}
                   onChangeText={setLogTitle}
-                  placeholder={composer.subtype === 'exam' ? 'Ex: Trigonometria + funções' : `Ex: ${SUBTYPE_LABEL[composer.subtype]}`}
+                  placeholder={composer.subtype === 'exam' ? t('school.contentPlaceholder') : t('school.titlePlaceholderDynamic', { label: SUBTYPE_LABEL[composer.subtype] })}
                 />
 
-                <Label>Data</Label>
+                <Label>{t('newForm.date')}</Label>
                 <DatePickerField value={logDate} onChange={(d) => setLogDate(d || todayIso())} />
 
                 {getKind(composer.subtype) === 'event' ? (
                   <>
-                    <Label>Horário (opcional)</Label>
-                    <TimePickerField value={logEventTime || null} onChange={(t) => setLogEventTime(t || '')} />
+                    <Label>{t('schoolPage.client.timeOptional')}</Label>
+                    <TimePickerField value={logEventTime || null} onChange={(tv) => setLogEventTime(tv || '')} />
                   </>
                 ) : null}
 
                 {composer.subtype === 'exam' ? (
                   <>
-                    <Label>Nota (opcional — preencha após a prova)</Label>
-                    <Input value={logScore} onChangeText={setLogScore} placeholder='Ex: "8,5" ou "B+"' />
+                    <Label>{t('schoolPage.client.gradeOptional')}</Label>
+                    <Input value={logScore} onChangeText={setLogScore} placeholder={t('school.scorePlaceholder')} />
                   </>
                 ) : null}
 
-                <Label>Observação (opcional)</Label>
+                <Label>{t('schoolPage.client.noteOptional')}</Label>
                 <Input
                   value={logDescription}
                   onChangeText={setLogDescription}
-                  placeholder="Detalhes adicionais"
+                  placeholder={t('newForm.additionalDetails')}
                   multiline
                 />
 
@@ -1006,14 +1010,14 @@ export default function EscolaScreen() {
                 {getKind(composer.subtype) === 'event' ? (
                   <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.secondary}08`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.secondary}30` }}>
                     <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
-                      📅 Este item será adicionado ao calendário automaticamente.
+                      {t('schoolPage.client.eventAutoCalendar')}
                     </Text>
                   </View>
                 ) : null}
 
                 <View style={{ marginTop: spacing.lg }}>
                   <PrimaryButton
-                    label="Registrar"
+                    label={t('schoolPage.register')}
                     onPress={handleSaveNewLog}
                     loading={savingLog}
                     testID="escola-save-new-log"
@@ -1032,10 +1036,10 @@ export default function EscolaScreen() {
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '92%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
-              {SUBTYPE_ICON[logSubtype]} Editar {SUBTYPE_LABEL[logSubtype].toLowerCase()}
+              {SUBTYPE_ICON[logSubtype]} {t('school.editLogTitle', { label: SUBTYPE_LABEL[logSubtype].toLowerCase() })}
             </Text>
             <ScrollView keyboardShouldPersistTaps="handled">
-              <Label>Tipo</Label>
+              <Label>{t('schoolPage.client.typeLabel')}</Label>
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.xs, paddingVertical: 2 }}>
                 {[...EVENT_SUBTYPES, ...NOTE_SUBTYPES].map((s) => (
                   <Chip
@@ -1047,7 +1051,7 @@ export default function EscolaScreen() {
                 ))}
               </ScrollView>
 
-              <Label>Criança</Label>
+              <Label>{t('schoolPage.client.childLabel')}</Label>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs, marginBottom: spacing.sm }}>
                 {childOptions.map((c) => (
                   <Chip key={c.id} label={c.short_name} active={logChildId === c.id} onPress={() => setLogChildId(c.id)} />
@@ -1056,37 +1060,37 @@ export default function EscolaScreen() {
 
               {logSubtype === 'exam' ? (
                 <>
-                  <Label>Matéria</Label>
-                  <Input value={logSubject} onChangeText={setLogSubject} placeholder="Ex: Matemática" />
+                  <Label>{t('schoolPage.client.subjectLabel')}</Label>
+                  <Input value={logSubject} onChangeText={setLogSubject} placeholder={t('schoolPage.client.subjectPlaceholder')} />
                 </>
               ) : null}
 
-              <Label>{logSubtype === 'exam' ? 'Conteúdo / Tópico' : 'Título'}</Label>
+              <Label>{logSubtype === 'exam' ? t('school.contentLabel') : t('school.titleLabel')}</Label>
               <Input
                 value={logTitle}
                 onChangeText={setLogTitle}
-                placeholder={logSubtype === 'exam' ? 'Ex: Trigonometria + funções' : `Ex: ${SUBTYPE_LABEL[logSubtype]}`}
+                placeholder={logSubtype === 'exam' ? t('school.contentPlaceholder') : t('school.titlePlaceholderDynamic', { label: SUBTYPE_LABEL[logSubtype] })}
               />
 
-              <Label>Data</Label>
+              <Label>{t('newForm.date')}</Label>
               <DatePickerField value={logDate} onChange={(d) => setLogDate(d || todayIso())} />
 
               {getKind(logSubtype) === 'event' ? (
                 <>
-                  <Label>Horário (opcional)</Label>
-                  <TimePickerField value={logEventTime || null} onChange={(t) => setLogEventTime(t || '')} />
+                  <Label>{t('schoolPage.client.timeOptional')}</Label>
+                  <TimePickerField value={logEventTime || null} onChange={(tv) => setLogEventTime(tv || '')} />
                 </>
               ) : null}
 
               {logSubtype === 'exam' ? (
                 <>
-                  <Label>Nota (opcional)</Label>
-                  <Input value={logScore} onChangeText={setLogScore} placeholder='Ex: "8,5" ou "B+"' />
+                  <Label>{t('school.scoreOptionalShort')}</Label>
+                  <Input value={logScore} onChangeText={setLogScore} placeholder={t('school.scorePlaceholder')} />
                 </>
               ) : null}
 
-              <Label>Observação (opcional)</Label>
-              <Input value={logDescription} onChangeText={setLogDescription} placeholder="Detalhes adicionais" multiline />
+              <Label>{t('schoolPage.client.noteOptional')}</Label>
+              <Input value={logDescription} onChangeText={setLogDescription} placeholder={t('newForm.additionalDetails')} multiline />
 
               <Label>{t('collab.priorityLabel')}</Label>
               <View style={{ flexDirection: 'row', gap: spacing.xs, marginBottom: spacing.sm }}>
@@ -1103,22 +1107,22 @@ export default function EscolaScreen() {
               {getKind(logSubtype) === 'event' ? (
                 <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.secondary}08`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.secondary}30` }}>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
-                    📅 Aparece no calendário em {(() => {
-                      try { return new Date(`${logDate}T12:00:00`).toLocaleDateString('pt-BR'); } catch { return logDate; }
-                    })()}.
+                    {t('school.appearsInCalendarOn', { date: (() => {
+                      try { return intl.formatDate(logDate); } catch { return logDate; }
+                    })() })}
                   </Text>
                 </View>
               ) : editingLog && getKind(editingLog.log_type) === 'event' ? (
                 <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.warning}10`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.warning}40` }}>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.warning, fontWeight: font.weights.medium }}>
-                    ⚠️ Vai ser removido do calendário (virou um registro).
+                    {t('schoolPage.client.editRemovedFromCalendar')}
                   </Text>
                 </View>
               ) : null}
 
               <View style={{ marginTop: spacing.lg }}>
                 <PrimaryButton
-                  label="Salvar"
+                  label={t('common.save')}
                   onPress={handleSaveEditLog}
                   loading={savingLog}
                   testID="escola-save-edit-log"

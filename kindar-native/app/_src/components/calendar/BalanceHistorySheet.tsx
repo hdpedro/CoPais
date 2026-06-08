@@ -5,7 +5,7 @@
  * Mirrors PWA /calendario/BalanceHistorySheet.
  */
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator,
 } from 'react-native';
@@ -18,6 +18,7 @@ import {
 import { useToast } from '../ui/ToastProvider';
 import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface Props {
@@ -29,21 +30,23 @@ interface Props {
   onChanged?: () => void;
 }
 
-const STATUS_META: Record<string, { label: string; bg: string; text: string }> = {
-  pending: { label: 'Pendente', bg: 'rgba(232,162,40,0.15)', text: '#b45309' },
-  approved: { label: 'Aprovada', bg: 'rgba(34,197,94,0.12)', text: '#15803d' },
-  rejected: { label: 'Recusada', bg: 'rgba(239,68,68,0.1)', text: '#b91c1c' },
-  cancelled: { label: 'Cancelada', bg: 'rgba(107,114,128,0.1)', text: colors.textMuted },
+const STATUS_META: Record<string, { labelKey: string; bg: string; text: string }> = {
+  pending: { labelKey: 'balanceHistory.statusPending', bg: 'rgba(232,162,40,0.15)', text: '#b45309' },
+  approved: { labelKey: 'balanceHistory.statusApproved', bg: 'rgba(34,197,94,0.12)', text: '#15803d' },
+  rejected: { labelKey: 'balanceHistory.statusRejected', bg: 'rgba(239,68,68,0.1)', text: '#b91c1c' },
+  cancelled: { labelKey: 'balanceHistory.statusCancelled', bg: 'rgba(107,114,128,0.1)', text: colors.textMuted },
 };
-
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
 
 export default function BalanceHistorySheet({ visible, onClose, operations, currentUserId, groupId, onChanged }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
+  // Data + hora locale-aware (dia, mês curto, hora:minuto). Reativo no idioma.
+  const formatDateTime = useCallback(
+    (iso: string): string =>
+      intl.formatDate(iso, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    [intl],
+  );
   const [responding, setResponding] = useState<string | null>(null);
   const sorted = [...operations].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -73,7 +76,7 @@ export default function BalanceHistorySheet({ visible, onClose, operations, curr
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.md }}>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-              Histórico de operações
+              {t('balanceHistory.title')}
             </Text>
             <TouchableOpacity onPress={onClose} hitSlop={8}>
               <Ionicons name="close" size={22} color={colors.textMuted} />
@@ -84,7 +87,7 @@ export default function BalanceHistorySheet({ visible, onClose, operations, curr
             <View style={{ alignItems: 'center', paddingVertical: spacing['3xl'] }}>
               <Text style={{ fontSize: 40, marginBottom: spacing.md }}>📋</Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted }}>
-                Nenhuma operacao registrada ainda.
+                {t('balanceHistory.empty')}
               </Text>
             </View>
           ) : (
@@ -110,13 +113,13 @@ export default function BalanceHistorySheet({ visible, onClose, operations, curr
                           </Text>
                           <View style={{ backgroundColor: status.bg, paddingHorizontal: 6, paddingVertical: 1, borderRadius: radius.full }}>
                             <Text style={{ fontSize: 10, color: status.text, fontWeight: font.weights.semibold }}>
-                              {status.label}
+                              {t(status.labelKey)}
                             </Text>
                           </View>
                         </View>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
                           {op.proposerName} → {op.targetName}
-                          {op.days > 1 ? ` · ${op.days} dias` : ''}
+                          {op.days > 1 ? ` · ${t('balanceHistory.daysCount', { count: op.days })}` : ''}
                         </Text>
                         {op.notes ? (
                           <Text style={{ fontSize: font.sizes.xs, color: colors.text, fontStyle: 'italic', marginTop: 4, backgroundColor: colors.bg, padding: 6, borderRadius: radius.sm }}>
@@ -124,8 +127,8 @@ export default function BalanceHistorySheet({ visible, onClose, operations, curr
                           </Text>
                         ) : null}
                         <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 4 }}>
-                          Proposto em {formatDateTime(op.created_at)}
-                          {op.responded_at ? ` · Respondido em ${formatDateTime(op.responded_at)}` : ''}
+                          {t('balanceHistory.proposedAt', { date: formatDateTime(op.created_at) })}
+                          {op.responded_at ? ` · ${t('balanceHistory.respondedAt', { date: formatDateTime(op.responded_at) })}` : ''}
                         </Text>
 
                         {canRespond ? (
@@ -139,7 +142,7 @@ export default function BalanceHistorySheet({ visible, onClose, operations, curr
                                 opacity: responding === op.id ? 0.5 : 1,
                               }}
                             >
-                              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, fontWeight: font.weights.medium }}>Recusar</Text>
+                              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, fontWeight: font.weights.medium }}>{t('balanceHistory.reject')}</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
                               disabled={responding === op.id}
@@ -152,7 +155,7 @@ export default function BalanceHistorySheet({ visible, onClose, operations, curr
                             >
                               {responding === op.id
                                 ? <ActivityIndicator size="small" color="#fff" />
-                                : <Text style={{ fontSize: font.sizes.xs, color: '#fff', fontWeight: font.weights.semibold }}>Aprovar</Text>}
+                                : <Text style={{ fontSize: font.sizes.xs, color: '#fff', fontWeight: font.weights.semibold }}>{t('balanceHistory.approve')}</Text>}
                             </TouchableOpacity>
                           </View>
                         ) : null}

@@ -9,7 +9,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useCalendar, type CalendarEvent } from 'src/hooks/useCalendar';
 import { useAuth } from 'src/store/auth';
-import { DAY_NAMES, MONTH_NAMES } from 'src/lib/constants';
 import { getHolidayMap } from 'src/lib/brazilian-holidays';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { respondToSwap, cancelMySwap } from 'src/services/swaps';
@@ -21,15 +20,10 @@ import { syncEventsToDeviceCalendar } from 'src/services/calendar-sync';
 import { useToast } from 'src/components/ui/ToastProvider';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 
 function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-const MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-function formatSwapDate(iso: string): string {
-  const [, m, d] = iso.split('-').map(Number);
-  return `${d}/${MONTHS_SHORT[(m || 1) - 1]}`;
 }
 
 function getDaysInMonth(y: number, m: number): number { return new Date(y, m + 1, 0).getDate(); }
@@ -40,6 +34,7 @@ export default function CalendarScreen() {
   const { events, custodyEvents, members, pendingSwaps, mySentSwaps, balanceOps, pendingEventRequests, refresh } = useCalendar();
   const { activeGroup, userId } = useAuth();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   // FIX 2026-05-17: Push de aniversário (birthdays cron) envia `?day=<YYYY-MM-DD>`
@@ -112,12 +107,12 @@ export default function CalendarScreen() {
   const handleCancelMySwap = useCallback((swapId: string, originalDate: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      'Cancelar pedido?',
-      `Você vai retirar a solicitação de troca para ${formatSwapDate(originalDate)}. O outro responsável será avisado.`,
+      t('calendarTab.cancelSwapTitle'),
+      t('calendarTab.cancelSwapBody', { date: intl.formatDateShort(originalDate) }),
       [
-        { text: 'Manter pedido', style: 'cancel' },
+        { text: t('calendarTab.keepSwap'), style: 'cancel' },
         {
-          text: 'Cancelar pedido',
+          text: t('calendarTab.cancelSwapConfirm'),
           style: 'destructive',
           onPress: async () => {
             setResponding(swapId);
@@ -134,7 +129,7 @@ export default function CalendarScreen() {
         },
       ],
     );
-  }, [refresh, t, toast]);
+  }, [refresh, t, toast, intl]);
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -182,10 +177,10 @@ export default function CalendarScreen() {
     const tmwPerson = members.find(m => m.userId === tmwCustody.responsibleId);
     return {
       childName: tmwCustody.title,
-      nextPerson: tmwPerson?.name || 'o outro responsável',
+      nextPerson: tmwPerson?.name || t('calendarTab.otherResponsible'),
       isWithMeTomorrow: tmwCustody.responsibleId === userId,
     };
-  }, [eventMap, todayKey, tomorrowKey, members, userId, activeGroup?.custodyEnabled]);
+  }, [eventMap, todayKey, tomorrowKey, members, userId, activeGroup?.custodyEnabled, t]);
 
   const daysInMonth = getDaysInMonth(viewYear, viewMonth);
   const firstDay = getFirstDayOfWeek(viewYear, viewMonth);
@@ -234,7 +229,7 @@ export default function CalendarScreen() {
           paddingHorizontal: spacing.lg, marginBottom: spacing.lg,
         }}>
           <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.text }}>
-            Calendário
+            {t('calendar.title')}
           </Text>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             {!activeGroup?.isReadonly ? (
@@ -242,7 +237,7 @@ export default function CalendarScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/escala'); }}
                 hitSlop={6}
                 accessibilityRole="button"
-                accessibilityLabel="Configurar escala de guarda"
+                accessibilityLabel={t('calendarTab.setupSchedule')}
                 style={{
                   width: 40, height: 40, borderRadius: 12,
                   backgroundColor: colors.bgElevated, ...shadows.sm,
@@ -258,7 +253,7 @@ export default function CalendarScreen() {
                 hitSlop={6}
                 testID="calendar-fab-ferias"
                 accessibilityRole="button"
-                accessibilityLabel="Adicionar período de férias"
+                accessibilityLabel={t('calendarTab.addVacationA11y')}
                 style={{
                   width: 40, height: 40, borderRadius: 12,
                   backgroundColor: colors.bgElevated, ...shadows.sm,
@@ -273,7 +268,7 @@ export default function CalendarScreen() {
               hitSlop={6}
               testID="calendar-fab-novo"
               accessibilityRole="button"
-              accessibilityLabel="Novo evento"
+              accessibilityLabel={t('calendar.addEvent')}
               style={{
                 width: 40, height: 40, borderRadius: 12,
                 backgroundColor: colors.brand, ...shadows.sm,
@@ -296,7 +291,10 @@ export default function CalendarScreen() {
             }}>
               <Ionicons name="sync-outline" size={20} color="#b45309" />
               <Text style={{ flex: 1, fontSize: font.sizes.sm, color: '#b45309', fontWeight: font.weights.medium }}>
-                Amanhã: troca de guarda — {tomorrowSwapInfo.childName} estará com {tomorrowSwapInfo.isWithMeTomorrow ? 'você' : tomorrowSwapInfo.nextPerson}
+                {t('calendar.custodyChangeTomorrow', {
+                  childNames: tomorrowSwapInfo.childName,
+                  parentName: tomorrowSwapInfo.isWithMeTomorrow ? t('home.you') : tomorrowSwapInfo.nextPerson,
+                })}
               </Text>
             </View>
           </Animated.View>
@@ -314,7 +312,9 @@ export default function CalendarScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
                 <Text style={{ fontSize: 18 }}>🔄</Text>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
-                  {pendingSwaps.length === 1 ? '1 troca pendente' : `${pendingSwaps.length} trocas pendentes`}
+                  {pendingSwaps.length === 1
+                    ? t('calendarTab.pendingSwapsOne')
+                    : t('calendarTab.pendingSwaps', { count: pendingSwaps.length })}
                 </Text>
               </View>
               {pendingSwaps.map((s, i) => (
@@ -326,8 +326,8 @@ export default function CalendarScreen() {
                   }}
                 >
                   <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
-                    {s.requesterName} quer trocar {formatSwapDate(s.originalDate)}
-                    {s.proposedDate ? ` por ${formatSwapDate(s.proposedDate)}` : ''}
+                    {t('calendarTab.wantsToSwap', { name: s.requesterName, date: intl.formatDateShort(s.originalDate) })}
+                    {s.proposedDate ? t('calendarTab.swapForDate', { date: intl.formatDateShort(s.proposedDate) }) : ''}
                   </Text>
                   {s.reason ? (
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2, fontStyle: 'italic' }}>
@@ -339,7 +339,7 @@ export default function CalendarScreen() {
                       disabled={responding === s.id}
                       onPress={() => handleSwapDecision(s.id, 'rejected', s.requesterId, s.originalDate)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Rejeitar troca de ${s.requesterName}`}
+                      accessibilityLabel={t('calendarTab.rejectSwapFrom', { name: s.requesterName })}
                       style={{
                         flex: 1, paddingVertical: 8, borderRadius: radius.md,
                         borderWidth: 1, borderColor: colors.borderLight,
@@ -347,14 +347,14 @@ export default function CalendarScreen() {
                       }}
                     >
                       <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-                        Rejeitar
+                        {t('calendarTab.reject')}
                       </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                       disabled={responding === s.id}
                       onPress={() => handleSwapDecision(s.id, 'approved', s.requesterId, s.originalDate)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Aprovar troca de ${s.requesterName}`}
+                      accessibilityLabel={t('calendarTab.approveSwapFrom', { name: s.requesterName })}
                       style={{
                         flex: 1, paddingVertical: 8, borderRadius: radius.md,
                         backgroundColor: colors.brand,
@@ -362,7 +362,7 @@ export default function CalendarScreen() {
                       }}
                     >
                       <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                        Aprovar
+                        {t('calendarTab.approve')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -384,19 +384,21 @@ export default function CalendarScreen() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
                 <Text style={{ fontSize: 18 }}>📤</Text>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
-                  {mySentSwaps.length === 1 ? '1 pedido aguardando resposta' : `${mySentSwaps.length} pedidos aguardando resposta`}
+                  {mySentSwaps.length === 1
+                    ? t('calendarTab.sentRequestsOne')
+                    : t('calendarTab.sentRequests', { count: mySentSwaps.length })}
                 </Text>
               </View>
               {mySentSwaps.map((s, i) => {
                 const targetMember = members.find(m => m.userId === s.targetUserId);
-                const targetName = targetMember?.name || 'Co-responsável';
+                const targetName = targetMember?.name || t('calendarTab.coResponsible');
                 const isVisit = s.type === 'visit' || (!s.proposedDate && s.reason?.toLowerCase().includes('visit'));
                 const isDebt = !s.proposedDate && !isVisit;
                 const summary = isVisit
-                  ? `Pediu visita em ${formatSwapDate(s.originalDate)}`
+                  ? t('calendarTab.summaryVisit', { date: intl.formatDateShort(s.originalDate) })
                   : isDebt
-                    ? `Pediu o dia ${formatSwapDate(s.originalDate)} (ficará devendo)`
-                    : `Quer trocar ${formatSwapDate(s.originalDate)}${s.proposedDate ? ` por ${formatSwapDate(s.proposedDate)}` : ''}`;
+                    ? t('calendarTab.summaryDebt', { date: intl.formatDateShort(s.originalDate) })
+                    : `${t('calendarTab.summarySwap', { date: intl.formatDateShort(s.originalDate) })}${s.proposedDate ? t('calendarTab.swapForDate', { date: intl.formatDateShort(s.proposedDate) }) : ''}`;
                 return (
                   <View
                     key={s.id}
@@ -409,7 +411,7 @@ export default function CalendarScreen() {
                       {summary}
                     </Text>
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                      Aguardando {targetName}
+                      {t('calendarTab.waitingFor', { name: targetName })}
                     </Text>
                     {s.reason ? (
                       <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2, fontStyle: 'italic' }}>
@@ -420,7 +422,7 @@ export default function CalendarScreen() {
                       disabled={responding === s.id}
                       onPress={() => handleCancelMySwap(s.id, s.originalDate)}
                       accessibilityRole="button"
-                      accessibilityLabel={`Cancelar pedido de troca em ${formatSwapDate(s.originalDate)}`}
+                      accessibilityLabel={t('calendarTab.cancelSwapRequestA11y', { date: intl.formatDateShort(s.originalDate) })}
                       style={{
                         marginTop: spacing.sm,
                         paddingVertical: 8, borderRadius: radius.md,
@@ -430,7 +432,7 @@ export default function CalendarScreen() {
                       }}
                     >
                       <Text style={{ color: colors.error, fontSize: font.sizes.xs, fontWeight: font.weights.medium }}>
-                        Cancelar pedido
+                        {t('calendarTab.cancelSwapConfirm')}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -453,16 +455,16 @@ export default function CalendarScreen() {
                 <Text style={{ fontSize: 18 }}>📝</Text>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
                   {pendingEventRequests.length === 1
-                    ? '1 solicitação aguardando você'
-                    : `${pendingEventRequests.length} solicitações aguardando você`}
+                    ? t('calendarTab.pendingRequestsOne')
+                    : t('calendarTab.pendingRequests', { count: pendingEventRequests.length })}
                 </Text>
               </View>
               {pendingEventRequests.map((r, i) => {
                 const actionLabel: Record<string, string> = {
-                  edit: 'editar',
-                  cancel: 'cancelar',
-                  reschedule: 'reagendar',
-                  delete: 'excluir',
+                  edit: t('calendarTab.actionEdit'),
+                  cancel: t('calendarTab.actionCancel'),
+                  reschedule: t('calendarTab.actionReschedule'),
+                  delete: t('calendarTab.actionDelete'),
                 };
                 const actionIcon: Record<string, string> = {
                   edit: '✏️', cancel: '❌', reschedule: '📅', delete: '🗑️',
@@ -478,9 +480,12 @@ export default function CalendarScreen() {
                     <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 6 }}>
                       <Text style={{ fontSize: 14 }}>{actionIcon[r.action_type] || '•'}</Text>
                       <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
-                        {r.requesterName || 'Coparente'} quer {actionLabel[r.action_type] || 'alterar'}{' '}
+                        {t('calendarTab.requestLinePrefix', {
+                          name: r.requesterName || t('calendar.vacations.coparentFallback'),
+                          action: actionLabel[r.action_type] || t('calendarTab.actionDefault'),
+                        })}{' '}
                         <Text style={{ fontWeight: font.weights.semibold }}>
-                          &ldquo;{r.eventTitle || 'evento'}&rdquo;
+                          &ldquo;{r.eventTitle || t('calendarTab.eventFallback')}&rdquo;
                         </Text>
                       </Text>
                     </View>
@@ -495,7 +500,7 @@ export default function CalendarScreen() {
                         onPress={() => handleEventRequestDecision(r, 'rejected')}
                         testID={`event-req-reject-${r.id}`}
                         accessibilityRole="button"
-                        accessibilityLabel={`Rejeitar solicitação de ${r.requesterName || 'coparente'}`}
+                        accessibilityLabel={t('calendarTab.rejectRequestFrom', { name: r.requesterName || t('calendarTab.coparentLower') })}
                         style={{
                           flex: 1, paddingVertical: 8, borderRadius: radius.md,
                           borderWidth: 1, borderColor: colors.borderLight,
@@ -503,7 +508,7 @@ export default function CalendarScreen() {
                         }}
                       >
                         <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-                          Rejeitar
+                          {t('calendarTab.reject')}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -511,7 +516,7 @@ export default function CalendarScreen() {
                         onPress={() => handleEventRequestDecision(r, 'approved')}
                         testID={`event-req-approve-${r.id}`}
                         accessibilityRole="button"
-                        accessibilityLabel={`Aprovar solicitação de ${r.requesterName || 'coparente'}`}
+                        accessibilityLabel={t('calendarTab.approveRequestFrom', { name: r.requesterName || t('calendarTab.coparentLower') })}
                         style={{
                           flex: 1, paddingVertical: 8, borderRadius: radius.md,
                           backgroundColor: colors.brand,
@@ -519,7 +524,7 @@ export default function CalendarScreen() {
                         }}
                       >
                         <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                          Aprovar
+                          {t('calendarTab.approve')}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -541,7 +546,7 @@ export default function CalendarScreen() {
               onPress={goPrev}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="Mês anterior"
+              accessibilityLabel={t('calendar.previousMonth')}
               style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
             >
               <Ionicons name="chevron-back" size={22} color={colors.text} />
@@ -549,32 +554,37 @@ export default function CalendarScreen() {
             <TouchableOpacity
               onPress={goToday}
               accessibilityRole="button"
-              accessibilityLabel={`${MONTH_NAMES[viewMonth]} de ${viewYear}. Tocar para voltar ao mês atual.`}
+              accessibilityLabel={t('calendarTab.monthTitleA11y', { month: intl.formatDate(new Date(viewYear, viewMonth, 1), { month: 'long' }), year: viewYear })}
             >
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                {MONTH_NAMES[viewMonth]} {viewYear}
+                {intl.formatMonthYear(new Date(viewYear, viewMonth, 1))}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={goNext}
               hitSlop={12}
               accessibilityRole="button"
-              accessibilityLabel="Próximo mês"
+              accessibilityLabel={t('calendar.nextMonth')}
               style={{ width: 32, height: 32, alignItems: 'center', justifyContent: 'center' }}
             >
               <Ionicons name="chevron-forward" size={22} color={colors.text} />
             </TouchableOpacity>
           </View>
 
-          {/* Day headers */}
+          {/* Day headers — short weekday names generated over a reference week
+              (Sun..Sat), locale-aware. Grid começa no domingo (index 0). */}
           <View style={{ flexDirection: 'row', marginBottom: 4 }}>
-            {DAY_NAMES.map(d => (
-              <View key={d} style={{ flex: 1, alignItems: 'center' }}>
-                <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: colors.textMuted, letterSpacing: 0.5 }}>
-                  {d}
-                </Text>
-              </View>
-            ))}
+            {Array.from({ length: 7 }).map((_, i) => {
+              // 2024-01-07 é um domingo; +i percorre Dom..Sáb.
+              const ref = new Date(2024, 0, 7 + i);
+              return (
+                <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: colors.textMuted, letterSpacing: 0.5 }}>
+                    {intl.formatWeekdayShort(ref)}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
 
           {/* Calendar grid — Apple style with event pills */}
@@ -599,13 +609,13 @@ export default function CalendarScreen() {
 
               const custodyResponsible = custody && members.find(m => m.userId === custody.responsibleId);
               const custodyHint = custody
-                ? `, guarda com ${custody.responsibleId === userId ? 'você' : (custodyResponsible?.name || 'coparente')}`
+                ? t('calendarTab.hintCustody', { name: custody.responsibleId === userId ? t('home.you') : (custodyResponsible?.name || t('calendarTab.coparentLower')) })
                 : '';
               const eventsHint = pills.length > 0
-                ? `, ${pills.length} ${pills.length === 1 ? 'evento' : 'eventos'}`
+                ? (pills.length === 1 ? t('calendarTab.hintEventsOne', { count: pills.length }) : t('calendarTab.hintEvents', { count: pills.length }))
                 : '';
-              const holidayHint = holiday ? `, feriado: ${holiday}` : '';
-              const todayHint = isToday ? ', hoje' : '';
+              const holidayHint = holiday ? t('calendarTab.hintHoliday', { name: holiday }) : '';
+              const todayHint = isToday ? t('calendarTab.hintToday') : '';
               return (
                 <TouchableOpacity
                   key={day}
@@ -616,7 +626,7 @@ export default function CalendarScreen() {
                   }}
                   testID={`calendar-day-${dateKey}`}
                   accessibilityRole="button"
-                  accessibilityLabel={`Dia ${day} de ${MONTH_NAMES[viewMonth]}${todayHint}${custodyHint}${eventsHint}${holidayHint}`}
+                  accessibilityLabel={`${t('calendarTab.dayCellA11y', { day, month: intl.formatDate(new Date(viewYear, viewMonth, 1), { month: 'long' }) })}${todayHint}${custodyHint}${eventsHint}${holidayHint}`}
                   style={{
                     width: '14.2857%', height: 72, padding: 2,
                   }}
@@ -699,17 +709,17 @@ export default function CalendarScreen() {
               <View key={m.userId} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: m.color }} />
                 <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                  {m.name}{m.userId === userId ? ' (você)' : ''}
+                  {m.name}{m.userId === userId ? ` ${t('calendar.you')}` : ''}
                 </Text>
               </View>
             ))}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#a855f7' }} />
-              <Text style={{ fontSize: 11, color: colors.textSecondary }}>Feriado</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary }}>{t('calendar.holiday')}</Text>
             </View>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent }} />
-              <Text style={{ fontSize: 11, color: colors.textSecondary }}>Atividade</Text>
+              <Text style={{ fontSize: 11, color: colors.textSecondary }}>{t('calendar.activity')}</Text>
             </View>
           </View>
         </View>
@@ -723,7 +733,7 @@ export default function CalendarScreen() {
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/calendario/escala'); }}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel={activeGroup?.custodyEnabled ? 'Editar escala de guarda' : 'Configurar escala de guarda'}
+            accessibilityLabel={activeGroup?.custodyEnabled ? t('calendarTab.editSchedule') : t('calendarTab.setupSchedule')}
             style={{
               marginHorizontal: spacing.lg, marginBottom: spacing.lg,
               backgroundColor: colors.brand, borderRadius: radius.xl,
@@ -735,12 +745,12 @@ export default function CalendarScreen() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: 15, fontWeight: font.weights.bold, color: '#fff' }}>
-                {activeGroup?.custodyEnabled ? 'Editar escala de guarda' : 'Configurar escala de guarda'}
+                {activeGroup?.custodyEnabled ? t('calendarTab.editSchedule') : t('calendarTab.setupSchedule')}
               </Text>
               <Text style={{ fontSize: 11, color: 'rgba(255,255,255,0.75)' }}>
                 {activeGroup?.custodyEnabled
-                  ? 'Ajustar padrão 14 dias e regerar eventos'
-                  : 'Definir quem fica com as crianças em cada dia'}
+                  ? t('calendarTab.editScheduleDesc')
+                  : t('calendarTab.setupScheduleDesc')}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
@@ -767,18 +777,18 @@ export default function CalendarScreen() {
         {/* Sync with native calendar */}
         <TouchableOpacity
           accessibilityRole="button"
-          accessibilityLabel="Sincronizar com calendário do celular"
+          accessibilityLabel={t('calendarTab.syncA11y')}
           accessibilityState={{ disabled: syncing }}
           onPress={async () => {
             if (syncing) return;
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             Alert.alert(
-              'Sincronizar com Celular',
-              `Vamos exportar os próximos eventos (guarda, atividades, eventos) para o calendário "Kindar" no seu celular. Eventos anteriormente sincronizados serão substituídos.`,
+              t('calendar.syncButton'),
+              t('calendarTab.syncAlertBody'),
               [
-                { text: 'Cancelar', style: 'cancel' },
+                { text: t('common.cancel'), style: 'cancel' },
                 {
-                  text: 'Sincronizar',
+                  text: t('calendarTab.syncConfirm'),
                   onPress: async () => {
                     setSyncing(true);
                     const memberNames: Record<string, string> = {};
@@ -812,7 +822,7 @@ export default function CalendarScreen() {
             <Ionicons name="calendar-outline" size={18} color={colors.brand} />
           )}
           <Text style={{ fontSize: font.sizes.sm, color: colors.brand, fontWeight: font.weights.semibold }}>
-            {syncing ? 'Sincronizando...' : 'Sincronizar com Celular'}
+            {syncing ? t('calendarTab.syncing') : t('calendar.syncButton')}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -831,14 +841,15 @@ export default function CalendarScreen() {
               {selectedDay ? (() => {
                 const [y, m, d] = selectedDay.split('-').map(Number);
                 const date = new Date(y, m - 1, d);
-                // Estilo Apple Calendar: "Qua, 6 de mai" (compacto, escaneavel).
-                const dayName = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'][date.getDay()];
-                return `${dayName}, ${d} de ${MONTH_NAMES[m - 1]?.toLowerCase().slice(0, 3) || ''}`;
+                // Estilo Apple Calendar: compacto e escaneável, locale-aware.
+                return intl.formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' });
               })() : ''}
             </Text>
             {selectedEvents.length > 0 ? (
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.medium }}>
-                {selectedEvents.length} {selectedEvents.length === 1 ? 'item' : 'itens'}
+                {selectedEvents.length === 1
+                  ? t('calendarTab.itemsOne', { count: selectedEvents.length })
+                  : t('calendarTab.items', { count: selectedEvents.length })}
               </Text>
             ) : null}
           </View>
@@ -847,7 +858,7 @@ export default function CalendarScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm }}>
               <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: '#a855f7' }} />
               <Text style={{ fontSize: font.sizes.xs, color: '#a855f7', fontWeight: font.weights.medium }}>
-                Feriado: {holidays[selectedDay]}
+                {t('calendarTab.holidayLabel', { name: holidays[selectedDay] })}
               </Text>
             </View>
           ) : null}
@@ -861,7 +872,7 @@ export default function CalendarScreen() {
                 color: colors.textMuted, fontSize: font.sizes.sm,
                 marginBottom: spacing.md,
               }}>
-                Nada agendado por aqui. O que você quer registrar?
+                {t('calendarTab.emptyDayPrompt')}
               </Text>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                 <TouchableOpacity
@@ -873,7 +884,7 @@ export default function CalendarScreen() {
                   }}
                   activeOpacity={0.85}
                   accessibilityRole="button"
-                  accessibilityLabel="Novo evento"
+                  accessibilityLabel={t('calendar.addEvent')}
                   style={{
                     flex: 1.4, backgroundColor: colors.brand, borderRadius: radius.md,
                     paddingVertical: spacing.md, flexDirection: 'row',
@@ -882,7 +893,7 @@ export default function CalendarScreen() {
                 >
                   <Ionicons name="add" size={16} color="#fff" />
                   <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.bold }}>
-                    Evento
+                    {t('calendarTab.event')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -893,7 +904,7 @@ export default function CalendarScreen() {
                   }}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Registrar consulta"
+                  accessibilityLabel={t('calendarTab.registerAppointmentA11y')}
                   style={{
                     flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
                     paddingVertical: spacing.md, flexDirection: 'row',
@@ -902,7 +913,7 @@ export default function CalendarScreen() {
                 >
                   <Ionicons name="medkit-outline" size={14} color={colors.text} />
                   <Text style={{ color: colors.text, fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>
-                    Consulta
+                    {t('calendarTab.appointment')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
@@ -913,7 +924,7 @@ export default function CalendarScreen() {
                   }}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Nova atividade recorrente"
+                  accessibilityLabel={t('calendarTab.newRecurringActivityA11y')}
                   style={{
                     flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
                     paddingVertical: spacing.md, flexDirection: 'row',
@@ -922,7 +933,7 @@ export default function CalendarScreen() {
                 >
                   <Ionicons name="repeat" size={14} color={colors.text} />
                   <Text style={{ color: colors.text, fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>
-                    Atividade
+                    {t('calendar.activity')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -949,14 +960,14 @@ export default function CalendarScreen() {
                       </Text>
                       <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
                         {e.type === 'custody'
-                          ? (e.custodyType === 'vacation' ? '✈️ Férias'
-                              : e.custodyType === 'swap' ? '🔄 Troca'
-                              : e.custodyType === 'holiday' ? '🎉 Feriado'
-                              : 'Guarda')
-                          : e.type === 'activity' ? 'Atividade'
-                          : e.type === 'appointment' ? 'Consulta'
-                          : isSchool ? 'Escola'
-                          : 'Evento'}
+                          ? (e.custodyType === 'vacation' ? t('calendarTab.subtitleVacation')
+                              : e.custodyType === 'swap' ? t('calendarTab.subtitleSwap')
+                              : e.custodyType === 'holiday' ? t('calendarTab.subtitleHoliday')
+                              : t('calendarTab.subtitleCustody'))
+                          : e.type === 'activity' ? t('calendar.activity')
+                          : e.type === 'appointment' ? t('calendarTab.appointment')
+                          : isSchool ? t('calendarTab.subtitleSchool')
+                          : t('calendarTab.event')}
                         {e.time ? ` · ${e.time}` : ''}
                       </Text>
                     </View>
@@ -972,7 +983,7 @@ export default function CalendarScreen() {
                   <Pressable
                     key={e.id + '-' + i}
                     accessibilityRole="button"
-                    accessibilityLabel={`Abrir ${e.title}`}
+                    accessibilityLabel={t('calendarTab.openEvent', { title: e.title })}
                     onPress={() => {
                       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                       const day = selectedDay;
@@ -1037,7 +1048,7 @@ export default function CalendarScreen() {
                 }}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Adicionar evento"
+                accessibilityLabel={t('calendarTab.addEvent')}
                 style={{
                   flex: 1, backgroundColor: colors.brand, borderRadius: radius.md,
                   paddingVertical: spacing.md, flexDirection: 'row',
@@ -1046,7 +1057,7 @@ export default function CalendarScreen() {
               >
                 <Ionicons name="add" size={18} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.bold }}>
-                  Adicionar evento
+                  {t('calendarTab.addEvent')}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity
@@ -1061,7 +1072,7 @@ export default function CalendarScreen() {
                   paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center',
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Nova atividade recorrente"
+                accessibilityLabel={t('calendarTab.newRecurringActivityA11y')}
               >
                 <Ionicons name="repeat" size={18} color={colors.text} />
               </TouchableOpacity>
@@ -1077,7 +1088,7 @@ export default function CalendarScreen() {
                   paddingVertical: spacing.md, alignItems: 'center', justifyContent: 'center',
                 }}
                 accessibilityRole="button"
-                accessibilityLabel="Registrar evento de saúde"
+                accessibilityLabel={t('calendarTab.registerHealthA11y')}
               >
                 <Ionicons name="medkit-outline" size={18} color={colors.text} />
               </TouchableOpacity>
@@ -1112,7 +1123,7 @@ export default function CalendarScreen() {
                 setSwapContext({
                   date: day,
                   targetUserId,
-                  targetUserName: targetMember?.name || 'Co-responsável',
+                  targetUserName: targetMember?.name || t('calendarTab.coResponsible'),
                   targetColor: targetMember?.color || custodyEvent.color,
                   isVisit,
                 });
@@ -1124,28 +1135,28 @@ export default function CalendarScreen() {
                 <TouchableOpacity
                   onPress={() => openSwap(false)}
                   accessibilityRole="button"
-                  accessibilityLabel={isOwnDay ? 'Oferecer troca' : 'Pedir troca'}
+                  accessibilityLabel={isOwnDay ? t('calendarTab.offerSwap') : t('calendarTab.requestSwap')}
                   style={{
                     flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                     backgroundColor: colors.brand, alignItems: 'center',
                   }}
                 >
                   <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                    🔄 {isOwnDay ? 'Oferecer troca' : 'Pedir troca'}
+                    🔄 {isOwnDay ? t('calendarTab.offerSwap') : t('calendarTab.requestSwap')}
                   </Text>
                 </TouchableOpacity>
                 {!isOwnDay ? (
                   <TouchableOpacity
                     onPress={() => openSwap(true)}
                     accessibilityRole="button"
-                    accessibilityLabel="Pedir visita"
+                    accessibilityLabel={t('calendarTab.requestVisit')}
                     style={{
                       flex: 1, paddingVertical: spacing.md, borderRadius: radius.md,
                       borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
                     }}
                   >
                     <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-                      👋 Pedir visita
+                      👋 {t('calendarTab.requestVisit')}
                     </Text>
                   </TouchableOpacity>
                 ) : null}

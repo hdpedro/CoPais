@@ -29,6 +29,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/store/auth';
+import { useI18n } from 'src/i18n';
 import ChildPicker from 'src/components/ui/ChildPicker';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -65,6 +66,7 @@ function calcAge(birth: string): { years: number; months: number } {
 
 export default function ResumoConsultaScreen() {
   const insets = useSafeAreaInsets();
+  const t = useI18n((s) => s.t);
   const { activeGroup } = useAuth();
   const params = useLocalSearchParams<{ crianca?: string }>();
   const [children, setChildren] = useState<Child[]>([]);
@@ -213,54 +215,57 @@ export default function ResumoConsultaScreen() {
     if (!child || !data) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const lines: string[] = [];
-    lines.push(`📋 Resumo de saúde — ${child.full_name}`);
+    lines.push(`📋 ${t('appointmentSummary.shareTitle', { name: child.full_name })}`);
     const age = calcAge(child.birth_date);
-    lines.push(`Idade: ${age.years}a ${age.months}m · Sexo: ${child.sex === 'M' ? 'Masculino' : child.sex === 'F' ? 'Feminino' : '—'}`);
-    lines.push(`Período: desde ${brDate(data.sinceDate)}${data.lastAppointment ? ` (última consulta: ${data.lastAppointment.title})` : ''}`);
+    const sexLabel = child.sex === 'M' ? t('preSummary.male') : child.sex === 'F' ? t('preSummary.female') : '—';
+    lines.push(`${t('health.export.age')}: ${age.years}${t('preSummary.yearsShort')} ${age.months}${t('preSummary.monthsShort')} · ${t('children.sex')}: ${sexLabel}`);
+    lines.push(data.lastAppointment
+      ? t('appointmentSummary.sharePeriodWithAppointment', { date: brDate(data.sinceDate), title: data.lastAppointment.title })
+      : t('appointmentSummary.sharePeriod', { date: brDate(data.sinceDate) }));
     lines.push('');
 
     if (data.allergies.length > 0) {
-      lines.push('⚠️ Alergias:');
+      lines.push(`⚠️ ${t('health.allergies')}:`);
       data.allergies.forEach(a => lines.push(`  • ${a.name}${a.severity ? ` (${a.severity})` : ''}${a.reaction ? ` — ${a.reaction}` : ''}`));
       lines.push('');
     }
 
     const activeMeds = data.medications.filter(m => m.status === 'active');
     if (activeMeds.length > 0) {
-      lines.push('💊 Medicamentos em uso:');
+      lines.push(`💊 ${t('appointmentSummary.medicationsInUse')}:`);
       activeMeds.forEach(m => lines.push(`  • ${m.name}${m.dosage ? ` ${m.dosage}` : ''}${m.frequency ? ` · ${m.frequency}` : ''}${m.reason ? ` (${m.reason})` : ''}`));
       lines.push('');
     }
 
     if (data.illnesses.length > 0) {
-      lines.push('🤒 Doenças/episódios no período:');
-      data.illnesses.forEach(i => lines.push(`  • ${i.title} (${brDate(i.start_date)}${i.end_date ? ` → ${brDate(i.end_date)}` : ' — em curso'})${i.severity ? ` · ${i.severity}` : ''}`));
+      lines.push(`🤒 ${t('appointmentSummary.illnessesInPeriodShare')}:`);
+      data.illnesses.forEach(i => lines.push(`  • ${i.title} (${brDate(i.start_date)}${i.end_date ? ` → ${brDate(i.end_date)}` : ` — ${t('appointmentSummary.inProgress')}`})${i.severity ? ` · ${i.severity}` : ''}`));
       lines.push('');
     }
 
     if (data.symptoms.length > 0) {
-      lines.push('🌡️ Sintomas (últimos 14 dias):');
+      lines.push(`🌡️ ${t('appointmentSummary.symptomsLast14d')}:`);
       data.symptoms.slice(0, 10).forEach(s => lines.push(`  • ${brDate(s.recorded_at)} — ${s.symptom_type}${s.temperature ? ` (${s.temperature}°C)` : ''}${s.intensity ? ` ${s.intensity}` : ''}`));
       lines.push('');
     }
 
     if (data.vaccines.length > 0) {
-      lines.push('💉 Vacinas aplicadas:');
-      data.vaccines.forEach(v => lines.push(`  • ${v.vaccine_name}${v.dose_label ? ` (${v.dose_label})` : ''}${v.administered_date ? ` em ${brDate(v.administered_date)}` : ''}`));
+      lines.push(`💉 ${t('appointmentSummary.vaccinesApplied')}:`);
+      data.vaccines.forEach(v => lines.push(`  • ${v.vaccine_name}${v.dose_label ? ` (${v.dose_label})` : ''}${v.administered_date ? ` ${t('preSummary.on')} ${brDate(v.administered_date)}` : ''}`));
       lines.push('');
     }
 
     if (data.growth) {
-      lines.push('📏 Crescimento (mais recente):');
+      lines.push(`📏 ${t('appointmentSummary.growthLatest')}:`);
       const parts: string[] = [];
-      if (data.growth.weight_kg) parts.push(`Peso: ${data.growth.weight_kg}kg`);
-      if (data.growth.height_cm) parts.push(`Altura: ${data.growth.height_cm}cm`);
-      if (data.growth.head_cm) parts.push(`Cabeça: ${data.growth.head_cm}cm`);
+      if (data.growth.weight_kg) parts.push(`${t('preSummary.weight')}: ${data.growth.weight_kg}kg`);
+      if (data.growth.height_cm) parts.push(`${t('preSummary.height')}: ${data.growth.height_cm}cm`);
+      if (data.growth.head_cm) parts.push(`${t('preSummary.head')}: ${data.growth.head_cm}cm`);
       lines.push(`  ${parts.join(' · ')} (${brDate(data.growth.measured_date)})`);
       lines.push('');
     }
 
-    lines.push('Gerado via Kindar.');
+    lines.push(t('appointmentSummary.generatedVia'));
     await Share.share({ message: lines.join('\n') });
   }
 
@@ -271,19 +276,19 @@ export default function ResumoConsultaScreen() {
         flexDirection: 'row', alignItems: 'center', gap: spacing.md,
         borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Resumo de consulta
+          {t('appointmentSummary.screenTitle')}
         </Text>
         {child && data ? (
           <TouchableOpacity
             onPress={shareSummary}
             hitSlop={12}
             accessibilityRole="button"
-            accessibilityLabel="Compartilhar resumo"
-            accessibilityHint="Abre o seletor de apps para enviar o resumo de saúde"
+            accessibilityLabel={t('healthExport.shareSummary')}
+            accessibilityHint={t('healthExport.shareA11yHint')}
           >
             <Ionicons name="share-outline" size={22} color={colors.brand} />
           </TouchableOpacity>
@@ -302,16 +307,16 @@ export default function ResumoConsultaScreen() {
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
           <ActivityIndicator color={colors.brand} />
           <Text style={{ marginTop: spacing.md, fontSize: font.sizes.sm, color: colors.textSecondary }}>
-            Compilando histórico clínico…
+            {t('appointmentSummary.compiling')}
           </Text>
         </View>
       ) : !child || !data ? (
         <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.xl }}>
           <Text style={{ fontSize: font.sizes.lg, color: colors.text, fontWeight: font.weights.semibold, textAlign: 'center' }}>
-            Adicione uma criança primeiro
+            {t('appointmentSummary.emptyTitle')}
           </Text>
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.sm }}>
-            O resumo agrega dados clínicos de uma criança específica.
+            {t('appointmentSummary.emptyDesc')}
           </Text>
         </View>
       ) : (
@@ -322,25 +327,25 @@ export default function ResumoConsultaScreen() {
           {/* Hero */}
           <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg, ...shadows.md, marginBottom: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Período coberto
+              {t('appointmentSummary.periodCovered')}
             </Text>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginTop: 4 }}>
-              Desde {brDate(data.sinceDate)}
+              {t('preSummary.since')} {brDate(data.sinceDate)}
             </Text>
             {data.lastAppointment ? (
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 4 }}>
-                Última consulta: {data.lastAppointment.title}
+                {t('preSummary.lastAppointment')}: {data.lastAppointment.title}
               </Text>
             ) : (
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 4 }}>
-                Nenhuma consulta registrada como concluída — período começa no nascimento.
+                {t('appointmentSummary.noCompletedAppointment')}
               </Text>
             )}
           </View>
 
           {/* Allergies */}
           {data.allergies.length > 0 ? (
-            <Section title={`Alergias (${data.allergies.length})`} icon="⚠️" tone="error">
+            <Section title={t('healthExport.allergiesSection', { count: data.allergies.length })} icon="⚠️" tone="error">
               {data.allergies.map(a => (
                 <Row key={a.id}
                   primary={a.name}
@@ -352,12 +357,12 @@ export default function ResumoConsultaScreen() {
 
           {/* Active medications */}
           {data.medications.filter(m => m.status === 'active').length > 0 ? (
-            <Section title={`Medicamentos em uso (${data.medications.filter(m => m.status === 'active').length})`} icon="💊">
+            <Section title={t('appointmentSummary.medicationsInUseCount', { count: data.medications.filter(m => m.status === 'active').length })} icon="💊">
               {data.medications.filter(m => m.status === 'active').map(m => (
                 <Row key={m.id}
                   primary={m.name}
                   secondary={[m.dosage, m.frequency, m.reason].filter(Boolean).join(' · ')}
-                  trailing={`Início ${brDate(m.start_date)}`}
+                  trailing={`${t('health.export.startCol')} ${brDate(m.start_date)}`}
                 />
               ))}
             </Section>
@@ -365,13 +370,13 @@ export default function ResumoConsultaScreen() {
 
           {/* Illnesses */}
           {data.illnesses.length > 0 ? (
-            <Section title={`Doenças no período (${data.illnesses.length})`} icon="🤒">
+            <Section title={t('appointmentSummary.illnessesInPeriod', { count: data.illnesses.length })} icon="🤒">
               {data.illnesses.map(i => (
                 <Row key={i.id}
                   primary={i.title}
                   secondary={[
                     i.severity,
-                    `${brDate(i.start_date)}${i.end_date ? ` → ${brDate(i.end_date)}` : ' — em curso'}`,
+                    `${brDate(i.start_date)}${i.end_date ? ` → ${brDate(i.end_date)}` : ` — ${t('appointmentSummary.inProgress')}`}`,
                     i.symptoms?.join(', '),
                   ].filter(Boolean).join(' · ')}
                 />
@@ -381,7 +386,7 @@ export default function ResumoConsultaScreen() {
 
           {/* Symptoms 14d */}
           {data.symptoms.length > 0 ? (
-            <Section title={`Sintomas (últimos 14 dias) — ${data.symptoms.length}`} icon="🌡️">
+            <Section title={t('appointmentSummary.symptomsLast14dCount', { count: data.symptoms.length })} icon="🌡️">
               {data.symptoms.slice(0, 10).map(s => (
                 <Row key={s.id}
                   primary={s.symptom_type}
@@ -395,7 +400,7 @@ export default function ResumoConsultaScreen() {
               ))}
               {data.symptoms.length > 10 ? (
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.xs }}>
-                  +{data.symptoms.length - 10} sintomas mais antigos
+                  {t('appointmentSummary.moreOlderSymptoms', { count: data.symptoms.length - 10 })}
                 </Text>
               ) : null}
             </Section>
@@ -403,7 +408,7 @@ export default function ResumoConsultaScreen() {
 
           {/* Vaccines */}
           {data.vaccines.length > 0 ? (
-            <Section title={`Vacinas aplicadas no período (${data.vaccines.length})`} icon="💉">
+            <Section title={t('appointmentSummary.vaccinesInPeriod', { count: data.vaccines.length })} icon="💉">
               {data.vaccines.map((v, i) => (
                 <Row key={i}
                   primary={`${v.vaccine_name}${v.dose_label ? ` (${v.dose_label})` : ''}`}
@@ -415,23 +420,23 @@ export default function ResumoConsultaScreen() {
 
           {/* Growth */}
           {data.growth ? (
-            <Section title="Crescimento (medida mais recente)" icon="📏">
+            <Section title={t('appointmentSummary.growthLatestMeasure')} icon="📏">
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md }}>
-                {data.growth.weight_kg ? <Stat label="Peso" value={`${data.growth.weight_kg} kg`} /> : null}
-                {data.growth.height_cm ? <Stat label="Altura" value={`${data.growth.height_cm} cm`} /> : null}
-                {data.growth.head_cm ? <Stat label="Cabeça" value={`${data.growth.head_cm} cm`} /> : null}
-                <Stat label="Em" value={brDate(data.growth.measured_date)} />
+                {data.growth.weight_kg ? <Stat label={t('preSummary.weight')} value={`${data.growth.weight_kg} kg`} /> : null}
+                {data.growth.height_cm ? <Stat label={t('preSummary.height')} value={`${data.growth.height_cm} cm`} /> : null}
+                {data.growth.head_cm ? <Stat label={t('preSummary.head')} value={`${data.growth.head_cm} cm`} /> : null}
+                <Stat label={t('appointmentSummary.measuredOnLabel')} value={brDate(data.growth.measured_date)} />
               </View>
             </Section>
           ) : null}
 
           {/* Past appointments */}
           {data.pastAppointments.length > 0 ? (
-            <Section title={`Consultas no período (${data.pastAppointments.length})`} icon="🩺">
+            <Section title={t('appointmentSummary.appointmentsInPeriod', { count: data.pastAppointments.length })} icon="🩺">
               {data.pastAppointments.map(a => (
                 <Row key={a.id}
                   primary={a.title}
-                  secondary={a.notes || (a.status === 'cancelled' ? 'Cancelada' : a.status === 'scheduled' ? 'Agendada' : '')}
+                  secondary={a.notes || (a.status === 'cancelled' ? t('health.export.statusCancelled') : a.status === 'scheduled' ? t('health.export.statusScheduled') : '')}
                   trailing={brDate(a.appointment_date)}
                 />
               ))}

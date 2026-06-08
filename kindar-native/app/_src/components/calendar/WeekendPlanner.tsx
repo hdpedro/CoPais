@@ -11,7 +11,8 @@
 
 import { View, Text, ScrollView } from 'react-native';
 import type { CalendarEvent } from '../../hooks/useCalendar';
-import { MONTH_NAMES } from '../../lib/constants';
+import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 
 interface WeekendInfo {
@@ -86,11 +87,11 @@ function computeWeekends(events: CalendarEvent[], currentUserId: string, count: 
   return out;
 }
 
-const STATUS_META: Record<WeekendInfo['status'], { label: string; bg: string; border: string; text: string }> = {
-  livre: { label: 'Livre', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.3)', text: '#15803d' },
-  parcial: { label: 'Parcial', bg: 'rgba(232,162,40,0.1)', border: 'rgba(232,162,40,0.3)', text: '#b45309' },
-  ocupado: { label: 'Com voce', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)', text: '#1d4ed8' },
-  sem_info: { label: 'Sem info', bg: 'rgba(107,114,128,0.08)', border: colors.borderLight, text: colors.textMuted },
+const STATUS_META: Record<WeekendInfo['status'], { labelKey: string; bg: string; border: string; text: string }> = {
+  livre: { labelKey: 'weekendPlanner.statusFree', bg: 'rgba(34,197,94,0.08)', border: 'rgba(34,197,94,0.3)', text: '#15803d' },
+  parcial: { labelKey: 'weekendPlanner.statusPartial', bg: 'rgba(232,162,40,0.1)', border: 'rgba(232,162,40,0.3)', text: '#b45309' },
+  ocupado: { labelKey: 'weekendPlanner.statusWithYou', bg: 'rgba(59,130,246,0.1)', border: 'rgba(59,130,246,0.3)', text: '#1d4ed8' },
+  sem_info: { labelKey: 'weekendPlanner.statusNoInfo', bg: 'rgba(107,114,128,0.08)', border: colors.borderLight, text: colors.textMuted },
 };
 
 interface Props {
@@ -100,19 +101,21 @@ interface Props {
 }
 
 export default function WeekendPlanner({ events, currentUserId, count = 6 }: Props) {
+  const t = useI18n(s => s.t);
+  const intl = useIntl();
   const weekends = computeWeekends(events, currentUserId, count);
   if (weekends.length === 0) return null;
 
   return (
     <View style={{ marginHorizontal: spacing.lg, marginBottom: spacing.lg, backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg, ...shadows.sm }}>
       <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.sm }}>
-        Proximos fins de semana
+        {t('weekendPlanner.heading')}
       </Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingVertical: 2 }}>
         {weekends.map(w => {
           const sat = parseDateKey(w.satDate);
           const sun = parseDateKey(w.sunDate);
-          const monthName = MONTH_NAMES[sat.getMonth()].slice(0, 3);
+          const monthName = intl.formatMonthShort(sat);
           const cfg = STATUS_META[w.status];
           return (
             <View
@@ -139,7 +142,7 @@ export default function WeekendPlanner({ events, currentUserId, count = 6 }: Pro
                 paddingHorizontal: 6, paddingVertical: 1, borderRadius: radius.full,
               }}>
                 <Text style={{ fontSize: 10, color: cfg.text, fontWeight: font.weights.semibold }}>
-                  {cfg.label}
+                  {t(cfg.labelKey)}
                 </Text>
               </View>
             </View>
@@ -147,7 +150,7 @@ export default function WeekendPlanner({ events, currentUserId, count = 6 }: Pro
         })}
       </ScrollView>
       <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm }}>
-        &quot;Livre&quot; = fim de semana com o outro responsavel — voce pode viajar!
+        {t('weekendPlanner.footer')}
       </Text>
     </View>
   );

@@ -112,7 +112,7 @@ export default function NovoEventoScreen() {
         user_id: m.user_id,
         name: (m.profiles?.display_name
           || m.profiles?.full_name?.split(' ')[0]
-          || 'Co-responsavel'),
+          || t('calendarTab.coResponsible')),
       }));
       setMembers(memberList);
       // assignedTo começa null. UX antiga auto-selecionava o user atual, o que
@@ -122,7 +122,7 @@ export default function NovoEventoScreen() {
       // recorrentes), basta deixar em branco.
     })();
     return () => { cancelled = true; };
-  }, [activeGroup, userId]);
+  }, [activeGroup, userId, t]);
 
   // ── Toggle: multi-day implies all-day in PWA ──────────────────────────
   function handleMultiDayToggle(next: boolean) {
@@ -148,19 +148,19 @@ export default function NovoEventoScreen() {
   // ── Validation ────────────────────────────────────────────────────────
   function validate(): boolean {
     const next: typeof errors = {};
-    if (!title.trim()) next.title = 'Titulo obrigatorio';
+    if (!title.trim()) next.title = t('validation.field.titleRequired');
     if (!startDateIso) {
-      next.date = 'Data obrigatoria';
+      next.date = t('calendarNew.errorDateRequired');
     } else if (startDateIso < dateToIso(new Date())) {
       // Evento e' prospectivo: nao deixa criar numa data que ja passou
       // (bug 2026-06-04: deu pra salvar 04/06/2003). Comparacao de strings
       // YYYY-MM-DD == comparacao cronologica. O minimumDate do picker ja
       // previne na UI; este guard cobre o ?date= vindo de tocar num dia
       // passado do calendario.
-      next.date = 'Nao da pra criar um evento numa data que ja passou';
+      next.date = t('calendarNew.errorDatePast');
     }
     if (multiDay && endDateIso && endDateIso < startDateIso) {
-      next.date = 'Data final deve ser depois da inicial';
+      next.date = t('calendar.vacations.formInvalidRange');
     }
     setErrors(next);
     return Object.keys(next).length === 0;
@@ -193,11 +193,11 @@ export default function NovoEventoScreen() {
         router.back();
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        setErrors({ general: result.error || 'Erro ao salvar evento' });
+        setErrors({ general: result.error || t('calendarNew.errorSave') });
       }
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setErrors({ general: e instanceof Error ? e.message : 'Erro inesperado' });
+      setErrors({ general: e instanceof Error ? e.message : t('calendarNew.errorUnexpected') });
     } finally {
       setSaving(false);
     }
@@ -233,12 +233,12 @@ export default function NovoEventoScreen() {
         ) : null}
 
         {/* ── Title ──────────────────────────────────────────── */}
-        <FieldLabel>Titulo *</FieldLabel>
+        <FieldLabel>{t('appointments.titleRequired')}</FieldLabel>
         <TextInput
           testID="event-title"
           value={title}
           onChangeText={(v) => { setTitle(v); if (errors.title) setErrors({ ...errors, title: undefined }); }}
-          placeholder="Festa de aniversario, reuniao escolar..."
+          placeholder={t('calendarNew.titlePlaceholder')}
           placeholderTextColor={colors.textDim}
           style={fieldStyle(!!errors.title)}
         />
@@ -246,11 +246,11 @@ export default function NovoEventoScreen() {
 
         {/* ── Description ────────────────────────────────────── */}
         <View style={{ marginTop: spacing.lg }}>
-          <FieldLabel>Descricao</FieldLabel>
+          <FieldLabel>{t('newForm.description')}</FieldLabel>
           <TextInput
             value={description}
             onChangeText={setDescription}
-            placeholder="Detalhes do evento (opcional)"
+            placeholder={t('calendarNew.descriptionPlaceholder')}
             placeholderTextColor={colors.textDim}
             multiline
             numberOfLines={3}
@@ -262,14 +262,14 @@ export default function NovoEventoScreen() {
         <View style={{ marginTop: spacing.xl }}>
           <ToggleRow
             testID="event-allday-toggle"
-            label="Dia inteiro"
-            description="Sem horario especifico"
+            label={t('calendar.allDay')}
+            description={t('calendarNew.allDayHint')}
             value={allDay}
             onValueChange={handleAllDayToggle}
           />
           <ToggleRow
-            label="Evento de varios dias"
-            description="Cria uma entrada para cada dia (1/N, 2/N...)"
+            label={t('calendarNew.multiDay')}
+            description={t('calendarNew.multiDayHint')}
             value={multiDay}
             onValueChange={handleMultiDayToggle}
           />
@@ -279,7 +279,7 @@ export default function NovoEventoScreen() {
         <View style={{ marginTop: spacing.xl, gap: spacing.md }}>
           <View testID="event-start-date">
             <DatePickerField
-              label={multiDay ? 'Data inicial *' : 'Data *'}
+              label={multiDay ? t('calendarNew.startDateLabel') : t('calendarNew.dateLabel')}
               value={startDateIso}
               minimumDate={new Date(dateToIso(new Date()) + 'T00:00:00')}
               onChange={(iso) => {
@@ -292,7 +292,7 @@ export default function NovoEventoScreen() {
           </View>
           {multiDay ? (
             <DatePickerField
-              label="Data final *"
+              label={t('calendarNew.endDateLabel')}
               value={endDateIso}
               onChange={setEndDateIso}
               minimumDate={startDateIso ? new Date(startDateIso + 'T12:00:00') : undefined}
@@ -305,10 +305,10 @@ export default function NovoEventoScreen() {
         {!allDay ? (
           <View style={{ marginTop: spacing.xl, flexDirection: 'row', gap: spacing.md }}>
             <View style={{ flex: 1 }}>
-              <TimePickerField label="Hora inicial" value={startTime} onChange={setStartTime} />
+              <TimePickerField label={t('calendarNew.startTimeLabel')} value={startTime} onChange={setStartTime} />
             </View>
             <View style={{ flex: 1 }}>
-              <TimePickerField label="Hora final" value={endTime} onChange={setEndTime} />
+              <TimePickerField label={t('calendarNew.endTimeLabel')} value={endTime} onChange={setEndTime} />
             </View>
           </View>
         ) : null}
@@ -316,12 +316,12 @@ export default function NovoEventoScreen() {
         {/* ── Children selector ──────────────────────────────── */}
         {children.length > 0 ? (
           <View style={{ marginTop: spacing.xl }}>
-            <FieldLabel>Para quem</FieldLabel>
+            <FieldLabel>{t('newForm.forWhom')}</FieldLabel>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs }}>
               <Chip
                 selected={selectedChildId === null}
                 color={colors.brand}
-                label="Familia"
+                label={t('nav.family')}
                 onPress={() => setSelectedChildId(null)}
               />
               {children.map(c => (
@@ -345,7 +345,7 @@ export default function NovoEventoScreen() {
              Pra férias / feriados, o responsável segue a escala vigente. */}
         {members.length > 1 ? (
           <View style={{ marginTop: spacing.xl }}>
-            <FieldLabel>Quem leva / responsável (opcional)</FieldLabel>
+            <FieldLabel>{t('calendarNew.assignedToLabel')}</FieldLabel>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs }}>
               {members.map((m, idx) => {
                 const c = RESPONSIBLE_COLORS[idx % RESPONSIBLE_COLORS.length];
@@ -363,10 +363,8 @@ export default function NovoEventoScreen() {
             </View>
 
             <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 16 }}>
-              Deixe em branco para eventos sem responsável fixo (ex: reunião
-              de pais, festa). Pra <Text style={{ fontWeight: font.weights.semibold }}>férias / recesso prolongado</Text>{' '}
-              use o botão <Text style={{ fontStyle: 'italic' }}>✈️ Férias</Text> no calendário —
-              esse fluxo sobrepõe a escala regular automaticamente.
+              {t('calendarNew.assignedToHint1')}<Text style={{ fontWeight: font.weights.semibold }}>{t('calendarNew.assignedToHintVacation')}</Text>{' '}
+              {t('calendarNew.assignedToHint2')}<Text style={{ fontStyle: 'italic' }}>{'✈️ '}{t('calendar.vacation')}</Text>{t('calendarNew.assignedToHint3')}
             </Text>
 
             {/* Color preview — events are tinted by responsavel on calendar */}
@@ -378,7 +376,7 @@ export default function NovoEventoScreen() {
             }}>
               <View style={{ width: 18, height: 18, borderRadius: 4, backgroundColor: previewColor }} />
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, flex: 1 }}>
-                {assignedToId ? 'Cor no calendário (definida pelo responsável)' : 'Sem responsável fixo — cor neutra'}
+                {assignedToId ? t('calendarNew.colorHint') : t('calendarNew.colorHintNone')}
               </Text>
             </View>
           </View>
@@ -386,11 +384,11 @@ export default function NovoEventoScreen() {
 
         {/* ── Location ───────────────────────────────────────── */}
         <View style={{ marginTop: spacing.xl }}>
-          <FieldLabel>Local</FieldLabel>
+          <FieldLabel>{t('newForm.location')}</FieldLabel>
           <TextInput
             value={location}
             onChangeText={setLocation}
-            placeholder="Endereco, escola, salao..."
+            placeholder={t('calendarNew.locationPlaceholder')}
             placeholderTextColor={colors.textDim}
             style={fieldStyle(false)}
           />
@@ -405,13 +403,11 @@ export default function NovoEventoScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.xs }}>
             <Ionicons name="repeat-outline" size={18} color={colors.textSecondary} />
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
-              Recorrencia
+              {t('activitiesNew.recurrence')}
             </Text>
           </View>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, lineHeight: 16 }}>
-            Eventos recorrentes (Diaria, Semanal, Quinzenal, Mensal, Personalizada)
-            estao disponiveis apenas no PWA. Para repetir um evento por varios dias
-            seguidos, ative &quot;Evento de varios dias&quot; acima.
+            {t('calendarNew.recurrenceNote', { label: t('calendarNew.multiDay') })}
           </Text>
         </View>
 
@@ -437,7 +433,7 @@ export default function NovoEventoScreen() {
                 color: canSubmit ? '#fff' : colors.textMuted,
                 fontSize: font.sizes.md, fontWeight: font.weights.bold,
               }}>
-                Salvar evento
+                {t('newForm.saveEvent')}
               </Text>
             </>
           )}

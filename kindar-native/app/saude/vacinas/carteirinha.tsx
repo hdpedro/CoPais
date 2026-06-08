@@ -112,7 +112,7 @@ export default function CarteirinhaScreen() {
     setError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Sessão expirada');
+      if (!session) throw new Error(t('common.sessionExpired'));
 
       // multipart/form-data — endpoint reads `request.formData().get("file")`.
       const fileMime = asset.mimeType || 'image/jpeg';
@@ -133,9 +133,9 @@ export default function CarteirinhaScreen() {
         const ct = resp.headers.get('content-type') || '';
         if (ct.includes('application/json')) {
           const j = await resp.json().catch(() => null);
-          throw new Error((j && j.error) || `Erro ${resp.status}`);
+          throw new Error((j && j.error) || t('vaccineCard.errorStatus', { status: resp.status }));
         }
-        throw new Error(`Erro ao processar a foto (${resp.status}). Tente novamente em instantes.`);
+        throw new Error(t('vaccineCard.errorProcessing', { status: resp.status }));
       }
       const data = await resp.json();
       const parsedRaw: ParsedVaccine[] = (data.vaccines || []).map((v: any) => ({
@@ -154,7 +154,7 @@ export default function CarteirinhaScreen() {
           ? v.date_confidence : null,
       }));
       if (parsedRaw.length === 0) {
-        throw new Error(data.error || 'Nenhuma vacina identificada. Tente uma foto mais nítida.');
+        throw new Error(data.error || t('vaccineCard.errorNoVaccines'));
       }
 
       // Dup detection + warning enrichment ANTES de mostrar preview.
@@ -180,13 +180,13 @@ export default function CarteirinhaScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: unknown) {
       const err = e as { message?: string };
-      setError(err.message || 'Erro ao ler a carteirinha');
+      setError(err.message || t('vaccineCard.errorGeneric'));
       setStep('upload');
       setImageUri(null);
       setPendingAsset(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [pendingAsset, selectedChildId]);
+  }, [pendingAsset, selectedChildId, t]);
 
   /** Cancela o asset e volta pro step upload. */
   const retakePhoto = useCallback(() => {
@@ -254,12 +254,17 @@ export default function CarteirinhaScreen() {
         .map(d => `· ${d.name} — ${d.reason}${d.rawDate ? ` ("${d.rawDate}")` : ''}`)
         .join('\n');
       const more = (r.data?.skippedDetails?.length || 0) > 5
-        ? `\n... e mais ${(r.data?.skippedDetails?.length || 0) - 5}`
+        ? `\n${t('vaccineCard.savedAndMore', { count: (r.data?.skippedDetails?.length || 0) - 5 })}`
         : '';
+      const skippedHeader = skipped === 1
+        ? t('vaccineCard.savedSkippedOne')
+        : t('vaccineCard.savedSkipped', { count: skipped });
       Alert.alert(
-        `${inserted} vacinas salvas`,
-        `${skipped} ${skipped === 1 ? 'pulada' : 'puladas'} por data inválida:\n\n${list}${more}\n\nEdite a foto ou as datas e tente de novo.`,
-        [{ text: 'OK', onPress: () => router.back() }],
+        inserted === 1
+          ? t('vaccineCard.savedTitleOne')
+          : t('vaccineCard.savedTitle', { count: inserted }),
+        `${skippedHeader}\n\n${list}${more}\n\n${t('vaccineCard.savedSkippedHint')}`,
+        [{ text: t('vaccineCard.ok'), onPress: () => router.back() }],
       );
       return;
     }
@@ -277,11 +282,11 @@ export default function CarteirinhaScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Carteirinha de vacinação
+          {t('vaccineCard.pageTitle')}
         </Text>
       </View>
 
@@ -306,26 +311,26 @@ export default function CarteirinhaScreen() {
             <View style={{ alignItems: 'center', paddingVertical: spacing['2xl'], marginBottom: spacing.lg }}>
               <Text style={{ fontSize: 56, marginBottom: spacing.md }}>💉</Text>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm, textAlign: 'center' }}>
-                Fotografe a carteirinha
+                {t('vaccineCard.uploadTitle')}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', maxWidth: 320, lineHeight: 20 }}>
-                A IA lê a página com vacinas e identifica cada dose, lote e data. Revise antes de salvar.
+                {t('vaccineCard.uploadSubtitle')}
               </Text>
             </View>
 
             <TouchableOpacity onPress={() => pickImage('camera')} activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Tirar foto"
+              accessibilityLabel={t('health.prescription.takePhoto')}
               style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md + 2, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
               <Ionicons name="camera-outline" size={20} color="#fff" />
-              <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>Tirar foto</Text>
+              <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>{t('health.prescription.takePhoto')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => pickImage('library')} activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Escolher da galeria"
+              accessibilityLabel={t('health.prescription.pickFromGallery')}
               style={{ backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, paddingVertical: spacing.md + 2, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm }}>
               <Ionicons name="images-outline" size={20} color={colors.text} />
-              <Text style={{ color: colors.text, fontSize: font.sizes.md, fontWeight: font.weights.medium }}>Escolher da galeria</Text>
+              <Text style={{ color: colors.text, fontSize: font.sizes.md, fontWeight: font.weights.medium }}>{t('health.prescription.pickFromGallery')}</Text>
             </TouchableOpacity>
           </>
         ) : null}
@@ -333,26 +338,26 @@ export default function CarteirinhaScreen() {
         {step === 'confirm' && imageUri ? (
           <View style={{ marginBottom: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm }}>
-              A foto está nítida?
+              {t('vaccineCard.confirmTitle')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.md, lineHeight: 20 }}>
-              Confira se as vacinas e datas estão legíveis. Fotos tremidas ou escuras geram resultado incompleto.
+              {t('vaccineCard.confirmSubtitle')}
             </Text>
             <Image
               source={{ uri: imageUri }}
-              accessibilityLabel="Carteirinha fotografada — revise antes de processar"
+              accessibilityLabel={t('vaccineCard.confirmImageAlt')}
               style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: radius.lg, marginBottom: spacing.lg, backgroundColor: colors.bgElevated }}
               resizeMode="contain"
             />
             <View style={{ gap: spacing.sm }}>
               <PrimaryButton
-                label="Processar carteirinha"
+                label={t('vaccineCard.processButton')}
                 onPress={processConfirmedImage}
                 testID="carteirinha-process-button"
-                accessibilityHint="Envia a foto pra IA identificar vacinas"
+                accessibilityHint={t('vaccineCard.processHint')}
               />
               <PrimaryButton
-                label="Refotografar"
+                label={t('vaccineCard.retakeButton')}
                 onPress={retakePhoto}
                 variant="secondary"
                 testID="carteirinha-retake-button"
@@ -364,14 +369,14 @@ export default function CarteirinhaScreen() {
         {step === 'processing' ? (
           <View style={{ alignItems: 'center', paddingVertical: spacing['3xl'] }}>
             {imageUri ? (
-              <Image source={{ uri: imageUri }} accessibilityLabel="Carteirinha fotografada" style={{ width: 200, height: 200, borderRadius: radius.lg, marginBottom: spacing.lg }} resizeMode="cover" />
+              <Image source={{ uri: imageUri }} accessibilityLabel={t('vaccineCard.processingImageAlt')} style={{ width: 200, height: 200, borderRadius: radius.lg, marginBottom: spacing.lg }} resizeMode="cover" />
             ) : null}
             <ActivityIndicator color={colors.brand} size="large" />
             <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text, marginTop: spacing.md }}>
-              Identificando vacinas…
+              {t('vaccineCard.processingTitle')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 4 }}>
-              Pode levar alguns segundos
+              {t('vaccineCard.processingSubtitle')}
             </Text>
           </View>
         ) : null}
@@ -380,10 +385,10 @@ export default function CarteirinhaScreen() {
           <>
             <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg, ...shadows.sm, marginBottom: spacing.lg }}>
               <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.success, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
-                ✓ {vaccines.length} vacina{vaccines.length > 1 ? 's' : ''} identificada{vaccines.length > 1 ? 's' : ''}
+                ✓ {vaccines.length === 1 ? t('vaccineCard.previewCountOne') : t('vaccineCard.previewCount', { count: vaccines.length })}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-                Revise antes de salvar. Já registradas ficam desmarcadas; alertas em amarelo pedem conferência.
+                {t('vaccineCard.previewSubtitle')}
               </Text>
             </View>
 
@@ -403,7 +408,7 @@ export default function CarteirinhaScreen() {
                   <Switch value={v.include} onValueChange={x => updateVaccine(i, 'include', x)}
                     trackColor={{ true: colors.brand, false: colors.borderLight }} thumbColor={v.include ? '#fff' : colors.textMuted} />
                   <Text style={{ flex: 1, fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
-                    {v.vaccine_name || '(sem nome)'}
+                    {v.vaccine_name || t('vaccineCard.unnamed')}
                   </Text>
                 </View>
 
@@ -414,28 +419,28 @@ export default function CarteirinhaScreen() {
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: spacing.sm }}>
                     {hasDup ? (
                       <View style={{ backgroundColor: 'rgba(239,68,68,0.10)', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            accessibilityLabel="Vacina já registrada — desmarcada por padrão">
+                            accessibilityLabel={t('vaccineCard.warnDuplicateA11y')}>
                         <Ionicons name="duplicate-outline" size={12} color="#B91C1C" />
                         <Text style={{ fontSize: font.sizes.xs, color: '#B91C1C', fontWeight: font.weights.medium }}>
-                          Já registrado
+                          {t('vaccineCard.warnDuplicate')}
                         </Text>
                       </View>
                     ) : null}
                     {hasOldAnnual ? (
                       <View style={{ backgroundColor: 'rgba(245,158,11,0.12)', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            accessibilityLabel="Vacina anual com data antiga — verifique o ano">
+                            accessibilityLabel={t('vaccineCard.warnOldAnnualA11y')}>
                         <Ionicons name="warning-outline" size={12} color="#B45309" />
                         <Text style={{ fontSize: font.sizes.xs, color: '#B45309', fontWeight: font.weights.medium }}>
-                          Confira o ano
+                          {t('vaccineCard.warnOldAnnual')}
                         </Text>
                       </View>
                     ) : null}
                     {hasLowConf ? (
                       <View style={{ backgroundColor: 'rgba(107,114,128,0.10)', borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 4, flexDirection: 'row', alignItems: 'center', gap: 4 }}
-                            accessibilityLabel="OCR reconheceu com baixa confiança — revise os dados">
+                            accessibilityLabel={t('vaccineCard.warnLowConfA11y')}>
                         <Ionicons name="eye-outline" size={12} color="#4B5563" />
                         <Text style={{ fontSize: font.sizes.xs, color: '#4B5563', fontWeight: font.weights.medium }}>
-                          Revisar
+                          {t('vaccineCard.warnLowConf')}
                         </Text>
                       </View>
                     ) : null}
@@ -443,17 +448,17 @@ export default function CarteirinhaScreen() {
                 ) : null}
 
                 <TextInput value={v.vaccine_name} onChangeText={x => updateVaccine(i, 'vaccine_name', x)}
-                  placeholder="Nome da vacina" placeholderTextColor={colors.textMuted}
+                  placeholder={t('health.vaccineEngine.registerFieldName')} placeholderTextColor={colors.textMuted}
                   style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, fontSize: font.sizes.sm, color: colors.text, marginBottom: 6 }} />
                 <View style={{ flexDirection: 'row', gap: 6, marginBottom: 6 }}>
                   <TextInput value={v.dose_label || ''} onChangeText={x => updateVaccine(i, 'dose_label', x)}
-                    placeholder="Dose (ex: 1ª, reforço)" placeholderTextColor={colors.textMuted}
+                    placeholder={t('vaccineCard.dosePlaceholder')} placeholderTextColor={colors.textMuted}
                     style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, fontSize: font.sizes.sm, color: colors.text }} />
                   <View style={{ flex: 1 }}>
                     <DatePickerField
                       value={v.administered_date}
                       onChange={(iso) => updateVaccine(i, 'administered_date', iso)}
-                      placeholder="Data"
+                      placeholder={t('health.vaccineEngine.registerFieldDate')}
                       minimumDate={minDate}
                       maximumDate={maxDate}
                     />
@@ -461,10 +466,10 @@ export default function CarteirinhaScreen() {
                 </View>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   <TextInput value={v.batch_number || ''} onChangeText={x => updateVaccine(i, 'batch_number', x)}
-                    placeholder="Lote (opcional)" placeholderTextColor={colors.textMuted}
+                    placeholder={t('vaccineCard.batchPlaceholder')} placeholderTextColor={colors.textMuted}
                     style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, fontSize: font.sizes.sm, color: colors.text }} />
                   <TextInput value={v.location || ''} onChangeText={x => updateVaccine(i, 'location', x)}
-                    placeholder="Local (UBS, posto)" placeholderTextColor={colors.textMuted}
+                    placeholder={t('vaccineCard.locationPlaceholder')} placeholderTextColor={colors.textMuted}
                     style={{ flex: 1, backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, paddingVertical: spacing.sm, paddingHorizontal: spacing.md, fontSize: font.sizes.sm, color: colors.text }} />
                 </View>
               </View>
@@ -473,14 +478,14 @@ export default function CarteirinhaScreen() {
 
             <View style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
               <PrimaryButton
-                label="Salvar vacinas"
+                label={t('vaccineCard.saveButton')}
                 onPress={handleSave}
                 loading={saving}
                 testID="carteirinha-save"
               />
             </View>
-            <TouchableOpacity onPress={handleRetry} accessibilityRole="button" accessibilityLabel="Tentar com outra foto" style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
-              <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Tentar com outra foto</Text>
+            <TouchableOpacity onPress={handleRetry} accessibilityRole="button" accessibilityLabel={t('vaccineCard.tryAnotherPhoto')} style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
+              <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>{t('vaccineCard.tryAnotherPhoto')}</Text>
             </TouchableOpacity>
           </>
         ) : null}

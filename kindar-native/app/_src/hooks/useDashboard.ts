@@ -57,9 +57,9 @@ interface ChildHealthSummary {
   childName: string;
   childPhotoUrl: string | null;
   status: 'healthy' | 'monitoring' | 'treatment';
-  statusLabel: string;           // 'Em tratamento' / 'Em acompanhamento' / 'Saudável'
-  detail: string;
-  nextAction: string | null;     // 'Confirmar dose' / 'Atualizar estado' / null
+  detail: string | null;         // valor do banco (med.name/ill.title) ou null → render usa detailKey
+  detailKey: 'noRecords' | 'medicated' | 'monitoring'; // fallback i18n (resolvido com t() no render)
+  nextAction: 'confirmDose' | 'updateStatus' | null;   // fragmento de chave i18n (t('dashboard.nextAction.'+x))
 }
 
 interface ChildCard {
@@ -652,27 +652,26 @@ export function useDashboard() {
         const childIllnesses = (illnessData || []).filter((i: any) => i.child_id === child.id);
 
         let status: 'healthy' | 'monitoring' | 'treatment' = 'healthy';
-        let detail = 'Sem registros recentes';
-        let nextAction: string | null = null;
+        let detail: string | null = null;     // valor do banco; null → render usa detailKey (i18n)
+        let detailKey: ChildHealthSummary['detailKey'] = 'noRecords';
+        let nextAction: ChildHealthSummary['nextAction'] = null;
 
         if (childMeds.length > 0) {
           status = 'treatment';
           const med = childMeds[0] as any;
-          detail = med.name || 'Medicado';
-          nextAction = 'Confirmar dose';
+          detail = med.name || null;
+          detailKey = 'medicated';
+          nextAction = 'confirmDose';
         } else if (childIllnesses.length > 0) {
           status = 'monitoring';
           const ill = childIllnesses[0] as any;
-          detail = ill.title || 'Acompanhamento';
-          nextAction = 'Atualizar estado';
+          detail = ill.title || null;
+          detailKey = 'monitoring';
+          nextAction = 'updateStatus';
         }
 
-        const statusLabel =
-          status === 'treatment' ? 'Em tratamento'
-          : status === 'monitoring' ? 'Em acompanhamento'
-          : 'Saudável';
-
-        return { childId: child.id, childName: child.firstName, childPhotoUrl: child.photoUrl, status, statusLabel, detail, nextAction };
+        // i18n: o render resolve status/detail/nextAction via t() (reativo na troca de idioma).
+        return { childId: child.id, childName: child.firstName, childPhotoUrl: child.photoUrl, status, detail, detailKey, nextAction };
       });
       // Sort: treatment (highest priority) > monitoring > healthy — matches PWA
       childHealthSummaries.sort((a, b) => {

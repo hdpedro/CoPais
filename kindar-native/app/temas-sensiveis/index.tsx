@@ -24,32 +24,26 @@ import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const TOPIC_META: Record<string, { label: string; icon: string; color: string }> = {
-  consumo: { label: 'Consumo', icon: '🚬', color: '#F59E0B' },
-  bullying: { label: 'Bullying', icon: '😞', color: '#EF4444' },
-  conflito: { label: 'Conflito', icon: '⚡', color: '#E8A228' },
-  saude_mental: { label: 'Saúde mental', icon: '🧠', color: '#8B5CF6' },
-  sexualidade: { label: 'Sexualidade', icon: '❤️', color: '#EC4899' },
-  morte_luto: { label: 'Morte/Luto', icon: '🕊️', color: '#6B7280' },
-  divorcio: { label: 'Divórcio', icon: '💔', color: '#D4735A' },
-  abuso: { label: 'Abuso', icon: '🚨', color: '#E53935' },
-  escola: { label: 'Escola', icon: '🎒', color: '#3B82F6' },
-  outro: { label: 'Outro', icon: '📝', color: '#5B9E85' },
+// labelKey resolved at render via t() — keep icon/color static.
+const TOPIC_META: Record<string, { labelKey: string; icon: string; color: string }> = {
+  consumo: { labelKey: 'sensitiveTopics.topicSubstance', icon: '🚬', color: '#F59E0B' },
+  bullying: { labelKey: 'sensitiveTopics.topicBullying', icon: '😞', color: '#EF4444' },
+  conflito: { labelKey: 'sensitiveTopics.topicConflict', icon: '⚡', color: '#E8A228' },
+  saude_mental: { labelKey: 'sensitiveTopics.topicMentalHealth', icon: '🧠', color: '#8B5CF6' },
+  sexualidade: { labelKey: 'sensitiveTopics.topicSexuality', icon: '❤️', color: '#EC4899' },
+  morte_luto: { labelKey: 'sensitiveTopics.topicGrief', icon: '🕊️', color: '#6B7280' },
+  divorcio: { labelKey: 'sensitiveTopics.topicDivorce', icon: '💔', color: '#D4735A' },
+  abuso: { labelKey: 'sensitiveTopics.topicAbuse', icon: '🚨', color: '#E53935' },
+  escola: { labelKey: 'sensitiveTopics.topicSchool', icon: '🎒', color: '#3B82F6' },
+  outro: { labelKey: 'sensitiveTopics.topicOther', icon: '📝', color: '#5B9E85' },
 };
-
-function formatRelative(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days === 0) return 'Hoje';
-  if (days === 1) return 'Ontem';
-  if (days < 7) return `${days}d atrás`;
-  return iso.slice(0, 10).split('-').reverse().join('/');
-}
 
 export default function TemasSensiveisScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { activeGroup, userId } = useAuth();
   const [acting, setActing] = useState<string | null>(null);
@@ -80,12 +74,12 @@ export default function TemasSensiveisScreen() {
   async function handleRequestDelete(note: SensitiveNote) {
     if (!userId || !activeGroup) return;
     Alert.alert(
-      'Pedir exclusão',
-      'Se você for o único responsável no grupo, a nota será excluída agora. Se há mais responsáveis, a exclusão precisa ser aprovada pelo outro.',
+      t('sensitiveTopics.requestDelete'),
+      t('sensitiveTopics.requestDeleteBody'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Pedir exclusão',
+          text: t('sensitiveTopics.requestDelete'),
           style: 'destructive',
           onPress: async () => {
             setActing(note.id);
@@ -106,12 +100,12 @@ export default function TemasSensiveisScreen() {
   async function handleApproveDelete(note: SensitiveNote) {
     if (!userId || !activeGroup) return;
     Alert.alert(
-      'Aprovar exclusão',
-      `${note.deletionRequesterName} pediu exclusão de ${note.title}. Confirmar exclusão definitiva?`,
+      t('sensitive.approveDelete'),
+      t('sensitiveTopics.approveDeleteBody', { name: note.deletionRequesterName ?? '', title: note.title ?? '' }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             setActing(note.id);
@@ -197,10 +191,10 @@ export default function TemasSensiveisScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2, flexWrap: 'wrap' }}>
-                    <Text style={{ fontSize: font.sizes.xs, color: topic.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>{topic.label}</Text>
+                    <Text style={{ fontSize: font.sizes.xs, color: topic.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>{t(topic.labelKey)}</Text>
                     {n.is_urgent ? (
                       <View style={{ backgroundColor: `${colors.error}15`, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
-                        <Text style={{ fontSize: 10, color: colors.error, fontWeight: font.weights.bold }}>URGENTE</Text>
+                        <Text style={{ fontSize: 10, color: colors.error, fontWeight: font.weights.bold }}>{t('sensitiveTopics.urgentBadge')}</Text>
                       </View>
                     ) : null}
                     {child ? <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>· {child.full_name.split(' ')[0]}</Text> : null}
@@ -212,7 +206,7 @@ export default function TemasSensiveisScreen() {
                     {n.content}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm }}>
-                    {n.authorName} · {formatRelative(n.created_at)}
+                    {n.authorName} · {intl.formatRelativeDay(n.created_at)}
                   </Text>
                 </View>
               </View>
@@ -220,18 +214,18 @@ export default function TemasSensiveisScreen() {
               {isAwaitingApproval ? (
                 <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.warning}15`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.warning}40` }}>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.warning, fontWeight: font.weights.semibold, marginBottom: 4, textTransform: 'uppercase' }}>
-                    Aguardando aprovação da exclusão
+                    {t('sensitiveTopics.awaitingApproval')}
                   </Text>
                   <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>
                     {iRequestedDeletion
-                      ? 'Você pediu a exclusão. O outro responsável precisa aprovar.'
-                      : `${n.deletionRequesterName || 'Outro responsável'} pediu a exclusão desta nota.`}
+                      ? t('sensitiveTopics.youRequestedDeletion')
+                      : t('sensitiveTopics.otherRequestedDeletion', { name: n.deletionRequesterName || t('sensitiveTopics.otherParent') })}
                   </Text>
                   <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm }}>
                     {canIApprove ? (
                       <View style={{ flex: 1 }}>
                         <PrimaryButton
-                          label="Aprovar exclusão"
+                          label={t('sensitive.approveDelete')}
                           onPress={() => handleApproveDelete(n)}
                           loading={acting === n.id}
                           variant="destructive"
@@ -241,7 +235,7 @@ export default function TemasSensiveisScreen() {
                     ) : null}
                     <View style={{ flex: canIApprove ? 1 : undefined }}>
                       <PrimaryButton
-                        label="Cancelar pedido"
+                        label={t('sensitiveTopics.cancelRequest')}
                         onPress={() => handleCancelDelete(n)}
                         loading={acting === n.id}
                         variant="secondary"
@@ -256,7 +250,7 @@ export default function TemasSensiveisScreen() {
                   onPress={() => handleRequestDelete(n)}
                   style={{ alignSelf: 'flex-end', marginTop: spacing.sm, paddingVertical: 4, paddingHorizontal: 8 }}
                 >
-                  <Text style={{ fontSize: font.sizes.xs, color: colors.error }}>Pedir exclusão</Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.error }}>{t('sensitiveTopics.requestDelete')}</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -270,10 +264,10 @@ export default function TemasSensiveisScreen() {
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
-              Nova nota sensível
+              {t('sensitiveTopics.newNote')}
             </Text>
             <ScrollView>
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Tema</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('sensitiveTopics.topic')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                 {(Object.keys(TOPIC_META) as SensitiveTopic[]).map(k => {
                   const m = TOPIC_META[k];
@@ -291,7 +285,7 @@ export default function TemasSensiveisScreen() {
                     >
                       <Text style={{ fontSize: 14 }}>{m.icon}</Text>
                       <Text style={{ fontSize: font.sizes.sm, color: active ? m.color : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                        {m.label}
+                        {t(m.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -300,7 +294,7 @@ export default function TemasSensiveisScreen() {
 
               {children.length > 0 ? (
                 <>
-                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Criança (opcional)</Text>
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('sensitive.childOptional')}</Text>
                   <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                     <TouchableOpacity
                       onPress={() => setNewChildId(null)}
@@ -310,7 +304,7 @@ export default function TemasSensiveisScreen() {
                         borderWidth: 1, borderColor: newChildId === null ? colors.brand : colors.borderLight,
                       }}
                     >
-                      <Text style={{ fontSize: font.sizes.sm, color: newChildId === null ? '#fff' : colors.text }}>Geral</Text>
+                      <Text style={{ fontSize: font.sizes.sm, color: newChildId === null ? '#fff' : colors.text }}>{t('sensitiveTopics.general')}</Text>
                     </TouchableOpacity>
                     {children.map(c => {
                       const active = newChildId === c.id;
@@ -336,7 +330,7 @@ export default function TemasSensiveisScreen() {
 
               <TextInput
                 value={newTitle} onChangeText={setNewTitle}
-                placeholder="Título"
+                placeholder={t('sensitive.titlePlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 style={{
                   backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -346,7 +340,7 @@ export default function TemasSensiveisScreen() {
               />
               <TextInput
                 value={newContent} onChangeText={setNewContent}
-                placeholder="Detalhes (só vocês veem)"
+                placeholder={t('sensitiveTopics.detailsPlaceholder')}
                 placeholderTextColor={colors.textMuted}
                 multiline
                 style={{
@@ -372,12 +366,12 @@ export default function TemasSensiveisScreen() {
                   {newUrgent ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
                 </View>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
-                  Marcar como urgente
+                  {t('sensitive.markUrgent')}
                 </Text>
               </TouchableOpacity>
 
               <PrimaryButton
-                label="Registrar"
+                label={t('sensitiveTopics.register')}
                 onPress={submitNew}
                 loading={submitting}
                 disabled={!newTitle.trim() || !newContent.trim()}

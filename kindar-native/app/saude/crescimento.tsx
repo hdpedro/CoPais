@@ -262,7 +262,7 @@ export default function CrescimentoScreen() {
       record.head_cm ? `PC ${record.head_cm}cm` : null,
     ].filter(Boolean).join(' · ');
     const dateBr = record.measured_date.split('-').reverse().join('/');
-    return `${record.childName} · ${dateBr}${summary ? `\n${summary}` : ''}\n\nEsta ação não pode ser desfeita.`;
+    return `${record.childName} · ${dateBr}${summary ? `\n${summary}` : ''}\n\n${t('growth.cannotBeUndone')}`;
   }
 
   async function performDelete(record: GrowthRecord) {
@@ -270,11 +270,11 @@ export default function CrescimentoScreen() {
     const r = await safeWrite({ table: 'growth_records', operation: 'delete', payload: { id: record.id } });
     if (r.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      toast.show({ message: `Registro de ${dateBr} removido`, variant: 'success' });
+      toast.show({ message: t('growth.removedToast', { date: dateBr }), variant: 'success' });
       await refresh();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show({ message: r.error || 'Não consegui excluir. Tente de novo.', variant: 'error' });
+      toast.show({ message: r.error || t('growth.deleteFailed'), variant: 'error' });
     }
   }
 
@@ -324,7 +324,7 @@ export default function CrescimentoScreen() {
             <View style={{ marginBottom: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <Ionicons name="create-outline" size={14} color={colors.brand} />
               <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.semibold, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                Editando medida
+                {t('growth.editingBadge')}
               </Text>
             </View>
           ) : null}
@@ -336,21 +336,21 @@ export default function CrescimentoScreen() {
             testID="crescimento-form-child-picker"
           />
           <View style={{ marginBottom: spacing.sm }}>
-            <DatePickerField value={dateIso} onChange={setDateIso} placeholder="Data da medida" maximumDate={new Date()} />
+            <DatePickerField value={dateIso} onChange={setDateIso} placeholder={t('growth.dateLabel')} maximumDate={new Date()} />
           </View>
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
             <View style={{ flex: 1 }}>
-              <DecimalInput value={weight} onChangeText={setWeight} placeholder="Peso" unit="kg" maxIntegerDigits={3} maxDecimalDigits={2} />
+              <DecimalInput value={weight} onChangeText={setWeight} placeholder={t('health.weight')} unit="kg" maxIntegerDigits={3} maxDecimalDigits={2} />
             </View>
             <View style={{ flex: 1 }}>
-              <DecimalInput value={height} onChangeText={setHeight} placeholder="Altura" unit="cm" maxIntegerDigits={3} maxDecimalDigits={1} />
+              <DecimalInput value={height} onChangeText={setHeight} placeholder={t('health.height')} unit="cm" maxIntegerDigits={3} maxDecimalDigits={1} />
             </View>
           </View>
           <View style={{ marginBottom: spacing.md }}>
-            <DecimalInput value={headCm} onChangeText={setHeadCm} placeholder="Perímetro cefálico (opcional)" unit="cm" maxIntegerDigits={3} maxDecimalDigits={1} />
+            <DecimalInput value={headCm} onChangeText={setHeadCm} placeholder={t('growth.headOptional')} unit="cm" maxIntegerDigits={3} maxDecimalDigits={1} />
           </View>
           <PrimaryButton
-            label={editingId ? 'Salvar alterações' : 'Registrar medida'}
+            label={editingId ? t('growth.saveChanges') : t('growth.registerMeasurement')}
             onPress={handleSubmit}
             loading={saving}
             testID="crescimento-save-button"
@@ -399,21 +399,21 @@ export default function CrescimentoScreen() {
                 }}
               >
                 <StatCard
-                  label="Peso"
+                  label={t('health.weight')}
                   value={latestForChild.weight_kg ? `${latestForChild.weight_kg}` : '—'}
                   unit="kg"
                   percentile={weightP}
                   onPress={() => startEdit(latestForChild)}
                 />
                 <StatCard
-                  label="Altura"
+                  label={t('health.height')}
                   value={latestForChild.height_cm ? `${latestForChild.height_cm}` : '—'}
                   unit="cm"
                   percentile={heightP}
                   onPress={() => startEdit(latestForChild)}
                 />
                 <StatCard
-                  label="Cabeça"
+                  label={t('health.head')}
                   value={latestForChild.head_cm ? `${latestForChild.head_cm}` : '—'}
                   unit="cm"
                   percentile={null}
@@ -431,7 +431,7 @@ export default function CrescimentoScreen() {
                   marginBottom: spacing.md,
                 }}
               >
-                Última medida em {latestForChild.measured_date.split('-').reverse().join('/')}
+                {t('growth.lastMeasuredOn', { date: latestForChild.measured_date.split('-').reverse().join('/') })}
               </Text>
             ) : null}
 
@@ -461,7 +461,7 @@ export default function CrescimentoScreen() {
                   paddingHorizontal: spacing.xs,
                 }}
               >
-                Histórico
+                {t('health.history')}
               </Text>
             ) : null}
           </View>
@@ -479,14 +479,14 @@ export default function CrescimentoScreen() {
             <SwipeToDelete
               onDelete={() => performDelete(item)}
               onEdit={() => startEdit(item)}
-              confirmTitle="Excluir registro de crescimento?"
+              confirmTitle={t('growth.deleteConfirmTitle')}
               confirmMessage={buildDeleteConfirmMessage(item)}
             >
               <TouchableOpacity
                 onPress={() => startEdit(item)}
                 activeOpacity={0.7}
                 accessibilityRole="button"
-                accessibilityLabel={`Editar medida de ${item.childName} em ${item.measured_date?.split('-').reverse().join('/')}`}
+                accessibilityLabel={t('growth.editMeasureA11y', { name: item.childName, date: item.measured_date?.split('-').reverse().join('/') })}
                 accessibilityState={{ selected: editingId === item.id }}
                 style={{
                   backgroundColor: colors.bgElevated,
@@ -534,7 +534,7 @@ export default function CrescimentoScreen() {
                   onPress={(e) => { e.stopPropagation(); startEdit(item); }}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Editar medida"
+                  accessibilityLabel={t('growth.editMeasure')}
                   style={{ padding: 6 }}
                 >
                   <Ionicons name="create-outline" size={20} color={colors.textSecondary} />
@@ -546,17 +546,17 @@ export default function CrescimentoScreen() {
                     // Alert.alert confirma antes de excluir — mesma UX do
                     // SwipeToDelete wrapper. performDelete chama safeWrite.
                     Alert.alert(
-                      'Excluir medida?',
+                      t('growth.deleteTitle'),
                       buildDeleteConfirmMessage(item),
                       [
-                        { text: 'Cancelar', style: 'cancel' },
-                        { text: 'Excluir', style: 'destructive', onPress: () => performDelete(item) },
+                        { text: t('common.cancel'), style: 'cancel' },
+                        { text: t('common.delete'), style: 'destructive', onPress: () => performDelete(item) },
                       ],
                     );
                   }}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Excluir medida"
+                  accessibilityLabel={t('growth.deleteMeasure')}
                   style={{ padding: 6 }}
                 >
                   <Ionicons name="trash-outline" size={20} color={colors.error} />
@@ -588,6 +588,7 @@ interface StatCardProps {
 }
 
 function StatCard({ label, value, unit, percentile, onPress }: StatCardProps) {
+  const t = useI18n(s => s.t);
   const hasPercentile = percentile !== null;
   const pColor = percentileColor(percentile);
   const pBg = percentileBg(percentile);
@@ -619,7 +620,7 @@ function StatCard({ label, value, unit, percentile, onPress }: StatCardProps) {
       )}
       {isEmpty && onPress ? (
         <Text style={{ fontSize: 9, color: colors.brand, marginTop: 2, fontWeight: font.weights.semibold }}>
-          + tocar
+          {t('growth.tapToAdd')}
         </Text>
       ) : null}
     </>
@@ -638,7 +639,7 @@ function StatCard({ label, value, unit, percentile, onPress }: StatCardProps) {
         onPress={onPress}
         activeOpacity={0.7}
         accessibilityRole="button"
-        accessibilityLabel={isEmpty ? `Adicionar ${label}` : `Editar ${label}`}
+        accessibilityLabel={isEmpty ? t('growth.addStat', { label }) : t('growth.editStat', { label })}
         style={style}
       >
         {body}

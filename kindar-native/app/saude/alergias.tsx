@@ -35,11 +35,12 @@ const SEV_ICONS: Record<string, { icon: string; color: string }> = {
 };
 
 // Allergy types — match the labels PWA uses (`src/app/(app)/saude/alergias/nova/page.tsx`).
-const TYPE_OPTIONS: { value: string; label: string; icon: string }[] = [
-  { value: 'food', label: 'Alimentar', icon: '🍔' },
-  { value: 'medication', label: 'Medicamento', icon: '💊' },
-  { value: 'environmental', label: 'Ambiental', icon: '🌿' },
-  { value: 'other', label: 'Outro', icon: '🔖' },
+// `labelKey` resolvido com t() no render (não chamar t() no escopo de módulo).
+const TYPE_OPTIONS: { value: string; labelKey: string; icon: string }[] = [
+  { value: 'food', labelKey: 'childHealth.allergyTypeFood', icon: '🍔' },
+  { value: 'medication', labelKey: 'allergies.typeMedication', icon: '💊' },
+  { value: 'environmental', labelKey: 'childHealth.allergyTypeEnvironmental', icon: '🌿' },
+  { value: 'other', labelKey: 'symptomDiary.typeOther', icon: '🔖' },
 ];
 
 export default function AlergiasScreen() {
@@ -135,26 +136,26 @@ export default function AlergiasScreen() {
             containerStyle={{ marginBottom: spacing.md }}
             testID="alergia-form-child-picker"
           />
-          <TextInput value={name} onChangeText={setName} placeholder="Nome da alergia" placeholderTextColor={colors.textDim}
+          <TextInput value={name} onChangeText={setName} placeholder={t('health.allergyName')} placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
 
           {/* Type picker — was hardcoded to 'food' before */}
-          <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4 }}>Tipo</Text>
+          <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4 }}>{t('health.type')}</Text>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.sm }}>
             <View style={{ flexDirection: 'row', gap: 6 }}>
-              {TYPE_OPTIONS.map(t => (
-                <TouchableOpacity key={t.value} onPress={() => setType(t.value)}
+              {TYPE_OPTIONS.map(opt => (
+                <TouchableOpacity key={opt.value} onPress={() => setType(opt.value)}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: type === t.value }}
-                  accessibilityLabel={`Tipo ${t.label}`}
+                  accessibilityState={{ selected: type === opt.value }}
+                  accessibilityLabel={`${t('health.type')} ${t(opt.labelKey)}`}
                   style={{
                     paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.full,
-                    backgroundColor: type === t.value ? colors.brand : colors.bgSurface,
+                    backgroundColor: type === opt.value ? colors.brand : colors.bgSurface,
                     flexDirection: 'row', alignItems: 'center', gap: 4,
                   }}>
-                  <Text style={{ fontSize: 14 }}>{t.icon}</Text>
-                  <Text style={{ fontSize: font.sizes.xs, color: type === t.value ? '#fff' : colors.text }}>
-                    {t.label}
+                  <Text style={{ fontSize: 14 }}>{opt.icon}</Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: type === opt.value ? '#fff' : colors.text }}>
+                    {t(opt.labelKey)}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -163,12 +164,12 @@ export default function AlergiasScreen() {
 
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
             {['mild', 'moderate', 'severe'].map(s => {
-              const sevLabel = s === 'mild' ? 'Leve' : s === 'moderate' ? 'Moderada' : 'Grave';
+              const sevLabel = s === 'mild' ? t('health.severityMild') : s === 'moderate' ? t('health.severityModerate') : t('health.severityGrave');
               return (
                 <TouchableOpacity key={s} onPress={() => setSeverity(s)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: severity === s }}
-                  accessibilityLabel={`Severidade ${sevLabel}`}
+                  accessibilityLabel={`${t('allergies.severityA11y')} ${sevLabel}`}
                   style={{ flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md, alignItems: 'center',
                     backgroundColor: severity === s ? `${(SEV_ICONS[s]?.color || colors.brand)}20` : colors.bgSurface,
                     borderWidth: severity === s ? 1.5 : 0, borderColor: SEV_ICONS[s]?.color }}>
@@ -178,10 +179,10 @@ export default function AlergiasScreen() {
               );
             })}
           </View>
-          <TextInput value={reaction} onChangeText={setReaction} placeholder="Reação (opcional)" placeholderTextColor={colors.textDim}
+          <TextInput value={reaction} onChangeText={setReaction} placeholder={t('allergies.reactionOptional')} placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
           <PrimaryButton
-            label="Adicionar alergia"
+            label={t('empty.alergias.actionLabel')}
             onPress={handleCreate}
             loading={saving}
             disabled={!name.trim()}
@@ -214,8 +215,8 @@ export default function AlergiasScreen() {
             <View style={{ marginBottom: spacing.sm }}>
               <SwipeToDelete
                 onDelete={() => handleDelete(item.id)}
-                confirmTitle="Apagar alergia"
-                confirmMessage={`Remover "${item.name}" do registro de ${item.childName}? Esta ação não pode ser desfeita.`}
+                confirmTitle={t('allergies.deleteTitle')}
+                confirmMessage={t('allergies.deleteMessage', { name: item.name, childName: item.childName })}
               >
                 <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm,
                   flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderLeftWidth: 3, borderLeftColor: sev.color }}>

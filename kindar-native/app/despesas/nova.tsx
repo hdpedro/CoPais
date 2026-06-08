@@ -20,12 +20,14 @@ import { colors, spacing, radius, font } from 'src/design-system/tokens';
 interface ChildOption { id: string; full_name: string; }
 interface MemberOption { user_id: string; name: string; }
 
-const SPLIT_PRESETS: { id: '50-50' | '70-30' | '30-70' | '100-0' | 'custom'; label: string; ratios: { me: number; other: number } | null }[] = [
-  { id: '50-50', label: '50% / 50%', ratios: { me: 50, other: 50 } },
-  { id: '70-30', label: '70% / 30%', ratios: { me: 70, other: 30 } },
-  { id: '30-70', label: '30% / 70%', ratios: { me: 30, other: 70 } },
-  { id: '100-0', label: 'Eu pago tudo', ratios: { me: 100, other: 0 } },
-  { id: 'custom', label: 'Personalizado', ratios: null },
+// `labelKey` resolvido no render via t() — presets numéricos (50% / 50%) são
+// universais, mas "Eu pago tudo" / "Personalizado" precisam de tradução.
+const SPLIT_PRESETS: { id: '50-50' | '70-30' | '30-70' | '100-0' | 'custom'; labelKey: string; ratios: { me: number; other: number } | null }[] = [
+  { id: '50-50', labelKey: 'expenses.split.5050', ratios: { me: 50, other: 50 } },
+  { id: '70-30', labelKey: 'expenses.split.7030', ratios: { me: 70, other: 30 } },
+  { id: '30-70', labelKey: 'expenses.split.3070', ratios: { me: 30, other: 70 } },
+  { id: '100-0', labelKey: 'expenses.split.payAll', ratios: { me: 100, other: 0 } },
+  { id: 'custom', labelKey: 'expenseForm.custom', ratios: null },
 ];
 
 export default function NovaExpenseScreen() {
@@ -79,12 +81,12 @@ export default function NovaExpenseScreen() {
       setMembers(
         ((memberRows as Array<{ user_id: string; profiles: { full_name?: string | null; display_name?: string | null } | null }> | null) ?? []).map(m => ({
           user_id: m.user_id,
-          name: (m.profiles?.display_name || m.profiles?.full_name?.split(' ')[0] || 'Co-responsável'),
+          name: (m.profiles?.display_name || m.profiles?.full_name?.split(' ')[0] || t('expenses.coparentFallback')),
         }))
       );
     })();
     return () => { cancelled = true; };
-  }, [activeGroup, userId]);
+  }, [activeGroup, userId, t]);
 
   const otherMember = members.find(m => m.user_id !== userId);
 
@@ -124,7 +126,7 @@ export default function NovaExpenseScreen() {
   async function handleSave() {
     if (!description.trim() || !amount || !userId || !activeGroup) return;
     const val = parseFloat(amount.replace(',', '.'));
-    if (isNaN(val) || val <= 0) { setError('Valor inválido'); return; }
+    if (isNaN(val) || val <= 0) { setError(t('validation.field.amountInvalid')); return; }
 
     setSaving(true);
 
@@ -133,7 +135,7 @@ export default function NovaExpenseScreen() {
     if (receiptUri) {
       const up = await uploadExpenseReceipt({ uri: receiptUri, mimeType: receiptMime, groupId: activeGroup.groupId });
       if (!up.success) {
-        setError(`Falha no upload: ${up.error}`);
+        setError(t('expenses.uploadFailed', { error: up.error ?? '' }));
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
         setSaving(false);
         return;
@@ -157,7 +159,7 @@ export default function NovaExpenseScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
     } else {
-      setError(result.error || 'Erro ao salvar despesa');
+      setError(result.error || t('expenses.saveError'));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
     setSaving(false);
@@ -169,13 +171,13 @@ export default function NovaExpenseScreen() {
       <ScrollView contentContainerStyle={{ padding: spacing.xl }} keyboardShouldPersistTaps="handled">
         {error ? <Text style={{ color: colors.error, marginBottom: spacing.md }}>{error}</Text> : null}
 
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Descrição</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('expenses.description')}</Text>
         <TextInput
           value={description}
           onChangeText={(v) => { setDescription(v); if (descriptionError) setDescriptionError(null); }}
           onBlur={() => setDescriptionError(validateDescriptionField(description))}
-          accessibilityLabel={descriptionError ?? 'Descrição'}
-          placeholder="O que foi comprado?"
+          accessibilityLabel={descriptionError ?? t('expenses.description')}
+          placeholder={t('expenses.descriptionPlaceholder')}
           placeholderTextColor={colors.textDim}
           style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -190,9 +192,9 @@ export default function NovaExpenseScreen() {
           </Text>
         ) : null}
 
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Valor</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('expenses.amount')}</Text>
         <CurrencyInput
-          accessibilityLabel={amountError ?? 'Valor'}
+          accessibilityLabel={amountError ?? t('expenses.amount')}
           value={parseFloat(amount.replace(',', '.')) || 0}
           onChangeText={(reais) => {
             setAmount(reais === 0 ? '' : String(reais).replace('.', ','));
@@ -212,42 +214,45 @@ export default function NovaExpenseScreen() {
         ) : null}
 
         <View style={{ marginBottom: spacing.lg }}>
-          <DatePickerField label="Data da despesa" value={dateIso} onChange={setDateIso} maximumDate={new Date()} />
+          <DatePickerField label={t('expenses.expenseDate')} value={dateIso} onChange={setDateIso} maximumDate={new Date()} />
         </View>
 
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Categoria</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('expenses.category')}</Text>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
-          {EXPENSE_CATEGORIES.map(cat => (
+          {EXPENSE_CATEGORIES.map(cat => {
+            const catLabel = t(cat.labelKey);
+            return (
             <TouchableOpacity key={cat.value} onPress={() => setCategory(cat.value)}
               accessibilityRole="radio"
               accessibilityState={{ selected: category === cat.value }}
-              accessibilityLabel={cat.label}
+              accessibilityLabel={catLabel}
               style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.full,
                 backgroundColor: category === cat.value ? colors.brand : colors.bgElevated,
                 borderWidth: 1, borderColor: category === cat.value ? colors.brand : colors.borderLight }}>
               <Text style={{ fontSize: font.sizes.sm, color: category === cat.value ? '#fff' : colors.text }}>
-                {cat.icon} {cat.label}
+                {cat.icon} {catLabel}
               </Text>
             </TouchableOpacity>
-          ))}
+            );
+          })}
         </View>
 
         {/* Child (optional) — pairs the expense with a specific child */}
         {children.length > 0 ? (
           <>
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>
-              Criança (opcional)
+              {t('expenseForm.childOptional')}
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               <TouchableOpacity onPress={() => setSelectedChildId(null)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: selectedChildId === null }}
-                accessibilityLabel="Família"
+                accessibilityLabel={t('expenses.family')}
                 style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.full,
                   backgroundColor: selectedChildId === null ? colors.brand : colors.bgElevated,
                   borderWidth: 1, borderColor: selectedChildId === null ? colors.brand : colors.borderLight }}>
                 <Text style={{ fontSize: font.sizes.sm, color: selectedChildId === null ? '#fff' : colors.text }}>
-                  Família
+                  {t('expenses.family')}
                 </Text>
               </TouchableOpacity>
               {children.map(c => (
@@ -271,29 +276,32 @@ export default function NovaExpenseScreen() {
         {otherMember ? (
           <>
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
-              Divisão
+              {t('expenseForm.splitLabel')}
             </Text>
             <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: spacing.sm }}>
-              Quanto cada um deve no total da despesa.
+              {t('expenses.splitHint')}
             </Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
-              {SPLIT_PRESETS.map(p => (
+              {SPLIT_PRESETS.map(p => {
+                const presetLabel = t(p.labelKey);
+                return (
                 <TouchableOpacity key={p.id} onPress={() => setSplitPreset(p.id)}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: splitPreset === p.id }}
-                  accessibilityLabel={`Divisão ${p.label}`}
+                  accessibilityLabel={t('expenses.splitOptionA11y', { label: presetLabel })}
                   style={{ paddingVertical: spacing.sm, paddingHorizontal: spacing.md, borderRadius: radius.md,
                     backgroundColor: splitPreset === p.id ? colors.brand : colors.bgElevated,
                     borderWidth: 1, borderColor: splitPreset === p.id ? colors.brand : colors.borderLight }}>
                   <Text style={{ fontSize: font.sizes.sm, color: splitPreset === p.id ? '#fff' : colors.text }}>
-                    {p.label}
+                    {presetLabel}
                   </Text>
                 </TouchableOpacity>
-              ))}
+                );
+              })}
             </View>
             {splitPreset === 'custom' ? (
               <View style={{ flexDirection: 'row', gap: spacing.md, alignItems: 'center', marginBottom: spacing.lg }}>
-                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>Você</Text>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>{t('expenseForm.you')}</Text>
                 <TextInput
                   value={customMyShare}
                   onChangeText={setCustomMyShare}
@@ -318,13 +326,13 @@ export default function NovaExpenseScreen() {
           </>
         ) : null}
 
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Comprovante (opcional)</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('expenseForm.receiptOptional')}</Text>
         {receiptUri ? (
           <View style={{ position: 'relative', marginBottom: spacing.lg }}>
             <Image source={{ uri: receiptUri }} style={{ width: '100%', height: 200, borderRadius: radius.md, backgroundColor: colors.bgElevated }} />
             <TouchableOpacity onPress={() => setReceiptUri(null)}
               accessibilityRole="button"
-              accessibilityLabel="Remover comprovante"
+              accessibilityLabel={t('expenses.removeReceipt')}
               style={{ position: 'absolute', top: 8, right: 8, width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(0,0,0,0.7)', alignItems: 'center', justifyContent: 'center' }}>
               <Ionicons name="close" size={18} color="#fff" />
             </TouchableOpacity>
@@ -333,23 +341,23 @@ export default function NovaExpenseScreen() {
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing['2xl'] }}>
             <TouchableOpacity onPress={() => pickReceipt('camera')}
               accessibilityRole="button"
-              accessibilityLabel="Tirar foto do comprovante"
+              accessibilityLabel={t('expenses.takeReceiptPhoto')}
               style={{ flex: 1, backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.borderLight, paddingVertical: spacing.lg, alignItems: 'center', gap: spacing.xs }}>
               <Ionicons name="camera-outline" size={24} color={colors.textSecondary} />
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Câmera</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{t('editChild.photoCamera')}</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={() => pickReceipt('library')}
               accessibilityRole="button"
-              accessibilityLabel="Escolher comprovante da galeria"
+              accessibilityLabel={t('expenses.pickReceiptFromGallery')}
               style={{ flex: 1, backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderStyle: 'dashed', borderColor: colors.borderLight, paddingVertical: spacing.lg, alignItems: 'center', gap: spacing.xs }}>
               <Ionicons name="image-outline" size={24} color={colors.textSecondary} />
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Galeria</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{t('editChild.photoLibrary')}</Text>
             </TouchableOpacity>
           </View>
         )}
 
         <PrimaryButton
-          label="Salvar despesa"
+          label={t('expenses.saveExpense')}
           onPress={handleSave}
           loading={saving}
           disabled={!description.trim() || !amount}

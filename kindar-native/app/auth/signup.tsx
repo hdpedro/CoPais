@@ -58,7 +58,7 @@ export default function SignupScreen() {
 
   async function handleSignup() {
     if (!fullName || !email || !password || !confirmPassword) {
-      setError('Preencha todos os campos');
+      setError(t('authSignup.fillAllFields'));
       return;
     }
     if (password.length < 8) {
@@ -70,7 +70,7 @@ export default function SignupScreen() {
       return;
     }
     if (!lgpdConsent) {
-      setError('Você precisa aceitar os Termos de Uso e a Política de Privacidade.');
+      setError(t('authSignup.mustAcceptTerms'));
       return;
     }
     setLoading(true);
@@ -94,7 +94,7 @@ export default function SignupScreen() {
       setSuccess(true);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(result.error || 'Erro ao criar conta');
+      setError(result.error || t('authSignup.createError'));
     }
     setLoading(false);
   }
@@ -115,12 +115,12 @@ export default function SignupScreen() {
           <Ionicons name="mail-unread-outline" size={44} color={colors.brand} />
         </View>
         <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text, textAlign: 'center' }}>
-          Confirme seu e-mail
+          {t('authSignup.confirmEmailTitle')}
         </Text>
         <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.md, lineHeight: 22 }}>
-          Enviamos um link de verificação para{' '}
+          {t('authSignup.confirmEmailBodyPrefix')}{' '}
           <Text style={{ color: colors.text, fontWeight: font.weights.semibold }}>{email}</Text>
-          .{'\n'}Clique no link pra ativar sua conta e voltar aqui pra entrar.
+          .{'\n'}{t('authSignup.confirmEmailBodySuffix')}
         </Text>
         <View style={{
           backgroundColor: 'rgba(0,0,0,0.04)', borderRadius: radius.md,
@@ -129,17 +129,17 @@ export default function SignupScreen() {
         }}>
           <Ionicons name="information-circle-outline" size={16} color={colors.textMuted} style={{ marginTop: 2 }} />
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, flex: 1, lineHeight: 19 }}>
-            Não encontrou? Verifique a pasta de <Text style={{ fontWeight: font.weights.semibold }}>spam ou lixo eletrônico</Text>. O e-mail pode levar até 1 minuto pra chegar.
+            {t('authSignup.spamHintPrefix')} <Text style={{ fontWeight: font.weights.semibold }}>{t('authSignup.spamHintBold')}</Text>{t('authSignup.spamHintSuffix')}
           </Text>
         </View>
         <PrimaryButton
           onPress={() => router.replace('/auth/login')}
-          label="Já confirmei, entrar"
+          label={t('authSignup.alreadyConfirmed')}
           fullWidth={false}
           style={{ marginTop: spacing['3xl'], paddingHorizontal: spacing['3xl'] }}
         />
         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textAlign: 'center', marginTop: spacing.md }}>
-          Você pode reenviar o e-mail pela tela de login se precisar.
+          {t('authSignup.resendFromLoginHint')}
         </Text>
       </View>
     );
@@ -161,7 +161,7 @@ export default function SignupScreen() {
             {t('auth.createAccount')}
           </Text>
           <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, marginTop: spacing.xs }}>
-            Junte-se ao Kindar
+            {t('authSignup.joinKindar')}
           </Text>
         </View>
 
@@ -189,11 +189,11 @@ export default function SignupScreen() {
           <Ionicons name="person-outline" size={18} color={colors.textMuted} />
           <TextInput
             testID="signup-fullname-input"
-            accessibilityLabel={fullNameError ?? 'Nome completo'}
+            accessibilityLabel={fullNameError ?? t('auth.fullNamePlaceholder')}
             value={fullName}
             onChangeText={(v) => { setFullName(v); if (fullNameError) setFullNameError(null); }}
             onBlur={() => setFullNameError(validateFullNameField(fullName))}
-            placeholder="Seu nome"
+            placeholder={t('authSignup.namePlaceholder')}
             placeholderTextColor={colors.textDim}
             autoCapitalize="words"
             autoComplete="name"
@@ -222,7 +222,7 @@ export default function SignupScreen() {
           <Ionicons name="mail-outline" size={18} color={colors.textMuted} />
           <TextInput
             testID="signup-email-input"
-            accessibilityLabel={emailError ?? 'Email'}
+            accessibilityLabel={emailError ?? t('auth.email')}
             value={email}
             onChangeText={(v) => { setEmail(v); if (emailError) setEmailError(null); }}
             onBlur={() => setEmailError(validateEmailField(email))}
@@ -256,7 +256,7 @@ export default function SignupScreen() {
           <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
           <TextInput
             testID="signup-password-input"
-            accessibilityLabel={passwordError ?? 'Senha'}
+            accessibilityLabel={passwordError ?? t('auth.password')}
             value={password}
             onChangeText={(v) => { setPassword(v); if (passwordError) setPasswordError(null); }}
             onBlur={() => setPasswordError(validatePasswordField(password))}
@@ -272,7 +272,7 @@ export default function SignupScreen() {
           <TouchableOpacity
             onPress={() => setShowPassword(!showPassword)}
             accessibilityRole="button"
-            accessibilityLabel={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+            accessibilityLabel={showPassword ? t('authForm.hidePassword') : t('authForm.showPassword')}
             accessibilityState={{ selected: showPassword }}
             hitSlop={8}
           >
@@ -297,7 +297,7 @@ export default function SignupScreen() {
         }}>
           <Ionicons name="lock-closed-outline" size={18} color={colors.textMuted} />
           <TextInput
-            accessibilityLabel={confirmPasswordError ?? 'Confirmar senha'}
+            accessibilityLabel={confirmPasswordError ?? t('auth.confirmPassword')}
             value={confirmPassword}
             onChangeText={(v) => { setConfirmPassword(v); if (confirmPasswordError) setConfirmPasswordError(null); }}
             onBlur={() => setConfirmPasswordError(validateConfirmPasswordField(confirmPassword))}
@@ -326,7 +326,7 @@ export default function SignupScreen() {
             activeOpacity={0.7}
             accessibilityRole="checkbox"
             accessibilityState={{ checked: lgpdConsent }}
-            accessibilityLabel="Concordo com os Termos de Uso e a Política de Privacidade"
+            accessibilityLabel={t('authSignup.lgpdA11y')}
             hitSlop={8}
             style={{
               width: 18, height: 18, borderRadius: 4, marginTop: 2,
@@ -339,21 +339,21 @@ export default function SignupScreen() {
             {lgpdConsent ? <Ionicons name="checkmark" size={12} color="#fff" /> : null}
           </TouchableOpacity>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, flex: 1, lineHeight: 18 }}>
-            Concordo com os{' '}
+            {t('authSignup.lgpdPrefix')}{' '}
             <Text
               style={{ color: colors.brand, textDecorationLine: 'underline' }}
               onPress={() => Linking.openURL(TERMS_URL)}
             >
-              Termos de Uso
+              {t('account.termsOfUse')}
             </Text>
-            {' '}e{' '}
+            {' '}{t('authSignup.lgpdAnd')}{' '}
             <Text
               style={{ color: colors.brand, textDecorationLine: 'underline' }}
               onPress={() => Linking.openURL(PRIVACY_URL)}
             >
-              Politica de Privacidade
+              {t('account.privacyPolicy')}
             </Text>
-            . Seus dados serao tratados conforme a LGPD.
+            {t('authSignup.lgpdSuffix')}
           </Text>
         </View>
 

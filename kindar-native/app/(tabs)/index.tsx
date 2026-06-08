@@ -17,6 +17,7 @@ import { useAuth } from 'src/store/auth';
 import { useDashboard } from 'src/hooks/useDashboard';
 import { respondToSwap, cancelMySwap } from 'src/services/swaps';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from 'src/lib/constants';
 import { formatBRL as formatBRLShared } from 'src/lib/currency';
@@ -62,15 +63,29 @@ function formatBRL(v: number): string {
   // correto via Intl.NumberFormat ("R$ 1.234,56" em vez de "R$ 1234,56").
   return formatBRLShared(v);
 }
-function formatDeadline(deadline: string | null): { label: string; urgent: boolean } | null {
+// Deadline label resolvido no RENDER (este helper é module-level e não tem
+// acesso a hooks). Retorna uma chave i18n + params; o componente chama t()/
+// intl pra renderizar no idioma ativo. `date` sinaliza o branch que mostra a
+// data formatada (locale-aware via intl.formatDate).
+type DeadlineInfo = {
+  labelKey?: string;
+  params?: Record<string, number>;
+  date?: string;
+  urgent: boolean;
+};
+function formatDeadline(deadline: string | null): DeadlineInfo | null {
   if (!deadline) return null;
   const now = Date.now();
   const d = new Date(deadline + 'T23:59:59').getTime();
   const daysUntil = Math.ceil((d - now) / 86400000);
-  if (daysUntil < 0) return { label: 'Prazo expirado', urgent: true };
-  if (daysUntil === 0) return { label: 'Hoje', urgent: true };
-  if (daysUntil <= 3) return { label: `Em ${daysUntil} dia${daysUntil > 1 ? 's' : ''}`, urgent: true };
-  return { label: formatDatePt(deadline), urgent: false };
+  if (daysUntil < 0) return { labelKey: 'decisions.deadlineExpired', urgent: true };
+  if (daysUntil === 0) return { labelKey: 'intl.today', urgent: true };
+  if (daysUntil <= 3) return {
+    labelKey: daysUntil === 1 ? 'decisions.deadlineInDaysOne' : 'decisions.deadlineInDays',
+    params: { count: daysUntil },
+    urgent: true,
+  };
+  return { date: deadline, urgent: false };
 }
 
 export default function DashboardScreen() {
@@ -78,7 +93,18 @@ export default function DashboardScreen() {
   const { activeGroup, userId, profile } = useAuth();
   const { data, loading, refresh } = useDashboard();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
+  // Resolve o DeadlineInfo (module-level) pro texto no idioma ativo.
+  // O branch `date` usa intl.formatDate (locale-aware "5 de jun" / "Jun 5")
+  // em vez do formatDatePt hardcoded em PT.
+  const deadlineLabel = useCallback((info: DeadlineInfo): string => {
+    if (info.date) {
+      try { return intl.formatDate(info.date, { day: 'numeric', month: 'short' }); }
+      catch { return formatDatePt(info.date); }
+    }
+    return info.labelKey ? t(info.labelKey, info.params) : '';
+  }, [t, intl]);
   // Degustação — paridade com o banner do dashboard PWA. getBillingStatus
   // NUNCA lança (retorna FREE_BILLING em erro) e tem cache 60s, então é seguro
   // no mount da home. Só seta um número quando o grupo está em trial ativo;
@@ -180,12 +206,12 @@ export default function DashboardScreen() {
   const handleCancelMySwap = useCallback((swapId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     Alert.alert(
-      'Cancelar pedido?',
-      'Você vai retirar a solicitação de troca. O outro responsável será avisado.',
+      t('dashboard.cancelSwap.title'),
+      t('dashboard.cancelSwap.body'),
       [
-        { text: 'Manter pedido', style: 'cancel' },
+        { text: t('dashboard.cancelSwap.keep'), style: 'cancel' },
         {
-          text: 'Cancelar pedido',
+          text: t('dashboard.cancelSwap.confirm'),
           style: 'destructive',
           onPress: async () => {
             setResponding(swapId);
@@ -233,10 +259,10 @@ export default function DashboardScreen() {
         <TouchableOpacity
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); refresh(); }}
           accessibilityRole="button"
-          accessibilityLabel="Tentar de novo"
+          accessibilityLabel={t('dashboard.retry')}
           style={{ backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md }}
         >
-          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: '700' }}>Tentar de novo</Text>
+          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: '700' }}>{t('dashboard.retry')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -279,7 +305,7 @@ export default function DashboardScreen() {
                 }}
                 hitSlop={6}
                 testID="home-whatsapp"
-                accessibilityLabel="Abrir WhatsApp Kindar"
+                accessibilityLabel={t('dashboard.a11yOpenWhatsapp')}
                 style={{
                   width: 36, height: 36, borderRadius: 18,
                   alignItems: 'center', justifyContent: 'center',
@@ -293,7 +319,7 @@ export default function DashboardScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ai'); }}
                 hitSlop={6}
                 testID="home-ai"
-                accessibilityLabel="Abrir Kindar AI"
+                accessibilityLabel={t('dashboard.a11yOpenAI')}
                 style={{
                   width: 36, height: 36, borderRadius: 18,
                   backgroundColor: colors.brand,
@@ -310,7 +336,7 @@ export default function DashboardScreen() {
                 style={{ position: 'relative', padding: spacing.sm }}
                 hitSlop={6}
                 testID="home-bell"
-                accessibilityLabel="Abrir notificações"
+                accessibilityLabel={t('dashboard.a11yOpenNotifications')}
               >
                 <Ionicons name="notifications-outline" size={22} color={colors.text} />
                 {(data?.unreadNotifications || 0) > 0 ? (
@@ -549,7 +575,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/atividades')}
                   accessibilityRole="link"
-                  accessibilityLabel="Ver todas as atividades"
+                  accessibilityLabel={t('dashboard.a11ySeeAllActivities')}
                 >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
                 </TouchableOpacity>
@@ -714,7 +740,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/decisoes')}
                   accessibilityRole="link"
-                  accessibilityLabel="Ver todas as decisões"
+                  accessibilityLabel={t('dashboard.a11ySeeAllDecisions')}
                 >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
@@ -729,7 +755,7 @@ export default function DashboardScreen() {
                     activeOpacity={0.75}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/decisoes/${d.id}`); }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Votar em: ${d.title}${deadlineInfo ? ` — ${deadlineInfo.label}` : ''}`}
+                    accessibilityLabel={`${t('dashboard.a11yVoteOn', { title: d.title })}${deadlineInfo ? ` — ${deadlineLabel(deadlineInfo)}` : ''}`}
                     style={{
                       backgroundColor: 'rgba(232,162,40,0.08)',
                       borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
@@ -745,7 +771,7 @@ export default function DashboardScreen() {
                       </Text>
                       {deadlineInfo ? (
                         <Text style={{ fontSize: 11, color: deadlineInfo.urgent ? colors.error : colors.textSecondary, marginTop: 2 }}>
-                          {deadlineInfo.label}
+                          {deadlineLabel(deadlineInfo)}
                         </Text>
                       ) : null}
                     </View>
@@ -952,7 +978,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/atividades/pendentes')}
                   accessibilityRole="link"
-                  accessibilityLabel="Ver todos os relatos pendentes"
+                  accessibilityLabel={t('dashboard.a11ySeeAllPending')}
                 >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
@@ -1148,7 +1174,7 @@ export default function DashboardScreen() {
                       disabled={responding === s.id}
                       onPress={() => handleCancelMySwap(s.id)}
                       accessibilityRole="button"
-                      accessibilityLabel="Cancelar pedido de troca"
+                      accessibilityLabel={t('dashboard.a11yCancelSwap')}
                       style={{
                         marginTop: spacing.sm,
                         paddingVertical: 8, borderRadius: radius.md,
@@ -1182,7 +1208,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/despesas')}
                   accessibilityRole="link"
-                  accessibilityLabel="Ver todas as despesas"
+                  accessibilityLabel={t('dashboard.a11ySeeAllExpenses')}
                 >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
                 </TouchableOpacity>
@@ -1240,7 +1266,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/(tabs)/saude')}
                   accessibilityRole="link"
-                  accessibilityLabel="Abrir saúde"
+                  accessibilityLabel={t('dashboard.a11yOpenHealth')}
                 >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
@@ -1257,7 +1283,7 @@ export default function DashboardScreen() {
                     activeOpacity={0.8}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/(tabs)/saude?child=${h.childId}` as Parameters<typeof router.push>[0]); }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Saúde de ${h.childName}: ${h.statusLabel}. ${h.detail}`}
+                    accessibilityLabel={`${h.childName}: ${t('dashboard.healthStatus.' + h.status)}. ${h.detail || t('dashboard.detail.' + h.detailKey)}`}
                     style={{
                       backgroundColor: statusConfig.bg,
                       borderWidth: 1, borderColor: statusConfig.border, borderRadius: radius.md,
@@ -1273,11 +1299,11 @@ export default function DashboardScreen() {
                           {h.childName}
                         </Text>
                         <Text style={{ fontSize: 10, color: statusConfig.text, fontWeight: font.weights.semibold }}>
-                          {h.statusLabel}
+                          {t('dashboard.healthStatus.' + h.status)}
                         </Text>
                       </View>
                       <Text numberOfLines={1} style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
-                        {h.detail}
+                        {h.detail || t('dashboard.detail.' + h.detailKey)}
                       </Text>
                     </View>
                     {h.nextAction ? (
@@ -1286,7 +1312,7 @@ export default function DashboardScreen() {
                         paddingHorizontal: 8, paddingVertical: 5,
                       }}>
                         <Text style={{ fontSize: 9, color: colors.brand, fontWeight: font.weights.bold }}>
-                          {h.nextAction}
+                          {t('dashboard.nextAction.' + h.nextAction)}
                         </Text>
                       </View>
                     ) : null}
@@ -1338,7 +1364,7 @@ export default function DashboardScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(primaryAction.href as Parameters<typeof router.push>[0]); }}
                 activeOpacity={0.85}
                 testID="home-cta-primary"
-                accessibilityLabel={primaryAction.defaultLabel}
+                accessibilityLabel={t('quickActions.' + primaryAction.id)}
                 style={{
                   backgroundColor: primaryAction.color, borderRadius: radius.xl,
                   padding: spacing.lg, marginBottom: spacing.sm,
@@ -1350,7 +1376,7 @@ export default function DashboardScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15, fontWeight: font.weights.bold, color: '#fff' }}>
-                    {primaryAction.defaultLabel}
+                    {t('quickActions.' + primaryAction.id)}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
@@ -1367,7 +1393,7 @@ export default function DashboardScreen() {
                     }}
                     activeOpacity={0.75}
                     testID={`home-card-${action.id}`}
-                    accessibilityLabel={action.defaultLabel}
+                    accessibilityLabel={t('quickActions.' + action.id)}
                     style={{
                       width: '31.5%', backgroundColor: colors.bgElevated, borderRadius: radius.xl,
                       padding: spacing.md, alignItems: 'center', gap: spacing.xs, minHeight: 92, ...shadows.sm,
@@ -1381,7 +1407,7 @@ export default function DashboardScreen() {
                       <Ionicons name={action.icon as keyof typeof Ionicons.glyphMap} size={18} color={action.color} />
                     </View>
                     <Text style={{ fontSize: 11, fontWeight: font.weights.medium, color: colors.text, textAlign: 'center' }} numberOfLines={2}>
-                      {action.defaultLabel}
+                      {t('quickActions.' + action.id)}
                     </Text>
                   </TouchableOpacity>
                 ))}

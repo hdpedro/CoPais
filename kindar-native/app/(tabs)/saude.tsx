@@ -8,6 +8,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useHealth } from 'src/hooks/useHealth';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const STATUS_CONFIG: Record<string, { icon: string; color: string; bg: string }> = {
@@ -38,6 +39,7 @@ function formatRelativeDate(iso: string): string {
 
 export default function SaudeScreen() {
   const insets = useSafeAreaInsets();
+  const t = useI18n((s) => s.t);
   const { data, loading, refresh } = useHealth();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
@@ -69,7 +71,7 @@ export default function SaudeScreen() {
         <Animated.View entering={FadeInDown.delay(0).duration(400)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.xl }}>
             <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.extrabold, color: colors.text }}>
-              Saúde
+              {t('health.title')}
             </Text>
             <TouchableOpacity
               onPress={() => {
@@ -77,7 +79,7 @@ export default function SaudeScreen() {
                 router.push('/saude/registrar');
               }}
               testID="saude-fab-registrar"
-              accessibilityLabel="Registrar"
+              accessibilityLabel={t('symptomDiary.register')}
               style={{
                 backgroundColor: colors.brand, borderRadius: radius.full,
                 flexDirection: 'row', alignItems: 'center', gap: spacing.xs,
@@ -86,7 +88,7 @@ export default function SaudeScreen() {
             >
               <Ionicons name="add" size={16} color="#fff" />
               <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                Registrar
+                {t('symptomDiary.register')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -100,7 +102,7 @@ export default function SaudeScreen() {
                 onPress={() => setSelectedChildId(null)}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: !selectedChildId }}
-                accessibilityLabel="Filtrar histórico: todos"
+                accessibilityLabel={t('saudeTab.filterHistoryAll')}
                 style={{
                   paddingVertical: spacing.sm, paddingHorizontal: spacing.lg,
                   borderRadius: radius.full, marginRight: spacing.sm,
@@ -111,7 +113,7 @@ export default function SaudeScreen() {
                   fontSize: font.sizes.sm, fontWeight: font.weights.medium,
                   color: !selectedChildId ? '#fff' : colors.textSecondary,
                 }}>
-                  Todos
+                  {t('common.all')}
                 </Text>
               </TouchableOpacity>
               {childStates.map(c => (
@@ -123,7 +125,7 @@ export default function SaudeScreen() {
                   }}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: selectedChildId === c.childId }}
-                  accessibilityLabel={`Filtrar histórico: ${c.childName}`}
+                  accessibilityLabel={t('saudeTab.filterHistoryChild', { name: c.childName })}
                   style={{
                     paddingVertical: spacing.sm, paddingHorizontal: spacing.lg,
                     borderRadius: radius.full, marginRight: spacing.sm,
@@ -155,7 +157,7 @@ export default function SaudeScreen() {
                   Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                   router.push(`/criancas/${child.childId}?tab=saude` as Parameters<typeof router.push>[0]);
                 }}
-                accessibilityLabel={`Ver perfil de saude de ${child.childName}`}
+                accessibilityLabel={t('saudeTab.viewHealthProfile', { name: child.childName })}
                 style={({ pressed }) => ({
                   backgroundColor: pressed ? cfg.bg : colors.bgElevated,
                   borderRadius: radius.xl,
@@ -192,7 +194,9 @@ export default function SaudeScreen() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
                         <Text style={{ fontSize: 12 }}>🤒</Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                          {child.activeIllnessCount} doenca{child.activeIllnessCount > 1 ? 's' : ''}
+                          {child.activeIllnessCount === 1
+                            ? t('saudeTab.illnessCountOne')
+                            : t('saudeTab.illnessCount', { count: child.activeIllnessCount })}
                         </Text>
                       </View>
                     ) : null}
@@ -200,7 +204,9 @@ export default function SaudeScreen() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
                         <Text style={{ fontSize: 12 }}>💊</Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                          {child.activeMedCount} med{child.activeMedCount > 1 ? 's' : ''}
+                          {child.activeMedCount === 1
+                            ? t('saudeTab.medCountOne')
+                            : t('saudeTab.medCount', { count: child.activeMedCount })}
                         </Text>
                       </View>
                     ) : null}
@@ -208,7 +214,9 @@ export default function SaudeScreen() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.xs }}>
                         <Text style={{ fontSize: 12 }}>⚠️</Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                          {child.allergyCount} alergia{child.allergyCount > 1 ? 's' : ''}
+                          {child.allergyCount === 1
+                            ? t('saudeTab.allergyCountOne')
+                            : t('saudeTab.allergyCount', { count: child.allergyCount })}
                         </Text>
                       </View>
                     ) : null}
@@ -222,22 +230,22 @@ export default function SaudeScreen() {
         {/* Sub-modules Grid */}
         <Animated.View entering={FadeInDown.delay(250).duration(400)}>
           <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.md }}>
-            Modulos
+            {t('saudeTab.modules')}
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.xl }}>
             {[
-              { icon: '⚠️', label: 'Alergias', route: '/saude/alergias', testID: 'saude-mod-alergias' },
-              { icon: '💊', label: 'Medicamentos', route: '/saude/medicamentos', testID: 'saude-mod-medicamentos' },
-              { icon: '🏥', label: 'Consultas', route: '/saude/consultas', testID: 'saude-mod-consultas' },
-              { icon: '💉', label: 'Vacinas', route: '/saude/vacinas', testID: 'saude-mod-vacinas' },
-              { icon: '📏', label: 'Crescimento', route: '/saude/crescimento', testID: 'saude-mod-crescimento' },
-              { icon: '👨‍⚕️', label: 'Profissionais', route: '/saude/profissionais', testID: 'saude-mod-profissionais' },
-              { icon: '🤒', label: 'Doenças', route: '/saude/doencas', testID: 'saude-mod-doencas' },
-              { icon: '🩹', label: 'Sintomas', route: '/saude/sintomas', testID: 'saude-mod-sintomas' },
-              { icon: '📸', label: 'Receita OCR', route: '/saude/receita', testID: 'saude-mod-receita' },
-              { icon: '🚨', label: 'Emergência', route: '/saude/emergencia', testID: 'saude-mod-emergencia' },
-              { icon: '📤', label: 'Exportar', route: '/saude/export', testID: 'saude-mod-exames' },
-              { icon: '📋', label: 'Timeline', route: '/saude/timeline', testID: 'saude-mod-timeline' },
+              { icon: '⚠️', label: t('health.allergies'), route: '/saude/alergias', testID: 'saude-mod-alergias' },
+              { icon: '💊', label: t('health.medications'), route: '/saude/medicamentos', testID: 'saude-mod-medicamentos' },
+              { icon: '🏥', label: t('health.appointments'), route: '/saude/consultas', testID: 'saude-mod-consultas' },
+              { icon: '💉', label: t('health.vaccines'), route: '/saude/vacinas', testID: 'saude-mod-vacinas' },
+              { icon: '📏', label: t('health.growth'), route: '/saude/crescimento', testID: 'saude-mod-crescimento' },
+              { icon: '👨‍⚕️', label: t('health.professionals'), route: '/saude/profissionais', testID: 'saude-mod-profissionais' },
+              { icon: '🤒', label: t('health.conditions'), route: '/saude/doencas', testID: 'saude-mod-doencas' },
+              { icon: '🩹', label: t('saudeTab.modSymptoms'), route: '/saude/sintomas', testID: 'saude-mod-sintomas' },
+              { icon: '📸', label: t('saudeTab.modPrescriptionOcr'), route: '/saude/receita', testID: 'saude-mod-receita' },
+              { icon: '🚨', label: t('health.appointmentTypeEmergency'), route: '/saude/emergencia', testID: 'saude-mod-emergencia' },
+              { icon: '📤', label: t('common.export'), route: '/saude/export', testID: 'saude-mod-exames' },
+              { icon: '📋', label: t('saudeTab.modTimeline'), route: '/saude/timeline', testID: 'saude-mod-timeline' },
             ].map(mod => (
               <TouchableOpacity key={mod.route} onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(mod.route as Parameters<typeof router.push>[0]); }}
                 testID={mod.testID}
@@ -254,16 +262,16 @@ export default function SaudeScreen() {
         <Animated.View entering={FadeInDown.delay(300).duration(400)}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.md, marginBottom: spacing.md }}>
             <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Histórico
+              {t('health.history')}
             </Text>
             {timeline.length > 0 ? (
               <TouchableOpacity
                 onPress={() => router.push('/saude/timeline')}
                 accessibilityRole="link"
-                accessibilityLabel="Ver toda a timeline de saúde"
+                accessibilityLabel={t('saudeTab.viewFullTimeline')}
               >
                 <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>
-                  Ver tudo
+                  {t('saudeTab.seeAll')}
                 </Text>
               </TouchableOpacity>
             ) : null}
@@ -295,10 +303,10 @@ export default function SaudeScreen() {
             <View style={{ alignItems: 'center', marginBottom: spacing.lg }}>
               <Text style={{ fontSize: 32, marginBottom: spacing.sm }}>🩺</Text>
               <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, textAlign: 'center' }}>
-                Sem registros recentes
+                {t('saudeTab.emptyTitle')}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginTop: spacing.xs }}>
-                Comece registrando o que mais usa no dia a dia.
+                {t('saudeTab.emptyDescription')}
               </Text>
             </View>
             <View style={{ gap: spacing.sm }}>
@@ -306,7 +314,7 @@ export default function SaudeScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/registrar'); }}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Registrar evento de saúde"
+                accessibilityLabel={t('saudeTab.registerHealthEvent')}
                 style={{
                   backgroundColor: colors.brand, borderRadius: radius.md,
                   paddingVertical: spacing.md, flexDirection: 'row',
@@ -315,7 +323,7 @@ export default function SaudeScreen() {
               >
                 <Ionicons name="add-circle" size={18} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.bold }}>
-                  Registrar evento de saude
+                  {t('saudeTab.registerHealthEvent')}
                 </Text>
               </TouchableOpacity>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -323,7 +331,7 @@ export default function SaudeScreen() {
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/consultas'); }}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Abrir consultas"
+                  accessibilityLabel={t('saudeTab.openAppointments')}
                   style={{
                     flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
                     paddingVertical: spacing.md, flexDirection: 'row',
@@ -332,14 +340,14 @@ export default function SaudeScreen() {
                 >
                   <Ionicons name="medkit-outline" size={14} color={colors.text} />
                   <Text style={{ color: colors.text, fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>
-                    Consulta
+                    {t('saudeTab.appointmentShort')}
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/crescimento'); }}
                   activeOpacity={0.8}
                   accessibilityRole="button"
-                  accessibilityLabel="Abrir crescimento"
+                  accessibilityLabel={t('saudeTab.openGrowth')}
                   style={{
                     flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md,
                     paddingVertical: spacing.md, flexDirection: 'row',
@@ -348,7 +356,7 @@ export default function SaudeScreen() {
                 >
                   <Ionicons name="fitness-outline" size={14} color={colors.text} />
                   <Text style={{ color: colors.text, fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>
-                    Crescimento
+                    {t('health.growth')}
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -401,7 +409,7 @@ export default function SaudeScreen() {
                       </Text>
                       {event.createdByName ? (
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textDim }}>
-                          por {event.createdByName}
+                          {t('symptomDiary.by')} {event.createdByName}
                         </Text>
                       ) : null}
                     </View>

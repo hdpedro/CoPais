@@ -24,6 +24,7 @@ import {
 } from 'src/services/child-sizes';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { reportError } from 'src/lib/error-reporter';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -82,6 +83,7 @@ interface EditModalState {
 
 export default function TabTamanhos({ childId, groupId }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -230,7 +232,7 @@ export default function TabTamanhos({ childId, groupId }: Props) {
     } catch (e) {
       // Exception durante fetch (network down, fingerprint, etc) — não
       // deixa engulir silencioso.
-      r = { success: false, error: e instanceof Error ? e.message : 'erro inesperado' };
+      r = { success: false, error: e instanceof Error ? e.message : t('childSizes.errorUnexpected') };
     }
     setBusy(false);
 
@@ -532,7 +534,7 @@ export default function TabTamanhos({ childId, groupId }: Props) {
                     ) : null}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }} numberOfLines={1}>
-                    {row.recorded_on.split('-').reverse().join('/')}
+                    {intl.formatDate(row.recorded_on)}
                     {row.creator_first_name ? ` · ${row.creator_first_name}` : ''}
                     {row.notes ? ` · ${row.notes}` : ''}
                   </Text>

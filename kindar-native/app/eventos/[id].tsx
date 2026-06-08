@@ -18,19 +18,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchEventDetail, deleteEvent } from 'src/services/events';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 type EventDetail = NonNullable<Awaited<ReturnType<typeof fetchEventDetail>>>;
 
-const MONTHS_LONG = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-const DAYS_LONG = ['Domingo', 'Segunda-Feira', 'Terça-Feira', 'Quarta-Feira', 'Quinta-Feira', 'Sexta-Feira', 'Sábado'];
-
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  if (!y || !m || !d) return iso;
-  const date = new Date(y, m - 1, d, 12);
-  return `${DAYS_LONG[date.getDay()]}, ${d} de ${MONTHS_LONG[m - 1]}`;
-}
+// "HH:MM:SS" (DB-stored time) → "HH:MM" display. Numeric mask, not locale-aware.
 function formatTime(t: string | null): string {
   return t ? t.slice(0, 5) : '';
 }
@@ -39,8 +32,16 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const eventId = typeof id === 'string' ? id : '';
+
+  // "Domingo, 8 de abril" — weekday + day + month, locale-aware. ISO date
+  // (YYYY-MM-DD) is parsed at noon local by the helper (avoids tz day-shift).
+  const formatDate = useCallback(
+    (iso: string) => intl.formatDate(iso, { weekday: 'long', day: 'numeric', month: 'long' }),
+    [intl],
+  );
 
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);
@@ -78,20 +79,20 @@ export default function EventDetailScreen() {
     if (event.event_time && !event.all_day) {
       lines.push(`⏰ ${formatTime(event.event_time)}`);
     } else if (event.all_day) {
-      lines.push('⏰ Dia inteiro');
+      lines.push(`⏰ ${t('eventDetail.allDay')}`);
     }
     if (event.location) lines.push(`📍 ${event.location}`);
     if (event.childName) lines.push(`👶 ${event.childName}`);
     if (event.assignedName) {
       lines.push('');
-      lines.push(`Responsável: ${event.assignedName}`);
+      lines.push(t('eventDetail.responsibleLabel', { name: event.assignedName }));
     }
     if (event.description) {
       lines.push('');
       lines.push(event.description);
     }
     lines.push('');
-    lines.push('— compartilhado pelo Kindar');
+    lines.push(t('eventDetail.sharedFooter'));
     try {
       await Share.share({ title: event.title, message: lines.join('\n') });
     } catch {
@@ -103,12 +104,12 @@ export default function EventDetailScreen() {
     if (!event) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      `Excluir "${event.title}"?`,
-      'Esta ação remove o evento permanentemente. Não pode ser desfeita.',
+      t('eventDetail.deleteTitle', { title: event.title }),
+      t('eventDetail.deleteMessage'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Excluir', style: 'destructive',
+          text: t('common.delete'), style: 'destructive',
           onPress: async () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             const r = await deleteEvent(event.id);
@@ -140,7 +141,7 @@ export default function EventDetailScreen() {
         <Header insets={insets} onBack={() => router.back()} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
           <Text style={{ fontSize: font.sizes.md, color: colors.textMuted, textAlign: 'center' }}>
-            Evento não encontrado.
+            {t('eventDetail.notFound')}
           </Text>
         </View>
       </View>
@@ -172,10 +173,10 @@ export default function EventDetailScreen() {
                 {event.title}
               </Text>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                Evento
+                {t('calendarTab.event')}
                 {event.childName ? ` · ${event.childName}` : ''}
                 {event.event_time && !event.all_day ? ` · ${formatTime(event.event_time)}` : ''}
-                {event.all_day ? ' · Dia inteiro' : ''}
+                {event.all_day ? ` · ${t('eventDetail.allDay')}` : ''}
               </Text>
             </View>
           </View>
@@ -183,7 +184,7 @@ export default function EventDetailScreen() {
           <View style={{ gap: 10 }}>
             <DetailRow icon="calendar-outline" label={formatDate(event.event_date)} />
             {event.end_date && event.end_date !== event.event_date ? (
-              <DetailRow icon="calendar-outline" label={`Termina em ${formatDate(event.end_date)}`} />
+              <DetailRow icon="calendar-outline" label={t('eventDetail.endsOn', { date: formatDate(event.end_date) })} />
             ) : null}
             {event.event_time && !event.all_day ? (
               <DetailRow icon="time-outline" label={formatTime(event.event_time)} />
@@ -192,14 +193,14 @@ export default function EventDetailScreen() {
             {event.assignedName ? (
               <DetailRow
                 icon="person-outline"
-                label={`Responsável: ${event.assignedName}`}
-                action={{ label: 'Alterar', onPress: handleEdit }}
+                label={t('eventDetail.responsibleLabel', { name: event.assignedName })}
+                action={{ label: t('eventDetail.change'), onPress: handleEdit }}
               />
             ) : (
               <DetailRow
                 icon="person-outline"
-                label="Sem responsável"
-                action={{ label: 'Atribuir', onPress: handleEdit }}
+                label={t('eventDetail.noResponsible')}
+                action={{ label: t('eventDetail.assign'), onPress: handleEdit }}
               />
             )}
             {event.childName ? <DetailRow icon="people-outline" label={event.childName} /> : null}
@@ -211,9 +212,9 @@ export default function EventDetailScreen() {
             marginTop: spacing.lg, paddingTop: spacing.md,
             borderTopWidth: 0.5, borderTopColor: colors.borderLight,
           }}>
-            <ActionButton icon="share-outline" label="Compartilhar" onPress={handleShare} />
-            <ActionButton icon="create-outline" label="Editar" onPress={handleEdit} />
-            <ActionButton icon="trash-outline" label="Excluir" onPress={handleDelete} destructive />
+            <ActionButton icon="share-outline" label={t('invite.share')} onPress={handleShare} />
+            <ActionButton icon="create-outline" label={t('common.edit')} onPress={handleEdit} />
+            <ActionButton icon="trash-outline" label={t('common.delete')} onPress={handleDelete} destructive />
           </View>
         </View>
 
@@ -228,7 +229,7 @@ export default function EventDetailScreen() {
               color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1,
               marginBottom: 8,
             }}>
-              Descrição
+              {t('decisions.description')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.text, lineHeight: 20 }}>
               {event.description}
@@ -241,6 +242,7 @@ export default function EventDetailScreen() {
 }
 
 function Header({ insets, onBack }: { insets: { top: number }; onBack: () => void }) {
+  const t = useI18n(s => s.t);
   return (
     <View style={{
       paddingTop: insets.top + 10, paddingHorizontal: spacing.lg, paddingBottom: spacing.md,
@@ -253,12 +255,12 @@ function Header({ insets, onBack }: { insets: { top: number }; onBack: () => voi
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Ionicons name="chevron-back" size={28} color={colors.brand} />
           <Text style={{ fontSize: font.sizes.md, color: colors.brand, marginLeft: -2, fontWeight: font.weights.medium }}>
-            Voltar
+            {t('common.back')}
           </Text>
         </View>
       </TouchableOpacity>
       <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
-        Detalhe
+        {t('eventDetail.headerTitle')}
       </Text>
       <View style={{ width: 60 }} />
     </View>

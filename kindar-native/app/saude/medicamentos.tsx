@@ -24,6 +24,7 @@ import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Med {
@@ -63,15 +64,22 @@ function minutesSince(iso: string | null): number | null {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 }
 
+// Compact elapsed-duration ("45 min" / "2h" / "2h30") embedded in the
+// "última dose há {time}" line. The numeric value is kept; only the unit
+// labels go through t() so EN/ES/FR/DE don't show hardcoded "min"/"h".
 function formatMinutes(min: number): string {
-  if (min < 60) return `${min} min`;
+  const t = useI18n.getState().t;
+  if (min < 60) return t('relTime.minShort', { count: min });
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
+  return m > 0
+    ? t('relTime.hMinShort', { h, m: String(m).padStart(2, '0') })
+    : t('relTime.hShort', { count: h });
 }
 
 export default function MedicamentosScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -156,14 +164,14 @@ export default function MedicamentosScreen() {
     const hasFrequency = !!frequency.trim();
     if (!hasDosage || !hasFrequency) {
       const missing = !hasDosage && !hasFrequency
-        ? 'a dosagem e a frequência'
-        : !hasDosage ? 'a dosagem' : 'a frequência';
+        ? t('medications.missingBoth')
+        : !hasDosage ? t('medications.missingDosage') : t('medications.missingFrequency');
       Alert.alert(
-        'Salvar sem detalhes?',
-        `Você não informou ${missing}. Vai ficar registrado como "Conforme prescrição" — dá pra editar depois. Salvar assim?`,
+        t('medications.saveWithoutDetailsTitle'),
+        t('medications.saveWithoutDetailsBody', { missing }),
         [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Salvar assim', onPress: () => { void persistMedication(); } },
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('medications.saveAnyway'), onPress: () => { void persistMedication(); } },
         ],
       );
       return;
@@ -201,9 +209,9 @@ export default function MedicamentosScreen() {
   }
 
   async function handleFinish(id: string) {
-    Alert.alert('Finalizar', 'Marcar medicamento como finalizado?', [
-      { text: 'Cancelar' },
-      { text: 'Finalizar', onPress: async () => {
+    Alert.alert(t('medications.finish'), t('medications.finishConfirm'), [
+      { text: t('common.cancel') },
+      { text: t('medications.finish'), onPress: async () => {
         await safeWrite({ table: 'active_medications', operation: 'update', payload: { id, status: 'completed', end_date: getBrazilToday() } });
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
         refresh();
@@ -246,13 +254,13 @@ export default function MedicamentosScreen() {
 
     if (tooSoon) {
       Alert.alert(
-        'Última dose foi há pouco',
+        t('medications.lastDoseRecentTitle'),
         freqH
-          ? `A última dose foi há ${formatMinutes(minsAgo!)}. A prescrição sugere a cada ${freqH}h. Confirmar mesmo assim?`
-          : `A última dose foi há ${formatMinutes(minsAgo!)}. Confirmar mesmo assim?`,
+          ? t('medications.lastDoseRecentWithInterval', { time: formatMinutes(minsAgo!), hours: freqH })
+          : t('medications.lastDoseRecent', { time: formatMinutes(minsAgo!) }),
         [
-          { text: 'Cancelar', style: 'cancel' },
-          { text: 'Confirmar', style: 'destructive', onPress: () => submitDose(med.id) },
+          { text: t('common.cancel'), style: 'cancel' },
+          { text: t('common.confirm'), style: 'destructive', onPress: () => submitDose(med.id) },
         ]
       );
     } else {
@@ -296,18 +304,18 @@ export default function MedicamentosScreen() {
             containerStyle={{ marginBottom: spacing.md }}
             testID="medicamento-form-child-picker"
           />
-          <TextInput value={name} onChangeText={setName} placeholder="Nome do medicamento" placeholderTextColor={colors.textDim}
+          <TextInput value={name} onChangeText={setName} placeholder={t('health.medicationName')} placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
-            <TextInput value={dosage} onChangeText={setDosage} placeholder="Dosagem (ex: 5ml)" placeholderTextColor={colors.textDim}
+            <TextInput value={dosage} onChangeText={setDosage} placeholder={t('medications.dosagePlaceholder')} placeholderTextColor={colors.textDim}
               style={{ flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
-            <TextInput value={frequency} onChangeText={setFrequency} placeholder="Ex: 8h, 3x/dia" placeholderTextColor={colors.textDim}
+            <TextInput value={frequency} onChangeText={setFrequency} placeholder={t('medications.frequencyPlaceholder')} placeholderTextColor={colors.textDim}
               style={{ flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
           </View>
-          <TextInput value={reason} onChangeText={setReason} placeholder="Motivo (opcional)" placeholderTextColor={colors.textDim}
+          <TextInput value={reason} onChangeText={setReason} placeholder={t('health.reasonOptional')} placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
           <PrimaryButton
-            label="Adicionar medicamento"
+            label={t('empty.medicamentos.actionLabel')}
             onPress={handleCreate}
             loading={saving}
             disabled={!name.trim()}
@@ -351,8 +359,8 @@ export default function MedicamentosScreen() {
                 onPress={() => openHistory(item)}
                 onLongPress={() => isActive ? handleFinish(item.id) : undefined}
                 accessibilityRole="button"
-                accessibilityLabel={`Histórico de doses de ${item.name}, ${item.childName}, ${item.dosage}, ${isActive ? 'ativo' : 'finalizado'}`}
-                accessibilityHint={isActive ? 'Toque para ver histórico, toque longo para finalizar' : 'Toque para ver histórico'}
+                accessibilityLabel={t('medications.itemA11yLabel', { name: item.name, child: item.childName, dosage: item.dosage, status: isActive ? t('medications.statusActive') : t('medications.statusFinished') })}
+                accessibilityHint={isActive ? t('medications.itemA11yHintActive') : t('medications.itemA11yHint')}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}
               >
                 <Text style={{ fontSize: 22 }}>{isActive ? '💊' : '✅'}</Text>
@@ -362,19 +370,21 @@ export default function MedicamentosScreen() {
                     {item.childName} · {item.dosage} · {item.frequency}
                   </Text>
                   {item.reason ? (
-                    <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Motivo: {item.reason}</Text>
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>{t('medications.reasonPrefix', { reason: item.reason })}</Text>
                   ) : null}
                   {isActive ? (
                     <Text style={{ fontSize: font.sizes.xs, color: isOverdue ? colors.warning : colors.textMuted, marginTop: 4 }}>
                       {minsAgo === null
-                        ? 'Nenhuma dose registrada'
-                        : `Última dose há ${formatMinutes(minsAgo)}${isOverdue ? ' · atrasada' : ''}`}
+                        ? t('medications.noDoseLogged')
+                        : isOverdue
+                          ? t('medications.lastDoseAgoOverdue', { time: formatMinutes(minsAgo) })
+                          : t('medications.lastDoseAgo', { time: formatMinutes(minsAgo) })}
                     </Text>
                   ) : null}
                 </View>
                 {isActive ? (
                   <View style={{ backgroundColor: `${colors.success}15`, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 }}>
-                    <Text style={{ fontSize: font.sizes.xs, color: colors.success }}>Ativo</Text>
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.success }}>{t('health.active')}</Text>
                   </View>
                 ) : null}
               </TouchableOpacity>
@@ -385,7 +395,7 @@ export default function MedicamentosScreen() {
                     disabled={confirmingDose === item.id}
                     onPress={() => handleConfirmDose(item)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Confirmar dose de ${item.name}`}
+                    accessibilityLabel={t('medications.confirmDoseA11y', { name: item.name })}
                     accessibilityState={{ disabled: confirmingDose === item.id, busy: confirmingDose === item.id }}
                     style={{
                       flex: 1, paddingVertical: 10, borderRadius: radius.md,
@@ -400,7 +410,7 @@ export default function MedicamentosScreen() {
                       <>
                         <Ionicons name="checkmark-circle" size={16} color="#fff" />
                         <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                          Confirmar dose
+                          {t('medications.confirmDose')}
                         </Text>
                       </>
                     )}
@@ -408,7 +418,7 @@ export default function MedicamentosScreen() {
                   <TouchableOpacity
                     onPress={() => handleFinish(item.id)}
                     accessibilityRole="button"
-                    accessibilityLabel={`Finalizar ${item.name}`}
+                    accessibilityLabel={t('medications.finishA11y', { name: item.name })}
                     style={{
                       paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.md,
                       borderWidth: 1, borderColor: colors.borderLight,
@@ -416,7 +426,7 @@ export default function MedicamentosScreen() {
                     }}
                   >
                     <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-                      Finalizar
+                      {t('medications.finish')}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -435,13 +445,13 @@ export default function MedicamentosScreen() {
               {historyMed?.name}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.md }}>
-              Últimas doses registradas
+              {t('medications.recentDosesLogged')}
             </Text>
             {historyLoading ? (
               <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.xl }} />
             ) : doseHistory.length === 0 ? (
               <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, textAlign: 'center', paddingVertical: spacing.xl }}>
-                Nenhuma dose registrada ainda
+                {t('health.noDoseRegistered')}
               </Text>
             ) : (
               <ScrollView style={{ maxHeight: 400 }}>
@@ -459,9 +469,7 @@ export default function MedicamentosScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text }}>
-                        {new Date(d.administered_at).toLocaleString('pt-BR', {
-                          day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-                        })}
+                        {`${intl.formatDate(d.administered_at, { day: '2-digit', month: '2-digit' })} ${intl.formatTime(d.administered_at)}`}
                       </Text>
                       <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
                         {d.administeredByName}

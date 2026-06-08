@@ -11,6 +11,8 @@ import type {
   MedicalProfessional,
 } from '../../services/children';
 import { formatCRM } from '../../lib/format';
+import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 
 interface Props {
   childId: string;
@@ -63,29 +65,32 @@ function Empty({ text }: { text: string }) {
   return <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted }}>{text}</Text>;
 }
 
-// Mapeamento enum → label PT-BR. Mantido inline (em vez de i18n) pra
-// paridade visual com `app/saude/alergias.tsx`, que faz o mesmo.
-function labelType(t: string): string {
-  switch (t) {
-    case 'food': return 'Alimentar';
-    case 'medication': return 'Medicamento';
-    case 'environmental': return 'Ambiental';
-    case 'insect': return 'Inseto';
-    case 'other': return 'Outro';
-    default: return t;
+// Mapeamento enum → chave i18n. Resolvido com t() no render (paridade
+// visual com `app/saude/alergias.tsx`). Retorna a key da label, ou null
+// quando o enum é desconhecido — aí o render cai pro valor cru.
+function allergyTypeKey(type: string): string | null {
+  switch (type) {
+    case 'food': return 'childHealth.allergyTypeFood';
+    case 'medication': return 'healthRegister.type_medication';
+    case 'environmental': return 'childHealth.allergyTypeEnvironmental';
+    case 'insect': return 'childHealth.allergyTypeInsect';
+    case 'other': return 'health.export.typeOther';
+    default: return null;
   }
 }
 
-function labelSeverity(s: string): string {
-  switch (s) {
-    case 'severe': return 'Grave';
-    case 'moderate': return 'Moderada';
-    case 'mild': return 'Leve';
-    default: return s;
+function severityKey(severity: string): string | null {
+  switch (severity) {
+    case 'severe': return 'health.severityGrave';
+    case 'moderate': return 'health.severityModerate';
+    case 'mild': return 'health.severityMild';
+    default: return null;
   }
 }
 
 export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies, medications, vaccinations, professionals, onEditBloodType }: Props) {
+  const t = useI18n((s) => s.t);
+  const intl = useIntl();
   return (
     <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }} showsVerticalScrollIndicator={false}>
       {/* Quick stats grid */}
@@ -94,7 +99,7 @@ export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies
           icon="water"
           color="#C62828"
           bg="#FFE4E1"
-          label="Sangue"
+          label={t('childHealth.statBlood')}
           value={medicalInfo?.blood_type ?? '—'}
           onPress={onEditBloodType}
         />
@@ -102,7 +107,7 @@ export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies
           icon="speedometer"
           color="#2E7268"
           bg={colors.brandLight}
-          label="Peso"
+          label={t('health.weight')}
           value={latestGrowth?.weight_kg ? `${latestGrowth.weight_kg}kg` : '—'}
           onPress={() => router.push(`/saude/crescimento?childId=${childId}` as never)}
         />
@@ -110,18 +115,18 @@ export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies
           icon="resize"
           color="#7C6FAE"
           bg="#EAE5F5"
-          label="Altura"
+          label={t('health.height')}
           value={latestGrowth?.height_cm ? `${latestGrowth.height_cm}cm` : '—'}
           onPress={() => router.push(`/saude/crescimento?childId=${childId}` as never)}
         />
       </View>
 
       <Section
-        title={`Alergias (${allergies.length})`}
-        action={{ label: 'Ver tudo', onPress: () => router.push('/saude/alergias') }}
+        title={t('childHealth.allergiesSection', { count: allergies.length })}
+        action={{ label: t('saudeTab.seeAll'), onPress: () => router.push('/saude/alergias') }}
       >
         {allergies.length === 0 ? (
-          <Empty text="Nenhuma alergia registrada." />
+          <Empty text={t('health.noAllergiesRegistered')} />
         ) : (
           allergies.slice(0, 5).map((a) => (
             <View
@@ -157,8 +162,8 @@ export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies
                 {/* Linha secundaria: tipo + severidade + reacao quando houver. */}
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
                   {[
-                    a.allergy_type ? labelType(a.allergy_type) : null,
-                    a.severity ? labelSeverity(a.severity) : null,
+                    a.allergy_type ? (allergyTypeKey(a.allergy_type) ? t(allergyTypeKey(a.allergy_type)!) : a.allergy_type) : null,
+                    a.severity ? (severityKey(a.severity) ? t(severityKey(a.severity)!) : a.severity) : null,
                     a.reaction || null,
                   ]
                     .filter(Boolean)
@@ -171,11 +176,11 @@ export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies
       </Section>
 
       <Section
-        title={`Medicamentos ativos (${medications.length})`}
-        action={{ label: 'Ver tudo', onPress: () => router.push('/saude/medicamentos') }}
+        title={t('healthExport.medicationsSection', { count: medications.length })}
+        action={{ label: t('saudeTab.seeAll'), onPress: () => router.push('/saude/medicamentos') }}
       >
         {medications.length === 0 ? (
-          <Empty text="Sem medicamentos ativos." />
+          <Empty text={t('childHealth.noActiveMedications')} />
         ) : (
           medications.map((m) => (
             <View
@@ -188,7 +193,7 @@ export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies
             >
               <Text style={{ fontSize: font.sizes.md, color: colors.text, fontWeight: '500' }}>{m.name}</Text>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                {[m.dosage, m.frequency].filter(Boolean).join(' · ') || 'Sem detalhes'}
+                {[m.dosage, m.frequency].filter(Boolean).join(' · ') || t('childHealth.noDetails')}
               </Text>
             </View>
           ))
@@ -196,11 +201,11 @@ export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies
       </Section>
 
       <Section
-        title={`Vacinas (${vaccinations.length})`}
-        action={{ label: 'Ver tudo', onPress: () => router.push('/saude/vacinas') }}
+        title={t('childHealth.vaccinesSection', { count: vaccinations.length })}
+        action={{ label: t('saudeTab.seeAll'), onPress: () => router.push('/saude/vacinas') }}
       >
         {vaccinations.length === 0 ? (
-          <Empty text="Nenhuma vacina registrada." />
+          <Empty text={t('childProfile.noVaccines')} />
         ) : (
           vaccinations.slice(0, 5).map((v) => (
             <View
@@ -218,10 +223,10 @@ export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies
               </Text>
               {v.administered_date ? (
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                  {/* Usar split em vez de new Date pra evitar shift de timezone
-                      (DATE column do PG vem como YYYY-MM-DD e new Date()
-                      interpreta como UTC midnight, voltando 1 dia em UTC-3). */}
-                  {v.administered_date.split('-').reverse().join('/')}
+                  {/* Locale-aware: intl.formatDate trata 'YYYY-MM-DD' como meio-dia
+                      LOCAL (toDate em intl.ts), evitando o shift de timezone que
+                      o new Date(UTC midnight) causava em UTC-3. */}
+                  {intl.formatDate(v.administered_date)}
                 </Text>
               ) : null}
             </View>
@@ -230,22 +235,22 @@ export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies
       </Section>
 
       {medicalInfo?.insurance_name ? (
-        <Section title="Plano de saúde">
+        <Section title={t('childProfile.healthInsurance')}>
           <Text style={{ fontSize: font.sizes.md, color: colors.text }}>{medicalInfo.insurance_name}</Text>
           {medicalInfo.insurance_number ? (
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 4 }}>
-              Carteirinha: {medicalInfo.insurance_number}
+              {t('childHealth.insuranceCardLabel')} {medicalInfo.insurance_number}
             </Text>
           ) : null}
         </Section>
       ) : null}
 
       <Section
-        title={`Profissionais (${professionals.length})`}
-        action={{ label: 'Ver tudo', onPress: () => router.push('/saude/profissionais') }}
+        title={t('childHealth.professionalsSection', { count: professionals.length })}
+        action={{ label: t('saudeTab.seeAll'), onPress: () => router.push('/saude/profissionais') }}
       >
         {professionals.length === 0 ? (
-          <Empty text="Nenhum profissional cadastrado." />
+          <Empty text={t('health.export.noProfessionals')} />
         ) : (
           professionals.slice(0, 3).map((p, idx) => {
             const crm = formatCRM(p.crm);
@@ -300,6 +305,7 @@ function Stat({
   value: string;
   onPress?: () => void;
 }) {
+  const t = useI18n((s) => s.t);
   const card = (
     <View
       style={{
@@ -332,7 +338,7 @@ function Stat({
           certo (Sangue → editar criança; Peso/Altura → Crescimento). */}
       {onPress ? (
         <Text style={{ fontSize: 10, color: colors.brand, fontWeight: '600', marginTop: 3 }}>
-          editar
+          {t('calendarTab.actionEdit')}
         </Text>
       ) : null}
     </View>
@@ -345,7 +351,7 @@ function Stat({
       onPress={onPress}
       activeOpacity={0.7}
       accessibilityRole="button"
-      accessibilityLabel={`Editar ${label}`}
+      accessibilityLabel={t('childHealth.editStatA11y', { label })}
     >
       {card}
     </TouchableOpacity>

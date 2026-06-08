@@ -99,10 +99,10 @@ export default function InviteParserScreen() {
     // Upload to PWA for AI parsing
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Sessao expirada');
+      if (!session) throw new Error(t('common.sessionExpired'));
 
       const base64 = asset.base64;
-      if (!base64) throw new Error('Imagem sem base64');
+      if (!base64) throw new Error(t('calendarInvite.errorNoImage'));
 
       const resp = await fetch(`${WEB_URL}/api/ai/parse-invite`, {
         method: 'POST',
@@ -119,9 +119,9 @@ export default function InviteParserScreen() {
         const ct = resp.headers.get('content-type') || '';
         if (ct.includes('application/json')) {
           const j = await resp.json().catch(() => null);
-          throw new Error((j && j.error) || `Erro ${resp.status}`);
+          throw new Error((j && j.error) || t('calendarInvite.errorStatus', { status: resp.status }));
         }
-        throw new Error(`Erro ao processar o convite (${resp.status}). Tente novamente.`);
+        throw new Error(t('calendarInvite.errorProcessing', { status: resp.status }));
       }
       const data = await resp.json();
 
@@ -139,7 +139,7 @@ export default function InviteParserScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: unknown) {
       const err = e as { message?: string };
-      setError(err.message || 'Erro ao processar imagem');
+      setError(err.message || t('calendarInvite.errorImageGeneric'));
       setStep('upload');
       setImageUri(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -148,9 +148,9 @@ export default function InviteParserScreen() {
 
   async function handleSave() {
     if (!activeGroup || !userId) return;
-    if (!title.trim()) { setError('Informe o titulo do evento'); return; }
+    if (!title.trim()) { setError(t('calendarInvite.errorTitleRequired')); return; }
     const iso = parseDateFromInput(dateDisplay);
-    if (!iso) { setError('Data invalida'); return; }
+    if (!iso) { setError(t('calendarInvite.errorDateInvalid')); return; }
 
     setError(null);
     setSaving(true);
@@ -186,11 +186,11 @@ export default function InviteParserScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Foto de convite
+          {t('calendarInvite.headerTitle')}
         </Text>
       </View>
 
@@ -206,10 +206,10 @@ export default function InviteParserScreen() {
             <View style={{ alignItems: 'center', paddingVertical: spacing['2xl'], marginBottom: spacing.lg }}>
               <Text style={{ fontSize: 56, marginBottom: spacing.md }}>📸</Text>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm, textAlign: 'center' }}>
-                Fotografe o convite
+                {t('calendarInvite.uploadTitle')}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', maxWidth: 280 }}>
-                Nossa IA le o convite (ou imagem de evento) e extrai titulo, data, horario e local automaticamente.
+                {t('calendarInvite.uploadHint')}
               </Text>
             </View>
 
@@ -225,7 +225,7 @@ export default function InviteParserScreen() {
             >
               <Ionicons name="camera-outline" size={20} color="#fff" />
               <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                Tirar foto
+                {t('health.prescription.takePhoto')}
               </Text>
             </TouchableOpacity>
 
@@ -241,7 +241,7 @@ export default function InviteParserScreen() {
             >
               <Ionicons name="images-outline" size={20} color={colors.text} />
               <Text style={{ color: colors.text, fontSize: font.sizes.md, fontWeight: font.weights.medium }}>
-                Escolher da galeria
+                {t('health.prescription.pickFromGallery')}
               </Text>
             </TouchableOpacity>
           </>
@@ -250,14 +250,14 @@ export default function InviteParserScreen() {
         {step === 'processing' ? (
           <View style={{ alignItems: 'center', paddingVertical: spacing['3xl'] }}>
             {imageUri ? (
-              <Image source={{ uri: imageUri }} accessibilityLabel="Preview do convite" style={{ width: 200, height: 200, borderRadius: radius.lg, marginBottom: spacing.lg }} resizeMode="cover" />
+              <Image source={{ uri: imageUri }} accessibilityLabel={t('calendarInvite.previewA11y')} style={{ width: 200, height: 200, borderRadius: radius.lg, marginBottom: spacing.lg }} resizeMode="cover" />
             ) : null}
             <ActivityIndicator color={colors.brand} size="large" />
             <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text, marginTop: spacing.md }}>
-              Lendo convite...
+              {t('inviteParser.processing')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 4 }}>
-              A IA esta extraindo os dados
+              {t('calendarInvite.processingHint')}
             </Text>
           </View>
         ) : null}
@@ -266,21 +266,21 @@ export default function InviteParserScreen() {
           <>
             <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg, ...shadows.sm, marginBottom: spacing.lg }}>
               <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.success, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
-                ✓ Convite lido
+                ✓ {t('calendarInvite.readBadge')}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-                Revise os dados abaixo e ajuste se precisar antes de salvar.
+                {t('calendarInvite.reviewHint')}
               </Text>
             </View>
 
             {imageUri ? (
-              <Image source={{ uri: imageUri }} accessibilityLabel="Preview do convite" style={{ width: '100%', height: 180, borderRadius: radius.md, marginBottom: spacing.lg }} resizeMode="cover" />
+              <Image source={{ uri: imageUri }} accessibilityLabel={t('calendarInvite.previewA11y')} style={{ width: '100%', height: 180, borderRadius: radius.md, marginBottom: spacing.lg }} resizeMode="cover" />
             ) : null}
 
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Titulo *</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('calendarInvite.fieldTitleRequired')}</Text>
             <TextInput
               value={title} onChangeText={setTitle}
-              placeholder="Ex: Festa da Maria"
+              placeholder={t('calendarInvite.titlePlaceholder')}
               placeholderTextColor={colors.textMuted}
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -290,10 +290,10 @@ export default function InviteParserScreen() {
 
             <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.md }}>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Data *</Text>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('calendarInvite.fieldDateRequired')}</Text>
                 <TextInput
                   value={dateDisplay} onChangeText={setDateDisplay}
-                  placeholder="DD/MM/AAAA"
+                  placeholder={t('calendarInvite.datePlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   keyboardType="number-pad" maxLength={10}
                   style={{
@@ -303,10 +303,10 @@ export default function InviteParserScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Hora</Text>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('calendarInvite.fieldTime')}</Text>
                 <TextInput
                   value={startTime} onChangeText={setStartTime}
-                  placeholder="HH:MM"
+                  placeholder={t('calendarInvite.timePlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   maxLength={5}
                   style={{
@@ -317,10 +317,10 @@ export default function InviteParserScreen() {
               </View>
             </View>
 
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Local</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('newForm.location')}</Text>
             <TextInput
               value={location} onChangeText={setLocation}
-              placeholder="Endereco do evento"
+              placeholder={t('calendarInvite.locationPlaceholder')}
               placeholderTextColor={colors.textMuted}
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -330,7 +330,7 @@ export default function InviteParserScreen() {
 
             {children.length > 0 ? (
               <>
-                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Criança</Text>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('newForm.child')}</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
                   <TouchableOpacity
                     onPress={() => setChildId(null)}
@@ -340,7 +340,7 @@ export default function InviteParserScreen() {
                       borderWidth: 1, borderColor: childId === null ? colors.brand : colors.borderLight,
                     }}
                   >
-                    <Text style={{ fontSize: font.sizes.sm, color: childId === null ? '#fff' : colors.text }}>Todas</Text>
+                    <Text style={{ fontSize: font.sizes.sm, color: childId === null ? '#fff' : colors.text }}>{t('newForm.allChildren')}</Text>
                   </TouchableOpacity>
                   {children.map(c => {
                     const active = childId === c.id;
@@ -364,10 +364,10 @@ export default function InviteParserScreen() {
               </>
             ) : null}
 
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Observacoes</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('newForm.notes')}</Text>
             <TextInput
               value={notes} onChangeText={setNotes}
-              placeholder="RSVP, regras, presentes..."
+              placeholder={t('calendarInvite.notesPlaceholder')}
               placeholderTextColor={colors.textMuted}
               multiline
               style={{
@@ -379,7 +379,7 @@ export default function InviteParserScreen() {
 
             <View style={{ marginBottom: spacing.sm }}>
               <PrimaryButton
-                label="Criar evento"
+                label={t('calendarInvite.createEvent')}
                 onPress={handleSave}
                 loading={saving}
                 disabled={!title.trim()}
@@ -387,7 +387,7 @@ export default function InviteParserScreen() {
               />
             </View>
             <TouchableOpacity onPress={handleRetry} style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
-              <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Tentar com outra foto</Text>
+              <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>{t('vaccineCard.tryAnotherPhoto')}</Text>
             </TouchableOpacity>
           </>
         ) : null}

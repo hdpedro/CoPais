@@ -49,6 +49,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { getDisplayName } from 'src/lib/constants';
 
@@ -64,6 +65,7 @@ const RESPONSIBLE_COLORS = [
 
 export default function NovaFeriasScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
@@ -133,19 +135,19 @@ export default function NovaFeriasScreen() {
         user_id: m.user_id,
         name: m.profiles?.display_name
           || (m.profiles?.full_name ? getDisplayName(m.profiles.full_name, true) : '')
-          || 'Co-responsável',
+          || t('calendarTab.coResponsible'),
       }));
       setMembers(memberList);
     })();
     return () => { cancelled = true; };
-  }, [activeGroup, userId]);
+  }, [activeGroup, userId, t]);
 
   function validate(): boolean {
     const next: typeof errors = {};
-    if (!startDateIso) next.date = 'Data de início obrigatória';
-    else if (!endDateIso) next.date = 'Data final obrigatória';
-    else if (endDateIso < startDateIso) next.date = 'Data final deve ser depois da inicial';
-    if (!responsibleId) next.responsible = 'Escolha quem está com a criança nas férias';
+    if (!startDateIso) next.date = t('vacationScreen.errStartRequired');
+    else if (!endDateIso) next.date = t('vacationScreen.errEndRequired');
+    else if (endDateIso < startDateIso) next.date = t('calendar.vacations.formInvalidRange');
+    if (!responsibleId) next.responsible = t('vacationScreen.errResponsibleRequired');
     setErrors(next);
     return Object.keys(next).length === 0;
   }
@@ -173,17 +175,17 @@ export default function NovaFeriasScreen() {
         router.back();
       } else {
         Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-        const errMsg = (result as { error?: string }).error || 'Erro ao salvar férias';
+        const errMsg = (result as { error?: string }).error || t('vacationScreen.errSaveFailed');
         // Trigger 00079 retorna unique_violation se houver overlap de mesmo tipo
         if (errMsg.includes('overlap')) {
-          setErrors({ general: 'Já existe um período de férias cadastrado que sobrepõe esse intervalo. Edite o existente ou ajuste as datas.' });
+          setErrors({ general: t('vacationScreen.errOverlap') });
         } else {
           setErrors({ general: errMsg });
         }
       }
     } catch (e) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setErrors({ general: e instanceof Error ? e.message : 'Erro inesperado' });
+      setErrors({ general: e instanceof Error ? e.message : t('vacationScreen.errUnexpected') });
     } finally {
       setSaving(false);
     }
@@ -202,14 +204,26 @@ export default function NovaFeriasScreen() {
     ? RESPONSIBLE_COLORS[responsibleIndex % RESPONSIBLE_COLORS.length]
     : colors.textMuted;
 
+  // Rótulo de intervalo locale-aware: "06 de mai – 12 de mai" (acrescenta o
+  // ano só quando início e fim caem em anos diferentes). Reativo no idioma.
+  const formatRangeLabel = useCallback((startIso: string, endIso: string): string => {
+    const sLabel = intl.formatDateShort(startIso);
+    if (startIso === endIso) return sLabel;
+    const sameYear = startIso.slice(0, 4) === endIso.slice(0, 4);
+    const eLabel = sameYear
+      ? intl.formatDateShort(endIso)
+      : intl.formatDate(endIso, { day: '2-digit', month: 'short', year: 'numeric' });
+    return `${sLabel} – ${eLabel}`;
+  }, [intl]);
+
   function handleDeleteVacation(v: VacationItem) {
     Alert.alert(
-      'Remover este período?',
-      `${v.childName || 'Família'} · ${formatRangeLabel(v.startDate, v.endDate)}`,
+      t('vacationScreen.deleteConfirmTitle'),
+      `${v.childName || t('calendar.vacations.familyFallback')} · ${formatRangeLabel(v.startDate, v.endDate)}`,
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Remover',
+          text: t('calendar.vacations.deleteTitle'),
           style: 'destructive',
           onPress: async () => {
             const res = await deleteVacationPeriod(v.id);
@@ -246,9 +260,9 @@ export default function NovaFeriasScreen() {
         }}>
           <Ionicons name="airplane-outline" size={20} color={colors.brand} style={{ marginTop: 2 }} />
           <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.text, lineHeight: 20 }}>
-            <Text style={{ fontWeight: font.weights.semibold }}>Período de férias</Text>
-            {' sobrepõe a escala regular no calendário, agenda e próxima troca. '}
-            Use isto pra viagens, recesso escolar, ou qualquer período onde o coparente padrão da escala não estará com a criança.
+            <Text style={{ fontWeight: font.weights.semibold }}>{t('calendar.vacations.explainerTitle')}</Text>
+            {' '}
+            {t('calendar.vacations.explainerBody')}
           </Text>
         </View>
 
@@ -263,7 +277,7 @@ export default function NovaFeriasScreen() {
               fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.semibold,
               textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.sm,
             }}>
-              Próximas / em andamento ({existingVacations.length})
+              {t('calendar.vacations.upcomingHeading', { count: existingVacations.length })}
             </Text>
             {existingVacations.map((v) => (
               <View key={v.id} style={{
@@ -281,10 +295,10 @@ export default function NovaFeriasScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
-                    {v.childName || 'Família'} · com {v.responsibleName || 'Coparente'}
+                    {v.childName || t('calendar.vacations.familyFallback')} · {t('calendar.vacations.withSomeone', { name: v.responsibleName || t('calendar.vacations.coparentFallback') })}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                    {formatRangeLabel(v.startDate, v.endDate)} · {daysBetween(v.startDate, v.endDate)} {daysBetween(v.startDate, v.endDate) === 1 ? 'dia' : 'dias'}
+                    {formatRangeLabel(v.startDate, v.endDate)} · {daysBetween(v.startDate, v.endDate)} {daysBetween(v.startDate, v.endDate) === 1 ? t('calendar.vacations.daysSingular') : t('calendar.vacations.daysPlural')}
                   </Text>
                   {v.notes ? (
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2, fontStyle: 'italic' }} numberOfLines={1}>
@@ -295,7 +309,7 @@ export default function NovaFeriasScreen() {
                 <TouchableOpacity
                   onPress={() => handleDeleteVacation(v)}
                   hitSlop={8}
-                  accessibilityLabel="Remover este período"
+                  accessibilityLabel={t('calendar.vacations.deleteAriaLabel')}
                   style={{ padding: spacing.xs }}
                 >
                   <Ionicons name="trash-outline" size={18} color={colors.error} />
@@ -311,19 +325,19 @@ export default function NovaFeriasScreen() {
             fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.semibold,
             textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.sm,
           }}>
-            Cadastrar novas férias
+            {t('calendar.vacations.registerNewHeading')}
           </Text>
         ) : null}
 
         {/* ── Children selector ──────────────────────────────── */}
         {children.length > 0 ? (
           <View>
-            <FieldLabel>Para quem (opcional — vazio = família toda)</FieldLabel>
+            <FieldLabel>{t('calendar.vacations.formForLabel')}</FieldLabel>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs }}>
               <Chip
                 selected={selectedChildId === null}
                 color={colors.brand}
-                label="Família"
+                label={t('calendar.vacations.familyFallback')}
                 onPress={() => setSelectedChildId(null)}
               />
               {children.map(c => (
@@ -341,7 +355,7 @@ export default function NovaFeriasScreen() {
 
         {/* ── Date range ──────────────────────────────────────── */}
         <View style={{ marginTop: spacing.xl }}>
-          <FieldLabel>Início *</FieldLabel>
+          <FieldLabel>{t('calendar.vacations.formStartLabel')}</FieldLabel>
           <DatePickerField
             value={startDateIso}
             onChange={(d) => {
@@ -354,7 +368,7 @@ export default function NovaFeriasScreen() {
         </View>
 
         <View style={{ marginTop: spacing.lg }}>
-          <FieldLabel>Fim *</FieldLabel>
+          <FieldLabel>{t('calendar.vacations.formEndLabel')}</FieldLabel>
           <DatePickerField
             value={endDateIso}
             onChange={(d) => {
@@ -367,8 +381,9 @@ export default function NovaFeriasScreen() {
 
         {days > 0 ? (
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm }}>
-            {days} {days === 1 ? 'dia' : 'dias'} de férias.
-            {days > 90 ? ' Máximo permitido: 90 dias.' : ''}
+            {days > 90
+              ? t('calendar.vacations.formTooLong', { days })
+              : t('calendar.vacations.formDaysSummary', { days, label: days === 1 ? t('calendar.vacations.daysSingular') : t('calendar.vacations.daysPlural') })}
           </Text>
         ) : null}
 
@@ -381,7 +396,7 @@ export default function NovaFeriasScreen() {
         {/* ── Responsible (REQUIRED) ──────────────────────────── */}
         {members.length > 0 ? (
           <View style={{ marginTop: spacing.xl }}>
-            <FieldLabel>Quem está com a criança *</FieldLabel>
+            <FieldLabel>{t('calendar.vacations.formResponsibleLabel')}</FieldLabel>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.xs }}>
               {members.map((m, idx) => {
                 const c = RESPONSIBLE_COLORS[idx % RESPONSIBLE_COLORS.length];
@@ -413,7 +428,7 @@ export default function NovaFeriasScreen() {
             }}>
               <View style={{ width: 18, height: 18, borderRadius: 4, backgroundColor: responsibleColor }} />
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, flex: 1 }}>
-                Cor das férias no calendário (do responsável escolhido)
+                {t('vacationScreen.colorHint')}
               </Text>
             </View>
           </View>
@@ -421,11 +436,11 @@ export default function NovaFeriasScreen() {
 
         {/* ── Notes ───────────────────────────────────────────── */}
         <View style={{ marginTop: spacing.xl }}>
-          <FieldLabel>Anotação (opcional)</FieldLabel>
+          <FieldLabel>{t('calendar.vacations.formNotesLabel')}</FieldLabel>
           <TextInput
             value={notes}
             onChangeText={setNotes}
-            placeholder="Ex: Viagem pra Caraguá, acampamento de inverno..."
+            placeholder={t('calendar.vacations.formNotesPlaceholder')}
             placeholderTextColor={colors.textDim}
             multiline
             numberOfLines={3}
@@ -463,7 +478,7 @@ export default function NovaFeriasScreen() {
         >
           {saving ? <ActivityIndicator color="#fff" /> : (
             <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.bold }}>
-              Salvar férias
+              {t('calendar.vacations.formSave')}
             </Text>
           )}
         </TouchableOpacity>
@@ -473,7 +488,7 @@ export default function NovaFeriasScreen() {
           activeOpacity={0.85}
           style={{ paddingVertical: spacing.md, alignItems: 'center', marginTop: spacing.sm }}
         >
-          <Text style={{ color: colors.textMuted, fontSize: font.sizes.md }}>Cancelar</Text>
+          <Text style={{ color: colors.textMuted, fontSize: font.sizes.md }}>{t('common.cancel')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -509,17 +524,6 @@ function Chip({ selected, color, label, onPress }: { selected: boolean; color: s
       </Text>
     </TouchableOpacity>
   );
-}
-
-function formatRangeLabel(startIso: string, endIso: string): string {
-  const s = new Date(startIso + 'T12:00:00');
-  const e = new Date(endIso + 'T12:00:00');
-  const sLabel = s.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  if (startIso === endIso) return sLabel;
-  const eOpts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
-  if (s.getFullYear() !== e.getFullYear()) eOpts.year = 'numeric';
-  const eLabel = e.toLocaleDateString('pt-BR', eOpts);
-  return `${sLabel} – ${eLabel}`;
 }
 
 function daysBetween(startIso: string, endIso: string): number {

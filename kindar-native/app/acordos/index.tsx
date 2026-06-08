@@ -24,12 +24,12 @@ import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const CAT_META: Record<string, { label: string; icon: string; color: string }> = {
-  principle: { label: 'Principio', icon: '🌟', color: '#8B5CF6' },
-  value: { label: 'Valor', icon: '💎', color: '#3B82F6' },
-  rule: { label: 'Regra', icon: '📏', color: '#E8A228' },
-  boundary: { label: 'Limite', icon: '🚧', color: '#EF4444' },
-  routine: { label: 'Rotina', icon: '🕰️', color: '#22C55E' },
+const CAT_META: Record<string, { labelKey: string; icon: string; color: string }> = {
+  principle: { labelKey: 'agreements.categoryPrinciple', icon: '🌟', color: '#8B5CF6' },
+  value: { labelKey: 'agreements.categoryValue', icon: '💎', color: '#3B82F6' },
+  rule: { labelKey: 'agreements.categoryRule', icon: '📏', color: '#E8A228' },
+  boundary: { labelKey: 'agreements.categoryBoundary', icon: '🚧', color: '#EF4444' },
+  routine: { labelKey: 'agreements.categoryRoutine', icon: '🕰️', color: '#22C55E' },
 };
 
 export default function AcordosScreen() {
@@ -67,12 +67,12 @@ export default function AcordosScreen() {
   async function handleDelete(a: Agreement) {
     if (!activeGroup) return;
     Alert.alert(
-      'Remover acordo',
+      t('agreements.removeTitle'),
       t('agreements.removeConfirmMessage', { title: a.title }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Remover',
+          text: t('agreements.remove'),
           style: 'destructive',
           onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -144,19 +144,19 @@ export default function AcordosScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2, flexWrap: 'wrap' }}>
-                    <Text style={{ fontSize: font.sizes.xs, color: cat.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>{cat.label}</Text>
+                    <Text style={{ fontSize: font.sizes.xs, color: cat.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>{t(cat.labelKey)}</Text>
                     {a.is_non_negotiable ? (
                       <View style={{ backgroundColor: `${colors.error}15`, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
-                        <Text style={{ fontSize: 10, color: colors.error, fontWeight: font.weights.bold }}>INEGOCIAVEL</Text>
+                        <Text style={{ fontSize: 10, color: colors.error, fontWeight: font.weights.bold }}>{t('agreements.nonNegotiable')}</Text>
                       </View>
                     ) : null}
                     {isAccepted ? (
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                         <Ionicons name="checkmark-circle" size={12} color={colors.success} />
-                        <Text style={{ fontSize: font.sizes.xs, color: colors.success, fontWeight: font.weights.medium }}>Aceito</Text>
+                        <Text style={{ fontSize: font.sizes.xs, color: colors.success, fontWeight: font.weights.medium }}>{t('agreements.accepted')}</Text>
                       </View>
                     ) : (
-                      <Text style={{ fontSize: font.sizes.xs, color: colors.warning, fontWeight: font.weights.medium }}>Aguardando aceite</Text>
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.warning, fontWeight: font.weights.medium }}>{t('agreements.awaitingAccept')}</Text>
                     )}
                   </View>
                   <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, marginBottom: 2 }}>
@@ -166,8 +166,8 @@ export default function AcordosScreen() {
                     {a.description}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm }}>
-                    Proposto por {a.authorName || 'Alguem'}
-                    {isAccepted && a.acceptedByName ? ` · Aceito por ${a.acceptedByName}` : ''}
+                    {t('agreements.proposedBy', { name: a.authorName || t('agreements.someone') })}
+                    {isAccepted && a.acceptedByName ? ` · ${t('agreements.acceptedBy', { name: a.acceptedByName })}` : ''}
                   </Text>
                 </View>
               </View>
@@ -175,7 +175,7 @@ export default function AcordosScreen() {
               {canIAccept ? (
                 <View style={{ marginTop: spacing.md }}>
                   <PrimaryButton
-                    label="Aceitar acordo"
+                    label={t('agreements.acceptButton')}
                     onPress={() => handleAccept(a)}
                     loading={accepting === a.id}
                     testID={`acordos-accept-${a.id}`}
@@ -186,10 +186,10 @@ export default function AcordosScreen() {
                 <TouchableOpacity
                   onPress={() => handleDelete(a)}
                   accessibilityRole="button"
-                  accessibilityLabel="Remover acordo"
+                  accessibilityLabel={t('agreements.removeTitle')}
                   style={{ alignSelf: 'flex-end', marginTop: spacing.sm, paddingVertical: 4, paddingHorizontal: 8 }}
                 >
-                  <Text style={{ fontSize: font.sizes.xs, color: colors.error }}>Remover</Text>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.error }}>{t('agreements.remove')}</Text>
                 </TouchableOpacity>
               ) : null}
             </View>
@@ -203,10 +203,10 @@ export default function AcordosScreen() {
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius['2xl'], borderTopRightRadius: radius['2xl'], padding: spacing.xl, paddingBottom: 40, maxHeight: '90%' }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
-              Novo acordo
+              {t('agreements.newAgreement')}
             </Text>
             <ScrollView>
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Categoria</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('checkinForm.category')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                 {(Object.keys(CAT_META) as AgreementCategory[]).map(k => {
                   const m = CAT_META[k];
@@ -217,7 +217,7 @@ export default function AcordosScreen() {
                       onPress={() => setNewCategory(k)}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: active }}
-                      accessibilityLabel={m.label}
+                      accessibilityLabel={t(m.labelKey)}
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md,
                         backgroundColor: active ? `${m.color}20` : colors.bg,
@@ -227,7 +227,7 @@ export default function AcordosScreen() {
                     >
                       <Text style={{ fontSize: 14 }}>{m.icon}</Text>
                       <Text style={{ fontSize: font.sizes.sm, color: active ? m.color : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                        {m.label}
+                        {t(m.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -236,7 +236,7 @@ export default function AcordosScreen() {
 
               <TextInput
                 value={newTitle} onChangeText={setNewTitle}
-                placeholder="Titulo curto (ex: Dormir no seu horario)"
+                placeholder={t('agreements.titlePlaceholderShort')}
                 placeholderTextColor={colors.textMuted}
                 style={{
                   backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -246,7 +246,7 @@ export default function AcordosScreen() {
               />
               <TextInput
                 value={newDescription} onChangeText={setNewDescription}
-                placeholder="Descreva o acordo em detalhe: porque, como funciona, excecoes..."
+                placeholder={t('agreements.descriptionPlaceholderDetail')}
                 placeholderTextColor={colors.textMuted}
                 multiline
                 style={{
@@ -261,7 +261,7 @@ export default function AcordosScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setNewNonNegotiable(!newNonNegotiable); }}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: newNonNegotiable }}
-                accessibilityLabel="Marcar como inegociável"
+                accessibilityLabel={t('agreements.markNonNegotiable')}
                 style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.lg }}
                 activeOpacity={0.7}
               >
@@ -276,7 +276,7 @@ export default function AcordosScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
-                    Marcar como inegociavel
+                    {t('agreements.markNonNegotiable')}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
                     {t('agreements.nonNegotiableHint')}
@@ -285,7 +285,7 @@ export default function AcordosScreen() {
               </TouchableOpacity>
 
               <PrimaryButton
-                label="Propor acordo"
+                label={t('agreements.proposeButton')}
                 onPress={submitNew}
                 loading={submitting}
                 disabled={!newTitle.trim() || !newDescription.trim()}

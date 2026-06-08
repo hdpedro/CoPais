@@ -230,7 +230,7 @@ export default function NovaVacinaScreen() {
               })}
             </Text>
             <Text style={{ fontSize: 10, color: '#92400E', marginTop: spacing.xs, opacity: 0.8 }}>
-              Os campos foram pré-preenchidos. Se for outra dose, clique em &quot;Salvar mesmo assim&quot;.
+              {t('vaccineNew.duplicatePrefilledHint')}
             </Text>
           </View>
         ) : null}
@@ -282,7 +282,7 @@ export default function NovaVacinaScreen() {
                   key={m.id}
                   onPress={() => pickCatalog(m)}
                   accessibilityRole="button"
-                  accessibilityLabel={`Selecionar ${m.name} do catálogo`}
+                  accessibilityLabel={t('vaccineNew.selectFromCatalog', { name: m.name })}
                   style={{
                     padding: spacing.sm + 2,
                     borderTopWidth: i > 0 ? 0.5 : 0,
@@ -302,7 +302,7 @@ export default function NovaVacinaScreen() {
           <TextInput
             value={doseLabel}
             onChangeText={setDoseLabel}
-            placeholder="Ex: 1ª dose, reforço"
+            placeholder={t('health.vaccineDetail.dosePlaceholder')}
             placeholderTextColor={colors.textMuted}
             style={styles.input}
           />

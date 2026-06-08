@@ -13,8 +13,8 @@
  *   - DatePickerField stores an ISO `YYYY-MM-DD` string (or null for unset)
  *   - TimePickerField stores an `HH:MM` string (or null for unset)
  *
- * Display is always pt-BR (DD/MM/AAAA) regardless of device locale, so the
- * UX matches the PWA exactly.
+ * Display is locale-aware (via the shared intl helper keyed on the active
+ * app locale), matching the PWA's locale-aware formatting.
  */
 
 import { useState } from 'react';
@@ -23,14 +23,19 @@ import DateTimePicker, { DateTimePickerEvent } from '@react-native-community/dat
 import * as Haptics from 'expo-haptics';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
+import { fmtDate, toIntlLocale } from '../../lib/intl';
+import { useI18n } from '../../i18n';
 
 // ── Helpers ──────────────────────────────────────────────────────────────
 
+// Module-level (used by FieldShell, não-componente) → resolve o locale ativo
+// via useI18n.getState() em vez do hook useIntl. Mantém os guards de null/ISO
+// inválido; só o display final passa a ser locale-aware.
 export function isoDateToDisplay(iso: string | null): string {
   if (!iso) return '';
   const [y, m, d] = iso.split('-');
   if (!y || !m || !d) return '';
-  return `${d}/${m}/${y}`;
+  return fmtDate(iso, toIntlLocale(useI18n.getState().locale));
 }
 
 export function dateToIso(d: Date): string {

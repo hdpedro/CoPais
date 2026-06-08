@@ -18,6 +18,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from '../../lib/supabase';
+import { useI18n } from 'src/i18n';
 import { useAuth } from '../../store/auth';
 import { useAIModal } from '../../store/ai-modal';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
@@ -31,18 +32,19 @@ interface ChatMessage {
   pending?: boolean;
 }
 
-const SUGGESTIONS = [
-  'Quem está com a guarda hoje?',
-  'Quais as próximas atividades?',
-  'Qual meu saldo de despesas?',
-  'Ver histórico de saúde das crianças',
-];
-
 export default function AIAssistantSheet() {
+  const t = useI18n((s) => s.t);
   const insets = useSafeAreaInsets();
   const { activeGroup } = useAuth();
   const isOpen = useAIModal((s) => s.isOpen);
   const close = useAIModal((s) => s.close);
+
+  const SUGGESTIONS = [
+    t('aiAssistant.suggestionCustody'),
+    t('aiAssistant.suggestionActivities'),
+    t('aiAssistant.suggestionExpenses'),
+    t('aiAssistant.suggestionHealth'),
+  ];
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -55,10 +57,10 @@ export default function AIAssistantSheet() {
       setMessages([{
         id: 'welcome',
         role: 'assistant',
-        content: 'Oi! Sou o Kindar AI 👋\n\nPosso ajudar com despesas, eventos, consultas, resumos da família e muito mais. O que você precisa?',
+        content: t('aiAssistant.greeting'),
       }]);
     }
-  }, [isOpen, messages.length]);
+  }, [isOpen, messages.length, t]);
 
   const send = useCallback(async (text: string) => {
     if (!text.trim() || sending || !activeGroup) return;
@@ -76,7 +78,7 @@ export default function AIAssistantSheet() {
 
       const { data: session } = await supabase.auth.getSession();
       const token = session.session?.access_token;
-      if (!token) throw new Error('Sessão expirada');
+      if (!token) throw new Error(t('aiAssistant.sessionExpired'));
 
       const res = await fetch(`${WEB_URL}/api/ai/assistant`, {
         method: 'POST',
@@ -89,17 +91,17 @@ export default function AIAssistantSheet() {
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data?.error || data?.content || `Erro ${res.status}`);
+        throw new Error(data?.error || data?.content || t('aiAssistant.errorStatus', { status: res.status }));
       }
 
       setMessages(prev => prev.map(m =>
         m.id === pendingMsg.id
-          ? { ...m, content: data.content || 'Sem resposta.', pending: false }
+          ? { ...m, content: data.content || t('aiAssistant.noResponse'), pending: false }
           : m
       ));
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (err: unknown) {
-      const msg = (err as { message?: string })?.message || 'Não consegui responder agora';
+      const msg = (err as { message?: string })?.message || t('aiAssistant.errorGeneric');
       setMessages(prev => prev.map(m =>
         m.id === pendingMsg.id
           ? { ...m, content: `⚠️ ${msg}`, pending: false }
@@ -110,7 +112,7 @@ export default function AIAssistantSheet() {
       setSending(false);
       setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
     }
-  }, [messages, sending, activeGroup]);
+  }, [messages, sending, activeGroup, t]);
 
   const onScrollContentSizeChange = useCallback(() => {
     scrollRef.current?.scrollToEnd({ animated: false });
@@ -120,9 +122,9 @@ export default function AIAssistantSheet() {
     setMessages([{
       id: 'welcome',
       role: 'assistant',
-      content: 'Oi! Sou o Kindar AI 👋\n\nPosso ajudar com despesas, eventos, consultas, resumos da familia e muito mais. O que voce precisa?',
+      content: t('aiAssistant.greeting'),
     }]);
-  }, []);
+  }, [t]);
 
   const renderMessage = (m: ChatMessage) => {
     const isMe = m.role === 'user';
@@ -145,7 +147,7 @@ export default function AIAssistantSheet() {
               <Text style={{ fontSize: 10, color: '#fff', fontWeight: font.weights.bold }}>K</Text>
             </View>
             <Text style={{ fontSize: 11, color: colors.textMuted, fontWeight: font.weights.medium }}>
-              Kindar AI
+              {t('aiAssistant.title')}
             </Text>
           </View>
         ) : null}
@@ -161,7 +163,7 @@ export default function AIAssistantSheet() {
           {m.pending ? (
             <View style={{ flexDirection: 'row', gap: 4, paddingVertical: 4 }}>
               <ActivityIndicator size="small" color={colors.brand} />
-              <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>Pensando...</Text>
+              <Text style={{ fontSize: 13, color: colors.textSecondary, marginLeft: 6 }}>{t('aiAssistant.thinking')}</Text>
             </View>
           ) : (
             <Text style={{
@@ -214,10 +216,10 @@ export default function AIAssistantSheet() {
             </View>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
-                Kindar AI
+                {t('aiAssistant.title')}
               </Text>
               <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                Assistente da familia
+                {t('aiAssistant.subtitle')}
               </Text>
             </View>
           </View>
@@ -238,7 +240,7 @@ export default function AIAssistantSheet() {
           {messages.length === 1 && messages[0].id === 'welcome' ? (
             <View style={{ paddingHorizontal: spacing.lg, marginTop: spacing.md, gap: spacing.sm }}>
               <Text style={{ fontSize: 11, color: colors.textMuted, fontWeight: font.weights.semibold, textTransform: 'uppercase', letterSpacing: 1 }}>
-                Sugestoes
+                {t('aiAssistant.suggestionsLabel')}
               </Text>
               {SUGGESTIONS.map(s => (
                 <TouchableOpacity
@@ -284,7 +286,7 @@ export default function AIAssistantSheet() {
             <TextInput
               value={input}
               onChangeText={setInput}
-              placeholder="Pergunte qualquer coisa..."
+              placeholder={t('aiAssistant.inputPlaceholder')}
               placeholderTextColor={colors.textDim}
               multiline
               editable={!sending}

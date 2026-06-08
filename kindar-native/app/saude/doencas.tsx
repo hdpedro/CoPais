@@ -17,10 +17,11 @@ import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const SEV_META: Record<string, { label: string; color: string }> = {
-  mild: { label: 'Leve', color: '#4CAF50' },
-  moderate: { label: 'Moderado', color: '#E8A228' },
-  severe: { label: 'Severo', color: '#E53935' },
+// `labelKey` resolvido com t() no render (não chamar t() no escopo de módulo).
+const SEV_META: Record<string, { labelKey: string; color: string }> = {
+  mild: { labelKey: 'health.severityMild', color: '#4CAF50' },
+  moderate: { labelKey: 'health.illnessForm.severity_moderado', color: '#E8A228' },
+  severe: { labelKey: 'illnessList.severitySevere', color: '#E53935' },
 };
 
 function daysSince(startDate: string): number {
@@ -85,7 +86,7 @@ export default function DoencasScreen() {
     setSubmittingEvolution(false);
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setEvolutionFeedback(expanded.type === 'improving' ? 'Melhora registrada' : 'Piora registrada');
+      setEvolutionFeedback(expanded.type === 'improving' ? t('health.evolution.savedImproving') : t('health.evolution.savedWorsening'));
       setExpanded(null);
       setEvolutionNote('');
       setTimeout(() => setEvolutionFeedback(null), 2500);
@@ -98,12 +99,12 @@ export default function DoencasScreen() {
 
   async function handleResolve(ill: IllnessEpisode) {
     Alert.alert(
-      'Encerrar episódio',
-      `Marcar "${ill.title}" como resolvida? Fica no histórico.`,
+      t('illnessList.closeEpisodeTitle'),
+      t('illnessList.closeEpisodeBody', { title: ill.title }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('health.resolve.cancel'), style: 'cancel' },
         {
-          text: 'Encerrar',
+          text: t('illnessList.closeEpisode'),
           style: 'default',
           onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -128,11 +129,11 @@ export default function DoencasScreen() {
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       {/* Header */}
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Doenças
+          {t('health.conditions')}
         </Text>
       </View>
 
@@ -148,14 +149,14 @@ export default function DoencasScreen() {
       <View style={{ flexDirection: 'row', gap: spacing.sm, padding: spacing.lg, paddingBottom: 0 }}>
         {(['active', 'resolved', 'all'] as const).map(f => {
           const active = filter === f;
-          const label = f === 'active' ? 'Ativas' : f === 'resolved' ? 'Resolvidas' : 'Todas';
+          const label = f === 'active' ? t('illnessList.filterActive') : f === 'resolved' ? t('decisions.resolved') : t('decisions.all');
           return (
             <TouchableOpacity
               key={f}
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); setFilter(f); }}
               accessibilityRole="radio"
               accessibilityState={{ selected: active }}
-              accessibilityLabel={`Filtrar por ${label}`}
+              accessibilityLabel={`${t('illnessList.filterBy')} ${label}`}
               style={{
                 paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.md,
                 backgroundColor: active ? colors.brand : colors.bgElevated,
@@ -214,7 +215,7 @@ export default function DoencasScreen() {
                         {sev ? (
                           <>
                             <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>·</Text>
-                            <Text style={{ fontSize: font.sizes.xs, color: sev.color, fontWeight: font.weights.medium }}>{sev.label}</Text>
+                            <Text style={{ fontSize: font.sizes.xs, color: sev.color, fontWeight: font.weights.medium }}>{t(sev.labelKey)}</Text>
                           </>
                         ) : null}
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>·</Text>
@@ -242,7 +243,7 @@ export default function DoencasScreen() {
                       <TextInput
                         value={evolutionNote}
                         onChangeText={setEvolutionNote}
-                        placeholder="Nota opcional (febre baixou, continua tossindo...)"
+                        placeholder={t('illnessList.evolutionNotePlaceholder')}
                         placeholderTextColor={colors.textMuted}
                         multiline
                         maxLength={500}
@@ -258,7 +259,7 @@ export default function DoencasScreen() {
                           disabled={submittingEvolution}
                           onPress={submitEvolution}
                           accessibilityRole="button"
-                          accessibilityLabel="Confirmar"
+                          accessibilityLabel={t('health.evolution.confirm')}
                           accessibilityState={{ disabled: submittingEvolution, busy: submittingEvolution }}
                           style={{
                             flex: 1, paddingVertical: 8, borderRadius: radius.sm,
@@ -268,18 +269,18 @@ export default function DoencasScreen() {
                         >
                           {submittingEvolution
                             ? <ActivityIndicator size="small" color="#fff" />
-                            : <Text style={{ color: '#fff', fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>Confirmar</Text>}
+                            : <Text style={{ color: '#fff', fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>{t('health.evolution.confirm')}</Text>}
                         </TouchableOpacity>
                         <TouchableOpacity
                           onPress={() => { setExpanded(null); setEvolutionNote(''); }}
                           accessibilityRole="button"
-                          accessibilityLabel="Cancelar"
+                          accessibilityLabel={t('health.evolution.cancel')}
                           style={{
                             paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.sm,
                             backgroundColor: colors.bgSurface, alignItems: 'center',
                           }}
                         >
-                          <Text style={{ color: colors.textSecondary, fontSize: font.sizes.xs, fontWeight: font.weights.medium }}>Cancelar</Text>
+                          <Text style={{ color: colors.textSecondary, fontSize: font.sizes.xs, fontWeight: font.weights.medium }}>{t('health.evolution.cancel')}</Text>
                         </TouchableOpacity>
                       </View>
                     </View>
@@ -288,40 +289,40 @@ export default function DoencasScreen() {
                       <TouchableOpacity
                         onPress={() => startEvolution(i.id, 'improving')}
                         accessibilityRole="button"
-                        accessibilityLabel={`Registrar melhora em ${i.title}`}
+                        accessibilityLabel={t('illnessList.a11yLogImprovement', { title: i.title })}
                         style={{
                           flex: 1, paddingVertical: 8, borderRadius: radius.sm,
                           backgroundColor: 'rgba(34,197,94,0.1)', alignItems: 'center',
                         }}
                       >
                         <Text style={{ fontSize: font.sizes.xs, color: '#15803d', fontWeight: font.weights.semibold }}>
-                          📈 Melhorou
+                          📈 {t('health.evolution.improved')}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => startEvolution(i.id, 'worsening')}
                         accessibilityRole="button"
-                        accessibilityLabel={`Registrar piora em ${i.title}`}
+                        accessibilityLabel={t('illnessList.a11yLogWorsening', { title: i.title })}
                         style={{
                           flex: 1, paddingVertical: 8, borderRadius: radius.sm,
                           backgroundColor: 'rgba(239,68,68,0.1)', alignItems: 'center',
                         }}
                       >
                         <Text style={{ fontSize: font.sizes.xs, color: '#b91c1c', fontWeight: font.weights.semibold }}>
-                          📉 Piorou
+                          📉 {t('health.evolution.worsened')}
                         </Text>
                       </TouchableOpacity>
                       <TouchableOpacity
                         onPress={() => handleResolve(i)}
                         accessibilityRole="button"
-                        accessibilityLabel={`Encerrar episódio ${i.title}`}
+                        accessibilityLabel={t('illnessList.a11yCloseEpisode', { title: i.title })}
                         style={{
                           paddingHorizontal: spacing.md, paddingVertical: 8, borderRadius: radius.sm,
                           borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
                         }}
                       >
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, fontWeight: font.weights.medium }}>
-                          Encerrar
+                          {t('illnessList.closeEpisode')}
                         </Text>
                       </TouchableOpacity>
                     </View>
@@ -338,7 +339,7 @@ export default function DoencasScreen() {
         onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude/doencas/nova' as never); }}
         activeOpacity={0.85}
         accessibilityRole="button"
-        accessibilityLabel="Registrar nova doença"
+        accessibilityLabel={t('illnessList.fabNew')}
         style={{
           position: 'absolute', bottom: insets.bottom + 20, right: 20,
           width: 56, height: 56, borderRadius: 28, backgroundColor: colors.brand,

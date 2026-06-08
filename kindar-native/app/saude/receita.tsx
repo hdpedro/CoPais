@@ -108,7 +108,7 @@ export default function ReceitaScreen() {
     setError(null);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Sessão expirada');
+      if (!session) throw new Error(t('common.sessionExpired'));
 
       // Build multipart body. React Native FormData accepts the special
       // `{uri, name, type}` shape — fetch then sets the correct
@@ -134,9 +134,9 @@ export default function ReceitaScreen() {
         const ct = resp.headers.get('content-type') || '';
         if (ct.includes('application/json')) {
           const j = await resp.json().catch(() => null);
-          throw new Error((j && j.error) || `Erro ${resp.status}`);
+          throw new Error((j && j.error) || t('prescriptionScreen.errorProcessPhoto', { status: resp.status }));
         }
-        throw new Error(`Erro ao processar a foto (${resp.status}). Tente novamente em instantes.`);
+        throw new Error(t('prescriptionScreen.errorProcessPhoto', { status: resp.status }));
       }
       const data = await resp.json();
 
@@ -155,7 +155,7 @@ export default function ReceitaScreen() {
       }));
 
       if (meds.length === 0) {
-        throw new Error('Nenhum medicamento identificado. Tente uma foto mais nítida ou outra receita.');
+        throw new Error(t('prescriptionScreen.errorNoMeds'));
       }
 
       setMedications(meds);
@@ -166,13 +166,13 @@ export default function ReceitaScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
     } catch (e: unknown) {
       const err = e as { message?: string };
-      setError(err.message || 'Erro ao processar receita');
+      setError(err.message || t('health.prescription.errorParse'));
       setStep('upload');
       setImageUri(null);
       setPendingAsset(null);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
-  }, [pendingAsset, selectedChildId]);
+  }, [pendingAsset, selectedChildId, t]);
 
   /** Cancela o asset capturado e volta pro step upload (refotografar). */
   const retakePhoto = useCallback(() => {
@@ -201,7 +201,7 @@ export default function ReceitaScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Sessão expirada');
+      if (!session) throw new Error(t('common.sessionExpired'));
 
       const resp = await fetch(`${WEB_URL}/api/health/save-prescription`, {
         method: 'POST',
@@ -222,9 +222,9 @@ export default function ReceitaScreen() {
         const ct = resp.headers.get('content-type') || '';
         if (ct.includes('application/json')) {
           const j = await resp.json().catch(() => null);
-          throw new Error((j && j.error) || `Erro ${resp.status}`);
+          throw new Error((j && j.error) || t('prescriptionScreen.errorSaveStatus', { status: resp.status }));
         }
-        throw new Error(`Erro ao salvar (${resp.status}). Tente novamente.`);
+        throw new Error(t('prescriptionScreen.errorSaveStatus', { status: resp.status }));
       }
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       router.back();
@@ -251,11 +251,11 @@ export default function ReceitaScreen() {
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Foto de receita
+          {t('prescriptionScreen.headerTitle')}
         </Text>
       </View>
 
@@ -280,10 +280,10 @@ export default function ReceitaScreen() {
             <View style={{ alignItems: 'center', paddingVertical: spacing['2xl'], marginBottom: spacing.lg }}>
               <Text style={{ fontSize: 56, marginBottom: spacing.md }}>💊</Text>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm, textAlign: 'center' }}>
-                Fotografe a receita
+                {t('prescriptionScreen.uploadTitle')}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', maxWidth: 300, lineHeight: 20 }}>
-                A IA lê a receita e extrai medicamentos com dose, frequência e duração. Revise antes de salvar.
+                {t('prescriptionScreen.uploadSubtitle')}
               </Text>
             </View>
 
@@ -291,7 +291,7 @@ export default function ReceitaScreen() {
               onPress={() => pickImage('camera')}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Tirar foto"
+              accessibilityLabel={t('health.prescription.takePhoto')}
               style={{
                 backgroundColor: colors.brand, borderRadius: radius.md,
                 paddingVertical: spacing.md + 2, alignItems: 'center',
@@ -300,14 +300,14 @@ export default function ReceitaScreen() {
             >
               <Ionicons name="camera-outline" size={20} color="#fff" />
               <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                Tirar foto
+                {t('health.prescription.takePhoto')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => pickImage('library')}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Escolher da galeria"
+              accessibilityLabel={t('health.prescription.pickFromGallery')}
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.md,
                 borderWidth: 1, borderColor: colors.borderLight,
@@ -317,7 +317,7 @@ export default function ReceitaScreen() {
             >
               <Ionicons name="images-outline" size={20} color={colors.text} />
               <Text style={{ color: colors.text, fontSize: font.sizes.md, fontWeight: font.weights.medium }}>
-                Escolher da galeria
+                {t('health.prescription.pickFromGallery')}
               </Text>
             </TouchableOpacity>
           </>
@@ -326,26 +326,26 @@ export default function ReceitaScreen() {
         {step === 'confirm' && imageUri ? (
           <View style={{ marginBottom: spacing.lg }}>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm }}>
-              A foto está nítida?
+              {t('prescriptionScreen.confirmTitle')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.md, lineHeight: 20 }}>
-              Confira se o texto da receita está legível antes de processar. Fotos tremidas ou escuras geram resultado ruim.
+              {t('prescriptionScreen.confirmSubtitle')}
             </Text>
             <Image
               source={{ uri: imageUri }}
-              accessibilityLabel="Receita fotografada — revise antes de processar"
+              accessibilityLabel={t('prescriptionScreen.photoReviewAlt')}
               style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: radius.lg, marginBottom: spacing.lg, backgroundColor: colors.bgElevated }}
               resizeMode="contain"
             />
             <View style={{ gap: spacing.sm }}>
               <PrimaryButton
-                label="Processar receita"
+                label={t('prescriptionScreen.processButton')}
                 onPress={processConfirmedImage}
                 testID="receita-process-button"
-                accessibilityHint="Envia a foto pra IA extrair os medicamentos"
+                accessibilityHint={t('prescriptionScreen.processHint')}
               />
               <PrimaryButton
-                label="Refotografar"
+                label={t('vaccineCard.retakeButton')}
                 onPress={retakePhoto}
                 variant="secondary"
                 testID="receita-retake-button"
@@ -357,14 +357,14 @@ export default function ReceitaScreen() {
         {step === 'processing' ? (
           <View style={{ alignItems: 'center', paddingVertical: spacing['3xl'] }}>
             {imageUri ? (
-              <Image source={{ uri: imageUri }} accessibilityLabel="Receita fotografada" style={{ width: 200, height: 200, borderRadius: radius.lg, marginBottom: spacing.lg }} resizeMode="cover" />
+              <Image source={{ uri: imageUri }} accessibilityLabel={t('prescriptionScreen.photoAlt')} style={{ width: 200, height: 200, borderRadius: radius.lg, marginBottom: spacing.lg }} resizeMode="cover" />
             ) : null}
             <ActivityIndicator color={colors.brand} size="large" />
             <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text, marginTop: spacing.md }}>
-              Lendo receita...
+              {t('health.prescription.stepReading')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 4 }}>
-              Pode levar alguns segundos
+              {t('prescriptionScreen.processingHint')}
             </Text>
           </View>
         ) : null}
@@ -373,20 +373,22 @@ export default function ReceitaScreen() {
           <>
             <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg, ...shadows.sm, marginBottom: spacing.lg }}>
               <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.success, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
-                ✓ {medications.length} medicamento{medications.length > 1 ? 's' : ''} identificado{medications.length > 1 ? 's' : ''}
+                {'✓ '}{medications.length === 1
+                  ? t('prescriptionScreen.medsIdentifiedOne', { count: medications.length })
+                  : t('prescriptionScreen.medsIdentified', { count: medications.length })}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-                Revise os dados e ajuste se precisar. Desmarque medicamentos que não quiser salvar.
+                {t('prescriptionScreen.previewSubtitle')}
               </Text>
             </View>
 
             {/* Doctor info */}
             <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
               <View style={{ flex: 2 }}>
-                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: 4 }}>Médico</Text>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: 4 }}>{t('prescriptionScreen.doctorLabel')}</Text>
                 <TextInput
                   value={doctorName} onChangeText={setDoctorName}
-                  placeholder="Dr. Fulano"
+                  placeholder={t('prescriptionScreen.doctorPlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   style={{
                     backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -395,7 +397,7 @@ export default function ReceitaScreen() {
                 />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: 4 }}>CRM</Text>
+                <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: 4 }}>{t('health.export.crmCol')}</Text>
                 <TextInput
                   value={crm} onChangeText={setCrm}
                   placeholder="12345"
@@ -426,13 +428,13 @@ export default function ReceitaScreen() {
                     thumbColor={m.include ? '#fff' : colors.textMuted}
                   />
                   <Text style={{ flex: 1, fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
-                    {m.name || '(sem nome)'}
+                    {m.name || t('prescriptionScreen.noName')}
                   </Text>
                 </View>
                 <TextInput
                   value={m.name}
                   onChangeText={v => updateMed(i, 'name', v)}
-                  placeholder="Nome"
+                  placeholder={t('activities.fields.name')}
                   placeholderTextColor={colors.textMuted}
                   style={{
                     backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -443,7 +445,7 @@ export default function ReceitaScreen() {
                 <TextInput
                   value={m.dosage || ''}
                   onChangeText={v => updateMed(i, 'dosage', v)}
-                  placeholder="Dose (ex: 500mg, 5ml)"
+                  placeholder={t('prescriptionScreen.dosePlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   style={{
                     backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -454,7 +456,7 @@ export default function ReceitaScreen() {
                 <TextInput
                   value={m.frequency || ''}
                   onChangeText={v => updateMed(i, 'frequency', v)}
-                  placeholder="Frequência (ex: 8/8h, 2x ao dia)"
+                  placeholder={t('prescriptionScreen.frequencyPlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   style={{
                     backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -465,7 +467,7 @@ export default function ReceitaScreen() {
                 <TextInput
                   value={m.duration || ''}
                   onChangeText={v => updateMed(i, 'duration', v)}
-                  placeholder="Duração (ex: 7 dias)"
+                  placeholder={t('health.prescription.durationPlaceholder')}
                   placeholderTextColor={colors.textMuted}
                   style={{
                     backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -477,14 +479,14 @@ export default function ReceitaScreen() {
 
             <View style={{ marginTop: spacing.lg, marginBottom: spacing.sm }}>
               <PrimaryButton
-                label="Salvar medicamentos"
+                label={t('prescriptionScreen.saveMedications')}
                 onPress={handleSave}
                 loading={saving}
                 testID="saude-receita-save"
               />
             </View>
-            <TouchableOpacity onPress={handleRetry} accessibilityRole="button" accessibilityLabel="Tentar com outra foto" style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
-              <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Tentar com outra foto</Text>
+            <TouchableOpacity onPress={handleRetry} accessibilityRole="button" accessibilityLabel={t('vaccineCard.tryAnotherPhoto')} style={{ alignItems: 'center', paddingVertical: spacing.sm }}>
+              <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>{t('vaccineCard.tryAnotherPhoto')}</Text>
             </TouchableOpacity>
           </>
         ) : null}

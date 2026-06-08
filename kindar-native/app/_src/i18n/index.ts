@@ -41,6 +41,25 @@ function isSupported(value: string | null | undefined): value is SupportedLocale
   return !!value && (SUPPORTED as readonly string[]).includes(value);
 }
 
+/**
+ * Idioma do dispositivo na 1ª execução (sem escolha salva). Usa o locale padrão
+ * do Intl — no Hermes-com-Intl (iOS/Android) ele resolve do sistema, ex.:
+ * "pt-BR", "en-US" — e reduz ao languageCode. Retorna o suportado ou 'pt'.
+ * A escolha MANUAL (AsyncStorage) sempre prevalece sobre isto.
+ * NOTA: validar no device que resolvedOptions().locale reflete o idioma do
+ * aparelho (não um valor fixo) antes de confiar 100%.
+ */
+function detectDeviceLocale(): SupportedLocale {
+  try {
+    const tag = new Intl.DateTimeFormat().resolvedOptions().locale;
+    const lang = tag.split('-')[0].toLowerCase();
+    if (isSupported(lang)) return lang;
+  } catch {
+    // Intl indisponível → mantém pt.
+  }
+  return 'pt';
+}
+
 function getNestedValue(obj: unknown, path: string): string | undefined {
   const keys = path.split('.');
   let current: unknown = obj;
@@ -73,9 +92,22 @@ export const useI18n = create<I18nState>((set, get) => ({
     if (get().hydrated) return;
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
-      if (isSupported(stored) && stored !== get().locale) {
-        const translations = await LOCALES[stored]();
-        set({ locale: stored, translations, hydrated: true });
+      // 1) Escolha manual salva SEMPRE prevalece (sobre detecção).
+      if (isSupported(stored)) {
+        if (stored !== get().locale) {
+          const translations = await LOCALES[stored]();
+          set({ locale: stored, translations, hydrated: true });
+          return;
+        }
+        set({ hydrated: true });
+        return;
+      }
+      // 2) 1ª execução (sem escolha salva): detecta o idioma do dispositivo.
+      //    NÃO persiste — re-detecta a cada launch até o user escolher manualmente.
+      const detected = detectDeviceLocale();
+      if (detected !== get().locale) {
+        const translations = await LOCALES[detected]();
+        set({ locale: detected, translations, hydrated: true });
         return;
       }
     } catch {

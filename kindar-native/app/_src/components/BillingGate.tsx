@@ -35,6 +35,7 @@ import { colors, spacing, radius, font, shadows } from '../design-system/tokens'
 import { useToast } from './ui/ToastProvider';
 import { withTimeout, TimeoutError } from '../lib/with-timeout';
 import { reportError } from '../lib/error-reporter';
+import { useI18n } from '../i18n';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
@@ -110,6 +111,7 @@ export default function BillingGate({ children }: Props) {
  * restaurar compra (requisito Apple) ou sair da conta.
  */
 function BillingPaywall({ onUnlocked }: { onUnlocked: () => void }) {
+  const t = useI18n((s) => s.t);
   const toast = useToast();
   const signOut = useAuth((s) => s.signOut);
   const [packages, setPackages] = useState<PurchasesPackage[]>([]);
@@ -142,7 +144,7 @@ function BillingPaywall({ onUnlocked }: { onUnlocked: () => void }) {
   async function handlePurchase(pkg: PurchasesPackage) {
     const token = await getAccessToken();
     if (!token) {
-      toast.show({ message: 'Sua sessão expirou. Entre novamente.', variant: 'error' });
+      toast.show({ message: t('common.sessionExpired'), variant: 'error' });
       return;
     }
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -165,7 +167,7 @@ function BillingPaywall({ onUnlocked }: { onUnlocked: () => void }) {
   async function handleRestore() {
     const token = await getAccessToken();
     if (!token) {
-      toast.show({ message: 'Sua sessão expirou. Entre novamente.', variant: 'error' });
+      toast.show({ message: t('common.sessionExpired'), variant: 'error' });
       return;
     }
     setRestoring(true);
@@ -176,9 +178,9 @@ function BillingPaywall({ onUnlocked }: { onUnlocked: () => void }) {
         invalidateBillingCache();
         onUnlocked();
       } else if (res.success) {
-        toast.show({ message: 'Nenhuma compra ativa encontrada.', variant: 'info' });
+        toast.show({ message: t('toasts.subscription.restoreFailedNoSubscription'), variant: 'info' });
       } else {
-        toast.show({ message: res.error || 'Não foi possível restaurar.', variant: 'error' });
+        toast.show({ message: res.error || t('toasts.subscription.restoreFailed'), variant: 'error' });
       }
     } finally {
       setRestoring(false);
@@ -196,12 +198,11 @@ function BillingPaywall({ onUnlocked }: { onUnlocked: () => void }) {
 
       <View style={styles.card}>
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>Período gratuito encerrado</Text>
+          <Text style={styles.badgeText}>{t('billing.trialEndedBadge')}</Text>
         </View>
-        <Text style={styles.title}>Seu acesso foi pausado</Text>
+        <Text style={styles.title}>{t('billing.accessPausedTitle')}</Text>
         <Text style={styles.body}>
-          Seus 30 dias gratuitos terminaram. Assine o Harmonia para continuar organizando
-          a rotina de quem você cuida — sem perder nenhum dado.
+          {t('billing.accessPausedBody')}
         </Text>
 
         {loading ? (
@@ -210,8 +211,7 @@ function BillingPaywall({ onUnlocked }: { onUnlocked: () => void }) {
           </View>
         ) : packages.length === 0 ? (
           <Text style={[styles.body, { marginTop: spacing.md }]}>
-            Não foi possível carregar o plano agora. Verifique sua conexão e tente restaurar
-            a compra abaixo, ou assine em {WEB_URL.replace('https://', '')}.
+            {t('billing.planLoadFailed', { url: WEB_URL.replace('https://', '') })}
           </Text>
         ) : (
           packages.map((pkg) => {
@@ -219,10 +219,10 @@ function BillingPaywall({ onUnlocked }: { onUnlocked: () => void }) {
             const isAnnual = pkg.packageType === 'ANNUAL' || pkg.product.identifier.includes('annual');
             return (
               <View key={pkg.identifier} style={styles.planBox}>
-                <Text style={styles.planName}>Harmonia{isAnnual ? ' Anual' : ''}</Text>
+                <Text style={styles.planName}>{isAnnual ? t('billing.planNameAnnual') : t('subscription.planHarmonia')}</Text>
                 <Text style={styles.planPrice}>
                   {pkg.product.priceString}
-                  <Text style={styles.planInterval}>{isAnnual ? ' /ano' : ' /mês'}</Text>
+                  <Text style={styles.planInterval}>{isAnnual ? ` ${t('billing.perYear')}` : ` ${t('billing.perMonth')}`}</Text>
                 </Text>
                 <TouchableOpacity
                   onPress={() => handlePurchase(pkg)}
@@ -232,7 +232,7 @@ function BillingPaywall({ onUnlocked }: { onUnlocked: () => void }) {
                   {busy ? (
                     <ActivityIndicator color="#fff" size="small" />
                   ) : (
-                    <Text style={styles.ctaText}>Assinar Harmonia</Text>
+                    <Text style={styles.ctaText}>{t('subscription.harmoniaCta')}</Text>
                   )}
                 </TouchableOpacity>
               </View>
@@ -244,13 +244,13 @@ function BillingPaywall({ onUnlocked }: { onUnlocked: () => void }) {
       {/* Saídas: restaurar (requisito Apple) + sair */}
       <View style={{ alignItems: 'center', marginTop: spacing.xl, gap: spacing.md }}>
         <TouchableOpacity onPress={handleRestore} disabled={restoring} style={{ padding: spacing.md }}>
-          <Text style={styles.link}>{restoring ? 'Restaurando…' : 'Restaurar compra'}</Text>
+          <Text style={styles.link}>{restoring ? t('billing.restoring') : t('subscription.restorePurchase')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => Linking.openURL(`${WEB_URL}/suporte`)} style={{ padding: spacing.sm }}>
-          <Text style={styles.muted}>Precisa de ajuda ou quer encerrar a conta? Fale com o suporte</Text>
+          <Text style={styles.muted}>{t('billing.supportPrompt')}</Text>
         </TouchableOpacity>
         <TouchableOpacity onPress={() => signOut()} style={{ padding: spacing.sm }}>
-          <Text style={styles.muted}>Sair da conta</Text>
+          <Text style={styles.muted}>{t('billing.signOut')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

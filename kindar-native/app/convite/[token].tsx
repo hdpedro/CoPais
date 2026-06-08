@@ -10,9 +10,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from 'src/store/auth';
 import { acceptInvitation } from 'src/services/invitations';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 export default function AceitarConviteScreen() {
+  const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { token } = useLocalSearchParams<{ token: string }>();
   const { userId, loadActiveGroup } = useAuth();
@@ -48,18 +50,18 @@ export default function AceitarConviteScreen() {
       setTimeout(() => router.replace('/(tabs)'), 1500);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(res.error || 'Nao foi possivel aceitar o convite');
+      setError(res.error || t('inviteAccept.errAccept'));
     }
   }
 
   function handleDecline() {
     Alert.alert(
-      'Recusar convite',
-      'Voce pode aceitar depois se receber o link novamente. Recusar agora?',
+      t('inviteAccept.declineTitle'),
+      t('inviteAccept.declineConfirm'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Recusar',
+          text: t('inviteAccept.decline'),
           style: 'destructive',
           onPress: () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -74,7 +76,7 @@ export default function AceitarConviteScreen() {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bg, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text, textAlign: 'center' }}>
-          Link invalido
+          {t('inviteAccept.invalidLink')}
         </Text>
       </View>
     );
@@ -89,11 +91,11 @@ export default function AceitarConviteScreen() {
               <Text style={{ fontSize: 40 }}>🎉</Text>
             </View>
             <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm, textAlign: 'center' }}>
-              Bem-vindo(a)!
+              {t('inviteAccept.welcome')}
             </Text>
             {groupName ? (
               <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center' }}>
-                Você agora faz parte de {groupName}
+                {t('inviteAccept.nowPartOf', { groupName })}
               </Text>
             ) : null}
             <ActivityIndicator color={colors.brand} style={{ marginTop: spacing.lg }} />
@@ -105,10 +107,10 @@ export default function AceitarConviteScreen() {
             </View>
 
             <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text, textAlign: 'center', marginBottom: spacing.sm }}>
-              Você recebeu um convite!
+              {t('inviteAccept.gotInvite')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.xl, lineHeight: 20 }}>
-              Um co-responsável te convidou pra compartilhar um grupo no Kindar. Aceitando, você terá acesso ao calendário, decisões, despesas e saúde das crianças.
+              {t('inviteAccept.description')}
             </Text>
 
             {error ? (
@@ -119,7 +121,7 @@ export default function AceitarConviteScreen() {
 
             <View style={{ width: '100%', marginBottom: spacing.sm }}>
               <PrimaryButton
-                label="Aceitar e entrar"
+                label={t('inviteAccept.acceptAndEnter')}
                 onPress={handleAccept}
                 loading={loading}
                 disabled={!userId}
@@ -127,9 +129,9 @@ export default function AceitarConviteScreen() {
               />
             </View>
 
-            <TouchableOpacity onPress={handleDecline} style={{ paddingVertical: spacing.sm }} accessibilityRole="button" accessibilityLabel="Agora não">
+            <TouchableOpacity onPress={handleDecline} style={{ paddingVertical: spacing.sm }} accessibilityRole="button" accessibilityLabel={t('inviteAccept.notNow')}>
               <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>
-                Agora não
+                {t('inviteAccept.notNow')}
               </Text>
             </TouchableOpacity>
           </View>

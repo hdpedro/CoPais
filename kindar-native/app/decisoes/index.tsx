@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl,
   Modal, TextInput, ScrollView,
@@ -19,42 +19,51 @@ import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
-  escola: { icon: '🎒', color: '#3B82F6', label: 'Escola' },
-  saude: { icon: '🏥', color: '#EF4444', label: 'Saúde' },
-  atividade: { icon: '⚽', color: '#22C55E', label: 'Atividade' },
-  viagem: { icon: '✈️', color: '#8B5CF6', label: 'Viagem' },
-  financeiro: { icon: '💰', color: '#F59E0B', label: 'Financeiro' },
-  moradia: { icon: '🏠', color: '#5B9E85', label: 'Moradia' },
-  outro: { icon: '📋', color: '#6B7280', label: 'Outro' },
+// labelKey resolved at render via t() — keep icon/color static.
+const CAT_META: Record<string, { icon: string; color: string; labelKey: string }> = {
+  escola: { icon: '🎒', color: '#3B82F6', labelKey: 'decisions.categories.school' },
+  saude: { icon: '🏥', color: '#EF4444', labelKey: 'decisions.categories.health' },
+  atividade: { icon: '⚽', color: '#22C55E', labelKey: 'decisions.categories.activity' },
+  viagem: { icon: '✈️', color: '#8B5CF6', labelKey: 'decisions.categories.travel' },
+  financeiro: { icon: '💰', color: '#F59E0B', labelKey: 'decisions.categories.financial' },
+  moradia: { icon: '🏠', color: '#5B9E85', labelKey: 'decisions.categories.housing' },
+  outro: { icon: '📋', color: '#6B7280', labelKey: 'decisions.categories.other' },
 };
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  aberta: { label: 'Aberta', color: '#E8A228' },
-  aprovada: { label: 'Aprovada', color: '#4CAF50' },
-  rejeitada: { label: 'Rejeitada', color: '#E53935' },
-  expirada: { label: 'Expirada', color: '#8A8A8A' },
+const STATUS_META: Record<string, { labelKey: string; color: string }> = {
+  aberta: { labelKey: 'decisions.statusOpen', color: '#E8A228' },
+  aprovada: { labelKey: 'decisions.statusApproved', color: '#4CAF50' },
+  rejeitada: { labelKey: 'decisions.statusRejected', color: '#E53935' },
+  expirada: { labelKey: 'decisions.statusExpired', color: '#8A8A8A' },
 };
-
-function formatDeadline(deadline: string | null): { label: string; urgent: boolean } | null {
-  if (!deadline) return null;
-  const now = Date.now();
-  const d = new Date(deadline + 'T23:59:59').getTime();
-  const daysUntil = Math.ceil((d - now) / 86400000);
-  if (daysUntil < 0) return { label: 'Prazo expirado', urgent: true };
-  if (daysUntil === 0) return { label: 'Hoje', urgent: true };
-  if (daysUntil <= 3) return { label: `Em ${daysUntil} dia${daysUntil > 1 ? 's' : ''}`, urgent: true };
-  const [, m, day] = deadline.split('-').map(Number);
-  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  return { label: `Até ${day}/${months[(m || 1) - 1]}`, urgent: false };
-}
 
 export default function DecisoesScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const { activeGroup, userId } = useAuth();
+
+  // daysUntil math stays numeric (count logic). Only the absolute-date branch
+  // is locale-aware: "Até 8 de abr" via intl.formatDate (day + short month).
+  const formatDeadline = useCallback(
+    (deadline: string | null): { label: string; urgent: boolean } | null => {
+      if (!deadline) return null;
+      const now = Date.now();
+      const d = new Date(deadline + 'T23:59:59').getTime();
+      const daysUntil = Math.ceil((d - now) / 86400000);
+      if (daysUntil < 0) return { label: t('decisions.deadlineExpired'), urgent: true };
+      if (daysUntil === 0) return { label: t('intl.today'), urgent: true };
+      if (daysUntil <= 3) return {
+        label: daysUntil === 1 ? t('decisions.deadlineInDaysOne', { count: daysUntil }) : t('decisions.deadlineInDays', { count: daysUntil }),
+        urgent: true,
+      };
+      return { label: t('decisions.deadlineUntil', { date: intl.formatDate(deadline, { day: 'numeric', month: 'short' }) }), urgent: false };
+    },
+    [intl, t],
+  );
   const [voting, setVoting] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
@@ -140,7 +149,7 @@ export default function DecisoesScreen() {
         activeOpacity={0.85}
         onPress={() => router.push({ pathname: '/decisoes/[id]', params: { id: d.id } } as never)}
         accessibilityRole="button"
-        accessibilityLabel={`Abrir decisão: ${d.title}`}
+        accessibilityLabel={t('decisions.openA11y', { title: d.title })}
         style={{
           backgroundColor: colors.bgElevated, borderRadius: radius.xl,
           padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
@@ -155,10 +164,10 @@ export default function DecisoesScreen() {
           <View style={{ flex: 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2 }}>
               <Text style={{ fontSize: font.sizes.xs, color: cat.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>
-                {cat.label}
+                {t(cat.labelKey)}
               </Text>
               <View style={{ backgroundColor: `${status.color}15`, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 1 }}>
-                <Text style={{ fontSize: font.sizes.xs, color: status.color, fontWeight: font.weights.medium }}>{status.label}</Text>
+                <Text style={{ fontSize: font.sizes.xs, color: status.color, fontWeight: font.weights.medium }}>{t(status.labelKey)}</Text>
               </View>
             </View>
             <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }} numberOfLines={2}>
@@ -176,7 +185,7 @@ export default function DecisoesScreen() {
                 </Text>
               ) : null}
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                {d.authorName ? `por ${d.authorName}` : ''}
+                {d.authorName ? t('decisions.byAuthor', { name: d.authorName }) : ''}
               </Text>
             </View>
           </View>
@@ -197,9 +206,9 @@ export default function DecisoesScreen() {
         {/* Inline vote buttons */}
         {canVote ? (
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
-            <VoteButton label="Contra" color="#E53935" onPress={() => handleVote(d, 'discordo')} disabled={voting === d.id} />
-            <VoteButton label="Abster" color={colors.textSecondary} onPress={() => handleVote(d, 'abstencao')} disabled={voting === d.id} />
-            <VoteButton label="A favor" color="#4CAF50" filled onPress={() => handleVote(d, 'concordo')} disabled={voting === d.id} />
+            <VoteButton label={t('decisions.against')} color="#E53935" onPress={() => handleVote(d, 'discordo')} disabled={voting === d.id} />
+            <VoteButton label={t('decisions.abstain')} color={colors.textSecondary} onPress={() => handleVote(d, 'abstencao')} disabled={voting === d.id} />
+            <VoteButton label={t('decisions.inFavorShort')} color="#4CAF50" filled onPress={() => handleVote(d, 'concordo')} disabled={voting === d.id} />
           </View>
         ) : null}
 
@@ -208,7 +217,7 @@ export default function DecisoesScreen() {
           <View style={{ marginTop: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
             <Ionicons name="checkmark-circle" size={14} color={colors.success} />
             <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-              Você votou: {d.myVote === 'concordo' ? 'A favor' : d.myVote === 'discordo' ? 'Contra' : 'Abster'}
+              {t('decisions.youVoted')} {d.myVote === 'concordo' ? t('decisions.inFavorShort') : d.myVote === 'discordo' ? t('decisions.against') : t('decisions.abstain')}
             </Text>
           </View>
         ) : null}
@@ -218,14 +227,14 @@ export default function DecisoesScreen() {
           <TouchableOpacity
             onPress={() => handleClose(d)}
             accessibilityRole="button"
-            accessibilityLabel="Encerrar votação"
+            accessibilityLabel={t('decisions.closeVoting')}
             style={{
               marginTop: spacing.sm, alignSelf: 'flex-start',
               paddingVertical: 4, paddingHorizontal: spacing.sm,
               borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderLight,
             }}
           >
-            <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Encerrar votação</Text>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{t('decisions.closeVoting')}</Text>
           </TouchableOpacity>
         ) : null}
       </TouchableOpacity>
@@ -262,13 +271,13 @@ export default function DecisoesScreen() {
           }}>
             <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
-              Nova decisão
+              {t('decisions.newDecision')}
             </Text>
 
             <TextInput
               value={newTitle}
               onChangeText={setNewTitle}
-              placeholder="Título da decisão"
+              placeholder={t('decisions.titlePlaceholder')}
               placeholderTextColor={colors.textMuted}
               style={{
                 backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
@@ -280,7 +289,7 @@ export default function DecisoesScreen() {
             <TextInput
               value={newDescription}
               onChangeText={setNewDescription}
-              placeholder="Descrição (opcional)"
+              placeholder={t('decisions.descriptionOptional')}
               placeholderTextColor={colors.textMuted}
               multiline
               style={{
@@ -291,13 +300,13 @@ export default function DecisoesScreen() {
               }}
             />
 
-            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Prazo (opcional)</Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('decisions.deadlineOptional')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               {[
-                { id: 'none', label: 'Sem prazo', days: null },
-                { id: '3d', label: 'Em 3 dias', days: 3 },
-                { id: '7d', label: 'Em 1 semana', days: 7 },
-                { id: '14d', label: 'Em 2 semanas', days: 14 },
+                { id: 'none', label: t('decisions.noDeadline'), days: null },
+                { id: '3d', label: t('decisions.in3Days'), days: 3 },
+                { id: '7d', label: t('decisions.in1Week'), days: 7 },
+                { id: '14d', label: t('decisions.in2Weeks'), days: 14 },
               ].map(p => {
                 const computed = p.days
                   // eslint-disable-next-line react-hooks/purity
@@ -326,7 +335,7 @@ export default function DecisoesScreen() {
               })}
             </View>
 
-            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>Categoria</Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('notes.category')}</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginBottom: spacing.lg }}>
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                 {(Object.keys(CAT_META) as DecisionCategory[]).map(k => {
@@ -338,7 +347,7 @@ export default function DecisoesScreen() {
                       onPress={() => setNewCategory(k)}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: active }}
-                      accessibilityLabel={m.label}
+                      accessibilityLabel={t(m.labelKey)}
                       style={{
                         paddingHorizontal: spacing.md, paddingVertical: spacing.sm,
                         borderRadius: radius.md,
@@ -349,7 +358,7 @@ export default function DecisoesScreen() {
                     >
                       <Text style={{ fontSize: 14 }}>{m.icon}</Text>
                       <Text style={{ fontSize: font.sizes.sm, color: active ? m.color : colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                        {m.label}
+                        {t(m.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -358,7 +367,7 @@ export default function DecisoesScreen() {
             </ScrollView>
 
             <PrimaryButton
-              label="Abrir decisão"
+              label={t('decisions.openDecision')}
               onPress={submitNew}
               loading={submitting}
               disabled={!newTitle.trim()}
@@ -372,12 +381,13 @@ export default function DecisoesScreen() {
 }
 
 function VoteButton({ label, color, filled, onPress, disabled }: { label: string; color: string; filled?: boolean; onPress: () => void; disabled?: boolean }) {
+  const t = useI18n(s => s.t);
   return (
     <TouchableOpacity
       disabled={disabled}
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`Votar ${label}`}
+      accessibilityLabel={t('decisions.voteA11y', { label })}
       accessibilityState={{ disabled }}
       style={{
         flex: 1, paddingVertical: 10, borderRadius: radius.md,

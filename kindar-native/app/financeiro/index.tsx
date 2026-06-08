@@ -37,8 +37,8 @@ import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
-import { formatBRL } from 'src/lib/currency';
 import { useCachedFetch } from 'src/lib/use-cached-fetch';
 
 interface MemberOption {
@@ -46,17 +46,7 @@ interface MemberOption {
   name: string;
 }
 
-const PAYMENT_METHODS = [
-  { value: 'pix', label: 'PIX' },
-  { value: 'transfer', label: 'Transferência' },
-  { value: 'cash', label: 'Dinheiro' },
-  { value: 'other', label: 'Outro' },
-];
-
-const MONTH_NAMES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-];
+type PaymentMethodValue = 'pix' | 'transfer' | 'cash' | 'other';
 
 type ViewMode = 'dashboard' | 'settlements' | 'history';
 
@@ -64,8 +54,20 @@ const MEMBER_COLORS = ['#5B9E85', '#D4735A', '#F4A261', '#8E6E95', '#3B82F6', '#
 
 export default function FinanceiroScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const insets = useSafeAreaInsets();
+
+  // PIX é nome próprio (marca do BACEN) → não traduz. Demais formas via t().
+  const PAYMENT_METHODS: { value: PaymentMethodValue; label: string }[] = [
+    { value: 'pix', label: 'PIX' },
+    { value: 'transfer', label: t('financial.methodTransfer') },
+    { value: 'cash', label: t('financial.methodCash') },
+    { value: 'other', label: t('financial.methodOther') },
+  ];
+  // Rótulo "Mês AAAA" locale-aware a partir de índice de mês + ano.
+  const monthYearLabel = (monthIdx: number, year: number) =>
+    intl.formatMonthYear(new Date(year, monthIdx, 1));
   const { userId, activeGroup } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -166,7 +168,7 @@ export default function FinanceiroScreen() {
   }
 
   const balanceColor = (summary?.balance || 0) >= 0 ? colors.success : colors.error;
-  const balanceLabel = (summary?.balance || 0) >= 0 ? 'A receber' : 'A pagar';
+  const balanceLabel = (summary?.balance || 0) >= 0 ? t('financial.toReceive') : t('financial.toPay');
 
   const pendingForMe = useMemo(
     () => settlements.filter((s) => s.status === 'pending' && s.paid_to === userId),
@@ -232,12 +234,12 @@ export default function FinanceiroScreen() {
   async function handleConfirmSettlement(s: Settlement) {
     if (!userId) return;
     Alert.alert(
-      'Confirmar recebimento',
-      `Confirma que recebeu ${formatBRL(s.amount)} de ${s.paidByName}?`,
+      t('financial.confirmReceiptTitle'),
+      t('financial.confirmReceiptMessage', { amount: intl.formatCurrency(s.amount), name: s.paidByName ?? '' }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Confirmar',
+          text: t('common.confirm'),
           onPress: async () => {
             const res = await confirmSettlement(s.id);
             if (!res.success) {
@@ -257,15 +259,15 @@ export default function FinanceiroScreen() {
   // all 3 tabs as before.
   const visibleTabs = isShared
     ? ([
-        { value: 'dashboard' as const, label: 'Resumo' },
-        { value: 'settlements' as const, label: 'Acertar' },
-        { value: 'history' as const, label: 'Histórico' },
+        { value: 'dashboard' as const, label: t('financial.summary') },
+        { value: 'settlements' as const, label: t('financial.tabSettle') },
+        { value: 'history' as const, label: t('financial.history') },
       ])
-    : ([{ value: 'dashboard' as const, label: 'Resumo' }]);
+    : ([{ value: 'dashboard' as const, label: t('financial.summary') }]);
 
   // Force back to Resumo if the user lands on a tab that no longer applies
   // (e.g. coparent removed mid-session). Defensive.
-  const safeViewMode: ViewMode = visibleTabs.some((t) => t.value === viewMode) ? viewMode : 'dashboard';
+  const safeViewMode: ViewMode = visibleTabs.some((tab) => tab.value === viewMode) ? viewMode : 'dashboard';
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -321,10 +323,10 @@ export default function FinanceiroScreen() {
         {isShared && safeViewMode !== 'history' ? (
           <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, marginBottom: spacing.lg, ...shadows.md }}>
             <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-              Saldo
+              {t('financial.balanceLabel')}
             </Text>
             <Text style={{ fontSize: font.sizes['4xl'], fontWeight: font.weights.extrabold, color: balanceColor, marginTop: spacing.sm }}>
-              {formatBRL(Math.abs(summary?.balance || 0))}
+              {intl.formatCurrency(Math.abs(summary?.balance || 0))}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: balanceColor, fontWeight: font.weights.medium }}>
               {balanceLabel}
@@ -357,10 +359,10 @@ export default function FinanceiroScreen() {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
-                  Divida despesas com outra pessoa
+                  {t('financial.soloTitle')}
                 </Text>
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                  Adicione um co-responsável para dividir gastos automaticamente.
+                  {t('financial.soloSubtitle')}
                 </Text>
               </View>
             </View>
@@ -368,7 +370,7 @@ export default function FinanceiroScreen() {
               onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/convite/enviar'); }}
               testID="finance-add-coparent"
               accessibilityRole="button"
-              accessibilityLabel="Adicionar co-responsável"
+              accessibilityLabel={t('financial.addCoparent')}
               style={{
                 backgroundColor: colors.brand,
                 borderRadius: radius.md,
@@ -377,7 +379,7 @@ export default function FinanceiroScreen() {
               }}
             >
               <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                Adicionar co-responsável
+                {t('financial.addCoparent')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -392,30 +394,32 @@ export default function FinanceiroScreen() {
                   onPress={() => navigateMonth(-1)}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Mês anterior"
+                  accessibilityLabel={t('financial.prevMonth')}
                 >
                   <Ionicons name="chevron-back" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
                 <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
-                  {MONTH_NAMES[selectedMonth]} {selectedYear}
+                  {monthYearLabel(selectedMonth, selectedYear)}
                 </Text>
                 <TouchableOpacity
                   onPress={() => navigateMonth(1)}
                   hitSlop={8}
                   accessibilityRole="button"
-                  accessibilityLabel="Próximo mês"
+                  accessibilityLabel={t('financial.nextMonth')}
                 >
                   <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
                 </TouchableOpacity>
               </View>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textAlign: 'center' }}>
-                {isShared ? 'Total no mês' : 'Seus gastos no mês'}
+                {isShared ? t('financial.monthTotalLabel') : t('financial.yourMonthSpending')}
               </Text>
               <Text style={{ fontSize: font.sizes['3xl'], fontWeight: font.weights.extrabold, color: colors.text, textAlign: 'center', marginTop: 2 }}>
-                {formatBRL(monthlySpending.totalMonth)}
+                {intl.formatCurrency(monthlySpending.totalMonth)}
               </Text>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textAlign: 'center', marginTop: 2 }}>
-                {monthlySpending.expensesCount} {monthlySpending.expensesCount === 1 ? 'despesa' : 'despesas'}
+                {monthlySpending.expensesCount === 1
+                  ? t('financial.expenseCountOne', { count: monthlySpending.expensesCount })
+                  : t('financial.expenseCountOther', { count: monthlySpending.expensesCount })}
               </Text>
             </View>
 
@@ -440,17 +444,17 @@ export default function FinanceiroScreen() {
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 6 }}>
                         <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: m.color }} />
                         <Text numberOfLines={1} style={{ fontSize: font.sizes.xs, color: colors.textMuted, flex: 1 }}>
-                          {m.name}{isMe ? ' (você)' : ''}
+                          {m.name}{isMe ? ` ${t('financial.youSuffix')}` : ''}
                         </Text>
                       </View>
                       <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                        {formatBRL(spent)}
+                        {intl.formatCurrency(spent)}
                       </Text>
                       <View style={{ height: 6, backgroundColor: colors.bgSurface, borderRadius: 3, marginTop: spacing.xs, overflow: 'hidden' }}>
                         <View style={{ height: '100%', width: `${Math.min(100, pct)}%`, backgroundColor: m.color, borderRadius: 3 }} />
                       </View>
                       <Text style={{ fontSize: 10, color: colors.textMuted, marginTop: 2 }}>
-                        {pct.toFixed(0)}% do total
+                        {t('financial.pctOfTotal', { pct: pct.toFixed(0) })}
                       </Text>
                     </View>
                   );
@@ -464,15 +468,15 @@ export default function FinanceiroScreen() {
         {isShared && safeViewMode === 'dashboard' ? (
           <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.xl }}>
             <View style={{ flex: 1, backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm }}>
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Você pagou (total)</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>{t('financial.youPaidTotal')}</Text>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                {formatBRL(summary?.myTotal || 0)}
+                {intl.formatCurrency(summary?.myTotal || 0)}
               </Text>
             </View>
             <View style={{ flex: 1, backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, ...shadows.sm }}>
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Outro pagou (total)</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>{t('financial.otherPaidTotal')}</Text>
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                {formatBRL(summary?.otherTotal || 0)}
+                {intl.formatCurrency(summary?.otherTotal || 0)}
               </Text>
             </View>
           </View>
@@ -482,28 +486,28 @@ export default function FinanceiroScreen() {
         {isShared && safeViewMode !== 'history' && pendingForMe.length > 0 ? (
           <View style={{ marginBottom: spacing.xl }}>
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
-              Aguardando sua confirmação
+              {t('financial.awaitingYourConfirmation')}
             </Text>
             {pendingForMe.map((s) => (
               <TouchableOpacity
                 key={s.id}
                 onPress={() => handleConfirmSettlement(s)}
                 accessibilityRole="button"
-                accessibilityLabel={`Confirmar recebimento de ${formatBRL(s.amount)} de ${s.paidByName}`}
+                accessibilityLabel={t('financial.confirmReceiptA11y', { amount: intl.formatCurrency(s.amount), name: s.paidByName ?? '' })}
                 style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, marginBottom: spacing.sm, borderWidth: 1, borderColor: `${colors.brand}40`, ...shadows.sm }}
               >
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
                   <Ionicons name="cash-outline" size={20} color={colors.brand} />
                   <View style={{ flex: 1 }}>
                     <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>
-                      {formatBRL(s.amount)} de {s.paidByName}
+                      {t('financial.amountFrom', { amount: intl.formatCurrency(s.amount), name: s.paidByName ?? '' })}
                     </Text>
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
                       {(s.payment_method || 'PIX').toUpperCase()}
                       {s.reference_note ? ` · ${s.reference_note.slice(0, 40)}` : ''}
                     </Text>
                   </View>
-                  <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.brand }}>Confirmar</Text>
+                  <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.brand }}>{t('common.confirm')}</Text>
                 </View>
               </TouchableOpacity>
             ))}
@@ -516,11 +520,11 @@ export default function FinanceiroScreen() {
             onPress={openSettlementModal}
             testID="finance-settlement-cta"
             accessibilityRole="button"
-            accessibilityLabel="Registrar pagamento"
+            accessibilityLabel={t('financial.registerPayment')}
             style={{ backgroundColor: colors.brand, borderRadius: radius.lg, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.md, marginBottom: spacing.sm }}
           >
             <Ionicons name="add-circle-outline" size={20} color="#fff" />
-            <Text style={{ fontSize: font.sizes.md, color: '#fff', fontWeight: font.weights.semibold, flex: 1 }}>Registrar pagamento</Text>
+            <Text style={{ fontSize: font.sizes.md, color: '#fff', fontWeight: font.weights.semibold, flex: 1 }}>{t('financial.registerPayment')}</Text>
             <Ionicons name="chevron-forward" size={16} color="#ffffffaa" />
           </TouchableOpacity>
         ) : null}
@@ -531,11 +535,11 @@ export default function FinanceiroScreen() {
             onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
             testID="finance-nova-despesa"
             accessibilityRole="button"
-            accessibilityLabel="Ver despesas"
+            accessibilityLabel={t('financial.viewExpenses')}
             style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing.lg, flexDirection: 'row', alignItems: 'center', gap: spacing.md, ...shadows.sm, marginBottom: spacing.lg }}
           >
             <Ionicons name="receipt-outline" size={20} color={colors.brand} />
-            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>Ver despesas</Text>
+            <Text style={{ fontSize: font.sizes.md, color: colors.text, flex: 1 }}>{t('financial.viewExpenses')}</Text>
             <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
           </TouchableOpacity>
         ) : null}
@@ -544,7 +548,7 @@ export default function FinanceiroScreen() {
         {isShared && safeViewMode === 'dashboard' && recentConfirmed.length > 0 ? (
           <View>
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
-              Histórico recente
+              {t('financial.recentHistory')}
             </Text>
             {recentConfirmed.map((s) => {
               const iAmPayer = s.paid_by === userId;
@@ -558,14 +562,14 @@ export default function FinanceiroScreen() {
                     />
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>
-                        {iAmPayer ? `Pagou ${s.paidToName}` : `Recebeu de ${s.paidByName}`}
+                        {iAmPayer ? t('financial.paidName', { name: s.paidToName ?? '' }) : t('financial.receivedFromName', { name: s.paidByName ?? '' })}
                       </Text>
                       <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                        {(s.settlement_date || '').split('-').reverse().join('/')} · {(s.payment_method || 'pix').toUpperCase()}
+                        {s.settlement_date ? intl.formatDate(s.settlement_date) : ''} · {(s.payment_method || 'pix').toUpperCase()}
                       </Text>
                     </View>
                     <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.bold, color: colors.text }}>
-                      {formatBRL(s.amount)}
+                      {intl.formatCurrency(s.amount)}
                     </Text>
                   </View>
                 </View>
@@ -580,13 +584,13 @@ export default function FinanceiroScreen() {
             <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.lg, padding: spacing['2xl'], alignItems: 'center', ...shadows.sm }}>
               <Ionicons name="archive-outline" size={32} color={colors.textMuted} />
               <Text style={{ marginTop: spacing.md, fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center' }}>
-                Nenhum pagamento registrado ainda.
+                {t('financial.noPayments')}
               </Text>
             </View>
           ) : (
             historyByMonth.map((group) => {
               const [y, mo] = group.key.split('-');
-              const label = `${MONTH_NAMES[parseInt(mo, 10) - 1]} ${y}`;
+              const label = monthYearLabel(parseInt(mo, 10) - 1, parseInt(y, 10));
               const total = group.items
                 .filter((s) => s.status === 'confirmed')
                 .reduce((acc, s) => acc + s.amount, 0);
@@ -597,7 +601,7 @@ export default function FinanceiroScreen() {
                       {label}
                     </Text>
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                      {formatBRL(total)}
+                      {intl.formatCurrency(total)}
                     </Text>
                   </View>
                   {group.items.map((s) => {
@@ -613,11 +617,11 @@ export default function FinanceiroScreen() {
                           />
                           <View style={{ flex: 1 }}>
                             <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>
-                              {iAmPayer ? `Pagou ${s.paidToName}` : `Recebeu de ${s.paidByName}`}
+                              {iAmPayer ? t('financial.paidName', { name: s.paidToName ?? '' }) : t('financial.receivedFromName', { name: s.paidByName ?? '' })}
                             </Text>
                             <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                              {(s.settlement_date || '').split('-').reverse().join('/')} · {(s.payment_method || 'pix').toUpperCase()}
-                              {isPending ? ' · Pendente' : ''}
+                              {s.settlement_date ? intl.formatDate(s.settlement_date) : ''} · {(s.payment_method || 'pix').toUpperCase()}
+                              {isPending ? ` · ${t('financial.statusPending')}` : ''}
                             </Text>
                             {s.reference_note ? (
                               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
@@ -626,7 +630,7 @@ export default function FinanceiroScreen() {
                             ) : null}
                           </View>
                           <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.bold, color: colors.text }}>
-                            {formatBRL(s.amount)}
+                            {intl.formatCurrency(s.amount)}
                           </Text>
                         </View>
                       </View>
@@ -644,18 +648,18 @@ export default function FinanceiroScreen() {
         <ModalBackdrop onClose={() => setModalOpen(false)} align="bottom" dim={0.5} padding={0}>
           <View style={{ backgroundColor: colors.bgElevated, borderTopLeftRadius: radius.xl, borderTopRightRadius: radius.xl, padding: spacing.xl, paddingBottom: spacing.xl + insets.bottom }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.lg }}>
-              <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>Registrar pagamento</Text>
+              <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>{t('financial.registerPayment')}</Text>
               <TouchableOpacity
                 onPress={() => setModalOpen(false)}
                 accessibilityRole="button"
-                accessibilityLabel="Fechar"
+                accessibilityLabel={t('common.close')}
                 hitSlop={8}
               >
                 <Ionicons name="close" size={24} color={colors.textSecondary} />
               </TouchableOpacity>
             </View>
 
-            <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>Para quem</Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>{t('financial.toWhom')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               {members.map((m) => (
                 <TouchableOpacity
@@ -682,25 +686,25 @@ export default function FinanceiroScreen() {
             {balanceForCounter !== null ? (
               <Text style={{ fontSize: font.sizes.xs, color: balanceForCounter > 0 ? colors.error : colors.textMuted, marginBottom: spacing.md }}>
                 {balanceForCounter > 0
-                  ? `Você deve ${formatBRL(balanceForCounter)} a este coparente.`
+                  ? t('financial.youOweCoparent', { amount: intl.formatCurrency(balanceForCounter) })
                   : balanceForCounter < 0
-                    ? `Você está com saldo positivo de ${formatBRL(Math.abs(balanceForCounter))}.`
-                    : 'Saldo zerado com este coparente.'}
+                    ? t('financial.youHavePositiveBalance', { amount: intl.formatCurrency(Math.abs(balanceForCounter)) })
+                    : t('financial.balancedWithCoparent')}
               </Text>
             ) : null}
 
-            <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>Valor (R$)</Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>{t('financial.amountLabel')}</Text>
             <TextInput
               value={amount}
               onChangeText={setAmount}
               placeholder="0,00"
               placeholderTextColor={colors.textDim}
               keyboardType="decimal-pad"
-              accessibilityLabel="Valor em reais"
+              accessibilityLabel={t('financial.amountA11y')}
               style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.lg, fontSize: font.sizes.lg, color: colors.text, marginBottom: spacing.lg }}
             />
 
-            <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>Forma de pagamento</Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>{t('financial.paymentMethod')}</Text>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
               {PAYMENT_METHODS.map((pm) => (
                 <TouchableOpacity
@@ -723,18 +727,18 @@ export default function FinanceiroScreen() {
               ))}
             </View>
 
-            <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>Referência (opcional)</Text>
+            <Text style={{ fontSize: font.sizes.sm, color: colors.textMuted, marginBottom: spacing.xs }}>{t('financial.referenceOptional')}</Text>
             <TextInput
               value={refNote}
               onChangeText={setRefNote}
-              placeholder="Ex: Aluguel março"
+              placeholder={t('financial.referencePlaceholder')}
               placeholderTextColor={colors.textDim}
-              accessibilityLabel="Referência (opcional)"
+              accessibilityLabel={t('financial.referenceOptional')}
               style={{ backgroundColor: colors.bg, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, padding: spacing.lg, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.xl }}
             />
 
             <PrimaryButton
-              label="Registrar pagamento"
+              label={t('financial.registerPayment')}
               onPress={handleSubmitSettlement}
               loading={submitting}
               testID="financeiro-submit-settlement"

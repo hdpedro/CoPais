@@ -3,6 +3,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Platform, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
+import { useI18n } from 'src/i18n';
 
 // Brand colors inlined to bypass an EAS-side eager-bundle resolver bug
 // that fails to resolve "../../src/design-system/tokens" from this file
@@ -55,6 +56,7 @@ export default function TabLayout() {
   // "Calendário" e "Chat". Fix: somar insets.bottom à altura E ao paddingBottom.
   // iOS já estava OK (paddingBottom: 28 cobria o Home Indicator por sorte) —
   // não tocar pra evitar regressão.
+  const t = useI18n((s) => s.t);
   const insets = useSafeAreaInsets();
   const tabBarHeight = Platform.OS === 'ios' ? 88 : 64 + insets.bottom;
   const paddingBottom = Platform.OS === 'ios' ? 28 : insets.bottom + 6;
@@ -97,7 +99,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Início',
+          title: t('nav.home'),
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="home" focused={focused} color={color} />
           ),
@@ -106,7 +108,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="calendario"
         options={{
-          title: 'Calendário',
+          title: t('nav.calendar'),
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="calendar" focused={focused} color={color} />
           ),
@@ -115,7 +117,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="chat"
         options={{
-          title: 'Chat',
+          title: t('nav.chat'),
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="chatbubble" focused={focused} color={color} />
           ),
@@ -124,7 +126,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="saude"
         options={{
-          title: 'Saúde',
+          title: t('nav.health'),
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="pulse" focused={focused} color={color} />
           ),
@@ -133,7 +135,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="mais"
         options={{
-          title: 'Mais',
+          title: t('nav.more'),
           tabBarIcon: ({ color, focused }) => (
             <TabIcon name="grid" focused={focused} color={color} />
           ),

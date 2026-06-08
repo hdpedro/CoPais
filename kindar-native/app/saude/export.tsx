@@ -12,6 +12,8 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
+import { useI18n } from 'src/i18n';
+import { fmtDate, toIntlLocale, useIntl } from 'src/lib/intl';
 import { supabase } from 'src/lib/supabase';
 import { fetchChildren, type Child } from 'src/services/children';
 import { useCachedFetch } from 'src/lib/use-cached-fetch';
@@ -36,18 +38,22 @@ interface HealthExportData {
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
-  return iso.slice(0, 10).split('-').reverse().join('/');
+  // Locale-aware via shared helper. Slice to YYYY-MM-DD so toDate pins
+  // noon-local (avoids timezone day-shift), matching the old reverse-join.
+  return fmtDate(iso.slice(0, 10), toIntlLocale(useI18n.getState().locale));
 }
 
-function calcAge(birthDate: string): string {
+function calcAgeYears(birthDate: string): number {
   const bd = new Date(birthDate + 'T12:00:00');
   const now = new Date();
   let years = now.getFullYear() - bd.getFullYear();
   if (now.getMonth() < bd.getMonth() || (now.getMonth() === bd.getMonth() && now.getDate() < bd.getDate())) years--;
-  return `${years} anos`;
+  return years;
 }
 
 export default function ExportScreen() {
+  const t = useI18n((s) => s.t);
+  const intl = useIntl();
   const insets = useSafeAreaInsets();
   const { activeGroup } = useAuth();
   const groupId = activeGroup?.groupId;
@@ -112,62 +118,64 @@ export default function ExportScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     const lines: string[] = [];
     const { child } = data;
-    lines.push(`*HISTÓRICO MÉDICO — ${child.full_name.toUpperCase()}*`);
-    lines.push(`Idade: ${calcAge(child.birth_date)}  ·  Nasc: ${formatDate(child.birth_date)}`);
+    const ageYears = calcAgeYears(child.birth_date);
+    const ageLabel = `${ageYears} ${t('health.years')}`;
+    lines.push(`*${t('healthExport.shareTitle', { name: child.full_name.toUpperCase() })}*`);
+    lines.push(`${t('health.export.age')}: ${ageLabel}  ·  ${t('healthExport.shareBirthAbbrev')}: ${formatDate(child.birth_date)}`);
     lines.push('');
 
-    lines.push('*DADOS BÁSICOS*');
-    lines.push(`Tipo sanguíneo: ${data.bloodType || 'não informado'}`);
-    lines.push(`Plano de saúde: ${data.insurance || 'não informado'}`);
-    if (data.sus) lines.push(`SUS: ${data.sus}`);
+    lines.push(`*${t('healthExport.basicDataHeader')}*`);
+    lines.push(`${t('health.emergency.bloodType')}: ${data.bloodType || t('healthExport.notInformedLower')}`);
+    lines.push(`${t('childProfile.healthInsurance')}: ${data.insurance || t('healthExport.notInformedLower')}`);
+    if (data.sus) lines.push(`${t('healthExport.susLabel')}: ${data.sus}`);
     lines.push('');
 
     if (data.allergies.length > 0) {
-      lines.push(`*ALERGIAS (${data.allergies.length})*`);
+      lines.push(`*${t('healthExport.allergiesHeader', { count: data.allergies.length })}*`);
       data.allergies.forEach(a => lines.push(`• ${a.name}${a.severity ? ` — ${a.severity}` : ''}`));
       lines.push('');
     }
 
     if (data.medications.length > 0) {
-      lines.push(`*MEDICAMENTOS ATIVOS (${data.medications.length})*`);
+      lines.push(`*${t('healthExport.medicationsHeader', { count: data.medications.length })}*`);
       data.medications.forEach(m => lines.push(`• ${m.name}${m.dosage ? ` ${m.dosage}` : ''}${m.frequency ? ` (${m.frequency})` : ''}`));
       lines.push('');
     }
 
     if (data.pediatrician) {
-      lines.push('*PEDIATRA*');
+      lines.push(`*${t('health.emergency.pediatrician').toUpperCase()}*`);
       lines.push(`${data.pediatrician.name}${data.pediatrician.specialty ? ` (${data.pediatrician.specialty})` : ''}`);
       if (data.pediatrician.phone) lines.push(data.pediatrician.phone);
       lines.push('');
     }
 
     if (data.illnesses.length > 0) {
-      lines.push(`*HISTÓRICO DE DOENÇAS (últimos 10)*`);
-      data.illnesses.forEach(i => lines.push(`• ${i.title} — ${formatDate(i.start_date)} até ${i.end_date ? formatDate(i.end_date) : 'ativa'}`));
+      lines.push(`*${t('healthExport.illnessesHeader')}*`);
+      data.illnesses.forEach(i => lines.push(`• ${i.title} — ${formatDate(i.start_date)} ${t('healthExport.until')} ${i.end_date ? formatDate(i.end_date) : t('healthExport.illnessActive')}`));
       lines.push('');
     }
 
     if (data.vaccines.length > 0) {
-      lines.push(`*VACINAS (${data.vaccines.length})*`);
+      lines.push(`*${t('healthExport.vaccinesHeader', { count: data.vaccines.length })}*`);
       data.vaccines.slice(0, 10).forEach(v => lines.push(`• ${v.vaccine_name}${v.dose_label ? ` (${v.dose_label})` : ''}${v.administered_date ? ` — ${formatDate(v.administered_date)}` : ''}`));
-      if (data.vaccines.length > 10) lines.push(`... e mais ${data.vaccines.length - 10} vacinas.`);
+      if (data.vaccines.length > 10) lines.push(t('healthExport.moreVaccines', { count: data.vaccines.length - 10 }));
       lines.push('');
     }
 
     if (data.growthLast) {
-      lines.push('*CRESCIMENTO (último registro)*');
-      lines.push(`Data: ${formatDate(data.growthLast.measured_date)}`);
-      if (data.growthLast.height_cm) lines.push(`Altura: ${data.growthLast.height_cm} cm`);
-      if (data.growthLast.weight_kg) lines.push(`Peso: ${data.growthLast.weight_kg} kg`);
+      lines.push(`*${t('healthExport.growthHeader')}*`);
+      lines.push(`${t('health.export.dateCol')}: ${formatDate(data.growthLast.measured_date)}`);
+      if (data.growthLast.height_cm) lines.push(`${t('health.height')}: ${data.growthLast.height_cm} ${t('healthExport.unitCm')}`);
+      if (data.growthLast.weight_kg) lines.push(`${t('health.weight')}: ${data.growthLast.weight_kg} ${t('healthExport.unitKg')}`);
       lines.push('');
     }
 
     lines.push(`---`);
-    lines.push(`Exportado do Kindar em ${new Date().toLocaleDateString('pt-BR')}`);
+    lines.push(t('healthExport.exportedOn', { date: intl.formatDate(new Date()) }));
 
     const summary = lines.join('\n');
     try {
-      await Share.share({ message: summary, title: `Histórico médico — ${child.full_name}` });
+      await Share.share({ message: summary, title: t('healthExport.shareSheetTitle', { name: child.full_name }) });
     } catch { /* cancelled */ }
   }
 
@@ -182,18 +190,18 @@ export default function ExportScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Export de saúde
+          {t('healthExport.screenTitle')}
         </Text>
         <TouchableOpacity
           onPress={handleShare}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Compartilhar export"
-          accessibilityHint="Abre o seletor de apps para enviar o relatório de saúde"
+          accessibilityLabel={t('healthExport.shareA11yLabel')}
+          accessibilityHint={t('healthExport.shareA11yHint')}
         >
           <Ionicons name="share-outline" size={22} color={colors.brand} />
         </TouchableOpacity>
@@ -219,59 +227,59 @@ export default function ExportScreen() {
             {data.child.full_name}
           </Text>
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 2 }}>
-            {calcAge(data.child.birth_date)} · {formatDate(data.child.birth_date)}
+            {calcAgeYears(data.child.birth_date)} {t('health.years')} · {formatDate(data.child.birth_date)}
           </Text>
         </View>
 
-        <Section title="Dados básicos">
-          <Row label="Tipo sanguíneo" value={data.bloodType || '—'} />
-          <Row label="Plano de saúde" value={data.insurance || '—'} />
-          {data.sus ? <Row label="SUS" value={data.sus} /> : null}
+        <Section title={t('healthExport.basicDataSection')}>
+          <Row label={t('health.emergency.bloodType')} value={data.bloodType || '—'} />
+          <Row label={t('childProfile.healthInsurance')} value={data.insurance || '—'} />
+          {data.sus ? <Row label={t('healthExport.susLabel')} value={data.sus} /> : null}
         </Section>
 
-        <Section title={`Alergias (${data.allergies.length})`}>
-          {data.allergies.length === 0 ? <Empty>Nenhuma registrada</Empty> : data.allergies.map((a, i) => (
+        <Section title={t('healthExport.allergiesSection', { count: data.allergies.length })}>
+          {data.allergies.length === 0 ? <Empty>{t('health.emergency.allergiesNone')}</Empty> : data.allergies.map((a, i) => (
             <Row key={i} label={a.name} value={a.severity || ''} />
           ))}
         </Section>
 
-        <Section title={`Medicamentos ativos (${data.medications.length})`}>
-          {data.medications.length === 0 ? <Empty>Nenhum em uso</Empty> : data.medications.map((m, i) => (
+        <Section title={t('healthExport.medicationsSection', { count: data.medications.length })}>
+          {data.medications.length === 0 ? <Empty>{t('healthExport.noMedicationsInUse')}</Empty> : data.medications.map((m, i) => (
             <Row key={i} label={m.name} value={[m.dosage, m.frequency].filter(Boolean).join(' · ')} />
           ))}
         </Section>
 
         {data.pediatrician ? (
-          <Section title="Pediatra">
+          <Section title={t('health.emergency.pediatrician')}>
             <Row label={data.pediatrician.name} value={data.pediatrician.specialty || ''} />
-            {data.pediatrician.phone ? <Row label="Telefone" value={data.pediatrician.phone} /> : null}
+            {data.pediatrician.phone ? <Row label={t('health.phone')} value={data.pediatrician.phone} /> : null}
           </Section>
         ) : null}
 
-        <Section title={`Consultas recentes (${data.appointments.length})`}>
-          {data.appointments.length === 0 ? <Empty>Nenhuma registrada</Empty> : data.appointments.slice(0, 5).map((a, i) => (
+        <Section title={t('healthExport.appointmentsSection', { count: data.appointments.length })}>
+          {data.appointments.length === 0 ? <Empty>{t('health.emergency.allergiesNone')}</Empty> : data.appointments.slice(0, 5).map((a, i) => (
             <Row key={i} label={a.title} value={formatDate(a.appointment_date)} />
           ))}
         </Section>
 
-        <Section title={`Histórico de doenças (${data.illnesses.length})`}>
-          {data.illnesses.length === 0 ? <Empty>Nenhum episódio</Empty> : data.illnesses.slice(0, 5).map((ill, i) => (
-            <Row key={i} label={ill.title} value={`${formatDate(ill.start_date)} → ${ill.end_date ? formatDate(ill.end_date) : 'ativa'}`} />
+        <Section title={t('healthExport.illnessesSection', { count: data.illnesses.length })}>
+          {data.illnesses.length === 0 ? <Empty>{t('healthExport.noEpisodes')}</Empty> : data.illnesses.slice(0, 5).map((ill, i) => (
+            <Row key={i} label={ill.title} value={`${formatDate(ill.start_date)} → ${ill.end_date ? formatDate(ill.end_date) : t('healthExport.illnessActive')}`} />
           ))}
         </Section>
 
-        <Section title={`Vacinas (${data.vaccines.length})`}>
-          {data.vaccines.length === 0 ? <Empty>Nenhuma registrada</Empty> : data.vaccines.slice(0, 5).map((v, i) => (
+        <Section title={t('healthExport.vaccinesSection', { count: data.vaccines.length })}>
+          {data.vaccines.length === 0 ? <Empty>{t('health.emergency.allergiesNone')}</Empty> : data.vaccines.slice(0, 5).map((v, i) => (
             <Row key={i} label={`${v.vaccine_name}${v.dose_label ? ` (${v.dose_label})` : ''}`} value={formatDate(v.administered_date)} />
           ))}
-          {data.vaccines.length > 5 ? <Empty>... e mais {data.vaccines.length - 5} vacinas</Empty> : null}
+          {data.vaccines.length > 5 ? <Empty>{t('healthExport.moreVaccinesInline', { count: data.vaccines.length - 5 })}</Empty> : null}
         </Section>
 
         {data.growthLast ? (
-          <Section title="Crescimento (último registro)">
-            <Row label="Data" value={formatDate(data.growthLast.measured_date)} />
-            {data.growthLast.height_cm ? <Row label="Altura" value={`${data.growthLast.height_cm} cm`} /> : null}
-            {data.growthLast.weight_kg ? <Row label="Peso" value={`${data.growthLast.weight_kg} kg`} /> : null}
+          <Section title={t('healthExport.growthSection')}>
+            <Row label={t('health.export.dateCol')} value={formatDate(data.growthLast.measured_date)} />
+            {data.growthLast.height_cm ? <Row label={t('health.height')} value={`${data.growthLast.height_cm} ${t('healthExport.unitCm')}`} /> : null}
+            {data.growthLast.weight_kg ? <Row label={t('health.weight')} value={`${data.growthLast.weight_kg} ${t('healthExport.unitKg')}`} /> : null}
           </Section>
         ) : null}
 
@@ -279,7 +287,7 @@ export default function ExportScreen() {
           onPress={handleShare}
           activeOpacity={0.85}
           accessibilityRole="button"
-          accessibilityLabel="Compartilhar resumo"
+          accessibilityLabel={t('healthExport.shareSummary')}
           style={{
             backgroundColor: colors.brand, borderRadius: radius.md,
             paddingVertical: spacing.md + 2, alignItems: 'center',
@@ -289,7 +297,7 @@ export default function ExportScreen() {
         >
           <Ionicons name="share-outline" size={20} color="#fff" />
           <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-            Compartilhar resumo
+            {t('healthExport.shareSummary')}
           </Text>
         </TouchableOpacity>
       </ScrollView>

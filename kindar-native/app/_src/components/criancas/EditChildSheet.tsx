@@ -19,7 +19,7 @@
  *   - children.photo_url → uploadChildAvatar (Storage path, signed at read)
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Modal, Pressable, ScrollView,
   KeyboardAvoidingView, Platform, Alert, Image, ActivityIndicator,
@@ -31,11 +31,12 @@ import * as ImagePicker from 'expo-image-picker';
 import type { Child, MedicalInfo } from '../../services/children';
 import { updateChild, upsertChildMedicalInfo, uploadChildAvatar, signChildAvatar } from '../../services/children';
 import { supabase } from '../../lib/supabase';
-import { DatePickerField, isoDateToDisplay } from '../ui/DateTimeField';
+import { DatePickerField } from '../ui/DateTimeField';
 import { useToast } from '../ui/ToastProvider';
 import PrimaryButton from '../ui/PrimaryButton';
 import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 
 // ── Masks & validation ───────────────────────────────────────────────────
@@ -113,7 +114,76 @@ export default function EditChildSheet(props: Props) {
 
 function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
+
+  // Idade humanizada — math numérico preservado; unidade localizada via as
+  // chaves `onboardingForm.age*` (paridade com o PWA onboarding/_lib/format.ts).
+  const ageHint = useCallback(
+    (iso: string): string => {
+      const [y, m, d] = iso.split('-').map(Number);
+      if (!y || !m || !d) return '';
+      const birth = new Date(y, m - 1, d);
+      const now = new Date();
+      const months =
+        (now.getFullYear() - birth.getFullYear()) * 12 +
+        (now.getMonth() - birth.getMonth()) -
+        (now.getDate() < birth.getDate() ? 1 : 0);
+      if (months < 1) return t('onboardingForm.ageNewborn');
+      if (months < 12) {
+        return months === 1
+          ? t('onboardingForm.ageMonthOne')
+          : t('onboardingForm.ageMonths', { count: months });
+      }
+      const years = Math.floor(months / 12);
+      return years === 1
+        ? t('onboardingForm.ageYearOne')
+        : t('onboardingForm.ageYears', { count: years });
+    },
+    [t],
+  );
+
+  // Rótulo de mês (parte de DATA do growthInsight) — locale-aware. Mantém o
+  // sufixo de ano (mai/24) quando a medida é de um ano diferente do atual.
+  const monthFromIso = useCallback(
+    (iso: string): string => {
+      const [y, m] = iso.split('-').map(Number);
+      if (!y || !m) return '';
+      const label = intl.formatMonthShort(iso);
+      const now = new Date();
+      return now.getFullYear() === y ? label : `${label}/${String(y).slice(2)}`;
+    },
+    [intl],
+  );
+
+  // Insight derivado das duas ultimas medidas. A lógica numérica (delta de peso,
+  // tempo relativo) é preservada; só a PARTE DE DATA (rótulo do mês) é localizada.
+  const growthInsight = useCallback(
+    (
+      latest: { weight_kg: number | null; measured_date: string },
+      previous: { weight_kg: number | null; measured_date: string } | null,
+    ): string => {
+      const days = daysSince(latest.measured_date);
+      const relative =
+        days === 0 ? 'Atualizada hoje'
+        : days === 1 ? 'Atualizada ontem'
+        : days < 7 ? `Atualizada há ${days} dias`
+        : days < 30 ? `Atualizada há ${Math.round(days / 7)} sem.`
+        : days < 365 ? `Atualizada há ${Math.round(days / 30)} meses`
+        : `Atualizada há ${Math.round(days / 365)} anos`;
+
+      if (latest.weight_kg != null && previous?.weight_kg != null) {
+        const delta = latest.weight_kg - previous.weight_kg;
+        if (Math.abs(delta) >= 0.1) {
+          const sign = delta > 0 ? '+' : '';
+          const monthLabel = monthFromIso(previous.measured_date);
+          return `${sign}${delta.toFixed(1)}kg desde ${monthLabel} · ${relative}`;
+        }
+      }
+      return relative;
+    },
+    [monthFromIso],
+  );
   const [fullName, setFullName] = useState(child.full_name);
   const [birthDate, setBirthDate] = useState<string>(child.birth_date);
   const [sex, setSex] = useState<'M' | 'F' | null>(child.sex);
@@ -256,12 +326,12 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
     if (uploadingPhoto) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     Alert.alert(
-      'Foto da criança',
-      'De onde você quer pegar a foto?',
+      t('editChild.photoTitle'),
+      t('editChild.photoPrompt'),
       [
-        { text: 'Cancelar', style: 'cancel' },
-        { text: 'Galeria', onPress: pickAvatarFromLibrary },
-        { text: 'Câmera', onPress: pickAvatarFromCamera },
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('editChild.photoLibrary'), onPress: pickAvatarFromLibrary },
+        { text: t('editChild.photoCamera'), onPress: pickAvatarFromCamera },
       ],
       { cancelable: true }
     );
@@ -271,7 +341,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
     if (!canSave) return;
     if (!cpfValid) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show({ message: 'CPF inválido', variant: 'error' });
+      toast.show({ message: t('editChild.cpfInvalid'), variant: 'error' });
       return;
     }
     setSaving(true);
@@ -344,7 +414,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           }}
         >
           <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-            Editar informações
+            {t('childDetail.editInfo')}
           </Text>
           <TouchableOpacity onPress={onClose} hitSlop={8}>
             <Ionicons name="close" size={24} color={colors.textSecondary} />
@@ -368,7 +438,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
                 // eslint-disable-next-line jsx-a11y/alt-text
                 <Image
                   source={{ uri: photoUrl }}
-                  accessibilityLabel="Foto da criança"
+                  accessibilityLabel={t('editChild.photoTitle')}
                   style={{ width: 96, height: 96, borderRadius: 48, backgroundColor: colors.bgSurface }}
                 />
               ) : (
@@ -401,42 +471,42 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               </View>
             </TouchableOpacity>
             <Text style={{ marginTop: 6, fontSize: font.sizes.xs, color: colors.textSecondary }}>
-              {uploadingPhoto ? 'Enviando foto…' : 'Toque para alterar a foto'}
+              {uploadingPhoto ? t('editChild.photoUploading') : t('editChild.photoTapToChange')}
             </Text>
           </View>
 
           {/* Nome completo */}
-          <Label>Nome completo</Label>
+          <Label>{t('children.fullName')}</Label>
           <TextInput
             testID="edit-child-name"
             value={fullName}
             onChangeText={setFullName}
-            placeholder="Nome completo"
+            placeholder={t('children.fullName')}
             placeholderTextColor={colors.textDim}
             style={inputStyle}
           />
 
           {/* Data de nascimento */}
-          <Label>Data de nascimento</Label>
+          <Label>{t('children.birthDate')}</Label>
           <DatePickerField
             value={birthDate || null}
             onChange={(iso) => setBirthDate(iso || '')}
-            placeholder="DD/MM/AAAA"
+            placeholder={t('editChild.datePlaceholder')}
           />
           {birthDate ? (
             <Text style={hintStyle}>
-              {ageHint(birthDate)} · {isoDateToDisplay(birthDate)}
+              {ageHint(birthDate)} · {intl.formatDate(birthDate)}
             </Text>
           ) : null}
 
           {/* Sexo */}
-          <Label>Sexo</Label>
+          <Label>{t('children.sex')}</Label>
           <View style={{ flexDirection: 'row', gap: spacing.sm }}>
             {(
               [
-                { v: 'M' as const, label: 'Masculino' },
-                { v: 'F' as const, label: 'Feminino' },
-                { v: null as 'M' | 'F' | null, label: 'Não informar' },
+                { v: 'M' as const, label: t('onboardingForm.sexMale') },
+                { v: 'F' as const, label: t('onboardingForm.sexFemale') },
+                { v: null as 'M' | 'F' | null, label: t('editChild.sexNone') },
               ]
             ).map((opt) => {
               const active = sex === opt.v;
@@ -471,12 +541,12 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           {/* CPF / RG */}
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.lg }}>
             <View style={{ flex: 1 }}>
-              <Label>CPF</Label>
+              <Label>{t('childGeneral.cpf')}</Label>
               <TextInput
                 testID="edit-child-cpf"
                 value={cpf}
-                onChangeText={(t) => setCpf(formatCpf(t))}
-                placeholder="000.000.000-00"
+                onChangeText={(v) => setCpf(formatCpf(v))}
+                placeholder={t('editChild.cpfPlaceholder')}
                 placeholderTextColor={colors.textDim}
                 keyboardType="number-pad"
                 maxLength={14}
@@ -487,17 +557,17 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               />
               {!cpfValid ? (
                 <Text style={{ fontSize: font.sizes.xs, color: colors.error, marginTop: 4 }}>
-                  CPF inválido
+                  {t('editChild.cpfInvalid')}
                 </Text>
               ) : null}
             </View>
             <View style={{ flex: 1 }}>
-              <Label>RG</Label>
+              <Label>{t('childGeneral.rg')}</Label>
               <TextInput
                 testID="edit-child-rg"
                 value={rg}
-                onChangeText={(t) => setRg(formatRg(t))}
-                placeholder="00.000.000-0"
+                onChangeText={(v) => setRg(formatRg(v))}
+                placeholder={t('childProfile.rgPlaceholder')}
                 placeholderTextColor={colors.textDim}
                 maxLength={12}
                 style={inputStyle}
@@ -506,15 +576,15 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           </View>
 
           {/* Tipo sanguíneo */}
-          <Label>Tipo sanguíneo</Label>
+          <Label>{t('editChild.bloodType')}</Label>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.xs }}>
-            {BLOOD_TYPES.map((t) => {
-              const active = bloodType === t;
+            {BLOOD_TYPES.map((bt) => {
+              const active = bloodType === bt;
               return (
                 <TouchableOpacity
-                  key={t}
-                  onPress={() => toggleBloodType(t)}
-                  testID={`edit-child-blood-${t}`}
+                  key={bt}
+                  onPress={() => toggleBloodType(bt)}
+                  testID={`edit-child-blood-${bt}`}
                   style={{
                     paddingHorizontal: spacing.md,
                     paddingVertical: 8,
@@ -535,7 +605,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
                       color: active ? '#C62828' : colors.textSecondary,
                     }}
                   >
-                    {t}
+                    {bt}
                   </Text>
                 </TouchableOpacity>
               );
@@ -543,12 +613,12 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           </View>
           {bloodType ? (
             <TouchableOpacity onPress={() => toggleBloodType(bloodType)} style={{ marginTop: 6, alignSelf: 'flex-start' }}>
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Limpar seleção</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{t('editChild.clearSelection')}</Text>
             </TouchableOpacity>
           ) : null}
 
           {/* Alergias */}
-          <Label>Alergias</Label>
+          <Label>{t('childProfile.allergiesTitle')}</Label>
           {allergies.length > 0 ? (
             <View
               style={{
@@ -585,7 +655,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               value={allergyDraft}
               onChangeText={setAllergyDraft}
               onSubmitEditing={addAllergy}
-              placeholder="Ex: Amendoim"
+              placeholder={t('editChild.allergyPlaceholder')}
               placeholderTextColor={colors.textDim}
               returnKeyType="done"
               style={[inputStyle, { flex: 1, marginBottom: 0 }]}
@@ -610,7 +680,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               o dado vive em growth_records (historico datado), nao em
               children. Mostramos a ultima medida + tendencia aqui (visao
               derivada). Realtime channel garante atualizacao automatica. */}
-          <Label>Crescimento</Label>
+          <Label>{t('childProfile.latestGrowth')}</Label>
           <Pressable
             onPress={() => {
               Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -649,10 +719,10 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
               ) : (
                 <>
                   <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
-                    Adicionar peso e altura
+                    {t('editChild.growthEmptyTitle')}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-                    Acompanhar o crescimento ao longo do tempo
+                    {t('editChild.growthEmptySubtitle')}
                   </Text>
                 </>
               )}
@@ -661,12 +731,12 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           </Pressable>
 
           {/* Anotações */}
-          <Label>Anotações</Label>
+          <Label>{t('childGeneral.notesTitle')}</Label>
           <TextInput
             testID="edit-child-notes"
             value={notes}
             onChangeText={setNotes}
-            placeholder="Informações adicionais..."
+            placeholder={t('children.notesPlaceholder')}
             placeholderTextColor={colors.textDim}
             multiline
             style={[inputStyle, { minHeight: 88, textAlignVertical: 'top' }]}
@@ -675,7 +745,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           {/* Save button */}
           <View style={{ marginTop: spacing.xl }}>
             <PrimaryButton
-              label="Salvar alterações"
+              label={t('childDetail.saveChanges')}
               onPress={handleSave}
               loading={saving}
               disabled={!canSave && !saving}
@@ -689,62 +759,14 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
   );
 }
 
-// Pequeno insight derivado das duas ultimas medidas — gera percepcao
-// de acompanhamento continuo, em vez de so listar a data.
-function growthInsight(
-  latest: { weight_kg: number | null; measured_date: string },
-  previous: { weight_kg: number | null; measured_date: string } | null,
-): string {
-  const days = daysSince(latest.measured_date);
-  const relative =
-    days === 0 ? 'Atualizada hoje'
-    : days === 1 ? 'Atualizada ontem'
-    : days < 7 ? `Atualizada há ${days} dias`
-    : days < 30 ? `Atualizada há ${Math.round(days / 7)} sem.`
-    : days < 365 ? `Atualizada há ${Math.round(days / 30)} meses`
-    : `Atualizada há ${Math.round(days / 365)} anos`;
-
-  if (latest.weight_kg != null && previous?.weight_kg != null) {
-    const delta = latest.weight_kg - previous.weight_kg;
-    if (Math.abs(delta) >= 0.1) {
-      const sign = delta > 0 ? '+' : '';
-      const monthLabel = monthFromIso(previous.measured_date);
-      return `${sign}${delta.toFixed(1)}kg desde ${monthLabel} · ${relative}`;
-    }
-  }
-  return relative;
-}
-
+// Dias decorridos desde uma data ISO (numérico puro — usado pelo growthInsight
+// component-scoped, que localiza o rótulo de mês via intl).
 function daysSince(iso: string): number {
   const [y, m, d] = iso.split('-').map(Number);
   if (!y || !m || !d) return 0;
   const past = new Date(y, m - 1, d).getTime();
   const now = Date.now();
   return Math.max(0, Math.floor((now - past) / 86400000));
-}
-
-function monthFromIso(iso: string): string {
-  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  const [y, m] = iso.split('-').map(Number);
-  if (!y || !m) return '';
-  const now = new Date();
-  const sameYear = now.getFullYear() === y;
-  return sameYear ? months[m - 1] : `${months[m - 1]}/${String(y).slice(2)}`;
-}
-
-function ageHint(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  if (!y || !m || !d) return '';
-  const birth = new Date(y, m - 1, d);
-  const now = new Date();
-  let years = now.getFullYear() - birth.getFullYear();
-  const dm = now.getMonth() - birth.getMonth();
-  if (dm < 0 || (dm === 0 && now.getDate() < birth.getDate())) years--;
-  if (years < 1) {
-    const months = Math.max(0, (now.getFullYear() - birth.getFullYear()) * 12 + dm);
-    return `${months} ${months === 1 ? 'mês' : 'meses'}`;
-  }
-  return `${years} ${years === 1 ? 'ano' : 'anos'}`;
 }
 
 function Label({ children }: { children: React.ReactNode }) {
