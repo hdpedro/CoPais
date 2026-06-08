@@ -4044,5 +4044,27 @@
     "closeAndCalc": "Close and calculate result",
     "argumentsCount": "Arguments ({count})",
     "noArgumentsYet": "No one has argued yet. Be the first to share your point of view."
+  },
+  "groupRoles": {
+    "admin": "Admin",
+    "member": "Member",
+    "readonly": "Read-only"
+  },
+  "groupRoleDesc": {
+    "admin": "Can manage members, invites and group settings.",
+    "member": "Can view and add content, but doesn't manage the group.",
+    "readonly": "View only — cannot edit or create anything (mediator, lawyer, etc.)."
+  },
+  "inviteRoles": {
+    "parent": "Parent",
+    "grandparent": "Grandparent",
+    "caregiver": "Caregiver",
+    "mediator": "Mediator",
+    "lawyer": "Lawyer"
+  },
+  "familiaScreen": {
+    "inviteSomeone": "Invite someone",
+    "leaveGroup": "Leave group",
+    "current": "Current"
   }
 }

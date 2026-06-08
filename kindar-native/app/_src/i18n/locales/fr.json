@@ -4044,5 +4044,27 @@
     "closeAndCalc": "Clôturer et calculer le résultat",
     "argumentsCount": "Arguments ({count})",
     "noArgumentsYet": "Personne n'a encore argumenté. Sois le premier à donner ton point de vue."
+  },
+  "groupRoles": {
+    "admin": "Admin",
+    "member": "Membre",
+    "readonly": "Lecture seule"
+  },
+  "groupRoleDesc": {
+    "admin": "Peut gérer les membres, les invitations et les paramètres du groupe.",
+    "member": "Peut voir et ajouter du contenu, mais ne gère pas le groupe.",
+    "readonly": "Lecture seule — ne peut rien modifier ni créer (médiateur, avocat, etc.)."
+  },
+  "inviteRoles": {
+    "parent": "Responsable",
+    "grandparent": "Grand-parent",
+    "caregiver": "Aidant(e)",
+    "mediator": "Médiateur(rice)",
+    "lawyer": "Avocat(e)"
+  },
+  "familiaScreen": {
+    "inviteSomeone": "Inviter quelqu'un",
+    "leaveGroup": "Quitter le groupe",
+    "current": "Actuel"
   }
 }

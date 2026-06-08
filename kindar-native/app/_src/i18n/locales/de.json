@@ -4044,5 +4044,27 @@
     "closeAndCalc": "Abschließen und Ergebnis berechnen",
     "argumentsCount": "Argumente ({count})",
     "noArgumentsYet": "Noch hat niemand argumentiert. Sei der Erste, der seinen Standpunkt teilt."
+  },
+  "groupRoles": {
+    "admin": "Admin",
+    "member": "Mitglied",
+    "readonly": "Nur Lesen"
+  },
+  "groupRoleDesc": {
+    "admin": "Kann Mitglieder, Einladungen und Gruppeneinstellungen verwalten.",
+    "member": "Kann Inhalte sehen und hinzufügen, verwaltet aber nicht die Gruppe.",
+    "readonly": "Nur Ansicht — kann nichts bearbeiten oder erstellen (Mediator, Anwalt usw.)."
+  },
+  "inviteRoles": {
+    "parent": "Elternteil",
+    "grandparent": "Großelternteil",
+    "caregiver": "Betreuer(in)",
+    "mediator": "Mediator(in)",
+    "lawyer": "Anwalt/Anwältin"
+  },
+  "familiaScreen": {
+    "inviteSomeone": "Jemanden einladen",
+    "leaveGroup": "Gruppe verlassen",
+    "current": "Aktuell"
   }
 }

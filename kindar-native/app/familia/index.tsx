@@ -39,28 +39,15 @@ interface ChildPreview {
   birth_date: string;
 }
 
-const ROLE_DESCRIPTIONS: Record<GroupRole, string> = {
-  admin: 'Pode gerenciar membros, convites e configurações do grupo.',
-  member: 'Pode ver e adicionar conteúdo, mas não gerencia o grupo.',
-  readonly: 'Apenas visualiza — não pode editar ou criar nada (mediador, advogado, etc.).',
+// Descrições dos papéis de grupo → t('groupRoleDesc.*') no render (i18n).
+
+const ROLE_META: Record<string, { icon: string; color: string }> = {
+  admin: { icon: '⭐', color: '#F59E0B' },
+  member: { icon: '👤', color: '#3B82F6' },
+  readonly: { icon: '👁️', color: '#6B7280' },
 };
 
-const ROLE_META: Record<string, { label: string; icon: string; color: string }> = {
-  admin: { label: 'Admin', icon: '⭐', color: '#F59E0B' },
-  member: { label: 'Membro', icon: '👤', color: '#3B82F6' },
-  readonly: { label: 'Somente leitura', icon: '👁️', color: '#6B7280' },
-};
-
-// Rótulo PT dos papéis de CONVITE (parent/grandparent/caregiver/mediator/lawyer).
-// Sem isso a UI mostrava o valor cru em inglês, ex.: "caregiver" (bug Hailla
-// 2026-06-07). ROLE_META acima é só pros papéis de GRUPO (admin/member/readonly).
-const INVITE_ROLE_LABEL: Record<string, string> = {
-  parent: 'Responsável',
-  grandparent: 'Avô(ó)',
-  caregiver: 'Cuidador(a)',
-  mediator: 'Mediador(a)',
-  lawyer: 'Advogado(a)',
-};
+// Papéis de convite (inviteRoles.*) são i18n via t() no render.
 
 export default function FamiliaScreen() {
   const t = useI18n(s => s.t);
@@ -272,7 +259,7 @@ export default function FamiliaScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/convite/enviar'); }}
                 activeOpacity={0.85}
                 accessibilityRole="button"
-                accessibilityLabel="Convidar alguém"
+                accessibilityLabel={t('familiaScreen.inviteSomeone')}
                 style={{
                   backgroundColor: colors.brand, borderRadius: radius.md,
                   paddingVertical: spacing.md, flexDirection: 'row',
@@ -282,7 +269,7 @@ export default function FamiliaScreen() {
               >
                 <Ionicons name="person-add-outline" size={18} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                  Convidar alguém
+                  {t('familiaScreen.inviteSomeone')}
                 </Text>
               </TouchableOpacity>
 
@@ -313,7 +300,7 @@ export default function FamiliaScreen() {
                     </Text>
                     <View style={{ backgroundColor: `${roleMeta.color}20`, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                       <Text style={{ fontSize: 10 }}>{roleMeta.icon}</Text>
-                      <Text style={{ fontSize: 10, color: roleMeta.color, fontWeight: font.weights.semibold }}>{roleMeta.label.toUpperCase()}</Text>
+                      <Text style={{ fontSize: 10, color: roleMeta.color, fontWeight: font.weights.semibold }}>{t('groupRoles.' + m.role).toUpperCase()}</Text>
                     </View>
                   </View>
                   {m.email ? (
@@ -416,7 +403,7 @@ export default function FamiliaScreen() {
                           {inv.email}
                         </Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                          {(INVITE_ROLE_LABEL[inv.role] || inv.role)} · Enviado {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
+                          {t('inviteRoles.' + inv.role)} · Enviado {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
                         </Text>
                       </View>
                       {amAdmin ? (
@@ -458,7 +445,7 @@ export default function FamiliaScreen() {
                           {inv.email}
                         </Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                          {(INVITE_ROLE_LABEL[inv.role] || inv.role)} · {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
+                          {t('inviteRoles.' + inv.role)} · {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
                         </Text>
                       </View>
                     </View>
@@ -471,11 +458,11 @@ export default function FamiliaScreen() {
                 <TouchableOpacity
                   onPress={handleLeaveGroup}
                   accessibilityRole="button"
-                  accessibilityLabel="Sair do grupo"
+                  accessibilityLabel={t('familiaScreen.leaveGroup')}
                   style={{ marginTop: spacing.xl, paddingVertical: spacing.md, alignItems: 'center' }}
                 >
                   <Text style={{ color: colors.error, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-                    Sair do grupo
+                    {t('familiaScreen.leaveGroup')}
                   </Text>
                 </TouchableOpacity>
               ) : null}
@@ -506,8 +493,8 @@ export default function FamiliaScreen() {
                   activeOpacity={0.85}
                   accessibilityRole="radio"
                   accessibilityState={{ selected: isCurrent, disabled: isCurrent }}
-                  accessibilityLabel={meta.label}
-                  accessibilityHint={ROLE_DESCRIPTIONS[r]}
+                  accessibilityLabel={t('groupRoles.' + r)}
+                  accessibilityHint={t('groupRoleDesc.' + r)}
                   style={{
                     flexDirection: 'row', alignItems: 'flex-start', gap: spacing.md,
                     paddingVertical: spacing.md, paddingHorizontal: spacing.md,
@@ -523,16 +510,16 @@ export default function FamiliaScreen() {
                   <View style={{ flex: 1 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
                       <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
-                        {meta.label}
+                        {t('groupRoles.' + r)}
                       </Text>
                       {isCurrent ? (
                         <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.semibold }}>
-                          Atual
+                          {t('familiaScreen.current')}
                         </Text>
                       ) : null}
                     </View>
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                      {ROLE_DESCRIPTIONS[r]}
+                      {t('groupRoleDesc.' + r)}
                     </Text>
                   </View>
                   {!isCurrent ? <Ionicons name="chevron-forward" size={16} color={colors.textDim} style={{ marginTop: 2 }} /> : null}
@@ -543,10 +530,10 @@ export default function FamiliaScreen() {
             <TouchableOpacity
               onPress={() => setRoleModalMember(null)}
               accessibilityRole="button"
-              accessibilityLabel="Cancelar"
+              accessibilityLabel={t('common.cancel')}
               style={{ marginTop: spacing.md, paddingVertical: spacing.md, alignItems: 'center' }}
             >
-              <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>Cancelar</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>{t('common.cancel')}</Text>
             </TouchableOpacity>
           </View>
         </ModalBackdrop>
