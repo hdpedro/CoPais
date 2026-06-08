@@ -26,6 +26,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { apiFetch } from 'src/lib/api-fetch';
 import { registerForPushNotificationsAsync } from 'src/services/push-setup';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 interface DebugStatus {
@@ -57,6 +58,7 @@ interface SendResult {
 }
 
 export default function PushDebugScreen() {
+  const intl = useIntl();
   const [permission, setPermission] = useState<string>('—');
   const [status, setStatus] = useState<DebugStatus | null>(null);
   const [loading, setLoading] = useState(true);
@@ -147,8 +149,8 @@ export default function PushDebugScreen() {
               <Row label="APNs tokens" value={String(status.counts?.apns_tokens ?? 0)} valueColor={status.counts?.apns_tokens ? '#16A34A' : '#DC2626'} />
               <Row label="FCM tokens" value={String(status.counts?.fcm_tokens ?? 0)} />
               <Row label="Web subs" value={String(status.counts?.web_subscriptions ?? 0)} />
-              {status.apnsTokens?.map((t, i) => (
-                <Row key={i} label={`Token ${i + 1}`} value={`${t.suffix} (${t.length} chars · ${new Date(t.created_at).toLocaleString('pt-BR')})`} small />
+              {status.apnsTokens?.map((tok, i) => (
+                <Row key={i} label={`Token ${i + 1}`} value={`${tok.suffix} (${tok.length} chars · ${intl.formatDateTime(tok.created_at)})`} small />
               ))}
             </>
           )}

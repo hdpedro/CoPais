@@ -11,6 +11,7 @@ import { useState, useMemo } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
 import { router } from 'expo-router';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 import type { TimelineGroup, VaccineDoseStatus, VaccineStatus } from 'src/services/health';
 
@@ -28,12 +29,9 @@ const STATUS_COLOR: Record<VaccineStatus, string> = {
   out_of_window: '#F3F4F6', // gray-100
 };
 
-function formatBrDate(iso: string): string {
-  return iso.split('-').reverse().join('/');
-}
-
 export default function VaccineTimeline({ timeline }: Props) {
   const t = useI18n((s) => s.t);
+  const intl = useIntl();
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const items = useMemo(() => {
@@ -57,13 +55,13 @@ export default function VaccineTimeline({ timeline }: Props) {
 
   function statusLabel(d: VaccineDoseStatus): string {
     if (d.status === 'taken' && d.takenDate) {
-      return t('health.vaccineEngine.doseTakenOn', { date: formatBrDate(d.takenDate) });
+      return t('health.vaccineEngine.doseTakenOn', { date: intl.formatDate(d.takenDate) });
     }
     if (d.status === 'future') return t('health.vaccineEngine.doseFuture');
     if (d.status === 'historical_gap') return t('health.vaccineEngine.doseHistoricalGap');
     if (d.status === 'out_of_window') return t('health.vaccineEngine.doseOutOfWindow');
-    if (d.status === 'upcoming') return `${t('health.vaccineEngine.doseFuture')} · ${formatBrDate(d.dueDate)}`;
-    return formatBrDate(d.dueDate);
+    if (d.status === 'upcoming') return `${t('health.vaccineEngine.doseFuture')} · ${intl.formatDate(d.dueDate)}`;
+    return intl.formatDate(d.dueDate);
   }
 
   return (
@@ -165,7 +163,7 @@ export default function VaccineTimeline({ timeline }: Props) {
                 >
                   {d.validUntilDate ? (
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                      Janela até {formatBrDate(d.validUntilDate)}
+                      Janela até {intl.formatDate(d.validUntilDate)}
                     </Text>
                   ) : null}
                   {d.overdueDays && d.status === 'overdue' ? (

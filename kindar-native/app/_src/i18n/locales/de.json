@@ -566,7 +566,10 @@
     "in1Week": "In 1 Woche",
     "in2Weeks": "In 2 Wochen",
     "openDecision": "Entscheidung öffnen",
-    "voteA11y": "{label} abstimmen"
+    "voteA11y": "{label} abstimmen",
+    "deadlineInDays": "In {count} Tagen",
+    "deadlineInDaysOne": "In {count} Tag",
+    "deadlineUntil": "Bis {date}"
   },
   "family": {
     "title": "Familie",
@@ -3082,7 +3085,8 @@
     "scorePlaceholder": "z. B.: „8,5“ oder „B+“",
     "scoreOptionalShort": "Note (optional)",
     "appearsInCalendarOn": "📅 Erscheint am {date} im Kalender.",
-    "editLogTitle": "{label} bearbeiten"
+    "editLogTitle": "{label} bearbeiten",
+    "fieldDate": "Datum"
   },
   "profileScreen": {
     "logoutConfirm": "Möchtest du dich wirklich abmelden?",
@@ -4087,5 +4091,33 @@
     "minShort": "{count} Min.",
     "hShort": "{count} Std.",
     "hMinShort": "{h}h{m}"
+  },
+  "weekendPlanner": {
+    "heading": "Kommende Wochenenden",
+    "statusFree": "Frei",
+    "statusPartial": "Teilweise",
+    "statusWithYou": "Bei dir",
+    "statusNoInfo": "Keine Info",
+    "footer": "„Frei“ = Wochenende beim anderen Elternteil — du kannst verreisen!"
+  },
+  "balanceHistory": {
+    "title": "Vorgangsverlauf",
+    "empty": "Noch keine Vorgänge erfasst.",
+    "statusPending": "Ausstehend",
+    "statusApproved": "Genehmigt",
+    "statusRejected": "Abgelehnt",
+    "statusCancelled": "Storniert",
+    "daysCount": "{count} Tage",
+    "proposedAt": "Vorgeschlagen am {date}",
+    "respondedAt": "Beantwortet am {date}",
+    "reject": "Ablehnen",
+    "approve": "Genehmigen"
+  },
+  "custodyTypes": {
+    "regular": "Regulär",
+    "holiday": "Feiertag",
+    "swap": "Tausch",
+    "vacation": "Urlaub",
+    "special": "Besonders"
   }
 }

@@ -106,12 +106,12 @@ export default function EscolaDetailScreen() {
   async function handleDelete() {
     if (!log) return;
     Alert.alert(
-      'Excluir registro',
-      `"${log.title}" será removido permanentemente.`,
+      t('school.deleteLogTitle'),
+      t('school.deleteLogMessage', { title: log.title }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Excluir',
+          text: t('common.delete'),
           style: 'destructive',
           onPress: async () => {
             const res = await deleteSchoolLog(log.id);
@@ -157,7 +157,7 @@ export default function EscolaDetailScreen() {
     if (log.subject) {
       rows.push({ label: 'Matéria', value: log.subject, icon: '📚' });
     }
-    rows.push({ label: 'Data', value: formatLogDate(log.log_date), icon: '📅' });
+    rows.push({ label: t('school.fieldDate'), value: formatLogDate(log.log_date), icon: '📅' });
     if (eventTime) {
       rows.push({ label: 'Horário', value: eventTime.slice(0, 5), icon: '🕐' });
     }

@@ -566,7 +566,10 @@
     "in1Week": "In 1 week",
     "in2Weeks": "In 2 weeks",
     "openDecision": "Open decision",
-    "voteA11y": "Vote {label}"
+    "voteA11y": "Vote {label}",
+    "deadlineInDays": "In {count} days",
+    "deadlineInDaysOne": "In {count} day",
+    "deadlineUntil": "Until {date}"
   },
   "family": {
     "title": "Family",
@@ -3082,7 +3085,8 @@
     "scorePlaceholder": "E.g.: \"8.5\" or \"B+\"",
     "scoreOptionalShort": "Grade (optional)",
     "appearsInCalendarOn": "📅 Appears on the calendar on {date}.",
-    "editLogTitle": "Edit {label}"
+    "editLogTitle": "Edit {label}",
+    "fieldDate": "Date"
   },
   "profileScreen": {
     "logoutConfirm": "Are you sure you want to log out?",
@@ -4087,5 +4091,33 @@
     "minShort": "{count} min",
     "hShort": "{count}h",
     "hMinShort": "{h}h{m}"
+  },
+  "weekendPlanner": {
+    "heading": "Upcoming weekends",
+    "statusFree": "Free",
+    "statusPartial": "Partial",
+    "statusWithYou": "With you",
+    "statusNoInfo": "No info",
+    "footer": "\"Free\" = weekend with the other guardian — you can travel!"
+  },
+  "balanceHistory": {
+    "title": "Operations history",
+    "empty": "No operations recorded yet.",
+    "statusPending": "Pending",
+    "statusApproved": "Approved",
+    "statusRejected": "Declined",
+    "statusCancelled": "Cancelled",
+    "daysCount": "{count} days",
+    "proposedAt": "Proposed on {date}",
+    "respondedAt": "Answered on {date}",
+    "reject": "Decline",
+    "approve": "Approve"
+  },
+  "custodyTypes": {
+    "regular": "Regular",
+    "holiday": "Holiday",
+    "swap": "Swap",
+    "vacation": "Vacation",
+    "special": "Special"
   }
 }

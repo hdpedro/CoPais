@@ -12,6 +12,7 @@ import type {
 } from '../../services/children';
 import { formatCRM } from '../../lib/format';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 
 interface Props {
   childId: string;
@@ -89,6 +90,7 @@ function severityKey(severity: string): string | null {
 
 export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies, medications, vaccinations, professionals, onEditBloodType }: Props) {
   const t = useI18n((s) => s.t);
+  const intl = useIntl();
   return (
     <ScrollView contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }} showsVerticalScrollIndicator={false}>
       {/* Quick stats grid */}
@@ -221,10 +223,10 @@ export default function TabSaude({ childId, medicalInfo, latestGrowth, allergies
               </Text>
               {v.administered_date ? (
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                  {/* Usar split em vez de new Date pra evitar shift de timezone
-                      (DATE column do PG vem como YYYY-MM-DD e new Date()
-                      interpreta como UTC midnight, voltando 1 dia em UTC-3). */}
-                  {v.administered_date.split('-').reverse().join('/')}
+                  {/* Locale-aware: intl.formatDate trata 'YYYY-MM-DD' como meio-dia
+                      LOCAL (toDate em intl.ts), evitando o shift de timezone que
+                      o new Date(UTC midnight) causava em UTC-3. */}
+                  {intl.formatDate(v.administered_date)}
                 </Text>
               ) : null}
             </View>

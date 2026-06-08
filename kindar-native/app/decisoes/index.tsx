@@ -53,12 +53,15 @@ export default function DecisoesScreen() {
       const now = Date.now();
       const d = new Date(deadline + 'T23:59:59').getTime();
       const daysUntil = Math.ceil((d - now) / 86400000);
-      if (daysUntil < 0) return { label: 'Prazo expirado', urgent: true };
-      if (daysUntil === 0) return { label: 'Hoje', urgent: true };
-      if (daysUntil <= 3) return { label: `Em ${daysUntil} dia${daysUntil > 1 ? 's' : ''}`, urgent: true };
-      return { label: `Até ${intl.formatDate(deadline, { day: 'numeric', month: 'short' })}`, urgent: false };
+      if (daysUntil < 0) return { label: t('decisions.deadlineExpired'), urgent: true };
+      if (daysUntil === 0) return { label: t('intl.today'), urgent: true };
+      if (daysUntil <= 3) return {
+        label: daysUntil === 1 ? t('decisions.deadlineInDaysOne', { count: daysUntil }) : t('decisions.deadlineInDays', { count: daysUntil }),
+        urgent: true,
+      };
+      return { label: t('decisions.deadlineUntil', { date: intl.formatDate(deadline, { day: 'numeric', month: 'short' }) }), urgent: false };
     },
-    [intl],
+    [intl, t],
   );
   const [voting, setVoting] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);

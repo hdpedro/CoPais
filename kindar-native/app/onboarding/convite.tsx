@@ -19,10 +19,11 @@ import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
+// labelKey resolvido no render via t() — onboarding.role* (paridade com InviteForm).
 const ROLES = [
-  { value: 'parent', label: 'Pai / mae', icon: '👨‍👩‍👧' },
-  { value: 'grandparent', label: 'Avo / avo', icon: '👴' },
-  { value: 'caregiver', label: 'Cuidador(a)', icon: '🧑‍🍼' },
+  { value: 'parent', labelKey: 'onboarding.roleParent', icon: '👨‍👩‍👧' },
+  { value: 'grandparent', labelKey: 'onboarding.roleGrandparent', icon: '👴' },
+  { value: 'caregiver', labelKey: 'onboarding.roleCaregiver', icon: '🧑‍🍼' },
 ];
 
 export default function OnboardingConviteScreen() {
@@ -163,7 +164,7 @@ export default function OnboardingConviteScreen() {
         </Text>
         <TextInput
           value={email} onChangeText={setEmail}
-          placeholder="email@exemplo.com"
+          placeholder={t('inviteSend.emailPlaceholder')}
           placeholderTextColor={colors.textMuted}
           keyboardType="email-address" autoCapitalize="none" autoComplete="email"
           accessibilityLabel={t('onboardingInvite.emailLabel')}
@@ -186,7 +187,7 @@ export default function OnboardingConviteScreen() {
                 activeOpacity={0.85}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: active }}
-                accessibilityLabel={r.label}
+                accessibilityLabel={t(r.labelKey)}
                 style={{
                   backgroundColor: active ? `${colors.brand}10` : colors.bgElevated,
                   borderRadius: radius.md,
@@ -197,7 +198,7 @@ export default function OnboardingConviteScreen() {
               >
                 <Text style={{ fontSize: 22 }}>{r.icon}</Text>
                 <Text style={{ fontSize: font.sizes.md, color: colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal, flex: 1 }}>
-                  {r.label}
+                  {t(r.labelKey)}
                 </Text>
                 {active ? <Ionicons name="checkmark-circle" size={22} color={colors.brand} /> : null}
               </TouchableOpacity>

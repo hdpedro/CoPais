@@ -48,12 +48,15 @@ export const PARENT_COLORS = {
 // DAY_NAMES/MONTH_NAMES removidos — datas via helper Intl
 // (src/lib/intl: useIntl().formatWeekdayShort/formatMonthShort/formatMonthYear).
 
+// i18n key suffixes — resolve at render with t(`custodyTypes.${type}`) or
+// t(CUSTODY_TYPE_LABELS[type]). Não hardcodar o label PT aqui; o texto visível
+// vem do bundle de locale (custodyTypes.*) em todos os 5 idiomas.
 export const CUSTODY_TYPE_LABELS: Record<string, string> = {
-  regular: 'Regular',
-  holiday: 'Feriado',
-  swap: 'Troca',
-  vacation: 'Férias',
-  special: 'Especial',
+  regular: 'custodyTypes.regular',
+  holiday: 'custodyTypes.holiday',
+  swap: 'custodyTypes.swap',
+  vacation: 'custodyTypes.vacation',
+  special: 'custodyTypes.special',
 };
 
 export const ACTIVITY_CATEGORIES = [

@@ -81,7 +81,7 @@ function InviteFormImpl({ email, role, sending, error, onEmail, onRole, onSend, 
       <TextInput
         value={email}
         onChangeText={onEmail}
-        placeholder="email@exemplo.com"
+        placeholder={t('inviteSend.emailPlaceholder')}
         placeholderTextColor={colors.textDim}
         keyboardType="email-address"
         autoCapitalize="none"

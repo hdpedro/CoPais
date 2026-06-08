@@ -566,7 +566,10 @@
     "in1Week": "En 1 semana",
     "in2Weeks": "En 2 semanas",
     "openDecision": "Abrir decisión",
-    "voteA11y": "Votar {label}"
+    "voteA11y": "Votar {label}",
+    "deadlineInDays": "En {count} días",
+    "deadlineInDaysOne": "En {count} día",
+    "deadlineUntil": "Hasta {date}"
   },
   "family": {
     "title": "Familia",
@@ -3082,7 +3085,8 @@
     "scorePlaceholder": "Ej.: \"8,5\" o \"B+\"",
     "scoreOptionalShort": "Nota (opcional)",
     "appearsInCalendarOn": "📅 Aparece en el calendario el {date}.",
-    "editLogTitle": "Editar {label}"
+    "editLogTitle": "Editar {label}",
+    "fieldDate": "Fecha"
   },
   "profileScreen": {
     "logoutConfirm": "¿Seguro que quieres salir?",
@@ -4087,5 +4091,33 @@
     "minShort": "{count} min",
     "hShort": "{count}h",
     "hMinShort": "{h}h{m}"
+  },
+  "weekendPlanner": {
+    "heading": "Próximos fines de semana",
+    "statusFree": "Libre",
+    "statusPartial": "Parcial",
+    "statusWithYou": "Contigo",
+    "statusNoInfo": "Sin info",
+    "footer": "\"Libre\" = fin de semana con el otro responsable — ¡puedes viajar!"
+  },
+  "balanceHistory": {
+    "title": "Historial de operaciones",
+    "empty": "Aún no hay operaciones registradas.",
+    "statusPending": "Pendiente",
+    "statusApproved": "Aprobada",
+    "statusRejected": "Rechazada",
+    "statusCancelled": "Cancelada",
+    "daysCount": "{count} días",
+    "proposedAt": "Propuesto el {date}",
+    "respondedAt": "Respondido el {date}",
+    "reject": "Rechazar",
+    "approve": "Aprobar"
+  },
+  "custodyTypes": {
+    "regular": "Regular",
+    "holiday": "Feriado",
+    "swap": "Intercambio",
+    "vacation": "Vacaciones",
+    "special": "Especial"
   }
 }
