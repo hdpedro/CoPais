@@ -45,12 +45,8 @@ export const PARENT_COLORS = {
   secondary: '#D4735A',
 } as const;
 
-export const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'] as const;
-
-export const MONTH_NAMES = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-] as const;
+// DAY_NAMES/MONTH_NAMES removidos — datas via helper Intl
+// (src/lib/intl: useIntl().formatWeekdayShort/formatMonthShort/formatMonthYear).
 
 export const CUSTODY_TYPE_LABELS: Record<string, string> = {
   regular: 'Regular',

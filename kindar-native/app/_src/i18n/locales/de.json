@@ -3674,7 +3674,17 @@
     "cancelExport": "Export abbrechen",
     "generating": "Wird erstellt…",
     "memberCountOne": "{count} Mitglied",
-    "memberCount": "{count} Mitglieder"
+    "memberCount": "{count} Mitglieder",
+    "pdfEmpty": "Keine Nachrichten in diesem Zeitraum.",
+    "pdfSystemSender": "System",
+    "pdfNoContent": "[Nachricht ohne Inhalt]",
+    "pdfDocTitle": "Kindar — Gesprächsprotokoll",
+    "pdfGroup": "Gruppe:",
+    "pdfGroupFallback": "Gruppe",
+    "pdfChannel": "Kanal:",
+    "pdfPeriod": "Zeitraum:",
+    "pdfMembers": "Mitglieder:",
+    "pdfExportedAt": "Exportiert am:"
   },
   "custodySchedule": {
     "needTwoGuardians": "Zwei Verantwortliche erforderlich",
@@ -4072,5 +4082,10 @@
     "yesterday": "Gestern",
     "tomorrow": "Morgen",
     "daysAgo": "vor {count} Tagen"
+  },
+  "relTime": {
+    "minShort": "{count} Min.",
+    "hShort": "{count} Std.",
+    "hMinShort": "{h}h{m}"
   }
 }

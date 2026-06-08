@@ -21,6 +21,7 @@ import ChildPicker from 'src/components/ui/ChildPicker';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 /**
@@ -58,15 +59,20 @@ const INTENSITIES: { value: Intensity; labelKey: string; color: string }[] = [
   { value: 'forte', labelKey: 'symptomDiary.intensityStrong', color: '#E53935' },
 ];
 
+// Finer relative time (agora / X min / Xh / Xd). Day-level "hoje/ontem" tem
+// helper próprio (intl.formatRelativeDay); aqui é sub-dia, então reusamos as
+// chaves já existentes e com paridade nos 5 locales (health.now/minutesAgo/
+// hoursAgo/daysAgo). Numérico mantido, só o texto vai pelo t().
 function formatRelative(iso: string): string {
+  const t = useI18n.getState().t;
   const diff = Date.now() - new Date(iso).getTime();
   const mins = Math.floor(diff / 60000);
-  if (mins < 1) return 'agora';
-  if (mins < 60) return `${mins} min`;
+  if (mins < 1) return t('health.now');
+  if (mins < 60) return t('health.minutesAgo', { count: mins });
   const h = Math.floor(mins / 60);
-  if (h < 24) return `${h}h atrás`;
+  if (h < 24) return t('health.hoursAgo', { count: h });
   const days = Math.floor(h / 24);
-  return `${days}d atrás`;
+  return t('health.daysAgo', { count: days });
 }
 
 function groupByDate(entries: SymptomEntry[]): { date: string; items: SymptomEntry[] }[] {
@@ -82,6 +88,7 @@ function groupByDate(entries: SymptomEntry[]): { date: string; items: SymptomEnt
 
 export default function SintomasScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
@@ -201,7 +208,7 @@ export default function SintomasScreen() {
             grouped.map(group => (
               <View key={group.date} style={{ marginBottom: spacing.lg }}>
                 <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
-                  {group.date.split('-').reverse().join('/')}
+                  {intl.formatRelativeDay(group.date)}
                 </Text>
                 {group.items.map(e => {
                   const typeCfg = SYMPTOM_TYPES.find(st => st.value === e.symptom_type) || SYMPTOM_TYPES[SYMPTOM_TYPES.length - 1];

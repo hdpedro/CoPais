@@ -11,6 +11,7 @@ import { supabase } from 'src/lib/supabase';
 import { apiFetch } from 'src/lib/api-fetch';
 import { useAuth } from 'src/store/auth';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { withTimeout, TimeoutError } from 'src/lib/with-timeout';
 import { reportError } from 'src/lib/error-reporter';
@@ -32,6 +33,7 @@ interface Channel {
 export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const t = useI18n((s) => s.t);
+  const intl = useIntl();
   const { userId, activeGroup } = useAuth();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [loading, setLoading] = useState(true);
@@ -241,10 +243,10 @@ export default function ChatScreen() {
     const now = new Date();
     const diffMs = now.getTime() - d.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    if (diffDays === 0) return intl.formatTime(d);
     if (diffDays === 1) return t('chatTab.yesterday');
-    if (diffDays < 7) return ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'][d.getDay()];
-    return `${d.getDate()}/${d.getMonth() + 1}`;
+    if (diffDays < 7) return intl.formatWeekdayShort(d);
+    return intl.formatDate(d, { day: 'numeric', month: 'numeric' });
   };
 
   return (

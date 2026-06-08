@@ -3674,7 +3674,17 @@
     "cancelExport": "Cancelar exportação",
     "generating": "Gerando…",
     "memberCountOne": "{count} membro",
-    "memberCount": "{count} membros"
+    "memberCount": "{count} membros",
+    "pdfEmpty": "Nenhuma mensagem neste período.",
+    "pdfSystemSender": "Sistema",
+    "pdfNoContent": "[Mensagem sem conteúdo]",
+    "pdfDocTitle": "Kindar — Registro de Conversas",
+    "pdfGroup": "Grupo:",
+    "pdfGroupFallback": "Grupo",
+    "pdfChannel": "Canal:",
+    "pdfPeriod": "Período:",
+    "pdfMembers": "Membros:",
+    "pdfExportedAt": "Exportado em:"
   },
   "custodySchedule": {
     "needTwoGuardians": "Precisa de 2 responsáveis",
@@ -4072,5 +4082,10 @@
     "yesterday": "Ontem",
     "tomorrow": "Amanhã",
     "daysAgo": "há {count} dias"
+  },
+  "relTime": {
+    "minShort": "{count} min",
+    "hShort": "{count}h",
+    "hMinShort": "{h}h{m}"
   }
 }

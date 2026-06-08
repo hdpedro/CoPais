@@ -18,6 +18,7 @@ import { generateSchedule, fetchSchedulePattern } from 'src/services/schedule';
 import { PARENT_COLORS } from 'src/lib/constants';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { withTimeout, TimeoutError } from 'src/lib/with-timeout';
 import { reportError } from 'src/lib/error-reporter';
@@ -30,8 +31,9 @@ interface Member {
   color: string;
 }
 
-const DAY_NAMES = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
-const MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+// Datas de referência (Dom..Sáb) p/ gerar nomes curtos de dia locale-aware.
+// 2024-01-07 é um domingo; index 0 = Dom, alinhado ao pattern de 14 dias.
+const WEEKDAY_REF_DATES = Array.from({ length: 7 }, (_, i) => new Date(2024, 0, 7 + i));
 
 function todayIso(): string {
   const d = new Date();
@@ -51,6 +53,7 @@ export default function EscalaScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup, userId } = useAuth();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [children, setChildren] = useState<Child[]>([]);
   const [childId, setChildId] = useState<string>('');
@@ -381,7 +384,7 @@ export default function EscalaScreen() {
               </TouchableOpacity>
             </View>
             <View style={{ flexDirection: 'row', gap: 4 }}>
-              {DAY_NAMES.map((name, dayIdx) => {
+              {WEEKDAY_REF_DATES.map((refDate, dayIdx) => {
                 const patternIdx = weekIdx * 7 + dayIdx;
                 const val = pattern[patternIdx];
                 const mem = members.find(m => m.userId === val);
@@ -396,7 +399,7 @@ export default function EscalaScreen() {
                       alignItems: 'center', justifyContent: 'center', gap: 2,
                     }}
                   >
-                    <Text style={{ fontSize: 10, color: colors.textMuted }}>{name}</Text>
+                    <Text style={{ fontSize: 10, color: colors.textMuted }}>{intl.formatWeekdayShort(refDate)}</Text>
                     {mem ? (
                       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: mem.color }} />
                     ) : null}
@@ -458,7 +461,14 @@ export default function EscalaScreen() {
             {t('custodySchedule.unassigned')}: {pattern.filter(p => p === null).length}
           </Text>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm }}>
-            {t('custodySchedule.summaryRange', { start: displayDate(startDateIso), end: (() => { const d = new Date(startDateIso + 'T12:00:00'); d.setMonth(d.getMonth() + months); return `${d.getDate()} de ${MONTHS_SHORT[d.getMonth()]} ${d.getFullYear()}`; })() })}
+            {t('custodySchedule.summaryRange', {
+              start: intl.formatDate(startDateIso, { day: 'numeric', month: 'short', year: 'numeric' }),
+              end: (() => {
+                const d = new Date(startDateIso + 'T12:00:00');
+                d.setMonth(d.getMonth() + months);
+                return intl.formatDate(d, { day: 'numeric', month: 'short', year: 'numeric' });
+              })(),
+            })}
           </Text>
         </View>
 

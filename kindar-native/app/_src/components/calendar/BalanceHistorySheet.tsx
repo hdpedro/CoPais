@@ -5,7 +5,7 @@
  * Mirrors PWA /calendario/BalanceHistorySheet.
  */
 
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View, Text, ScrollView, TouchableOpacity, Modal, ActivityIndicator,
 } from 'react-native';
@@ -18,6 +18,7 @@ import {
 import { useToast } from '../ui/ToastProvider';
 import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface Props {
@@ -36,14 +37,16 @@ const STATUS_META: Record<string, { label: string; bg: string; text: string }> =
   cancelled: { label: 'Cancelada', bg: 'rgba(107,114,128,0.1)', text: colors.textMuted },
 };
 
-function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
-}
-
 export default function BalanceHistorySheet({ visible, onClose, operations, currentUserId, groupId, onChanged }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
+  // Data + hora locale-aware (dia, mês curto, hora:minuto). Reativo no idioma.
+  const formatDateTime = useCallback(
+    (iso: string): string =>
+      intl.formatDate(iso, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }),
+    [intl],
+  );
   const [responding, setResponding] = useState<string | null>(null);
   const sorted = [...operations].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()

@@ -9,7 +9,6 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useCalendar, type CalendarEvent } from 'src/hooks/useCalendar';
 import { useAuth } from 'src/store/auth';
-import { DAY_NAMES, MONTH_NAMES } from 'src/lib/constants';
 import { getHolidayMap } from 'src/lib/brazilian-holidays';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { respondToSwap, cancelMySwap } from 'src/services/swaps';
@@ -21,15 +20,10 @@ import { syncEventsToDeviceCalendar } from 'src/services/calendar-sync';
 import { useToast } from 'src/components/ui/ToastProvider';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 
 function formatDateKey(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-const MONTHS_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-function formatSwapDate(iso: string): string {
-  const [, m, d] = iso.split('-').map(Number);
-  return `${d}/${MONTHS_SHORT[(m || 1) - 1]}`;
 }
 
 function getDaysInMonth(y: number, m: number): number { return new Date(y, m + 1, 0).getDate(); }
@@ -40,6 +34,7 @@ export default function CalendarScreen() {
   const { events, custodyEvents, members, pendingSwaps, mySentSwaps, balanceOps, pendingEventRequests, refresh } = useCalendar();
   const { activeGroup, userId } = useAuth();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [refreshing, setRefreshing] = useState(false);
   // FIX 2026-05-17: Push de aniversário (birthdays cron) envia `?day=<YYYY-MM-DD>`
@@ -113,7 +108,7 @@ export default function CalendarScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
       t('calendarTab.cancelSwapTitle'),
-      t('calendarTab.cancelSwapBody', { date: formatSwapDate(originalDate) }),
+      t('calendarTab.cancelSwapBody', { date: intl.formatDateShort(originalDate) }),
       [
         { text: t('calendarTab.keepSwap'), style: 'cancel' },
         {
@@ -134,7 +129,7 @@ export default function CalendarScreen() {
         },
       ],
     );
-  }, [refresh, t, toast]);
+  }, [refresh, t, toast, intl]);
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -331,8 +326,8 @@ export default function CalendarScreen() {
                   }}
                 >
                   <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
-                    {t('calendarTab.wantsToSwap', { name: s.requesterName, date: formatSwapDate(s.originalDate) })}
-                    {s.proposedDate ? t('calendarTab.swapForDate', { date: formatSwapDate(s.proposedDate) }) : ''}
+                    {t('calendarTab.wantsToSwap', { name: s.requesterName, date: intl.formatDateShort(s.originalDate) })}
+                    {s.proposedDate ? t('calendarTab.swapForDate', { date: intl.formatDateShort(s.proposedDate) }) : ''}
                   </Text>
                   {s.reason ? (
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2, fontStyle: 'italic' }}>
@@ -400,10 +395,10 @@ export default function CalendarScreen() {
                 const isVisit = s.type === 'visit' || (!s.proposedDate && s.reason?.toLowerCase().includes('visit'));
                 const isDebt = !s.proposedDate && !isVisit;
                 const summary = isVisit
-                  ? t('calendarTab.summaryVisit', { date: formatSwapDate(s.originalDate) })
+                  ? t('calendarTab.summaryVisit', { date: intl.formatDateShort(s.originalDate) })
                   : isDebt
-                    ? t('calendarTab.summaryDebt', { date: formatSwapDate(s.originalDate) })
-                    : `${t('calendarTab.summarySwap', { date: formatSwapDate(s.originalDate) })}${s.proposedDate ? t('calendarTab.swapForDate', { date: formatSwapDate(s.proposedDate) }) : ''}`;
+                    ? t('calendarTab.summaryDebt', { date: intl.formatDateShort(s.originalDate) })
+                    : `${t('calendarTab.summarySwap', { date: intl.formatDateShort(s.originalDate) })}${s.proposedDate ? t('calendarTab.swapForDate', { date: intl.formatDateShort(s.proposedDate) }) : ''}`;
                 return (
                   <View
                     key={s.id}
@@ -427,7 +422,7 @@ export default function CalendarScreen() {
                       disabled={responding === s.id}
                       onPress={() => handleCancelMySwap(s.id, s.originalDate)}
                       accessibilityRole="button"
-                      accessibilityLabel={t('calendarTab.cancelSwapRequestA11y', { date: formatSwapDate(s.originalDate) })}
+                      accessibilityLabel={t('calendarTab.cancelSwapRequestA11y', { date: intl.formatDateShort(s.originalDate) })}
                       style={{
                         marginTop: spacing.sm,
                         paddingVertical: 8, borderRadius: radius.md,
@@ -559,10 +554,10 @@ export default function CalendarScreen() {
             <TouchableOpacity
               onPress={goToday}
               accessibilityRole="button"
-              accessibilityLabel={t('calendarTab.monthTitleA11y', { month: MONTH_NAMES[viewMonth], year: viewYear })}
+              accessibilityLabel={t('calendarTab.monthTitleA11y', { month: intl.formatDate(new Date(viewYear, viewMonth, 1), { month: 'long' }), year: viewYear })}
             >
               <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-                {MONTH_NAMES[viewMonth]} {viewYear}
+                {intl.formatMonthYear(new Date(viewYear, viewMonth, 1))}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -576,15 +571,20 @@ export default function CalendarScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Day headers */}
+          {/* Day headers — short weekday names generated over a reference week
+              (Sun..Sat), locale-aware. Grid começa no domingo (index 0). */}
           <View style={{ flexDirection: 'row', marginBottom: 4 }}>
-            {DAY_NAMES.map(d => (
-              <View key={d} style={{ flex: 1, alignItems: 'center' }}>
-                <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: colors.textMuted, letterSpacing: 0.5 }}>
-                  {d}
-                </Text>
-              </View>
-            ))}
+            {Array.from({ length: 7 }).map((_, i) => {
+              // 2024-01-07 é um domingo; +i percorre Dom..Sáb.
+              const ref = new Date(2024, 0, 7 + i);
+              return (
+                <View key={i} style={{ flex: 1, alignItems: 'center' }}>
+                  <Text style={{ fontSize: 10, fontWeight: font.weights.semibold, color: colors.textMuted, letterSpacing: 0.5 }}>
+                    {intl.formatWeekdayShort(ref)}
+                  </Text>
+                </View>
+              );
+            })}
           </View>
 
           {/* Calendar grid — Apple style with event pills */}
@@ -626,7 +626,7 @@ export default function CalendarScreen() {
                   }}
                   testID={`calendar-day-${dateKey}`}
                   accessibilityRole="button"
-                  accessibilityLabel={`${t('calendarTab.dayCellA11y', { day, month: MONTH_NAMES[viewMonth] })}${todayHint}${custodyHint}${eventsHint}${holidayHint}`}
+                  accessibilityLabel={`${t('calendarTab.dayCellA11y', { day, month: intl.formatDate(new Date(viewYear, viewMonth, 1), { month: 'long' }) })}${todayHint}${custodyHint}${eventsHint}${holidayHint}`}
                   style={{
                     width: '14.2857%', height: 72, padding: 2,
                   }}
@@ -841,9 +841,8 @@ export default function CalendarScreen() {
               {selectedDay ? (() => {
                 const [y, m, d] = selectedDay.split('-').map(Number);
                 const date = new Date(y, m - 1, d);
-                // Estilo Apple Calendar: "Qua, 6 de mai" (compacto, escaneavel).
-                const dayName = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'][date.getDay()];
-                return `${dayName}, ${d} de ${MONTH_NAMES[m - 1]?.toLowerCase().slice(0, 3) || ''}`;
+                // Estilo Apple Calendar: compacto e escaneável, locale-aware.
+                return intl.formatDate(date, { weekday: 'short', day: 'numeric', month: 'short' });
               })() : ''}
             </Text>
             {selectedEvents.length > 0 ? (

@@ -14,6 +14,7 @@ import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
 import { useI18n } from 'src/i18n';
+import { fmtDate, fmtTime, toIntlLocale } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 // `labelKey` resolvido com t() no render (não chamar t() no escopo de módulo).
@@ -233,11 +234,12 @@ export default function DetalheScreen() {
 }
 
 function formatDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T12:00:00');
-  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`;
+  // DATE-only (YYYY-MM-DD) → locale-aware via shared helper (toDate pins
+  // noon-local to avoid timezone day-shift, same as the old +T12:00:00).
+  return fmtDate(dateStr, toIntlLocale(useI18n.getState().locale));
 }
 
 function formatDateTime(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const il = toIntlLocale(useI18n.getState().locale);
+  return `${fmtDate(iso, il)} ${fmtTime(iso, il)}`;
 }

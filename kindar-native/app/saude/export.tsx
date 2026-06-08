@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { useI18n } from 'src/i18n';
+import { fmtDate, toIntlLocale, useIntl } from 'src/lib/intl';
 import { supabase } from 'src/lib/supabase';
 import { fetchChildren, type Child } from 'src/services/children';
 import { useCachedFetch } from 'src/lib/use-cached-fetch';
@@ -37,7 +38,9 @@ interface HealthExportData {
 
 function formatDate(iso: string | null): string {
   if (!iso) return '—';
-  return iso.slice(0, 10).split('-').reverse().join('/');
+  // Locale-aware via shared helper. Slice to YYYY-MM-DD so toDate pins
+  // noon-local (avoids timezone day-shift), matching the old reverse-join.
+  return fmtDate(iso.slice(0, 10), toIntlLocale(useI18n.getState().locale));
 }
 
 function calcAgeYears(birthDate: string): number {
@@ -50,6 +53,7 @@ function calcAgeYears(birthDate: string): number {
 
 export default function ExportScreen() {
   const t = useI18n((s) => s.t);
+  const intl = useIntl();
   const insets = useSafeAreaInsets();
   const { activeGroup } = useAuth();
   const groupId = activeGroup?.groupId;
@@ -167,7 +171,7 @@ export default function ExportScreen() {
     }
 
     lines.push(`---`);
-    lines.push(t('healthExport.exportedOn', { date: new Date().toLocaleDateString('pt-BR') }));
+    lines.push(t('healthExport.exportedOn', { date: intl.formatDate(new Date()) }));
 
     const summary = lines.join('\n');
     try {

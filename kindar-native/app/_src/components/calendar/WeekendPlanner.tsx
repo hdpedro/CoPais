@@ -11,7 +11,7 @@
 
 import { View, Text, ScrollView } from 'react-native';
 import type { CalendarEvent } from '../../hooks/useCalendar';
-import { MONTH_NAMES } from '../../lib/constants';
+import { useIntl } from '../../lib/intl';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 
 interface WeekendInfo {
@@ -100,6 +100,7 @@ interface Props {
 }
 
 export default function WeekendPlanner({ events, currentUserId, count = 6 }: Props) {
+  const intl = useIntl();
   const weekends = computeWeekends(events, currentUserId, count);
   if (weekends.length === 0) return null;
 
@@ -112,7 +113,7 @@ export default function WeekendPlanner({ events, currentUserId, count = 6 }: Pro
         {weekends.map(w => {
           const sat = parseDateKey(w.satDate);
           const sun = parseDateKey(w.sunDate);
-          const monthName = MONTH_NAMES[sat.getMonth()].slice(0, 3);
+          const monthName = intl.formatMonthShort(sat);
           const cfg = STATUS_META[w.status];
           return (
             <View

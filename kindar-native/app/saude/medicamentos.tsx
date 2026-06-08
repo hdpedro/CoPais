@@ -24,6 +24,7 @@ import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Med {
@@ -63,15 +64,22 @@ function minutesSince(iso: string | null): number | null {
   return Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
 }
 
+// Compact elapsed-duration ("45 min" / "2h" / "2h30") embedded in the
+// "última dose há {time}" line. The numeric value is kept; only the unit
+// labels go through t() so EN/ES/FR/DE don't show hardcoded "min"/"h".
 function formatMinutes(min: number): string {
-  if (min < 60) return `${min} min`;
+  const t = useI18n.getState().t;
+  if (min < 60) return t('relTime.minShort', { count: min });
   const h = Math.floor(min / 60);
   const m = min % 60;
-  return m > 0 ? `${h}h${String(m).padStart(2, '0')}` : `${h}h`;
+  return m > 0
+    ? t('relTime.hMinShort', { h, m: String(m).padStart(2, '0') })
+    : t('relTime.hShort', { count: h });
 }
 
 export default function MedicamentosScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -461,9 +469,7 @@ export default function MedicamentosScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text }}>
-                        {new Date(d.administered_at).toLocaleString('pt-BR', {
-                          day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit',
-                        })}
+                        {`${intl.formatDate(d.administered_at, { day: '2-digit', month: '2-digit' })} ${intl.formatTime(d.administered_at)}`}
                       </Text>
                       <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
                         {d.administeredByName}

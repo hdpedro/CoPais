@@ -49,6 +49,7 @@ import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { getDisplayName } from 'src/lib/constants';
 
@@ -64,6 +65,7 @@ const RESPONSIBLE_COLORS = [
 
 export default function NovaFeriasScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const insets = useSafeAreaInsets();
   const { userId, activeGroup } = useAuth();
@@ -201,6 +203,18 @@ export default function NovaFeriasScreen() {
   const responsibleColor = responsibleIndex >= 0
     ? RESPONSIBLE_COLORS[responsibleIndex % RESPONSIBLE_COLORS.length]
     : colors.textMuted;
+
+  // Rótulo de intervalo locale-aware: "06 de mai – 12 de mai" (acrescenta o
+  // ano só quando início e fim caem em anos diferentes). Reativo no idioma.
+  const formatRangeLabel = useCallback((startIso: string, endIso: string): string => {
+    const sLabel = intl.formatDateShort(startIso);
+    if (startIso === endIso) return sLabel;
+    const sameYear = startIso.slice(0, 4) === endIso.slice(0, 4);
+    const eLabel = sameYear
+      ? intl.formatDateShort(endIso)
+      : intl.formatDate(endIso, { day: '2-digit', month: 'short', year: 'numeric' });
+    return `${sLabel} – ${eLabel}`;
+  }, [intl]);
 
   function handleDeleteVacation(v: VacationItem) {
     Alert.alert(
@@ -510,17 +524,6 @@ function Chip({ selected, color, label, onPress }: { selected: boolean; color: s
       </Text>
     </TouchableOpacity>
   );
-}
-
-function formatRangeLabel(startIso: string, endIso: string): string {
-  const s = new Date(startIso + 'T12:00:00');
-  const e = new Date(endIso + 'T12:00:00');
-  const sLabel = s.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-  if (startIso === endIso) return sLabel;
-  const eOpts: Intl.DateTimeFormatOptions = { day: '2-digit', month: 'short' };
-  if (s.getFullYear() !== e.getFullYear()) eOpts.year = 'numeric';
-  const eLabel = e.toLocaleDateString('pt-BR', eOpts);
-  return `${sLabel} – ${eLabel}`;
 }
 
 function daysBetween(startIso: string, endIso: string): number {

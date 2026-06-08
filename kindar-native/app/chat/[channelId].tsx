@@ -20,22 +20,19 @@ import { getDisplayName } from 'src/lib/constants';
 import { useToast } from 'src/components/ui/ToastProvider';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useI18n } from 'src/i18n';
+import { useIntl, fmtDate, fmtMonthYear, toIntlLocale } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-// PT-BR month names (matches PWA `calendar.monthNames` translation source).
-const MONTH_NAMES_PT = [
-  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
-];
-
 // 12 most recent months (current + 11 previous), matching PWA `ChatRoom.tsx:116-126`.
-function generateMonthOptions(): { value: string; label: string }[] {
+// `intlLocale` (BCP-47) keeps the month labels locale-aware — this is a
+// module-level helper so the active locale is threaded in from the component.
+function generateMonthOptions(intlLocale: string): { value: string; label: string }[] {
   const options: { value: string; label: string }[] = [];
   const now = new Date();
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
     const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-    const label = `${MONTH_NAMES_PT[d.getMonth()]} ${d.getFullYear()}`;
+    const label = fmtMonthYear(d, intlLocale);
     options.push({ value, label });
   }
   return options;
@@ -51,8 +48,10 @@ function escapeHtml(s: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function formatDateBR(iso: string): string {
-  return new Date(iso).toLocaleString('pt-BR', {
+// Locale-aware timestamp for the exported PDF. Module-level → caller passes the
+// active locale (BCP-47) via `toIntlLocale(useI18n.getState().locale)`.
+function formatDateBR(iso: string, intlLocale: string): string {
+  return fmtDate(iso, intlLocale, {
     day: '2-digit', month: '2-digit', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
@@ -114,6 +113,7 @@ export default function ChatRoomScreen() {
   const { channelId } = useLocalSearchParams<{ channelId: string }>();
   const { userId, activeGroup } = useAuth();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState('');
@@ -621,10 +621,7 @@ export default function ChatRoomScreen() {
     setSending(false);
   }, [newMessage, pendingImage, channelId, userId, activeGroup, sending, showSuggestion, toneResult, replyTo, t, toast]);
 
-  const formatTime = (iso: string) => {
-    const d = new Date(iso);
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-  };
+  const formatTime = useCallback((iso: string) => intl.formatTime(iso), [intl]);
 
   // Export-to-PDF (mirrors PWA `src/app/api/chat/export/route.ts`).
   //
@@ -642,6 +639,10 @@ export default function ChatRoomScreen() {
     if (!activeGroup || exporting) return;
     setExporting(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+    // Locale-aware date formatting inside the PDF. Export is a user action, so
+    // reading the active locale imperatively (getState) is correct here.
+    const intlLocale = toIntlLocale(useI18n.getState().locale);
 
     try {
       // 1. Group + channel labels for header
@@ -696,7 +697,7 @@ export default function ChatRoomScreen() {
         }
       }
 
-      let dateRangeLabel = 'Todas as mensagens';
+      let dateRangeLabel = t('chat.allMessages');
       if (selectedMonth) {
         const [y, mon] = selectedMonth.split('-').map(Number);
         const startDate = new Date(y, mon - 1, 1);
@@ -704,7 +705,7 @@ export default function ChatRoomScreen() {
         query = query
           .gte('created_at', startDate.toISOString())
           .lt('created_at', endDate.toISOString());
-        dateRangeLabel = `${MONTH_NAMES_PT[mon - 1]} de ${y}`;
+        dateRangeLabel = fmtMonthYear(startDate, intlLocale);
       }
 
       const { data: msgs, error: msgErr } = await query;
@@ -716,23 +717,23 @@ export default function ChatRoomScreen() {
 
       // 4. Build HTML (Kindar brand styling, monospace dates, bold senders,
       //    muted system messages — matches PWA visual hierarchy).
-      const exportDate = new Date().toLocaleString('pt-BR', {
+      const exportDate = fmtDate(new Date(), intlLocale, {
         day: '2-digit', month: '2-digit', year: 'numeric',
         hour: '2-digit', minute: '2-digit',
       });
       const channelLabel = chRow?.name || '';
 
       const messagesHtml = (msgs || []).length === 0
-        ? `<p class="empty">Nenhuma mensagem neste período.</p>`
+        ? `<p class="empty">${escapeHtml(t('chatThread.pdfEmpty'))}</p>`
         : (msgs || []).map((m: any) => {
-            const senderName = memberMap[m.sender_id] || 'Sistema';
+            const senderName = memberMap[m.sender_id] || t('chatThread.pdfSystemSender');
             const isSystem = !memberMap[m.sender_id];
             let body = '';
             if (m.image_url && m.text) body = `[imagem] ${m.text}`;
             else if (m.image_url) body = '[imagem]';
             else if (m.text) body = m.text.startsWith('[Audio') ? '[Áudio]' : m.text;
-            else body = '[Mensagem sem conteúdo]';
-            const ts = formatDateBR(m.created_at);
+            else body = t('chatThread.pdfNoContent');
+            const ts = formatDateBR(m.created_at, intlLocale);
             const cls = isSystem ? 'msg system' : 'msg';
             return `<div class="${cls}">
               <span class="ts">[${escapeHtml(ts)}]</span>
@@ -742,10 +743,10 @@ export default function ChatRoomScreen() {
           }).join('\n');
 
       const html = `<!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="${intlLocale}">
 <head>
 <meta charset="UTF-8" />
-<title>Kindar — Registro de Conversas</title>
+<title>${escapeHtml(t('chatThread.pdfDocTitle'))}</title>
 <style>
   @page { margin: 24mm 18mm; }
   body { font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Helvetica, Arial, sans-serif; color: #2c2c2c; font-size: 11pt; line-height: 1.5; }
@@ -764,12 +765,12 @@ export default function ChatRoomScreen() {
 </head>
 <body>
   <div class="header">
-    <div class="brand">Kindar — Registro de Conversas</div>
-    <div class="meta"><strong>Grupo:</strong> ${escapeHtml(group?.name || 'Grupo')}</div>
-    ${channelLabel ? `<div class="meta"><strong>Canal:</strong> ${escapeHtml(channelLabel)}</div>` : ''}
-    <div class="meta"><strong>Período:</strong> ${escapeHtml(dateRangeLabel)}</div>
-    <div class="meta"><strong>Membros:</strong> ${escapeHtml(memberList.join(', '))}</div>
-    <div class="exported">Exportado em: ${escapeHtml(exportDate)}</div>
+    <div class="brand">${escapeHtml(t('chatThread.pdfDocTitle'))}</div>
+    <div class="meta"><strong>${escapeHtml(t('chatThread.pdfGroup'))}</strong> ${escapeHtml(group?.name || t('chatThread.pdfGroupFallback'))}</div>
+    ${channelLabel ? `<div class="meta"><strong>${escapeHtml(t('chatThread.pdfChannel'))}</strong> ${escapeHtml(channelLabel)}</div>` : ''}
+    <div class="meta"><strong>${escapeHtml(t('chatThread.pdfPeriod'))}</strong> ${escapeHtml(dateRangeLabel)}</div>
+    <div class="meta"><strong>${escapeHtml(t('chatThread.pdfMembers'))}</strong> ${escapeHtml(memberList.join(', '))}</div>
+    <div class="exported">${escapeHtml(t('chatThread.pdfExportedAt'))} ${escapeHtml(exportDate)}</div>
   </div>
   ${messagesHtml}
 </body>
@@ -817,7 +818,7 @@ export default function ChatRoomScreen() {
         let label: string;
         if (dayKey === todayKey) label = t('dashboard.today');
         else if (dayKey === yesterdayKey) label = t('chatTab.yesterday');
-        else label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
+        else label = intl.formatDate(d, { day: '2-digit', month: 'short', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
         items.push({ kind: 'date', key: `date-${dayKey}`, label });
         prevDay = dayKey;
       }
@@ -828,7 +829,7 @@ export default function ChatRoomScreen() {
       }
     }
     return items;
-  }, [messages, userId, t]);
+  }, [messages, userId, t, intl]);
 
   const renderItem = useCallback(({ item }: { item: ReturnType<typeof messageItems>[number] }) => {
     if (item.kind === 'date') {
@@ -976,7 +977,7 @@ export default function ChatRoomScreen() {
             marginBottom: hasImage && !hasText ? 4 : 0,
           }}>
             <Text style={{ fontSize: 9, color: isMe ? 'rgba(255,255,255,0.6)' : colors.textDim }}>
-              {formatTime(m.created_at)}
+              {intl.formatTime(m.created_at)}
             </Text>
             {isMe ? (
               <Ionicons
@@ -989,7 +990,7 @@ export default function ChatRoomScreen() {
         </TouchableOpacity>
       </View>
     );
-  }, [userId, messages, openMessageActions, t]);
+  }, [userId, messages, openMessageActions, t, intl, formatTime]);
 
   return (
     <KeyboardAvoidingView
@@ -1404,7 +1405,7 @@ export default function ChatRoomScreen() {
               style={{ maxHeight: 220, marginBottom: spacing.md }}
               showsVerticalScrollIndicator={false}
             >
-              {[{ value: '', label: t('chat.allMessages') }, ...generateMonthOptions()].map((opt) => {
+              {[{ value: '', label: t('chat.allMessages') }, ...generateMonthOptions(intl.locale)].map((opt) => {
                 const active = opt.value === selectedMonth;
                 return (
                   <TouchableOpacity

@@ -14,6 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHealth, type HealthEvent } from 'src/hooks/useHealth';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
+
+type IntlApi = ReturnType<typeof useIntl>;
 
 const EVENT_ICONS: Record<string, { icon: string; color: string }> = {
   illness: { icon: '🤒', color: '#E53935' },
@@ -38,26 +41,25 @@ interface DayGroup {
   events: HealthEvent[];
 }
 
-function formatDayLabel(dateStr: string, t: (key: string, params?: Record<string, string | number>) => string): string {
+function formatDayLabel(
+  dateStr: string,
+  t: (key: string, params?: Record<string, string | number>) => string,
+  intl: IntlApi,
+): string {
   const d = new Date(dateStr);
   const today = new Date();
   const diffDays = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays === 0) return t('health.today');
   if (diffDays === 1) return t('symptomDiary.yesterday');
-  // Regra Canônica 1: acentos corretos — "Terça", "Sábado", "Sexta".
-  const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  return `${days[d.getDay()]}, ${d.getDate()} ${months[d.getMonth()]}`;
-}
-
-function formatTime(iso: string): string {
-  const d = new Date(iso);
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  // Locale-aware "weekday, day month" — substitui os arrays pt-BR hardcoded
+  // por Intl keyed no idioma ativo (reage à troca de idioma).
+  return intl.formatDate(d, { weekday: 'long', day: 'numeric', month: 'short' });
 }
 
 export default function TimelineScreen() {
   const insets = useSafeAreaInsets();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const { data, refresh } = useHealth();
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<string | null>(null);
@@ -81,10 +83,10 @@ export default function TimelineScreen() {
       .sort(([a], [b]) => b.localeCompare(a))
       .map(([date, events]) => ({
         date,
-        label: formatDayLabel(date, t),
+        label: formatDayLabel(date, t, intl),
         events,
       }));
-  }, [data?.timeline, filter, t]);
+  }, [data?.timeline, filter, t, intl]);
 
   // Pre-computed counts per filter — usado nos chips pra mostrar
   // "Doenças · 3" e indicar quais filtros têm conteúdo. Sem isso, o user
@@ -143,7 +145,7 @@ export default function TimelineScreen() {
               ) : null}
             </View>
             <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-              {formatTime(event.date)}
+              {intl.formatTime(event.date)}
             </Text>
           </View>
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>

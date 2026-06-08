@@ -22,6 +22,7 @@ import PrimaryButton from 'src/components/ui/PrimaryButton';
 import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Appt { id: string; title: string; appointment_date: string; location: string | null; status: string; notes: string | null; childName: string; profName: string | null; child_id: string; }
@@ -40,6 +41,7 @@ const STATUS_COLORS: Record<string, { labelKey: string; color: string }> = {
 
 export default function ConsultasScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [showForm, setShowForm] = useState(false);
@@ -391,7 +393,6 @@ export default function ConsultasScreen() {
         )}
         renderItem={({ item }) => {
           const st = STATUS_COLORS[item.status] || STATUS_COLORS.scheduled;
-          const date = new Date(item.appointment_date);
           const canComplete = item.status === 'scheduled';
           return (
             <View style={{
@@ -403,7 +404,7 @@ export default function ConsultasScreen() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.title}</Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                    {item.childName} · {date.toLocaleDateString('pt-BR')}{item.location ? ` · ${item.location}` : ''}{item.profName ? ` · ${item.profName}` : ''}
+                    {item.childName} · {intl.formatDate(item.appointment_date)}{item.location ? ` · ${item.location}` : ''}{item.profName ? ` · ${item.profName}` : ''}
                   </Text>
                 </View>
                 <View style={{ backgroundColor: `${st.color}15`, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 }}>

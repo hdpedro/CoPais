@@ -3674,7 +3674,17 @@
     "cancelExport": "Annuler l'exportation",
     "generating": "Génération…",
     "memberCountOne": "{count} membre",
-    "memberCount": "{count} membres"
+    "memberCount": "{count} membres",
+    "pdfEmpty": "Aucun message sur cette période.",
+    "pdfSystemSender": "Système",
+    "pdfNoContent": "[Message sans contenu]",
+    "pdfDocTitle": "Kindar — Journal des conversations",
+    "pdfGroup": "Groupe :",
+    "pdfGroupFallback": "Groupe",
+    "pdfChannel": "Canal :",
+    "pdfPeriod": "Période :",
+    "pdfMembers": "Membres :",
+    "pdfExportedAt": "Exporté le :"
   },
   "custodySchedule": {
     "needTwoGuardians": "Deux responsables requis",
@@ -4072,5 +4082,10 @@
     "yesterday": "Hier",
     "tomorrow": "Demain",
     "daysAgo": "il y a {count} jours"
+  },
+  "relTime": {
+    "minShort": "{count} min",
+    "hShort": "{count} h",
+    "hMinShort": "{h}h{m}"
   }
 }
