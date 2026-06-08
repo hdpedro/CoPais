@@ -35,6 +35,7 @@ import { withTimeout, TimeoutError } from 'src/lib/with-timeout';
 import { reportError } from 'src/lib/error-reporter';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 /* ─── Types ─── */
@@ -108,8 +109,8 @@ interface SemanaData {
   activeMeds: Med[];
 }
 
-const DAY_INITIALS = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']; // dom..sab
-const DAY_LABELS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sab'];
+/** Locale-aware Intl formatters (bound to the active locale at call site). */
+type IntlFns = ReturnType<typeof useIntl>;
 
 /* ─── Date helpers ─── */
 /**
@@ -139,17 +140,18 @@ function getLastWeek(): { start: Date; end: Date } {
   return { start, end };
 }
 
-function buildWeekDays(start: Date, todayStr: string): WeekDay[] {
+function buildWeekDays(start: Date, todayStr: string, intl: IntlFns): WeekDay[] {
   const out: WeekDay[] = [];
   for (let i = 0; i < 7; i++) {
     const d = new Date(start);
     d.setDate(d.getDate() + i);
     const key = formatDateKey(d);
+    const short = intl.formatWeekdayShort(d); // Seg, Ter… (locale-aware)
     out.push({
       dateKey: key,
       dayNum: d.getDate(),
-      initial: DAY_INITIALS[d.getDay()],
-      fullLabel: DAY_LABELS[d.getDay()],
+      initial: short.charAt(0).toUpperCase(),
+      fullLabel: short,
       isToday: key === todayStr,
       isPast: key < todayStr,
     });
@@ -157,16 +159,15 @@ function buildWeekDays(start: Date, todayStr: string): WeekDay[] {
   return out;
 }
 
-function formatLongDate(dateKey: string): string {
-  const [y, m, d] = dateKey.split('-').map(Number);
-  const date = new Date(y, m - 1, d, 12, 0, 0);
-  const months = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-  return `${DAY_LABELS[date.getDay()]}, ${d} de ${months[m - 1]}`;
+// "Segunda, 8 de abril" — weekday + day + month, locale-aware.
+function formatLongDate(dateKey: string, intl: IntlFns): string {
+  return intl.formatDate(dateKey, { weekday: 'long', day: 'numeric', month: 'long' });
 }
 
 /* ─── Screen ─── */
 export default function SemanaScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const { activeGroup, userId } = useAuth();
   const [data, setData] = useState<SemanaData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -370,7 +371,7 @@ export default function SemanaScreen() {
       }));
       /* eslint-enable @typescript-eslint/no-explicit-any */
 
-      const weekDays = buildWeekDays(start, todayStr);
+      const weekDays = buildWeekDays(start, todayStr, intl);
 
       setData({
         weekDays,
@@ -394,7 +395,7 @@ export default function SemanaScreen() {
     } finally {
       setLoading(false);
     }
-  }, [activeGroup, t]);
+  }, [activeGroup, t, intl]);
 
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
@@ -465,10 +466,10 @@ export default function SemanaScreen() {
             <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.md }}>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
                 {(() => {
-                  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-                  const [, sm, sd] = data.weekStartKey.split('-').map(Number);
-                  const [, em, ed] = data.weekEndKey.split('-').map(Number);
-                  return `Seg ${sd}/${months[sm - 1]} — Dom ${ed}/${months[em - 1]}`;
+                  // weekStartKey = Monday, weekEndKey = Sunday (Brazilian convention).
+                  // Locale-aware weekday + day + short month for each endpoint.
+                  const opts: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
+                  return `${intl.formatDate(data.weekStartKey, opts)} — ${intl.formatDate(data.weekEndKey, opts)}`;
                 })()}
               </Text>
             </View>
@@ -694,7 +695,7 @@ export default function SemanaScreen() {
                         fontWeight: font.weights.bold,
                         color: day.isToday ? colors.brand : colors.text,
                       }}>
-                        {day.isToday ? `${t('checkin.today')} · ` : ''}{formatLongDate(day.dateKey)}
+                        {day.isToday ? `${t('checkin.today')} · ` : ''}{formatLongDate(day.dateKey, intl)}
                       </Text>
                       {day.dateKey === todayStr ? (
                         <View style={{

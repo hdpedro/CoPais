@@ -37,6 +37,7 @@ import { SkeletonList } from 'src/components/ui/Skeleton';
 import UploadSheet from 'src/components/criancas/UploadSheet';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 const CATEGORY_BY_VALUE = Object.fromEntries(DOCUMENT_CATEGORIES.map((c) => [c.value, c]));
@@ -49,6 +50,7 @@ function formatSize(bytes: number | null): string {
 
 export default function DocumentosScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { activeGroup, userId } = useAuth();
   const groupId = activeGroup?.groupId;
@@ -326,10 +328,7 @@ export default function DocumentosScreen() {
                       >
                         {cat.label}
                         {doc.file_size ? ` · ${formatSize(doc.file_size)}` : ''} ·{' '}
-                        {new Date(doc.created_at).toLocaleDateString('pt-BR', {
-                          day: '2-digit',
-                          month: 'short',
-                        })}
+                        {intl.formatDateShort(doc.created_at)}
                       </Text>
                     </View>
                     {/* Botão lixeira visível — bug Mauricio 2026-05-14:

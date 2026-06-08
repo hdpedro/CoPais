@@ -19,6 +19,7 @@ import { colors, spacing, radius, font } from '../../design-system/tokens';
 import { uploadDocument, DOCUMENT_CATEGORIES, type UploadDocumentInput } from '../../services/documents';
 import { useToast } from '../ui/ToastProvider';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 
 interface Props {
   visible: boolean;
@@ -44,6 +45,7 @@ const ALLOWED_MIME = [
 
 export default function UploadSheet({ visible, onClose, onUploaded, groupId, childId, uploadedBy }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   // Android + Modal pageSheet: presentationStyle="pageSheet" só funciona
   // como sheet com top inset automático no iOS. No Android cai pra
@@ -85,7 +87,7 @@ export default function UploadSheet({ visible, onClose, onUploaded, groupId, chi
       mimeType: asset.mimeType ?? 'image/jpeg',
       size: asset.fileSize ?? 0,
     });
-    if (!name) setName(asset.fileName ?? `Foto ${new Date().toLocaleDateString('pt-BR')}`);
+    if (!name) setName(asset.fileName ?? `Foto ${intl.formatDate(new Date())}`);
   }
 
   async function pickFromLibrary() {

@@ -19,6 +19,7 @@ import { useToast } from '../ui/ToastProvider';
 import PrimaryButton from '../ui/PrimaryButton';
 import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface SwapRequestModalProps {
@@ -41,6 +42,7 @@ export default function SwapRequestModal({
   isVisitRequest = false,
 }: SwapRequestModalProps) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [proposedDate, setProposedDate] = useState<string | null>(null);
   const [reason, setReason] = useState('');
@@ -82,7 +84,7 @@ export default function SwapRequestModal({
     onClose();
   }
 
-  const formatted = new Date(selectedDate + 'T12:00:00').toLocaleDateString('pt-BR', {
+  const formatted = intl.formatDate(selectedDate, {
     weekday: 'long', day: 'numeric', month: 'long',
   });
   const title = isVisitRequest ? t('swapRequest.titleVisit') : t('swapRequest.titleSwap');

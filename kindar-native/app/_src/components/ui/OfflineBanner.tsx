@@ -26,7 +26,7 @@
  *    `tableOther_<table>` (count===1 vs ≥2) — equivalente ao plural ICU
  *    pra cada tabela conhecida (alergia/alergias etc). Tabelas
  *    desconhecidas caem em `tableOneFallback`/`tableOtherFallback`.
- *  - `toLocaleTimeString` usa o locale ativo do user (não fixo pt-BR).
+ *  - Horário da fila via `intl.formatTime` (locale-aware, não fixo pt-BR).
  *
  * Wrap em _layout.tsx logo abaixo do ToastProvider pra ficar acima das telas.
  */
@@ -39,6 +39,7 @@ import * as Haptics from 'expo-haptics';
 import { isOnline, onConnectivityChange, getQueue, syncQueue, type QueuedAction } from '../../services/offline';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 
 const POLL_MS = 3000;
 
@@ -101,7 +102,7 @@ function singleItemLabel(t: TFn, table: string): string {
 export default function OfflineBanner() {
   const insets = useSafeAreaInsets();
   const t = useI18n((s) => s.t);
-  const locale = useI18n((s) => s.locale);
+  const intl = useIntl();
   const [online, setOnline] = useState(() => isOnline());
   const [queue, setQueue] = useState<QueuedAction[]>([]);
   const [syncing, setSyncing] = useState(false);
@@ -258,7 +259,7 @@ export default function OfflineBanner() {
                         {t('ui.offlineBanner.queueItemEntry', { operation: op, label })}
                       </Text>
                       <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                        {new Date(action.timestamp).toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                        {intl.formatTime(action.timestamp)}
                       </Text>
                     </View>
                   );

@@ -19,7 +19,7 @@
  *   - children.photo_url → uploadChildAvatar (Storage path, signed at read)
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, Modal, Pressable, ScrollView,
   KeyboardAvoidingView, Platform, Alert, Image, ActivityIndicator,
@@ -31,11 +31,12 @@ import * as ImagePicker from 'expo-image-picker';
 import type { Child, MedicalInfo } from '../../services/children';
 import { updateChild, upsertChildMedicalInfo, uploadChildAvatar, signChildAvatar } from '../../services/children';
 import { supabase } from '../../lib/supabase';
-import { DatePickerField, isoDateToDisplay } from '../ui/DateTimeField';
+import { DatePickerField } from '../ui/DateTimeField';
 import { useToast } from '../ui/ToastProvider';
 import PrimaryButton from '../ui/PrimaryButton';
 import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 
 // ── Masks & validation ───────────────────────────────────────────────────
@@ -113,7 +114,76 @@ export default function EditChildSheet(props: Props) {
 
 function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
+
+  // Idade humanizada — math numérico preservado; unidade localizada via as
+  // chaves `onboardingForm.age*` (paridade com o PWA onboarding/_lib/format.ts).
+  const ageHint = useCallback(
+    (iso: string): string => {
+      const [y, m, d] = iso.split('-').map(Number);
+      if (!y || !m || !d) return '';
+      const birth = new Date(y, m - 1, d);
+      const now = new Date();
+      const months =
+        (now.getFullYear() - birth.getFullYear()) * 12 +
+        (now.getMonth() - birth.getMonth()) -
+        (now.getDate() < birth.getDate() ? 1 : 0);
+      if (months < 1) return t('onboardingForm.ageNewborn');
+      if (months < 12) {
+        return months === 1
+          ? t('onboardingForm.ageMonthOne')
+          : t('onboardingForm.ageMonths', { count: months });
+      }
+      const years = Math.floor(months / 12);
+      return years === 1
+        ? t('onboardingForm.ageYearOne')
+        : t('onboardingForm.ageYears', { count: years });
+    },
+    [t],
+  );
+
+  // Rótulo de mês (parte de DATA do growthInsight) — locale-aware. Mantém o
+  // sufixo de ano (mai/24) quando a medida é de um ano diferente do atual.
+  const monthFromIso = useCallback(
+    (iso: string): string => {
+      const [y, m] = iso.split('-').map(Number);
+      if (!y || !m) return '';
+      const label = intl.formatMonthShort(iso);
+      const now = new Date();
+      return now.getFullYear() === y ? label : `${label}/${String(y).slice(2)}`;
+    },
+    [intl],
+  );
+
+  // Insight derivado das duas ultimas medidas. A lógica numérica (delta de peso,
+  // tempo relativo) é preservada; só a PARTE DE DATA (rótulo do mês) é localizada.
+  const growthInsight = useCallback(
+    (
+      latest: { weight_kg: number | null; measured_date: string },
+      previous: { weight_kg: number | null; measured_date: string } | null,
+    ): string => {
+      const days = daysSince(latest.measured_date);
+      const relative =
+        days === 0 ? 'Atualizada hoje'
+        : days === 1 ? 'Atualizada ontem'
+        : days < 7 ? `Atualizada há ${days} dias`
+        : days < 30 ? `Atualizada há ${Math.round(days / 7)} sem.`
+        : days < 365 ? `Atualizada há ${Math.round(days / 30)} meses`
+        : `Atualizada há ${Math.round(days / 365)} anos`;
+
+      if (latest.weight_kg != null && previous?.weight_kg != null) {
+        const delta = latest.weight_kg - previous.weight_kg;
+        if (Math.abs(delta) >= 0.1) {
+          const sign = delta > 0 ? '+' : '';
+          const monthLabel = monthFromIso(previous.measured_date);
+          return `${sign}${delta.toFixed(1)}kg desde ${monthLabel} · ${relative}`;
+        }
+      }
+      return relative;
+    },
+    [monthFromIso],
+  );
   const [fullName, setFullName] = useState(child.full_name);
   const [birthDate, setBirthDate] = useState<string>(child.birth_date);
   const [sex, setSex] = useState<'M' | 'F' | null>(child.sex);
@@ -425,7 +495,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
           />
           {birthDate ? (
             <Text style={hintStyle}>
-              {ageHint(birthDate)} · {isoDateToDisplay(birthDate)}
+              {ageHint(birthDate)} · {intl.formatDate(birthDate)}
             </Text>
           ) : null}
 
@@ -689,62 +759,14 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
   );
 }
 
-// Pequeno insight derivado das duas ultimas medidas — gera percepcao
-// de acompanhamento continuo, em vez de so listar a data.
-function growthInsight(
-  latest: { weight_kg: number | null; measured_date: string },
-  previous: { weight_kg: number | null; measured_date: string } | null,
-): string {
-  const days = daysSince(latest.measured_date);
-  const relative =
-    days === 0 ? 'Atualizada hoje'
-    : days === 1 ? 'Atualizada ontem'
-    : days < 7 ? `Atualizada há ${days} dias`
-    : days < 30 ? `Atualizada há ${Math.round(days / 7)} sem.`
-    : days < 365 ? `Atualizada há ${Math.round(days / 30)} meses`
-    : `Atualizada há ${Math.round(days / 365)} anos`;
-
-  if (latest.weight_kg != null && previous?.weight_kg != null) {
-    const delta = latest.weight_kg - previous.weight_kg;
-    if (Math.abs(delta) >= 0.1) {
-      const sign = delta > 0 ? '+' : '';
-      const monthLabel = monthFromIso(previous.measured_date);
-      return `${sign}${delta.toFixed(1)}kg desde ${monthLabel} · ${relative}`;
-    }
-  }
-  return relative;
-}
-
+// Dias decorridos desde uma data ISO (numérico puro — usado pelo growthInsight
+// component-scoped, que localiza o rótulo de mês via intl).
 function daysSince(iso: string): number {
   const [y, m, d] = iso.split('-').map(Number);
   if (!y || !m || !d) return 0;
   const past = new Date(y, m - 1, d).getTime();
   const now = Date.now();
   return Math.max(0, Math.floor((now - past) / 86400000));
-}
-
-function monthFromIso(iso: string): string {
-  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  const [y, m] = iso.split('-').map(Number);
-  if (!y || !m) return '';
-  const now = new Date();
-  const sameYear = now.getFullYear() === y;
-  return sameYear ? months[m - 1] : `${months[m - 1]}/${String(y).slice(2)}`;
-}
-
-function ageHint(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  if (!y || !m || !d) return '';
-  const birth = new Date(y, m - 1, d);
-  const now = new Date();
-  let years = now.getFullYear() - birth.getFullYear();
-  const dm = now.getMonth() - birth.getMonth();
-  if (dm < 0 || (dm === 0 && now.getDate() < birth.getDate())) years--;
-  if (years < 1) {
-    const months = Math.max(0, (now.getFullYear() - birth.getFullYear()) * 12 + dm);
-    return `${months} ${months === 1 ? 'mês' : 'meses'}`;
-  }
-  return `${years} ${years === 1 ? 'ano' : 'anos'}`;
 }
 
 function Label({ children }: { children: React.ReactNode }) {

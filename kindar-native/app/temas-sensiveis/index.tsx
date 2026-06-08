@@ -24,6 +24,7 @@ import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const TOPIC_META: Record<string, { label: string; icon: string; color: string }> = {
@@ -39,17 +40,9 @@ const TOPIC_META: Record<string, { label: string; icon: string; color: string }>
   outro: { label: 'Outro', icon: '📝', color: '#5B9E85' },
 };
 
-function formatRelative(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime();
-  const days = Math.floor(diff / 86400000);
-  if (days === 0) return 'Hoje';
-  if (days === 1) return 'Ontem';
-  if (days < 7) return `${days}d atrás`;
-  return iso.slice(0, 10).split('-').reverse().join('/');
-}
-
 export default function TemasSensiveisScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { activeGroup, userId } = useAuth();
   const [acting, setActing] = useState<string | null>(null);
@@ -212,7 +205,7 @@ export default function TemasSensiveisScreen() {
                     {n.content}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm }}>
-                    {n.authorName} · {formatRelative(n.created_at)}
+                    {n.authorName} · {intl.formatRelativeDay(n.created_at)}
                   </Text>
                 </View>
               </View>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl,
   Modal, TextInput, ScrollView,
@@ -19,6 +19,7 @@ import FAB from 'src/components/ui/FAB';
 import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
@@ -39,22 +40,26 @@ const STATUS_META: Record<string, { label: string; color: string }> = {
   expirada: { label: 'Expirada', color: '#8A8A8A' },
 };
 
-function formatDeadline(deadline: string | null): { label: string; urgent: boolean } | null {
-  if (!deadline) return null;
-  const now = Date.now();
-  const d = new Date(deadline + 'T23:59:59').getTime();
-  const daysUntil = Math.ceil((d - now) / 86400000);
-  if (daysUntil < 0) return { label: 'Prazo expirado', urgent: true };
-  if (daysUntil === 0) return { label: 'Hoje', urgent: true };
-  if (daysUntil <= 3) return { label: `Em ${daysUntil} dia${daysUntil > 1 ? 's' : ''}`, urgent: true };
-  const [, m, day] = deadline.split('-').map(Number);
-  const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
-  return { label: `Até ${day}/${months[(m || 1) - 1]}`, urgent: false };
-}
-
 export default function DecisoesScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const { activeGroup, userId } = useAuth();
+
+  // daysUntil math stays numeric (count logic). Only the absolute-date branch
+  // is locale-aware: "Até 8 de abr" via intl.formatDate (day + short month).
+  const formatDeadline = useCallback(
+    (deadline: string | null): { label: string; urgent: boolean } | null => {
+      if (!deadline) return null;
+      const now = Date.now();
+      const d = new Date(deadline + 'T23:59:59').getTime();
+      const daysUntil = Math.ceil((d - now) / 86400000);
+      if (daysUntil < 0) return { label: 'Prazo expirado', urgent: true };
+      if (daysUntil === 0) return { label: 'Hoje', urgent: true };
+      if (daysUntil <= 3) return { label: `Em ${daysUntil} dia${daysUntil > 1 ? 's' : ''}`, urgent: true };
+      return { label: `Até ${intl.formatDate(deadline, { day: 'numeric', month: 'short' })}`, urgent: false };
+    },
+    [intl],
+  );
   const [voting, setVoting] = useState<string | null>(null);
   const [composerOpen, setComposerOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');

@@ -18,12 +18,9 @@ import { SkeletonList } from 'src/components/ui/Skeleton';
 import { DatePickerField, TimePickerField } from 'src/components/ui/DateTimeField';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-function formatDate(d: string) {
-  const [y, m, day] = d.split('-');
-  return `${day}/${m}/${y}`;
-}
 function normalizeTime(t: string | null | undefined): string | null {
   if (!t) return null;
   return t.length >= 5 ? t.slice(0, 5) : t;
@@ -31,6 +28,7 @@ function normalizeTime(t: string | null | undefined): string | null {
 
 export default function EventosScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { activeGroup } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -132,7 +130,7 @@ export default function EventosScreen() {
       <View style={{ flex: 1 }}>
         <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.medium, color: colors.text }}>{item.title}</Text>
         <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-          {formatDate(item.event_date)}{item.location ? ` · ${item.location}` : ''}{item.assignedName ? ` · ${item.assignedName}` : ''}
+          {intl.formatDate(item.event_date)}{item.location ? ` · ${item.location}` : ''}{item.assignedName ? ` · ${item.assignedName}` : ''}
         </Text>
       </View>
       <Ionicons name="chevron-forward" size={16} color={colors.textDim} />

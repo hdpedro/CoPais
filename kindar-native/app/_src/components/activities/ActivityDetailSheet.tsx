@@ -37,6 +37,7 @@ import { ACTIVITY_CATEGORIES } from '../../lib/constants';
 import { useToast } from '../ui/ToastProvider';
 import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 
 const CATEGORY_LABEL: Record<string, string> = {
   sports: 'Esporte',
@@ -82,15 +83,10 @@ interface Props {
   onChanged?: () => void;
 }
 
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  if (!y || !m || !d) return iso;
-  const date = new Date(y, m - 1, d, 12, 0, 0);
-  const days = ['Domingo', 'Segunda-Feira', 'Terça-Feira', 'Quarta-Feira', 'Quinta-Feira', 'Sexta-Feira', 'Sábado'];
-  const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-  return `${days[date.getDay()]}, ${d} de ${months[m - 1]}`;
-}
-
+// Time is a stored wall-clock string ("HH:MM:SS") — slice to "HH:MM". This is a
+// numeric mask, not locale formatting (using Intl here would risk 12h/AM-PM in
+// en-US for a value that has no timezone/instant). Date display IS localized via
+// the `intl` helper inside the component (see `formatDate` useCallback below).
 function formatTime(t: string | null): string {
   return t ? t.slice(0, 5) : '';
 }
@@ -101,6 +97,18 @@ export default function ActivityDetailSheet({
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
+  // Localized day-of-week + day + month (e.g. "segunda-feira, 9 de junho" in
+  // pt-BR). Replaces the old hardcoded pt-BR day/month arrays so the header,
+  // share text and title-card subtitle follow the active locale.
+  const formatDate = useCallback(
+    (iso: string): string => {
+      const [y, m, d] = iso.split('-').map(Number);
+      if (!y || !m || !d) return iso;
+      return intl.formatDate(iso, { weekday: 'long', day: 'numeric', month: 'long' });
+    },
+    [intl],
+  );
   const [activity, setActivity] = useState<ActivityFull | null>(null);
   const [items, setItems] = useState<ChecklistItem[]>([]);
   const [completed, setCompleted] = useState<Set<string>>(new Set());

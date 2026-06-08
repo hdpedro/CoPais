@@ -23,6 +23,7 @@ import { useToast } from '../ui/ToastProvider';
 import PrimaryButton from '../ui/PrimaryButton';
 import ModalBackdrop from '../ui/ModalBackdrop';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 
 interface Props {
@@ -56,6 +57,7 @@ export default function ActivityReportModal({
   visible, onClose, groupId, activityId, activityName, childId, reporterId, occurrenceDate, onSubmitted,
 }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [status, setStatus] = useState<ActivityReportStatus>('completed');
   const [notes, setNotes] = useState<string>('');
@@ -121,7 +123,7 @@ export default function ActivityReportModal({
     }
   }
 
-  const formattedDate = new Date(occurrenceDate + 'T12:00:00').toLocaleDateString('pt-BR', {
+  const formattedDate = intl.formatDate(occurrenceDate, {
     weekday: 'short', day: 'numeric', month: 'short',
   });
 

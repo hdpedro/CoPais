@@ -20,6 +20,7 @@ import { deleteDocument, DOCUMENT_CATEGORIES } from '../../services/documents';
 import EmptyState from '../ui/EmptyState';
 import { useToast } from '../ui/ToastProvider';
 import { useI18n } from '../../i18n';
+import { useIntl } from '../../lib/intl';
 
 interface Props {
   childId: string;
@@ -51,6 +52,7 @@ export default function TabDocumentos({
   onRefresh,
 }: Props) {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
@@ -193,7 +195,7 @@ export default function TabDocumentos({
                   ) : null}
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>·</Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                    {new Date(doc.created_at).toLocaleDateString('pt-BR', {
+                    {intl.formatDate(doc.created_at, {
                       day: '2-digit',
                       month: 'short',
                     })}

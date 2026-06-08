@@ -24,6 +24,7 @@ import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { apiFetch } from 'src/lib/api-fetch';
 import { reportError } from 'src/lib/error-reporter';
@@ -120,6 +121,7 @@ const FALLBACK_PREFS: Prefs = {
 
 export default function NotificacoesScreen() {
   const t = useI18n((s) => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const [prefs, setPrefs] = useState<Prefs | null>(null);
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('unknown');
@@ -392,7 +394,7 @@ export default function NotificacoesScreen() {
               <Text style={{ fontSize: 18 }}>🔕</Text>
               <Text style={{ color: '#92400E', fontSize: font.sizes.sm, flex: 1, fontWeight: font.weights.medium }}>
                 {t('notifPrefs.mutedUntil', {
-                  time: new Date(prefs.mute_until!).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit', weekday: 'short' }),
+                  time: intl.formatDate(prefs.mute_until!, { hour: '2-digit', minute: '2-digit', weekday: 'short' }),
                 })}
               </Text>
             </View>

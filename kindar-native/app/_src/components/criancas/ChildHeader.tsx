@@ -3,35 +3,13 @@
  * Usado no topo da tela /criancas/[id] nativa.
  */
 
+import { useCallback } from 'react';
 import { View, Text, Image } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font } from '../../design-system/tokens';
 import type { Child, MedicalInfo } from '../../services/children';
-
-function calcAge(birthDate: string): string {
-  // Parse YYYY-MM-DD manually — `new Date("YYYY-MM-DD")` is interpreted as
-  // UTC midnight, which in BR (UTC-3) shifts to the previous day for
-  // localized display and edge-case age calculations.
-  const [y, m, d] = birthDate.split('-').map(Number);
-  if (!y || !m || !d) return '';
-  const birth = new Date(y, m - 1, d);
-  const now = new Date();
-  let years = now.getFullYear() - birth.getFullYear();
-  const dm = now.getMonth() - birth.getMonth();
-  if (dm < 0 || (dm === 0 && now.getDate() < birth.getDate())) years--;
-  if (years === 0) {
-    const months = (now.getFullYear() - birth.getFullYear()) * 12 + dm;
-    return `${Math.max(months, 0)} ${months === 1 ? 'mês' : 'meses'}`;
-  }
-  return `${years} ${years === 1 ? 'ano' : 'anos'}`;
-}
-
-function formatBirthDate(birthDate: string): string {
-  const [y, m, d] = birthDate.split('-');
-  if (!y || !m || !d) return '';
-  return `${d}/${m}/${y}`;
-}
 
 interface Props {
   child: Child;
@@ -40,6 +18,47 @@ interface Props {
 
 export default function ChildHeader({ child, medicalInfo }: Props) {
   const t = useI18n((s) => s.t);
+  const intl = useIntl();
+
+  // Idade humanizada — math numérico (anos/meses) preservado; o TEXTO da
+  // unidade é localizado via as chaves `onboardingForm.age*` (mesma lógica do
+  // PWA em onboarding/_lib/format.ts → paridade nas 5 línguas).
+  const calcAge = useCallback(
+    (birthDate: string): string => {
+      // Parse YYYY-MM-DD manually — `new Date("YYYY-MM-DD")` is interpreted as
+      // UTC midnight, which in BR (UTC-3) shifts to the previous day for
+      // edge-case age calculations.
+      const [y, m, d] = birthDate.split('-').map(Number);
+      if (!y || !m || !d) return '';
+      const birth = new Date(y, m - 1, d);
+      const now = new Date();
+      const months =
+        (now.getFullYear() - birth.getFullYear()) * 12 +
+        (now.getMonth() - birth.getMonth()) -
+        (now.getDate() < birth.getDate() ? 1 : 0);
+      if (months < 1) return t('onboardingForm.ageNewborn');
+      if (months < 12) {
+        return months === 1
+          ? t('onboardingForm.ageMonthOne')
+          : t('onboardingForm.ageMonths', { count: months });
+      }
+      const years = Math.floor(months / 12);
+      return years === 1
+        ? t('onboardingForm.ageYearOne')
+        : t('onboardingForm.ageYears', { count: years });
+    },
+    [t],
+  );
+
+  // Data de nascimento exibida (DD/MM/YYYY em pt-BR) → locale-aware.
+  const formatBirthDate = useCallback(
+    (birthDate: string): string => {
+      const [y, m, d] = birthDate.split('-');
+      if (!y || !m || !d) return '';
+      return intl.formatDate(birthDate);
+    },
+    [intl],
+  );
   const initials = child.full_name
     .split(' ')
     .filter(Boolean)

@@ -33,6 +33,7 @@ import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import { useAuth } from 'src/store/auth';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { getDisplayName } from 'src/lib/constants';
 import { track, EVENTS } from 'src/lib/analytics';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
@@ -42,22 +43,6 @@ const PRIORITY_META: Record<SchoolPriority, { label: string; chipBg: string; chi
   important: { label: 'Importante', chipBg: 'rgba(245,158,11,0.18)',  chipText: '#B45309' },
   urgent:    { label: 'Urgente',    chipBg: 'rgba(239,68,68,0.18)',   chipText: '#B91C1C' },
 };
-
-function formatLogDate(iso: string): string {
-  // log_date é YYYY-MM-DD — append T12:00 pra evitar timezone walk
-  const d = new Date(`${iso}T12:00:00`);
-  return d.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
-}
-
-function formatCreatedAt(iso: string): string {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString('pt-BR')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
-
-function formatReadAt(iso: string): string {
-  const d = new Date(iso);
-  return `${d.toLocaleDateString('pt-BR')} · ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
-}
 
 interface DetailRow {
   label: string;
@@ -71,7 +56,14 @@ export default function EscolaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { userId } = useAuth();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
+
+  // log_date é YYYY-MM-DD — intl.formatDate normaliza pra meio-dia local.
+  const formatLogDate = (iso: string): string =>
+    intl.formatDate(iso, { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+  const formatCreatedAt = (iso: string): string => intl.formatDateTime(iso);
+  const formatReadAt = (iso: string): string => `${intl.formatDate(iso)} · ${intl.formatTime(iso)}`;
 
   interface SchoolDetailCache {
     log: SchoolLog | null;

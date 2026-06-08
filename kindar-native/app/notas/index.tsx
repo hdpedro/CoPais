@@ -19,6 +19,7 @@ import EmptyState from 'src/components/ui/EmptyState';
 import { SkeletonList } from 'src/components/ui/Skeleton';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 // Categories must match the CHECK constraint on private_notes.category
@@ -37,6 +38,7 @@ const CATEGORIES: { value: NoteCategory; labelKey: string; icon: string; color: 
 
 export default function NotasScreen() {
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const { userId, activeGroup } = useAuth();
   const [composerOpen, setComposerOpen] = useState(false);
@@ -167,7 +169,7 @@ export default function NotasScreen() {
                 </Text>
               ) : null}
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.xs }}>
-                {new Date(item.updated_at).toLocaleDateString('pt-BR')}
+                {intl.formatDate(item.updated_at)}
               </Text>
             </TouchableOpacity>
           );

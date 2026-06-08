@@ -18,19 +18,12 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { fetchEventDetail, deleteEvent } from 'src/services/events';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 type EventDetail = NonNullable<Awaited<ReturnType<typeof fetchEventDetail>>>;
 
-const MONTHS_LONG = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
-const DAYS_LONG = ['Domingo', 'Segunda-Feira', 'Terça-Feira', 'Quarta-Feira', 'Quinta-Feira', 'Sexta-Feira', 'Sábado'];
-
-function formatDate(iso: string): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  if (!y || !m || !d) return iso;
-  const date = new Date(y, m - 1, d, 12);
-  return `${DAYS_LONG[date.getDay()]}, ${d} de ${MONTHS_LONG[m - 1]}`;
-}
+// "HH:MM:SS" (DB-stored time) → "HH:MM" display. Numeric mask, not locale-aware.
 function formatTime(t: string | null): string {
   return t ? t.slice(0, 5) : '';
 }
@@ -39,8 +32,16 @@ export default function EventDetailScreen() {
   const insets = useSafeAreaInsets();
   const { id } = useLocalSearchParams<{ id: string }>();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const eventId = typeof id === 'string' ? id : '';
+
+  // "Domingo, 8 de abril" — weekday + day + month, locale-aware. ISO date
+  // (YYYY-MM-DD) is parsed at noon local by the helper (avoids tz day-shift).
+  const formatDate = useCallback(
+    (iso: string) => intl.formatDate(iso, { weekday: 'long', day: 'numeric', month: 'long' }),
+    [intl],
+  );
 
   const [event, setEvent] = useState<EventDetail | null>(null);
   const [loading, setLoading] = useState(true);

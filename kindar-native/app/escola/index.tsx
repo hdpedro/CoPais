@@ -35,6 +35,7 @@ import { TimePickerField, DatePickerField } from 'src/components/ui/DateTimeFiel
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { track, EVENTS } from 'src/lib/analytics';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 
 interface ChildSchool {
@@ -65,17 +66,6 @@ const PRIORITY_META: Record<SchoolPriority, { label: string; chipBg: string; chi
   urgent:    { label: 'Urgente',    chipBg: 'rgba(239,68,68,0.18)',   chipText: '#B91C1C',  rank: 2 },
 };
 
-function formatReadAt(iso: string): string {
-  const d = new Date(iso);
-  const now = new Date();
-  const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
-  if (diffMin < 1) return 'agora';
-  if (diffMin < 60) return `há ${diffMin}min`;
-  const sameDay = d.toDateString() === now.toDateString();
-  if (sameDay) return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-  return d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
-}
-
 type ComposerStage =
   | { stage: 'closed' }
   | { stage: 'pick-kind' }
@@ -85,12 +75,6 @@ type ComposerStage =
 function displayTime(t: string | null): string {
   if (!t) return '';
   return t.slice(0, 5);
-}
-
-function formatLogDate(iso: string): string {
-  // log_date is YYYY-MM-DD — append T12:00 to avoid timezone walk
-  const d = new Date(`${iso}T12:00:00`);
-  return d.toLocaleDateString('pt-BR');
 }
 
 function todayIso(): string {
@@ -103,8 +87,24 @@ function todayIso(): string {
 export default function EscolaScreen() {
   const { activeGroup, userId } = useAuth();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
   const groupId = activeGroup?.groupId ?? null;
+
+  // log_date é YYYY-MM-DD; intl.formatDate normaliza pra meio-dia local.
+  const formatLogDate = (iso: string): string => intl.formatDate(iso);
+
+  // Read-receipt: "agora" / "há N min" (reusa health.*) → mesmo dia mostra
+  // a hora, dias anteriores mostram data curta. Tudo locale-aware via intl.
+  const formatReadAt = (iso: string): string => {
+    const d = new Date(iso);
+    const now = new Date();
+    const diffMin = Math.floor((now.getTime() - d.getTime()) / 60000);
+    if (diffMin < 1) return t('health.now');
+    if (diffMin < 60) return t('health.minutesAgo', { count: diffMin });
+    const sameDay = d.toDateString() === now.toDateString();
+    return sameDay ? intl.formatTime(d) : intl.formatDateShort(d);
+  };
 
   // Deep link from calendar: tap on event with school_log_id sets ?highlight=<id>
   // → land directly on Registros tab.
@@ -1106,7 +1106,7 @@ export default function EscolaScreen() {
                 <View style={{ marginTop: spacing.md, padding: spacing.md, backgroundColor: `${colors.secondary}08`, borderRadius: radius.md, borderWidth: 1, borderColor: `${colors.secondary}30` }}>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.secondary, fontWeight: font.weights.medium }}>
                     {t('school.appearsInCalendarOn', { date: (() => {
-                      try { return new Date(`${logDate}T12:00:00`).toLocaleDateString('pt-BR'); } catch { return logDate; }
+                      try { return intl.formatDate(logDate); } catch { return logDate; }
                     })() })}
                   </Text>
                 </View>

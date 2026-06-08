@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 import type { Child, MedicalInfo } from '../../services/children';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import EditChildSheet from './EditChildSheet';
 
 interface Props {
@@ -40,6 +41,7 @@ function Row({ label, value }: { label: string; value: string | null }) {
 
 export default function TabGeral({ child, medicalInfo, groupId, onSaved }: Props) {
   const t = useI18n((s) => s.t);
+  const intl = useIntl();
   const [editOpen, setEditOpen] = useState(false);
   // children.allergies is a TEXT[] column written by /criancas/nova. PWA shows
   // these as red chips on the Geral tab so a parent who entered "amendoim"
@@ -65,7 +67,7 @@ export default function TabGeral({ child, medicalInfo, groupId, onSaved }: Props
         <Row label={t('children.fullName')} value={child.full_name} />
         <Row label={t('children.birthDate')} value={(() => {
           const [y, m, d] = child.birth_date.split('-');
-          return y && m && d ? `${d}/${m}/${y}` : '—';
+          return y && m && d ? intl.formatDate(child.birth_date) : '—';
         })()} />
         <Row label={t('children.sex')} value={child.sex === 'M' ? t('onboardingForm.sexMale') : child.sex === 'F' ? t('onboardingForm.sexFemale') : null} />
         <Row label={t('childGeneral.cpf')} value={child.cpf} />
