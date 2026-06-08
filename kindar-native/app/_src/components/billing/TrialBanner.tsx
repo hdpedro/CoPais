@@ -20,7 +20,7 @@ import { useI18n } from 'src/i18n';
  */
 export default function TrialBanner({
   daysRemaining,
-  planLabel = 'Premium Jurídico',
+  planLabel = 'Plano Harmonia',
 }: {
   daysRemaining: number;
   planLabel?: string;
