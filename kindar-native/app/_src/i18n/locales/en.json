@@ -2824,7 +2824,8 @@
     "errorCustomLabelRequired": "Enter the type name (e.g. Pajamas).",
     "errorDateInvalid": "Invalid date. Use YYYY-MM-DD.",
     "toastSaved": "Size recorded.",
-    "toastUpdated": "Size updated."
+    "toastUpdated": "Size updated.",
+    "errorUnexpected": "Unexpected error. Please try again."
   },
   "splash": {
     "tagline": "Co-parenting made gentle"
@@ -3401,5 +3402,33 @@
     "emptyTitle": "Empty history",
     "emptyDescription": "When you log an appointment, medicine, or symptom, it appears here in chronological order.",
     "registerFirst": "Log first event"
+  },
+  "childGeneral": {
+    "cpf": "CPF",
+    "rg": "RG",
+    "notesTitle": "Notes",
+    "editSubtitle": "Name, birth date, CPF, RG, allergies and notes"
+  },
+  "childHealth": {
+    "statBlood": "Blood",
+    "allergiesSection": "Allergies ({count})",
+    "vaccinesSection": "Vaccines ({count})",
+    "professionalsSection": "Professionals ({count})",
+    "noActiveMedications": "No active medications.",
+    "noDetails": "No details",
+    "insuranceCardLabel": "Card:",
+    "allergyTypeFood": "Food",
+    "allergyTypeEnvironmental": "Environmental",
+    "allergyTypeInsect": "Insect",
+    "editStatA11y": "Edit {label}"
+  },
+  "childDocs": {
+    "deleteMessage": "\"{name}\" will be permanently removed. Are you sure?",
+    "uploadHint": "Photo, PDF or Word — up to 10MB",
+    "listHint": "Tap to open · Trash icon or long-press to delete"
+  },
+  "childEducation": {
+    "schedule": "Hours",
+    "extraActivities": "Extracurricular activities"
   }
 }

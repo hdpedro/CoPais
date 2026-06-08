@@ -2824,7 +2824,8 @@
     "errorCustomLabelRequired": "Typname angeben (z.B. Pyjama).",
     "errorDateInvalid": "Ungültiges Datum. JJJJ-MM-TT verwenden.",
     "toastSaved": "Größe registriert.",
-    "toastUpdated": "Größe aktualisiert."
+    "toastUpdated": "Größe aktualisiert.",
+    "errorUnexpected": "Unerwarteter Fehler. Bitte versuchen Sie es erneut."
   },
   "splash": {
     "tagline": "Gemeinsam Eltern sein"
@@ -3401,5 +3402,33 @@
     "emptyTitle": "Verlauf leer",
     "emptyDescription": "Wenn du einen Termin, ein Medikament oder ein Symptom erfasst, erscheint es hier in chronologischer Reihenfolge.",
     "registerFirst": "Erstes Ereignis erfassen"
+  },
+  "childGeneral": {
+    "cpf": "CPF",
+    "rg": "RG",
+    "notesTitle": "Notizen",
+    "editSubtitle": "Name, Geburtsdatum, CPF, RG, Allergien und Notizen"
+  },
+  "childHealth": {
+    "statBlood": "Blut",
+    "allergiesSection": "Allergien ({count})",
+    "vaccinesSection": "Impfungen ({count})",
+    "professionalsSection": "Fachärzte ({count})",
+    "noActiveMedications": "Keine aktiven Medikamente.",
+    "noDetails": "Keine Details",
+    "insuranceCardLabel": "Karte:",
+    "allergyTypeFood": "Nahrungsmittel",
+    "allergyTypeEnvironmental": "Umweltbedingt",
+    "allergyTypeInsect": "Insekten",
+    "editStatA11y": "{label} bearbeiten"
+  },
+  "childDocs": {
+    "deleteMessage": "„{name}“ wird dauerhaft entfernt. Bist du sicher?",
+    "uploadHint": "Foto, PDF oder Word — bis zu 10 MB",
+    "listHint": "Zum Öffnen tippen · Papierkorb oder lange drücken zum Löschen"
+  },
+  "childEducation": {
+    "schedule": "Uhrzeiten",
+    "extraActivities": "Außerschulische Aktivitäten"
   }
 }

@@ -2824,7 +2824,8 @@
     "errorCustomLabelRequired": "Indiquez le nom du type (ex : Pyjama).",
     "errorDateInvalid": "Date invalide. Utilisez AAAA-MM-JJ.",
     "toastSaved": "Taille enregistrée.",
-    "toastUpdated": "Taille mise à jour."
+    "toastUpdated": "Taille mise à jour.",
+    "errorUnexpected": "Erreur inattendue. Veuillez réessayer."
   },
   "splash": {
     "tagline": "Coparentalité en douceur"
@@ -3401,5 +3402,33 @@
     "emptyTitle": "Historique vide",
     "emptyDescription": "Lorsque vous enregistrez un rendez-vous, un médicament ou un symptôme, il apparaît ici par ordre chronologique.",
     "registerFirst": "Enregistrer le premier événement"
+  },
+  "childGeneral": {
+    "cpf": "CPF",
+    "rg": "RG",
+    "notesTitle": "Notes",
+    "editSubtitle": "Nom, naissance, CPF, RG, allergies et notes"
+  },
+  "childHealth": {
+    "statBlood": "Sang",
+    "allergiesSection": "Allergies ({count})",
+    "vaccinesSection": "Vaccins ({count})",
+    "professionalsSection": "Professionnels ({count})",
+    "noActiveMedications": "Aucun médicament actif.",
+    "noDetails": "Aucun détail",
+    "insuranceCardLabel": "Carte :",
+    "allergyTypeFood": "Alimentaire",
+    "allergyTypeEnvironmental": "Environnementale",
+    "allergyTypeInsect": "Insecte",
+    "editStatA11y": "Modifier {label}"
+  },
+  "childDocs": {
+    "deleteMessage": "« {name} » sera supprimé définitivement. Êtes-vous sûr ?",
+    "uploadHint": "Photo, PDF ou Word — jusqu'à 10 Mo",
+    "listHint": "Touchez pour ouvrir · Corbeille ou appui long pour supprimer"
+  },
+  "childEducation": {
+    "schedule": "Horaires",
+    "extraActivities": "Activités extrascolaires"
   }
 }

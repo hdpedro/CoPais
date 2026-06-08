@@ -84,12 +84,12 @@ export default function TabEducacao({ education, onEditPress }: Props) {
           ) : null}
         </View>
 
-        <Row icon="location-outline" label="Endereço" value={education.school_address} />
-        <Row icon="call-outline" label="Telefone" value={education.school_phone} />
-        <Row icon="library-outline" label="Série" value={education.grade} />
-        <Row icon="people-outline" label="Turma" value={education.class_name} />
-        <Row icon="person-outline" label="Professor(a)" value={education.teacher_name} />
-        <Row icon="ribbon-outline" label="Coordenador(a)" value={education.coordinator_name} />
+        <Row icon="location-outline" label={t('health.address')} value={education.school_address} />
+        <Row icon="call-outline" label={t('health.phone')} value={education.school_phone} />
+        <Row icon="library-outline" label={t('school.rowGrade')} value={education.grade} />
+        <Row icon="people-outline" label={t('childProfile.className')} value={education.class_name} />
+        <Row icon="person-outline" label={t('childProfile.teacherName')} value={education.teacher_name} />
+        <Row icon="ribbon-outline" label={t('childProfile.coordinatorName')} value={education.coordinator_name} />
       </View>
 
       {hasSchedule ? (
@@ -102,13 +102,13 @@ export default function TabEducacao({ education, onEditPress }: Props) {
           }}
         >
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '700', marginBottom: spacing.sm }}>
-            Horários
+            {t('childEducation.schedule')}
           </Text>
           <View style={{ flexDirection: 'row', justifyContent: 'space-around' }}>
             {education.entry_time ? (
               <View style={{ alignItems: 'center' }}>
                 <Ionicons name="sunny-outline" size={20} color={colors.accent} />
-                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 4 }}>Entrada</Text>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 4 }}>{t('school.entryShort')}</Text>
                 <Text style={{ fontSize: font.sizes.lg, color: colors.text, fontWeight: '700', marginTop: 2 }}>
                   {education.entry_time.slice(0, 5)}
                 </Text>
@@ -117,7 +117,7 @@ export default function TabEducacao({ education, onEditPress }: Props) {
             {education.exit_time ? (
               <View style={{ alignItems: 'center' }}>
                 <Ionicons name="moon-outline" size={20} color={colors.violet} />
-                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 4 }}>Saída</Text>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 4 }}>{t('school.exitShort')}</Text>
                 <Text style={{ fontSize: font.sizes.lg, color: colors.text, fontWeight: '700', marginTop: 2 }}>
                   {education.exit_time.slice(0, 5)}
                 </Text>
@@ -136,7 +136,7 @@ export default function TabEducacao({ education, onEditPress }: Props) {
           }}
         >
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '700', marginBottom: spacing.md }}>
-            Atividades extras
+            {t('childEducation.extraActivities')}
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm }}>
             {extras.map((act) => (

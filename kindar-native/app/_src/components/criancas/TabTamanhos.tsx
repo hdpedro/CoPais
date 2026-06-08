@@ -230,7 +230,7 @@ export default function TabTamanhos({ childId, groupId }: Props) {
     } catch (e) {
       // Exception durante fetch (network down, fingerprint, etc) — não
       // deixa engulir silencioso.
-      r = { success: false, error: e instanceof Error ? e.message : 'erro inesperado' };
+      r = { success: false, error: e instanceof Error ? e.message : t('childSizes.errorUnexpected') };
     }
     setBusy(false);
 

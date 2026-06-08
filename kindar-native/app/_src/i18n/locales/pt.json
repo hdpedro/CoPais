@@ -2824,7 +2824,8 @@
     "errorCustomLabelRequired": "Informe o nome do tipo (ex: Pijama).",
     "errorDateInvalid": "Data inválida. Use AAAA-MM-DD.",
     "toastSaved": "Tamanho registrado.",
-    "toastUpdated": "Tamanho atualizado."
+    "toastUpdated": "Tamanho atualizado.",
+    "errorUnexpected": "Erro inesperado. Tente novamente."
   },
   "splash": {
     "tagline": "Coparentar com leveza"
@@ -3401,5 +3402,33 @@
     "emptyTitle": "Histórico vazio",
     "emptyDescription": "Quando você registrar uma consulta, remédio ou sintoma, ele aparece aqui em ordem cronológica.",
     "registerFirst": "Registrar primeiro evento"
+  },
+  "childGeneral": {
+    "cpf": "CPF",
+    "rg": "RG",
+    "notesTitle": "Anotações",
+    "editSubtitle": "Nome, nascimento, CPF, RG, alergias e anotações"
+  },
+  "childHealth": {
+    "statBlood": "Sangue",
+    "allergiesSection": "Alergias ({count})",
+    "vaccinesSection": "Vacinas ({count})",
+    "professionalsSection": "Profissionais ({count})",
+    "noActiveMedications": "Sem medicamentos ativos.",
+    "noDetails": "Sem detalhes",
+    "insuranceCardLabel": "Carteirinha:",
+    "allergyTypeFood": "Alimentar",
+    "allergyTypeEnvironmental": "Ambiental",
+    "allergyTypeInsect": "Inseto",
+    "editStatA11y": "Editar {label}"
+  },
+  "childDocs": {
+    "deleteMessage": "\"{name}\" será removido permanentemente. Tem certeza?",
+    "uploadHint": "Foto, PDF ou Word — até 10MB",
+    "listHint": "Toque para abrir · Lixeira ou pressione para excluir"
+  },
+  "childEducation": {
+    "schedule": "Horários",
+    "extraActivities": "Atividades extras"
   }
 }

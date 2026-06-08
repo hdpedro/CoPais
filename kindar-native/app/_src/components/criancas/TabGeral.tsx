@@ -4,6 +4,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 import type { Child, MedicalInfo } from '../../services/children';
+import { useI18n } from 'src/i18n';
 import EditChildSheet from './EditChildSheet';
 
 interface Props {
@@ -38,6 +39,7 @@ function Row({ label, value }: { label: string; value: string | null }) {
 }
 
 export default function TabGeral({ child, medicalInfo, groupId, onSaved }: Props) {
+  const t = useI18n((s) => s.t);
   const [editOpen, setEditOpen] = useState(false);
   // children.allergies is a TEXT[] column written by /criancas/nova. PWA shows
   // these as red chips on the Geral tab so a parent who entered "amendoim"
@@ -60,15 +62,15 @@ export default function TabGeral({ child, medicalInfo, groupId, onSaved }: Props
           paddingVertical: spacing.sm,
         }}
       >
-        <Row label="Nome completo" value={child.full_name} />
-        <Row label="Data de nascimento" value={(() => {
+        <Row label={t('children.fullName')} value={child.full_name} />
+        <Row label={t('children.birthDate')} value={(() => {
           const [y, m, d] = child.birth_date.split('-');
           return y && m && d ? `${d}/${m}/${y}` : '—';
         })()} />
-        <Row label="Sexo" value={child.sex === 'M' ? 'Masculino' : child.sex === 'F' ? 'Feminino' : null} />
-        <Row label="CPF" value={child.cpf} />
-        <Row label="RG" value={child.rg} />
-        <Row label="Tipo sanguíneo" value={medicalInfo?.blood_type ?? null} />
+        <Row label={t('children.sex')} value={child.sex === 'M' ? t('onboardingForm.sexMale') : child.sex === 'F' ? t('onboardingForm.sexFemale') : null} />
+        <Row label={t('childGeneral.cpf')} value={child.cpf} />
+        <Row label={t('childGeneral.rg')} value={child.rg} />
+        <Row label={t('health.emergency.bloodType')} value={medicalInfo?.blood_type ?? null} />
       </View>
 
       {inlineAllergies.length > 0 ? (
@@ -82,7 +84,7 @@ export default function TabGeral({ child, medicalInfo, groupId, onSaved }: Props
           }}
         >
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '700' }}>
-            Alergias
+            {t('health.allergies')}
           </Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginTop: spacing.sm }}>
             {inlineAllergies.map((a, i) => (
@@ -116,7 +118,7 @@ export default function TabGeral({ child, medicalInfo, groupId, onSaved }: Props
           }}
         >
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 0.5, fontWeight: '700' }}>
-            Anotações
+            {t('childGeneral.notesTitle')}
           </Text>
           <Text style={{ fontSize: font.sizes.md, color: colors.text, marginTop: spacing.sm, lineHeight: 22 }}>
             {child.notes}
@@ -154,10 +156,10 @@ export default function TabGeral({ child, medicalInfo, groupId, onSaved }: Props
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
-            Editar informações
+            {t('childDetail.editInfo')}
           </Text>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-            Nome, nascimento, CPF, RG, alergias e anotações
+            {t('childGeneral.editSubtitle')}
           </Text>
         </View>
         <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
