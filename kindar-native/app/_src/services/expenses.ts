@@ -7,6 +7,8 @@ import { supabase } from '../lib/supabase';
 import { safeWrite } from './offline';
 import { notifyAction } from './notify';
 import { apiFetch } from '../lib/api-fetch';
+import * as FileSystem from 'expo-file-system/legacy';
+import { uploadSizeError } from '../lib/upload-size';
 
 // Upload receipt image to 'receipts' storage bucket. Returns the storage
 // path (post-migration 062 the bucket is private; reads must use
@@ -14,6 +16,21 @@ import { apiFetch } from '../lib/api-fetch';
 export async function uploadExpenseReceipt(params: {
   uri: string; mimeType: string; groupId: string;
 }): Promise<{ success: true; url: string } | { success: false; error: string }> {
+  // Resolve the real on-disk size BEFORE reading the file into memory.
+  // ImagePicker reports fileSize=0 on Android, so a picker-size check can't be
+  // trusted; a huge receipt would otherwise hit fetch().arrayBuffer() → native
+  // OOM (the app "restarts" on send; nothing in app_errors = native crash).
+  // Mirrors the guard in services/documents.ts (bug Murilo, 2026-06-08).
+  let statSize: number | null = null;
+  try {
+    const info = await FileSystem.getInfoAsync(params.uri);
+    if (info.exists && !info.isDirectory && typeof info.size === 'number') statSize = info.size;
+  } catch {
+    // best-effort: fall back to no stat (a normal receipt photo is a few MB)
+  }
+  const sizeErr = uploadSizeError(0, statSize);
+  if (sizeErr) return { success: false, error: sizeErr };
+
   try {
     const res = await fetch(params.uri);
     const arrayBuffer = await res.arrayBuffer();
