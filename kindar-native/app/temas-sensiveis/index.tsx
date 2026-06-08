@@ -27,18 +27,18 @@ import { useI18n } from 'src/i18n';
 import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
+// Keys MUST match the DB enum `sensitive_topic_type` + the PWA's VALID_TOPICS
+// (services/sensitive.ts SENSITIVE_TOPICS); icons/labels mirror the PWA's
+// SensitiveTopicsClient for paridade. Bug Matheus 2026-06-08.
 // labelKey resolved at render via t() — keep icon/color static.
 const TOPIC_META: Record<string, { labelKey: string; icon: string; color: string }> = {
-  consumo: { labelKey: 'sensitiveTopics.topicSubstance', icon: '🚬', color: '#F59E0B' },
-  bullying: { labelKey: 'sensitiveTopics.topicBullying', icon: '😞', color: '#EF4444' },
-  conflito: { labelKey: 'sensitiveTopics.topicConflict', icon: '⚡', color: '#E8A228' },
-  saude_mental: { labelKey: 'sensitiveTopics.topicMentalHealth', icon: '🧠', color: '#8B5CF6' },
-  sexualidade: { labelKey: 'sensitiveTopics.topicSexuality', icon: '❤️', color: '#EC4899' },
-  morte_luto: { labelKey: 'sensitiveTopics.topicGrief', icon: '🕊️', color: '#6B7280' },
-  divorcio: { labelKey: 'sensitiveTopics.topicDivorce', icon: '💔', color: '#D4735A' },
-  abuso: { labelKey: 'sensitiveTopics.topicAbuse', icon: '🚨', color: '#E53935' },
-  escola: { labelKey: 'sensitiveTopics.topicSchool', icon: '🎒', color: '#3B82F6' },
-  outro: { labelKey: 'sensitiveTopics.topicOther', icon: '📝', color: '#5B9E85' },
+  gender_violence: { labelKey: 'sensitiveTopics.topicGenderViolence', icon: '🛡️', color: '#D4735A' },
+  sexual_violence: { labelKey: 'sensitiveTopics.topicSexualViolence', icon: '⚠️', color: '#E53935' },
+  bullying: { labelKey: 'sensitiveTopics.topicBullying', icon: '🚫', color: '#EF4444' },
+  mental_health: { labelKey: 'sensitiveTopics.topicMentalHealth', icon: '🧠', color: '#8B5CF6' },
+  substance_abuse: { labelKey: 'sensitiveTopics.topicSubstanceAbuse', icon: '💊', color: '#F59E0B' },
+  safety: { labelKey: 'sensitiveTopics.topicSafety', icon: '🔒', color: '#3B82F6' },
+  other: { labelKey: 'sensitiveTopics.topicOther', icon: '📝', color: '#5B9E85' },
 };
 
 export default function TemasSensiveisScreen() {
@@ -50,7 +50,7 @@ export default function TemasSensiveisScreen() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newContent, setNewContent] = useState('');
-  const [newTopic, setNewTopic] = useState<SensitiveTopic>('outro');
+  const [newTopic, setNewTopic] = useState<SensitiveTopic>('other');
   const [newChildId, setNewChildId] = useState<string | null>(null);
   const [newUrgent, setNewUrgent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -151,7 +151,7 @@ export default function TemasSensiveisScreen() {
     if (res.success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setComposerOpen(false);
-      setNewTitle(''); setNewContent(''); setNewTopic('outro'); setNewChildId(null); setNewUrgent(false);
+      setNewTitle(''); setNewContent(''); setNewTopic('other'); setNewChildId(null); setNewUrgent(false);
       await load();
     }
   }
@@ -171,7 +171,7 @@ export default function TemasSensiveisScreen() {
         refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
         ListEmptyComponent={loading ? null : <EmptyState icon="🔒" title={t('empty.temasSensiveis.title')} description={t('empty.temasSensiveis.description')} />}
         renderItem={({ item: n }) => {
-          const topic = TOPIC_META[n.topic] || TOPIC_META.outro;
+          const topic = TOPIC_META[n.topic] || TOPIC_META.other;
           const isAwaitingApproval = !!n.deletion_requested_by;
           const iRequestedDeletion = n.deletion_requested_by === userId;
           const canIApprove = isAwaitingApproval && !iRequestedDeletion;
