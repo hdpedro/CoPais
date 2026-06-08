@@ -82,7 +82,7 @@ function classifyPackage(pkg: PurchasesPackage): PackageView {
     pkg,
     planId,
     title: isJuridico
-      ? 'Premium Jurídico'
+      ? 'Plano Harmonia'
       : isEarlyBird
       ? 'Harmonia — Early Bird'
       : 'Harmonia',
@@ -629,7 +629,7 @@ export default function AssinaturaScreen() {
 }
 
 function tierLabel(tier: BillingStatus['tier']): string {
-  if (tier === 'premium_juridico') return 'Premium Jurídico';
+  if (tier === 'premium_juridico') return 'Plano Harmonia';
   if (tier === 'harmonia') return 'Harmonia';
   return 'Grátis';
 }

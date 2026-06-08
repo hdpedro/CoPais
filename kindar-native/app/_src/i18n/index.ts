@@ -85,8 +85,15 @@ export const useI18n = create<I18nState>((set, get) => ({
   },
 
   t: (key: string, params?: Record<string, string | number>) => {
-    const value = getNestedValue(get().translations, key);
-    if (!value) return key;
+    // Fallback seguro (i18n): chave ausente no locale ativo cai pro PT (source
+    // locale) ANTES de mostrar a chave crua. Só em último caso (ausente até no
+    // PT) devolve a key — e avisa em dev. Evita "namespace.key" vazando pro user.
+    let value = getNestedValue(get().translations, key);
+    if (value === undefined) value = getNestedValue(pt, key);
+    if (value === undefined) {
+      if (__DEV__) console.warn(`[i18n] missing key: ${key}`);
+      return key;
+    }
     if (!params) return value;
     // Bug Aline 2026-05-13 (iOS): a regex original procurava SÓ `{{count}}`
     // (double braces, sintaxe i18next), mas TODAS as locale files JSON têm
