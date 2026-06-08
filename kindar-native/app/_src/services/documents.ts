@@ -10,6 +10,8 @@
 
 import { supabase } from '../lib/supabase';
 import { apiFetch } from '../lib/api-fetch';
+import * as FileSystem from 'expo-file-system/legacy';
+import { uploadSizeError, resolveFileSize } from '../lib/upload-size';
 
 export interface Document {
   id: string;
@@ -86,8 +88,6 @@ const ALLOWED_DOC_TYPES = [
   'application/pdf', 'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ];
-const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-
 function sanitizeName(raw: string): string {
   return raw
     .normalize('NFD')
@@ -109,11 +109,26 @@ export interface UploadDocumentInput {
 }
 
 export async function uploadDocument(input: UploadDocumentInput): Promise<{ success: true } | { success: false; error: string }> {
-  if (input.size > MAX_FILE_SIZE) return { success: false, error: 'Arquivo muito grande. Maximo 10MB.' };
   if (!ALLOWED_DOC_TYPES.includes(input.mimeType)) return { success: false, error: 'Tipo de arquivo nao permitido.' };
 
+  // Resolve the real on-disk size BEFORE reading the file into memory.
+  // ImagePicker reports fileSize=0 on Android, which used to bypass the size
+  // guard and let a huge image hit fetch().arrayBuffer() → native OOM → the app
+  // "restarts" on send (bug Murilo, 2026-06-08; nothing in app_errors = native crash).
+  let statSize: number | null = null;
   try {
-    // Convert URI to ArrayBuffer for Supabase upload in React Native
+    const info = await FileSystem.getInfoAsync(input.uri);
+    if (info.exists && !info.isDirectory && typeof info.size === 'number') statSize = info.size;
+  } catch {
+    // best-effort: fall back to the picker-reported size
+  }
+  const sizeErr = uploadSizeError(input.size, statSize);
+  if (sizeErr) return { success: false, error: sizeErr };
+  const resolvedSize = resolveFileSize(input.size, statSize);
+
+  try {
+    // Convert URI to ArrayBuffer for Supabase upload in React Native.
+    // Safe now that oversized files are rejected above (a document photo is a few MB).
     const res = await fetch(input.uri);
     const arrayBuffer = await res.arrayBuffer();
 
@@ -136,7 +151,7 @@ export async function uploadDocument(input: UploadDocumentInput): Promise<{ succ
         category: input.category,
         name: input.displayName,
         filePath: path,
-        fileSize: input.size,
+        fileSize: resolvedSize,
         mimeType: input.mimeType,
       },
     });
