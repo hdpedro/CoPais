@@ -250,7 +250,17 @@
       "body": "You will withdraw the swap request. The other parent will be notified.",
       "keep": "Keep request",
       "confirm": "Cancel request"
-    }
+    },
+    "retry": "Try again",
+    "a11yOpenWhatsapp": "Open Kindar WhatsApp",
+    "a11yOpenAI": "Open Kindar AI",
+    "a11yOpenNotifications": "Open notifications",
+    "a11ySeeAllActivities": "See all activities",
+    "a11ySeeAllDecisions": "See all decisions",
+    "a11ySeeAllPending": "See all pending reports",
+    "a11yCancelSwap": "Cancel swap request",
+    "a11ySeeAllExpenses": "See all expenses",
+    "a11yOpenHealth": "Open health"
   },
   "calendar": {
     "title": "Calendar",

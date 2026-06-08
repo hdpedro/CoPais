@@ -250,7 +250,17 @@
       "body": "Você vai retirar a solicitação de troca. O outro responsável será avisado.",
       "keep": "Manter pedido",
       "confirm": "Cancelar pedido"
-    }
+    },
+    "retry": "Tentar de novo",
+    "a11yOpenWhatsapp": "Abrir WhatsApp Kindar",
+    "a11yOpenAI": "Abrir Kindar AI",
+    "a11yOpenNotifications": "Abrir notificações",
+    "a11ySeeAllActivities": "Ver todas as atividades",
+    "a11ySeeAllDecisions": "Ver todas as decisões",
+    "a11ySeeAllPending": "Ver todos os relatos pendentes",
+    "a11yCancelSwap": "Cancelar pedido de troca",
+    "a11ySeeAllExpenses": "Ver todas as despesas",
+    "a11yOpenHealth": "Abrir saúde"
   },
   "calendar": {
     "title": "Calendário",

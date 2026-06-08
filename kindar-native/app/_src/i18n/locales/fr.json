@@ -250,7 +250,17 @@
       "body": "Vous retirerez la demande d'échange. L'autre parent sera prévenu.",
       "keep": "Conserver",
       "confirm": "Annuler la demande"
-    }
+    },
+    "retry": "Réessayer",
+    "a11yOpenWhatsapp": "Ouvrir le WhatsApp Kindar",
+    "a11yOpenAI": "Ouvrir Kindar AI",
+    "a11yOpenNotifications": "Ouvrir les notifications",
+    "a11ySeeAllActivities": "Voir toutes les activités",
+    "a11ySeeAllDecisions": "Voir toutes les décisions",
+    "a11ySeeAllPending": "Voir tous les comptes rendus en attente",
+    "a11yCancelSwap": "Annuler la demande d'échange",
+    "a11ySeeAllExpenses": "Voir toutes les dépenses",
+    "a11yOpenHealth": "Ouvrir la santé"
   },
   "calendar": {
     "title": "Calendrier",

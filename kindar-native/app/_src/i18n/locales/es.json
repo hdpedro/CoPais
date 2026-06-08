@@ -250,7 +250,17 @@
       "body": "Retirarás la solicitud de cambio. El otro responsable será avisado.",
       "keep": "Mantener solicitud",
       "confirm": "Cancelar solicitud"
-    }
+    },
+    "retry": "Intentar de nuevo",
+    "a11yOpenWhatsapp": "Abrir WhatsApp de Kindar",
+    "a11yOpenAI": "Abrir Kindar AI",
+    "a11yOpenNotifications": "Abrir notificaciones",
+    "a11ySeeAllActivities": "Ver todas las actividades",
+    "a11ySeeAllDecisions": "Ver todas las decisiones",
+    "a11ySeeAllPending": "Ver todos los reportes pendientes",
+    "a11yCancelSwap": "Cancelar solicitud de cambio",
+    "a11ySeeAllExpenses": "Ver todos los gastos",
+    "a11yOpenHealth": "Abrir salud"
   },
   "calendar": {
     "title": "Calendario",

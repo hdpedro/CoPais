@@ -250,7 +250,17 @@
       "body": "Sie ziehen die Tauschanfrage zurück. Der andere Elternteil wird benachrichtigt.",
       "keep": "Behalten",
       "confirm": "Anfrage abbrechen"
-    }
+    },
+    "retry": "Erneut versuchen",
+    "a11yOpenWhatsapp": "Kindar-WhatsApp öffnen",
+    "a11yOpenAI": "Kindar AI öffnen",
+    "a11yOpenNotifications": "Benachrichtigungen öffnen",
+    "a11ySeeAllActivities": "Alle Aktivitäten ansehen",
+    "a11ySeeAllDecisions": "Alle Entscheidungen ansehen",
+    "a11ySeeAllPending": "Alle ausstehenden Berichte ansehen",
+    "a11yCancelSwap": "Tauschanfrage abbrechen",
+    "a11ySeeAllExpenses": "Alle Ausgaben ansehen",
+    "a11yOpenHealth": "Gesundheit öffnen"
   },
   "calendar": {
     "title": "Kalender",

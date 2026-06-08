@@ -233,10 +233,10 @@ export default function DashboardScreen() {
         <TouchableOpacity
           onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); refresh(); }}
           accessibilityRole="button"
-          accessibilityLabel="Tentar de novo"
+          accessibilityLabel={t('dashboard.retry')}
           style={{ backgroundColor: colors.brand, paddingHorizontal: spacing.xl, paddingVertical: spacing.md, borderRadius: radius.md }}
         >
-          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: '700' }}>Tentar de novo</Text>
+          <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: '700' }}>{t('dashboard.retry')}</Text>
         </TouchableOpacity>
       </View>
     );
@@ -279,7 +279,7 @@ export default function DashboardScreen() {
                 }}
                 hitSlop={6}
                 testID="home-whatsapp"
-                accessibilityLabel="Abrir WhatsApp Kindar"
+                accessibilityLabel={t('dashboard.a11yOpenWhatsapp')}
                 style={{
                   width: 36, height: 36, borderRadius: 18,
                   alignItems: 'center', justifyContent: 'center',
@@ -293,7 +293,7 @@ export default function DashboardScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/ai'); }}
                 hitSlop={6}
                 testID="home-ai"
-                accessibilityLabel="Abrir Kindar AI"
+                accessibilityLabel={t('dashboard.a11yOpenAI')}
                 style={{
                   width: 36, height: 36, borderRadius: 18,
                   backgroundColor: colors.brand,
@@ -310,7 +310,7 @@ export default function DashboardScreen() {
                 style={{ position: 'relative', padding: spacing.sm }}
                 hitSlop={6}
                 testID="home-bell"
-                accessibilityLabel="Abrir notificações"
+                accessibilityLabel={t('dashboard.a11yOpenNotifications')}
               >
                 <Ionicons name="notifications-outline" size={22} color={colors.text} />
                 {(data?.unreadNotifications || 0) > 0 ? (
@@ -549,7 +549,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/atividades')}
                   accessibilityRole="link"
-                  accessibilityLabel="Ver todas as atividades"
+                  accessibilityLabel={t('dashboard.a11ySeeAllActivities')}
                 >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
                 </TouchableOpacity>
@@ -714,7 +714,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/decisoes')}
                   accessibilityRole="link"
-                  accessibilityLabel="Ver todas as decisões"
+                  accessibilityLabel={t('dashboard.a11ySeeAllDecisions')}
                 >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
@@ -952,7 +952,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/atividades/pendentes')}
                   accessibilityRole="link"
-                  accessibilityLabel="Ver todos os relatos pendentes"
+                  accessibilityLabel={t('dashboard.a11ySeeAllPending')}
                 >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
@@ -1148,7 +1148,7 @@ export default function DashboardScreen() {
                       disabled={responding === s.id}
                       onPress={() => handleCancelMySwap(s.id)}
                       accessibilityRole="button"
-                      accessibilityLabel="Cancelar pedido de troca"
+                      accessibilityLabel={t('dashboard.a11yCancelSwap')}
                       style={{
                         marginTop: spacing.sm,
                         paddingVertical: 8, borderRadius: radius.md,
@@ -1182,7 +1182,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/despesas')}
                   accessibilityRole="link"
-                  accessibilityLabel="Ver todas as despesas"
+                  accessibilityLabel={t('dashboard.a11ySeeAllExpenses')}
                 >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
                 </TouchableOpacity>
@@ -1240,7 +1240,7 @@ export default function DashboardScreen() {
                 <TouchableOpacity
                   onPress={() => router.push('/(tabs)/saude')}
                   accessibilityRole="link"
-                  accessibilityLabel="Abrir saúde"
+                  accessibilityLabel={t('dashboard.a11yOpenHealth')}
                 >
                   <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
                 </TouchableOpacity>
