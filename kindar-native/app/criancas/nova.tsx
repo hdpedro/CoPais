@@ -21,9 +21,9 @@ import { colors, spacing, radius, font } from 'src/design-system/tokens';
 // Schema check (CHECK sex IN ('M','F')) lives on `children.sex`. Native must
 // store one of these two literals — values like 'female'/'male'/'other' are
 // rejected by Postgres and the entire add-child flow fails with HTTP 400.
-const SEX_OPTIONS: { value: 'M' | 'F'; label: string; icon: string }[] = [
-  { value: 'F', label: 'Feminino', icon: '👧' },
-  { value: 'M', label: 'Masculino', icon: '👦' },
+const SEX_OPTIONS: { value: 'M' | 'F'; labelKey: string; icon: string }[] = [
+  { value: 'F', labelKey: 'childNew.sexFemale', icon: '👧' },
+  { value: 'M', labelKey: 'childNew.sexMale', icon: '👦' },
 ];
 
 function parseDate(display: string): string | null {
@@ -83,9 +83,9 @@ export default function NovaCriancaScreen() {
 
   async function handleSave() {
     if (!activeGroup) return;
-    if (!fullName.trim()) { setError('Informe o nome da criança'); return; }
+    if (!fullName.trim()) { setError(t('validation.field.childNameRequired')); return; }
     const iso = parseDate(birthDate);
-    if (!iso) { setError('Data de nascimento inválida (DD/MM/AAAA)'); return; }
+    if (!iso) { setError(t('childNew.birthDateInvalidFull')); return; }
 
     setError('');
     setSaving(true);
@@ -126,7 +126,7 @@ export default function NovaCriancaScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Nova criança
+          {t('childNew.title')}
         </Text>
       </View>
 
@@ -139,14 +139,14 @@ export default function NovaCriancaScreen() {
 
         {/* Full name */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
-          Nome completo *
+          {t('children.fullName')} *
         </Text>
         <TextInput
-          accessibilityLabel={fullNameError ?? 'Nome completo'}
+          accessibilityLabel={fullNameError ?? t('children.fullName')}
           value={fullName}
           onChangeText={(v) => { setFullName(v); if (fullNameError) setFullNameError(null); }}
           onBlur={() => setFullNameError(validateFullNameField(fullName))}
-          placeholder="Ex: Maria Silva"
+          placeholder={t('childNew.namePlaceholder')}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="words"
           style={{
@@ -165,14 +165,14 @@ export default function NovaCriancaScreen() {
 
         {/* Birth date */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
-          Data de nascimento *
+          {t('children.birthDate')} *
         </Text>
         <TextInput
-          accessibilityLabel={birthDateError ?? 'Data de nascimento'}
+          accessibilityLabel={birthDateError ?? t('children.birthDate')}
           value={birthDate}
           onChangeText={(v) => { handleBirthDateChange(v); if (birthDateError) setBirthDateError(null); }}
           onBlur={() => setBirthDateError(validateBirthDateField(birthDate))}
-          placeholder="DD/MM/AAAA"
+          placeholder={t('childNew.birthDatePlaceholder')}
           placeholderTextColor={colors.textMuted}
           keyboardType="number-pad"
           maxLength={10}
@@ -192,10 +192,10 @@ export default function NovaCriancaScreen() {
 
         {/* Sex (matches DB CHECK constraint and PWA — M/F) */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>
-          Sexo
+          {t('children.sex')}
         </Text>
         <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: spacing.sm }}>
-          Usado para curvas de crescimento OMS. Opcional.
+          {t('childNew.sexHint')}
         </Text>
         <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg }}>
           {SEX_OPTIONS.map(g => {
@@ -219,7 +219,7 @@ export default function NovaCriancaScreen() {
               >
                 <Text style={{ fontSize: 22 }}>{g.icon}</Text>
                 <Text style={{ fontSize: font.sizes.md, color: colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                  {g.label}
+                  {t(g.labelKey)}
                 </Text>
                 {active ? <Ionicons name="checkmark-circle" size={20} color={colors.brand} /> : null}
               </TouchableOpacity>
@@ -229,15 +229,15 @@ export default function NovaCriancaScreen() {
 
         {/* Allergies */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
-          Alergias
+          {t('childNew.allergiesLabel')}
         </Text>
         <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: spacing.sm }}>
-          Separe por vírgula. Ex: amendoim, leite, dipirona
+          {t('childNew.allergiesHint')}
         </Text>
         <TextInput
           value={allergiesText}
           onChangeText={setAllergiesText}
-          placeholder="Ex: amendoim, leite"
+          placeholder={t('childNew.allergiesPlaceholder')}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="none"
           style={{
@@ -249,12 +249,12 @@ export default function NovaCriancaScreen() {
 
         {/* Notes */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
-          Observações
+          {t('children.notes')}
         </Text>
         <TextInput
           value={notes}
           onChangeText={setNotes}
-          placeholder="Condições médicas, preferências, restrições..."
+          placeholder={t('childNew.notesPlaceholder')}
           placeholderTextColor={colors.textMuted}
           multiline
           style={{
@@ -267,7 +267,7 @@ export default function NovaCriancaScreen() {
 
         {/* Save button */}
         <PrimaryButton
-          label="Adicionar criança"
+          label={t('childNew.submitButton')}
           onPress={handleSave}
           loading={saving}
           disabled={!fullName.trim() || !birthDate}

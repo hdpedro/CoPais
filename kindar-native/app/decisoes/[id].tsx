@@ -22,14 +22,16 @@ import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const CAT_META: Record<string, { icon: string; color: string; label: string }> = {
-  escola: { icon: '🎒', color: '#3B82F6', label: 'Escola' },
-  saude: { icon: '🏥', color: '#EF4444', label: 'Saúde' },
-  atividade: { icon: '⚽', color: '#22C55E', label: 'Atividade' },
-  viagem: { icon: '✈️', color: '#8B5CF6', label: 'Viagem' },
-  financeiro: { icon: '💰', color: '#F59E0B', label: 'Financeiro' },
-  moradia: { icon: '🏠', color: '#5B9E85', label: 'Moradia' },
-  outro: { icon: '📋', color: '#6B7280', label: 'Outro' },
+// Category/stance labels resolved at render via t() (i18n) — `labelKey` → t().
+// Category `value` keys (escola/saude/...) are stable (DB) and stay.
+const CAT_META: Record<string, { icon: string; color: string; labelKey: string }> = {
+  escola: { icon: '🎒', color: '#3B82F6', labelKey: 'decisions.catSchool' },
+  saude: { icon: '🏥', color: '#EF4444', labelKey: 'decisions.catHealth' },
+  atividade: { icon: '⚽', color: '#22C55E', labelKey: 'decisions.catActivity' },
+  viagem: { icon: '✈️', color: '#8B5CF6', labelKey: 'decisions.catTravel' },
+  financeiro: { icon: '💰', color: '#F59E0B', labelKey: 'decisions.catFinancial' },
+  moradia: { icon: '🏠', color: '#5B9E85', labelKey: 'decisions.catHousing' },
+  outro: { icon: '📋', color: '#6B7280', labelKey: 'decisions.catOther' },
 };
 
 /**
@@ -53,9 +55,9 @@ const STATUS_META: Record<string, { color: string; bg: string; border: string }>
  * o que causava o erro "Could not find the 'stance' column" reportado em
  * produção. Botão "Neutro" removido (PWA também não tem).
  */
-const STANCE_META: Record<string, { label: string; color: string; icon: string }> = {
-  pro: { label: 'A favor', color: '#4CAF50', icon: '👍' },
-  contra: { label: 'Contra', color: '#E53935', icon: '👎' },
+const STANCE_META: Record<string, { labelKey: string; color: string; icon: string }> = {
+  pro: { labelKey: 'decisions.inFavorShort', color: '#4CAF50', icon: '👍' },
+  contra: { labelKey: 'decisions.against', color: '#E53935', icon: '👎' },
 };
 
 export default function DecisionDetailScreen() {
@@ -189,7 +191,7 @@ export default function DecisionDetailScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }} numberOfLines={1}>
-          Decisao
+          {t('decisionDetail.headerTitle')}
         </Text>
       </View>
 
@@ -204,7 +206,7 @@ export default function DecisionDetailScreen() {
               <Text style={{ fontSize: 16 }}>{cat.icon}</Text>
             </View>
             <Text style={{ fontSize: font.sizes.xs, color: cat.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>
-              {cat.label}
+              {t(cat.labelKey)}
             </Text>
             {/* Chip de status — paridade PWA. Sempre presente pra transparência
                 de estado (também em aberta, complementando o título). */}
@@ -240,17 +242,17 @@ export default function DecisionDetailScreen() {
             </Text>
           ) : null}
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm }}>
-            {decision.authorName ? `Proposta por ${decision.authorName}` : ''}
-            {decision.deadline ? ` · Prazo ${decision.deadline}` : ''}
+            {decision.authorName ? t('decisionDetail.proposedBy', { name: decision.authorName }) : ''}
+            {decision.deadline ? ` · ${t('decisionDetail.deadlineLabel', { deadline: decision.deadline })}` : ''}
           </Text>
 
           {/* Vote tallies */}
           <View style={{ flexDirection: 'row', gap: spacing.md, marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: 0.5, borderTopColor: colors.borderLight }}>
-            <Tally label="A favor" count={decision.yesCount || 0} color="#4CAF50" />
-            <Tally label="Contra" count={decision.noCount || 0} color="#E53935" />
-            <Tally label="Abster" count={decision.abstainCount || 0} color={colors.textMuted} />
+            <Tally label={t('decisions.inFavorShort')} count={decision.yesCount || 0} color="#4CAF50" />
+            <Tally label={t('decisions.against')} count={decision.noCount || 0} color="#E53935" />
+            <Tally label={t('decisions.abstain')} count={decision.abstainCount || 0} color={colors.textMuted} />
             <View style={{ marginLeft: 'auto', alignItems: 'flex-end' }}>
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>Participacao</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>{t('decisionDetail.participation')}</Text>
               <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
                 {totalVotes}/{decision.totalVoters || 0}
               </Text>
@@ -298,7 +300,7 @@ export default function DecisionDetailScreen() {
               </Text>
               <Text style={{ fontSize: font.sizes.xs, color: statusPalette.color, fontWeight: font.weights.medium }}>
                 {decision.yesCount || 0} × {decision.noCount || 0}
-                {decision.abstainCount ? ` (${decision.abstainCount} absten.)` : ''}
+                {decision.abstainCount ? ` ${t('decisionDetail.abstainCount', { count: decision.abstainCount })}` : ''}
               </Text>
             </View>
           ) : null}
@@ -329,7 +331,7 @@ export default function DecisionDetailScreen() {
                 }
               />
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.medium }}>
-                Seu voto:
+                {t('decisionDetail.yourVoteLabel')}
               </Text>
               <Text style={{
                 fontSize: font.sizes.sm,
@@ -338,9 +340,9 @@ export default function DecisionDetailScreen() {
                   : decision.myVote === 'discordo' ? '#E53935'
                   : colors.textSecondary,
               }}>
-                {decision.myVote === 'concordo' ? 'A favor'
-                  : decision.myVote === 'discordo' ? 'Contra'
-                  : 'Abster'}
+                {decision.myVote === 'concordo' ? t('decisions.inFavorShort')
+                  : decision.myVote === 'discordo' ? t('decisions.against')
+                  : t('decisions.abstain')}
               </Text>
             </View>
           ) : null}
@@ -348,29 +350,29 @@ export default function DecisionDetailScreen() {
           {/* Vote buttons */}
           {isOpen ? (
             <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
-              <VoteBtn active={decision.myVote === 'discordo'} label="Contra" color="#E53935" onPress={() => handleVote('discordo')} disabled={voting} />
-              <VoteBtn active={decision.myVote === 'abstencao'} label="Abster" color={colors.textSecondary} onPress={() => handleVote('abstencao')} disabled={voting} />
-              <VoteBtn active={decision.myVote === 'concordo'} label="A favor" color="#4CAF50" onPress={() => handleVote('concordo')} disabled={voting} />
+              <VoteBtn active={decision.myVote === 'discordo'} label={t('decisions.against')} color="#E53935" onPress={() => handleVote('discordo')} disabled={voting} />
+              <VoteBtn active={decision.myVote === 'abstencao'} label={t('decisions.abstain')} color={colors.textSecondary} onPress={() => handleVote('abstencao')} disabled={voting} />
+              <VoteBtn active={decision.myVote === 'concordo'} label={t('decisions.inFavorShort')} color="#4CAF50" onPress={() => handleVote('concordo')} disabled={voting} />
             </View>
           ) : null}
 
           {isMine && isOpen && totalVotes > 0 ? (
             <TouchableOpacity onPress={handleClose} style={{ marginTop: spacing.md, alignSelf: 'center', paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight }}>
-              <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>Encerrar e calcular resultado</Text>
+              <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm }}>{t('decisionDetail.closeAndCalc')}</Text>
             </TouchableOpacity>
           ) : null}
         </View>
 
         {/* Arguments thread */}
         <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
-          Argumentos ({args.length})
+          {t('decisionDetail.argumentsCount', { count: args.length })}
         </Text>
 
         {args.length === 0 ? (
           <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderRadius: radius.lg, alignItems: 'center' }}>
             <Text style={{ fontSize: 36, marginBottom: spacing.sm }}>💬</Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center' }}>
-              Ninguem argumentou ainda. Seja o primeiro a dar seu ponto de vista.
+              {t('decisionDetail.noArgumentsYet')}
             </Text>
           </View>
         ) : (
@@ -383,7 +385,7 @@ export default function DecisionDetailScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 4 }}>
                   <Text style={{ fontSize: 14 }}>{stance.icon}</Text>
                   <Text style={{ fontSize: font.sizes.xs, color: stance.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>
-                    {stance.label}
+                    {t(stance.labelKey)}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
                     · {a.authorName}
@@ -416,7 +418,7 @@ export default function DecisionDetailScreen() {
                 >
                   <Text style={{ fontSize: 12 }}>{m.icon}</Text>
                   <Text style={{ fontSize: font.sizes.xs, color: active ? m.color : colors.textSecondary, fontWeight: active ? font.weights.semibold : font.weights.medium }}>
-                    {m.label}
+                    {t(m.labelKey)}
                   </Text>
                 </TouchableOpacity>
               );
@@ -426,7 +428,7 @@ export default function DecisionDetailScreen() {
             <TextInput
               value={newArg}
               onChangeText={setNewArg}
-              placeholder="Seu argumento..."
+              placeholder={t('decisions.argPlaceholder')}
               placeholderTextColor={colors.textMuted}
               multiline
               style={{

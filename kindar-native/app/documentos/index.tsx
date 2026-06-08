@@ -94,12 +94,12 @@ export default function DocumentosScreen() {
     for (const d of filtered) {
       const key = d.child_id ?? 'group';
       const childName =
-        children.find((c) => c.id === d.child_id)?.full_name?.split(' ')[0] ?? 'Família';
+        children.find((c) => c.id === d.child_id)?.full_name?.split(' ')[0] ?? t('documents.family');
       if (!map[key]) map[key] = { childName, items: [] };
       map[key].items.push(d);
     }
     return Object.entries(map);
-  }, [filtered, children]);
+  }, [filtered, children, t]);
 
   async function handleOpen(doc: Document) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -110,10 +110,10 @@ export default function DocumentosScreen() {
   }
 
   function handleDelete(doc: Document) {
-    Alert.alert('Excluir documento', `"${doc.name}" será removido. Tem certeza?`, [
-      { text: 'Cancelar', style: 'cancel' },
+    Alert.alert(t('documents.deleteTitle'), t('documents.deleteMessage', { name: doc.name }), [
+      { text: t('common.cancel'), style: 'cancel' },
       {
-        text: 'Excluir',
+        text: t('common.delete'),
         style: 'destructive',
         onPress: async () => {
           const res = await deleteDocument(doc.id);
@@ -169,7 +169,7 @@ export default function DocumentosScreen() {
           <TextInput
             value={search}
             onChangeText={setSearch}
-            placeholder="Buscar por nome…"
+            placeholder={t('documents.searchPlaceholder')}
             placeholderTextColor={colors.textMuted}
             style={{
               flex: 1,
@@ -182,7 +182,7 @@ export default function DocumentosScreen() {
             <TouchableOpacity
               onPress={() => setSearch('')}
               accessibilityRole="button"
-              accessibilityLabel="Limpar busca"
+              accessibilityLabel={t('documents.clearSearch')}
             >
               <Ionicons name="close-circle" size={16} color={colors.textMuted} />
             </TouchableOpacity>
@@ -197,7 +197,7 @@ export default function DocumentosScreen() {
             contentContainerStyle={{ gap: spacing.sm }}
           >
             <Chip
-              label="Todas as crianças"
+              label={t('documents.allChildren')}
               active={activeChild === 'all'}
               onPress={() => setActiveChild('all')}
             />
@@ -219,7 +219,7 @@ export default function DocumentosScreen() {
           contentContainerStyle={{ gap: spacing.sm }}
         >
           <Chip
-            label="Todas categorias"
+            label={t('documents.allCategories')}
             active={activeCategory === 'all'}
             onPress={() => setActiveCategory('all')}
           />
@@ -290,8 +290,8 @@ export default function DocumentosScreen() {
                     onLongPress={() => handleDelete(doc)}
                     activeOpacity={0.7}
                     accessibilityRole="button"
-                    accessibilityLabel={`Abrir documento ${doc.name}`}
-                    accessibilityHint="Toque para abrir, pressione para excluir"
+                    accessibilityLabel={t('documents.openDocAria', { name: doc.name })}
+                    accessibilityHint={t('documents.openDocHint')}
                     style={{
                       backgroundColor: colors.bgElevated,
                       borderRadius: radius.lg,
@@ -341,7 +341,7 @@ export default function DocumentosScreen() {
                       }}
                       hitSlop={10}
                       accessibilityRole="button"
-                      accessibilityLabel={`Excluir ${doc.name}`}
+                      accessibilityLabel={t('documents.deleteDocAria', { name: doc.name })}
                       style={{ padding: 6, marginRight: -4 }}
                     >
                       <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
@@ -361,7 +361,7 @@ export default function DocumentosScreen() {
               marginTop: spacing.md,
             }}
           >
-            Toque para abrir · Lixeira ou pressione para excluir
+            {t('documents.listHint')}
           </Text>
         </ScrollView>
       )}

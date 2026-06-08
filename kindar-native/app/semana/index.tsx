@@ -255,7 +255,7 @@ export default function SemanaScreen() {
         const raw = p.display_name
           || getDisplayName(p.full_name, true)
           || (p.email ? p.email.split('@')[0].split('.')[0] : '')
-          || 'Parceiro';
+          || t('weeklyReview.partnerFallback');
         const name = raw.charAt(0).toUpperCase() + raw.slice(1);
         return {
           userId: m.user_id,
@@ -287,7 +287,7 @@ export default function SemanaScreen() {
           custodyByDay[key] = {
             responsibleId: span.responsibleUserId,
             color: member?.color || colors.textMuted,
-            responsibleName: member?.name || 'Responsável',
+            responsibleName: member?.name || t('weeklyReview.responsibleFallback'),
             custodyType: span.custodyType,
           };
         }
@@ -347,7 +347,7 @@ export default function SemanaScreen() {
         const appt: Appt = {
           id: a.id,
           date: dateKey,
-          title: a.title || 'Consulta',
+          title: a.title || t('weeklyReview.appointmentFallback'),
           childId: a.child_id || null,
           childName: getDisplayName(a.children?.full_name),
         };
@@ -358,13 +358,13 @@ export default function SemanaScreen() {
       // Active illnesses / meds (no date — apply globally to today/future)
       const activeIllnesses: Illness[] = (illnessRows || []).map((i: any) => ({
         id: i.id,
-        title: i.title || 'Acompanhamento',
+        title: i.title || t('weeklyReview.illnessFallback'),
         childId: i.child_id || null,
         childName: getDisplayName(i.children?.full_name),
       }));
       const activeMeds: Med[] = (medRows || []).map((m: any) => ({
         id: m.id,
-        name: m.name || 'Medicação',
+        name: m.name || t('weeklyReview.medicationFallback'),
         childId: m.child_id || null,
         childName: getDisplayName(m.children?.full_name),
       }));
@@ -394,7 +394,7 @@ export default function SemanaScreen() {
     } finally {
       setLoading(false);
     }
-  }, [activeGroup]);
+  }, [activeGroup, t]);
 
   useFocusEffect(useCallback(() => { setLoading(true); load(); }, [load]));
 
@@ -573,7 +573,7 @@ export default function SemanaScreen() {
                     <View key={m.userId} style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                       <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: m.color }} />
                       <Text style={{ fontSize: 10, color: colors.textSecondary }}>
-                        {m.name}{m.userId === userId ? ' (você)' : ''}
+                        {m.name}{m.userId === userId ? ` ${t('weeklyReview.youSuffix')}` : ''}
                       </Text>
                     </View>
                   ))}
@@ -589,7 +589,7 @@ export default function SemanaScreen() {
                 <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm }}>
                   {selectedDay ? (
                     <FilterChip
-                      label="Semana inteira"
+                      label={t('weeklyReview.allWeek')}
                       icon="calendar-outline"
                       selected={false}
                       onPress={() => {
@@ -601,7 +601,7 @@ export default function SemanaScreen() {
                   {data.children.length > 1 ? (
                     <>
                       <FilterChip
-                        label="Todas crianças"
+                        label={t('weeklyReview.allChildren')}
                         selected={childFilter === null}
                         onPress={() => {
                           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -635,7 +635,7 @@ export default function SemanaScreen() {
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
                   <Ionicons name="medkit-outline" size={16} color={colors.error} />
                   <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text }}>
-                    Saúde — atenção esta semana
+                    {t('weeklyReview.healthAttention')}
                   </Text>
                 </View>
                 {data.activeIllnesses.filter(i => showChild(i.childId)).map(i => (
@@ -656,7 +656,7 @@ export default function SemanaScreen() {
                   }}>
                     <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: colors.info }} />
                     <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.text }}>
-                      Medicação ativa: {m.name}{m.childName ? ` — ${m.childName}` : ''}
+                      {t('weeklyReview.activeMedication', { name: m.name })}{m.childName ? ` — ${m.childName}` : ''}
                     </Text>
                   </View>
                 ))}
@@ -694,7 +694,7 @@ export default function SemanaScreen() {
                         fontWeight: font.weights.bold,
                         color: day.isToday ? colors.brand : colors.text,
                       }}>
-                        {day.isToday ? 'Hoje · ' : ''}{formatLongDate(day.dateKey)}
+                        {day.isToday ? `${t('checkin.today')} · ` : ''}{formatLongDate(day.dateKey)}
                       </Text>
                       {day.dateKey === todayStr ? (
                         <View style={{
@@ -702,7 +702,7 @@ export default function SemanaScreen() {
                           borderRadius: radius.full, backgroundColor: colors.brandGlow,
                         }}>
                           <Text style={{ fontSize: 9, fontWeight: font.weights.bold, color: colors.brand, letterSpacing: 0.5 }}>
-                            HOJE
+                            {t('weeklyReview.todayBadge')}
                           </Text>
                         </View>
                       ) : null}
@@ -719,7 +719,7 @@ export default function SemanaScreen() {
                         <View style={{ width: 4, height: 24, borderRadius: 2, backgroundColor: custody.color }} />
                         <Ionicons name="people-outline" size={14} color={custody.color} />
                         <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
-                          Com {custody.responsibleId === userId ? 'você' : custody.responsibleName}
+                          {t('weeklyReview.withPerson', { name: custody.responsibleId === userId ? t('weeklyReview.you') : custody.responsibleName })}
                           {custody.custodyType && custody.custodyType !== 'regular' ? ` · ${custody.custodyType}` : ''}
                         </Text>
                       </View>
@@ -727,7 +727,7 @@ export default function SemanaScreen() {
 
                     {/* Atividades das crianças */}
                     {acts.length > 0 ? (
-                      <SectionTitle icon="🎨" label="Atividades" />
+                      <SectionTitle icon="🎨" label={t('weeklyReview.sectionActivities')} />
                     ) : null}
                     {acts.map(a => (
                       <DigestRow
@@ -742,7 +742,7 @@ export default function SemanaScreen() {
 
                     {/* Eventos sociais */}
                     {evs.length > 0 ? (
-                      <SectionTitle icon="🎯" label="Eventos" />
+                      <SectionTitle icon="🎯" label={t('weeklyReview.sectionEvents')} />
                     ) : null}
                     {evs.map(e => (
                       <DigestRow
@@ -757,7 +757,7 @@ export default function SemanaScreen() {
 
                     {/* Consultas médicas */}
                     {ap.length > 0 ? (
-                      <SectionTitle icon="🩺" label="Consultas" />
+                      <SectionTitle icon="🩺" label={t('weeklyReview.sectionAppointments')} />
                     ) : null}
                     {ap.map(a => (
                       <DigestRow
@@ -775,7 +775,7 @@ export default function SemanaScreen() {
                         fontSize: font.sizes.xs, color: colors.textMuted,
                         fontStyle: 'italic', paddingVertical: spacing.xs,
                       }}>
-                        Sem registros
+                        {t('weeklyReview.noRecords')}
                       </Text>
                     ) : null}
                   </View>

@@ -13,19 +13,21 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { supabase } from 'src/lib/supabase';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName } from 'src/lib/constants';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const EVENT_CONFIG: Record<string, { icon: string; color: string; label: string }> = {
-  illness: { icon: '🤒', color: '#E53935', label: 'Doença / Sintoma' },
-  medication: { icon: '💊', color: '#3b82f6', label: 'Medicamento' },
-  appointment: { icon: '🏥', color: '#5B9E85', label: 'Consulta' },
-  observation: { icon: '📝', color: '#E8A228', label: 'Observação' },
+// `labelKey` resolvido com t() no render (não chamar t() no escopo de módulo).
+const EVENT_CONFIG: Record<string, { icon: string; color: string; labelKey: string }> = {
+  illness: { icon: '🤒', color: '#E53935', labelKey: 'healthDetail.eventIllness' },
+  medication: { icon: '💊', color: '#3b82f6', labelKey: 'health.export.medication' },
+  appointment: { icon: '🏥', color: '#5B9E85', labelKey: 'health.export.appointmentCol' },
+  observation: { icon: '📝', color: '#E8A228', labelKey: 'healthRegister.type_observation' },
 };
 
-const SEVERITY_CONFIG: Record<string, { icon: string; label: string; color: string }> = {
-  leve: { icon: '🟢', label: 'Leve', color: '#4CAF50' },
-  moderado: { icon: '🟡', label: 'Moderado', color: '#E8A228' },
-  grave: { icon: '🔴', label: 'Grave', color: '#E53935' },
+const SEVERITY_CONFIG: Record<string, { icon: string; labelKey: string; color: string }> = {
+  leve: { icon: '🟢', labelKey: 'health.severityMild', color: '#4CAF50' },
+  moderado: { icon: '🟡', labelKey: 'health.illnessForm.severity_moderado', color: '#E8A228' },
+  grave: { icon: '🔴', labelKey: 'health.severityGrave', color: '#E53935' },
 };
 
 interface DetailRow {
@@ -37,6 +39,7 @@ interface DetailRow {
 
 export default function DetalheScreen() {
   const insets = useSafeAreaInsets();
+  const t = useI18n(s => s.t);
   const { id, type } = useLocalSearchParams<{ id: string; type: string }>();
   useAuth();
   const [data, setData] = useState<Record<string, unknown> | null>(null);
@@ -87,47 +90,47 @@ export default function DetalheScreen() {
   const rows: DetailRow[] = [];
   if (data) {
     const childName = getDisplayName((data.children as { full_name?: string } | null)?.full_name);
-    if (childName) rows.push({ label: 'Crianca', value: childName, icon: '👶' });
+    if (childName) rows.push({ label: t('health.child'), value: childName, icon: '👶' });
 
     if (type === 'illness') {
       if (data.severity) {
         const sev = SEVERITY_CONFIG[data.severity as string];
-        if (sev) rows.push({ label: 'Gravidade', value: sev.label, icon: sev.icon, color: sev.color });
+        if (sev) rows.push({ label: t('health.severity'), value: t(sev.labelKey), icon: sev.icon, color: sev.color });
       }
       if (data.symptoms && (data.symptoms as string[]).length > 0) {
-        rows.push({ label: 'Sintomas', value: (data.symptoms as string[]).join(', '), icon: '🩺' });
+        rows.push({ label: t('health.illnessForm.symptoms'), value: (data.symptoms as string[]).join(', '), icon: '🩺' });
       }
-      if (data.diagnosis) rows.push({ label: 'Diagnóstico', value: data.diagnosis as string, icon: '📋' });
-      rows.push({ label: 'Status', value: data.status === 'active' ? 'Ativo' : 'Resolvido', icon: data.status === 'active' ? '🔴' : '✅' });
-      if (data.start_date) rows.push({ label: 'Início', value: formatDate(data.start_date as string), icon: '📅' });
-      if (data.end_date) rows.push({ label: 'Fim', value: formatDate(data.end_date as string), icon: '📅' });
+      if (data.diagnosis) rows.push({ label: t('health.diagnosis'), value: data.diagnosis as string, icon: '📋' });
+      rows.push({ label: t('health.export.statusCol'), value: data.status === 'active' ? t('health.export.statusActive') : t('health.export.statusResolved'), icon: data.status === 'active' ? '🔴' : '✅' });
+      if (data.start_date) rows.push({ label: t('health.export.startCol'), value: formatDate(data.start_date as string), icon: '📅' });
+      if (data.end_date) rows.push({ label: t('health.export.endCol'), value: formatDate(data.end_date as string), icon: '📅' });
       if (data.hospital_visit) {
-        rows.push({ label: 'Visita hospitalar', value: data.hospital_name as string || 'Sim', icon: '🏥' });
+        rows.push({ label: t('healthDetail.hospitalVisit'), value: data.hospital_name as string || t('common.yes'), icon: '🏥' });
       }
     }
 
     if (type === 'medication') {
-      if (data.dosage) rows.push({ label: 'Dosagem', value: data.dosage as string, icon: '💊' });
-      if (data.frequency) rows.push({ label: 'Frequencia', value: data.frequency as string, icon: '⏰' });
-      if (data.reason) rows.push({ label: 'Motivo', value: data.reason as string, icon: '📋' });
-      rows.push({ label: 'Status', value: data.status === 'active' ? 'Ativo' : 'Finalizado', icon: data.status === 'active' ? '🟢' : '⬜' });
-      if (data.start_date) rows.push({ label: 'Inicio', value: formatDate(data.start_date as string), icon: '📅' });
-      if (data.end_date) rows.push({ label: 'Fim previsto', value: formatDate(data.end_date as string), icon: '📅' });
+      if (data.dosage) rows.push({ label: t('health.dosage'), value: data.dosage as string, icon: '💊' });
+      if (data.frequency) rows.push({ label: t('health.frequency'), value: data.frequency as string, icon: '⏰' });
+      if (data.reason) rows.push({ label: t('health.reason'), value: data.reason as string, icon: '📋' });
+      rows.push({ label: t('health.export.statusCol'), value: data.status === 'active' ? t('health.export.statusActive') : t('preSummary.finished'), icon: data.status === 'active' ? '🟢' : '⬜' });
+      if (data.start_date) rows.push({ label: t('health.export.startCol'), value: formatDate(data.start_date as string), icon: '📅' });
+      if (data.end_date) rows.push({ label: t('healthDetail.expectedEnd'), value: formatDate(data.end_date as string), icon: '📅' });
     }
 
     if (type === 'appointment') {
       const prof = data.medical_professionals as { name?: string; specialty?: string } | null;
-      if (prof?.name) rows.push({ label: 'Profissional', value: prof.name, icon: '👨‍⚕️' });
-      if (prof?.specialty) rows.push({ label: 'Especialidade', value: prof.specialty, icon: '🏥' });
-      if (data.location) rows.push({ label: 'Local', value: data.location as string, icon: '📍' });
-      if (data.appointment_date) rows.push({ label: 'Data', value: formatDateTime(data.appointment_date as string), icon: '📅' });
-      rows.push({ label: 'Status', value: data.status === 'scheduled' ? 'Agendada' : data.status === 'completed' ? 'Realizada' : (data.status as string), icon: '📋' });
-      if (data.summary) rows.push({ label: 'Resumo', value: data.summary as string, icon: '📝' });
+      if (prof?.name) rows.push({ label: t('health.appointmentForm.professional'), value: prof.name, icon: '👨‍⚕️' });
+      if (prof?.specialty) rows.push({ label: t('health.specialty'), value: prof.specialty, icon: '🏥' });
+      if (data.location) rows.push({ label: t('health.location'), value: data.location as string, icon: '📍' });
+      if (data.appointment_date) rows.push({ label: t('health.whatsapp.date'), value: formatDateTime(data.appointment_date as string), icon: '📅' });
+      rows.push({ label: t('health.export.statusCol'), value: data.status === 'scheduled' ? t('health.export.statusScheduled') : data.status === 'completed' ? t('health.export.statusCompleted') : (data.status as string), icon: '📋' });
+      if (data.summary) rows.push({ label: t('health.export.summaryCol'), value: data.summary as string, icon: '📝' });
     }
 
-    if (data.notes) rows.push({ label: 'Observacoes', value: data.notes as string, icon: '📝' });
-    if (authorName) rows.push({ label: 'Registrado por', value: authorName, icon: '👤' });
-    if (data.created_at) rows.push({ label: 'Registrado em', value: formatDateTime(data.created_at as string), icon: '🕐' });
+    if (data.notes) rows.push({ label: t('health.notes'), value: data.notes as string, icon: '📝' });
+    if (authorName) rows.push({ label: t('healthDetail.registeredBy'), value: authorName, icon: '👤' });
+    if (data.created_at) rows.push({ label: t('healthDetail.registeredAt'), value: formatDateTime(data.created_at as string), icon: '🕐' });
   }
 
   return (
@@ -139,11 +142,11 @@ export default function DetalheScreen() {
         borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
         flexDirection: 'row', alignItems: 'center', gap: spacing.md,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text, flex: 1 }}>
-          {cfg.label}
+          {t(cfg.labelKey)}
         </Text>
       </View>
 
@@ -153,7 +156,7 @@ export default function DetalheScreen() {
         </View>
       ) : !data ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: colors.textMuted }}>Registro não encontrado</Text>
+          <Text style={{ color: colors.textMuted }}>{t('health.vaccineDetail.notFoundTitle')}</Text>
         </View>
       ) : (
         <ScrollView
@@ -178,7 +181,7 @@ export default function DetalheScreen() {
                   {(data.title || data.name || '') as string}
                 </Text>
                 <Text style={{ fontSize: font.sizes.sm, color: cfg.color, fontWeight: font.weights.medium, marginTop: 2 }}>
-                  {cfg.label}
+                  {t(cfg.labelKey)}
                 </Text>
               </View>
             </View>
@@ -220,7 +223,7 @@ export default function DetalheScreen() {
           }}>
             <Ionicons name="camera-outline" size={24} color={colors.textDim} />
             <Text style={{ fontSize: font.sizes.sm, color: colors.textDim, marginTop: spacing.sm, textAlign: 'center' }}>
-              Em breve: escaneie receitas com a camera
+              {t('healthDetail.ocrComingSoon')}
             </Text>
           </View>
         </ScrollView>

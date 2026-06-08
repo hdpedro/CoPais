@@ -50,7 +50,7 @@ export default function WhatsAppLinkSection() {
 
   async function handleRequest() {
     setError('');
-    if (!phoneInput.trim()) { setError('Informe o numero com DDI (ex: +55)'); return; }
+    if (!phoneInput.trim()) { setError(t('whatsappLink.errPhoneRequired')); return; }
     setLoading('request');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const res = await requestWhatsAppLink(phoneInput.trim());
@@ -61,7 +61,7 @@ export default function WhatsAppLinkSection() {
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setSuccess('Codigo enviado via WhatsApp');
+    setSuccess(t('whatsappLink.codeSentShort'));
     setPhone(res.phone);
     setState('pending');
     setPhoneInput('');
@@ -70,7 +70,7 @@ export default function WhatsAppLinkSection() {
 
   async function handleVerify() {
     setError('');
-    if (otpInput.trim().length !== 6) { setError('Codigo tem 6 digitos'); return; }
+    if (otpInput.trim().length !== 6) { setError(t('whatsappLink.errOtpLength')); return; }
     setLoading('verify');
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     const res = await verifyWhatsAppOTP(otpInput.trim());
@@ -81,7 +81,7 @@ export default function WhatsAppLinkSection() {
       return;
     }
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    setSuccess('WhatsApp vinculado com sucesso');
+    setSuccess(t('whatsappLink.linkedSuccess'));
     setState('linked');
     setOtpInput('');
     setTimeout(() => setSuccess(''), 3000);
@@ -89,12 +89,12 @@ export default function WhatsAppLinkSection() {
 
   function handleUnlink() {
     Alert.alert(
-      'Desvincular WhatsApp',
-      `Remover vinculo com ${phone}? Voce podera religar depois.`,
+      t('whatsapp.unlink'),
+      t('whatsappLink.unlinkConfirm', { phone }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Desvincular',
+          text: t('whatsappLink.unlinkShort'),
           style: 'destructive',
           onPress: async () => {
             setLoading('unlink');
@@ -146,7 +146,7 @@ export default function WhatsAppLinkSection() {
 
       {state === 'linked' ? (
         <View>
-          <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: 2 }}>Numero vinculado</Text>
+          <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: 2 }}>{t('whatsappLink.linkedNumber')}</Text>
           <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.md }}>
             {phone}
           </Text>
@@ -161,16 +161,16 @@ export default function WhatsAppLinkSection() {
           >
             {loading === 'unlink'
               ? <ActivityIndicator size="small" color={colors.error} />
-              : <Text style={{ fontSize: font.sizes.sm, color: colors.error, fontWeight: font.weights.medium }}>Desvincular</Text>}
+              : <Text style={{ fontSize: font.sizes.sm, color: colors.error, fontWeight: font.weights.medium }}>{t('whatsappLink.unlinkShort')}</Text>}
           </TouchableOpacity>
         </View>
       ) : state === 'pending' ? (
         <View>
-          <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: 2 }}>Codigo enviado para</Text>
+          <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: 2 }}>{t('whatsapp.codeSentTo')}</Text>
           <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.md }}>
             {phone}
           </Text>
-          <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 6 }}>Codigo de 6 digitos</Text>
+          <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 6 }}>{t('whatsappLink.otpHint')}</Text>
           <TextInput
             value={otpInput}
             onChangeText={v => setOtpInput(v.replace(/\D/g, '').slice(0, 6))}
@@ -194,7 +194,7 @@ export default function WhatsAppLinkSection() {
               }}
             >
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, fontWeight: font.weights.medium }}>
-                Trocar numero
+                {t('whatsappLink.changeNumber')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
@@ -208,14 +208,14 @@ export default function WhatsAppLinkSection() {
             >
               {loading === 'verify'
                 ? <ActivityIndicator size="small" color="#fff" />
-                : <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>Verificar</Text>}
+                : <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>{t('whatsapp.verify')}</Text>}
             </TouchableOpacity>
           </View>
         </View>
       ) : (
         <View>
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>
-            Vincule o WhatsApp para receber lembretes e interagir com o Kindar por mensagem.
+            {t('whatsappLink.intro')}
           </Text>
           <TextInput
             value={phoneInput}
@@ -243,7 +243,7 @@ export default function WhatsAppLinkSection() {
               <>
                 <Ionicons name="logo-whatsapp" size={16} color="#fff" />
                 <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>
-                  Enviar codigo
+                  {t('whatsappLink.sendCode')}
                 </Text>
               </>
             )}

@@ -19,6 +19,7 @@ import {
 } from '../../lib/calendar-balance';
 import BalanceHistorySheet from './BalanceHistorySheet';
 import ProposeBalanceAdjustmentSheet from './ProposeBalanceAdjustmentSheet';
+import { useI18n } from '../../i18n';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 
 interface Props {
@@ -33,6 +34,7 @@ interface Props {
 }
 
 export default function SwapBalanceCard({ operations, custodyEvents, members, currentUserId, groupId, onChanged }: Props) {
+  const t = useI18n(s => s.t);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [proposeOpen, setProposeOpen] = useState(false);
 
@@ -75,12 +77,16 @@ export default function SwapBalanceCard({ operations, custodyEvents, members, cu
 
   const statusColor = pending > 0 ? '#E8A228' : isBalanced ? '#16a34a' : '#E53935';
   const statusLabel = pending > 0
-    ? `${pending} proposta(s) aguardando`
+    ? (pending === 1 ? t('swapBalance.pendingOne') : t('swapBalance.pendingMany', { count: pending }))
     : isBalanced
-      ? 'Sem pendencias'
+      ? t('swapBalance.balanced')
       : (() => {
           const debtor = entries.find(e => e.balance < 0);
-          return debtor ? `${debtor.name} deve ${Math.abs(debtor.balance)} dia(s)` : 'Saldo ajustado';
+          if (!debtor) return t('swapBalance.adjusted');
+          const days = Math.abs(debtor.balance);
+          return days === 1
+            ? t('swapBalance.owesOne', { name: debtor.name })
+            : t('swapBalance.owesMany', { name: debtor.name, count: days });
         })();
   const statusIcon = pending > 0 ? '🟡' : isBalanced ? '🟢' : '🔴';
 
@@ -95,7 +101,7 @@ export default function SwapBalanceCard({ operations, custodyEvents, members, cu
           <Text style={{ fontSize: 16 }}>{statusIcon}</Text>
           <View style={{ flex: 1 }}>
             <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
-              Saldo de dias
+              {t('swapBalance.title')}
             </Text>
             <Text style={{ fontSize: font.sizes.xs, color: statusColor, fontWeight: font.weights.medium }}>
               {statusLabel}
@@ -115,7 +121,7 @@ export default function SwapBalanceCard({ operations, custodyEvents, members, cu
                     <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>{e.name}</Text>
                   </View>
                   <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: isPositive ? '#16a34a' : '#E53935' }}>
-                    {isPositive ? '+' : ''}{e.balance} {Math.abs(e.balance) === 1 ? 'dia' : 'dias'}
+                    {isPositive ? '+' : ''}{e.balance} {Math.abs(e.balance) === 1 ? t('swapBalance.dayOne') : t('swapBalance.dayMany')}
                   </Text>
                 </View>
               );
@@ -127,28 +133,28 @@ export default function SwapBalanceCard({ operations, custodyEvents, members, cu
           <TouchableOpacity
             onPress={() => setHistoryOpen(true)}
             testID="balance-history-open"
-            accessibilityLabel="Ver historico de operacoes de saldo"
+            accessibilityLabel={t('swapBalance.historyA11y')}
             style={{
               flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md,
               borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center',
             }}
           >
             <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.medium }}>
-              Ver historico
+              {t('swapBalance.history')}
             </Text>
           </TouchableOpacity>
           {target ? (
             <TouchableOpacity
               onPress={() => setProposeOpen(true)}
               testID="balance-propose-open"
-              accessibilityLabel="Propor ajuste de saldo"
+              accessibilityLabel={t('swapBalance.proposeA11y')}
               style={{
                 flex: 1, paddingVertical: spacing.sm, borderRadius: radius.md,
                 backgroundColor: colors.brand, alignItems: 'center',
               }}
             >
               <Text style={{ fontSize: font.sizes.xs, color: '#fff', fontWeight: font.weights.semibold }}>
-                Propor ajuste
+                {t('swapBalance.propose')}
               </Text>
             </TouchableOpacity>
           ) : null}

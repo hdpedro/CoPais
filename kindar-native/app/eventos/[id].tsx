@@ -78,20 +78,20 @@ export default function EventDetailScreen() {
     if (event.event_time && !event.all_day) {
       lines.push(`⏰ ${formatTime(event.event_time)}`);
     } else if (event.all_day) {
-      lines.push('⏰ Dia inteiro');
+      lines.push(`⏰ ${t('eventDetail.allDay')}`);
     }
     if (event.location) lines.push(`📍 ${event.location}`);
     if (event.childName) lines.push(`👶 ${event.childName}`);
     if (event.assignedName) {
       lines.push('');
-      lines.push(`Responsável: ${event.assignedName}`);
+      lines.push(t('eventDetail.responsibleLabel', { name: event.assignedName }));
     }
     if (event.description) {
       lines.push('');
       lines.push(event.description);
     }
     lines.push('');
-    lines.push('— compartilhado pelo Kindar');
+    lines.push(t('eventDetail.sharedFooter'));
     try {
       await Share.share({ title: event.title, message: lines.join('\n') });
     } catch {
@@ -103,12 +103,12 @@ export default function EventDetailScreen() {
     if (!event) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
     Alert.alert(
-      `Excluir "${event.title}"?`,
-      'Esta ação remove o evento permanentemente. Não pode ser desfeita.',
+      t('eventDetail.deleteTitle', { title: event.title }),
+      t('eventDetail.deleteMessage'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Excluir', style: 'destructive',
+          text: t('common.delete'), style: 'destructive',
           onPress: async () => {
             Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
             const r = await deleteEvent(event.id);
@@ -140,7 +140,7 @@ export default function EventDetailScreen() {
         <Header insets={insets} onBack={() => router.back()} />
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
           <Text style={{ fontSize: font.sizes.md, color: colors.textMuted, textAlign: 'center' }}>
-            Evento não encontrado.
+            {t('eventDetail.notFound')}
           </Text>
         </View>
       </View>
@@ -172,10 +172,10 @@ export default function EventDetailScreen() {
                 {event.title}
               </Text>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                Evento
+                {t('calendarTab.event')}
                 {event.childName ? ` · ${event.childName}` : ''}
                 {event.event_time && !event.all_day ? ` · ${formatTime(event.event_time)}` : ''}
-                {event.all_day ? ' · Dia inteiro' : ''}
+                {event.all_day ? ` · ${t('eventDetail.allDay')}` : ''}
               </Text>
             </View>
           </View>
@@ -183,7 +183,7 @@ export default function EventDetailScreen() {
           <View style={{ gap: 10 }}>
             <DetailRow icon="calendar-outline" label={formatDate(event.event_date)} />
             {event.end_date && event.end_date !== event.event_date ? (
-              <DetailRow icon="calendar-outline" label={`Termina em ${formatDate(event.end_date)}`} />
+              <DetailRow icon="calendar-outline" label={t('eventDetail.endsOn', { date: formatDate(event.end_date) })} />
             ) : null}
             {event.event_time && !event.all_day ? (
               <DetailRow icon="time-outline" label={formatTime(event.event_time)} />
@@ -192,14 +192,14 @@ export default function EventDetailScreen() {
             {event.assignedName ? (
               <DetailRow
                 icon="person-outline"
-                label={`Responsável: ${event.assignedName}`}
-                action={{ label: 'Alterar', onPress: handleEdit }}
+                label={t('eventDetail.responsibleLabel', { name: event.assignedName })}
+                action={{ label: t('eventDetail.change'), onPress: handleEdit }}
               />
             ) : (
               <DetailRow
                 icon="person-outline"
-                label="Sem responsável"
-                action={{ label: 'Atribuir', onPress: handleEdit }}
+                label={t('eventDetail.noResponsible')}
+                action={{ label: t('eventDetail.assign'), onPress: handleEdit }}
               />
             )}
             {event.childName ? <DetailRow icon="people-outline" label={event.childName} /> : null}
@@ -211,9 +211,9 @@ export default function EventDetailScreen() {
             marginTop: spacing.lg, paddingTop: spacing.md,
             borderTopWidth: 0.5, borderTopColor: colors.borderLight,
           }}>
-            <ActionButton icon="share-outline" label="Compartilhar" onPress={handleShare} />
-            <ActionButton icon="create-outline" label="Editar" onPress={handleEdit} />
-            <ActionButton icon="trash-outline" label="Excluir" onPress={handleDelete} destructive />
+            <ActionButton icon="share-outline" label={t('invite.share')} onPress={handleShare} />
+            <ActionButton icon="create-outline" label={t('common.edit')} onPress={handleEdit} />
+            <ActionButton icon="trash-outline" label={t('common.delete')} onPress={handleDelete} destructive />
           </View>
         </View>
 
@@ -228,7 +228,7 @@ export default function EventDetailScreen() {
               color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1,
               marginBottom: 8,
             }}>
-              Descrição
+              {t('decisions.description')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.text, lineHeight: 20 }}>
               {event.description}
@@ -241,6 +241,7 @@ export default function EventDetailScreen() {
 }
 
 function Header({ insets, onBack }: { insets: { top: number }; onBack: () => void }) {
+  const t = useI18n(s => s.t);
   return (
     <View style={{
       paddingTop: insets.top + 10, paddingHorizontal: spacing.lg, paddingBottom: spacing.md,
@@ -253,12 +254,12 @@ function Header({ insets, onBack }: { insets: { top: number }; onBack: () => voi
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <Ionicons name="chevron-back" size={28} color={colors.brand} />
           <Text style={{ fontSize: font.sizes.md, color: colors.brand, marginLeft: -2, fontWeight: font.weights.medium }}>
-            Voltar
+            {t('common.back')}
           </Text>
         </View>
       </TouchableOpacity>
       <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
-        Detalhe
+        {t('eventDetail.headerTitle')}
       </Text>
       <View style={{ width: 60 }} />
     </View>

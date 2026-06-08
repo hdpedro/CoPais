@@ -15,26 +15,31 @@ import { useAuth } from 'src/store/auth';
 import { createInvitation, listInvitations, cancelInvitation, type Invitation } from 'src/services/invitations';
 import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 
-const ROLES: { value: string; label: string; desc: string; icon: string }[] = [
-  { value: 'parent', label: 'Responsável', desc: 'Pai, mãe, padrasto/madrasta', icon: '👨‍👩‍👧' },
-  { value: 'grandparent', label: 'Avô(ó)', desc: 'Participa da rotina', icon: '👴' },
-  { value: 'caregiver', label: 'Cuidador(a)', desc: 'Babá, au-pair', icon: '🧑‍🍼' },
-  { value: 'mediator', label: 'Mediador(a)', desc: 'Acesso apenas leitura', icon: '⚖️' },
-  { value: 'lawyer', label: 'Advogado(a)', desc: 'Acesso apenas leitura', icon: '👩‍⚖️' },
+// Role/status labels resolved at render via t() (i18n) — kept out of these
+// module-scope arrays so they localize per active locale. Role `value` strings
+// are stable (DB/API) and stay; only the display labels/descriptions are keys.
+const ROLES: { value: string; labelKey: string; descKey: string; icon: string }[] = [
+  { value: 'parent', labelKey: 'inviteSend.roleParent', descKey: 'inviteSend.roleParentDesc', icon: '👨‍👩‍👧' },
+  { value: 'grandparent', labelKey: 'inviteSend.roleGrandparent', descKey: 'inviteSend.roleGrandparentDesc', icon: '👴' },
+  { value: 'caregiver', labelKey: 'inviteSend.roleCaregiver', descKey: 'inviteSend.roleCaregiverDesc', icon: '🧑‍🍼' },
+  { value: 'mediator', labelKey: 'inviteSend.roleMediator', descKey: 'inviteSend.roleReadonlyDesc', icon: '⚖️' },
+  { value: 'lawyer', labelKey: 'inviteSend.roleLawyer', descKey: 'inviteSend.roleReadonlyDesc', icon: '👩‍⚖️' },
 ];
 
-const STATUS_META: Record<string, { label: string; color: string }> = {
-  pending: { label: 'Pendente', color: '#E8A228' },
-  accepted: { label: 'Aceito', color: '#4CAF50' },
-  expired: { label: 'Expirado', color: '#8A8A8A' },
-  cancelled: { label: 'Cancelado', color: '#E53935' },
+const STATUS_META: Record<string, { labelKey: string; color: string }> = {
+  pending: { labelKey: 'invite.pending', color: '#E8A228' },
+  accepted: { labelKey: 'invite.accepted', color: '#4CAF50' },
+  expired: { labelKey: 'invite.expired', color: '#8A8A8A' },
+  cancelled: { labelKey: 'inviteSend.statusCancelled', color: '#E53935' },
 };
 
 export default function EnviarConviteScreen() {
+  const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { activeGroup, userId, profile } = useAuth();
   const [email, setEmail] = useState('');
@@ -52,7 +57,7 @@ export default function EnviarConviteScreen() {
 
   async function handleSend() {
     if (!activeGroup || !userId) return;
-    if (!email.trim() || !email.includes('@')) { setError('Informe um email valido'); return; }
+    if (!email.trim() || !email.includes('@')) { setError(t('inviteSend.errEmailInvalid')); return; }
     setError('');
     setSending(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -70,18 +75,18 @@ export default function EnviarConviteScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(res.error || 'Erro ao enviar convite');
+      setError(res.error || t('inviteSend.errSendFailed'));
     }
   }
 
   async function handleShare(token: string) {
     const link = `${WEB_URL}/convite/${token}`;
-    const firstName = profile?.full_name?.split(' ')[0] || 'Kindar';
-    const groupName = activeGroup?.groupName || 'o grupo';
+    const firstName = profile?.full_name?.split(' ')[0] || t('common.appName');
+    const groupName = activeGroup?.groupName || t('inviteSend.groupFallback');
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await Share.share({
-        message: `Oi! ${firstName} te convidou para participar de ${groupName} no Kindar. Abra este link para aceitar: ${link}`,
+        message: t('inviteSend.shareMessage', { firstName, groupName, link }),
         url: link,
       });
     } catch {
@@ -91,10 +96,10 @@ export default function EnviarConviteScreen() {
 
   async function handleCancel(inv: Invitation) {
     if (!activeGroup) return;
-    Alert.alert('Cancelar convite', `Cancelar convite para ${inv.email}?`, [
-      { text: 'Não', style: 'cancel' },
+    Alert.alert(t('inviteSend.cancelTitle'), t('inviteSend.cancelConfirm', { email: inv.email }), [
+      { text: t('common.no'), style: 'cancel' },
       {
-        text: 'Cancelar convite',
+        text: t('inviteSend.cancelTitle'),
         style: 'destructive',
         onPress: async () => {
           Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -118,12 +123,12 @@ export default function EnviarConviteScreen() {
           onPress={() => router.back()}
           hitSlop={12}
           accessibilityRole="button"
-          accessibilityLabel="Voltar"
+          accessibilityLabel={t('common.back')}
         >
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Convidar membro
+          {t('family.inviteMember')}
         </Text>
       </View>
 
@@ -133,31 +138,31 @@ export default function EnviarConviteScreen() {
           <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, ...shadows.md, marginBottom: spacing.lg, borderWidth: 2, borderColor: colors.brand }}>
             <Text style={{ fontSize: 32, textAlign: 'center', marginBottom: spacing.sm }}>🎉</Text>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, textAlign: 'center', marginBottom: spacing.xs }}>
-              Convite criado!
+              {t('onboardingForm.inviteLinkReady')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }}>
-              Compartilhe o link abaixo por WhatsApp, email ou copie pra colar onde preferir.
+              {t('inviteSend.shareHelp')}
             </Text>
             <TouchableOpacity
               onPress={() => handleShare(successToken)}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Compartilhar link de convite"
+              accessibilityLabel={t('inviteSend.shareLinkA11y')}
               style={{ backgroundColor: colors.brand, borderRadius: radius.md, paddingVertical: spacing.md, alignItems: 'center', flexDirection: 'row', justifyContent: 'center', gap: spacing.sm }}
             >
               <Ionicons name="share-outline" size={20} color="#fff" />
               <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                Compartilhar link
+                {t('onboardingForm.shareInviteLink')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={() => setSuccessToken(null)}
               accessibilityRole="button"
-              accessibilityLabel="Enviar outro convite"
+              accessibilityLabel={t('invite.sendAnother')}
               style={{ alignItems: 'center', marginTop: spacing.md }}
             >
               <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>
-                Enviar outro convite
+                {t('invite.sendAnother')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -170,10 +175,10 @@ export default function EnviarConviteScreen() {
             ) : null}
 
             {/* Email */}
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>Email *</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>{t('inviteSend.emailRequired')}</Text>
             <TextInput
               value={email} onChangeText={setEmail}
-              placeholder="email@exemplo.com"
+              placeholder={t('inviteSend.emailPlaceholder')}
               placeholderTextColor={colors.textMuted}
               keyboardType="email-address" autoCapitalize="none" autoComplete="email"
               style={{
@@ -184,7 +189,7 @@ export default function EnviarConviteScreen() {
             />
 
             {/* Role picker */}
-            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Papel</Text>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('invite.roleLabel')}</Text>
             <View style={{ gap: spacing.sm, marginBottom: spacing.lg }}>
               {ROLES.map(r => {
                 const active = role === r.value;
@@ -195,8 +200,8 @@ export default function EnviarConviteScreen() {
                     activeOpacity={0.85}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: active }}
-                    accessibilityLabel={r.label}
-                    accessibilityHint={r.desc}
+                    accessibilityLabel={t(r.labelKey)}
+                    accessibilityHint={t(r.descKey)}
                     style={{
                       backgroundColor: active ? `${colors.brand}10` : colors.bgElevated,
                       borderRadius: radius.md,
@@ -208,10 +213,10 @@ export default function EnviarConviteScreen() {
                     <Text style={{ fontSize: 22 }}>{r.icon}</Text>
                     <View style={{ flex: 1 }}>
                       <Text style={{ fontSize: font.sizes.md, color: colors.text, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                        {r.label}
+                        {t(r.labelKey)}
                       </Text>
                       <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 1 }}>
-                        {r.desc}
+                        {t(r.descKey)}
                       </Text>
                     </View>
                     {active ? <Ionicons name="checkmark-circle" size={22} color={colors.brand} /> : null}
@@ -223,7 +228,7 @@ export default function EnviarConviteScreen() {
             {/* Submit */}
             <View style={{ marginBottom: spacing['2xl'] }}>
               <PrimaryButton
-                label="Enviar convite"
+                label={t('inviteSend.submit')}
                 onPress={handleSend}
                 loading={sending}
                 disabled={!email.trim()}
@@ -241,7 +246,7 @@ export default function EnviarConviteScreen() {
             {pending.length > 0 ? (
               <>
                 <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
-                  Pendentes ({pending.length})
+                  {t('inviteSend.pendingSection', { count: pending.length })}
                 </Text>
                 {pending.map(inv => (
                   <InviteRow key={inv.id} inv={inv} onShare={() => handleShare(inv.token)} onCancel={() => handleCancel(inv)} />
@@ -251,7 +256,7 @@ export default function EnviarConviteScreen() {
             {past.length > 0 ? (
               <>
                 <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.lg, marginBottom: spacing.sm }}>
-                  Histórico
+                  {t('inviteSend.history')}
                 </Text>
                 {past.map(inv => (
                   <InviteRow key={inv.id} inv={inv} readonly />
@@ -266,7 +271,9 @@ export default function EnviarConviteScreen() {
 }
 
 function InviteRow({ inv, onShare, onCancel, readonly }: { inv: Invitation; onShare?: () => void; onCancel?: () => void; readonly?: boolean }) {
+  const t = useI18n(s => s.t);
   const status = STATUS_META[inv.status] || STATUS_META.pending;
+  const roleLabel = ROLES.find((r) => r.value === inv.role)?.labelKey;
   return (
     <View style={{
       backgroundColor: colors.bgElevated, borderRadius: radius.lg,
@@ -279,11 +286,14 @@ function InviteRow({ inv, onShare, onCancel, readonly }: { inv: Invitation; onSh
             {inv.email}
           </Text>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-            {(ROLES.find((r) => r.value === inv.role)?.label || inv.role)} · convidado em {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
+            {t('inviteSend.invitedOn', {
+              role: roleLabel ? t(roleLabel) : inv.role,
+              date: inv.created_at?.slice(0, 10).split('-').reverse().join('/') ?? '',
+            })}
           </Text>
         </View>
         <View style={{ backgroundColor: `${status.color}15`, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 }}>
-          <Text style={{ fontSize: font.sizes.xs, color: status.color, fontWeight: font.weights.medium }}>{status.label}</Text>
+          <Text style={{ fontSize: font.sizes.xs, color: status.color, fontWeight: font.weights.medium }}>{t(status.labelKey)}</Text>
         </View>
       </View>
       {!readonly && inv.status === 'pending' ? (
@@ -291,18 +301,18 @@ function InviteRow({ inv, onShare, onCancel, readonly }: { inv: Invitation; onSh
           <TouchableOpacity
             onPress={onShare}
             accessibilityRole="button"
-            accessibilityLabel={`Compartilhar convite para ${inv.email}`}
+            accessibilityLabel={t('inviteSend.shareInviteToA11y', { email: inv.email })}
             style={{ flex: 1, paddingVertical: 8, borderRadius: radius.sm, backgroundColor: colors.brand, alignItems: 'center' }}
           >
-            <Text style={{ color: '#fff', fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>Compartilhar</Text>
+            <Text style={{ color: '#fff', fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>{t('invite.share')}</Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={onCancel}
             accessibilityRole="button"
-            accessibilityLabel={`Cancelar convite para ${inv.email}`}
+            accessibilityLabel={t('inviteSend.cancelInviteToA11y', { email: inv.email })}
             style={{ paddingVertical: 8, paddingHorizontal: spacing.md, borderRadius: radius.sm, borderWidth: 1, borderColor: colors.borderLight }}
           >
-            <Text style={{ color: colors.textSecondary, fontSize: font.sizes.xs, fontWeight: font.weights.medium }}>Cancelar</Text>
+            <Text style={{ color: colors.textSecondary, fontSize: font.sizes.xs, fontWeight: font.weights.medium }}>{t('common.cancel')}</Text>
           </TouchableOpacity>
         </View>
       ) : null}

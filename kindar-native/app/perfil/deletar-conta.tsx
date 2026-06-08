@@ -30,15 +30,15 @@ import { colors, spacing, radius, font } from 'src/design-system/tokens';
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 const CONFIRM_WORD = 'DELETAR';
 
-const WHAT_GETS_DELETED = [
-  'Seu perfil e dados pessoais',
-  'Todas as crianças cadastradas por você',
-  'Eventos, calendário e escala de guarda',
-  'Despesas, comprovantes e histórico financeiro',
-  'Mensagens e anexos do chat',
-  'Documentos enviados',
-  'Registros de saúde (consultas, vacinas, medicamentos)',
-  'Decisões, acordos e notas',
+const WHAT_GETS_DELETED_KEYS = [
+  'deleteAccount.item1',
+  'deleteAccount.item2',
+  'deleteAccount.item3',
+  'deleteAccount.item4',
+  'deleteAccount.item5',
+  'deleteAccount.item6',
+  'deleteAccount.item7',
+  'deleteAccount.item8',
 ];
 
 export default function DeletarContaScreen() {
@@ -55,12 +55,12 @@ export default function DeletarContaScreen() {
     if (!canSubmit) return;
 
     Alert.alert(
-      'Tem certeza absoluta?',
-      'Essa ação é irreversível. Todos os seus dados serão apagados permanentemente.',
+      t('deleteAccount.confirmAlertTitle'),
+      t('deleteAccount.confirmAlertMessage'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Sim, deletar conta',
+          text: t('deleteAccount.confirmAlertConfirm'),
           style: 'destructive',
           onPress: confirmDelete,
         },
@@ -92,16 +92,16 @@ export default function DeletarContaScreen() {
 
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        throw new Error(data?.error || `Erro ${res.status}`);
+        throw new Error(data?.error || t('profile.deleteAccount.errorHttp', { status: res.status }));
       }
 
       // Sucesso: limpa sessao local e vai pro login
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       await useAuth.getState().signOut();
       Alert.alert(
-        'Conta deletada',
-        'Sua conta e todos os dados associados foram removidos. Obrigado por ter usado o Kindar.',
-        [{ text: 'OK', onPress: () => router.replace('/auth/login') }]
+        t('deleteAccount.successTitle'),
+        t('deleteAccount.successMessage'),
+        [{ text: t('deleteAccount.successOk'), onPress: () => router.replace('/auth/login') }]
       );
     } catch (err: unknown) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -129,12 +129,12 @@ export default function DeletarContaScreen() {
           hitSlop={8}
           disabled={submitting}
           accessibilityRole="button"
-          accessibilityLabel="Voltar"
+          accessibilityLabel={t('common.back')}
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-          Deletar conta
+          {t('deleteAccount.headerTitle')}
         </Text>
       </View>
 
@@ -155,14 +155,13 @@ export default function DeletarContaScreen() {
             fontSize: font.sizes.xl, fontWeight: font.weights.bold,
             color: colors.text, textAlign: 'center', marginBottom: spacing.sm,
           }}>
-            Esta ação é permanente
+            {t('deleteAccount.headline')}
           </Text>
           <Text style={{
             fontSize: font.sizes.sm, color: colors.textSecondary,
             textAlign: 'center', lineHeight: 20,
           }}>
-            Depois de confirmada, não é possível reverter. Considere exportar seus dados antes
-            pelo e-mail suporte@kindar.com.br.
+            {t('deleteAccount.exportHint')}
           </Text>
         </View>
 
@@ -176,13 +175,13 @@ export default function DeletarContaScreen() {
             color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1,
             marginBottom: spacing.md,
           }}>
-            O que será apagado
+            {t('deleteAccount.whatWillBeDeleted')}
           </Text>
-          {WHAT_GETS_DELETED.map((item, i) => (
-            <View key={i} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.xs }}>
+          {WHAT_GETS_DELETED_KEYS.map((key) => (
+            <View key={key} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.xs }}>
               <Ionicons name="close-circle" size={16} color={colors.error} style={{ marginTop: 2 }} />
               <Text style={{ fontSize: font.sizes.sm, color: colors.text, flex: 1, lineHeight: 20 }}>
-                {item}
+                {t(key)}
               </Text>
             </View>
           ))}
@@ -199,12 +198,10 @@ export default function DeletarContaScreen() {
               <Ionicons name="information-circle-outline" size={18} color="#3B82F6" style={{ marginTop: 1 }} />
               <View style={{ flex: 1 }}>
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text, marginBottom: 4 }}>
-                  Assinaturas Apple
+                  {t('deleteAccount.appleSubTitle')}
                 </Text>
                 <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, lineHeight: 18 }}>
-                  Se você tem uma assinatura ativa via App Store, ela NÃO é cancelada automaticamente
-                  com a deleção da conta. Cancele manualmente em Ajustes &gt; Apple ID &gt; Assinaturas
-                  &gt; Kindar.
+                  {t('deleteAccount.appleSubBody')}
                 </Text>
               </View>
             </View>
@@ -213,12 +210,12 @@ export default function DeletarContaScreen() {
 
         {/* Typed confirmation */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: colors.text, marginBottom: spacing.sm }}>
-          Digite DELETAR para confirmar
+          {t('deleteAccount.typeToConfirm', { word: CONFIRM_WORD })}
         </Text>
         <TextInput
           value={confirmText}
           onChangeText={setConfirmText}
-          placeholder="DELETAR"
+          placeholder={CONFIRM_WORD}
           placeholderTextColor={colors.textMuted}
           autoCapitalize="characters"
           autoCorrect={false}
@@ -239,7 +236,7 @@ export default function DeletarContaScreen() {
           disabled={submitting}
           accessibilityRole="checkbox"
           accessibilityState={{ checked: acknowledged }}
-          accessibilityLabel="Entendo que esta ação é irreversível e apagará permanentemente todos os meus dados no Kindar"
+          accessibilityLabel={t('deleteAccount.acknowledge')}
           style={{ flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm, marginBottom: spacing.xl }}
         >
           <View style={{
@@ -252,13 +249,13 @@ export default function DeletarContaScreen() {
             {acknowledged ? <Ionicons name="checkmark" size={12} color="#fff" /> : null}
           </View>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, flex: 1, lineHeight: 18 }}>
-            Entendo que esta ação é irreversível e apagará permanentemente todos os meus dados no Kindar.
+            {t('deleteAccount.acknowledge')}
           </Text>
         </TouchableOpacity>
 
         {/* Delete button */}
         <PrimaryButton
-          label="Deletar minha conta permanentemente"
+          label={t('profile.deleteAccount.deletePermanent')}
           onPress={handleDelete}
           loading={submitting}
           disabled={!(confirmText === CONFIRM_WORD && acknowledged)}
@@ -271,11 +268,11 @@ export default function DeletarContaScreen() {
           onPress={() => router.back()}
           disabled={submitting}
           accessibilityRole="button"
-          accessibilityLabel="Cancelar e voltar"
+          accessibilityLabel={t('deleteAccount.cancelAndBack')}
           style={{ alignItems: 'center', paddingVertical: spacing.lg, marginTop: spacing.sm }}
         >
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-            Cancelar e voltar
+            {t('deleteAccount.cancelAndBack')}
           </Text>
         </TouchableOpacity>
       </ScrollView>

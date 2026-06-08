@@ -143,12 +143,12 @@ export default function EmergenciaScreen() {
     const child = children.find(c => c.id === selectedChildId);
     if (!child || !activeGroup) return;
     Alert.alert(
-      'Regenerar token?',
-      'O link atual deixara de funcionar. Compartilhe o novo link com quem precisar.',
+      t('emergency.regenerateTokenTitle'),
+      t('emergency.regenerateTokenBody'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('health.emergency.cancel'), style: 'cancel' },
         {
-          text: 'Regenerar',
+          text: t('emergency.regenerateTokenConfirm'),
           style: 'destructive',
           onPress: async () => {
             setRotating(true);
@@ -182,7 +182,7 @@ export default function EmergenciaScreen() {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     try {
       await Share.share({
-        message: `Ficha de emergência de ${child.full_name}: ${url}\n\nNão precisa de login. Expira após uso ou em 24h.`,
+        message: t('emergency.shareMessage', { name: child.full_name, url }),
         url,
       });
     } catch {
@@ -196,11 +196,11 @@ export default function EmergenciaScreen() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
       <View style={{ paddingTop: insets.top, paddingHorizontal: spacing.lg, paddingBottom: spacing.md, flexDirection: 'row', alignItems: 'center', gap: spacing.md, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Ficha de emergência
+          {t('health.emergency.cardTitle')}
         </Text>
       </View>
 
@@ -220,7 +220,7 @@ export default function EmergenciaScreen() {
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
           <Text style={{ fontSize: 44, marginBottom: spacing.md }}>🚨</Text>
           <Text style={{ fontSize: font.sizes.md, color: colors.textSecondary, textAlign: 'center' }}>
-            Adicione uma criança para criar a ficha de emergência
+            {t('health.emergency.addChildPrompt')}
           </Text>
         </View>
       ) : (
@@ -233,40 +233,40 @@ export default function EmergenciaScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.sm }}>
               <Text style={{ fontSize: 20 }}>🚨</Text>
               <Text style={{ color: '#fff', fontSize: font.sizes.xs, fontWeight: font.weights.bold, textTransform: 'uppercase', letterSpacing: 1 }}>
-                Dados criticos
+                {t('emergency.criticalData')}
               </Text>
             </View>
             <Text style={{ color: '#fff', fontSize: font.sizes['2xl'], fontWeight: font.weights.bold }}>
               {child.full_name}
             </Text>
             <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: font.sizes.sm, marginTop: 2 }}>
-              {getAge(child.birth_date)} anos · Nascimento {child.birth_date.split('-').reverse().join('/')}
+              {t('emergency.heroAgeLine', { age: getAge(child.birth_date), date: child.birth_date.split('-').reverse().join('/') })}
             </Text>
           </View>
 
           {/* Blood type */}
           <InfoCard
             icon="🩸"
-            label="Tipo sanguineo"
-            value={summary.bloodType || 'Não informado'}
+            label={t('health.emergency.bloodType')}
+            value={summary.bloodType || t('health.export.notInformed')}
             highlight={!summary.bloodType}
           />
 
           {/* Allergies */}
           <InfoCard
             icon="⚠️"
-            label={`Alergias (${summary.allergies.length})`}
+            label={t('emergency.allergiesLabel', { count: summary.allergies.length })}
             onPress={() => router.push('/saude/alergias')}
           >
             {summary.allergies.length === 0 ? (
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>Nenhuma registrada</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>{t('health.emergency.allergiesNone')}</Text>
             ) : (
               summary.allergies.map(a => (
                 <View key={a.id} style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, paddingVertical: 4 }}>
                   <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: a.severity === 'severe' ? colors.error : a.severity === 'moderate' ? colors.warning : colors.textMuted }} />
                   <Text style={{ fontSize: font.sizes.sm, color: colors.text, flex: 1 }}>{a.name}</Text>
                   {a.severity === 'severe' ? (
-                    <Text style={{ fontSize: font.sizes.xs, color: colors.error, fontWeight: font.weights.semibold }}>GRAVE</Text>
+                    <Text style={{ fontSize: font.sizes.xs, color: colors.error, fontWeight: font.weights.semibold }}>{t('dashboard.severe')}</Text>
                   ) : null}
                 </View>
               ))
@@ -276,11 +276,11 @@ export default function EmergenciaScreen() {
           {/* Medications */}
           <InfoCard
             icon="💊"
-            label={`Medicamentos ativos (${summary.medications.length})`}
+            label={t('emergency.medicationsLabel', { count: summary.medications.length })}
             onPress={() => router.push('/saude/medicamentos')}
           >
             {summary.medications.length === 0 ? (
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>Nenhum em uso</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>{t('healthExport.noMedicationsInUse')}</Text>
             ) : (
               summary.medications.map(m => (
                 <Text key={m.id} style={{ fontSize: font.sizes.sm, color: colors.text, paddingVertical: 2 }}>
@@ -291,7 +291,7 @@ export default function EmergenciaScreen() {
           </InfoCard>
 
           {/* Pediatrician */}
-          <InfoCard icon="👨‍⚕️" label="Pediatra">
+          <InfoCard icon="👨‍⚕️" label={t('health.emergency.pediatrician')}>
             {summary.pediatricianName ? (
               <>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>{summary.pediatricianName}</Text>
@@ -300,17 +300,17 @@ export default function EmergenciaScreen() {
                 ) : null}
               </>
             ) : (
-              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>Não informado</Text>
+              <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>{t('health.export.notInformed')}</Text>
             )}
           </InfoCard>
 
           {/* Insurance */}
-          <InfoCard icon="🏥" label="Plano de saúde">
+          <InfoCard icon="🏥" label={t('childProfile.healthInsurance')}>
             <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>
-              {summary.insurance || 'Não informado'}
+              {summary.insurance || t('health.export.notInformed')}
             </Text>
             {summary.sus ? (
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>SUS: {summary.sus}</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>{t('emergency.susLine', { number: summary.sus })}</Text>
             ) : null}
           </InfoCard>
 
@@ -320,7 +320,7 @@ export default function EmergenciaScreen() {
               onPress={handleShare}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Compartilhar ficha"
+              accessibilityLabel={t('emergency.shareCard')}
               style={{
                 backgroundColor: colors.brand, borderRadius: radius.md,
                 paddingVertical: spacing.md, flexDirection: 'row',
@@ -329,7 +329,7 @@ export default function EmergenciaScreen() {
             >
               <Ionicons name="share-outline" size={20} color="#fff" />
               <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-                Compartilhar ficha
+                {t('emergency.shareCard')}
               </Text>
             </TouchableOpacity>
 
@@ -338,7 +338,7 @@ export default function EmergenciaScreen() {
               activeOpacity={0.85}
               disabled={rotating}
               accessibilityRole="button"
-              accessibilityLabel="Regenerar token e revogar link atual"
+              accessibilityLabel={t('emergency.regenerateTokenA11y')}
               accessibilityState={{ disabled: rotating, busy: rotating }}
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -354,13 +354,13 @@ export default function EmergenciaScreen() {
                 <>
                   <Ionicons name="refresh-outline" size={18} color={colors.text} />
                   <Text style={{ color: colors.text, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-                    Regenerar token (revogar link atual)
+                    {t('emergency.regenerateTokenButton')}
                   </Text>
                 </>
               )}
             </TouchableOpacity>
             <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, textAlign: 'center', marginTop: spacing.xs }}>
-              O link funciona sem login. Compartilhe apenas com quem cuida da criança.
+              {t('emergency.shareNote')}
             </Text>
           </View>
         </ScrollView>

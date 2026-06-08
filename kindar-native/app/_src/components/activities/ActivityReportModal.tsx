@@ -37,17 +37,19 @@ interface Props {
   onSubmitted?: () => void;
 }
 
-const STATUS_OPTIONS: Array<{ value: ActivityReportStatus; label: string; icon: string; color: string }> = [
-  { value: 'completed', label: 'Realizada', icon: '✅', color: '#16a34a' },
-  { value: 'missed', label: 'Perdida', icon: '❌', color: '#E53935' },
-  { value: 'cancelled', label: 'Cancelada', icon: '🚫', color: colors.textMuted },
+// Labels resolved at render via t() (i18n) — kept out of these module-scope
+// arrays so they localize per active locale (`labelKey` → t()).
+const STATUS_OPTIONS: Array<{ value: ActivityReportStatus; labelKey: string; icon: string; color: string }> = [
+  { value: 'completed', labelKey: 'activityReport.activityCompleted', icon: '✅', color: '#16a34a' },
+  { value: 'missed', labelKey: 'activityReport.statusMissedShort', icon: '❌', color: '#E53935' },
+  { value: 'cancelled', labelKey: 'activityReport.activityCancelled', icon: '🚫', color: colors.textMuted },
 ];
-const MOOD_OPTIONS: Array<{ value: ActivityReportMood; emoji: string; label: string }> = [
-  { value: 'happy', emoji: '😊', label: 'Feliz' },
-  { value: 'neutral', emoji: '😐', label: 'Neutro' },
-  { value: 'sad', emoji: '😢', label: 'Triste' },
-  { value: 'anxious', emoji: '😰', label: 'Ansioso' },
-  { value: 'tired', emoji: '😴', label: 'Cansado' },
+const MOOD_OPTIONS: Array<{ value: ActivityReportMood; emoji: string; labelKey: string }> = [
+  { value: 'happy', emoji: '😊', labelKey: 'activityReport.mood_happy' },
+  { value: 'neutral', emoji: '😐', labelKey: 'activityReport.moodNeutralShort' },
+  { value: 'sad', emoji: '😢', labelKey: 'activityReport.mood_sad' },
+  { value: 'anxious', emoji: '😰', labelKey: 'activityReport.moodAnxiousShort' },
+  { value: 'tired', emoji: '😴', labelKey: 'activityReport.moodTiredShort' },
 ];
 
 export default function ActivityReportModal({
@@ -130,7 +132,7 @@ export default function ActivityReportModal({
           <View style={{ width: 36, height: 4, borderRadius: 2, backgroundColor: colors.borderLight, alignSelf: 'center', marginBottom: spacing.lg }} />
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
             <View>
-              <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>Relatar</Text>
+              <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>{t('activities.report')}</Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
                 {activityName} · {formattedDate}
               </Text>
@@ -145,7 +147,7 @@ export default function ActivityReportModal({
           ) : (
             <ScrollView keyboardShouldPersistTaps="handled">
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: spacing.sm, marginTop: spacing.md, fontWeight: font.weights.medium }}>
-                Como foi?
+                {t('activityReport.howWasItShort')}
               </Text>
               <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.md }}>
                 {STATUS_OPTIONS.map(opt => {
@@ -163,7 +165,7 @@ export default function ActivityReportModal({
                     >
                       <Text style={{ fontSize: 22, marginBottom: 2 }}>{opt.icon}</Text>
                       <Text style={{ fontSize: font.sizes.xs, color: active ? opt.color : colors.textSecondary, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                        {opt.label}
+                        {t(opt.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -171,7 +173,7 @@ export default function ActivityReportModal({
               </View>
 
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: spacing.sm, fontWeight: font.weights.medium }}>
-                Humor da crianca
+                {t('activityReport.moodLabelShort')}
               </Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.md }}>
                 {MOOD_OPTIONS.map(opt => {
@@ -189,7 +191,7 @@ export default function ActivityReportModal({
                     >
                       <Text style={{ fontSize: 16 }}>{opt.emoji}</Text>
                       <Text style={{ fontSize: font.sizes.xs, color: active ? colors.brand : colors.textSecondary, fontWeight: active ? font.weights.semibold : font.weights.normal }}>
-                        {opt.label}
+                        {t(opt.labelKey)}
                       </Text>
                     </TouchableOpacity>
                   );
@@ -197,12 +199,12 @@ export default function ActivityReportModal({
               </View>
 
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: spacing.xs, fontWeight: font.weights.medium }}>
-                Observacoes
+                {t('children.notes')}
               </Text>
               <TextInput
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="Como foi? O que aconteceu?"
+                placeholder={t('activityReport.notesPlaceholderShort')}
                 placeholderTextColor={colors.textMuted}
                 multiline
                 maxLength={1000}
@@ -217,7 +219,7 @@ export default function ActivityReportModal({
               <View style={{ flexDirection: 'row', gap: spacing.sm }}>
                 <View style={{ flex: 1 }}>
                   <PrimaryButton
-                    label="Cancelar"
+                    label={t('common.cancel')}
                     onPress={onClose}
                     loading={submitting}
                     variant="secondary"
@@ -226,7 +228,7 @@ export default function ActivityReportModal({
                 </View>
                 <View style={{ flex: 1 }}>
                   <PrimaryButton
-                    label="Salvar relatório"
+                    label={t('activityReport.saveReport')}
                     onPress={handleSubmit}
                     loading={submitting}
                     testID="activity-report-submit"

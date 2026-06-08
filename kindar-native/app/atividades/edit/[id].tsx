@@ -166,40 +166,40 @@ export default function EditActivityScreen() {
         borderBottomWidth: 0.5,
         borderBottomColor: colors.borderLight,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} testID="edit-activity-cancel" accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} testID="edit-activity-cancel" accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <Ionicons name="chevron-back" size={28} color={colors.brand} />
             <Text style={{ fontSize: font.sizes.md, color: colors.brand, marginLeft: -2, fontWeight: font.weights.medium }}>
-              Voltar
+              {t('common.back')}
             </Text>
           </View>
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.bold, color: colors.text }}>
-          Editar atividade
+          {t('activities.editTitle')}
         </Text>
-        <TouchableOpacity onPress={handleSave} disabled={saving || !name.trim()} hitSlop={12} testID="edit-activity-save" accessibilityRole="button" accessibilityLabel="Salvar" accessibilityState={{ disabled: saving || !name.trim(), busy: saving }}>
+        <TouchableOpacity onPress={handleSave} disabled={saving || !name.trim()} hitSlop={12} testID="edit-activity-save" accessibilityRole="button" accessibilityLabel={t('common.save')} accessibilityState={{ disabled: saving || !name.trim(), busy: saving }}>
           <Text style={{
             fontSize: font.sizes.md, fontWeight: font.weights.bold,
             color: (saving || !name.trim()) ? colors.textMuted : colors.brand,
           }}>
-            {saving ? '...' : 'Salvar'}
+            {saving ? '...' : t('common.save')}
           </Text>
         </TouchableOpacity>
       </View>
 
       <ScrollView contentContainerStyle={{ paddingHorizontal: spacing.lg, paddingBottom: 80 }}>
         {/* Nome */}
-        <Label>Nome</Label>
+        <Label>{t('activities.fields.name')}</Label>
         <TextInput
           value={name}
           onChangeText={setName}
-          placeholder="Ex: Teatro"
+          placeholder={t('activityEdit.namePlaceholder')}
           placeholderTextColor={colors.textDim}
           style={inputStyle}
         />
 
         {/* Categoria — chips */}
-        <Label>Categoria</Label>
+        <Label>{t('activities.fields.category')}</Label>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           {ACTIVITY_CATEGORIES.map((c) => {
             const active = c.value === category;
@@ -232,21 +232,21 @@ export default function EditActivityScreen() {
         {/* Horario */}
         <View style={{ flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg }}>
           <View style={{ flex: 1 }}>
-            <Label>Início</Label>
+            <Label>{t('activities.fields.start')}</Label>
             <TimePickerField value={timeStart} onChange={setTimeStart} placeholder="--:--" />
           </View>
           <View style={{ flex: 1 }}>
-            <Label>Fim</Label>
+            <Label>{t('activities.fields.end')}</Label>
             <TimePickerField value={timeEnd} onChange={setTimeEnd} placeholder="--:--" />
           </View>
         </View>
 
         {/* Local */}
-        <Label>Local</Label>
+        <Label>{t('activities.fields.location')}</Label>
         <TextInput
           value={location}
           onChangeText={setLocation}
-          placeholder="Ex: Colégio CVS"
+          placeholder={t('eventsEdit.locationPlaceholder')}
           placeholderTextColor={colors.textDim}
           style={inputStyle}
         />
@@ -254,21 +254,21 @@ export default function EditActivityScreen() {
         {/* Professor / Sala */}
         <View style={{ flexDirection: 'row', gap: spacing.md }}>
           <View style={{ flex: 1 }}>
-            <Label>Professor</Label>
+            <Label>{t('newForm.teacher')}</Label>
             <TextInput
               value={teacherName}
               onChangeText={setTeacherName}
-              placeholder="Opcional"
+              placeholder={t('common.optional')}
               placeholderTextColor={colors.textDim}
               style={inputStyle}
             />
           </View>
           <View style={{ flex: 1 }}>
-            <Label>Sala / Turma</Label>
+            <Label>{t('activityEdit.roomClassLabel')}</Label>
             <TextInput
               value={className}
               onChangeText={setClassName}
-              placeholder="Opcional"
+              placeholder={t('common.optional')}
               placeholderTextColor={colors.textDim}
               style={inputStyle}
             />
@@ -276,13 +276,13 @@ export default function EditActivityScreen() {
         </View>
 
         {/* Responsável */}
-        <Label>Responsável pela atividade</Label>
+        <Label>{t('calendar.responsibleForActivity')}</Label>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
           <TouchableOpacity
             onPress={() => { Haptics.selectionAsync(); setResponsibleId(null); }}
             accessibilityRole="radio"
             accessibilityState={{ selected: responsibleId === null }}
-            accessibilityLabel="Não definido"
+            accessibilityLabel={t('eventsEdit.assignedToNone')}
             style={{
               paddingVertical: 10, paddingHorizontal: 14, borderRadius: radius.full,
               backgroundColor: responsibleId === null ? colors.brand : colors.bgElevated,
@@ -293,7 +293,7 @@ export default function EditActivityScreen() {
               fontSize: font.sizes.xs, fontWeight: font.weights.semibold,
               color: responsibleId === null ? '#fff' : colors.text,
             }}>
-              Não definido
+              {t('eventsEdit.assignedToNone')}
             </Text>
           </TouchableOpacity>
           {members.map((m) => {
@@ -354,11 +354,11 @@ export default function EditActivityScreen() {
         </View>
 
         {/* Anotações */}
-        <Label>Anotações</Label>
+        <Label>{t('activities.fields.notes')}</Label>
         <TextInput
           value={notes}
           onChangeText={setNotes}
-          placeholder="Informacoes adicionais..."
+          placeholder={t('newForm.notesPlaceholder')}
           placeholderTextColor={colors.textDim}
           multiline
           style={[inputStyle, { minHeight: 80, textAlignVertical: 'top' }]}

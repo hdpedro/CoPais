@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from 'src/store/auth';
 import { createInvitation } from 'src/services/invitations';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
+import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
@@ -26,6 +27,7 @@ const ROLES = [
 
 export default function OnboardingConviteScreen() {
   const insets = useSafeAreaInsets();
+  const t = useI18n((s) => s.t);
   const { activeGroup, userId, profile } = useAuth();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState('parent');
@@ -35,7 +37,7 @@ export default function OnboardingConviteScreen() {
 
   async function handleSend() {
     if (!activeGroup || !userId) return;
-    if (!email.trim() || !email.includes('@')) { setError('Informe um email valido'); return; }
+    if (!email.trim() || !email.includes('@')) { setError(t('onboardingForm.invalidEmail')); return; }
     setError('');
     setLoading(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -49,7 +51,7 @@ export default function OnboardingConviteScreen() {
       setCreatedToken(res.token || null);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setError(res.error || 'Erro ao enviar convite');
+      setError(res.error || t('onboardingForm.errorSendingInvite'));
     }
   }
 
@@ -61,7 +63,7 @@ export default function OnboardingConviteScreen() {
     try {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
       await Share.share({
-        message: `Oi! ${firstName} te convidou pra participar de ${groupName} no Kindar. Aceita o convite aqui: ${link}`,
+        message: t('onboardingForm.shareMessage', { firstName, groupName, link }),
         url: link,
       });
     } catch { /* cancelled */ }
@@ -85,16 +87,16 @@ export default function OnboardingConviteScreen() {
             <Text style={{ fontSize: 40 }}>📨</Text>
           </View>
           <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.sm, textAlign: 'center' }}>
-            Convite criado!
+            {t('onboardingForm.inviteLinkReady')}
           </Text>
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg, lineHeight: 20 }}>
-            Compartilhe o link abaixo com a pessoa que voce quer convidar. Pode ser por WhatsApp, SMS, email ou o que preferir.
+            {t('onboardingInvite.shareBody')}
           </Text>
           <TouchableOpacity
             onPress={handleShareLink}
             activeOpacity={0.85}
             accessibilityRole="button"
-            accessibilityLabel="Compartilhar link"
+            accessibilityLabel={t('onboardingForm.shareInviteLink')}
             style={{
               backgroundColor: colors.brand, borderRadius: radius.md,
               paddingVertical: spacing.md, paddingHorizontal: spacing['2xl'],
@@ -104,17 +106,17 @@ export default function OnboardingConviteScreen() {
           >
             <Ionicons name="share-outline" size={20} color="#fff" />
             <Text style={{ color: '#fff', fontSize: font.sizes.md, fontWeight: font.weights.semibold }}>
-              Compartilhar link
+              {t('onboardingForm.shareInviteLink')}
             </Text>
           </TouchableOpacity>
           <TouchableOpacity
             onPress={handleFinish}
             activeOpacity={0.7}
             accessibilityRole="button"
-            accessibilityLabel="Continuar sem compartilhar agora"
+            accessibilityLabel={t('onboardingInvite.continueWithoutSharing')}
             style={{ paddingVertical: spacing.sm }}
           >
-            <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Continuar sem compartilhar agora</Text>
+            <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>{t('onboardingInvite.continueWithoutSharing')}</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -132,7 +134,7 @@ export default function OnboardingConviteScreen() {
         <View
           style={{ flexDirection: 'row', justifyContent: 'center', gap: 6, marginBottom: spacing['2xl'] }}
           accessibilityRole="progressbar"
-          accessibilityLabel="Etapa 3 de 3"
+          accessibilityLabel={t('onboardingForm.stepIndicator', { current: 3, total: 3 })}
         >
           <View style={{ width: 24, height: 4, borderRadius: 2, backgroundColor: colors.brand }} />
           <View style={{ width: 24, height: 4, borderRadius: 2, backgroundColor: colors.brand }} />
@@ -142,10 +144,10 @@ export default function OnboardingConviteScreen() {
         <View style={{ alignItems: 'center', marginBottom: spacing['2xl'] }}>
           <Text style={{ fontSize: 48, marginBottom: spacing.md }}>🤝</Text>
           <Text style={{ fontSize: font.sizes['2xl'], fontWeight: font.weights.bold, color: colors.text, textAlign: 'center', marginBottom: spacing.sm }}>
-            Convide a outra parte
+            {t('onboardingInvite.title')}
           </Text>
           <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', lineHeight: 20, maxWidth: 320 }}>
-            O Kindar funciona melhor quando os dois responsaveis estao juntos. Envie um convite agora — leva 30 segundos.
+            {t('onboardingInvite.subtitle')}
           </Text>
         </View>
 
@@ -157,14 +159,14 @@ export default function OnboardingConviteScreen() {
 
         {/* Email */}
         <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.xs }}>
-          Email do co-responsavel
+          {t('onboardingInvite.emailLabel')}
         </Text>
         <TextInput
           value={email} onChangeText={setEmail}
           placeholder="email@exemplo.com"
           placeholderTextColor={colors.textMuted}
           keyboardType="email-address" autoCapitalize="none" autoComplete="email"
-          accessibilityLabel="E-mail do co-responsável"
+          accessibilityLabel={t('onboardingInvite.emailLabel')}
           style={{
             backgroundColor: colors.bgElevated, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight,
             paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
@@ -173,7 +175,7 @@ export default function OnboardingConviteScreen() {
         />
 
         {/* Role */}
-        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>Papel</Text>
+        <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.text, marginBottom: spacing.sm }}>{t('invite.roleLabel')}</Text>
         <View style={{ gap: spacing.sm, marginBottom: spacing.xl }}>
           {ROLES.map(r => {
             const active = role === r.value;
@@ -205,7 +207,7 @@ export default function OnboardingConviteScreen() {
 
         <View style={{ marginBottom: spacing.md }}>
           <PrimaryButton
-            label="Enviar convite"
+            label={t('onboardingInvite.sendInvite')}
             onPress={handleSend}
             loading={loading}
             disabled={!email.trim()}
@@ -217,10 +219,10 @@ export default function OnboardingConviteScreen() {
           onPress={handleSkip}
           activeOpacity={0.7}
           accessibilityRole="button"
-          accessibilityLabel="Fazer isso depois"
+          accessibilityLabel={t('onboardingInvite.doThisLater')}
           style={{ alignItems: 'center', paddingVertical: spacing.md }}
         >
-          <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>Fazer isso depois</Text>
+          <Text style={{ color: colors.textMuted, fontSize: font.sizes.sm }}>{t('onboardingInvite.doThisLater')}</Text>
         </TouchableOpacity>
       </ScrollView>
     </KeyboardAvoidingView>

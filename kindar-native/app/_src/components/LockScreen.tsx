@@ -22,6 +22,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import * as Haptics from 'expo-haptics';
 import { useLock } from '../store/lock';
 import { getBiometricCapability, type BiometricCapability } from '../services/biometric-lock';
+import { useI18n } from '../i18n';
 import { colors, spacing, radius, font } from '../design-system/tokens';
 import { logLockTelemetry } from '../lib/lock-telemetry';
 
@@ -33,6 +34,7 @@ export default function LockScreen() {
   // O store e a fonte unica do estado de autenticacao: garante re-entrancia
   // safe (chamadas concorrentes viram no-op) e sobrevive a remount do
   // componente, que pode acontecer se isLocked oscilar.
+  const t = useI18n(s => s.t);
   const requestUnlock = useLock(s => s.requestUnlock);
   const authenticating = useLock(s => s.isAuthenticating);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -69,15 +71,15 @@ export default function LockScreen() {
     if (!capability) setCapability(cap);
 
     if (!cap.hasHardware) {
-      setErrorMsg('Este dispositivo nao suporta biometria.');
+      setErrorMsg(t('lockScreen.noHardware'));
       return;
     }
     if (!cap.isEnrolled) {
-      setErrorMsg(`Cadastre ${cap.label} nos Ajustes do dispositivo para desbloquear.`);
+      setErrorMsg(t('lockScreen.notEnrolled', { label: cap.label }));
       return;
     }
 
-    const result = await requestUnlock('Desbloquear Kindar');
+    const result = await requestUnlock(t('lockScreen.prompt'));
     logLockScreenEvent('tryUnlock.result', { success: result.success, error: result.error });
     if (!mountedRef.current) return;
 
@@ -93,19 +95,19 @@ export default function LockScreen() {
       return;
     }
     if (result.error === 'lockout' || result.error?.includes('lock')) {
-      setErrorMsg('Biometria bloqueada. Use a senha do dispositivo.');
+      setErrorMsg(t('lockScreen.lockout'));
     } else if (result.error) {
-      setErrorMsg('Tente novamente.');
+      setErrorMsg(t('lockScreen.tryAgain'));
     }
-  }, [capability, requestUnlock]);
+  }, [capability, requestUnlock, t]);
 
   useEffect(() => {
     logLockScreenEvent('mount');
     // Auto-trigger no primeiro render. Pequeno delay pra UI aparecer
     // antes do prompt (UX mais suave que prompt instantaneo).
-    const t = setTimeout(() => { tryUnlock(); }, 250);
+    const timer = setTimeout(() => { tryUnlock(); }, 250);
     return () => {
-      clearTimeout(t);
+      clearTimeout(timer);
       logLockScreenEvent('unmount');
     };
     // Dependencia intencionalmente vazia: auto-trigger e *uma vez por
@@ -117,10 +119,10 @@ export default function LockScreen() {
   const iconName: 'scan-circle-outline' | 'finger-print-outline' =
     capability?.kind === 'faceId' ? 'scan-circle-outline' : 'finger-print-outline';
   const ctaLabel = capability?.kind === 'faceId'
-    ? 'Desbloquear com Face ID'
+    ? t('lockScreen.unlockFaceId')
     : capability?.kind === 'touchId'
-    ? 'Desbloquear com Touch ID'
-    : 'Desbloquear';
+    ? t('lockScreen.unlockTouchId')
+    : t('lockScreen.unlock');
 
   return (
     <View style={[styles.container, { paddingTop: insets.top, paddingBottom: insets.bottom + spacing['2xl'] }]}>
@@ -130,8 +132,8 @@ export default function LockScreen() {
           <View style={styles.logoBox}>
             <Text style={styles.logoEmoji}>🏠</Text>
           </View>
-          <Text style={styles.brand}>Kindar</Text>
-          <Text style={styles.tagline}>Bloqueado para sua privacidade</Text>
+          <Text style={styles.brand}>{t('common.appName')}</Text>
+          <Text style={styles.tagline}>{t('lockScreen.tagline')}</Text>
         </View>
 
         {/* Status / erro */}
