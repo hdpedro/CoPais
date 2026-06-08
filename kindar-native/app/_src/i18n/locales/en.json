@@ -230,7 +230,27 @@
     "tapToAdd": "Tap to add",
     "saveActions": "Save",
     "editActionsHint": "Edit",
-    "healthAlertTitle": "Health alert"
+    "healthAlertTitle": "Health alert",
+    "healthStatus": {
+      "treatment": "In treatment",
+      "monitoring": "Monitoring",
+      "healthy": "Healthy"
+    },
+    "detail": {
+      "noRecords": "No recent records",
+      "medicated": "Medicated",
+      "monitoring": "Monitoring"
+    },
+    "nextAction": {
+      "confirmDose": "Confirm dose",
+      "updateStatus": "Update status"
+    },
+    "cancelSwap": {
+      "title": "Cancel request?",
+      "body": "You will withdraw the swap request. The other parent will be notified.",
+      "keep": "Keep request",
+      "confirm": "Cancel request"
+    }
   },
   "calendar": {
     "title": "Calendar",
@@ -3478,5 +3498,103 @@
     "errorStatus": "Error {status}",
     "noResponse": "No response.",
     "errorGeneric": "I couldn't respond right now"
+  },
+  "illnessNew": {
+    "headerTitle": "New illness",
+    "errorSelectChild": "Select a child",
+    "errorTitleRequired": "Enter the episode title",
+    "titleLabel": "Title *",
+    "titleA11y": "Episode title",
+    "titlePlaceholder": "E.g. Flu, Covid, Viral infection",
+    "startLabel": "Start *",
+    "datePlaceholder": "DD/MM/YYYY",
+    "symptomsPlaceholder": "Cough, fever, sore throat...",
+    "hospitalLabel": "Hospital/clinic",
+    "hospitalPlaceholder": "Where they were seen (if applicable)",
+    "notesPlaceholder": "Diagnosis, prescribed medication, progress...",
+    "submit": "Log illness"
+  },
+  "eventsEdit": {
+    "titlePlaceholder": "E.g.: Parent meeting",
+    "locationPlaceholder": "E.g.: Lincoln School",
+    "descriptionPlaceholder": "Additional details...",
+    "childNone": "None",
+    "assignedToNone": "Not set"
+  },
+  "calendarNew": {
+    "errorDateRequired": "Date is required",
+    "errorDatePast": "You can't create an event on a date that has already passed",
+    "errorSave": "Error saving event",
+    "errorUnexpected": "Unexpected error",
+    "titlePlaceholder": "Birthday party, school meeting...",
+    "descriptionPlaceholder": "Event details (optional)",
+    "allDayHint": "No specific time",
+    "multiDay": "Multi-day event",
+    "multiDayHint": "Creates one entry per day (1/N, 2/N...)",
+    "startDateLabel": "Start date *",
+    "dateLabel": "Date *",
+    "endDateLabel": "End date *",
+    "startTimeLabel": "Start time",
+    "endTimeLabel": "End time",
+    "assignedToLabel": "Who takes / responsible (optional)",
+    "assignedToHint1": "Leave blank for events without a fixed person in charge (e.g. parent meeting, party). For ",
+    "assignedToHintVacation": "vacations / extended breaks",
+    "assignedToHint2": "use the button ",
+    "assignedToHint3": " in the calendar — this flow automatically overrides the regular schedule.",
+    "colorHint": "Color on the calendar (set by the person in charge)",
+    "colorHintNone": "No fixed person in charge — neutral color",
+    "locationPlaceholder": "Address, school, venue...",
+    "recurrenceNote": "Recurring events (Daily, Weekly, Biweekly, Monthly, Custom) are available only in the PWA. To repeat an event over several days in a row, turn on \"{label}\" above."
+  },
+  "vacationScreen": {
+    "deleteConfirmTitle": "Remove this period?",
+    "errStartRequired": "Start date is required",
+    "errEndRequired": "End date is required",
+    "errResponsibleRequired": "Choose who is with the child during the vacation",
+    "errSaveFailed": "Error saving vacation",
+    "errOverlap": "There is already a vacation period that overlaps this range. Edit the existing one or adjust the dates.",
+    "errUnexpected": "Unexpected error",
+    "colorHint": "Vacation color on the calendar (of the chosen responsible)"
+  },
+  "prescriptionScreen": {
+    "headerTitle": "Prescription photo",
+    "uploadTitle": "Photograph the prescription",
+    "uploadSubtitle": "The AI reads the prescription and extracts medications with dose, frequency and duration. Review before saving.",
+    "confirmTitle": "Is the photo sharp?",
+    "confirmSubtitle": "Check that the prescription text is legible before processing. Blurry or dark photos give poor results.",
+    "photoReviewAlt": "Photographed prescription — review before processing",
+    "processButton": "Process prescription",
+    "processHint": "Sends the photo to the AI to extract the medications",
+    "photoAlt": "Photographed prescription",
+    "processingHint": "This may take a few seconds",
+    "medsIdentifiedOne": "{count} medication identified",
+    "medsIdentified": "{count} medications identified",
+    "previewSubtitle": "Review the data and adjust if needed. Uncheck medications you don't want to save.",
+    "doctorLabel": "Doctor",
+    "doctorPlaceholder": "Dr. Smith",
+    "noName": "(no name)",
+    "dosePlaceholder": "Dose (e.g. 500mg, 5ml)",
+    "frequencyPlaceholder": "Frequency (e.g. every 8h, 2x a day)",
+    "saveMedications": "Save medications",
+    "errorProcessPhoto": "Error processing the photo ({status}). Please try again shortly.",
+    "errorNoMeds": "No medication identified. Try a sharper photo or another prescription.",
+    "errorSaveStatus": "Error saving ({status}). Please try again."
+  },
+  "quickActions": {
+    "nova-despesa": "New expense",
+    "calendario": "Schedule",
+    "financeiro": "Finances",
+    "saude": "Health",
+    "acordos": "Agreements",
+    "documentos": "Documents",
+    "decisoes": "Decisions",
+    "notas": "Notes",
+    "nova-atividade": "New activity",
+    "novo-evento": "New event",
+    "nova-consulta": "New appointment",
+    "checkin": "Check-in",
+    "semana": "Weekly review",
+    "escola": "School",
+    "criancas": "Children"
   }
 }

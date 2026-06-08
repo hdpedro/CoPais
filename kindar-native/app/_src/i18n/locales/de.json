@@ -230,7 +230,27 @@
     "tapToAdd": "Zum Hinzufügen tippen",
     "saveActions": "Speichern",
     "editActionsHint": "Bearbeiten",
-    "healthAlertTitle": "Gesundheitswarnung"
+    "healthAlertTitle": "Gesundheitswarnung",
+    "healthStatus": {
+      "treatment": "In Behandlung",
+      "monitoring": "In Beobachtung",
+      "healthy": "Gesund"
+    },
+    "detail": {
+      "noRecords": "Keine aktuellen Einträge",
+      "medicated": "Medikamentös behandelt",
+      "monitoring": "Beobachtung"
+    },
+    "nextAction": {
+      "confirmDose": "Dosis bestätigen",
+      "updateStatus": "Status aktualisieren"
+    },
+    "cancelSwap": {
+      "title": "Anfrage abbrechen?",
+      "body": "Sie ziehen die Tauschanfrage zurück. Der andere Elternteil wird benachrichtigt.",
+      "keep": "Behalten",
+      "confirm": "Anfrage abbrechen"
+    }
   },
   "calendar": {
     "title": "Kalender",
@@ -3478,5 +3498,103 @@
     "errorStatus": "Fehler {status}",
     "noResponse": "Keine Antwort.",
     "errorGeneric": "Ich konnte gerade nicht antworten"
+  },
+  "illnessNew": {
+    "headerTitle": "Neue Erkrankung",
+    "errorSelectChild": "Wählen Sie ein Kind aus",
+    "errorTitleRequired": "Geben Sie den Titel der Episode an",
+    "titleLabel": "Titel *",
+    "titleA11y": "Titel der Episode",
+    "titlePlaceholder": "z. B. Grippe, Covid, Virusinfektion",
+    "startLabel": "Beginn *",
+    "datePlaceholder": "TT/MM/JJJJ",
+    "symptomsPlaceholder": "Husten, Fieber, Halsschmerzen...",
+    "hospitalLabel": "Krankenhaus/Klinik",
+    "hospitalPlaceholder": "Wo behandelt wurde (falls zutreffend)",
+    "notesPlaceholder": "Diagnose, verordnete Medikamente, Verlauf...",
+    "submit": "Erkrankung erfassen"
+  },
+  "eventsEdit": {
+    "titlePlaceholder": "Z.B.: Elterngespräch",
+    "locationPlaceholder": "Z.B.: CVS-Schule",
+    "descriptionPlaceholder": "Zusätzliche Details...",
+    "childNone": "Keine",
+    "assignedToNone": "Nicht festgelegt"
+  },
+  "calendarNew": {
+    "errorDateRequired": "Datum ist erforderlich",
+    "errorDatePast": "Du kannst kein Ereignis an einem bereits vergangenen Datum erstellen",
+    "errorSave": "Fehler beim Speichern des Ereignisses",
+    "errorUnexpected": "Unerwarteter Fehler",
+    "titlePlaceholder": "Geburtstagsfeier, Elternabend...",
+    "descriptionPlaceholder": "Details zum Ereignis (optional)",
+    "allDayHint": "Ohne feste Uhrzeit",
+    "multiDay": "Mehrtägiges Ereignis",
+    "multiDayHint": "Erstellt einen Eintrag pro Tag (1/N, 2/N...)",
+    "startDateLabel": "Startdatum *",
+    "dateLabel": "Datum *",
+    "endDateLabel": "Enddatum *",
+    "startTimeLabel": "Startzeit",
+    "endTimeLabel": "Endzeit",
+    "assignedToLabel": "Wer bringt / verantwortlich (optional)",
+    "assignedToHint1": "Leer lassen für Ereignisse ohne feste verantwortliche Person (z. B. Elternabend, Feier). Für ",
+    "assignedToHintVacation": "Urlaub / längere Auszeiten",
+    "assignedToHint2": "verwende die Schaltfläche ",
+    "assignedToHint3": " im Kalender — dieser Ablauf überschreibt den regulären Plan automatisch.",
+    "colorHint": "Farbe im Kalender (durch die verantwortliche Person festgelegt)",
+    "colorHintNone": "Keine feste verantwortliche Person — neutrale Farbe",
+    "locationPlaceholder": "Adresse, Schule, Saal...",
+    "recurrenceNote": "Wiederkehrende Ereignisse (Täglich, Wöchentlich, Zweiwöchentlich, Monatlich, Benutzerdefiniert) sind nur in der PWA verfügbar. Um ein Ereignis über mehrere Tage hintereinander zu wiederholen, aktiviere oben „{label}“."
+  },
+  "vacationScreen": {
+    "deleteConfirmTitle": "Diesen Zeitraum entfernen?",
+    "errStartRequired": "Startdatum erforderlich",
+    "errEndRequired": "Enddatum erforderlich",
+    "errResponsibleRequired": "Wählen Sie, wer im Urlaub beim Kind ist",
+    "errSaveFailed": "Fehler beim Speichern des Urlaubs",
+    "errOverlap": "Es gibt bereits einen Urlaubszeitraum, der sich mit diesem Bereich überschneidet. Bearbeiten Sie den bestehenden oder passen Sie die Daten an.",
+    "errUnexpected": "Unerwarteter Fehler",
+    "colorHint": "Urlaubsfarbe im Kalender (der gewählten verantwortlichen Person)"
+  },
+  "prescriptionScreen": {
+    "headerTitle": "Rezeptfoto",
+    "uploadTitle": "Rezept fotografieren",
+    "uploadSubtitle": "Die KI liest das Rezept und extrahiert Medikamente mit Dosis, Häufigkeit und Dauer. Vor dem Speichern überprüfen.",
+    "confirmTitle": "Ist das Foto scharf?",
+    "confirmSubtitle": "Prüfen Sie vor der Verarbeitung, ob der Rezepttext lesbar ist. Verwackelte oder dunkle Fotos liefern schlechte Ergebnisse.",
+    "photoReviewAlt": "Fotografiertes Rezept — vor der Verarbeitung überprüfen",
+    "processButton": "Rezept verarbeiten",
+    "processHint": "Sendet das Foto an die KI, um die Medikamente zu extrahieren",
+    "photoAlt": "Fotografiertes Rezept",
+    "processingHint": "Dies kann einige Sekunden dauern",
+    "medsIdentifiedOne": "{count} Medikament erkannt",
+    "medsIdentified": "{count} Medikamente erkannt",
+    "previewSubtitle": "Überprüfen Sie die Daten und passen Sie sie bei Bedarf an. Deaktivieren Sie Medikamente, die Sie nicht speichern möchten.",
+    "doctorLabel": "Arzt",
+    "doctorPlaceholder": "Dr. Müller",
+    "noName": "(ohne Namen)",
+    "dosePlaceholder": "Dosis (z. B. 500 mg, 5 ml)",
+    "frequencyPlaceholder": "Häufigkeit (z. B. alle 8 Std., 2x täglich)",
+    "saveMedications": "Medikamente speichern",
+    "errorProcessPhoto": "Fehler beim Verarbeiten des Fotos ({status}). Bitte versuchen Sie es gleich erneut.",
+    "errorNoMeds": "Kein Medikament erkannt. Versuchen Sie ein schärferes Foto oder ein anderes Rezept.",
+    "errorSaveStatus": "Fehler beim Speichern ({status}). Bitte versuchen Sie es erneut."
+  },
+  "quickActions": {
+    "nova-despesa": "Neue Ausgabe",
+    "calendario": "Termine",
+    "financeiro": "Finanzen",
+    "saude": "Gesundheit",
+    "acordos": "Vereinbarungen",
+    "documentos": "Dokumente",
+    "decisoes": "Entscheidungen",
+    "notas": "Notizen",
+    "nova-atividade": "Neue Aktivität",
+    "novo-evento": "Neues Ereignis",
+    "nova-consulta": "Neuer Termin",
+    "checkin": "Check-in",
+    "semana": "Wochenanalyse",
+    "escola": "Schule",
+    "criancas": "Kinder"
   }
 }

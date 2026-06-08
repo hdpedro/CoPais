@@ -230,7 +230,27 @@
     "tapToAdd": "Toque para adicionar",
     "saveActions": "Salvar",
     "editActionsHint": "Editar",
-    "healthAlertTitle": "Atenção em saúde"
+    "healthAlertTitle": "Atenção em saúde",
+    "healthStatus": {
+      "treatment": "Em tratamento",
+      "monitoring": "Em acompanhamento",
+      "healthy": "Saudável"
+    },
+    "detail": {
+      "noRecords": "Sem registros recentes",
+      "medicated": "Medicado",
+      "monitoring": "Acompanhamento"
+    },
+    "nextAction": {
+      "confirmDose": "Confirmar dose",
+      "updateStatus": "Atualizar estado"
+    },
+    "cancelSwap": {
+      "title": "Cancelar pedido?",
+      "body": "Você vai retirar a solicitação de troca. O outro responsável será avisado.",
+      "keep": "Manter pedido",
+      "confirm": "Cancelar pedido"
+    }
   },
   "calendar": {
     "title": "Calendário",
@@ -3478,5 +3498,103 @@
     "errorStatus": "Erro {status}",
     "noResponse": "Sem resposta.",
     "errorGeneric": "Não consegui responder agora"
+  },
+  "illnessNew": {
+    "headerTitle": "Nova doença",
+    "errorSelectChild": "Selecione uma criança",
+    "errorTitleRequired": "Informe o título do episódio",
+    "titleLabel": "Título *",
+    "titleA11y": "Título do episódio",
+    "titlePlaceholder": "Ex: Gripe, Covid, Virose",
+    "startLabel": "Início *",
+    "datePlaceholder": "DD/MM/AAAA",
+    "symptomsPlaceholder": "Tosse, febre, dor de garganta...",
+    "hospitalLabel": "Hospital/clínica",
+    "hospitalPlaceholder": "Onde foi atendido (se aplicável)",
+    "notesPlaceholder": "Diagnóstico, medicação prescrita, evolução...",
+    "submit": "Registrar doença"
+  },
+  "eventsEdit": {
+    "titlePlaceholder": "Ex: Reunião escolar",
+    "locationPlaceholder": "Ex: Colégio CVS",
+    "descriptionPlaceholder": "Detalhes adicionais...",
+    "childNone": "Nenhuma",
+    "assignedToNone": "Não definido"
+  },
+  "calendarNew": {
+    "errorDateRequired": "Data obrigatória",
+    "errorDatePast": "Não dá pra criar um evento numa data que já passou",
+    "errorSave": "Erro ao salvar evento",
+    "errorUnexpected": "Erro inesperado",
+    "titlePlaceholder": "Festa de aniversário, reunião escolar...",
+    "descriptionPlaceholder": "Detalhes do evento (opcional)",
+    "allDayHint": "Sem horário específico",
+    "multiDay": "Evento de vários dias",
+    "multiDayHint": "Cria uma entrada para cada dia (1/N, 2/N...)",
+    "startDateLabel": "Data inicial *",
+    "dateLabel": "Data *",
+    "endDateLabel": "Data final *",
+    "startTimeLabel": "Hora inicial",
+    "endTimeLabel": "Hora final",
+    "assignedToLabel": "Quem leva / responsável (opcional)",
+    "assignedToHint1": "Deixe em branco para eventos sem responsável fixo (ex: reunião de pais, festa). Pra ",
+    "assignedToHintVacation": "férias / recesso prolongado",
+    "assignedToHint2": "use o botão ",
+    "assignedToHint3": " no calendário — esse fluxo sobrepõe a escala regular automaticamente.",
+    "colorHint": "Cor no calendário (definida pelo responsável)",
+    "colorHintNone": "Sem responsável fixo — cor neutra",
+    "locationPlaceholder": "Endereço, escola, salão...",
+    "recurrenceNote": "Eventos recorrentes (Diária, Semanal, Quinzenal, Mensal, Personalizada) estão disponíveis apenas no PWA. Para repetir um evento por vários dias seguidos, ative \"{label}\" acima."
+  },
+  "vacationScreen": {
+    "deleteConfirmTitle": "Remover este período?",
+    "errStartRequired": "Data de início obrigatória",
+    "errEndRequired": "Data final obrigatória",
+    "errResponsibleRequired": "Escolha quem está com a criança nas férias",
+    "errSaveFailed": "Erro ao salvar férias",
+    "errOverlap": "Já existe um período de férias cadastrado que sobrepõe esse intervalo. Edite o existente ou ajuste as datas.",
+    "errUnexpected": "Erro inesperado",
+    "colorHint": "Cor das férias no calendário (do responsável escolhido)"
+  },
+  "prescriptionScreen": {
+    "headerTitle": "Foto de receita",
+    "uploadTitle": "Fotografe a receita",
+    "uploadSubtitle": "A IA lê a receita e extrai medicamentos com dose, frequência e duração. Revise antes de salvar.",
+    "confirmTitle": "A foto está nítida?",
+    "confirmSubtitle": "Confira se o texto da receita está legível antes de processar. Fotos tremidas ou escuras geram resultado ruim.",
+    "photoReviewAlt": "Receita fotografada — revise antes de processar",
+    "processButton": "Processar receita",
+    "processHint": "Envia a foto pra IA extrair os medicamentos",
+    "photoAlt": "Receita fotografada",
+    "processingHint": "Pode levar alguns segundos",
+    "medsIdentifiedOne": "{count} medicamento identificado",
+    "medsIdentified": "{count} medicamentos identificados",
+    "previewSubtitle": "Revise os dados e ajuste se precisar. Desmarque medicamentos que não quiser salvar.",
+    "doctorLabel": "Médico",
+    "doctorPlaceholder": "Dr. Fulano",
+    "noName": "(sem nome)",
+    "dosePlaceholder": "Dose (ex: 500mg, 5ml)",
+    "frequencyPlaceholder": "Frequência (ex: 8/8h, 2x ao dia)",
+    "saveMedications": "Salvar medicamentos",
+    "errorProcessPhoto": "Erro ao processar a foto ({status}). Tente novamente em instantes.",
+    "errorNoMeds": "Nenhum medicamento identificado. Tente uma foto mais nítida ou outra receita.",
+    "errorSaveStatus": "Erro ao salvar ({status}). Tente novamente."
+  },
+  "quickActions": {
+    "nova-despesa": "Nova despesa",
+    "calendario": "Agenda",
+    "financeiro": "Financeiro",
+    "saude": "Saúde",
+    "acordos": "Acordos",
+    "documentos": "Documentos",
+    "decisoes": "Decisões",
+    "notas": "Notas",
+    "nova-atividade": "Nova atividade",
+    "novo-evento": "Novo evento",
+    "nova-consulta": "Nova consulta",
+    "checkin": "Check-in",
+    "semana": "Análise semanal",
+    "escola": "Escola",
+    "criancas": "Crianças"
   }
 }

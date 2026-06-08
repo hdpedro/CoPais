@@ -180,12 +180,12 @@ export default function DashboardScreen() {
   const handleCancelMySwap = useCallback((swapId: string) => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
     Alert.alert(
-      'Cancelar pedido?',
-      'Você vai retirar a solicitação de troca. O outro responsável será avisado.',
+      t('dashboard.cancelSwap.title'),
+      t('dashboard.cancelSwap.body'),
       [
-        { text: 'Manter pedido', style: 'cancel' },
+        { text: t('dashboard.cancelSwap.keep'), style: 'cancel' },
         {
-          text: 'Cancelar pedido',
+          text: t('dashboard.cancelSwap.confirm'),
           style: 'destructive',
           onPress: async () => {
             setResponding(swapId);
@@ -1257,7 +1257,7 @@ export default function DashboardScreen() {
                     activeOpacity={0.8}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/(tabs)/saude?child=${h.childId}` as Parameters<typeof router.push>[0]); }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Saúde de ${h.childName}: ${h.statusLabel}. ${h.detail}`}
+                    accessibilityLabel={`${h.childName}: ${t('dashboard.healthStatus.' + h.status)}. ${h.detail || t('dashboard.detail.' + h.detailKey)}`}
                     style={{
                       backgroundColor: statusConfig.bg,
                       borderWidth: 1, borderColor: statusConfig.border, borderRadius: radius.md,
@@ -1273,11 +1273,11 @@ export default function DashboardScreen() {
                           {h.childName}
                         </Text>
                         <Text style={{ fontSize: 10, color: statusConfig.text, fontWeight: font.weights.semibold }}>
-                          {h.statusLabel}
+                          {t('dashboard.healthStatus.' + h.status)}
                         </Text>
                       </View>
                       <Text numberOfLines={1} style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
-                        {h.detail}
+                        {h.detail || t('dashboard.detail.' + h.detailKey)}
                       </Text>
                     </View>
                     {h.nextAction ? (
@@ -1286,7 +1286,7 @@ export default function DashboardScreen() {
                         paddingHorizontal: 8, paddingVertical: 5,
                       }}>
                         <Text style={{ fontSize: 9, color: colors.brand, fontWeight: font.weights.bold }}>
-                          {h.nextAction}
+                          {t('dashboard.nextAction.' + h.nextAction)}
                         </Text>
                       </View>
                     ) : null}
@@ -1338,7 +1338,7 @@ export default function DashboardScreen() {
                 onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(primaryAction.href as Parameters<typeof router.push>[0]); }}
                 activeOpacity={0.85}
                 testID="home-cta-primary"
-                accessibilityLabel={primaryAction.defaultLabel}
+                accessibilityLabel={t('quickActions.' + primaryAction.id)}
                 style={{
                   backgroundColor: primaryAction.color, borderRadius: radius.xl,
                   padding: spacing.lg, marginBottom: spacing.sm,
@@ -1350,7 +1350,7 @@ export default function DashboardScreen() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <Text style={{ fontSize: 15, fontWeight: font.weights.bold, color: '#fff' }}>
-                    {primaryAction.defaultLabel}
+                    {t('quickActions.' + primaryAction.id)}
                   </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color="rgba(255,255,255,0.5)" />
@@ -1367,7 +1367,7 @@ export default function DashboardScreen() {
                     }}
                     activeOpacity={0.75}
                     testID={`home-card-${action.id}`}
-                    accessibilityLabel={action.defaultLabel}
+                    accessibilityLabel={t('quickActions.' + action.id)}
                     style={{
                       width: '31.5%', backgroundColor: colors.bgElevated, borderRadius: radius.xl,
                       padding: spacing.md, alignItems: 'center', gap: spacing.xs, minHeight: 92, ...shadows.sm,
@@ -1381,7 +1381,7 @@ export default function DashboardScreen() {
                       <Ionicons name={action.icon as keyof typeof Ionicons.glyphMap} size={18} color={action.color} />
                     </View>
                     <Text style={{ fontSize: 11, fontWeight: font.weights.medium, color: colors.text, textAlign: 'center' }} numberOfLines={2}>
-                      {action.defaultLabel}
+                      {t('quickActions.' + action.id)}
                     </Text>
                   </TouchableOpacity>
                 ))}

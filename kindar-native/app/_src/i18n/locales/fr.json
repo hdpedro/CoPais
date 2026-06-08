@@ -230,7 +230,27 @@
     "tapToAdd": "Appuyer pour ajouter",
     "saveActions": "Enregistrer",
     "editActionsHint": "Modifier",
-    "healthAlertTitle": "Alerte santé"
+    "healthAlertTitle": "Alerte santé",
+    "healthStatus": {
+      "treatment": "En traitement",
+      "monitoring": "Suivi en cours",
+      "healthy": "En bonne santé"
+    },
+    "detail": {
+      "noRecords": "Aucun enregistrement récent",
+      "medicated": "Sous médication",
+      "monitoring": "Suivi"
+    },
+    "nextAction": {
+      "confirmDose": "Confirmer la dose",
+      "updateStatus": "Mettre à jour"
+    },
+    "cancelSwap": {
+      "title": "Annuler la demande ?",
+      "body": "Vous retirerez la demande d'échange. L'autre parent sera prévenu.",
+      "keep": "Conserver",
+      "confirm": "Annuler la demande"
+    }
   },
   "calendar": {
     "title": "Calendrier",
@@ -3478,5 +3498,103 @@
     "errorStatus": "Erreur {status}",
     "noResponse": "Pas de réponse.",
     "errorGeneric": "Je n'ai pas pu répondre pour le moment"
+  },
+  "illnessNew": {
+    "headerTitle": "Nouvelle maladie",
+    "errorSelectChild": "Sélectionnez un enfant",
+    "errorTitleRequired": "Indiquez le titre de l'épisode",
+    "titleLabel": "Titre *",
+    "titleA11y": "Titre de l'épisode",
+    "titlePlaceholder": "Ex. : Grippe, Covid, Virose",
+    "startLabel": "Début *",
+    "datePlaceholder": "JJ/MM/AAAA",
+    "symptomsPlaceholder": "Toux, fièvre, mal de gorge...",
+    "hospitalLabel": "Hôpital/clinique",
+    "hospitalPlaceholder": "Où l'enfant a été pris en charge (le cas échéant)",
+    "notesPlaceholder": "Diagnostic, médicaments prescrits, évolution...",
+    "submit": "Enregistrer la maladie"
+  },
+  "eventsEdit": {
+    "titlePlaceholder": "Ex : Réunion scolaire",
+    "locationPlaceholder": "Ex : Collège CVS",
+    "descriptionPlaceholder": "Détails supplémentaires...",
+    "childNone": "Aucune",
+    "assignedToNone": "Non défini"
+  },
+  "calendarNew": {
+    "errorDateRequired": "La date est obligatoire",
+    "errorDatePast": "Impossible de créer un événement à une date déjà passée",
+    "errorSave": "Erreur lors de l'enregistrement de l'événement",
+    "errorUnexpected": "Erreur inattendue",
+    "titlePlaceholder": "Fête d'anniversaire, réunion scolaire...",
+    "descriptionPlaceholder": "Détails de l'événement (facultatif)",
+    "allDayHint": "Sans horaire précis",
+    "multiDay": "Événement sur plusieurs jours",
+    "multiDayHint": "Crée une entrée par jour (1/N, 2/N...)",
+    "startDateLabel": "Date de début *",
+    "dateLabel": "Date *",
+    "endDateLabel": "Date de fin *",
+    "startTimeLabel": "Heure de début",
+    "endTimeLabel": "Heure de fin",
+    "assignedToLabel": "Qui accompagne / responsable (facultatif)",
+    "assignedToHint1": "Laissez vide pour les événements sans responsable fixe (ex : réunion de parents, fête). Pour les ",
+    "assignedToHintVacation": "vacances / congés prolongés",
+    "assignedToHint2": "utilisez le bouton ",
+    "assignedToHint3": " dans le calendrier — ce flux remplace automatiquement le planning habituel.",
+    "colorHint": "Couleur dans le calendrier (définie par le responsable)",
+    "colorHintNone": "Sans responsable fixe — couleur neutre",
+    "locationPlaceholder": "Adresse, école, salle...",
+    "recurrenceNote": "Les événements récurrents (Quotidien, Hebdomadaire, Bimensuel, Mensuel, Personnalisé) ne sont disponibles que dans la PWA. Pour répéter un événement sur plusieurs jours d'affilée, activez « {label} » ci-dessus."
+  },
+  "vacationScreen": {
+    "deleteConfirmTitle": "Supprimer cette période ?",
+    "errStartRequired": "La date de début est obligatoire",
+    "errEndRequired": "La date de fin est obligatoire",
+    "errResponsibleRequired": "Choisissez qui est avec l'enfant pendant les vacances",
+    "errSaveFailed": "Erreur lors de l'enregistrement des vacances",
+    "errOverlap": "Une période de vacances chevauchant cet intervalle existe déjà. Modifiez celle existante ou ajustez les dates.",
+    "errUnexpected": "Erreur inattendue",
+    "colorHint": "Couleur des vacances dans le calendrier (du responsable choisi)"
+  },
+  "prescriptionScreen": {
+    "headerTitle": "Photo d'ordonnance",
+    "uploadTitle": "Photographiez l'ordonnance",
+    "uploadSubtitle": "L'IA lit l'ordonnance et extrait les médicaments avec la dose, la fréquence et la durée. Vérifiez avant d'enregistrer.",
+    "confirmTitle": "La photo est-elle nette ?",
+    "confirmSubtitle": "Vérifiez que le texte de l'ordonnance est lisible avant de traiter. Les photos floues ou sombres donnent de mauvais résultats.",
+    "photoReviewAlt": "Ordonnance photographiée — vérifiez avant de traiter",
+    "processButton": "Traiter l'ordonnance",
+    "processHint": "Envoie la photo à l'IA pour extraire les médicaments",
+    "photoAlt": "Ordonnance photographiée",
+    "processingHint": "Cela peut prendre quelques secondes",
+    "medsIdentifiedOne": "{count} médicament identifié",
+    "medsIdentified": "{count} médicaments identifiés",
+    "previewSubtitle": "Vérifiez les données et ajustez si nécessaire. Décochez les médicaments que vous ne voulez pas enregistrer.",
+    "doctorLabel": "Médecin",
+    "doctorPlaceholder": "Dr Dupont",
+    "noName": "(sans nom)",
+    "dosePlaceholder": "Dose (ex : 500 mg, 5 ml)",
+    "frequencyPlaceholder": "Fréquence (ex : toutes les 8 h, 2x par jour)",
+    "saveMedications": "Enregistrer les médicaments",
+    "errorProcessPhoto": "Erreur lors du traitement de la photo ({status}). Réessayez dans un instant.",
+    "errorNoMeds": "Aucun médicament identifié. Essayez une photo plus nette ou une autre ordonnance.",
+    "errorSaveStatus": "Erreur lors de l'enregistrement ({status}). Réessayez."
+  },
+  "quickActions": {
+    "nova-despesa": "Nouvelle dépense",
+    "calendario": "Agenda",
+    "financeiro": "Finances",
+    "saude": "Santé",
+    "acordos": "Accords",
+    "documentos": "Documents",
+    "decisoes": "Décisions",
+    "notas": "Notes",
+    "nova-atividade": "Nouvelle activité",
+    "novo-evento": "Nouvel événement",
+    "nova-consulta": "Nouveau rendez-vous",
+    "checkin": "Check-in",
+    "semana": "Analyse hebdo",
+    "escola": "École",
+    "criancas": "Enfants"
   }
 }
