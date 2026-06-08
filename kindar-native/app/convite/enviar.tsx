@@ -279,7 +279,7 @@ function InviteRow({ inv, onShare, onCancel, readonly }: { inv: Invitation; onSh
             {inv.email}
           </Text>
           <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-            {inv.role} · convidado em {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
+            {(ROLES.find((r) => r.value === inv.role)?.label || inv.role)} · convidado em {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
           </Text>
         </View>
         <View style={{ backgroundColor: `${status.color}15`, borderRadius: radius.sm, paddingHorizontal: spacing.sm, paddingVertical: 2 }}>

@@ -121,6 +121,19 @@ export default function ProfissionaisScreen() {
 
   async function handleSave() {
     if (!name.trim() || !specialty.trim() || !userId || !activeGroup) return;
+    // Telefone/WhatsApp: se preenchidos, exigem dígitos de verdade. maxLength já
+    // limitava o teto, mas aceitava número curto/incoerente (bug testador
+    // 2026-06-07). >=8 dígitos ou em branco — mesma regra da Escola.
+    if (phone.trim() && phone.replace(/\D/g, '').length < 8) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.show({ message: 'Telefone inválido — informe um número válido ou deixe em branco.', variant: 'error' });
+      return;
+    }
+    if (whatsapp.trim() && whatsapp.replace(/\D/g, '').length < 8) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      toast.show({ message: 'WhatsApp inválido — informe um número válido ou deixe em branco.', variant: 'error' });
+      return;
+    }
     setSaving(true);
     const payload = {
       group_id: activeGroup.groupId,

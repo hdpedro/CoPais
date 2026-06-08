@@ -51,6 +51,17 @@ const ROLE_META: Record<string, { label: string; icon: string; color: string }> 
   readonly: { label: 'Somente leitura', icon: '👁️', color: '#6B7280' },
 };
 
+// Rótulo PT dos papéis de CONVITE (parent/grandparent/caregiver/mediator/lawyer).
+// Sem isso a UI mostrava o valor cru em inglês, ex.: "caregiver" (bug Hailla
+// 2026-06-07). ROLE_META acima é só pros papéis de GRUPO (admin/member/readonly).
+const INVITE_ROLE_LABEL: Record<string, string> = {
+  parent: 'Responsável',
+  grandparent: 'Avô(ó)',
+  caregiver: 'Cuidador(a)',
+  mediator: 'Mediador(a)',
+  lawyer: 'Advogado(a)',
+};
+
 export default function FamiliaScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
@@ -405,7 +416,7 @@ export default function FamiliaScreen() {
                           {inv.email}
                         </Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                          {inv.role} · Enviado {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
+                          {(INVITE_ROLE_LABEL[inv.role] || inv.role)} · Enviado {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
                         </Text>
                       </View>
                       {amAdmin ? (
@@ -447,7 +458,7 @@ export default function FamiliaScreen() {
                           {inv.email}
                         </Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                          {inv.role} · {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
+                          {(INVITE_ROLE_LABEL[inv.role] || inv.role)} · {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
                         </Text>
                       </View>
                     </View>
