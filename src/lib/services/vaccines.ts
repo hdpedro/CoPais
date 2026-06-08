@@ -687,31 +687,17 @@ export async function recordVaccination(
     catalog_id: catalogId,
   });
 
-  // ── Integração com calendário Kindar ──
-  // Registra a vacina como um evento "vaccine" no calendário compartilhado
-  // via `child_activities`. Trigger 00074 (`tg_generate_activity_occurrences`)
-  // gera `calendar_occurrences` automaticamente — coparente vê no calendário.
-  // Best-effort: falha não impede o registro da vacina.
-  try {
-    const eventName = catalogEntry
-      ? `Vacina: ${vaccineName}${doseNumber ? ` (${doseNumber}ª dose)` : ""}`
-      : `Vacina: ${vaccineName}`;
-    await supabase.from("child_activities").insert({
-      group_id: input.groupId,
-      child_id: input.childId,
-      name: eventName.slice(0, 200),
-      category: "health",
-      recurrence_type: "never",
-      start_date: input.administeredDate,
-      end_date: input.administeredDate,
-      is_active: true,
-      notes: input.location ? `Local: ${input.location}` : null,
-      notify_hours_before: 0, // já aconteceu, sem push pré
-      created_by: input.createdBy,
-    });
-  } catch {
-    // best-effort
-  }
+  // ── NÃO criar evento de calendário pra vacina já registrada ──
+  // (Removido 2026-06-07.) Antes criávamos um `child_activities` "Vacina: …" na
+  // `administered_date` pra aparecer no calendário, mas o trigger 00074 gera uma
+  // `calendar_occurrences` passada SEM `activity_report` → o motor de relatos
+  // (RPC get_dashboard_payload › past_pending_reports) a expunha como RELATO
+  // PENDENTE fantasma. Não faz sentido "relatar" uma vacina já registrada; pior,
+  // ao deletar o registro a atividade ficava ÓRFÃ (delete só apaga o record).
+  // Bug Matheus (dias.m.augusto@gmail.com) 2026-06-07: BCG "tomada" continuava em
+  // STATUS PENDENTES. A vacina já vive na timeline de Saúde + no motor de vacinas
+  // (compartilhado com o coparente). Pra voltar ao Calendário, fazer via um
+  // consumidor read-only do motor — sem gerar ocorrência reportável.
 
   return {
     ok: true,
