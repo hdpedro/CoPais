@@ -2894,5 +2894,28 @@
     "footer": "Você pode customizar tudo depois em Perfil → Notificações.",
     "accept": "Sim, ativar notificações",
     "decline": "Agora não"
+  },
+  "saudeTab": {
+    "seeAll": "Ver tudo",
+    "filterHistoryAll": "Filtrar histórico: todos",
+    "filterHistoryChild": "Filtrar histórico: {name}",
+    "viewHealthProfile": "Ver perfil de saúde de {name}",
+    "illnessCountOne": "1 doença",
+    "illnessCount": "{count} doenças",
+    "medCountOne": "1 med",
+    "medCount": "{count} meds",
+    "allergyCountOne": "1 alergia",
+    "allergyCount": "{count} alergias",
+    "modules": "Módulos",
+    "modSymptoms": "Sintomas",
+    "modPrescriptionOcr": "Receita OCR",
+    "modTimeline": "Timeline",
+    "viewFullTimeline": "Ver toda a timeline de saúde",
+    "emptyTitle": "Sem registros recentes",
+    "emptyDescription": "Comece registrando o que mais usa no dia a dia.",
+    "registerHealthEvent": "Registrar evento de saúde",
+    "openAppointments": "Abrir consultas",
+    "openGrowth": "Abrir crescimento",
+    "appointmentShort": "Consulta"
   }
 }

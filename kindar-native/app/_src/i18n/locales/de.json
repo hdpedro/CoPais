@@ -2894,5 +2894,28 @@
     "footer": "Du kannst alles später in Profil → Benachrichtigungen anpassen.",
     "accept": "Ja, Benachrichtigungen aktivieren",
     "decline": "Nicht jetzt"
+  },
+  "saudeTab": {
+    "seeAll": "Alle ansehen",
+    "filterHistoryAll": "Verlauf filtern: alle",
+    "filterHistoryChild": "Verlauf filtern: {name}",
+    "viewHealthProfile": "Gesundheitsprofil von {name} ansehen",
+    "illnessCountOne": "1 Krankheit",
+    "illnessCount": "{count} Krankheiten",
+    "medCountOne": "1 Med.",
+    "medCount": "{count} Meds",
+    "allergyCountOne": "1 Allergie",
+    "allergyCount": "{count} Allergien",
+    "modules": "Module",
+    "modSymptoms": "Symptome",
+    "modPrescriptionOcr": "Rezept-OCR",
+    "modTimeline": "Zeitleiste",
+    "viewFullTimeline": "Gesamten Gesundheitsverlauf ansehen",
+    "emptyTitle": "Keine aktuellen Einträge",
+    "emptyDescription": "Erfassen Sie zuerst, was Sie im Alltag am häufigsten nutzen.",
+    "registerHealthEvent": "Gesundheitsereignis erfassen",
+    "openAppointments": "Termine öffnen",
+    "openGrowth": "Wachstum öffnen",
+    "appointmentShort": "Termin"
   }
 }

@@ -2894,5 +2894,28 @@
     "footer": "You can customize everything later in Profile → Notifications.",
     "accept": "Yes, enable notifications",
     "decline": "Not now"
+  },
+  "saudeTab": {
+    "seeAll": "See all",
+    "filterHistoryAll": "Filter history: all",
+    "filterHistoryChild": "Filter history: {name}",
+    "viewHealthProfile": "View {name}'s health profile",
+    "illnessCountOne": "1 illness",
+    "illnessCount": "{count} illnesses",
+    "medCountOne": "1 med",
+    "medCount": "{count} meds",
+    "allergyCountOne": "1 allergy",
+    "allergyCount": "{count} allergies",
+    "modules": "Modules",
+    "modSymptoms": "Symptoms",
+    "modPrescriptionOcr": "Prescription OCR",
+    "modTimeline": "Timeline",
+    "viewFullTimeline": "View full health timeline",
+    "emptyTitle": "No recent records",
+    "emptyDescription": "Start by logging what you use most day to day.",
+    "registerHealthEvent": "Log health event",
+    "openAppointments": "Open appointments",
+    "openGrowth": "Open growth",
+    "appointmentShort": "Appointment"
   }
 }

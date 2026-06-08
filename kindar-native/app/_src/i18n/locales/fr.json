@@ -2894,5 +2894,28 @@
     "footer": "Tu peux tout personnaliser plus tard dans Profil → Notifications.",
     "accept": "Oui, activer les notifications",
     "decline": "Pas maintenant"
+  },
+  "saudeTab": {
+    "seeAll": "Tout voir",
+    "filterHistoryAll": "Filtrer l'historique : tous",
+    "filterHistoryChild": "Filtrer l'historique : {name}",
+    "viewHealthProfile": "Voir le profil de santé de {name}",
+    "illnessCountOne": "1 maladie",
+    "illnessCount": "{count} maladies",
+    "medCountOne": "1 méd.",
+    "medCount": "{count} méds",
+    "allergyCountOne": "1 allergie",
+    "allergyCount": "{count} allergies",
+    "modules": "Modules",
+    "modSymptoms": "Symptômes",
+    "modPrescriptionOcr": "OCR ordonnance",
+    "modTimeline": "Chronologie",
+    "viewFullTimeline": "Voir toute la chronologie de santé",
+    "emptyTitle": "Aucun enregistrement récent",
+    "emptyDescription": "Commencez par enregistrer ce que vous utilisez le plus au quotidien.",
+    "registerHealthEvent": "Enregistrer un événement de santé",
+    "openAppointments": "Ouvrir les consultations",
+    "openGrowth": "Ouvrir la croissance",
+    "appointmentShort": "Consultation"
   }
 }
