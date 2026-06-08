@@ -22,28 +22,39 @@ import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const ACTION_META: Record<string, { label: string; icon: string; color: string }> = {
-  edit: { label: 'Editar', icon: '✏️', color: '#3B82F6' },
-  reschedule: { label: 'Reagendar', icon: '📅', color: '#E8A228' },
-  cancel: { label: 'Cancelar', icon: '🚫', color: '#E53935' },
-  delete: { label: 'Excluir', icon: '🗑️', color: '#E53935' },
+type TFn = (key: string, params?: Record<string, string | number>) => string;
+
+const ACTION_META: Record<string, { labelKey: string; verbKey: string; icon: string; color: string }> = {
+  edit: { labelKey: 'common.edit', verbKey: 'eventRequests.edit', icon: '✏️', color: '#3B82F6' },
+  reschedule: { labelKey: 'eventRequests.actionReschedule', verbKey: 'eventRequests.reschedule', icon: '📅', color: '#E8A228' },
+  cancel: { labelKey: 'common.cancel', verbKey: 'eventRequests.cancel', icon: '🚫', color: '#E53935' },
+  delete: { labelKey: 'common.delete', verbKey: 'eventRequests.delete', icon: '🗑️', color: '#E53935' },
 };
 
-function formatRelative(iso: string): string {
+function formatRelative(iso: string, t: TFn): string {
   const diff = Date.now() - new Date(iso).getTime();
   const hrs = Math.floor(diff / 3600000);
-  if (hrs < 1) return 'agora';
-  if (hrs < 24) return `${hrs}h`;
-  return `${Math.floor(hrs / 24)}d`;
+  if (hrs < 1) return t('eventRequests.relativeNow');
+  if (hrs < 24) return t('relTime.hShort', { count: hrs });
+  return t('eventRequests.relativeDays', { count: Math.floor(hrs / 24) });
 }
 
-function describeChange(key: string, value: unknown): string {
-  if (key === 'event_date' || key === 'end_date') return `${key.replace('_', ' ')}: ${String(value)}`;
-  if (key === 'event_time') return `horario: ${String(value)}`;
-  if (key === 'location') return `local: ${String(value)}`;
-  if (key === 'title') return `titulo: ${String(value)}`;
-  if (key === 'description' || key === 'notes') return `${key}: ${String(value).slice(0, 80)}`;
-  return `${key}: ${String(value)}`;
+const CHANGE_FIELD_KEYS: Record<string, string> = {
+  event_date: 'eventRequests.fieldEventDate',
+  end_date: 'eventRequests.fieldEndDate',
+  event_time: 'eventRequests.fieldEventTime',
+  location: 'eventRequests.fieldLocation',
+  title: 'eventRequests.fieldTitle',
+  description: 'eventRequests.fieldDescription',
+  notes: 'eventRequests.fieldNotes',
+};
+
+function describeChange(key: string, value: unknown, t: TFn): string {
+  const labelKey = CHANGE_FIELD_KEYS[key];
+  const label = labelKey ? t(labelKey) : key;
+  const raw = String(value ?? '');
+  const text = key === 'description' || key === 'notes' ? raw.slice(0, 80) : raw;
+  return `${label}: ${text}`;
 }
 
 export default function PedidosEventosScreen() {
@@ -86,12 +97,12 @@ export default function PedidosEventosScreen() {
   async function handleCancel(req: EventRequest) {
     if (!activeGroup) return;
     Alert.alert(
-      'Cancelar pedido',
+      t('eventRequests.cancelRequest'),
       t('eventRequests.cancelDiscardMessage'),
       [
-        { text: 'Voltar', style: 'cancel' },
+        { text: t('eventRequests.back'), style: 'cancel' },
         {
-          text: 'Cancelar pedido',
+          text: t('eventRequests.cancelRequest'),
           onPress: async () => {
             setResponding(req.id);
             await cancelEventRequest(req.id, activeGroup.groupId);
@@ -110,7 +121,7 @@ export default function PedidosEventosScreen() {
           <Ionicons name="chevron-back" size={26} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ flex: 1, fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text }}>
-          Pedidos de alteracao
+          {t('eventRequests.screenTitle')}
         </Text>
       </View>
 
@@ -128,6 +139,7 @@ export default function PedidosEventosScreen() {
           ) : (
             requests.map(r => {
               const action = ACTION_META[r.action_type] || ACTION_META.edit;
+              const actionLabel = t(action.labelKey);
               const iAmRequester = r.requester_id === userId;
               return (
                 <View
@@ -145,30 +157,30 @@ export default function PedidosEventosScreen() {
                     <View style={{ flex: 1 }}>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: 2, flexWrap: 'wrap' }}>
                         <Text style={{ fontSize: font.sizes.xs, color: action.color, fontWeight: font.weights.semibold, textTransform: 'uppercase' }}>
-                          {action.label}
+                          {actionLabel}
                         </Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                          · {formatRelative(r.created_at)}
+                          · {formatRelative(r.created_at, t)}
                         </Text>
                       </View>
                       <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, marginBottom: 4 }}>
                         {r.eventTitle}
                       </Text>
                       <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary }}>
-                        {r.requesterName} propos {action.label.toLowerCase()} este evento.
+                        {t('eventRequests.proposedThisEvent', { name: r.requesterName ?? '', action: t(action.verbKey) })}
                       </Text>
                       {r.reason ? (
                         <View style={{ marginTop: spacing.sm, padding: spacing.sm, backgroundColor: colors.bg, borderRadius: radius.md }}>
-                          <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.medium, marginBottom: 2 }}>Motivo</Text>
+                          <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.medium, marginBottom: 2 }}>{t('eventRequests.reasonLabel')}</Text>
                           <Text style={{ fontSize: font.sizes.sm, color: colors.text }}>{r.reason}</Text>
                         </View>
                       ) : null}
                       {r.proposed_changes && Object.keys(r.proposed_changes).length > 0 ? (
                         <View style={{ marginTop: spacing.sm, padding: spacing.sm, backgroundColor: colors.bg, borderRadius: radius.md }}>
-                          <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.medium, marginBottom: 2 }}>Mudancas propostas</Text>
+                          <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.medium, marginBottom: 2 }}>{t('eventRequests.proposedChangesLabel')}</Text>
                           {Object.entries(r.proposed_changes).map(([k, v]) => (
                             <Text key={k} style={{ fontSize: font.sizes.sm, color: colors.text }}>
-                              {describeChange(k, v)}
+                              {describeChange(k, v, t)}
                             </Text>
                           ))}
                         </View>
@@ -182,7 +194,7 @@ export default function PedidosEventosScreen() {
                       onPress={() => handleCancel(r)}
                       style={{ alignSelf: 'flex-end', marginTop: spacing.md, paddingHorizontal: spacing.md, paddingVertical: 6, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight }}
                     >
-                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>Cancelar pedido</Text>
+                      <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>{t('eventRequests.cancelRequest')}</Text>
                     </TouchableOpacity>
                   ) : (
                     <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
@@ -192,7 +204,7 @@ export default function PedidosEventosScreen() {
                         style={{ flex: 1, paddingVertical: 10, borderRadius: radius.md, borderWidth: 1, borderColor: colors.borderLight, alignItems: 'center', opacity: responding === r.id ? 0.5 : 1 }}
                       >
                         {responding === r.id ? <ActivityIndicator size="small" color={colors.textSecondary} /> : (
-                          <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>Rejeitar</Text>
+                          <Text style={{ color: colors.textSecondary, fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>{t('calendarTab.reject')}</Text>
                         )}
                       </TouchableOpacity>
                       <TouchableOpacity
@@ -201,7 +213,7 @@ export default function PedidosEventosScreen() {
                         style={{ flex: 1, paddingVertical: 10, borderRadius: radius.md, backgroundColor: colors.brand, alignItems: 'center', opacity: responding === r.id ? 0.5 : 1 }}
                       >
                         {responding === r.id ? <ActivityIndicator size="small" color="#fff" /> : (
-                          <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>Aprovar</Text>
+                          <Text style={{ color: '#fff', fontSize: font.sizes.sm, fontWeight: font.weights.semibold }}>{t('calendarTab.approve')}</Text>
                         )}
                       </TouchableOpacity>
                     </View>

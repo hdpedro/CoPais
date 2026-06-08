@@ -153,7 +153,7 @@ export default function NotificacoesScreen() {
         // discreto. PATCHes ainda tentam server (idempotente); se voltarem
         // a funcionar, próxima abertura sincroniza.
         setPrefs(FALLBACK_PREFS);
-        setFetchError(prefsR.error || 'Não foi possível carregar suas preferências');
+        setFetchError(prefsR.error || t('notifPrefs.loadFailed'));
         reportError(new Error(`prefs fetch failed: ${prefsR.error ?? 'unknown'}`), {
           filePath: 'app/perfil/notificacoes.tsx',
           severity: 'warning',
@@ -166,14 +166,14 @@ export default function NotificacoesScreen() {
       // Exception inesperada — fallback pra UI nao travar. TimeoutError ja
       // foi reportado como 'info' pelo withTimeout; outros viram 'error'.
       setPrefs(FALLBACK_PREFS);
-      setFetchError(e instanceof Error ? e.message : 'Erro inesperado');
+      setFetchError(e instanceof Error ? e.message : t('notifPrefs.unexpectedError'));
       if (!(e instanceof TimeoutError)) {
         reportError(e, { filePath: 'app/perfil/notificacoes.tsx', metadata: { phase: 'load' } });
       }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useFocusEffect(useCallback(() => { load(); }, [load]));
 
@@ -242,7 +242,7 @@ export default function NotificacoesScreen() {
       t('notifPrefs.title'),
       t('notifPrefs.resetConfirm'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
           text: t('notifPrefs.resetToDefaults'),
           style: 'destructive',
@@ -340,16 +340,16 @@ export default function NotificacoesScreen() {
             <Ionicons name="cloud-offline-outline" size={18} color="#92400E" />
             <View style={{ flex: 1 }}>
               <Text style={{ color: '#92400E', fontSize: font.sizes.sm, fontWeight: font.weights.medium }}>
-                Mostrando padrões enquanto sincroniza
+                {t('notifPrefs.offlineBannerTitle')}
               </Text>
               <Text style={{ color: '#92400E', fontSize: font.sizes.xs, marginTop: 2 }}>
-                Suas mudanças serão salvas no servidor.
+                {t('notifPrefs.offlineBannerBody')}
               </Text>
             </View>
             <TouchableOpacity onPress={load} disabled={loading}
               style={{ paddingHorizontal: spacing.sm, paddingVertical: 6, backgroundColor: '#92400E', borderRadius: radius.sm }}>
               <Text style={{ color: '#fff', fontSize: font.sizes.xs, fontWeight: font.weights.semibold }}>
-                Tentar
+                {t('notifPrefs.retry')}
               </Text>
             </TouchableOpacity>
           </View>

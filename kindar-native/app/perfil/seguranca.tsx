@@ -27,11 +27,11 @@ import { authenticate, getBiometricCapability, type BiometricCapability } from '
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const TIMEOUT_OPTIONS: { value: LockTimeout; description: string }[] = [
-  { value: 'immediate', description: 'Mais seguro — pede sempre que abrir o app' },
-  { value: '1m', description: 'Pra trocar de app rapidinho sem reautenticar' },
-  { value: '15m', description: 'Equilibrio entre conveniencia e seguranca' },
-  { value: '1h', description: 'Mais conveniente — pede uma vez por hora' },
+const TIMEOUT_OPTIONS: { value: LockTimeout; descKey: string }[] = [
+  { value: 'immediate', descKey: 'timeoutImmediateDesc' },
+  { value: '1m', descKey: 'timeout1mDesc' },
+  { value: '15m', descKey: 'timeout15mDesc' },
+  { value: '1h', descKey: 'timeout1hDesc' },
 ];
 
 export default function SegurancaScreen() {
@@ -46,7 +46,7 @@ export default function SegurancaScreen() {
     getBiometricCapability().then(setCapability).catch(() => {});
   }, [hydrated, hydrate]);
 
-  const labelKind = capability?.label || 'Biometria';
+  const labelKind = capability?.label || t('security.biometrics');
   const supported = !!capability && capability.hasHardware;
 
   async function openIosSettings() {
@@ -67,18 +67,18 @@ export default function SegurancaScreen() {
       }
       if (!capability.isEnrolled) {
         Alert.alert(
-          `Cadastre ${labelKind} primeiro`,
-          `Pra usar o bloqueio, abra Ajustes > ${labelKind} e cadastre sua biometria. Depois volte aqui e ligue de novo.`,
+          t('security.enrollFirstTitle', { kind: labelKind }),
+          t('security.enrollFirstMessage', { kind: labelKind }),
           [
-            { text: 'Cancelar', style: 'cancel' },
-            { text: 'Abrir Ajustes', onPress: openIosSettings },
+            { text: t('common.cancel'), style: 'cancel' },
+            { text: t('security.openSettings'), onPress: openIosSettings },
           ]
         );
         return;
       }
       // Exige biometria pra ligar (confirma identidade do dono).
       setBusy(true);
-      const r = await authenticate(`Confirme com ${labelKind} para ativar o bloqueio`);
+      const r = await authenticate(t('security.confirmEnable', { kind: labelKind }));
       setBusy(false);
       if (!r.success) {
         if (r.error && r.error !== 'user_cancel' && r.error !== 'cancel') {
@@ -91,7 +91,7 @@ export default function SegurancaScreen() {
     } else {
       // Desliga o lock — tambem exige biometria (impede desativacao por terceiros).
       setBusy(true);
-      const r = await authenticate(`Confirme com ${labelKind} para desativar o bloqueio`);
+      const r = await authenticate(t('security.confirmDisable', { kind: labelKind }));
       setBusy(false);
       if (!r.success) {
         if (r.error && r.error !== 'user_cancel' && r.error !== 'cancel') {
@@ -129,13 +129,13 @@ export default function SegurancaScreen() {
             />
           </View>
           <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text }}>
-            Bloqueio com {labelKind}
+            {t('security.heroTitle', { kind: labelKind })}
           </Text>
           <Text style={{
             fontSize: font.sizes.sm, color: colors.textSecondary,
             textAlign: 'center', marginTop: spacing.xs, paddingHorizontal: spacing.lg,
           }}>
-            Protege seus dados (criancas, conversas, despesas, saude) com a biometria do dispositivo.
+            {t('security.heroSubtitle')}
           </Text>
         </View>
 
@@ -147,14 +147,14 @@ export default function SegurancaScreen() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
-                Ativar {labelKind}
+                {t('security.enable', { kind: labelKind })}
               </Text>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
                 {supported
                   ? capability?.isEnrolled
-                    ? 'Cadastrado e pronto para uso'
-                    : `Cadastre ${labelKind} nos Ajustes do dispositivo`
-                  : 'Dispositivo não suporta biometria'}
+                    ? t('security.statusReady')
+                    : t('security.statusNotEnrolled', { kind: labelKind })
+                  : t('security.statusUnsupported')}
               </Text>
             </View>
             {busy ? (
@@ -184,10 +184,10 @@ export default function SegurancaScreen() {
                 fontSize: font.sizes.xs, fontWeight: font.weights.semibold,
                 color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1,
               }}>
-                Pedir biometria
+                {t('security.timeoutSectionTitle')}
               </Text>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 4 }}>
-                Quanto tempo apos sair do app antes de bloquear de novo.
+                {t('security.timeoutSectionHint')}
               </Text>
             </View>
             {TIMEOUT_OPTIONS.map((opt, idx) => (
@@ -197,7 +197,7 @@ export default function SegurancaScreen() {
                 testID={`seguranca-timeout-${opt.value}`}
                 accessibilityRole="radio"
                 accessibilityState={{ selected: timeout === opt.value }}
-                accessibilityLabel={`${TIMEOUT_LABELS[opt.value]}. ${opt.description}`}
+                accessibilityLabel={`${TIMEOUT_LABELS[opt.value]}. ${t('security.' + opt.descKey)}`}
                 style={{
                   paddingHorizontal: spacing.xl,
                   paddingVertical: spacing.md,
@@ -227,7 +227,7 @@ export default function SegurancaScreen() {
                     {TIMEOUT_LABELS[opt.value]}
                   </Text>
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: 2 }}>
-                    {opt.description}
+                    {t('security.' + opt.descKey)}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -243,9 +243,7 @@ export default function SegurancaScreen() {
         }}>
           <Ionicons name="information-circle-outline" size={18} color={colors.brand} style={{ marginTop: 2 }} />
           <Text style={{ flex: 1, fontSize: font.sizes.xs, color: colors.text, lineHeight: 18 }}>
-            A biometria fica no chip do dispositivo. O Kindar não envia nem armazena
-            seu rosto ou impressão digital. Se {labelKind} falhar 3x, você pode usar
-            a senha do dispositivo como alternativa.
+            {t('security.privacyNote', { kind: labelKind })}
           </Text>
         </View>
       </ScrollView>

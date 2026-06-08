@@ -76,10 +76,10 @@ export default function PerfilScreen() {
   }
 
   const LANGUAGES = [
-    { code: 'pt', label: 'Portugues' },
+    { code: 'pt', label: 'Português' },
     { code: 'en', label: 'English' },
-    { code: 'es', label: 'Espanol' },
-    { code: 'fr', label: 'Francais' },
+    { code: 'es', label: 'Español' },
+    { code: 'fr', label: 'Français' },
     { code: 'de', label: 'Deutsch' },
   ];
 

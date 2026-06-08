@@ -116,12 +116,12 @@ export default function FamiliaScreen() {
   async function handleRemoveMember(member: Member) {
     if (!activeGroup) return;
     Alert.alert(
-      'Remover membro',
-      `Remover ${member.fullName.split(' ')[0]} do grupo? O histórico dele fica preservado mas ele perde acesso.`,
+      t('familiaScreen.removeMemberTitle'),
+      t('familiaScreen.removeMemberMessage', { name: member.fullName.split(' ')[0] }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Remover',
+          text: t('familiaScreen.removeMember'),
           style: 'destructive',
           onPress: async () => {
             setActing(member.userId);
@@ -148,12 +148,12 @@ export default function FamiliaScreen() {
   async function handleLeaveGroup() {
     if (!activeGroup || !userId) return;
     Alert.alert(
-      'Sair do grupo',
-      `Você vai perder acesso a ${activeGroup.groupName}. Esta ação não pode ser desfeita pelo próprio usuário — só quem é admin pode te readicionar.`,
+      t('familiaScreen.leaveGroup'),
+      t('familiaScreen.leaveGroupMessage', { group: activeGroup.groupName }),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Sair',
+          text: t('familiaScreen.leave'),
           style: 'destructive',
           onPress: async () => {
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
@@ -179,12 +179,12 @@ export default function FamiliaScreen() {
   async function handleCancelInvite(inv: Invitation) {
     if (!activeGroup) return;
     Alert.alert(
-      'Cancelar convite',
-      `Cancelar convite enviado para ${inv.email}?`,
+      t('inviteSend.cancelTitle'),
+      t('inviteSend.cancelConfirm', { email: inv.email }),
       [
-        { text: 'Manter', style: 'cancel' },
+        { text: t('familiaScreen.keep'), style: 'cancel' },
         {
-          text: 'Cancelar convite',
+          text: t('inviteSend.cancelTitle'),
           style: 'destructive',
           onPress: async () => {
             setActing(inv.id);
@@ -246,11 +246,11 @@ export default function FamiliaScreen() {
                   <Ionicons name="home-outline" size={28} color={colors.brand} />
                 </View>
                 <Text style={{ fontSize: font.sizes.xl, fontWeight: font.weights.bold, color: colors.text, textAlign: 'center' }}>
-                  {activeGroup?.groupName || 'Familia'}
+                  {activeGroup?.groupName || t('familyPage.headerTitle')}
                 </Text>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 2 }}>
-                  {members.length} membro{members.length !== 1 ? 's' : ''}
-                  {pendingInvites.length > 0 ? ` · ${pendingInvites.length} convite(s) pendente(s)` : ''}
+                  {t(members.length === 1 ? 'familiaScreen.memberCountOne' : 'familiaScreen.memberCountOther', { count: members.length })}
+                  {pendingInvites.length > 0 ? ` · ${t(pendingInvites.length === 1 ? 'familiaScreen.pendingCountOne' : 'familiaScreen.pendingCountOther', { count: pendingInvites.length })}` : ''}
                 </Text>
               </View>
 
@@ -274,7 +274,7 @@ export default function FamiliaScreen() {
               </TouchableOpacity>
 
               <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginBottom: spacing.sm }}>
-                Membros ({members.length})
+                {t('familiaScreen.membersSection', { count: members.length })}
               </Text>
             </>
           }
@@ -296,7 +296,7 @@ export default function FamiliaScreen() {
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' }}>
                     <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text }}>
                       {m.fullName}
-                      {isSelf ? ' (você)' : ''}
+                      {isSelf ? ` (${t('familyPage.you')})` : ''}
                     </Text>
                     <View style={{ backgroundColor: `${roleMeta.color}20`, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4, flexDirection: 'row', alignItems: 'center', gap: 3 }}>
                       <Text style={{ fontSize: 10 }}>{roleMeta.icon}</Text>
@@ -320,7 +320,7 @@ export default function FamiliaScreen() {
                       }}
                       hitSlop={8}
                       accessibilityRole="button"
-                      accessibilityLabel={`Mudar papel de ${m.fullName}`}
+                      accessibilityLabel={t('familiaScreen.changeRoleOf', { name: m.fullName })}
                       style={{ padding: 6 }}
                     >
                       <Ionicons name="swap-vertical-outline" size={20} color={colors.textSecondary} />
@@ -330,7 +330,7 @@ export default function FamiliaScreen() {
                       onPress={() => handleRemoveMember(m)}
                       hitSlop={8}
                       accessibilityRole="button"
-                      accessibilityLabel={`Remover ${m.fullName} do grupo`}
+                      accessibilityLabel={t('familiaScreen.removeFromGroup', { name: m.fullName })}
                       style={{ padding: 6 }}
                     >
                       <Ionicons name="remove-circle-outline" size={22} color={colors.error} />
@@ -346,7 +346,7 @@ export default function FamiliaScreen() {
               {children.length > 0 ? (
                 <>
                   <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.xl, marginBottom: spacing.sm }}>
-                    Crianças ({children.length})
+                    {t('familiaScreen.childrenSection', { count: children.length })}
                   </Text>
                   {children.map(c => (
                     <TouchableOpacity
@@ -354,7 +354,7 @@ export default function FamiliaScreen() {
                       onPress={() => router.push({ pathname: '/criancas/[id]', params: { id: c.id } } as never)}
                       activeOpacity={0.8}
                       accessibilityRole="button"
-                      accessibilityLabel={`Abrir perfil de ${c.full_name}`}
+                      accessibilityLabel={t('familiaScreen.openChildProfile', { name: c.full_name })}
                       style={{
                         backgroundColor: colors.bgElevated, borderRadius: radius.lg,
                         padding: spacing.lg, marginBottom: spacing.sm, ...shadows.sm,
@@ -371,7 +371,7 @@ export default function FamiliaScreen() {
                           {c.full_name}
                         </Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary }}>
-                          {childAges[c.id] ?? 0} anos · {c.birth_date.split('-').reverse().join('/')}
+                          {t((childAges[c.id] ?? 0) === 1 ? 'familiaScreen.yearsOldOne' : 'familiaScreen.yearsOldOther', { count: childAges[c.id] ?? 0 })} · {c.birth_date.split('-').reverse().join('/')}
                         </Text>
                       </View>
                       <Ionicons name="chevron-forward" size={16} color={colors.textDim} />
@@ -383,7 +383,7 @@ export default function FamiliaScreen() {
               {pendingInvites.length > 0 ? (
                 <>
                   <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.xl, marginBottom: spacing.sm }}>
-                    Convites pendentes ({pendingInvites.length})
+                    {t('familiaScreen.pendingSection', { count: pendingInvites.length })}
                   </Text>
                   {pendingInvites.map(inv => (
                     <View
@@ -403,7 +403,7 @@ export default function FamiliaScreen() {
                           {inv.email}
                         </Text>
                         <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 2 }}>
-                          {t('inviteRoles.' + inv.role)} · Enviado {inv.created_at?.slice(0, 10).split('-').reverse().join('/')}
+                          {t('inviteRoles.' + inv.role)} · {t('familiaScreen.sentOn', { date: inv.created_at?.slice(0, 10).split('-').reverse().join('/') ?? '' })}
                         </Text>
                       </View>
                       {amAdmin ? (
@@ -412,7 +412,7 @@ export default function FamiliaScreen() {
                           onPress={() => handleCancelInvite(inv)}
                           hitSlop={12}
                           accessibilityRole="button"
-                          accessibilityLabel={`Cancelar convite para ${inv.email}`}
+                          accessibilityLabel={t('inviteSend.cancelInviteToA11y', { email: inv.email })}
                           style={{ padding: 4 }}
                         >
                           <Ionicons name="close-circle-outline" size={22} color={colors.error} />
@@ -427,7 +427,7 @@ export default function FamiliaScreen() {
               {acceptedInvites.length > 0 ? (
                 <>
                   <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.xl, marginBottom: spacing.sm }}>
-                    Convites aceitos
+                    {t('familiaScreen.acceptedSection')}
                   </Text>
                   {acceptedInvites.map(inv => (
                     <View
@@ -476,7 +476,7 @@ export default function FamiliaScreen() {
         <ModalBackdrop onClose={() => setRoleModalMember(null)} align="center" dim={0.5} padding={spacing.xl}>
           <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, width: '100%', maxWidth: 400 }}>
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text }}>
-              Mudar papel
+              {t('familiaScreen.changeRole')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 4, marginBottom: spacing.lg }}>
               {roleModalMember?.fullName ? roleModalMember.fullName.split(' ')[0] : ''}

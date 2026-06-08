@@ -73,7 +73,7 @@ function mapProductToPlan(productId: string): keyof typeof PRODUCT_IDS | null {
   return entry?.[0] ?? null;
 }
 
-function classifyPackage(pkg: PurchasesPackage): PackageView {
+function classifyPackage(pkg: PurchasesPackage, t: (key: string) => string): PackageView {
   const productId = pkg.product.identifier;
   const planId = mapProductToPlan(productId);
   const isEarlyBird = productId.includes('earlybird');
@@ -82,15 +82,15 @@ function classifyPackage(pkg: PurchasesPackage): PackageView {
     pkg,
     planId,
     title: isJuridico
-      ? 'Plano Harmonia'
+      ? t('subscription.planJuridicoLabel')
       : isEarlyBird
-      ? 'Harmonia — Early Bird'
+      ? t('subscription.earlyBirdTitle')
       : 'Harmonia',
     subtitle: isJuridico
-      ? 'Audit trail, export legal e suporte VIP'
+      ? t('subscription.subtitleJuridico')
       : isEarlyBird
-      ? 'Preço travado para sempre · primeiras 1.000 famílias'
-      : 'Organização completa para toda a família',
+      ? t('subscription.subtitleEarlyBird')
+      : t('subscription.subtitleHarmonia'),
     tier: isJuridico ? 'premium_juridico' : 'harmonia',
     isEarlyBird,
   };
@@ -125,7 +125,7 @@ export default function AssinaturaScreen() {
             p.product.identifier.includes('harmonia') &&
             !p.product.identifier.includes('earlybird'),
         )
-        .map(classifyPackage),
+        .map((p) => classifyPackage(p, t)),
     );
 
     // Load eligible co-payers (parent role, not self) for the split picker.
@@ -139,7 +139,7 @@ export default function AssinaturaScreen() {
         .map((m) => {
           const p = Array.isArray(m.profiles) ? m.profiles[0] : m.profiles;
           if (!p || p.role !== 'parent') return null;
-          const full = p.full_name || 'Membro';
+          const full = p.full_name || t('subscription.memberFallback');
           return {
             user_id: m.user_id as string,
             full_name: full,
@@ -151,7 +151,7 @@ export default function AssinaturaScreen() {
     } else {
       setSplitMembers([]);
     }
-  }, [activeGroup, userId]);
+  }, [activeGroup, userId, t]);
 
   async function handleEnableSplit(coUserId: string) {
     if (!activeGroup?.groupId) return;
@@ -173,12 +173,12 @@ export default function AssinaturaScreen() {
   async function handleDisableSplit() {
     if (!activeGroup?.groupId) return;
     Alert.alert(
-      'Desativar divisão?',
-      'Você volta a pagar a assinatura sozinho a partir da próxima cobrança.',
+      t('subscription.disableSplitTitle'),
+      t('subscription.disableSplitMessage'),
       [
-        { text: 'Cancelar', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Desativar',
+          text: t('subscription.deactivate'),
           style: 'destructive',
           onPress: async () => {
             setSplitBusy(true);
@@ -311,7 +311,7 @@ export default function AssinaturaScreen() {
                 marginTop: spacing.md,
               }}
             >
-              Plano da família
+              {t('subscription.familyPlanTitle')}
             </Text>
             <Text
               style={{
@@ -322,8 +322,8 @@ export default function AssinaturaScreen() {
               }}
             >
               {billing.isActive
-                ? `Sua família está no plano ${tierLabel(billing.tier)}. Você tem acesso completo — quem paga é um dos responsáveis legais do grupo.`
-                : 'A família ainda não tem assinatura ativa. Somente responsáveis legais (role "parent") podem assinar.'}
+                ? t('subscription.nonPayerActive', { tier: tierLabel(billing.tier, t) })
+                : t('subscription.nonPayerInactive')}
             </Text>
             {billing.payerReason === 'not_legal_guardian' && (
               <Text
@@ -334,7 +334,7 @@ export default function AssinaturaScreen() {
                   lineHeight: 18,
                 }}
               >
-                Seu perfil está como convidado (avô/avó, babá, mediador ou advogado). Por política do Kindar, convidados nunca são cobrados.
+                {t('subscription.nonPayerGuestNote')}
               </Text>
             )}
           </View>
@@ -349,7 +349,7 @@ export default function AssinaturaScreen() {
             }}
           >
             <Text style={{ fontSize: font.sizes.sm, color: colors.brand, fontWeight: '600' }}>
-              {restoring ? 'Restaurando…' : 'Restaurar compra'}
+              {restoring ? t('subscription.restoring') : t('subscription.restorePurchase')}
             </Text>
           </TouchableOpacity>
         </View>
@@ -379,12 +379,14 @@ export default function AssinaturaScreen() {
           >
             <Text style={{ fontSize: font.sizes.sm, color: colors.brandDark, fontWeight: '700' }}>
               {billing.isTrial
-                ? `🎁 Degustação · ${billing.trialDaysRemaining} ${billing.trialDaysRemaining === 1 ? 'dia restante' : 'dias restantes'}`
-                : `✓ ${tierLabel(billing.tier)} ativo`}
+                ? `🎁 ${billing.trialDaysRemaining === 1
+                    ? t('subscription.trialDayRemaining', { days: billing.trialDaysRemaining })
+                    : t('subscription.trialDaysRemaining', { days: billing.trialDaysRemaining ?? 0 })}`
+                : `✓ ${t('subscription.tierActive', { tier: tierLabel(billing.tier, t) })}`}
             </Text>
             {billing.cancelAtPeriodEnd && billing.currentPeriodEnd && (
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginTop: 4 }}>
-                Cancelamento agendado para {new Date(billing.currentPeriodEnd).toLocaleDateString('pt-BR')}
+                {t('subscription.cancelScheduled', { date: new Date(billing.currentPeriodEnd).toLocaleDateString('pt-BR') })}
               </Text>
             )}
           </View>
@@ -407,12 +409,12 @@ export default function AssinaturaScreen() {
           >
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: font.sizes.md, fontWeight: '600', color: colors.text }}>
-                Gerenciar assinatura
+                {t('subscription.manageSubscription')}
               </Text>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: 2 }}>
                 {Platform.OS === 'ios'
-                  ? 'Abrir Ajustes > Apple ID > Assinaturas'
-                  : 'Abrir Google Play > Assinaturas'}
+                  ? t('subscription.manageHintIos')
+                  : t('subscription.manageHintAndroid')}
               </Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={colors.textSecondary} />
@@ -424,7 +426,7 @@ export default function AssinaturaScreen() {
           <View style={{ padding: spacing.xl, alignItems: 'center' }}>
             <ActivityIndicator color={colors.brand} />
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.md }}>
-              Carregando planos…
+              {t('subscription.loadingPlans')}
             </Text>
           </View>
         )}
@@ -463,7 +465,7 @@ export default function AssinaturaScreen() {
                 {priceString}
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: '500', color: colors.textSecondary }}>
                   {' '}
-                  {view.pkg.packageType === 'ANNUAL' ? '/ano' : '/mês'}
+                  {view.pkg.packageType === 'ANNUAL' ? t('billing.perYear') : t('billing.perMonth')}
                 </Text>
               </Text>
 
@@ -488,10 +490,10 @@ export default function AssinaturaScreen() {
                 ) : (
                   <Text style={{ fontSize: font.sizes.md, fontWeight: '700', color: 'white' }}>
                     {isCurrentTier
-                      ? 'Plano atual'
+                      ? t('subscription.currentPlan')
                       : view.isEarlyBird
-                      ? 'Garantir Early Bird'
-                      : `Assinar ${view.title}`}
+                      ? t('subscription.earlyBirdCta')
+                      : t('subscription.subscribePlan', { plan: view.title })}
                   </Text>
                 )}
               </TouchableOpacity>
@@ -511,7 +513,7 @@ export default function AssinaturaScreen() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.sm }}>
               <Ionicons name="people-outline" size={20} color={colors.brand} />
               <Text style={{ fontSize: font.sizes.md, fontWeight: '700', color: colors.text }}>
-                Dividir assinatura
+                {t('subscription.splitTitle')}
               </Text>
             </View>
 
@@ -519,8 +521,8 @@ export default function AssinaturaScreen() {
               <>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 20 }}>
                   {billing.autoSplitCoShare
-                    ? `Dividindo ${billing.autoSplitCoShare}% com o(a) co-responsável. A despesa correspondente aparece em /financeiro a cada renovação.`
-                    : 'Divisão ativa. A despesa correspondente aparece em /financeiro a cada renovação.'}
+                    ? t('subscription.splitActiveShare', { percent: billing.autoSplitCoShare })
+                    : t('subscription.splitActive')}
                 </Text>
                 <TouchableOpacity
                   disabled={splitBusy}
@@ -538,7 +540,7 @@ export default function AssinaturaScreen() {
                 >
                   {splitBusy ? <ActivityIndicator color={colors.text} /> : (
                     <Text style={{ color: colors.text, fontWeight: '600', fontSize: font.sizes.sm }}>
-                      Desativar divisão
+                      {t('subscription.disableSplit')}
                     </Text>
                   )}
                 </TouchableOpacity>
@@ -546,11 +548,11 @@ export default function AssinaturaScreen() {
             ) : (
               <>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginTop: spacing.sm, lineHeight: 20 }}>
-                  Você está pagando sozinho. Ative para rachar 50/50 com o(a) outro(a) responsável — uma despesa será criada automaticamente em /financeiro.
+                  {t('subscription.splitPayingAlone')}
                 </Text>
                 {splitMembers.length === 0 ? (
                   <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm, fontStyle: 'italic' }}>
-                    Nenhum co-responsável elegível neste grupo. Convide outro(a) responsável legal e tente de novo.
+                    {t('subscription.splitNoCoParent')}
                   </Text>
                 ) : (
                   <View style={{ marginTop: spacing.md, gap: spacing.sm }}>
@@ -571,7 +573,7 @@ export default function AssinaturaScreen() {
                         }}
                       >
                         <Text style={{ color: '#fff', fontWeight: '600', fontSize: font.sizes.sm }}>
-                          Dividir 50/50 com {m.short_name}
+                          {t('subscription.splitWith', { name: m.short_name })}
                         </Text>
                         {splitBusy ? <ActivityIndicator color="#fff" /> : <Ionicons name="arrow-forward" size={16} color="#fff" />}
                       </TouchableOpacity>
@@ -591,7 +593,7 @@ export default function AssinaturaScreen() {
             style={{ padding: spacing.md }}
           >
             <Text style={{ fontSize: font.sizes.sm, color: colors.brand, fontWeight: '600' }}>
-              {restoring ? 'Restaurando…' : 'Restaurar compra'}
+              {restoring ? t('subscription.restoring') : t('subscription.restorePurchase')}
             </Text>
           </TouchableOpacity>
 
@@ -604,23 +606,27 @@ export default function AssinaturaScreen() {
               lineHeight: 16,
             }}
           >
-            Renovação automática. Cancele em {Platform.OS === 'ios' ? 'Ajustes > Apple ID' : 'Google Play > Assinaturas'} até 24h antes da próxima cobrança.
+            {t('subscription.autoRenewNotice', {
+              location: Platform.OS === 'ios'
+                ? t('subscription.cancelLocationIos')
+                : t('subscription.cancelLocationAndroid'),
+            })}
             {'\n\n'}
-            Ao assinar, você concorda com os{' '}
+            {t('subscription.legalPrefix')}{' '}
             <Text
               style={{ color: colors.brand }}
               onPress={() => Linking.openURL(`${WEB_URL}/termos`)}
             >
-              Termos
+              {t('subscription.legalTerms')}
             </Text>{' '}
-            e a{' '}
+            {t('subscription.legalAnd')}{' '}
             <Text
               style={{ color: colors.brand }}
               onPress={() => Linking.openURL(`${WEB_URL}/privacidade`)}
             >
-              Privacidade
+              {t('subscription.legalPrivacy')}
             </Text>
-            .
+            {t('subscription.legalSuffix')}
           </Text>
         </View>
       </View>
@@ -628,8 +634,8 @@ export default function AssinaturaScreen() {
   );
 }
 
-function tierLabel(tier: BillingStatus['tier']): string {
-  if (tier === 'premium_juridico') return 'Plano Harmonia';
+function tierLabel(tier: BillingStatus['tier'], t: (key: string) => string): string {
+  if (tier === 'premium_juridico') return t('subscription.planJuridicoLabel');
   if (tier === 'harmonia') return 'Harmonia';
-  return 'Grátis';
+  return t('subscription.planFree');
 }

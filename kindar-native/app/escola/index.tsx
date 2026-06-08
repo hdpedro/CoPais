@@ -60,10 +60,12 @@ const TYPE_ICONS = SUBTYPE_ICON;
 
 // Priority metadata — mirror of PWA EscolaClient PRIORITY_META.
 // rank drives the "unread first, then urgent first" sort below.
-const PRIORITY_META: Record<SchoolPriority, { label: string; chipBg: string; chipText: string; rank: number }> = {
-  info:      { label: 'Info',       chipBg: 'rgba(107,114,128,0.15)', chipText: '#4B5563',  rank: 0 },
-  important: { label: 'Importante', chipBg: 'rgba(245,158,11,0.18)',  chipText: '#B45309',  rank: 1 },
-  urgent:    { label: 'Urgente',    chipBg: 'rgba(239,68,68,0.18)',   chipText: '#B91C1C',  rank: 2 },
+// O label de exibição NÃO mora aqui: é resolvido no render via
+// t('collab.priority{Info|Important|Urgent}') pra reagir à troca de idioma.
+const PRIORITY_META: Record<SchoolPriority, { chipBg: string; chipText: string; rank: number }> = {
+  info:      { chipBg: 'rgba(107,114,128,0.15)', chipText: '#4B5563',  rank: 0 },
+  important: { chipBg: 'rgba(245,158,11,0.18)',  chipText: '#B45309',  rank: 1 },
+  urgent:    { chipBg: 'rgba(239,68,68,0.18)',   chipText: '#B91C1C',  rank: 2 },
 };
 
 type ComposerStage =

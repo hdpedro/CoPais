@@ -38,10 +38,12 @@ import { getDisplayName } from 'src/lib/constants';
 import { track, EVENTS } from 'src/lib/analytics';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
-const PRIORITY_META: Record<SchoolPriority, { label: string; chipBg: string; chipText: string }> = {
-  info:      { label: 'Info',       chipBg: 'rgba(107,114,128,0.15)', chipText: '#4B5563' },
-  important: { label: 'Importante', chipBg: 'rgba(245,158,11,0.18)',  chipText: '#B45309' },
-  urgent:    { label: 'Urgente',    chipBg: 'rgba(239,68,68,0.18)',   chipText: '#B91C1C' },
+// O label de exibição é resolvido no render via t('collab.priority*') —
+// não mora no mapa pra reagir à troca de idioma.
+const PRIORITY_META: Record<SchoolPriority, { chipBg: string; chipText: string }> = {
+  info:      { chipBg: 'rgba(107,114,128,0.15)', chipText: '#4B5563' },
+  important: { chipBg: 'rgba(245,158,11,0.18)',  chipText: '#B45309' },
+  urgent:    { chipBg: 'rgba(239,68,68,0.18)',   chipText: '#B91C1C' },
 };
 
 interface DetailRow {
@@ -162,16 +164,16 @@ export default function EscolaDetailScreen() {
       rows.push({ label: t('school.rowSchedule'), value: eventTime.slice(0, 5), icon: '🕐' });
     }
     if (log.score) {
-      rows.push({ label: 'Nota', value: log.score, icon: '🏆', color: colors.brand });
+      rows.push({ label: t('school.fieldScore'), value: log.score, icon: '🏆', color: colors.brand });
     }
     if (log.description) {
       rows.push({ label: t('school.fieldNote'), value: log.description, icon: '📝' });
     }
     if (log.logged_by_name) {
-      rows.push({ label: 'Registrado por', value: getDisplayName(log.logged_by_name, true), icon: '👤' });
+      rows.push({ label: t('school.fieldRegisteredBy'), value: getDisplayName(log.logged_by_name, true), icon: '👤' });
     }
     if (log.created_at) {
-      rows.push({ label: 'Criado em', value: formatCreatedAt(log.created_at), icon: '🕐' });
+      rows.push({ label: t('school.fieldCreatedAt'), value: formatCreatedAt(log.created_at), icon: '🕐' });
     }
   }
 
@@ -191,12 +193,12 @@ export default function EscolaDetailScreen() {
           onPress={() => router.back()}
           hitSlop={8}
           accessibilityRole="button"
-          accessibilityLabel="Voltar"
+          accessibilityLabel={t('common.back')}
         >
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text, flex: 1 }}>
-          {log ? SUBTYPE_LABEL[log.log_type] : 'Detalhe'}
+          {log ? SUBTYPE_LABEL[log.log_type] : t('eventDetail.headerTitle')}
         </Text>
       </View>
 
@@ -207,7 +209,7 @@ export default function EscolaDetailScreen() {
       ) : !log ? (
         <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: spacing.xl }}>
           <Text style={{ color: colors.textMuted, textAlign: 'center' }}>
-            Registro não encontrado.{'\n'}Talvez tenha sido excluído.
+            {t('health.vaccineDetail.notFoundTitle')}.{'\n'}{t('health.vaccineDetail.notFoundBody')}
           </Text>
         </View>
       ) : (
@@ -237,7 +239,7 @@ export default function EscolaDetailScreen() {
                   {log.title}
                 </Text>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.brand, fontWeight: font.weights.medium, marginTop: 2 }}>
-                  {SUBTYPE_LABEL[log.log_type]}{isEvent ? ' · 📅 No calendário' : ''}
+                  {SUBTYPE_LABEL[log.log_type]}{isEvent ? ` · 📅 ${t('school.inCalendarShort')}` : ''}
                 </Text>
               </View>
             </View>
@@ -259,7 +261,7 @@ export default function EscolaDetailScreen() {
                 onPress={handleToggleCompleted}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: log.completed }}
-                accessibilityLabel={log.completed ? 'Desmarcar concluída' : 'Marcar como concluída'}
+                accessibilityLabel={log.completed ? t('school.uncheckA11y', { title: log.title }) : t('school.checkA11y', { title: log.title })}
                 style={{
                   flexDirection: 'row', alignItems: 'center', gap: spacing.sm,
                   marginTop: spacing.md, paddingVertical: spacing.sm,
@@ -274,7 +276,7 @@ export default function EscolaDetailScreen() {
                   {log.completed ? <Ionicons name="checkmark" size={14} color="#fff" /> : null}
                 </View>
                 <Text style={{ fontSize: font.sizes.sm, color: colors.text, fontWeight: font.weights.medium }}>
-                  {log.completed ? 'Concluída' : 'Marcar como concluída'}
+                  {log.completed ? t('schoolPage.client.completed') : t('appointments.completeSubmit')}
                 </Text>
               </TouchableOpacity>
             ) : null}
@@ -334,7 +336,7 @@ export default function EscolaDetailScreen() {
               onPress={handleEdit}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Editar"
+              accessibilityLabel={t('common.edit')}
               style={{
                 flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
                 paddingVertical: spacing.md, borderRadius: radius.md,
@@ -343,14 +345,14 @@ export default function EscolaDetailScreen() {
             >
               <Ionicons name="create-outline" size={18} color={colors.text} />
               <Text style={{ fontSize: font.sizes.md, color: colors.text, fontWeight: font.weights.semibold }}>
-                Editar
+                {t('common.edit')}
               </Text>
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleDelete}
               activeOpacity={0.85}
               accessibilityRole="button"
-              accessibilityLabel="Excluir"
+              accessibilityLabel={t('common.delete')}
               style={{
                 flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.xs,
                 paddingVertical: spacing.md, borderRadius: radius.md,
@@ -359,7 +361,7 @@ export default function EscolaDetailScreen() {
             >
               <Ionicons name="trash-outline" size={18} color={colors.error} />
               <Text style={{ fontSize: font.sizes.md, color: colors.error, fontWeight: font.weights.semibold }}>
-                Excluir
+                {t('common.delete')}
               </Text>
             </TouchableOpacity>
           </View>

@@ -17,6 +17,7 @@ import { useAuth } from 'src/store/auth';
 import { useDashboard } from 'src/hooks/useDashboard';
 import { respondToSwap, cancelMySwap } from 'src/services/swaps';
 import { useI18n } from 'src/i18n';
+import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from 'src/lib/constants';
 import { formatBRL as formatBRLShared } from 'src/lib/currency';
@@ -62,15 +63,29 @@ function formatBRL(v: number): string {
   // correto via Intl.NumberFormat ("R$ 1.234,56" em vez de "R$ 1234,56").
   return formatBRLShared(v);
 }
-function formatDeadline(deadline: string | null): { label: string; urgent: boolean } | null {
+// Deadline label resolvido no RENDER (este helper é module-level e não tem
+// acesso a hooks). Retorna uma chave i18n + params; o componente chama t()/
+// intl pra renderizar no idioma ativo. `date` sinaliza o branch que mostra a
+// data formatada (locale-aware via intl.formatDate).
+type DeadlineInfo = {
+  labelKey?: string;
+  params?: Record<string, number>;
+  date?: string;
+  urgent: boolean;
+};
+function formatDeadline(deadline: string | null): DeadlineInfo | null {
   if (!deadline) return null;
   const now = Date.now();
   const d = new Date(deadline + 'T23:59:59').getTime();
   const daysUntil = Math.ceil((d - now) / 86400000);
-  if (daysUntil < 0) return { label: 'Prazo expirado', urgent: true };
-  if (daysUntil === 0) return { label: 'Hoje', urgent: true };
-  if (daysUntil <= 3) return { label: `Em ${daysUntil} dia${daysUntil > 1 ? 's' : ''}`, urgent: true };
-  return { label: formatDatePt(deadline), urgent: false };
+  if (daysUntil < 0) return { labelKey: 'decisions.deadlineExpired', urgent: true };
+  if (daysUntil === 0) return { labelKey: 'intl.today', urgent: true };
+  if (daysUntil <= 3) return {
+    labelKey: daysUntil === 1 ? 'decisions.deadlineInDaysOne' : 'decisions.deadlineInDays',
+    params: { count: daysUntil },
+    urgent: true,
+  };
+  return { date: deadline, urgent: false };
 }
 
 export default function DashboardScreen() {
@@ -78,7 +93,18 @@ export default function DashboardScreen() {
   const { activeGroup, userId, profile } = useAuth();
   const { data, loading, refresh } = useDashboard();
   const t = useI18n(s => s.t);
+  const intl = useIntl();
   const toast = useToast();
+  // Resolve o DeadlineInfo (module-level) pro texto no idioma ativo.
+  // O branch `date` usa intl.formatDate (locale-aware "5 de jun" / "Jun 5")
+  // em vez do formatDatePt hardcoded em PT.
+  const deadlineLabel = useCallback((info: DeadlineInfo): string => {
+    if (info.date) {
+      try { return intl.formatDate(info.date, { day: 'numeric', month: 'short' }); }
+      catch { return formatDatePt(info.date); }
+    }
+    return info.labelKey ? t(info.labelKey, info.params) : '';
+  }, [t, intl]);
   // Degustação — paridade com o banner do dashboard PWA. getBillingStatus
   // NUNCA lança (retorna FREE_BILLING em erro) e tem cache 60s, então é seguro
   // no mount da home. Só seta um número quando o grupo está em trial ativo;
@@ -729,7 +755,7 @@ export default function DashboardScreen() {
                     activeOpacity={0.75}
                     onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/decisoes/${d.id}`); }}
                     accessibilityRole="button"
-                    accessibilityLabel={`Votar em: ${d.title}${deadlineInfo ? ` — ${deadlineInfo.label}` : ''}`}
+                    accessibilityLabel={`${t('dashboard.a11yVoteOn', { title: d.title })}${deadlineInfo ? ` — ${deadlineLabel(deadlineInfo)}` : ''}`}
                     style={{
                       backgroundColor: 'rgba(232,162,40,0.08)',
                       borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
@@ -745,7 +771,7 @@ export default function DashboardScreen() {
                       </Text>
                       {deadlineInfo ? (
                         <Text style={{ fontSize: 11, color: deadlineInfo.urgent ? colors.error : colors.textSecondary, marginTop: 2 }}>
-                          {deadlineInfo.label}
+                          {deadlineLabel(deadlineInfo)}
                         </Text>
                       ) : null}
                     </View>
