@@ -4119,5 +4119,10 @@
     "swap": "Troca",
     "vacation": "Férias",
     "special": "Especial"
+  },
+  "vaccineTimeline": {
+    "windowUntil": "Janela até {date}",
+    "availableForDayOne": "Disponível há {count} dia",
+    "availableForDays": "Disponível há {count} dias"
   }
 }

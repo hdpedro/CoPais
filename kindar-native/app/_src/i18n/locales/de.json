@@ -4119,5 +4119,10 @@
     "swap": "Tausch",
     "vacation": "Urlaub",
     "special": "Besonders"
+  },
+  "vaccineTimeline": {
+    "windowUntil": "Fenster bis {date}",
+    "availableForDayOne": "Verfügbar seit {count} Tag",
+    "availableForDays": "Verfügbar seit {count} Tagen"
   }
 }

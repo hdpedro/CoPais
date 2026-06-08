@@ -163,12 +163,12 @@ export default function VaccineTimeline({ timeline }: Props) {
                 >
                   {d.validUntilDate ? (
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                      Janela até {intl.formatDate(d.validUntilDate)}
+                      {t('vaccineTimeline.windowUntil', { date: intl.formatDate(d.validUntilDate) })}
                     </Text>
                   ) : null}
                   {d.overdueDays && d.status === 'overdue' ? (
                     <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>
-                      Disponível há {d.overdueDays} dia{d.overdueDays === 1 ? '' : 's'}
+                      {d.overdueDays === 1 ? t('vaccineTimeline.availableForDayOne', { count: d.overdueDays }) : t('vaccineTimeline.availableForDays', { count: d.overdueDays })}
                     </Text>
                   ) : null}
                 </View>

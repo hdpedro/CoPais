@@ -4119,5 +4119,10 @@
     "swap": "Échange",
     "vacation": "Vacances",
     "special": "Spécial"
+  },
+  "vaccineTimeline": {
+    "windowUntil": "Fenêtre jusqu'au {date}",
+    "availableForDayOne": "Disponible depuis {count} jour",
+    "availableForDays": "Disponible depuis {count} jours"
   }
 }
