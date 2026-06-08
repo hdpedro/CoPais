@@ -4066,5 +4066,11 @@
     "inviteSomeone": "Inviter quelqu'un",
     "leaveGroup": "Quitter le groupe",
     "current": "Actuel"
+  },
+  "intl": {
+    "today": "Aujourd'hui",
+    "yesterday": "Hier",
+    "tomorrow": "Demain",
+    "daysAgo": "il y a {count} jours"
   }
 }
