@@ -4502,5 +4502,10 @@
     "timeout1m": "Después de 1 minuto",
     "timeout15m": "Después de 15 minutos",
     "timeout1h": "Después de 1 hora"
+  },
+  "imageViewer": {
+    "error": "No se pudo abrir la imagen",
+    "openExternal": "Abrir en el navegador",
+    "share": "Compartir"
   }
 }

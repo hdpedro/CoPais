@@ -18,6 +18,7 @@ import {
 } from '../../services/children';
 import { deleteDocument, DOCUMENT_CATEGORIES } from '../../services/documents';
 import EmptyState from '../ui/EmptyState';
+import ImageViewerModal from '../ui/ImageViewerModal';
 import { useToast } from '../ui/ToastProvider';
 import { useI18n } from '../../i18n';
 import { useIntl } from '../../lib/intl';
@@ -55,15 +56,31 @@ export default function TabDocumentos({
   const intl = useIntl();
   const toast = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [openingId, setOpeningId] = useState<string | null>(null);
+  // Imagem: abre IN-APP (modal com zoom). PDF/Word continuam no app externo.
+  const [viewer, setViewer] = useState<{ uri: string; name: string } | null>(null);
 
   async function handleOpen(doc: ChildDocument) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const { getSignedFileUrl } = await import('../../services/storage');
-    const signed = await getSignedFileUrl('documents', doc.file_url, 3600);
-    const target = signed || doc.file_url;
-    Linking.openURL(target).catch(() => {
+    setOpeningId(doc.id);
+    try {
+      const { getSignedFileUrl } = await import('../../services/storage');
+      const signed = await getSignedFileUrl('documents', doc.file_url, 3600);
+      const target = signed || doc.file_url;
+      if (isImage(doc.mime_type)) {
+        // Imagem → visualizador interno (não tira o usuário do app).
+        setViewer({ uri: target, name: doc.name });
+      } else {
+        // PDF/Word/etc → abre no app externo (comportamento inalterado).
+        Linking.openURL(target).catch(() => {
+          toast.show({ message: t('toasts.common.fallbackError'), variant: 'error' });
+        });
+      }
+    } catch {
       toast.show({ message: t('toasts.common.fallbackError'), variant: 'error' });
-    });
+    } finally {
+      setOpeningId(null);
+    }
   }
 
   function handleDelete(doc: ChildDocument) {
@@ -92,6 +109,7 @@ export default function TabDocumentos({
   }
 
   return (
+    <>
     <ScrollView
       contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}
       showsVerticalScrollIndicator={false}
@@ -147,6 +165,7 @@ export default function TabDocumentos({
         documents.map((doc) => {
           const cat = CATEGORY_BY_VALUE[doc.category] ?? { icon: '📁', label: doc.category };
           const isDeleting = deletingId === doc.id;
+          const isOpening = openingId === doc.id;
           return (
             <TouchableOpacity
               key={doc.id}
@@ -221,7 +240,11 @@ export default function TabDocumentos({
                   >
                     <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
                   </TouchableOpacity>
-                  <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  {isOpening ? (
+                    <ActivityIndicator size="small" color={colors.brand} />
+                  ) : (
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                  )}
                 </>
               )}
             </TouchableOpacity>
@@ -242,5 +265,13 @@ export default function TabDocumentos({
         </Text>
       ) : null}
     </ScrollView>
+
+    <ImageViewerModal
+      visible={!!viewer}
+      uri={viewer?.uri ?? null}
+      name={viewer?.name}
+      onClose={() => setViewer(null)}
+    />
+    </>
   );
 }
