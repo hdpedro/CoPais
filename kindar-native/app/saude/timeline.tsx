@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useHealth, type HealthEvent } from 'src/hooks/useHealth';
 import { colors, spacing, radius, font } from 'src/design-system/tokens';
+import { useI18n } from 'src/i18n';
 
 const EVENT_ICONS: Record<string, { icon: string; color: string }> = {
   illness: { icon: '🤒', color: '#E53935' },
@@ -37,12 +38,12 @@ interface DayGroup {
   events: HealthEvent[];
 }
 
-function formatDayLabel(dateStr: string): string {
+function formatDayLabel(dateStr: string, t: (key: string, params?: Record<string, string | number>) => string): string {
   const d = new Date(dateStr);
   const today = new Date();
   const diffDays = Math.floor((today.getTime() - d.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDays === 0) return 'Hoje';
-  if (diffDays === 1) return 'Ontem';
+  if (diffDays === 0) return t('health.today');
+  if (diffDays === 1) return t('symptomDiary.yesterday');
   // Regra Canônica 1: acentos corretos — "Terça", "Sábado", "Sexta".
   const days = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
   const months = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -56,6 +57,7 @@ function formatTime(iso: string): string {
 
 export default function TimelineScreen() {
   const insets = useSafeAreaInsets();
+  const t = useI18n(s => s.t);
   const { data, refresh } = useHealth();
   const [refreshing, setRefreshing] = useState(false);
   const [filter, setFilter] = useState<string | null>(null);
@@ -79,10 +81,10 @@ export default function TimelineScreen() {
       .sort(([a], [b]) => b.localeCompare(a))
       .map(([date, events]) => ({
         date,
-        label: formatDayLabel(date),
+        label: formatDayLabel(date, t),
         events,
       }));
-  }, [data?.timeline, filter]);
+  }, [data?.timeline, filter, t]);
 
   // Pre-computed counts per filter — usado nos chips pra mostrar
   // "Doenças · 3" e indicar quais filtros têm conteúdo. Sem isso, o user
@@ -110,7 +112,7 @@ export default function TimelineScreen() {
         activeOpacity={0.7}
         accessibilityRole="button"
         accessibilityLabel={`${event.title}${event.subtitle ? `, ${event.subtitle}` : ''}, ${event.childName}`}
-        accessibilityHint="Toque para ver detalhes"
+        accessibilityHint={t('healthTimeline.viewDetailsHint')}
         style={{ flexDirection: 'row', gap: spacing.md, paddingBottom: isLast ? 0 : spacing.md }}
       >
         {/* Timeline dot + line */}
@@ -147,7 +149,7 @@ export default function TimelineScreen() {
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.xs }}>
             <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted }}>{event.childName}</Text>
             {event.createdByName ? (
-              <Text style={{ fontSize: font.sizes.xs, color: colors.textDim }}>por {event.createdByName}</Text>
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textDim }}>{t('healthTimeline.by', { name: event.createdByName })}</Text>
             ) : null}
           </View>
         </View>
@@ -164,11 +166,11 @@ export default function TimelineScreen() {
         borderBottomWidth: 0.5, borderBottomColor: colors.borderLight,
         flexDirection: 'row', alignItems: 'center', gap: spacing.md,
       }}>
-        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel="Voltar">
+        <TouchableOpacity onPress={() => router.back()} hitSlop={12} accessibilityRole="button" accessibilityLabel={t('common.back')}>
           <Ionicons name="chevron-back" size={24} color={colors.text} />
         </TouchableOpacity>
         <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.semibold, color: colors.text, flex: 1 }}>
-          Histórico Clínico
+          {t('healthTimeline.headerTitle')}
         </Text>
       </View>
 
@@ -235,12 +237,13 @@ function FilterChips({
   setFilter: (f: string | null) => void;
   counts: { total: number; illness: number; medication: number; appointment: number; observation: number };
 }) {
+  const t = useI18n(s => s.t);
   const chips: Array<{ key: string | null; label: string; count: number }> = [
-    { key: null, label: '📋 Todos', count: counts.total },
-    { key: 'illness', label: '🤒 Doenças', count: counts.illness },
-    { key: 'medication', label: '💊 Remédios', count: counts.medication },
-    { key: 'appointment', label: '🏥 Consultas', count: counts.appointment },
-    { key: 'observation', label: '📝 Notas', count: counts.observation },
+    { key: null, label: `📋 ${t('common.all')}`, count: counts.total },
+    { key: 'illness', label: `🤒 ${t('health.conditions')}`, count: counts.illness },
+    { key: 'medication', label: `💊 ${t('healthTimeline.medicines')}`, count: counts.medication },
+    { key: 'appointment', label: `🏥 ${t('health.appointments')}`, count: counts.appointment },
+    { key: 'observation', label: `📝 ${t('nav.notes')}`, count: counts.observation },
   ];
 
   return (
@@ -303,21 +306,22 @@ function FilterChips({
  *     primeiro evento. Antes era só "Nenhum registro encontrado" sem ação.
  */
 function EmptyState({ filter, clearFilter }: { filter: string | null; clearFilter: () => void }) {
+  const t = useI18n(s => s.t);
   if (filter) {
     const labelByKey: Record<string, string> = {
-      illness: 'doenças',
-      medication: 'remédios',
-      appointment: 'consultas',
-      observation: 'notas',
+      illness: t('healthTimeline.filterIllnesses'),
+      medication: t('healthTimeline.filterMedicines'),
+      appointment: t('healthTimeline.filterAppointments'),
+      observation: t('healthTimeline.filterNotes'),
     };
     return (
       <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'], paddingHorizontal: spacing.xl }}>
         <Text style={{ fontSize: 40, marginBottom: spacing.md }}>🔍</Text>
         <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, textAlign: 'center', marginBottom: spacing.xs }}>
-          Nenhum registro em {labelByKey[filter] || 'este filtro'}
+          {t('healthTimeline.emptyFilterTitle', { label: labelByKey[filter] || t('healthTimeline.emptyFilterFallback') })}
         </Text>
         <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }}>
-          Toque em &quot;Todos&quot; para ver o histórico completo da família.
+          {t('healthTimeline.emptyFilterHint')}
         </Text>
         <TouchableOpacity
           onPress={() => {
@@ -325,7 +329,7 @@ function EmptyState({ filter, clearFilter }: { filter: string | null; clearFilte
             clearFilter();
           }}
           accessibilityRole="button"
-          accessibilityLabel="Ver todos"
+          accessibilityLabel={t('childDetail.viewAll')}
           style={{
             paddingVertical: spacing.sm + 2,
             paddingHorizontal: spacing.xl,
@@ -334,7 +338,7 @@ function EmptyState({ filter, clearFilter }: { filter: string | null; clearFilte
           }}
         >
           <Text style={{ color: '#fff', fontWeight: font.weights.semibold, fontSize: font.sizes.sm }}>
-            Ver todos
+            {t('childDetail.viewAll')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -344,10 +348,10 @@ function EmptyState({ filter, clearFilter }: { filter: string | null; clearFilte
     <View style={{ alignItems: 'center', paddingVertical: spacing['4xl'], paddingHorizontal: spacing.xl }}>
       <Text style={{ fontSize: 40, marginBottom: spacing.md }}>📋</Text>
       <Text style={{ fontSize: font.sizes.md, fontWeight: font.weights.semibold, color: colors.text, textAlign: 'center', marginBottom: spacing.xs }}>
-        Histórico vazio
+        {t('healthTimeline.emptyTitle')}
       </Text>
       <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, textAlign: 'center', marginBottom: spacing.lg }}>
-        Quando você registrar uma consulta, remédio ou sintoma, ele aparece aqui em ordem cronológica.
+        {t('healthTimeline.emptyDescription')}
       </Text>
       <TouchableOpacity
         onPress={() => {
@@ -355,7 +359,7 @@ function EmptyState({ filter, clearFilter }: { filter: string | null; clearFilte
           router.push('/saude/registrar');
         }}
         accessibilityRole="button"
-        accessibilityLabel="Registrar primeiro evento"
+        accessibilityLabel={t('healthTimeline.registerFirst')}
         style={{
           paddingVertical: spacing.sm + 2,
           paddingHorizontal: spacing.xl,
@@ -368,7 +372,7 @@ function EmptyState({ filter, clearFilter }: { filter: string | null; clearFilte
       >
         <Ionicons name="add" size={18} color="#fff" />
         <Text style={{ color: '#fff', fontWeight: font.weights.semibold, fontSize: font.sizes.sm }}>
-          Registrar primeiro evento
+          {t('healthTimeline.registerFirst')}
         </Text>
       </TouchableOpacity>
     </View>
