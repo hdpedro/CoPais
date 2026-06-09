@@ -72,6 +72,7 @@ export interface RoutineSlotRow {
   weekday: number;
   leg: CareRoutineLeg;
   pattern_type: CareRoutinePatternType;
+  week_parity: number | null;
   responsible_id: string | null;
   time_of_day: string | null;
   label: string | null;
@@ -147,7 +148,7 @@ export interface ServiceContext {
 }
 
 const SLOT_COLUMNS =
-  "id, group_id, child_id, weekday, leg, pattern_type, responsible_id, " +
+  "id, group_id, child_id, weekday, leg, pattern_type, week_parity, responsible_id, " +
   "time_of_day, label, reminder_lead_minutes, is_active, created_by, created_at, updated_at";
 
 const VALID_LEGS: ReadonlySet<string> = new Set(["dropoff", "pickup"]);

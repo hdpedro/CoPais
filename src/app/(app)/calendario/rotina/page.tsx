@@ -54,7 +54,7 @@ export default async function RoutinePage() {
   const { data: slots } = await supabase
     .from("care_routine_slots")
     .select(
-      "id, group_id, child_id, weekday, leg, pattern_type, responsible_id, time_of_day, label, reminder_lead_minutes, is_active, created_by, created_at, updated_at",
+      "id, group_id, child_id, weekday, leg, pattern_type, week_parity, responsible_id, time_of_day, label, reminder_lead_minutes, is_active, created_by, created_at, updated_at",
     )
     .eq("group_id", groupId)
     .eq("is_active", true);

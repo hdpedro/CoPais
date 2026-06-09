@@ -12,6 +12,7 @@ import {
   type RoutineSlotForReminder,
   type RoutineOverrideForReminder,
 } from "@/lib/services/care-routine-reminders-core";
+import { weekParityOf } from "@/lib/care-routine-resolve";
 
 // Segunda 2026-06-08, 17:00 BRT. Pickup 17:30 com lead 30 → trigger 17:00 = agora.
 const NOW = new Date("2026-06-08T17:00:00-03:00");
@@ -25,6 +26,8 @@ function slot(p: Partial<RoutineSlotForReminder>): RoutineSlotForReminder {
     responsible_id: p.responsible_id === undefined ? "fernanda" : p.responsible_id,
     time_of_day: p.time_of_day === undefined ? "17:30:00" : p.time_of_day,
     reminder_lead_minutes: p.reminder_lead_minutes ?? null,
+    pattern_type: p.pattern_type,
+    week_parity: p.week_parity,
   };
 }
 
@@ -41,6 +44,40 @@ describe("selectDueRoutineReminders", () => {
   it("horário fora da janela (20:00) não dispara", () => {
     const due = selectDueRoutineReminders([slot({ time_of_day: "20:00:00" })], [], NOW);
     expect(due).toHaveLength(0);
+  });
+
+  it("alternating_week só dispara na semana da paridade certa", () => {
+    const matchParity = weekParityOf("2026-06-08"); // semana da segunda de NOW
+    const match = selectDueRoutineReminders(
+      [slot({ pattern_type: "alternating_week", week_parity: matchParity })],
+      [],
+      NOW,
+    );
+    expect(match).toHaveLength(1);
+    const opposite = selectDueRoutineReminders(
+      [slot({ pattern_type: "alternating_week", week_parity: (1 - matchParity) as 0 | 1 })],
+      [],
+      NOW,
+    );
+    expect(opposite).toHaveLength(0);
+  });
+
+  it("custody_based usa o custodyResolver pro responsável da guarda do dia", () => {
+    const due = selectDueRoutineReminders(
+      [slot({ pattern_type: "custody_based", responsible_id: null })],
+      [],
+      NOW,
+      () => "henrique",
+    );
+    expect(due).toHaveLength(1);
+    expect(due[0]?.userId).toBe("henrique");
+  });
+
+  it("custody_based sem resolver (ou guarda indefinida) não dispara", () => {
+    expect(selectDueRoutineReminders([slot({ pattern_type: "custody_based", responsible_id: null })], [], NOW)).toHaveLength(0);
+    expect(
+      selectDueRoutineReminders([slot({ pattern_type: "custody_based", responsible_id: null })], [], NOW, () => null),
+    ).toHaveLength(0);
   });
 
   it("lead=0 (opt-out) não dispara", () => {

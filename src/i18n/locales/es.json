@@ -2904,7 +2904,17 @@
     "tomorrowHeading": "Mañana",
     "tomorrowDropoff": "{name} lleva",
     "tomorrowPickup": "{name} recoge",
-    "confirmPickup": "¿Recogiste a {name}?"
+    "confirmPickup": "¿Recogiste a {name}?",
+    "recurrence": "Recurrencia",
+    "patternWeekly": "Cada semana",
+    "patternCustody": "Según la custodia",
+    "patternAlternating": "Semana A·B",
+    "custodyHint": "Lleva y recoge quien tiene al niño ese día.",
+    "alternatingHint": "Configura las dos semanas — se alternan.",
+    "weekA": "Semana A",
+    "weekB": "Semana B",
+    "followsGuard": "custodia",
+    "tapToToggle": "Toca para marcar los días con llevada/recogida."
   },
   "a11y": {
     "careRoutine": {

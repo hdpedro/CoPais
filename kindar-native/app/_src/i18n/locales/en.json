@@ -4582,7 +4582,17 @@
     "tomorrowHeading": "Tomorrow",
     "tomorrowDropoff": "{name} drops off",
     "tomorrowPickup": "{name} picks up",
-    "confirmPickup": "Did you pick up {name}?"
+    "confirmPickup": "Did you pick up {name}?",
+    "recurrence": "Recurrence",
+    "patternWeekly": "Every week",
+    "patternCustody": "Follows custody",
+    "patternAlternating": "Week A·B",
+    "custodyHint": "Whoever has the child that day does drop-off and pick-up.",
+    "alternatingHint": "Set up both weeks — they alternate.",
+    "weekA": "Week A",
+    "weekB": "Week B",
+    "followsGuard": "custody",
+    "tapToToggle": "Tap to mark the days with drop-off/pick-up."
   },
   "a11y": {
     "careRoutine": {

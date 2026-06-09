@@ -7,6 +7,8 @@
  * (`care-routine-reminders.ts`) só lê do banco e dispara o push.
  */
 
+import { weekParityOf, type CustodyResolver } from "@/lib/care-routine-resolve";
+
 export type RoutineLeg = "dropoff" | "pickup";
 
 // Lead default da logística de leva/busca = 30min (igual categoryDefaultLead
@@ -29,6 +31,13 @@ export interface RoutineSlotForReminder {
   responsible_id: string | null;
   time_of_day: string | null;
   reminder_lead_minutes: number | null;
+  pattern_type?: string | null;
+  week_parity?: number | null;
+}
+
+/** Slot alternating_week que NÃO se aplica na data (paridade A/B oposta). */
+function skipByParity(s: RoutineSlotForReminder, dateKey: string): boolean {
+  return s.pattern_type === "alternating_week" && s.week_parity != null && weekParityOf(dateKey) !== s.week_parity;
 }
 export interface RoutineOverrideForReminder {
   child_id: string;
@@ -88,6 +97,7 @@ export function selectDueRoutineReminders(
   slots: readonly RoutineSlotForReminder[],
   overrides: readonly RoutineOverrideForReminder[],
   now: Date,
+  custodyResolver?: CustodyResolver,
 ): DueRoutineReminder[] {
   const dates = [-1, 0, 1].map((d) => new Date(now.getTime() + d * 86_400_000).toISOString().slice(0, 10));
   const dateByWeekday = new Map<number, string>();
@@ -105,12 +115,15 @@ export function selectDueRoutineReminders(
     if (!s.time_of_day) continue;
     const date = dateByWeekday.get(s.weekday);
     if (!date) continue;
+    if (skipByParity(s, date)) continue;
     const leadMinutes = s.reminder_lead_minutes ?? ROUTINE_DEFAULT_LEAD_MINUTES;
     if (leadMinutes === 0) continue; // opt-out
     const triggerAt = computeTriggerAt(date, s.time_of_day, leadMinutes);
     if (!triggerAt) continue;
     if (triggerAt < slotStart || triggerAt > slotEnd) continue;
-    const userId = overrideMap.get(overrideKey(s.child_id, date, s.leg)) ?? s.responsible_id;
+    const userId =
+      overrideMap.get(overrideKey(s.child_id, date, s.leg)) ??
+      (s.pattern_type === "custody_based" ? custodyResolver?.(s.child_id, date) ?? null : s.responsible_id);
     if (!userId) continue;
     due.push({
       childId: s.child_id,
@@ -139,6 +152,7 @@ export function selectDueRoutineFollowUps(
   overrides: readonly RoutineOverrideForReminder[],
   loggedChildLegs: ReadonlySet<string>,
   now: Date,
+  custodyResolver?: CustodyResolver,
 ): DueRoutineReminder[] {
   const dates = [-1, 0, 1].map((d) => new Date(now.getTime() + d * 86_400_000).toISOString().slice(0, 10));
   const dateByWeekday = new Map<number, string>();
@@ -158,11 +172,14 @@ export function selectDueRoutineFollowUps(
     if (loggedChildLegs.has(`${s.child_id}:${s.leg}`)) continue;
     const date = dateByWeekday.get(s.weekday);
     if (!date) continue;
+    if (skipByParity(s, date)) continue;
     const eventAt = eventDateBrazil(date, s.time_of_day);
     if (!eventAt) continue;
     const followupAt = new Date(eventAt.getTime() + FOLLOWUP_DELAY_MIN * 60_000);
     if (followupAt < slotStart || followupAt > slotEnd) continue;
-    const userId = overrideMap.get(overrideKey(s.child_id, date, s.leg)) ?? s.responsible_id;
+    const userId =
+      overrideMap.get(overrideKey(s.child_id, date, s.leg)) ??
+      (s.pattern_type === "custody_based" ? custodyResolver?.(s.child_id, date) ?? null : s.responsible_id);
     if (!userId) continue;
     due.push({
       childId: s.child_id,

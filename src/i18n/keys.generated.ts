@@ -385,6 +385,7 @@ export type TranslationKey =
   | "careRoutine.activationCta"
   | "careRoutine.activationDescription"
   | "careRoutine.activationTitle"
+  | "careRoutine.alternatingHint"
   | "careRoutine.applyAllChildren"
   | "careRoutine.awaitingAck"
   | "careRoutine.changedToday"
@@ -392,10 +393,12 @@ export type TranslationKey =
   | "careRoutine.confirm"
   | "careRoutine.confirmPickup"
   | "careRoutine.confirming"
+  | "careRoutine.custodyHint"
   | "careRoutine.didDropoff"
   | "careRoutine.didPickup"
   | "careRoutine.dropoff"
   | "careRoutine.editCta"
+  | "careRoutine.followsGuard"
   | "careRoutine.free"
   | "careRoutine.fullDay"
   | "careRoutine.fullDayShort"
@@ -422,11 +425,15 @@ export type TranslationKey =
   | "careRoutine.missedShort"
   | "careRoutine.moreOptions"
   | "careRoutine.no"
+  | "careRoutine.patternAlternating"
+  | "careRoutine.patternCustody"
+  | "careRoutine.patternWeekly"
   | "careRoutine.pickup"
   | "careRoutine.presetAlternateFullDay"
   | "careRoutine.presetIDropYouPick"
   | "careRoutine.presetYouDropIPick"
   | "careRoutine.presetsTitle"
+  | "careRoutine.recurrence"
   | "careRoutine.reminderBodyAt"
   | "careRoutine.reminderDropoffTitle"
   | "careRoutine.reminderPickupTitle"
@@ -439,6 +446,7 @@ export type TranslationKey =
   | "careRoutine.swapTodayCta"
   | "careRoutine.swapping"
   | "careRoutine.tapToCycle"
+  | "careRoutine.tapToToggle"
   | "careRoutine.timeDropoff"
   | "careRoutine.timePickup"
   | "careRoutine.title"
@@ -446,6 +454,8 @@ export type TranslationKey =
   | "careRoutine.tomorrowDropoff"
   | "careRoutine.tomorrowHeading"
   | "careRoutine.tomorrowPickup"
+  | "careRoutine.weekA"
+  | "careRoutine.weekB"
   | "careRoutine.yes"
   | "careRoutine.you"
   | "chat.addCaption"
@@ -3055,6 +3065,7 @@ export const TRANSLATION_KEYS = [
   "careRoutine.activationCta",
   "careRoutine.activationDescription",
   "careRoutine.activationTitle",
+  "careRoutine.alternatingHint",
   "careRoutine.applyAllChildren",
   "careRoutine.awaitingAck",
   "careRoutine.changedToday",
@@ -3062,10 +3073,12 @@ export const TRANSLATION_KEYS = [
   "careRoutine.confirm",
   "careRoutine.confirmPickup",
   "careRoutine.confirming",
+  "careRoutine.custodyHint",
   "careRoutine.didDropoff",
   "careRoutine.didPickup",
   "careRoutine.dropoff",
   "careRoutine.editCta",
+  "careRoutine.followsGuard",
   "careRoutine.free",
   "careRoutine.fullDay",
   "careRoutine.fullDayShort",
@@ -3092,11 +3105,15 @@ export const TRANSLATION_KEYS = [
   "careRoutine.missedShort",
   "careRoutine.moreOptions",
   "careRoutine.no",
+  "careRoutine.patternAlternating",
+  "careRoutine.patternCustody",
+  "careRoutine.patternWeekly",
   "careRoutine.pickup",
   "careRoutine.presetAlternateFullDay",
   "careRoutine.presetIDropYouPick",
   "careRoutine.presetYouDropIPick",
   "careRoutine.presetsTitle",
+  "careRoutine.recurrence",
   "careRoutine.reminderBodyAt",
   "careRoutine.reminderDropoffTitle",
   "careRoutine.reminderPickupTitle",
@@ -3109,6 +3126,7 @@ export const TRANSLATION_KEYS = [
   "careRoutine.swapTodayCta",
   "careRoutine.swapping",
   "careRoutine.tapToCycle",
+  "careRoutine.tapToToggle",
   "careRoutine.timeDropoff",
   "careRoutine.timePickup",
   "careRoutine.title",
@@ -3116,6 +3134,8 @@ export const TRANSLATION_KEYS = [
   "careRoutine.tomorrowDropoff",
   "careRoutine.tomorrowHeading",
   "careRoutine.tomorrowPickup",
+  "careRoutine.weekA",
+  "careRoutine.weekB",
   "careRoutine.yes",
   "careRoutine.you",
   "chat.addCaption",
