@@ -23,7 +23,25 @@ import {
   type RoutineSlotForReminder,
   type RoutineOverrideForReminder,
 } from "./care-routine-reminders-core";
+import { resolveCustodyOnDate, type CustodyEvent } from "@/lib/custody-resolve";
 import type { Locale } from "@/i18n";
+
+/** Busca custody_events cobrindo a janela e devolve um resolver puro (custody_based). */
+async function buildRoutineCustodyResolver(
+  admin: ReturnType<typeof createAdminClient>,
+  childIds: string[],
+  dates: string[],
+): Promise<(childId: string, dateKey: string) => string | null> {
+  if (childIds.length === 0) return () => null;
+  const { data } = await admin
+    .from("custody_events")
+    .select("id, child_id, start_date, end_date, responsible_user_id, custody_type, created_at")
+    .in("child_id", childIds)
+    .lte("start_date", dates[dates.length - 1])
+    .gte("end_date", dates[0]);
+  const events = (data ?? []) as unknown as CustodyEvent[];
+  return (childId, dateKey) => resolveCustodyOnDate(events, childId, dateKey)?.responsible_user_id ?? null;
+}
 
 interface SendResult {
   sent: number;
@@ -41,11 +59,10 @@ export async function runCareRoutineReminders(now: Date = new Date()): Promise<S
 
   const { data: slots, error: slotErr } = await admin
     .from("care_routine_slots")
-    .select("child_id, group_id, weekday, leg, responsible_id, time_of_day, reminder_lead_minutes")
+    .select("child_id, group_id, weekday, leg, responsible_id, time_of_day, reminder_lead_minutes, pattern_type, week_parity")
     .eq("is_active", true)
-    .eq("pattern_type", "weekly")
-    .not("time_of_day", "is", null)
-    .not("responsible_id", "is", null);
+    .in("pattern_type", ["weekly", "alternating_week", "custody_based"])
+    .not("time_of_day", "is", null);
   if (slotErr) {
     console.error("[CRON care-routine-reminders] slots query failed:", slotErr);
     return { sent: 0, skipped: 0, errors: 1 };
@@ -59,10 +76,12 @@ export async function runCareRoutineReminders(now: Date = new Date()): Promise<S
     .in("occurrence_date", dates)
     .in("child_id", childIds0);
 
+  const custodyResolver = await buildRoutineCustodyResolver(admin, childIds0, dates);
   const due = selectDueRoutineReminders(
     slots as unknown as RoutineSlotForReminder[],
     (overrides ?? []) as unknown as RoutineOverrideForReminder[],
     now,
+    custodyResolver,
   );
   if (due.length === 0) return { sent: 0, skipped: 0, errors: 0 };
 
@@ -155,12 +174,11 @@ export async function runCareRoutineFollowUps(now: Date = new Date()): Promise<S
 
   const { data: slots, error: slotErr } = await admin
     .from("care_routine_slots")
-    .select("child_id, group_id, weekday, leg, responsible_id, time_of_day, reminder_lead_minutes")
+    .select("child_id, group_id, weekday, leg, responsible_id, time_of_day, reminder_lead_minutes, pattern_type, week_parity")
     .eq("is_active", true)
-    .eq("pattern_type", "weekly")
+    .in("pattern_type", ["weekly", "alternating_week", "custody_based"])
     .eq("leg", "pickup")
-    .not("time_of_day", "is", null)
-    .not("responsible_id", "is", null);
+    .not("time_of_day", "is", null);
   if (slotErr) {
     console.error("[CRON care-routine-followups] slots query failed:", slotErr);
     return { sent: 0, skipped: 0, errors: 1 };
@@ -184,11 +202,13 @@ export async function runCareRoutineFollowUps(now: Date = new Date()): Promise<S
     (logs ?? []).map((l: { child_id: string; leg: string }) => `${l.child_id}:${l.leg}`),
   );
 
+  const custodyResolver = await buildRoutineCustodyResolver(admin, childIds0, dates);
   const due = selectDueRoutineFollowUps(
     slots as unknown as RoutineSlotForReminder[],
     (overrides ?? []) as unknown as RoutineOverrideForReminder[],
     loggedChildLegs,
     now,
+    custodyResolver,
   );
   if (due.length === 0) return { sent: 0, skipped: 0, errors: 0 };
 

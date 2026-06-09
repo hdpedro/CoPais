@@ -4582,7 +4582,17 @@
     "tomorrowHeading": "Amanhã",
     "tomorrowDropoff": "{name} leva",
     "tomorrowPickup": "{name} busca",
-    "confirmPickup": "Buscou o {name}?"
+    "confirmPickup": "Buscou o {name}?",
+    "recurrence": "Recorrência",
+    "patternWeekly": "Toda semana",
+    "patternCustody": "Segue a guarda",
+    "patternAlternating": "Semana A·B",
+    "custodyHint": "Quem leva e busca é quem está com a criança no dia.",
+    "alternatingHint": "Configure as duas semanas — elas se alternam.",
+    "weekA": "Semana A",
+    "weekB": "Semana B",
+    "followsGuard": "guarda",
+    "tapToToggle": "Toque pra marcar os dias com leva/busca."
   },
   "a11y": {
     "careRoutine": {

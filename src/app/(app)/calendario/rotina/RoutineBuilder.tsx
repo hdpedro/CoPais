@@ -24,32 +24,47 @@ interface RoutineBuilderProps {
   initialSlots: RoutineSlotRow[];
 }
 
-type LegState = string | null; // responsible_id | null
+type LegState = string | null; // responsible_id | CUSTODY | null
+type CellMap = Record<number, { dropoff: LegState; pickup: LegState }>;
+type PatternMode = "weekly" | "custody" | "alternating";
+
+const CUSTODY = "__custody__"; // sentinela "segue a guarda" no estado da célula
+const WEEKDAYS_CORE = [1, 2, 3, 4, 5]; // Seg–Sex
+const WEEKEND = [6, 0]; // Sáb, Dom
+const LEGS: CareRoutineLeg[] = ["dropoff", "pickup"];
+
 interface ChildGrid {
-  // weekday (0-6) → { dropoff, pickup }
-  cells: Record<number, { dropoff: LegState; pickup: LegState }>;
+  mode: PatternMode;
+  cells: CellMap; // weekly / custody / Semana A
+  cellsB: CellMap; // Semana B (só alternating)
   dropoffTime: string;
   pickupTime: string;
   dropoffLabel: string;
   pickupLabel: string;
 }
 
-const WEEKDAYS_CORE = [1, 2, 3, 4, 5]; // Seg–Sex
-const WEEKEND = [6, 0]; // Sáb, Dom
-const LEGS: CareRoutineLeg[] = ["dropoff", "pickup"];
-
 function emptyGrid(): ChildGrid {
-  return { cells: {}, dropoffTime: "", pickupTime: "", dropoffLabel: "", pickupLabel: "" };
+  return { mode: "weekly", cells: {}, cellsB: {}, dropoffTime: "", pickupTime: "", dropoffLabel: "", pickupLabel: "" };
+}
+
+function mapCells(cells: CellMap, fn: (v: LegState) => LegState): CellMap {
+  const out: CellMap = {};
+  for (const [wd, cell] of Object.entries(cells)) {
+    out[Number(wd)] = { dropoff: fn(cell.dropoff), pickup: fn(cell.pickup) };
+  }
+  return out;
 }
 
 function gridFromSlots(slots: RoutineSlotRow[], childId: string): ChildGrid {
   const g = emptyGrid();
-  for (const s of slots) {
-    if (s.child_id !== childId) continue;
-    const cell = g.cells[s.weekday] || { dropoff: null, pickup: null };
-    cell[s.leg] = s.responsible_id;
-    g.cells[s.weekday] = cell;
-    // Pega o primeiro time/label não-nulo por perna como default do filho.
+  const cs = slots.filter((s) => s.child_id === childId);
+  if (cs.some((s) => s.pattern_type === "custody_based")) g.mode = "custody";
+  else if (cs.some((s) => s.pattern_type === "alternating_week")) g.mode = "alternating";
+  for (const s of cs) {
+    const target = g.mode === "alternating" && s.week_parity === 1 ? g.cellsB : g.cells;
+    const cell = target[s.weekday] || { dropoff: null, pickup: null };
+    cell[s.leg] = g.mode === "custody" ? CUSTODY : s.responsible_id;
+    target[s.weekday] = cell;
     if (s.leg === "dropoff") {
       if (s.time_of_day && !g.dropoffTime) g.dropoffTime = s.time_of_day.slice(0, 5);
       if (s.label && !g.dropoffLabel) g.dropoffLabel = s.label;
@@ -77,6 +92,7 @@ export default function RoutineBuilder({
     for (const c of childrenList) out[c.id] = gridFromSlots(initialSlots, c.id);
     return out;
   });
+  const [activeWeek, setActiveWeek] = useState<"A" | "B">("A");
   const [includeWeekend, setIncludeWeekend] = useState(() =>
     initialSlots.some((s) => s.weekday === 0 || s.weekday === 6),
   );
@@ -87,11 +103,13 @@ export default function RoutineBuilder({
 
   const grid = grids[childId] || emptyGrid();
   const days = includeWeekend ? [...WEEKDAYS_CORE, ...WEEKEND] : WEEKDAYS_CORE;
+  const activeCells = grid.mode === "alternating" && activeWeek === "B" ? grid.cellsB : grid.cells;
 
   const me = members.find((m) => m.user_id === currentUserId) || members[0];
   const other = members.find((m) => m.user_id !== currentUserId) || me;
 
   function nextResp(cur: LegState): LegState {
+    if (grid.mode === "custody") return cur === CUSTODY ? null : CUSTODY;
     if (cur === null) return members[0]?.user_id ?? null;
     if (cur === members[0]?.user_id && members.length > 1) return members[1].user_id;
     return null;
@@ -103,25 +121,49 @@ export default function RoutineBuilder({
     setError("");
   }
 
-  function cycleCell(weekday: number, leg: CareRoutineLeg) {
+  // Escreve na semana ativa (B só no modo alternating; senão sempre cells).
+  function patchCells(updater: (cells: CellMap) => CellMap) {
     patch((g) => {
-      const cell = g.cells[weekday] || { dropoff: null, pickup: null };
-      const updated = { ...cell, [leg]: nextResp(cell[leg]) };
-      return { ...g, cells: { ...g.cells, [weekday]: updated } };
+      const useB = g.mode === "alternating" && activeWeek === "B";
+      return useB ? { ...g, cellsB: updater(g.cellsB) } : { ...g, cells: updater(g.cells) };
+    });
+  }
+
+  function changeMode(m: PatternMode) {
+    if (m === grid.mode) return;
+    patch((g) => {
+      let cells = g.cells;
+      let cellsB = g.cellsB;
+      if (m === "custody") {
+        cells = mapCells(cells, (v) => (v ? CUSTODY : null)); // qualquer preenchida vira "segue guarda"
+        cellsB = {};
+      } else if (g.mode === "custody") {
+        cells = mapCells(cells, (v) => (v ? members[0]?.user_id ?? null : null)); // sai da guarda → responsável real
+      }
+      if (m !== "alternating") cellsB = {};
+      return { ...g, mode: m, cells, cellsB };
+    });
+    setActiveWeek("A");
+  }
+
+  function cycleCell(weekday: number, leg: CareRoutineLeg) {
+    patchCells((cells) => {
+      const cell = cells[weekday] || { dropoff: null, pickup: null };
+      return { ...cells, [weekday]: { ...cell, [leg]: nextResp(cell[leg]) } };
     });
   }
 
   function cycleFullDay(weekday: number) {
-    patch((g) => {
-      const cell = g.cells[weekday] || { dropoff: null, pickup: null };
+    patchCells((cells) => {
+      const cell = cells[weekday] || { dropoff: null, pickup: null };
       const next = nextResp(cell.dropoff);
-      return { ...g, cells: { ...g.cells, [weekday]: { dropoff: next, pickup: next } } };
+      return { ...cells, [weekday]: { dropoff: next, pickup: next } };
     });
   }
 
   function applyPreset(preset: "iDropYouPick" | "youDropIPick" | "alternateFullDay") {
-    patch((g) => {
-      const cells: ChildGrid["cells"] = {};
+    patchCells(() => {
+      const cells: CellMap = {};
       WEEKDAYS_CORE.forEach((wd, idx) => {
         if (preset === "iDropYouPick") cells[wd] = { dropoff: me?.user_id ?? null, pickup: other?.user_id ?? null };
         else if (preset === "youDropIPick") cells[wd] = { dropoff: other?.user_id ?? null, pickup: me?.user_id ?? null };
@@ -130,7 +172,7 @@ export default function RoutineBuilder({
           cells[wd] = { dropoff: who, pickup: who };
         }
       });
-      return { ...g, cells };
+      return cells;
     });
   }
 
@@ -143,24 +185,36 @@ export default function RoutineBuilder({
     setSaved(false);
   }
 
-  function buildCells(g: ChildGrid): RoutineCellInput[] {
+  function cellsToInputs(g: ChildGrid, cells: CellMap, parity: number | null): RoutineCellInput[] {
     const out: RoutineCellInput[] = [];
     for (const wd of days) {
-      const cell = g.cells[wd];
+      const cell = cells[wd];
       if (!cell) continue;
       for (const leg of LEGS) {
-        const resp = cell[leg];
-        if (!resp) continue;
+        const v = cell[leg];
+        if (!v) continue;
         out.push({
           weekday: wd,
           leg,
-          responsibleId: resp,
+          responsibleId: g.mode === "custody" ? null : v,
+          patternType:
+            g.mode === "custody" ? "custody_based" : g.mode === "alternating" ? "alternating_week" : "weekly",
+          weekParity: g.mode === "alternating" ? parity : null,
           timeOfDay: (leg === "dropoff" ? g.dropoffTime : g.pickupTime) || null,
           label: (leg === "dropoff" ? g.dropoffLabel : g.pickupLabel) || null,
         });
       }
     }
     return out;
+  }
+
+  function buildCells(g: ChildGrid): RoutineCellInput[] {
+    // Alternating envia AS DUAS semanas (parity 0 e 1) num único save —
+    // saveRoutineGrid faz upsert + delete-missing sobre o conjunto completo.
+    if (g.mode === "alternating") {
+      return [...cellsToInputs(g, g.cells, 0), ...cellsToInputs(g, g.cellsB, 1)];
+    }
+    return cellsToInputs(g, g.cells, null);
   }
 
   async function handleSave() {
@@ -182,13 +236,33 @@ export default function RoutineBuilder({
   }
 
   function colorOf(resp: LegState): Member | null {
-    return resp ? members.find((m) => m.user_id === resp) || null : null;
+    return resp && resp !== CUSTODY ? members.find((m) => m.user_id === resp) || null : null;
   }
 
   function CellButton({ weekday, leg }: { weekday: number; leg: CareRoutineLeg }) {
-    const resp = grid.cells[weekday]?.[leg] ?? null;
-    const m = colorOf(resp);
+    const v = activeCells[weekday]?.[leg] ?? null;
     const legLabel = leg === "dropoff" ? t("careRoutine.dropoff") : t("careRoutine.pickup");
+
+    if (grid.mode === "custody") {
+      const on = v === CUSTODY;
+      const who = on ? t("careRoutine.followsGuard") : t("careRoutine.free");
+      return (
+        <button
+          type="button"
+          onClick={() => cycleCell(weekday, leg)}
+          aria-label={t("a11y.careRoutine.cell", { day: DAY_NAMES[weekday], leg: legLabel, who })}
+          className={`flex-1 min-h-[44px] rounded-lg flex items-center justify-center text-[13px] font-semibold border-2 transition-all ${
+            on
+              ? "border-transparent bg-[#5B9E85] text-white shadow-sm"
+              : "border-dashed border-gray-300 text-muted bg-white hover:border-gray-400"
+          }`}
+        >
+          {on ? "🔄" : "+"}
+        </button>
+      );
+    }
+
+    const m = colorOf(v);
     const who = m ? getDisplayName(m.full_name, true) : t("careRoutine.free");
     return (
       <button
@@ -204,6 +278,12 @@ export default function RoutineBuilder({
       </button>
     );
   }
+
+  const MODE_OPTIONS: { key: PatternMode; label: string }[] = [
+    { key: "weekly", label: t("careRoutine.patternWeekly") },
+    { key: "custody", label: t("careRoutine.patternCustody") },
+    { key: "alternating", label: t("careRoutine.patternAlternating") },
+  ];
 
   return (
     <div className="space-y-5 pt-4">
@@ -230,42 +310,90 @@ export default function RoutineBuilder({
         </div>
       )}
 
-      {/* Presets */}
+      {/* Recorrência */}
       <div className="bg-white rounded-xl p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-dark mb-3">{t("careRoutine.presetsTitle")}</h3>
-        <div className="grid grid-cols-1 gap-2">
-          <button type="button" onClick={() => applyPreset("iDropYouPick")} className="text-left px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-xs font-medium text-dark">
-            {t("careRoutine.presetIDropYouPick")}
-          </button>
-          <button type="button" onClick={() => applyPreset("youDropIPick")} className="text-left px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-xs font-medium text-dark">
-            {t("careRoutine.presetYouDropIPick")}
-          </button>
-          <button type="button" onClick={() => applyPreset("alternateFullDay")} className="text-left px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-xs font-medium text-dark">
-            {t("careRoutine.presetAlternateFullDay")}
-          </button>
+        <h3 className="text-sm font-semibold text-dark mb-2">{t("careRoutine.recurrence")}</h3>
+        <div className="flex gap-1.5 bg-gray-100 rounded-lg p-1">
+          {MODE_OPTIONS.map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => changeMode(o.key)}
+              className={`flex-1 py-2 text-xs font-medium rounded-md transition-colors ${
+                grid.mode === o.key ? "bg-white text-dark shadow-sm" : "text-muted hover:text-dark"
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
         </div>
+        {grid.mode === "custody" && <p className="text-[11px] text-muted mt-2">{t("careRoutine.custodyHint")}</p>}
+        {grid.mode === "alternating" && <p className="text-[11px] text-muted mt-2">{t("careRoutine.alternatingHint")}</p>}
       </div>
+
+      {/* Presets — não fazem sentido em "segue a guarda" */}
+      {grid.mode !== "custody" && (
+        <div className="bg-white rounded-xl p-4 shadow-sm">
+          <h3 className="text-sm font-semibold text-dark mb-3">{t("careRoutine.presetsTitle")}</h3>
+          <div className="grid grid-cols-1 gap-2">
+            <button type="button" onClick={() => applyPreset("iDropYouPick")} className="text-left px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-xs font-medium text-dark">
+              {t("careRoutine.presetIDropYouPick")}
+            </button>
+            <button type="button" onClick={() => applyPreset("youDropIPick")} className="text-left px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-xs font-medium text-dark">
+              {t("careRoutine.presetYouDropIPick")}
+            </button>
+            <button type="button" onClick={() => applyPreset("alternateFullDay")} className="text-left px-3 py-2 bg-gray-50 rounded-lg hover:bg-gray-100 text-xs font-medium text-dark">
+              {t("careRoutine.presetAlternateFullDay")}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Grid */}
       <div className="bg-white rounded-xl p-4 shadow-sm">
-        {/* Legend */}
-        <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
-          {members.map((m) => (
-            <div key={m.user_id} className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded" style={{ backgroundColor: m.color }} />
-              <span className="text-sm font-medium text-dark">
-                {getDisplayName(m.full_name, true)}
-                {m.user_id === currentUserId ? ` ${t("careRoutine.you")}` : ""}
-              </span>
-            </div>
-          ))}
-          <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded border-2 border-dashed border-gray-300" />
-            <span className="text-sm text-muted">{t("careRoutine.free")}</span>
+        {/* Toggle Semana A/B (só alternating) */}
+        {grid.mode === "alternating" && (
+          <div className="flex gap-1.5 bg-gray-100 rounded-lg p-1 mb-4">
+            {(["A", "B"] as const).map((w) => (
+              <button
+                key={w}
+                type="button"
+                onClick={() => setActiveWeek(w)}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                  activeWeek === w ? "bg-white text-dark shadow-sm" : "text-muted hover:text-dark"
+                }`}
+              >
+                {w === "A" ? t("careRoutine.weekA") : t("careRoutine.weekB")}
+              </button>
+            ))}
           </div>
-        </div>
+        )}
 
-        {/* Column headers */}
+        {/* Legenda */}
+        {grid.mode === "custody" ? (
+          <div className="flex items-center gap-2 mb-4 p-3 bg-[#5B9E85]/10 rounded-lg">
+            <span className="text-base flex-shrink-0">🔄</span>
+            <span className="text-xs text-dark">{t("careRoutine.custodyHint")}</span>
+          </div>
+        ) : (
+          <div className="flex flex-wrap items-center gap-3 mb-4 p-3 bg-gray-50 rounded-lg">
+            {members.map((m) => (
+              <div key={m.user_id} className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded" style={{ backgroundColor: m.color }} />
+                <span className="text-sm font-medium text-dark">
+                  {getDisplayName(m.full_name, true)}
+                  {m.user_id === currentUserId ? ` ${t("careRoutine.you")}` : ""}
+                </span>
+              </div>
+            ))}
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-4 rounded border-2 border-dashed border-gray-300" />
+              <span className="text-sm text-muted">{t("careRoutine.free")}</span>
+            </div>
+          </div>
+        )}
+
+        {/* Cabeçalhos */}
         <div className="flex items-center gap-2 mb-1 px-1">
           <div className="w-10" />
           <div className="flex-1 text-center text-[11px] font-semibold text-muted">🚗 {t("careRoutine.dropoff")}</div>
@@ -273,10 +401,10 @@ export default function RoutineBuilder({
           <div className="w-12 text-center text-[10px] text-muted">{t("careRoutine.fullDayShort")}</div>
         </div>
 
-        {/* Rows */}
+        {/* Linhas */}
         <div className="space-y-1.5">
           {days.map((wd) => {
-            const cell = grid.cells[wd] || { dropoff: null, pickup: null };
+            const cell = activeCells[wd] || { dropoff: null, pickup: null };
             const isFullDay = cell.dropoff != null && cell.dropoff === cell.pickup;
             return (
               <div key={wd} className="flex items-center gap-2">
@@ -310,7 +438,7 @@ export default function RoutineBuilder({
         </button>
 
         <p className="text-[11px] text-center text-muted pt-3 mt-2 border-t border-gray-100">
-          {t("careRoutine.tapToCycle")}
+          {grid.mode === "custody" ? t("careRoutine.tapToToggle") : t("careRoutine.tapToCycle")}
         </p>
       </div>
 

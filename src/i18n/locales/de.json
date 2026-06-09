@@ -2904,7 +2904,17 @@
     "tomorrowHeading": "Morgen",
     "tomorrowDropoff": "{name} bringt",
     "tomorrowPickup": "{name} holt ab",
-    "confirmPickup": "Hast du {name} abgeholt?"
+    "confirmPickup": "Hast du {name} abgeholt?",
+    "recurrence": "Wiederholung",
+    "patternWeekly": "Jede Woche",
+    "patternCustody": "Nach Sorgerecht",
+    "patternAlternating": "Woche A·B",
+    "custodyHint": "Wer das Kind an dem Tag hat, bringt und holt es.",
+    "alternatingHint": "Richte beide Wochen ein — sie wechseln sich ab.",
+    "weekA": "Woche A",
+    "weekB": "Woche B",
+    "followsGuard": "Sorgerecht",
+    "tapToToggle": "Tippe, um die Tage mit Bringen/Abholen zu markieren."
   },
   "a11y": {
     "careRoutine": {

@@ -2904,7 +2904,17 @@
     "tomorrowHeading": "Demain",
     "tomorrowDropoff": "{name} dépose",
     "tomorrowPickup": "{name} récupère",
-    "confirmPickup": "As-tu récupéré {name} ?"
+    "confirmPickup": "As-tu récupéré {name} ?",
+    "recurrence": "Récurrence",
+    "patternWeekly": "Chaque semaine",
+    "patternCustody": "Selon la garde",
+    "patternAlternating": "Semaine A·B",
+    "custodyHint": "C'est la personne qui a l'enfant ce jour-là qui dépose et récupère.",
+    "alternatingHint": "Configurez les deux semaines — elles alternent.",
+    "weekA": "Semaine A",
+    "weekB": "Semaine B",
+    "followsGuard": "garde",
+    "tapToToggle": "Touchez pour marquer les jours avec dépose/récupération."
   },
   "a11y": {
     "careRoutine": {
