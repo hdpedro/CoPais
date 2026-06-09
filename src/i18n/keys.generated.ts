@@ -388,6 +388,8 @@ export type TranslationKey =
   | "careRoutine.alternatingHint"
   | "careRoutine.applyAllChildren"
   | "careRoutine.awaitingAck"
+  | "careRoutine.briefingGap"
+  | "careRoutine.briefingPushTitle"
   | "careRoutine.changedToday"
   | "careRoutine.child"
   | "careRoutine.confirm"
@@ -3069,6 +3071,8 @@ export const TRANSLATION_KEYS = [
   "careRoutine.alternatingHint",
   "careRoutine.applyAllChildren",
   "careRoutine.awaitingAck",
+  "careRoutine.briefingGap",
+  "careRoutine.briefingPushTitle",
   "careRoutine.changedToday",
   "careRoutine.child",
   "careRoutine.confirm",

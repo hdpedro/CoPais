@@ -4593,7 +4593,9 @@
     "weekB": "Week B",
     "followsGuard": "custody",
     "tapToToggle": "Tap to mark the days with drop-off/pick-up.",
-    "weekEmptyTag": "(empty)"
+    "weekEmptyTag": "(empty)",
+    "briefingPushTitle": "🌅 Tomorrow",
+    "briefingGap": "Who picks up tomorrow?"
   },
   "a11y": {
     "careRoutine": {

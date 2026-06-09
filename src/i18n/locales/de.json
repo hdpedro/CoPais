@@ -2915,7 +2915,9 @@
     "weekB": "Woche B",
     "followsGuard": "Sorgerecht",
     "tapToToggle": "Tippe, um die Tage mit Bringen/Abholen zu markieren.",
-    "weekEmptyTag": "(leer)"
+    "weekEmptyTag": "(leer)",
+    "briefingPushTitle": "🌅 Morgen",
+    "briefingGap": "Wer holt morgen ab?"
   },
   "a11y": {
     "careRoutine": {

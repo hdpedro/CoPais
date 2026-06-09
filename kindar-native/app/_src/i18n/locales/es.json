@@ -4593,7 +4593,9 @@
     "weekB": "Semana B",
     "followsGuard": "custodia",
     "tapToToggle": "Toca para marcar los días con llevada/recogida.",
-    "weekEmptyTag": "(vacía)"
+    "weekEmptyTag": "(vacía)",
+    "briefingPushTitle": "🌅 Mañana",
+    "briefingGap": "¿Quién recoge mañana?"
   },
   "a11y": {
     "careRoutine": {

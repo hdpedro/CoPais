@@ -715,6 +715,7 @@ export function mapTypeToCategory(type: string): string | null {
     type === "custody_change" ||  // mudança de guarda = info de agenda
     type === "care_routine_reminder" ||  // lembrete de leva/busca (mesma natureza logística)
     type === "care_routine_override_created" ||  // troca de leva/busca (ciência) — controlável pelo mesmo toggle
+    type === "care_routine_briefing" ||  // briefing noturno "Amanhã" (mesma natureza logística)
     type.startsWith("activity_reminder")
   ) return "activity_reminders";
   // Vaccine / health Foundation Collab
