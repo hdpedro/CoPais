@@ -250,7 +250,12 @@ export const useAuth = create<AuthState>((set, get) => ({
     if (savedId && !saved) {
       await AsyncStorage.removeItem(ACTIVE_GROUP_KEY);
     }
-    const active = saved || list[0];
+    // Preferência: salvo → grupo ativo atual (se ainda válido) → primeiro.
+    // Manter o atual evita "pular" de grupo num reload ao entrar num 2º grupo —
+    // sem o seletor o usuário ficava preso no que o app escolhia (bug 09/jun).
+    const currentId = get().activeGroup?.groupId;
+    const current = currentId ? list.find(m => m.groupId === currentId) : null;
+    const active = saved || current || list[0];
 
     set({
       activeGroup: {

@@ -4370,7 +4370,8 @@
     "pendingSection": "Offene Einladungen ({count})",
     "sentOn": "Gesendet {date}",
     "acceptedSection": "Angenommene Einladungen",
-    "changeRole": "Rolle ändern"
+    "changeRole": "Rolle ändern",
+    "yourGroups": "Deine Familien"
   },
   "intl": {
     "today": "Heute",

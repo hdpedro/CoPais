@@ -17,7 +17,7 @@ export default function AceitarConviteScreen() {
   const t = useI18n(s => s.t);
   const insets = useSafeAreaInsets();
   const { token } = useLocalSearchParams<{ token: string }>();
-  const { userId, loadActiveGroup } = useAuth();
+  const { userId, loadActiveGroup, switchGroup } = useAuth();
   const [loading, setLoading] = useState(false);
   const [accepted, setAccepted] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -45,8 +45,11 @@ export default function AceitarConviteScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       setGroupName(res.groupName || '');
       setAccepted(true);
-      // Refresh auth state so new group becomes active
+      // Refresh auth state, then make the just-joined group the active one
+      // (determinístico — loadActiveGroup agora preserva o grupo atual, então
+      // o switch explícito garante que o convidado cai no grupo que aceitou).
       await loadActiveGroup?.();
+      if (res.groupId) switchGroup?.(res.groupId);
       setTimeout(() => router.replace('/(tabs)'), 1500);
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);

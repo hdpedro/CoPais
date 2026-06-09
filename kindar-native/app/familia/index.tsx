@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, RefreshControl, Alert, ActivityIndicator,
-  Modal,
+  Modal, ScrollView,
 } from 'react-native';
 import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
@@ -52,7 +52,7 @@ const ROLE_META: Record<string, { icon: string; color: string }> = {
 export default function FamiliaScreen() {
   const t = useI18n(s => s.t);
   const toast = useToast();
-  const { activeGroup, userId, signOut } = useAuth();
+  const { activeGroup, userId, signOut, memberships, switchGroup } = useAuth();
   const [acting, setActing] = useState<string | null>(null);
   const [roleModalMember, setRoleModalMember] = useState<Member | null>(null);
 
@@ -237,6 +237,43 @@ export default function FamiliaScreen() {
           refreshControl={<RefreshControl refreshing={false} onRefresh={load} tintColor={colors.brand} />}
           ListHeaderComponent={
             <>
+              {/* Seletor de família — só aparece com >1 grupo. Sem isto o usuário
+                  ficava preso no grupo que o app escolhia ao entrar num 2º grupo
+                  (não havia como trocar; switchGroup não estava ligado a nenhuma
+                  tela). Bug Matheus/Jeniffer 09/jun. */}
+              {memberships.length > 1 ? (
+                <View style={{ marginBottom: spacing.md }}>
+                  <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, fontWeight: font.weights.semibold, textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: spacing.sm }}>
+                    {t('familiaScreen.yourGroups')}
+                  </Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingBottom: 2 }}>
+                    {memberships.map(m => {
+                      const isActive = m.groupId === activeGroup?.groupId;
+                      return (
+                        <TouchableOpacity
+                          key={m.groupId}
+                          onPress={() => { if (!isActive) { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); switchGroup(m.groupId); } }}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: isActive }}
+                          accessibilityLabel={m.groupName}
+                          style={{
+                            paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radius.full,
+                            backgroundColor: isActive ? colors.brand : colors.bgElevated,
+                            borderWidth: isActive ? 0 : 1, borderColor: colors.borderLight,
+                            flexDirection: 'row', alignItems: 'center', gap: 6,
+                          }}
+                        >
+                          <Ionicons name="home" size={13} color={isActive ? '#fff' : colors.textSecondary} />
+                          <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.semibold, color: isActive ? '#fff' : colors.text }} numberOfLines={1}>
+                            {m.groupName}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              ) : null}
+
               {/* Group card */}
               <View style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl,
