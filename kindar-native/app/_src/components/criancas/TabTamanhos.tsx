@@ -26,6 +26,7 @@ import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
 import { useIntl } from 'src/lib/intl';
 import { reportError } from 'src/lib/error-reporter';
+import { validateSizeValue } from 'src/lib/size-validation';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 
 interface Props {
@@ -180,6 +181,13 @@ export default function TabTamanhos({ childId, groupId }: Props) {
     }
     if (modal.kind === 'other' && !modal.customLabel?.trim()) {
       updateModal({ error: t('childSizes.errorCustomLabelRequired') });
+      return;
+    }
+    // Sanity check de tamanho: calçado precisa ser um número BR plausível (14–50).
+    // Bug 2026-06-09: a aba aceitava sapato 90 / 1. Roupas (letra ou número) ficam
+    // livres — só o calçado tem faixa.
+    if (validateSizeValue(modal.kind, modal.sizeValue)) {
+      updateModal({ error: t('childSizes.errorShoeInvalid') });
       return;
     }
     // Sanity check de data — sem validar aqui, server rejeita com 400

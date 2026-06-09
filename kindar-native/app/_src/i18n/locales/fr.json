@@ -3133,7 +3133,8 @@
     "errorDateInvalid": "Date invalide. Utilisez AAAA-MM-JJ.",
     "toastSaved": "Taille enregistrée.",
     "toastUpdated": "Taille mise à jour.",
-    "errorUnexpected": "Erreur inattendue. Veuillez réessayer."
+    "errorUnexpected": "Erreur inattendue. Veuillez réessayer.",
+    "errorShoeInvalid": "Pointure invalide. Utilisez un nombre de 14 à 50 (ex. : 34)."
   },
   "splash": {
     "tagline": "Coparentalité en douceur"

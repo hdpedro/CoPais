@@ -3133,7 +3133,8 @@
     "errorDateInvalid": "Ungültiges Datum. JJJJ-MM-TT verwenden.",
     "toastSaved": "Größe registriert.",
     "toastUpdated": "Größe aktualisiert.",
-    "errorUnexpected": "Unerwarteter Fehler. Bitte versuchen Sie es erneut."
+    "errorUnexpected": "Unerwarteter Fehler. Bitte versuchen Sie es erneut.",
+    "errorShoeInvalid": "Ungültige Schuhgröße. Verwende eine Zahl von 14 bis 50 (z. B. 34)."
   },
   "splash": {
     "tagline": "Gemeinsam Eltern sein"

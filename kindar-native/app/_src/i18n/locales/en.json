@@ -3133,7 +3133,8 @@
     "errorDateInvalid": "Invalid date. Use YYYY-MM-DD.",
     "toastSaved": "Size recorded.",
     "toastUpdated": "Size updated.",
-    "errorUnexpected": "Unexpected error. Please try again."
+    "errorUnexpected": "Unexpected error. Please try again.",
+    "errorShoeInvalid": "Invalid shoe size. Use a number from 14 to 50 (e.g., 34)."
   },
   "splash": {
     "tagline": "Co-parenting made gentle"
