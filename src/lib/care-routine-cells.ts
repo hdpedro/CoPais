@@ -59,6 +59,11 @@ export function buildRoutineCells(g: RoutineGridState, days: number[]): RoutineC
   return cellsToInputs(g, g.cells, null, days);
 }
 
+/** Uma grade está vazia se nenhuma célula tem perna preenchida. */
+export function isCellMapEmpty(cells: CellMap): boolean {
+  return Object.values(cells).every((c) => !c.dropoff && !c.pickup);
+}
+
 /** Aplica fn a cada perna de cada célula (usado em troca de modo). */
 export function mapCells(cells: CellMap, fn: (v: LegState) => LegState): CellMap {
   const out: CellMap = {};

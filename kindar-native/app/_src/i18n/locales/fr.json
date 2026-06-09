@@ -4592,7 +4592,8 @@
     "weekA": "Semaine A",
     "weekB": "Semaine B",
     "followsGuard": "garde",
-    "tapToToggle": "Touchez pour marquer les jours avec dépose/récupération."
+    "tapToToggle": "Touchez pour marquer les jours avec dépose/récupération.",
+    "weekEmptyTag": "(vide)"
   },
   "a11y": {
     "careRoutine": {

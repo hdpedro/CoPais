@@ -4592,7 +4592,8 @@
     "weekA": "Woche A",
     "weekB": "Woche B",
     "followsGuard": "Sorgerecht",
-    "tapToToggle": "Tippe, um die Tage mit Bringen/Abholen zu markieren."
+    "tapToToggle": "Tippe, um die Tage mit Bringen/Abholen zu markieren.",
+    "weekEmptyTag": "(leer)"
   },
   "a11y": {
     "careRoutine": {

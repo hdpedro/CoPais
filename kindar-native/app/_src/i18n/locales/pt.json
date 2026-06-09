@@ -4518,7 +4518,7 @@
   },
   "careRoutine": {
     "title": "Quem leva e quem busca",
-    "subtitle": "Monte a rotina semanal dos seus filhos.",
+    "subtitle": "Monte a rotina semanal de leva e busca.",
     "child": "Criança",
     "dropoff": "Leva",
     "pickup": "Busca",
@@ -4552,7 +4552,7 @@
     "heroDone": "✓ feito",
     "swapTodayCta": "Trocar hoje",
     "editCta": "Editar rotina",
-    "awaitingAck": "Aguardando ciência do outro responsável",
+    "awaitingAck": "Esperando o outro responsável ver",
     "activationTitle": "Organizar quem leva e busca?",
     "activationDescription": "Defina quem leva e quem busca {childName} em cada dia da semana.",
     "activationCta": "Montar rotina",
@@ -4583,7 +4583,7 @@
     "tomorrowDropoff": "{name} leva",
     "tomorrowPickup": "{name} busca",
     "confirmPickup": "Buscou o {name}?",
-    "recurrence": "Recorrência",
+    "recurrence": "Tipo de rotina",
     "patternWeekly": "Toda semana",
     "patternCustody": "Segue a guarda",
     "patternAlternating": "Semana A·B",
@@ -4592,7 +4592,8 @@
     "weekA": "Semana A",
     "weekB": "Semana B",
     "followsGuard": "guarda",
-    "tapToToggle": "Toque pra marcar os dias com leva/busca."
+    "tapToToggle": "Toque para marcar os dias com leva e busca.",
+    "weekEmptyTag": "(vazia)"
   },
   "a11y": {
     "careRoutine": {
