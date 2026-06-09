@@ -2917,7 +2917,12 @@
     "tapToToggle": "Toque para marcar os dias com leva e busca.",
     "weekEmptyTag": "(vazia)",
     "briefingPushTitle": "🌅 Amanhã",
-    "briefingGap": "Quem busca amanhã?"
+    "briefingGap": "Quem busca amanhã?",
+    "familyFormTitle": "Como funciona a guarda na sua família?",
+    "familyRotating": "Somos separados e revezamos a guarda",
+    "familyTogether": "Moramos juntos",
+    "familySingle": "Sou o único responsável",
+    "familyFormHint": "Isso ajusta o início do app: quem reveza vê de quem é a vez; quem mora junto ou cuida sozinho vê só a rotina de leva e busca."
   },
   "a11y": {
     "careRoutine": {

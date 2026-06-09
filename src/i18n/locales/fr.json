@@ -2917,7 +2917,12 @@
     "tapToToggle": "Touchez pour marquer les jours avec dépose/récupération.",
     "weekEmptyTag": "(vide)",
     "briefingPushTitle": "🌅 Demain",
-    "briefingGap": "Qui récupère demain ?"
+    "briefingGap": "Qui récupère demain ?",
+    "familyFormTitle": "Comment fonctionne la garde dans votre famille ?",
+    "familyRotating": "Nous sommes séparés et alternons la garde",
+    "familyTogether": "Nous vivons ensemble",
+    "familySingle": "Je suis le seul responsable",
+    "familyFormHint": "Cela ajuste l'accueil de l'app : en alternance, on voit à qui le tour ; ensemble ou seul, seulement la routine de dépose et récupération."
   },
   "a11y": {
     "careRoutine": {

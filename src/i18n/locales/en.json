@@ -2917,7 +2917,12 @@
     "tapToToggle": "Tap to mark the days with drop-off/pick-up.",
     "weekEmptyTag": "(empty)",
     "briefingPushTitle": "🌅 Tomorrow",
-    "briefingGap": "Who picks up tomorrow?"
+    "briefingGap": "Who picks up tomorrow?",
+    "familyFormTitle": "How does custody work in your family?",
+    "familyRotating": "We're separated and rotate custody",
+    "familyTogether": "We live together",
+    "familySingle": "I'm the only caregiver",
+    "familyFormHint": "This adjusts the app's home: rotating shows whose turn it is; living together or solo shows just the drop-off and pick-up routine."
   },
   "a11y": {
     "careRoutine": {

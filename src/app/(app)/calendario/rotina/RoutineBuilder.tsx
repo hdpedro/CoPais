@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/provider";
 import { DAY_NAMES, getDisplayName } from "@/lib/constants";
 import { saveRoutineGrid } from "@/actions/care-routine";
+import { setGroupArrangement } from "@/actions/group";
 import type { RoutineSlotRow, CareRoutineLeg } from "@/lib/services/care-routine";
 import {
   buildRoutineCells,
@@ -26,12 +27,15 @@ interface Child {
   id: string;
   full_name: string;
 }
+type Arrangement = "rotating" | "together" | "single" | "custom";
+
 interface RoutineBuilderProps {
   groupId: string;
   childrenList: Child[];
   members: Member[];
   currentUserId: string;
   initialSlots: RoutineSlotRow[];
+  currentArrangement: Arrangement;
 }
 
 const WEEKDAYS_CORE = [1, 2, 3, 4, 5]; // Seg–Sex
@@ -70,9 +74,25 @@ export default function RoutineBuilder({
   members,
   currentUserId,
   initialSlots,
+  currentArrangement,
 }: RoutineBuilderProps) {
   const { t } = useI18n();
   const router = useRouter();
+
+  const [arrangement, setArrangement] = useState<Arrangement>(currentArrangement);
+  function handleSetArrangement(a: Arrangement) {
+    if (a === arrangement) return;
+    const prev = arrangement;
+    setArrangement(a); // otimista
+    void (async () => {
+      const res = await setGroupArrangement(groupId, a);
+      if (res?.error) {
+        setArrangement(prev); // reverte
+        return;
+      }
+      router.refresh();
+    })();
+  }
 
   const [childId, setChildId] = useState(childrenList[0]?.id || "");
   const [grids, setGrids] = useState<Record<string, ChildGrid>>(() => {
@@ -247,6 +267,36 @@ export default function RoutineBuilder({
         <h1 className="text-lg font-bold text-dark">{t("careRoutine.title")}</h1>
         <p className="text-xs text-muted mt-0.5">{t("careRoutine.subtitle")}</p>
       </header>
+
+      {/* Forma da família — define o herói do painel (adaptável por arrangement) */}
+      <div className="bg-white rounded-xl p-4 shadow-sm">
+        <h3 className="text-sm font-semibold text-dark mb-2">{t("careRoutine.familyFormTitle")}</h3>
+        <div className="space-y-1.5">
+          {(
+            [
+              { key: "rotating", icon: "🔄", label: t("careRoutine.familyRotating") },
+              { key: "together", icon: "🏠", label: t("careRoutine.familyTogether") },
+              { key: "single", icon: "👤", label: t("careRoutine.familySingle") },
+            ] as const
+          ).map((o) => (
+            <button
+              key={o.key}
+              type="button"
+              onClick={() => handleSetArrangement(o.key)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-2 text-left text-sm transition-colors ${
+                arrangement === o.key
+                  ? "border-primary bg-primary/5 text-dark font-medium"
+                  : "border-gray-200 text-muted hover:border-gray-300"
+              }`}
+            >
+              <span className="text-base flex-shrink-0">{o.icon}</span>
+              <span className="flex-1">{o.label}</span>
+              {arrangement === o.key && <span className="text-primary">✓</span>}
+            </button>
+          ))}
+        </div>
+        <p className="text-[11px] text-muted mt-2">{t("careRoutine.familyFormHint")}</p>
+      </div>
 
       {/* Child selector */}
       {childrenList.length > 1 && (

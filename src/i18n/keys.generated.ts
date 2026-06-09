@@ -400,6 +400,11 @@ export type TranslationKey =
   | "careRoutine.didPickup"
   | "careRoutine.dropoff"
   | "careRoutine.editCta"
+  | "careRoutine.familyFormHint"
+  | "careRoutine.familyFormTitle"
+  | "careRoutine.familyRotating"
+  | "careRoutine.familySingle"
+  | "careRoutine.familyTogether"
   | "careRoutine.followsGuard"
   | "careRoutine.free"
   | "careRoutine.fullDay"
@@ -3083,6 +3088,11 @@ export const TRANSLATION_KEYS = [
   "careRoutine.didPickup",
   "careRoutine.dropoff",
   "careRoutine.editCta",
+  "careRoutine.familyFormHint",
+  "careRoutine.familyFormTitle",
+  "careRoutine.familyRotating",
+  "careRoutine.familySingle",
+  "careRoutine.familyTogether",
   "careRoutine.followsGuard",
   "careRoutine.free",
   "careRoutine.fullDay",
