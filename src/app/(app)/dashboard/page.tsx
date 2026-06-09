@@ -29,6 +29,7 @@ import {
   type ResolvedRoutine,
   type RoutineToday,
 } from "@/lib/care-routine-resolve";
+import { composeAttention } from "@/lib/briefing";
 // getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
 import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
 import dynamic from "next/dynamic";
@@ -1237,6 +1238,8 @@ export default async function DashboardPage() {
       fullName: child.full_name || "",
       firstName: child.full_name?.split(" ")[0] || "",
       initial: child.full_name?.charAt(0).toUpperCase() || "",
+      // Rostos no painel (premium): reusa a foto JÁ assinada em childHealthSummaries.
+      photoUrl: childHealthSummaries.find((s) => s.childId === child.id)?.childPhotoUrl ?? null,
       age,
       birthLabel: `${birthMonthNames[birthDate.getMonth()]}/${birthDate.getFullYear()}`,
       custodyInfo: custody ? { responsibleName: custody.responsibleName, isWithMe: custody.isWithMe } : null,
@@ -1251,7 +1254,10 @@ export default async function DashboardPage() {
   // === CONTEXT-AWARE SECTION ORDERING ===
   // Prioritize sections based on what matters RIGHT NOW for this user.
   // Each section has a priority (lower = more important). Show top N, collapse rest.
-  type SectionId = "swapAlerts" | "hero" | "careRoutine" | "healthBlock" | "activities" | "schoolUnread" | "expensesUnread" | "saudeUnread" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
+  // Briefing v2.0: schoolUnread/expensesUnread/saudeUnread/pendingExpenses/
+  // pendingDecisions/pendingReports saíram daqui — unificados na régua "Sua
+  // Atenção" (composeAttention), renderizada logo após a rotina.
+  type SectionId = "swapAlerts" | "hero" | "careRoutine" | "healthBlock" | "activities" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
 
   const sectionPriorities: { id: SectionId; priority: number; hasData: boolean }[] = [
     { id: "swapAlerts", priority: 1, hasData: custodyEnabled && hasCustody && pendingSwapsProps.length > 0 },
@@ -1268,22 +1274,9 @@ export default async function DashboardPage() {
     { id: "childCards", priority: 3, hasData: (children?.length || 0) > 0 },
     { id: "healthBlock", priority: 4, hasData: childHealthSummaries.length > 0 },
     { id: "activities", priority: 5, hasData: hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities },
-    // Collab Foundation: ranks just above pending decisions because new
-    // school logs are usually time-sensitive (próxima prova, reunião amanhã)
-    // and parents want to see them before optional money/voting work.
-    { id: "schoolUnread", priority: 6, hasData: schoolUnreadCount > 0 },
-    // Despesas novas ranqueiam logo abaixo da escola — mesma lógica:
-    // ações pendentes do coparente que precisam de awareness antes de
-    // listar pendentes/decisões individuais. CTA leva direto a /despesas.
-    { id: "expensesUnread", priority: 6.5, hasData: expensesUnreadCount > 0 },
-    // Saúde (Collab Foundation Fase 3, migration 00080): tile consolidada
-    // com soma dos 5 record_types (consultas / doenças / medicamentos /
-    // alergias / vacinas). CTA leva a /saude. Priority 6.7 entre Despesas
-    // e Pending Expenses — informacional, não bloqueia tarefas.
-    { id: "saudeUnread", priority: 6.7, hasData: saudeUnreadCount > 0 },
-    { id: "pendingExpenses", priority: 7, hasData: pendingExpenseProps.length > 0 },
-    { id: "pendingDecisions", priority: 8, hasData: pendingDecisionsList.length > 0 },
-    { id: "pendingReports", priority: 9, hasData: pendingReportsFinal.length > 0 },
+    // Briefing v2.0: escola/despesa/saúde (novidades), despesas a aprovar,
+    // votos e relatos pendentes NÃO ficam mais aqui — foram unificados na
+    // régua "Sua Atenção" (composeAttention, logo abaixo), priorizada e calma.
     { id: "financial", priority: 10, hasData: true },
     { id: "quickActions", priority: 11, hasData: !isReadonly },
     { id: "invite", priority: 12, hasData: (members?.length || 0) < 2 },
@@ -1296,6 +1289,31 @@ export default async function DashboardPage() {
     .filter(s => s.hasData)
     .sort((a, b) => a.priority - b.priority)
     .map(s => s.id);
+
+  // Briefing v2.0 — "Sua Atenção": régua única que consolida as 6 seções de
+  // pendência (relato, despesa a aprovar, voto, novidades de escola/despesa/
+  // saúde). Exclusões DELIBERADAS: swap (seção de trocas), ciência de rotina
+  // (card de rotina) e vacina (tile calmo próprio) — cada um tem home própria.
+  const briefingAttention = composeAttention({
+    arrangement: routineArrangement,
+    hasCustody,
+    hasRoutineSlots,
+    pendingSwaps: [],
+    routineAwaitingTheirAck: false,
+    routinePendingAck: null,
+    pendingReports: pendingReportsFinal.map((pr) => ({
+      activityName: pr.activityName,
+      childName: pr.childName,
+      daysAgo: 0,
+    })),
+    pendingExpenses: pendingExpenseProps.map((e) => ({ id: e.id, description: e.description })),
+    pendingDecisions: pendingDecisionsList.map((d) => ({ id: d.id, title: d.title })),
+    schoolUnreadCount,
+    expensesUnreadCount,
+    saudeUnreadCount,
+    vaccinePendingCount: 0,
+    vaccineNextDue: null,
+  });
 
   const clientProps: DashboardClientProps = {
     custodyEnabled,
@@ -1367,6 +1385,7 @@ export default async function DashboardPage() {
     todayDate: todayKey,
     tomorrowDate: tomorrowKey,
     visibleSections,
+    briefingAttention,
     pendingReports: pendingReportsFinal.slice(0, 5).map((pr) => {
       const occDate = new Date(pr.occurrenceDate + "T12:00:00");
       const daysAgo = Math.round((now.getTime() - occDate.getTime()) / 86400000);

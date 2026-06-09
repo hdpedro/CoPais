@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Kindar — Dashboard v2.0 · Briefing Familiar</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EFEBE5; --card:#FFFFFF; --hero:#FBF6F0;
+    --ink:#2A2622; --ink2:#615A52; --muted:#A7A097; --faint:#C8C1B8;
+    --line:#EEEAE3; --hair:#F2EEE8;
+    --terra:#B0654C; --terra-soft:#F3E8E1; --terra-ink:#8E4F3B;
+    --sage:#6E9A80; --amber:#B58A40; --amber-soft:#F6EFE0; --amber-ink:#7E5F26;
+    --night:#2B2825; --night2:#363230;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'Inter',-apple-system,BlinkMacSystemFont,sans-serif;background:#DFDAD3;color:var(--ink);-webkit-font-smoothing:antialiased;padding:26px 0 70px}
+  .serif{font-family:'Cormorant Garamond',Georgia,serif}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 20px;display:flex;gap:30px;align-items:flex-start;flex-wrap:wrap}
+
+  /* Controles */
+  .controls{flex:0 0 286px;position:sticky;top:26px;background:var(--card);border-radius:20px;padding:22px;box-shadow:0 1px 3px rgba(0,0,0,.04),0 10px 30px rgba(0,0,0,.04)}
+  .controls h1{font-size:14px;font-weight:600;letter-spacing:.2px}
+  .controls .sub{font-size:11.5px;color:var(--muted);margin:4px 0 18px;line-height:1.5}
+  .grp{margin-bottom:16px}
+  .grp .lbl{font-size:10px;text-transform:uppercase;letter-spacing:1px;color:var(--faint);font-weight:600;margin-bottom:8px}
+  .seg{display:flex;flex-wrap:wrap;gap:6px}
+  .seg button{flex:1 1 auto;border:1px solid var(--line);background:#fff;color:var(--ink2);font-family:'Inter';font-size:12px;font-weight:500;padding:8px 11px;border-radius:11px;cursor:pointer;transition:.16s;white-space:nowrap}
+  .seg button:hover{border-color:#E2DBD2}
+  .seg button.on{border-color:var(--terra);background:var(--terra-soft);color:var(--terra-ink);font-weight:600}
+  .legend{font-size:10.5px;color:var(--muted);line-height:1.65;border-top:1px solid var(--hair);padding-top:14px}
+  .legend b{color:var(--ink2);font-weight:600}
+
+  /* Telefone */
+  .phone{flex:0 0 396px;background:var(--bg);border-radius:38px;padding:16px 14px 28px;box-shadow:0 22px 60px rgba(0,0,0,.18);border:1px solid #00000010}
+  .screen{height:766px;overflow-y:auto;padding:10px 14px 50px}
+  .screen::-webkit-scrollbar{width:0}
+
+  .greet{font-size:32px;font-weight:600;letter-spacing:-.3px;line-height:1.05;margin:16px 2px 3px}
+  .date{font-size:12px;color:var(--muted);margin:0 2px 22px;font-weight:500;text-transform:lowercase}
+
+  .card{background:var(--card);border-radius:20px;padding:21px 22px;box-shadow:0 1px 2px rgba(0,0,0,.03);margin-bottom:15px}
+  .seclbl{font-size:10px;text-transform:uppercase;letter-spacing:1.1px;color:var(--faint);font-weight:600;margin-bottom:15px}
+
+  /* HERÓI — escuro pra todos (separados e juntos), o tratamento premium */
+  .hero{border-radius:22px;padding:24px 22px;margin-bottom:16px;background:linear-gradient(158deg,var(--night),var(--night2));color:#EFEAE4;box-shadow:0 1px 2px rgba(0,0,0,.10),0 18px 44px rgba(0,0,0,.16)}
+  .kicker{font-size:10px;text-transform:uppercase;letter-spacing:1.6px;color:#C99A86;font-weight:600;margin-bottom:13px}
+  .voz{font-size:21px;line-height:1.42;font-weight:500;letter-spacing:-.1px;color:#F3EEE8}
+  .voz b{font-weight:600;color:#E7B49E}
+  .voz-sub{font-size:13px;color:#B0A89E;margin-top:10px;font-weight:400}
+
+  /* timeline refinada (no escuro) */
+  .tlw{margin-top:25px;display:flex;justify-content:space-between;position:relative;padding:0 6px}
+  .tline{position:absolute;top:5px;left:18px;right:18px;height:1px;background:#4B463F}
+  .ti{position:relative;text-align:center;z-index:1;flex:1}
+  .tdot{width:10px;height:10px;border-radius:50%;background:#3B3733;border:1.5px solid #5C554E;margin:0 auto}
+  .ti.done .tdot{background:var(--sage);border-color:var(--sage)}
+  .ti.now .tdot{background:var(--terra);border-color:var(--terra);box-shadow:0 0 0 4px #B0654C44}
+  .ti.gap .tdot{background:#4A4135;border-color:var(--amber)}
+  .tt{font-size:11px;font-weight:600;color:#D7CFC5;margin-top:10px;letter-spacing:.1px}
+  .tn{font-size:10px;color:#9D948A;margin-top:2px}
+  .tn.gap{color:#D9B36A;font-weight:500}
+
+  .hfoot{display:flex;align-items:center;gap:14px;margin-top:22px;padding-top:16px;border-top:1px solid #433E39}
+  .ask{font-size:12.5px;color:#B0A89E;font-weight:500}
+  .ask a{color:#8CC0A1;font-weight:600;cursor:pointer;text-decoration:none}
+  .ask a.no{color:#9D948A;font-weight:500}
+  .hlink{margin-left:auto;font-size:12.5px;color:#E7B49E;font-weight:600;cursor:pointer;text-decoration:none}
+
+  /* resumo divergente — em prosa, sem chips */
+  .splitline{font-size:13px;color:#D7CFC5;margin-top:16px;font-weight:500;line-height:1.5}
+  .splitline .w{color:#D9B36A;font-weight:600}
+  .splitline .g{color:#8CC0A1;font-weight:600}
+  .hint{font-size:12px;color:#9D948A;margin-top:7px}
+
+  /* guarda */
+  .glabel{font-size:11px;letter-spacing:.3px;color:#BBB2A8;font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:7px}
+  .glabel .d{width:6px;height:6px;border-radius:50%;background:#86BD9C}
+  .prog{display:flex;gap:5px;margin-top:18px}
+  .prog .b{height:5px;flex:1;border-radius:3px;background:#48433F}
+  .prog .b.f{background:var(--terra)}
+  .troca{font-size:11px;color:#A79E94;margin-top:11px}
+
+  /* ATENÇÃO */
+  .att{background:var(--card);border-radius:20px;padding:20px 22px;margin-bottom:15px;box-shadow:0 1px 2px rgba(0,0,0,.03);border-left:3px solid var(--amber)}
+  .att.celebrate{border-left-color:var(--terra)}
+  .att .ah{font-size:10px;text-transform:uppercase;letter-spacing:1.1px;color:var(--amber-ink);font-weight:600;margin-bottom:14px}
+  .att.celebrate .ah{color:var(--terra-ink)}
+  .arow{display:flex;align-items:center;gap:14px;padding:11px 0;border-top:1px solid var(--hair)}
+  .arow:first-of-type{border-top:0;padding-top:0}
+  .arow .tx{flex:1;font-size:14px;font-weight:600;color:var(--ink);line-height:1.35}
+  .arow .tx small{display:block;font-weight:400;color:var(--muted);font-size:11.5px;margin-top:2px}
+  .btn{font-size:12px;font-weight:600;color:#fff;background:var(--terra);border:0;padding:8px 15px;border-radius:10px;cursor:pointer;white-space:nowrap;font-family:'Inter'}
+  .btn.ghost{background:transparent;color:var(--terra-ink);border:1px solid #E1CDC1}
+
+  /* O MOMENTO — responsabilidade full-bleed terracota (enxerto V3) */
+  .care{position:relative;overflow:hidden;color:#FBF3EE;border-radius:20px;padding:23px 22px;margin-bottom:15px;
+    background:radial-gradient(135% 115% at 85% 8%, #C07458 0%, rgba(192,116,88,0) 54%),linear-gradient(164deg,var(--terra) 0%, #9A5238 100%);
+    box-shadow:0 1px 2px rgba(0,0,0,.06),0 14px 32px -12px rgba(154,82,56,.5)}
+  .care::after{content:"";position:absolute;inset:0;opacity:.06;pointer-events:none;background-image:radial-gradient(rgba(255,255,255,.85) .5px,transparent .5px);background-size:4px 4px}
+  .care>*{position:relative;z-index:1}
+  .care .eyebrow{font-size:10px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;color:rgba(251,243,238,.82);margin-bottom:14px;display:flex;align-items:center;gap:9px}
+  .care .eyebrow::before{content:"";width:20px;height:1px;background:rgba(251,243,238,.55)}
+  .care .pull{font-family:'Cormorant Garamond';font-weight:500;font-size:25px;line-height:1.18;letter-spacing:-.006em;color:#FFFFFF}
+  .care .pull em{font-style:italic;color:#FCE3D8}
+  .care .when{font-size:12px;color:#FBF3EE;font-weight:500;margin-top:12px;opacity:.9;display:flex;align-items:center;gap:8px}
+  .care .when .pip{width:5px;height:5px;border-radius:50%;background:#FCE3D8;flex:none}
+  .claim{display:flex;gap:10px;margin-top:20px}
+  .take{flex:1;appearance:none;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;font-family:'Inter';font-size:14px;font-weight:600;color:#9A5238;background:#FBF3EE;border-radius:14px;padding:14px;box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 10px 22px -9px rgba(0,0,0,.4);transition:transform .15s}
+  .take:active{transform:scale(.985)}
+  .take .hand{width:19px;height:19px;flex:none}
+  .pass{appearance:none;border:1px solid rgba(251,243,238,.32);background:rgba(251,243,238,.08);cursor:pointer;font-family:'Inter';font-size:12px;font-weight:500;color:#FBF3EE;border-radius:14px;padding:0 16px;white-space:nowrap}
+  /* celebração — gentil, não full-bleed */
+  .celeb{background:var(--terra-soft);border-radius:20px;padding:20px 22px;margin-bottom:15px}
+  .celeb .ah{font-size:10px;text-transform:uppercase;letter-spacing:.18em;color:var(--terra-ink);font-weight:600;margin-bottom:12px}
+  .celeb .ct{font-family:'Cormorant Garamond';font-weight:600;font-size:21px;line-height:1.2;color:var(--ink)}
+  .celeb .cs{font-size:12px;color:var(--ink2);margin-top:6px}
+
+  /* ROSTOS dos filhos — FOTO real (placeholder no mockup) + aro por-criança */
+  .face{width:44px;height:44px;border-radius:50%;flex:none;background-size:cover;background-position:center;background-color:#EDE6DC;box-shadow:0 4px 11px -4px rgba(42,38,34,.32)}
+  .face.otto{box-shadow:0 0 0 2px #fff,0 0 0 3.5px rgba(110,154,128,.55),0 5px 12px -5px rgba(42,38,34,.32)}
+  .face.martim{box-shadow:0 0 0 2px #fff,0 0 0 3.5px rgba(176,101,76,.55),0 5px 12px -5px rgba(42,38,34,.32)}
+
+  /* FILHOS simples */
+  .kid{display:flex;align-items:center;gap:14px;padding:13px 0;border-top:1px solid var(--hair)}
+  .kid:first-child{border-top:0;padding-top:0}
+  .av{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Cormorant Garamond';font-weight:600;font-size:20px;flex-shrink:0}
+  .kid .nm{font-size:14.5px;font-weight:600}
+  .kid .nx{font-size:12px;color:var(--muted);margin-top:1px}
+  .kid .info{flex:1}
+  .stt{font-size:11.5px;font-weight:600;display:flex;align-items:center;gap:6px}
+  .stt .d{width:7px;height:7px;border-radius:50%}
+  .stt.ok{color:var(--sage)} .stt.ok .d{background:var(--sage)}
+  .stt.ev{color:var(--amber-ink)} .stt.ev .d{background:var(--amber)}
+
+  /* FILHOS divergente */
+  .kidc{padding:18px 0;border-top:1px solid var(--hair)}
+  .kidc:first-of-type{border-top:0;padding-top:2px}
+  .kidc .top{display:flex;align-items:center;gap:13px;margin-bottom:16px}
+  .kidc .info{flex:1}
+  .kidc .nm{font-size:14.5px;font-weight:600}
+  .kidc .nx{font-size:12px;color:var(--muted);margin-top:1px}
+  .mtlw{display:flex;justify-content:space-between;position:relative;padding:0 4px}
+  .mline{position:absolute;top:4px;left:14px;right:14px;height:1px;background:#E8DFD4}
+  .mi{position:relative;text-align:center;z-index:1;flex:1}
+  .mdot{width:9px;height:9px;border-radius:50%;background:#fff;border:1.5px solid #DBD2C6;margin:0 auto}
+  .mi.done .mdot{background:var(--sage);border-color:var(--sage)}
+  .mi.now .mdot{background:var(--terra);border-color:var(--terra);box-shadow:0 0 0 3.5px var(--terra-soft)}
+  .mi.gap .mdot{background:var(--amber-soft);border-color:var(--amber)}
+  .mt{font-size:10px;font-weight:600;color:var(--ink2);margin-top:8px}
+  .mn{font-size:9px;color:var(--muted);margin-top:2px}
+  .mn.gap{color:var(--amber-ink)}
+  .kgap{display:flex;align-items:center;gap:12px;margin-top:15px;padding:12px 14px;background:var(--amber-soft);border-radius:12px}
+  .kgap .tx{flex:1;font-size:12.5px;font-weight:600;color:var(--amber-ink)}
+
+  /* SAÚDE */
+  .health{display:flex;align-items:center;gap:18px}
+  .hk{display:flex;align-items:center;gap:7px;font-size:13px;font-weight:500;color:var(--ink2)}
+  .hk .d{width:7px;height:7px;border-radius:50%;background:var(--sage)}
+  .hlast{margin-left:auto;font-size:11.5px;color:var(--muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="controls">
+    <h1>Kindar · Dashboard v2.0</h1>
+    <div class="sub">Briefing Familiar. Troque os eixos — a tela responde. Mesma moldura, conteúdo adapta.</div>
+    <div class="grp"><div class="lbl">Família</div>
+      <div class="seg" data-axis="family"><button data-v="together" class="on">Moram juntos</button><button data-v="sep">Separados</button></div></div>
+    <div class="grp"><div class="lbl">Rotina dos filhos</div>
+      <div class="seg" data-axis="route"><button data-v="junto" class="on">Vão juntos</button><button data-v="diverg">Cada um num caminho</button></div></div>
+    <div class="grp"><div class="lbl">Horário</div>
+      <div class="seg" data-axis="time"><button data-v="manha" class="on">Manhã</button><button data-v="tarde">Tarde</button><button data-v="noite">Noite</button></div></div>
+    <div class="grp"><div class="lbl">Situação do dia</div>
+      <div class="seg" data-axis="sit"><button data-v="calmo" class="on">Tranquilo</button><button data-v="furo">Furo de cobertura</button><button data-v="semdono">Sem responsável</button><button data-v="momento">Momento da criança</button></div></div>
+    <div class="legend"><b>Caso A</b> (vão juntos): herói com uma linha do dia.<br><b>Caso B</b> (cada um num caminho): herói resume e cada filho ganha sua própria linha do dia.</div>
+  </div>
+
+  <div class="phone"><div class="screen" id="screen"></div></div>
+</div>
+
+<script>
+const state = { family:'together', route:'junto', time:'manha', sit:'calmo' };
+const FACE = {
+  otto:"https://api.dicebear.com/9.x/adventurer/svg?seed=Otto&backgroundColor=d4e8db",
+  martim:"https://api.dicebear.com/9.x/adventurer/svg?seed=Theo&backgroundColor=f2ddd1",
+};
+const HAND = `<svg class="hand" viewBox="0 0 24 24" fill="none"><path d="M7 11.5V6.6a1.5 1.5 0 0 1 3 0v4.4m0-1.4V5a1.5 1.5 0 0 1 3 0v5m0-.7V6.2a1.5 1.5 0 0 1 3 0v6.6c0 3.6-2.2 6.5-6 6.5-2.4 0-3.8-1-5.1-2.8l-1.9-2.7c-.6-.9.2-2 1.2-1.7l1.8.7" stroke="#9A5238" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+const GREET = { manha:'Bom dia, Henrique', tarde:'Boa tarde, Henrique', noite:'Boa noite, Henrique' };
+const DATE  = { manha:'terça, 9 de junho', tarde:'terça, 9 de junho', noite:'terça, 9 de junho' };
+
+function voz(){
+  const {family,time,sit,route} = state;
+  if(sit==='furo' || sit==='semdono') return route==='diverg'
+      ? `Cada um num caminho hoje. <b>Quase tudo coberto</b> — falta um detalhe.`
+      : `Quase tudo certo — <b>uma coisa</b> ainda espera você.`;
+  if(sit==='momento') return `Hoje tem um <b>momento especial</b> pro Otto.`;
+  if(route==='diverg' && family==='together'){
+    if(time==='noite') return `Dia dividido, mas <b>tudo concluído</b>. Pode respirar.`;
+    return `Dia dividido hoje — cada um segue seu caminho, e <b>está tudo coberto</b>.`;
+  }
+  if(family==='together'){
+    if(time==='manha') return `Dia tranquilo. <b>Fernanda leva</b> as crianças e <b>você busca</b> no Jiu-Jitsu, às 18h30.`;
+    if(time==='tarde') return `Tudo em dia. Daqui a pouco <b>você busca</b> Otto e Martim no Jiu-Jitsu, às 18h30.`;
+    return `Tudo concluído hoje. Amanhã há <b>reunião escolar</b>, às 16h30.`;
+  }
+  if(time==='manha') return `As crianças estão com <b>Fernanda</b> até domingo. Tudo tranquilo por aqui.`;
+  if(time==='tarde') return `As crianças seguem com <b>Fernanda</b>. A próxima troca é segunda, às 18h.`;
+  return `Dia tranquilo. Sua próxima troca é <b>segunda, às 18h</b>.`;
+}
+function vozSub(){
+  if(state.route==='diverg'||state.sit!=='calmo') return '';
+  if(state.time==='noite') return '';
+  return state.family==='together' ? 'Nenhuma pendência sua.' : 'Nada pendente do seu lado.';
+}
+
+function timeline(){
+  const dc = state.time==='noite'?5 : state.time==='tarde'?3 : 1;
+  const s=[['7h30','casa'],['8h','Fernanda leva'],['8h20','escola'],['18h30','Jiu-Jitsu'],['19h30','você busca']];
+  return `<div class="tlw"><div class="tline"></div>`+s.map((x,i)=>{
+    const c=i<dc?'done':(i===dc?'now':'');
+    return `<div class="ti ${c}"><div class="tdot"></div><div class="tt">${x[0]}</div><div class="tn">${x[1]}</div></div>`;
+  }).join('')+`</div>`;
+}
+function heroTgJunto(){
+  const ask = state.time==='manha' ? `<span class="ask">Levou? <a>Sim</a> · <a class="no">Não</a></span>`
+    : state.time==='tarde' ? `<span class="ask">Buscou? <a>Sim</a> · <a class="no">ainda não</a></span>`
+    : `<span class="ask" style="color:var(--sage);font-weight:600">Tudo feito hoje</span>`;
+  return `<div class="hero tg"><div class="kicker">Hoje</div>
+    <div class="voz serif">${voz()}</div>${vozSub()?`<div class="voz-sub">${vozSub()}</div>`:''}
+    ${timeline()}<div class="hfoot">${ask}<a class="hlink">Editar rotina</a></div></div>`;
+}
+function heroDiverg(){
+  return `<div class="hero tg"><div class="kicker">Hoje</div>
+    <div class="voz serif">${voz()}</div>
+    <div class="hint">O dia de cada criança está logo abaixo.</div></div>`;
+}
+function heroSep(){
+  const f = state.time==='noite'?3:2;
+  return `<div class="hero sp"><div class="glabel"><span class="d"></span>Guarda ativa</div>
+    <div class="voz serif">${voz()}</div>${vozSub()?`<div class="voz-sub">${vozSub()}</div>`:''}
+    <div class="prog">${[0,1,2,3,4,5,6].map(i=>`<span class="b ${i<f?'f':''}"></span>`).join('')}</div>
+    <div class="troca">Próxima troca — segunda, 18h · ${f} de 7 dias consecutivos</div></div>`;
+}
+function hero(){ return state.family==='sep' ? heroSep() : (state.route==='diverg'?heroDiverg():heroTgJunto()); }
+
+function atencao(){
+  const {sit,route}=state;
+  if(sit==='calmo') return '';
+  if(sit==='furo'){
+    const pull = route==='diverg' ? `Falta <em>buscar o Martim</em> às 19h.` : `Falta <em>quem busque</em> Otto e Martim hoje.`;
+    const when = route==='diverg' ? `Otto já está coberto o dia todo · esse é o único espaço aberto` : `hoje, 18h30, no Jiu-Jitsu · ninguém assumiu ainda`;
+    const take = route==='diverg' ? `Eu busco o Martim` : `Eu busco`;
+    return `<div class="care"><div class="eyebrow">${route==='diverg'?'por-criança':'sua atenção'}</div>
+      <p class="pull">${pull}</p><div class="when"><span class="pip"></span>${when}</div>
+      <div class="claim"><button class="take">${HAND}${take}</button><button class="pass">peço à Fernanda</button></div></div>`;
+  }
+  if(sit==='semdono') return `<div class="care"><div class="eyebrow">sua atenção</div>
+      <p class="pull">O <em>kimono do Martim</em> ainda não tem quem leve ao Jiu-Jitsu.</p>
+      <div class="when"><span class="pip"></span>hoje, 18h30 · ninguém assumiu ainda</div>
+      <div class="claim"><button class="take">${HAND}Eu cuido</button><button class="pass">peço à Fernanda</button></div></div>`;
+  return `<div class="celeb"><div class="ah">Hoje é especial</div>
+     <div class="ct serif">Primeira aula de natação do Otto, às 16h.</div>
+     <div class="cs">Leva sunga e toalha · capricha na torcida.</div></div>`;
+}
+
+function filhosSimples(){
+  const m=state.sit==='momento';
+  const otto = m?{nx:'Dia especial hoje',s:'ev',t:'Momento'}:{nx:'Jiu-Jitsu hoje · 18h30',s:'ok',t:'Tudo certo'};
+  const mar = {nx:'Reunião escolar amanhã · 16h30',s:'ev',t:'Evento amanhã'};
+  const r=(key,nm,k)=>`<div class="kid"><div class="face ${key}" style="background-image:url('${FACE[key]}')"></div>
+    <div class="info"><div class="nm">${nm}</div><div class="nx">${k.nx}</div></div><div class="stt ${k.s}"><span class="d"></span>${k.t}</div></div>`;
+  return `<div class="card"><div class="seclbl">Filhos</div>${r('otto','Otto',otto)}${r('martim','Martim',mar)}</div>`;
+}
+function mtl(steps,dc,gi){
+  return `<div class="mtlw"><div class="mline"></div>`+steps.map((x,i)=>{
+    let c=i<dc?'done':(i===dc?'now':''); if(i===gi)c='gap';
+    return `<div class="mi ${c}"><div class="mdot"></div><div class="mt">${x[0]}</div><div class="mn ${i===gi?'gap':''}">${x[1]}</div></div>`;
+  }).join('')+`</div>`;
+}
+function filhosDiverg(){
+  const dc=state.time==='noite'?4:state.time==='tarde'?2:1, furo=state.sit==='furo', m=state.sit==='momento';
+  const o=[['8h','Fernanda'],['8h20','escola'],['16h','natação'],['17h','você busca']];
+  const mr=[['8h','você leva'],['8h20','escola'],['18h30','Jiu-Jitsu'],['19h',furo?'sem dono':'você busca']];
+  const os=m?`<div class="stt ev"><span class="d"></span>Dia especial</div>`:`<div class="stt ok"><span class="d"></span>Tudo certo</div>`;
+  const ms=furo?`<div class="stt ev"><span class="d"></span>Busca sem dono</div>`:`<div class="stt ok"><span class="d"></span>Tudo certo</div>`;
+  return `<div class="card"><div class="seclbl">Cada filho hoje</div>
+    <div class="kidc"><div class="top"><div class="face otto" style="background-image:url('${FACE.otto}')"></div>
+      <div class="info"><div class="nm">Otto</div><div class="nx">${m?'Primeira natação · 16h':'Natação · 16h'}</div></div>${os}</div>${mtl(o,dc,-1)}</div>
+    <div class="kidc"><div class="top"><div class="face martim" style="background-image:url('${FACE.martim}')"></div>
+      <div class="info"><div class="nm">Martim</div><div class="nx">Jiu-Jitsu · 18h30</div></div>${ms}</div>${mtl(mr,dc,furo?3:-1)}</div></div>`;
+}
+function filhos(){ return state.route==='diverg'?filhosDiverg():filhosSimples(); }
+function saude(){ return `<div class="card"><div class="seclbl">Saúde</div><div class="health">
+  <span class="hk"><span class="d"></span>Otto</span><span class="hk"><span class="d"></span>Martim</span><span class="hlast">último registro há 15 dias</span></div></div>`; }
+
+function render(){ document.getElementById('screen').innerHTML =
+  `<div class="greet serif">${GREET[state.time]}</div><div class="date">${DATE[state.time]}</div>${hero()}${atencao()}${filhos()}${saude()}`; }
+document.querySelectorAll('.seg').forEach(seg=>seg.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  state[seg.dataset.axis]=b.dataset.v; seg.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); render();
+}));
+render();
+</script>
+</body>
+</html>

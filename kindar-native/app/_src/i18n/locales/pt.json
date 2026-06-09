@@ -4621,5 +4621,23 @@
     "careRoutine": {
       "saveFailed": "Não consegui salvar a rotina. Tente de novo."
     }
+  },
+  "briefing": {
+    "attentionTitle": "Sua atenção",
+    "calmTitle": "Dia tranquilo",
+    "calmSubtitle": "Nada exige você hoje. Aproveite.",
+    "swap": "{count, plural, one {{name} pediu uma troca} other {# pedidos de troca}}",
+    "routineAckTheirs": "{name} mudou a rotina de hoje",
+    "routineAckMine": "Aguardando o outro ver sua mudança",
+    "pendingReport": "{count, plural, one {Aconteceu? {activity} de {child}} other {# atividades esperando seu relato}}",
+    "pendingExpense": "{count, plural, one {1 despesa pra aprovar} other {# despesas pra aprovar}}",
+    "pendingDecision": "{count, plural, one {1 decisão pra votar} other {# decisões pra votar}}",
+    "schoolNew": "{count, plural, one {1 novidade da escola} other {# novidades da escola}}",
+    "expensesNew": "{count, plural, one {1 novidade nas despesas} other {# novidades nas despesas}}",
+    "saudeNew": "{count, plural, one {1 novidade de saúde} other {# novidades de saúde}}",
+    "vaccineCalm": "Saúde preventiva · alguns reforços pra ver",
+    "ctaView": "Ver",
+    "ctaReport": "Relatar",
+    "ctaVote": "Votar"
   }
 }

@@ -4621,5 +4621,23 @@
     "careRoutine": {
       "saveFailed": "Couldn't save the routine. Please try again."
     }
+  },
+  "briefing": {
+    "attentionTitle": "Your attention",
+    "calmTitle": "A calm day",
+    "calmSubtitle": "Nothing needs you today. Enjoy.",
+    "swap": "{count, plural, one {{name} requested a swap} other {# swap requests}}",
+    "routineAckTheirs": "{name} changed today's routine",
+    "routineAckMine": "Waiting for the other parent to see your change",
+    "pendingReport": "{count, plural, one {Did it happen? {child}'s {activity}} other {# activities awaiting your report}}",
+    "pendingExpense": "{count, plural, one {1 expense to approve} other {# expenses to approve}}",
+    "pendingDecision": "{count, plural, one {1 decision to vote on} other {# decisions to vote on}}",
+    "schoolNew": "{count, plural, one {1 school update} other {# school updates}}",
+    "expensesNew": "{count, plural, one {1 expense update} other {# expense updates}}",
+    "saudeNew": "{count, plural, one {1 health update} other {# health updates}}",
+    "vaccineCalm": "Preventive health · a few boosters to review",
+    "ctaView": "View",
+    "ctaReport": "Report",
+    "ctaVote": "Vote"
   }
 }

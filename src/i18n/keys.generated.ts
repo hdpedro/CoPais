@@ -246,6 +246,22 @@ export type TranslationKey =
   | "balanceOps.viewHistory"
   | "balanceOps.waive"
   | "balanceOps.youOwe"
+  | "briefing.attentionTitle"
+  | "briefing.calmSubtitle"
+  | "briefing.calmTitle"
+  | "briefing.ctaReport"
+  | "briefing.ctaView"
+  | "briefing.ctaVote"
+  | "briefing.expensesNew"
+  | "briefing.pendingDecision"
+  | "briefing.pendingExpense"
+  | "briefing.pendingReport"
+  | "briefing.routineAckMine"
+  | "briefing.routineAckTheirs"
+  | "briefing.saudeNew"
+  | "briefing.schoolNew"
+  | "briefing.swap"
+  | "briefing.vaccineCalm"
   | "calendar.activities"
   | "calendar.activity"
   | "calendar.addEvent"
@@ -2941,6 +2957,22 @@ export const TRANSLATION_KEYS = [
   "balanceOps.viewHistory",
   "balanceOps.waive",
   "balanceOps.youOwe",
+  "briefing.attentionTitle",
+  "briefing.calmSubtitle",
+  "briefing.calmTitle",
+  "briefing.ctaReport",
+  "briefing.ctaView",
+  "briefing.ctaVote",
+  "briefing.expensesNew",
+  "briefing.pendingDecision",
+  "briefing.pendingExpense",
+  "briefing.pendingReport",
+  "briefing.routineAckMine",
+  "briefing.routineAckTheirs",
+  "briefing.saudeNew",
+  "briefing.schoolNew",
+  "briefing.swap",
+  "briefing.vaccineCalm",
   "calendar.activities",
   "calendar.activity",
   "calendar.addEvent",
