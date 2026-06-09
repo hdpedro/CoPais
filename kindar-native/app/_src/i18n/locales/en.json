@@ -694,7 +694,10 @@
       "cancelled": "cancelled",
       "reopened": "reopened",
       "restored": "denied cancellation"
-    }
+    },
+    "awaitingApprovalHint": "Waiting for the co-parent to approve",
+    "howItWorksTitle": "How expenses work",
+    "howItWorksBody": "1. Each parent logs what they paid.\n2. The other approves or rejects.\n3. The balance shows who owes whom.\n4. You settle up between yourselves."
   },
   "health": {
     "title": "Health",

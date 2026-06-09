@@ -694,7 +694,10 @@
       "cancelled": "cancelou",
       "reopened": "reabriu",
       "restored": "negou cancelamento"
-    }
+    },
+    "awaitingApprovalHint": "Aguardando o co-responsável aprovar",
+    "howItWorksTitle": "Como funcionam as despesas",
+    "howItWorksBody": "1. Cada responsável registra o que pagou.\n2. O outro aprova ou rejeita.\n3. O saldo mostra quem deve a quem.\n4. O acerto é combinado entre vocês (PIX, transferência)."
   },
   "health": {
     "title": "Saúde",

@@ -694,7 +694,10 @@
       "cancelled": "canceló",
       "reopened": "reabrió",
       "restored": "rechazó la cancelación"
-    }
+    },
+    "awaitingApprovalHint": "Esperando que el corresponsable apruebe",
+    "howItWorksTitle": "Cómo funcionan los gastos",
+    "howItWorksBody": "1. Cada responsable registra lo que pagó.\n2. El otro aprueba o rechaza.\n3. El saldo muestra quién le debe a quién.\n4. El ajuste se acuerda entre ustedes."
   },
   "health": {
     "title": "Salud",
