@@ -2242,6 +2242,11 @@ export type TranslationKey =
   | "onboardingForm.exitConfirmMessage"
   | "onboardingForm.exitConfirmTitle"
   | "onboardingForm.familyCreated"
+  | "onboardingForm.familyFormHint"
+  | "onboardingForm.familyFormRotating"
+  | "onboardingForm.familyFormSingle"
+  | "onboardingForm.familyFormTitle"
+  | "onboardingForm.familyFormTogether"
   | "onboardingForm.familyHasMany"
   | "onboardingForm.familyHasOne"
   | "onboardingForm.familyName"
@@ -4925,6 +4930,11 @@ export const TRANSLATION_KEYS = [
   "onboardingForm.exitConfirmMessage",
   "onboardingForm.exitConfirmTitle",
   "onboardingForm.familyCreated",
+  "onboardingForm.familyFormHint",
+  "onboardingForm.familyFormRotating",
+  "onboardingForm.familyFormSingle",
+  "onboardingForm.familyFormTitle",
+  "onboardingForm.familyFormTogether",
   "onboardingForm.familyHasMany",
   "onboardingForm.familyHasOne",
   "onboardingForm.familyName",

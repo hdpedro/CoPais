@@ -33,7 +33,7 @@ import { ProgressDots } from "./_components/ProgressDots";
 import { isAbortError, resolveFetchErrorMessage } from "./_lib/errors";
 import type { ChildSex, InviteRole, WizardChild } from "./_lib/types";
 import {
-  initialWizardState, progressIndex, wizardReducer,
+  initialWizardState, progressIndex, wizardReducer, type OnboardingArrangement,
 } from "./_lib/wizard-state";
 
 const TOTAL_STEPS = 3;
@@ -42,7 +42,7 @@ export default function OnboardingForm() {
   const { t } = useI18n();
   const [state, dispatch] = useReducer(wizardReducer, initialWizardState);
   const {
-    step, groupId, groupName, kids, form, invite,
+    step, groupId, groupName, arrangement, kids, form, invite,
     pendingDeleteId, summaryError,
   } = state;
 
@@ -125,6 +125,10 @@ export default function OnboardingForm() {
     dispatch({ type: "SET_GROUP_NAME", value });
   }, []);
 
+  const setArrangement = useCallback((value: OnboardingArrangement) => {
+    dispatch({ type: "SET_ARRANGEMENT", value });
+  }, []);
+
   const gotoFirstChild = useCallback(() => {
     if (state.groupName.trim()) dispatch({ type: "GOTO_FIRST_CHILD" });
   }, [state.groupName]);
@@ -192,6 +196,7 @@ export default function OnboardingForm() {
           childName: form.name.trim(),
           childBirthDate: form.birthDate,
           childSex: form.sex || null,
+          familyForm: arrangement,
         }),
       });
       const result = (await res.json().catch(() => ({}))) as {
@@ -224,7 +229,7 @@ export default function OnboardingForm() {
     } finally {
       disposeController(controller);
     }
-  }, [groupName, form.name, form.birthDate, form.sex, t]);
+  }, [groupName, form.name, form.birthDate, form.sex, arrangement, t]);
 
   const handleAnotherChildSubmit = useCallback(async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -450,6 +455,8 @@ export default function OnboardingForm() {
         <FamilyStep
           value={groupName}
           onChange={setGroupName}
+          arrangement={arrangement}
+          onArrangement={setArrangement}
           onContinue={gotoFirstChild}
           t={t}
         />

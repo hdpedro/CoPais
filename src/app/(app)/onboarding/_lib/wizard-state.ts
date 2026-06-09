@@ -30,10 +30,15 @@ export interface InviteState {
   sent: InviteSentInfo | null;
 }
 
+/** Forma da família escolhida no 1º passo — define o herói do painel. */
+export type OnboardingArrangement = "rotating" | "together" | "single";
+
 export interface WizardState {
   step: WizardStep;
   groupId: string | null;
   groupName: string;
+  /** Default 'rotating' (caso comum do app + preserva comportamento atual). */
+  arrangement: OnboardingArrangement;
   kids: WizardChild[];
   form: FormState;
   invite: InviteState;
@@ -74,6 +79,7 @@ export const initialWizardState: WizardState = {
   step: "family",
   groupId: null,
   groupName: "",
+  arrangement: "rotating",
   kids: [],
   form: initialFormState,
   invite: initialInviteState,
@@ -88,6 +94,7 @@ export const initialWizardState: WizardState = {
  */
 export type Action =
   | { type: "SET_GROUP_NAME"; value: string }
+  | { type: "SET_ARRANGEMENT"; value: OnboardingArrangement }
   | { type: "GOTO_FIRST_CHILD" }
   | { type: "GOTO_FAMILY" }
   | { type: "ENTER_ADD_CHILD" }
@@ -121,6 +128,9 @@ export function wizardReducer(state: WizardState, action: Action): WizardState {
   switch (action.type) {
     case "SET_GROUP_NAME":
       return { ...state, groupName: action.value };
+
+    case "SET_ARRANGEMENT":
+      return { ...state, arrangement: action.value };
 
     case "GOTO_FIRST_CHILD":
       return { ...state, step: "first-child", form: { ...initialFormState } };
