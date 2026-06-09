@@ -5,11 +5,10 @@ import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useI18n } from "@/i18n/provider";
 import ChildAvatarWeb from "@/components/ui/ChildAvatarWeb";
-import { EXPENSE_CATEGORIES, ACTIVITY_CATEGORIES } from "@/lib/constants";
+import { ACTIVITY_CATEGORIES } from "@/lib/constants";
 import type { ParentColorMap } from "@/lib/calendar-utils";
 import { trackEvent, EVENTS } from "@/lib/analytics";
 
-const ActivityReportModal = dynamic(() => import("@/app/(app)/atividades/ActivityReportModal"), { ssr: false });
 const QuickActionsModal = dynamic(() => import("@/components/QuickActionsModal"), { ssr: false });
 // ShareActivityButton removed — activities section simplified
 import CustodyActivationCard from "@/components/CustodyActivationCard";
@@ -19,7 +18,6 @@ import BriefingAttention from "./BriefingAttention";
 import type { AttentionItem } from "@/lib/briefing";
 import { QUICK_ACTIONS_CATALOG, DEFAULT_QUICK_ACTIONS, type QuickActionDef } from "@/lib/constants";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
-import { formatBRL } from "@/lib/format/currency";
 
 /* ------------------------------------------------------------------ */
 /*  Serializable prop types (no functions, no Supabase, no Date)      */
@@ -347,9 +345,7 @@ export default function DashboardClient(props: DashboardClientProps) {
     // hasUpcomingActivities, upcomingActivitiesList — removed, only today+tomorrow shown
     tomorrowActivities,
     todayActivities,
-    pendingExpenses,
-    pendingDecisions,
-    pendingReports,
+    // pendingExpenses, pendingDecisions, pendingReports — movidos pra Sua Atenção
     // upcomingEvents — removed with agenda
     isReadonly,
     childCards,
@@ -397,15 +393,6 @@ export default function DashboardClient(props: DashboardClientProps) {
 
   const [showQAModal, setShowQAModal] = useState(false);
 
-  // Activity report modal state
-  const [reportModal, setReportModal] = useState<{
-    open: boolean;
-    activityId: string;
-    activityName: string;
-    childName: string;
-    occurrenceDate: string;
-  }>({ open: false, activityId: "", activityName: "", childName: "", occurrenceDate: "" });
-
   const greetingText =
     greeting === "morning"
       ? t("dashboard.goodMorning")
@@ -413,22 +400,7 @@ export default function DashboardClient(props: DashboardClientProps) {
         ? t("dashboard.goodAfternoon")
         : t("dashboard.goodEvening");
 
-  // Memoize decision category lookups (avoids recreating objects on every render)
-  const decisionCatIcons: Record<string, string> = useMemo(() => ({
-    escola: "\u{1F392}", saude: "\u{1F3E5}", atividade: "\u26BD",
-    viagem: "\u2708\uFE0F", financeiro: "\u{1F4B0}", moradia: "\u{1F3E0}", outro: "\u{1F4CB}",
-  }), []);
-  const decisionCatColors: Record<string, string> = useMemo(() => ({
-    escola: "#3B82F6", saude: "#EF4444", atividade: "#22C55E",
-    viagem: "#8B5CF6", financeiro: "#F59E0B", moradia: "#5B9E85", outro: "#6B7280",
-  }), []);
-
-  // Memoize report category icon lookup
-  const reportCatIcons: Record<string, string> = useMemo(() => ({
-    esporte: "\u26BD", saude: "\u{1F3E5}", educacao: "\u{1F4DA}", lazer: "\u{1F3AE}",
-    arte: "\u{1F3A8}", musica: "\u{1F3B5}", idioma: "\u{1F30D}", terapia: "\u{1F9E0}",
-    evento: "\u{1F389}", other: "\u{1F4CB}",
-  }), []);
+  // decisionCatIcons/decisionCatColors/reportCatIcons \u2014 movidos pra Sua Aten\u00E7\u00E3o (lookups das se\u00E7\u00F5es unificadas)
 
   // Memoize rendered lists that involve .find() or computed logic
   const renderedTomorrowActivities = useMemo(() =>
@@ -447,35 +419,10 @@ export default function DashboardClient(props: DashboardClientProps) {
     [todayActivities]
   );
 
-  const renderedPendingExpenses = useMemo(() =>
-    pendingExpenses.map((exp) => ({
-      ...exp,
-      catIcon: EXPENSE_CATEGORIES.find((c) => c.value === exp.category)?.icon || "\u{1F4E6}",
-    })),
-    [pendingExpenses]
-  );
+  // renderedPendingExpenses / renderedPendingDecisions — movidos pra Sua Atenção
 
+  // nowMs ainda é usado pelo tile de vacina (cálculo de dias até a próxima dose).
   const nowMs = Date.now(); // eslint-disable-line react-hooks/purity
-  const renderedPendingDecisions = useMemo(() =>
-    pendingDecisions.slice(0, 3).map((dec) => {
-      const icon = decisionCatIcons[dec.category] || "\u{1F4CB}";
-      const color = decisionCatColors[dec.category] || "#D4735A";
-      const hasDeadline = !!dec.deadline;
-      let deadlineLabel = "";
-      if (hasDeadline) {
-        const dl = new Date(dec.deadline + "T23:59:59");
-        const daysUntil = Math.ceil((dl.getTime() - nowMs) / 86400000);
-        if (daysUntil < 0) deadlineLabel = t("decisions.deadlineExpired");
-        else if (daysUntil <= 3) deadlineLabel = t("decisions.deadlineNear");
-        else {
-          const dlDate = new Date(dec.deadline + "T12:00:00");
-          deadlineLabel = dlDate.toLocaleDateString("pt-BR", { day: "numeric", month: "short" });
-        }
-      }
-      return { ...dec, icon, color, deadlineLabel, bgStyle: { backgroundColor: color + "15" } };
-    }),
-    [pendingDecisions, decisionCatIcons, decisionCatColors, t, nowMs]
-  );
 
   // Memoize streak bar items to avoid inline style object recreation
   const streakBarItems = useMemo(() => {
@@ -904,151 +851,7 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       )}
 
-      {/* === PENDING EXPENSES AWAITING APPROVAL === */}
-      {show("pendingExpenses") && pendingExpenses.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D4735A" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
-              </svg>
-              {t("dashboard.expensesToApprove")}
-            </p>
-            <Link href="/despesas" prefetch={false} className="text-[10px] font-semibold text-[#D4735A]">
-              {t("dashboard.viewAllFeminine")}
-            </Link>
-          </div>
-          {renderedPendingExpenses.map((exp) => {
-            return (
-              <Link key={exp.id} href="/despesas" prefetch={false} className="block">
-                <div className="bg-[#D4735A]/[0.06] border border-[#D4735A]/15 rounded-2xl p-3.5 flex items-center gap-3">
-                  <div className="w-9 h-9 bg-[#D4735A]/10 rounded-full flex items-center justify-center flex-shrink-0 text-lg">
-                    {exp.catIcon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-[#2C2C2C] truncate">{exp.description}</p>
-                    <p className="text-[11px] text-[#7A8C8B]">{exp.paidByName} &middot; {exp.dateLabel}</p>
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className="text-[14px] font-bold text-[#2C2C2C]">{formatBRL(exp.amount)}</p>
-                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-[#D4735A]/10 text-[#D4735A]">
-                      {t("dashboard.pendingBadge")}
-                    </span>
-                  </div>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
-      {/* === PENDING DECISIONS === */}
-      {show("pendingDecisions") && pendingDecisions.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D4735A" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-              </svg>
-              {t("dashboard.pendingDecisions")}
-            </p>
-            <Link href="/decisoes" prefetch={false} className="text-[10px] font-semibold text-[#D4735A]">
-              {t("common.viewAll")}
-            </Link>
-          </div>
-          {renderedPendingDecisions.map((dec) => {
-            return (
-              <Link key={dec.id} href={`/decisoes?tab=abertas&open=${dec.id}`} prefetch={false} className="block">
-                <div className="bg-amber-50/60 border border-amber-200/60 rounded-2xl p-3.5 flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg" style={dec.bgStyle}>
-                    {dec.icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-[#2C2C2C] truncate">{dec.title}</p>
-                    {dec.deadlineLabel && (
-                      <p className="text-[11px] text-[#7A8C8B]">{dec.deadlineLabel}</p>
-                    )}
-                  </div>
-                  <span className="text-[9px] font-bold px-2.5 py-1 rounded-full bg-[#D4735A] text-white flex-shrink-0">
-                    {t("dashboard.voteNow")}
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
-
-      {/* === SCHOOL UNREAD (Collab Foundation — Fase 1) ===
-           Surface new school logs the user hasn't opened yet. Single line,
-           taps go to /escola where individual cards expand. Keep this tight
-           — multiple counters in the dashboard adds noise; one CTA suffices. */}
-      {show("schoolUnread") && schoolUnreadCount > 0 && (
-        <Link href="/escola" prefetch={false} className="block">
-          <div className="bg-[#FFF8F4] border border-[#C07055]/30 rounded-2xl p-3.5 flex items-center gap-3 hover:bg-[#FBEFE7] transition-colors">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg bg-[#C07055]/15">
-              🎒
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-semibold text-[#2C2C2C]">
-                {schoolUnreadCount === 1
-                  ? t("collab.dashboardSchoolUnreadOne")
-                  : t("collab.dashboardSchoolUnreadOther", { count: schoolUnreadCount })}
-              </p>
-              <p className="text-[11px] text-[#7A8C8B]">{t("collab.dashboardTapHint")}</p>
-            </div>
-            <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#C07055] text-white text-[11px] font-bold flex-shrink-0">
-              {schoolUnreadCount}
-            </span>
-          </div>
-        </Link>
-      )}
-
-      {/* === EXPENSES UNREAD (Collab Foundation — Fase 1B) === */}
-      {show("expensesUnread") && expensesUnreadCount > 0 && (
-        <Link href="/despesas" prefetch={false} className="block">
-          <div className="bg-[#FFF8F4] border border-[#C07055]/30 rounded-2xl p-3.5 flex items-center gap-3 hover:bg-[#FBEFE7] transition-colors">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg bg-[#C07055]/15">
-              💰
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-semibold text-[#2C2C2C]">
-                {expensesUnreadCount === 1
-                  ? t("collab.dashboardExpensesUnreadOne")
-                  : t("collab.dashboardExpensesUnreadOther", { count: expensesUnreadCount })}
-              </p>
-              <p className="text-[11px] text-[#7A8C8B]">{t("collab.dashboardExpensesHint")}</p>
-            </div>
-            <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#C07055] text-white text-[11px] font-bold flex-shrink-0">
-              {expensesUnreadCount}
-            </span>
-          </div>
-        </Link>
-      )}
-
-      {/* === SAÚDE UNREAD (Collab Foundation — Fase 3, migration 00080) ===
-           Tile consolidada (soma de consultas+doenças+medicamentos+alergias+
-           vacinas). Tap leva a /saude onde o user vê quais surfaces têm unread. */}
-      {show("saudeUnread") && saudeUnreadCount > 0 && (
-        <Link href="/saude" prefetch={false} className="block">
-          <div className="bg-[#FFF8F4] border border-[#C07055]/30 rounded-2xl p-3.5 flex items-center gap-3 hover:bg-[#FBEFE7] transition-colors">
-            <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg bg-[#C07055]/15">
-              🩺
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[13px] font-semibold text-[#2C2C2C]">
-                {saudeUnreadCount === 1
-                  ? t("collab.dashboardSaudeUnreadOne")
-                  : t("collab.dashboardSaudeUnreadOther", { count: saudeUnreadCount })}
-              </p>
-              <p className="text-[11px] text-[#7A8C8B]">{t("collab.dashboardSaudeHint")}</p>
-            </div>
-            <span className="inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full bg-[#C07055] text-white text-[11px] font-bold flex-shrink-0">
-              {saudeUnreadCount}
-            </span>
-          </div>
-        </Link>
-      )}
+      {/* Pendências (escola/despesa/saúde, despesas, votos, relatos) → unificadas em "Sua Atenção" acima. Vacina segue no tile abaixo. */}
 
       {/* === SAÚDE PREVENTIVA — Motor Vacinal (migration 00082) ===
            Aparece quando há pendência REAL (overdue+due_soon). Paleta calma
@@ -1098,54 +901,7 @@ export default function DashboardClient(props: DashboardClientProps) {
         </Link>
       )}
 
-      {/* === PENDING ACTIVITY REPORTS === */}
-      {show("pendingReports") && pendingReports.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center justify-between">
-            <p className="text-[10px] font-bold text-[#D4735A] uppercase tracking-wider flex items-center gap-1.5">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#D4735A" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-              </svg>
-              {t("activityReport.pendingReports")}
-            </p>
-            <Link href="/atividades" prefetch={false} className="text-[10px] font-semibold text-[#D4735A]">
-              {t("common.viewAll")}
-            </Link>
-          </div>
-          {pendingReports.slice(0, 3).map((pr) => {
-            const icon = reportCatIcons[pr.category] || "\u{1F4CB}";
-            return (
-              <button
-                key={`${pr.activityId}-${pr.occurrenceDate}`}
-                onClick={() => setReportModal({
-                  open: true,
-                  activityId: pr.activityId,
-                  activityName: pr.activityName,
-                  childName: pr.childName,
-                  occurrenceDate: pr.occurrenceDate,
-                })}
-                className="block w-full text-left"
-              >
-                <div className="bg-amber-50/60 border border-amber-200/60 rounded-2xl p-3.5 flex items-center gap-3 hover:bg-amber-50 transition-colors">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0 text-lg bg-amber-100/60">
-                    {icon}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-[#2C2C2C] truncate">{pr.activityName}</p>
-                    <p className="text-[11px] text-[#7A8C8B]">
-                      {pr.childName} &middot; {pr.dateLabel}
-                      {pr.daysAgo > 0 && ` (${t("activityReport.daysAgo", { count: pr.daysAgo })})`}
-                    </p>
-                  </div>
-                  <span className="text-[9px] font-bold px-2.5 py-1 rounded-full bg-amber-500 text-white flex-shrink-0">
-                    {t("activityReport.reportNow")}
-                  </span>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      )}
+      {/* Relatos pendentes → unificados em "Sua Atenção" acima. */}
 
       {/* === QUICK ACTIONS === */}
       {show("quickActions") && !isReadonly && (
@@ -1234,16 +990,6 @@ export default function DashboardClient(props: DashboardClientProps) {
           </Link>
         </div>
       )}
-
-      {/* Activity Report Modal */}
-      <ActivityReportModal
-        isOpen={reportModal.open}
-        onClose={() => setReportModal({ open: false, activityId: "", activityName: "", childName: "", occurrenceDate: "" })}
-        activityId={reportModal.activityId}
-        activityName={reportModal.activityName}
-        childName={reportModal.childName}
-        occurrenceDate={reportModal.occurrenceDate}
-      />
     </div>
   );
 }
