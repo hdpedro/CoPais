@@ -4370,7 +4370,8 @@
     "pendingSection": "Pending invites ({count})",
     "sentOn": "Sent {date}",
     "acceptedSection": "Accepted invites",
-    "changeRole": "Change role"
+    "changeRole": "Change role",
+    "yourGroups": "Your families"
   },
   "intl": {
     "today": "Today",

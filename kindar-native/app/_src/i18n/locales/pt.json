@@ -4370,7 +4370,8 @@
     "pendingSection": "Convites pendentes ({count})",
     "sentOn": "Enviado {date}",
     "acceptedSection": "Convites aceitos",
-    "changeRole": "Mudar papel"
+    "changeRole": "Mudar papel",
+    "yourGroups": "Suas famílias"
   },
   "intl": {
     "today": "Hoje",
