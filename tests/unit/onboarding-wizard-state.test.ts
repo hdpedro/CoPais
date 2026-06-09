@@ -37,6 +37,28 @@ const sampleChild = (overrides: Partial<WizardChild> = {}): WizardChild => ({
   ...overrides,
 });
 
+describe("wizardReducer — forma da família (arrangement)", () => {
+  it("default é 'rotating' (preserva todo grupo existente)", () => {
+    expect(initialWizardState.arrangement).toBe("rotating");
+  });
+  it("SET_ARRANGEMENT troca a forma sem mexer no resto nem avançar step", () => {
+    const s = applyActions([
+      { type: "SET_GROUP_NAME", value: "Família Pedro" },
+      { type: "SET_ARRANGEMENT", value: "together" },
+    ]);
+    expect(s.arrangement).toBe("together");
+    expect(s.groupName).toBe("Família Pedro");
+    expect(s.step).toBe("family");
+  });
+  it("aceita 'single' e volta pra 'rotating'", () => {
+    const s = applyActions([
+      { type: "SET_ARRANGEMENT", value: "single" },
+      { type: "SET_ARRANGEMENT", value: "rotating" },
+    ]);
+    expect(s.arrangement).toBe("rotating");
+  });
+});
+
 describe("wizardReducer — navegação", () => {
   it("começa em step 'family' com tudo zerado", () => {
     expect(initialWizardState.step).toBe("family");

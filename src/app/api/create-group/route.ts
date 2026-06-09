@@ -31,6 +31,7 @@ export async function POST(request: Request) {
     childSex,
     childAllergies,
     childNotes,
+    familyForm,
   } = body as {
     name?: string;
     childName?: string;
@@ -38,11 +39,22 @@ export async function POST(request: Request) {
     childSex?: "M" | "F" | null;
     childAllergies?: string[] | null;
     childNotes?: string | null;
+    /** Forma da família escolhida no onboarding — define o herói do painel. */
+    familyForm?: "rotating" | "together" | "single";
   };
 
   if (!name) {
     return NextResponse.json({ error: "Nome da familia e obrigatorio." }, { status: 400 });
   }
+
+  // Forma da família (onboarding): revezam guarda (rotating) → custódia ON +
+  // Herói de Guarda; moram juntos / solo (together/single) → custódia OFF +
+  // Herói de Rotina. Default seguro = 'rotating' (preserva comportamento atual
+  // de todo grupo que não enviar o campo). Gravado na CRIAÇÃO (INSERT) — não
+  // depende de UPDATE pós-criação.
+  const arrangement: "rotating" | "together" | "single" =
+    familyForm === "together" || familyForm === "single" ? familyForm : "rotating";
+  const custodyEnabled = arrangement === "rotating";
 
   // Use admin client for the actual writes — RLS would block the SELECT-
   // after-INSERT pattern (group membership doesn't exist yet) and we
@@ -73,10 +85,10 @@ export async function POST(request: Request) {
     }
   }
 
-  // 1) Cria grupo
+  // 1) Cria grupo (já com a forma da família escolhida no onboarding)
   const { error: groupError } = await admin
     .from("coparenting_groups")
-    .insert({ id: groupId, name, created_by: userId });
+    .insert({ id: groupId, name, created_by: userId, arrangement, custody_enabled: custodyEnabled });
 
   if (groupError) {
     return NextResponse.json({ error: groupError.message }, { status: 400 });
@@ -169,6 +181,7 @@ export async function POST(request: Request) {
     via: "onboarding_wizard",
     has_child: !!childId,
     trial_granted: trialResult.granted,
+    arrangement,
   });
 
   // 6.1) Marca quest "add_child" se criança foi adicionada nesse mesmo

@@ -1930,7 +1930,12 @@
     "shareMessage": "Salut ! {firstName} t'invite à rejoindre {groupName} sur Kindar. Accepte l'invitation ici : {link}",
     "shareMessageText": "Vous êtes invité(e) à rejoindre une famille sur Kindar.",
     "sendAnotherInvite": "Envoyer une autre invitation",
-    "finishOnboarding": "Terminer l'onboarding"
+    "finishOnboarding": "Terminer l'onboarding",
+    "familyFormTitle": "Comment fonctionne la garde ?",
+    "familyFormRotating": "Séparés — nous alternons la garde",
+    "familyFormTogether": "Nous vivons ensemble",
+    "familyFormSingle": "Je suis parent solo",
+    "familyFormHint": "Aide Kindar à afficher ce qui compte au quotidien."
   },
   "swapList": {
     "requests": "Demandes",

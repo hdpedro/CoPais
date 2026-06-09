@@ -1255,7 +1255,12 @@ export default async function DashboardPage() {
 
   const sectionPriorities: { id: SectionId; priority: number; hasData: boolean }[] = [
     { id: "swapAlerts", priority: 1, hasData: custodyEnabled && hasCustody && pendingSwapsProps.length > 0 },
-    { id: "hero", priority: 2, hasData: true }, // always show
+    // Herói de GUARDA só p/ quem reveza (rotating/custom). Famílias que moram
+    // juntas / solo (together/single, escolhido no onboarding) → o Herói de
+    // Guarda perde sentido ("de quem é a vez" não existe) e a Rotina de
+    // leva/busca (careRoutine, logo abaixo) vira o herói. Default 'rotating' =
+    // todo grupo existente intocado.
+    { id: "hero", priority: 2, hasData: routineArrangement === "rotating" || routineArrangement === "custom" },
     // Rotina de Leva & Busca: logo abaixo do herói. Aparece quando há rotina
     // montada OU quando a família é intacta/solo (arrangement ≠ rotating) com
     // filhos — aí mostra o empty-state que ensina/leva pro editor.
@@ -1282,7 +1287,8 @@ export default async function DashboardPage() {
     { id: "financial", priority: 10, hasData: true },
     { id: "quickActions", priority: 11, hasData: !isReadonly },
     { id: "invite", priority: 12, hasData: (members?.length || 0) < 2 },
-    { id: "custodyActivation", priority: 13, hasData: !custodyEnabled && (members?.length || 0) >= 2 },
+    // Não prompta "ative a guarda" p/ quem escolheu morar junto / cuidar sozinho.
+    { id: "custodyActivation", priority: 13, hasData: !custodyEnabled && (members?.length || 0) >= 2 && (routineArrangement === "rotating" || routineArrangement === "custom") },
   ];
 
   // Filter to sections with data, sort by priority
