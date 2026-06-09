@@ -64,44 +64,81 @@ export default function BriefingAttention({ items }: { items: AttentionItem[] })
     }
   }
 
+  // O topo da régua, quando exige você (tom "attention"), vira o MOMENTO —
+  // um card terracota editorial (o "Eu cuido" do mockup). O resto desce pra a
+  // lista calma. Se o topo já é calmo (dia tranquilo de ações), tudo vira lista.
+  const moment = items[0]?.tone === "attention" ? items[0] : null;
+  const listItems = moment ? items.slice(1) : items;
+  const momentCopy = moment ? copy(moment) : null;
+
   return (
     <section aria-label={t("briefing.attentionTitle")}>
       <h3 className="text-[12px] uppercase tracking-wider text-[#7A8C8B] font-semibold mb-3 px-1">
         {t("briefing.attentionTitle")}
       </h3>
-      <div className="bg-white rounded-2xl border border-[#EDE7DF] shadow-[0_1px_2px_rgba(42,38,34,0.04)] divide-y divide-[#F2EDE6] overflow-hidden">
-        {items.map((item) => {
-          const { title, cta } = copy(item);
-          const attention = item.tone === "attention";
-          return (
-            <Link
-              key={item.id}
-              href={item.link}
-              prefetch={false}
-              className="flex items-center gap-3.5 px-4 py-3.5 min-h-[58px] hover:bg-[#FBF7F3] transition-colors"
-            >
-              <span
-                aria-hidden="true"
-                className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${
-                  attention ? "bg-[#C07055]/[0.12]" : "bg-[#5B9E85]/[0.10]"
-                }`}
+
+      {moment && momentCopy ? (
+        <Link
+          href={moment.link}
+          prefetch={false}
+          aria-label={`${momentCopy.title} — ${momentCopy.cta}`}
+          className="group block rounded-2xl px-5 py-[18px] mb-2.5 shadow-[0_12px_30px_-14px_rgba(151,80,47,0.62)] transition-transform active:scale-[0.995]"
+          style={{ background: "linear-gradient(150deg, #B86A4F 0%, #97502F 100%)" }}
+        >
+          <div className="flex items-start gap-3.5">
+            <span aria-hidden="true" className="text-[21px] leading-none mt-[3px]">
+              {ICON[moment.kind]}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="font-display text-[19px] leading-[1.25] text-[#FCF6F1]">
+                {momentCopy.title}
+              </p>
+              <span className="mt-2.5 inline-flex items-center gap-1.5 text-[13px] font-semibold text-[#FCF6F1]/90">
+                {momentCopy.cta}
+                <span aria-hidden="true" className="transition-transform group-hover:translate-x-0.5">
+                  →
+                </span>
+              </span>
+            </div>
+          </div>
+        </Link>
+      ) : null}
+
+      {listItems.length > 0 ? (
+        <div className="bg-white rounded-2xl border border-[#EDE7DF] shadow-[0_1px_2px_rgba(42,38,34,0.04)] divide-y divide-[#F2EDE6] overflow-hidden">
+          {listItems.map((item) => {
+            const { title, cta } = copy(item);
+            const attention = item.tone === "attention";
+            return (
+              <Link
+                key={item.id}
+                href={item.link}
+                prefetch={false}
+                className="flex items-center gap-3.5 px-4 py-3.5 min-h-[58px] hover:bg-[#FBF7F3] transition-colors"
               >
-                {ICON[item.kind]}
-              </span>
-              <span className="flex-1 text-[14px] text-[#2A2622] font-medium leading-snug">
-                {title}
-              </span>
-              <span
-                className={`text-[12px] font-semibold flex-shrink-0 ${
-                  attention ? "text-[#A85D47]" : "text-[#5B9E85]"
-                }`}
-              >
-                {cta}
-              </span>
-            </Link>
-          );
-        })}
-      </div>
+                <span
+                  aria-hidden="true"
+                  className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${
+                    attention ? "bg-[#C07055]/[0.12]" : "bg-[#5B9E85]/[0.10]"
+                  }`}
+                >
+                  {ICON[item.kind]}
+                </span>
+                <span className="flex-1 text-[14px] text-[#2A2622] font-medium leading-snug">
+                  {title}
+                </span>
+                <span
+                  className={`text-[12px] font-semibold flex-shrink-0 ${
+                    attention ? "text-[#A85D47]" : "text-[#5B9E85]"
+                  }`}
+                >
+                  {cta}
+                </span>
+              </Link>
+            );
+          })}
+        </div>
+      ) : null}
     </section>
   );
 }
