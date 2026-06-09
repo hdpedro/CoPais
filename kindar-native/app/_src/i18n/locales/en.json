@@ -3492,7 +3492,11 @@
     "confirmDoseA11y": "Confirm dose of {name}",
     "confirmDose": "Confirm dose",
     "finishA11y": "Finish {name}",
-    "recentDosesLogged": "Recent doses logged"
+    "recentDosesLogged": "Recent doses logged",
+    "editingBadge": "Editing",
+    "saveChanges": "Save changes",
+    "editA11y": "Edit {name}",
+    "actionsHint": "Confirm each dose given. Finish when the treatment is over."
   },
   "healthRegister": {
     "title": "Log event",

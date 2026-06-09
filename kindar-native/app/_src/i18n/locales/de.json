@@ -3492,7 +3492,11 @@
     "confirmDoseA11y": "Dosis von {name} bestätigen",
     "confirmDose": "Dosis bestätigen",
     "finishA11y": "{name} beenden",
-    "recentDosesLogged": "Zuletzt erfasste Dosen"
+    "recentDosesLogged": "Zuletzt erfasste Dosen",
+    "editingBadge": "Bearbeiten",
+    "saveChanges": "Änderungen speichern",
+    "editA11y": "{name} bearbeiten",
+    "actionsHint": "Bestätige jede gegebene Dosis. Beende, wenn die Behandlung vorbei ist."
   },
   "healthRegister": {
     "title": "Ereignis erfassen",

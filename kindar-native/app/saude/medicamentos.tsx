@@ -91,6 +91,7 @@ export default function MedicamentosScreen() {
   const [reason, setReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [confirmingDose, setConfirmingDose] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Dose history sheet
   const [historyMed, setHistoryMed] = useState<Med | null>(null);
@@ -153,6 +154,25 @@ export default function MedicamentosScreen() {
     setRefreshing(false);
   }
 
+  function resetForm() {
+    setEditingId(null);
+    setName(''); setDosage(''); setFrequency(''); setReason('');
+  }
+
+  // Editar — abre o form preenchido. Feedback UX 2026-06-08: um erro de
+  // digitação no nome ("vwrme") só dava pra corrigir finalizando + recriando,
+  // porque não existia edição.
+  function startEdit(med: Med) {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setEditingId(med.id);
+    setSelectedChild(med.child_id);
+    setName(med.name);
+    setDosage(med.dosage);
+    setFrequency(med.frequency);
+    setReason(med.reason ?? '');
+    setShowForm(true);
+  }
+
   // Meio-termo (tester iOS 2026-06-04: medicamento salvava sem dosagem/
   // frequência e virava "Conforme prescrição" SILENCIOSAMENTE — parecia que
   // o usuário tinha digitado isso). As colunas dosage/frequency são NOT NULL,
@@ -186,23 +206,26 @@ export default function MedicamentosScreen() {
     // safety check has a numeric anchor. Mirrors PWA logMedicationDose
     // expectations (active_medications.frequency_hours INT NULL).
     const freqHours = parseFrequencyHours(frequency.trim());
-    const result = await safeWrite({
-      table: 'active_medications', operation: 'insert',
-      payload: {
-        group_id: activeGroup.groupId, child_id: selectedChild,
-        name: name.trim(), dosage: dosage.trim() || 'Conforme prescrição',
-        frequency: frequency.trim() || 'Conforme prescrição',
-        frequency_hours: freqHours,
-        start_date: getBrazilToday(), status: 'active',
-        reason: reason.trim() || null, created_by: userId,
-      },
-    });
+    const fields = {
+      child_id: selectedChild,
+      name: name.trim(), dosage: dosage.trim() || 'Conforme prescrição',
+      frequency: frequency.trim() || 'Conforme prescrição',
+      frequency_hours: freqHours,
+      reason: reason.trim() || null,
+    };
+    const result = editingId
+      ? await safeWrite({ table: 'active_medications', operation: 'update', payload: { id: editingId, ...fields } })
+      : await safeWrite({
+          table: 'active_medications', operation: 'insert',
+          payload: { group_id: activeGroup.groupId, ...fields, start_date: getBrazilToday(), status: 'active', created_by: userId },
+        });
     if (result.success) {
-      if (!result.queued) notifyAction('health_event_created', activeGroup.groupId, {
+      // notifica só na criação (não a cada edição)
+      if (!editingId && !result.queued) notifyAction('health_event_created', activeGroup.groupId, {
         title: name, childName: children.find(c => c.id === selectedChild)?.full_name?.split(' ')[0] || '', eventType: 'medication',
       });
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      setShowForm(false); setName(''); setDosage(''); setFrequency(''); setReason('');
+      setShowForm(false); resetForm();
       refresh();
     } else { toast.show({ message: result.error || t('toasts.common.saveFailed'), variant: 'error' }); }
     setSaving(false);
@@ -293,10 +316,18 @@ export default function MedicamentosScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.bg }}>
-      <ScreenHeader title={t('health.medications')} rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => setShowForm(!showForm) }} />
+      <ScreenHeader title={t('health.medications')} rightAction={{ icon: showForm ? 'close' : 'add', onPress: () => { if (showForm) resetForm(); setShowForm(!showForm); } }} />
 
       {showForm ? (
         <View style={{ padding: spacing.xl, backgroundColor: colors.bgElevated, borderBottomWidth: 0.5, borderBottomColor: colors.borderLight }}>
+          {editingId ? (
+            <View style={{ marginBottom: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Ionicons name="create-outline" size={14} color={colors.brand} />
+              <Text style={{ fontSize: font.sizes.xs, color: colors.brand, fontWeight: font.weights.semibold, textTransform: 'uppercase', letterSpacing: 0.5 }}>
+                {t('medications.editingBadge')}
+              </Text>
+            </View>
+          ) : null}
           <ChildPicker
             items={children}
             selectedId={selectedChild}
@@ -315,7 +346,7 @@ export default function MedicamentosScreen() {
           <TextInput value={reason} onChangeText={setReason} placeholder={t('health.reasonOptional')} placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
           <PrimaryButton
-            label={t('empty.medicamentos.actionLabel')}
+            label={editingId ? t('medications.saveChanges') : t('empty.medicamentos.actionLabel')}
             onPress={handleCreate}
             loading={saving}
             disabled={!name.trim()}
@@ -390,6 +421,7 @@ export default function MedicamentosScreen() {
               </TouchableOpacity>
 
               {isActive ? (
+                <>
                 <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
                   <TouchableOpacity
                     disabled={confirmingDose === item.id}
@@ -429,7 +461,23 @@ export default function MedicamentosScreen() {
                       {t('medications.finish')}
                     </Text>
                   </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => startEdit(item)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t('medications.editA11y', { name: item.name })}
+                    style={{
+                      paddingVertical: 10, paddingHorizontal: spacing.md, borderRadius: radius.md,
+                      borderWidth: 1, borderColor: colors.borderLight,
+                      alignItems: 'center', justifyContent: 'center',
+                    }}
+                  >
+                    <Ionicons name="create-outline" size={18} color={colors.textSecondary} />
+                  </TouchableOpacity>
                 </View>
+                <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.sm, lineHeight: 16 }}>
+                  {t('medications.actionsHint')}
+                </Text>
+                </>
               ) : null}
             </View>
           );
