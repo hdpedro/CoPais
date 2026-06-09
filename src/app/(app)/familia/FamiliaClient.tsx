@@ -6,6 +6,7 @@ import { useI18n } from "@/i18n/provider";
 import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
 import MemberActions from "./MemberActions";
 import LeaveGroupButton from "./LeaveGroupButton";
+import FamilyArrangementCard from "./FamilyArrangementCard";
 
 interface SerializedMember {
   id: string;
@@ -37,6 +38,7 @@ interface SerializedInvite {
 interface FamiliaClientProps {
   groupId: string;
   groupName: string;
+  arrangement: "rotating" | "together" | "single" | "custom";
   createdBy: string | null;
   isAdmin: boolean;
   isOnlyAdmin: boolean;
@@ -54,6 +56,7 @@ interface FamiliaClientProps {
 export default function FamiliaClient({
   groupId,
   groupName,
+  arrangement,
   createdBy,
   isAdmin,
   isOnlyAdmin,
@@ -190,6 +193,8 @@ export default function FamiliaClient({
           })}
         </div>
       </section>
+
+      <FamilyArrangementCard groupId={groupId} arrangement={arrangement} isAdmin={isAdmin} />
 
       {/* Children Section */}
       {children && children.length > 0 && (

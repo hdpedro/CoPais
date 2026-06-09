@@ -1769,7 +1769,14 @@
     "inviteTo": "Einladung an",
     "wasCancelled": "wurde storniert",
     "inviteNewMember": "Neues Mitglied einladen",
-    "headerTitle": "Familie"
+    "headerTitle": "Familie",
+    "arrangementTitle": "Familienform",
+    "arrangementRotating": "Getrennt — wir wechseln uns ab",
+    "arrangementTogether": "Wir wohnen zusammen",
+    "arrangementSingle": "Ich bin alleinerziehend",
+    "arrangementHint": "Legt den App-Start fest: Wechselmodell → wer dran ist; zusammen oder allein → die Bring- und Abholroutine.",
+    "arrangementSaved": "Gespeichert!",
+    "arrangementError": "Konnte nicht speichern. Bitte erneut versuchen."
   },
   "onboarding": {
     "welcome": "Willkommen bei Kindar!",

@@ -1755,7 +1755,14 @@
     "joinedGroup": "a rejoint le groupe",
     "inviteTo": "Invitation pour",
     "wasCancelled": "a été annulée",
-    "inviteNewMember": "Inviter un nouveau membre"
+    "inviteNewMember": "Inviter un nouveau membre",
+    "arrangementTitle": "Type de famille",
+    "arrangementRotating": "Séparés — nous alternons la garde",
+    "arrangementTogether": "Nous vivons ensemble",
+    "arrangementSingle": "Je suis parent solo",
+    "arrangementHint": "Définit l'accueil de l'app : garde alternée → à qui le tour ; ensemble ou seul → la routine de dépose et récupération.",
+    "arrangementSaved": "Enregistré !",
+    "arrangementError": "Impossible d'enregistrer. Réessayez."
   },
   "onboarding": {
     "welcome": "Bienvenue sur Kindar !",

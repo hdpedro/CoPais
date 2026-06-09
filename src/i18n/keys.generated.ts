@@ -1101,6 +1101,13 @@ export type TranslationKey =
   | "family.parent"
   | "family.role"
   | "family.title"
+  | "familyPage.arrangementError"
+  | "familyPage.arrangementHint"
+  | "familyPage.arrangementRotating"
+  | "familyPage.arrangementSaved"
+  | "familyPage.arrangementSingle"
+  | "familyPage.arrangementTitle"
+  | "familyPage.arrangementTogether"
   | "familyPage.creator"
   | "familyPage.expired"
   | "familyPage.expiresIn"
@@ -3789,6 +3796,13 @@ export const TRANSLATION_KEYS = [
   "family.parent",
   "family.role",
   "family.title",
+  "familyPage.arrangementError",
+  "familyPage.arrangementHint",
+  "familyPage.arrangementRotating",
+  "familyPage.arrangementSaved",
+  "familyPage.arrangementSingle",
+  "familyPage.arrangementTitle",
+  "familyPage.arrangementTogether",
   "familyPage.creator",
   "familyPage.expired",
   "familyPage.expiresIn",

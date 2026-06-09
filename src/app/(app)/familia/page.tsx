@@ -1,9 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
-import { getDisplayName } from "@/lib/constants";
 import FamiliaClient from "./FamiliaClient";
-import { revalidatePath } from "next/cache";
 
 async function cancelInviteAction(formData: FormData) {
   "use server";
@@ -37,9 +35,14 @@ export default async function FamiliaPage({
   // Fetch created_by separately (needed to show "criador" badge)
   const { data: group } = await supabase
     .from("coparenting_groups")
-    .select("id, name, created_by")
+    .select("id, name, created_by, arrangement")
     .eq("id", groupId)
     .single();
+  const arrangement = ((group?.arrangement as string) ?? "rotating") as
+    | "rotating"
+    | "together"
+    | "single"
+    | "custom";
 
   // Get all members with profiles
   const { data: members } = await supabase
@@ -120,6 +123,7 @@ export default async function FamiliaPage({
     <FamiliaClient
       groupId={groupId}
       groupName={groupName}
+      arrangement={arrangement}
       createdBy={group?.created_by || null}
       isAdmin={isAdmin}
       isOnlyAdmin={isOnlyAdmin}

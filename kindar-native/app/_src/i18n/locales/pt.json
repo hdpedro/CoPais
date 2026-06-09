@@ -1769,7 +1769,14 @@
     "inviteTo": "Convite para",
     "wasCancelled": "foi cancelado",
     "inviteNewMember": "Convidar novo membro",
-    "headerTitle": "Família"
+    "headerTitle": "Família",
+    "arrangementTitle": "Forma da família",
+    "arrangementRotating": "Separados — revezamos a guarda",
+    "arrangementTogether": "Moramos juntos",
+    "arrangementSingle": "Cuido sozinho(a)",
+    "arrangementHint": "Define o início do app: revezam guarda → de quem é a vez; moram juntos ou solo → a rotina de leva e busca.",
+    "arrangementSaved": "Pronto, atualizado!",
+    "arrangementError": "Não consegui salvar. Tente de novo."
   },
   "onboarding": {
     "welcome": "Bem-vindo ao Kindar!",
