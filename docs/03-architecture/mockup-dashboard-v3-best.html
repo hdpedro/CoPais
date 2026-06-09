@@ -1,0 +1,576 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kindar — O Briefing</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500;1,600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#EFEBE5;          /* bege papel */
+    --bg-warm:#E9E3DA;     /* sombra de luz no fundo */
+    --ink:#2A2622;         /* tinta quase-preta quente */
+    --ink2:#5E574E;        /* tinta secundária */
+    --muted:#938A7F;       /* apoio */
+    --faint:#BCB3A7;       /* sussurro */
+    --line:#E2DBD0;        /* divisor */
+    --hair:#D8CFC2;        /* o meridiano em repouso */
+    --night:#2B2825;       /* herói escuro */
+    --night2:#211E1B;
+    --cream:#F3ECDF;       /* texto sobre escuro */
+    --cream2:#B9AE9C;      /* texto suave sobre escuro */
+    --terra:#B0654C;       /* terracota — ÚNICO destaque */
+    --terra-deep:#9A5238;
+    --terra-glow:#C8836C;
+    --sage:#6E9A80;        /* ok */
+    --amber:#B58A40;       /* atenção, jamais alarme */
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  html,body{background:#D7D0C6}
+  body{
+    font-family:'Inter',-apple-system,sans-serif;color:var(--ink);
+    display:flex;flex-direction:column;align-items:center;
+    padding:50px 16px 100px;line-height:1.5;
+    background:radial-gradient(130% 80% at 50% -8%, #E4DCCF 0%, #D7D0C6 58%, #CCC4B7 100%);
+    min-height:100vh;
+  }
+  .serif{font-family:'Cormorant Garamond',Georgia,serif}
+
+  @keyframes breathe{0%,100%{transform:scale(1);opacity:.9}50%{transform:scale(1.7);opacity:.18}}
+  @keyframes breatheCore{0%,100%{transform:scale(1);box-shadow:0 0 0 5px rgba(176,101,76,.14)}50%{transform:scale(1.08);box-shadow:0 0 0 8px rgba(176,101,76,.07)}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important}}
+
+  /* ---- gallery captions ---- */
+  .cap{width:392px;max-width:100%;display:flex;flex-direction:column;align-items:center;gap:5px;margin:0 0 18px}
+  .cap .l{font-size:10px;letter-spacing:.3em;text-transform:uppercase;color:#857C70;font-weight:600}
+  .cap .l b{color:var(--terra-deep)}
+  .cap em{font-family:'Cormorant Garamond';font-style:italic;font-size:14px;color:#8E8579;letter-spacing:.01em}
+  .cap.gap{margin-top:46px}
+
+  /* ---- the phone ---- */
+  .phone{
+    width:392px;max-width:100%;background:var(--bg);
+    border-radius:44px;overflow:hidden;position:relative;margin-bottom:8px;
+    box-shadow:0 1px 0 rgba(255,255,255,.5) inset,0 44px 96px -34px rgba(42,38,34,.55),0 14px 34px -14px rgba(42,38,34,.34);
+    border:1px solid rgba(42,38,34,.05);
+  }
+  .bar{height:52px;display:flex;align-items:center;justify-content:space-between;padding:0 32px;font-size:13px;font-weight:600}
+  .bar .net{display:flex;gap:5px;align-items:center;opacity:.85}
+  .bar .net i{width:5px;height:5px;border-radius:50%;background:var(--ink)}
+  .bar .net i:last-child{width:17px;height:9px;border-radius:3px}
+  .bar.on-dark{color:var(--cream)}
+  .bar.on-dark .net i{background:var(--cream)}
+
+  /* ============================================================
+     HERÓI — o bilhete do concierge, full-bleed, escuro.
+     A VOZ é a única protagonista. Assinada. Nada compete.
+     ============================================================ */
+  .hero{
+    position:relative;overflow:hidden;color:var(--cream);
+    padding:8px 30px 34px;
+    background:
+      radial-gradient(150% 130% at 84% 4%, #3A352F 0%, rgba(58,53,47,0) 52%),
+      linear-gradient(168deg,var(--night) 0%, var(--night2) 100%);
+  }
+  .hero::after{content:"";position:absolute;inset:0;opacity:.05;pointer-events:none;
+    background-image:radial-gradient(rgba(243,236,223,.8) .5px,transparent .5px);background-size:4px 4px}
+  .hero>*{position:relative;z-index:1}
+
+  .letterhead{display:flex;align-items:center;justify-content:space-between;
+    padding-bottom:18px;margin-bottom:24px;border-bottom:1px solid rgba(243,236,223,.13)}
+  .brand{display:flex;align-items:center;gap:10px}
+  .seal{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 36% 30%, #C8836C, #9A5238 78%);
+    box-shadow:0 2px 9px -2px rgba(176,101,76,.65),0 0 0 1px rgba(255,255,255,.08) inset}
+  .seal svg{width:19px;height:19px}
+  .brand .wm{font-family:'Cormorant Garamond';font-weight:600;font-size:20px;letter-spacing:.03em;color:var(--cream)}
+  .dateline{text-align:right;line-height:1.3}
+  .dateline .d1{font-size:12px;font-weight:600;color:#D5CBBA}
+  .dateline .d2{font-size:9.5px;letter-spacing:.22em;text-transform:uppercase;color:#8B8273;font-weight:600;margin-top:2px}
+
+  .hello{font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:var(--terra-glow);font-weight:600;
+    margin-bottom:16px;display:flex;align-items:center;gap:11px}
+  .hello::before{content:"";width:22px;height:1px;background:var(--terra-glow);opacity:.8}
+
+  /* A VOZ — concierge, curta, inesquecível. Cormorant grande. */
+  .voice{font-family:'Cormorant Garamond';font-weight:500;font-size:39px;line-height:1.12;letter-spacing:-.01em;color:var(--cream)}
+  .voice em{font-style:italic;color:#E9C3B2;font-weight:500}
+  .voice .q{display:block;font-size:24px;line-height:1.3;color:#CBC0AF;font-weight:400;margin-top:14px;letter-spacing:.004em}
+
+  .signoff{display:flex;align-items:center;justify-content:flex-end;gap:9px;margin-top:22px;opacity:.92}
+  .signoff .by{font-family:'Cormorant Garamond';font-style:italic;font-size:15px;color:#A89D8B}
+  .signoff .k{width:23px;height:23px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-family:'Cormorant Garamond';font-weight:600;font-size:12px;color:#2B2825;background:linear-gradient(150deg,#E9C3B2,#C8836C)}
+
+  /* herói — variante guarda (separados): selo de troca íntimo, sem competir com a voz */
+  .handoff{display:flex;align-items:center;gap:13px;margin-top:20px;padding-top:18px;border-top:1px solid rgba(243,236,223,.13)}
+  .handoff .ic{width:34px;height:34px;border-radius:11px;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(110,154,128,.16)}
+  .handoff .ic svg{width:17px;height:17px}
+  .handoff .t{flex:1}
+  .handoff .t .a{font-size:13px;color:#E2DACD;font-weight:600}
+  .handoff .t .b{font-size:11.5px;color:#8B8273;font-weight:500;margin-top:1px}
+  .handoff .w{font-family:'Cormorant Garamond';font-style:italic;font-weight:600;font-size:19px;color:#A9CDB3}
+
+  /* ============================================================
+     CORPO — página editorial clara. Cada seção, seu lugar.
+     ============================================================ */
+  .page{padding:0 30px}
+
+  .sec{display:flex;align-items:center;gap:13px;margin:34px 0 16px}
+  .sec .n{font-family:'Cormorant Garamond';font-style:italic;font-weight:500;font-size:16px;color:var(--terra-deep);flex:none}
+  .sec .t{font-size:10px;letter-spacing:.26em;text-transform:uppercase;color:var(--ink2);font-weight:600;flex:none}
+  .sec .r{flex:1;height:1px;background:linear-gradient(90deg,var(--line),transparent)}
+
+  /* ---- O MERIDIANO: a assinatura. UMA hairline contínua.
+     O MARCADOR é a HORA em Cormorant itálico — sem dots, sem bullets.
+     A prosa corre como editorial. Só "agora" e o "furo" ganham luz. ---- */
+  .day{position:relative;padding-left:62px}
+  .day::before{content:"";position:absolute;left:30px;top:6px;bottom:8px;width:1px;
+    background:linear-gradient(180deg,transparent,var(--hair) 6%,var(--hair) 94%,transparent)}
+  .stop{position:relative;padding:0 0 22px}
+  .stop:last-child{padding-bottom:2px}
+  /* a hora É o marcador, ancorada na coluna esquerda alinhada ao fio */
+  .stop .hr{position:absolute;left:-62px;top:1px;width:54px;text-align:right;
+    font-family:'Cormorant Garamond';font-style:italic;font-weight:500;font-size:17px;color:var(--muted);line-height:1.15;letter-spacing:.01em}
+  .stop .ttl{font-family:'Cormorant Garamond';font-weight:600;font-size:21px;line-height:1.16;color:var(--ink);letter-spacing:-.004em}
+  .stop .sub{font-size:12.5px;color:var(--ink2);font-weight:400;margin-top:3px;line-height:1.45}
+  .stop .sub b{color:var(--ink);font-weight:500}
+  /* passado: recua de leve — só o que importa agora tem peso */
+  .stop.past .hr,.stop.past .ttl{color:var(--faint)}
+  .stop.past .ttl{font-weight:500}
+  /* AGORA: o ponto vivo que respira, fixado no presente */
+  .stop.now .hr{color:var(--terra-deep)}
+  .stop.now::after{content:"";position:absolute;left:30px;top:6px;transform:translateX(-50%);
+    width:13px;height:13px;border-radius:50%;background:var(--terra);animation:breatheCore 5.6s ease-in-out infinite;z-index:2}
+  .stop.now .ttl{color:var(--terra-deep)}
+  .stop.now .nowtag{font-family:'Cormorant Garamond';font-style:italic;font-size:13px;color:var(--terra);display:block;margin-bottom:1px}
+  /* quem leva — sussurro, nunca card */
+  .by-who{display:inline-flex;align-items:center;gap:7px;margin-top:9px;font-size:11px;font-weight:600;letter-spacing:.02em}
+  .by-who .ph{width:18px;height:18px;border-radius:50%;flex:none;background-size:cover;background-position:center;box-shadow:0 0 0 1.5px var(--bg),0 1px 3px rgba(42,38,34,.3)}
+  .by-who.you{color:var(--terra-deep)}
+  .by-who.co{color:#557A64}
+
+  /* ---- FILHOS: rostos reais, calor humano. Só o que importa hoje. ---- */
+  .kids{display:flex;flex-direction:column}
+  .kid{display:flex;align-items:center;gap:15px;padding:14px 0;border-top:1px solid var(--line)}
+  .kid:first-child{border-top:none}
+  .face{width:52px;height:52px;border-radius:50%;flex:none;position:relative;overflow:hidden;
+    box-shadow:0 5px 14px -5px rgba(42,38,34,.4),0 0 0 1px rgba(42,38,34,.04)}
+  .face::after{content:"";position:absolute;inset:0;opacity:.16;mix-blend-mode:overlay;
+    background-image:radial-gradient(rgba(255,255,255,.9) .5px,transparent .5px);background-size:3px 3px}
+  .kmeta{flex:1;min-width:0}
+  .kname{font-family:'Cormorant Garamond';font-weight:600;font-size:20px;color:var(--ink);line-height:1.05;display:flex;align-items:baseline;gap:8px}
+  .kname .age{font-family:'Inter';font-size:11px;font-weight:500;color:var(--faint);letter-spacing:.02em}
+  .kline{font-size:12.5px;color:var(--ink2);font-weight:400;margin-top:3px}
+  .kline b{color:var(--ink);font-weight:500}
+  .kline .soft{color:var(--muted)}
+  .ktag{font-size:10.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:30px;white-space:nowrap}
+  .ktag.ok{color:#557A64;background:rgba(110,154,128,.13)}
+  .ktag.ok .d{width:6px;height:6px;border-radius:50%;background:var(--sage)}
+
+  /* ---- SAÚDE: uma linha calma, condensada ---- */
+  .health{display:flex;align-items:center;gap:14px;padding:15px 17px;border-radius:15px;background:#F5F1EA;border:1px solid var(--line)}
+  .health .ic{width:33px;height:33px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;background:rgba(110,154,128,.14)}
+  .health .ic svg{width:17px;height:17px}
+  .health .tx{flex:1}
+  .health .tx .h{font-size:13px;font-weight:500;color:var(--ink);line-height:1.3}
+  .health .tx .s{font-size:11.5px;color:var(--muted);font-weight:400;margin-top:1px}
+  .health .ok{font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;color:var(--sage)}
+
+  /* ---- colofão: paz mental, uma vez, com força ---- */
+  .colophon{text-align:center;padding:36px 30px 8px}
+  .colophon .m{font-family:'Cormorant Garamond';font-style:italic;font-weight:400;font-size:15px;color:var(--faint);letter-spacing:.02em;display:inline-flex;align-items:center;gap:13px}
+  .colophon .m::before,.colophon .m::after{content:"";width:24px;height:1px;background:var(--hair)}
+
+  /* ============================================================
+     O MOMENTO RESPONSABILIDADE — full-bleed terracota.
+     Arrancado da pilha. O fato vive AQUI e em lugar nenhum mais.
+     O ATO "Eu cuido" é o clímax: uma mão que fecha o gesto.
+     ============================================================ */
+  .care{position:relative;overflow:hidden;color:#FBF3EE;padding:32px 30px 30px;
+    background:
+      radial-gradient(135% 115% at 85% 8%, #C07458 0%, rgba(192,116,88,0) 54%),
+      linear-gradient(164deg,var(--terra) 0%, var(--terra-deep) 100%)}
+  .care::after{content:"";position:absolute;inset:0;opacity:.06;pointer-events:none;
+    background-image:radial-gradient(rgba(255,255,255,.85) .5px,transparent .5px);background-size:4px 4px}
+  .care>*{position:relative;z-index:1}
+  .care .eyebrow{font-size:10px;letter-spacing:.28em;text-transform:uppercase;font-weight:600;color:rgba(251,243,238,.82);
+    margin-bottom:18px;display:flex;align-items:center;gap:10px}
+  .care .eyebrow::before{content:"";width:22px;height:1px;background:rgba(251,243,238,.6)}
+  /* a fala — pull-quote, calorosa, NUNCA cobrança. Branco puro = alto contraste, legível. */
+  .care .pull{font-family:'Cormorant Garamond';font-weight:500;font-size:31px;line-height:1.14;letter-spacing:-.006em;color:#FFFFFF}
+  .care .pull em{font-style:italic;color:#FCE3D8}
+  .care .when{font-size:12.5px;color:#FBF3EE;font-weight:500;margin-top:13px;opacity:.92;display:flex;align-items:center;gap:8px}
+  .care .when .pip{width:5px;height:5px;border-radius:50%;background:#FCE3D8}
+  /* o ATO — o instante mais bonito. A mão fecha a costura. */
+  .claim{display:flex;align-items:stretch;gap:11px;margin-top:24px}
+  .take{flex:1;appearance:none;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:11px;
+    font-family:'Inter';font-size:15px;font-weight:600;letter-spacing:.01em;color:var(--terra-deep);
+    background:#FBF3EE;border-radius:16px;padding:16px;
+    box-shadow:0 1px 0 rgba(255,255,255,.6) inset,0 12px 26px -10px rgba(0,0,0,.4);transition:transform .15s ease}
+  .take:active{transform:scale(.985)}
+  .take .hand{width:20px;height:20px;flex:none}
+  .pass{appearance:none;border:1px solid rgba(251,243,238,.34);background:rgba(251,243,238,.08);cursor:pointer;
+    font-family:'Inter';font-size:12.5px;font-weight:500;color:#FBF3EE;border-radius:16px;padding:0 18px;white-space:nowrap;backdrop-filter:blur(2px)}
+
+  /* ============================================================
+     ESTADO 3 — manchete + duas mini-jornadas no mesmo meridiano,
+     codificadas por cor da criança. O furo é por-criança.
+     ============================================================ */
+  .lanes{display:flex;flex-direction:column}
+  .lane{padding:18px 0;border-top:1px solid var(--line)}
+  .lane:first-child{border-top:none}
+  .lane-head{display:flex;align-items:center;gap:13px;margin-bottom:14px}
+  .lane-head .face{width:42px;height:42px}
+  .lane-head .ln{flex:1;min-width:0}
+  .lane-head .ln .nm{font-family:'Cormorant Garamond';font-weight:600;font-size:19px;color:var(--ink);line-height:1}
+  .lane-head .ln .sb{font-size:11.5px;color:var(--muted);font-weight:500;margin-top:3px}
+  .lane-head .st{margin-left:auto;font-size:10.5px;font-weight:600;display:inline-flex;align-items:center;gap:6px;padding:5px 11px;border-radius:30px}
+  .lane-head .st.ok{color:#557A64;background:rgba(110,154,128,.13)}
+  .lane-head .st.ok .d{width:6px;height:6px;border-radius:50%;background:var(--sage)}
+  .lane-head .st.open{color:var(--terra-deep);background:rgba(176,101,76,.11)}
+  .lane-head .st.open .d{width:6px;height:6px;border-radius:50%;background:var(--terra);animation:breatheCore 5.6s ease-in-out infinite}
+
+  /* mini-meridiano por criança: hora itálica + fio fino tingido */
+  .mini{position:relative;padding-left:54px}
+  .mini::before{content:"";position:absolute;left:6px;top:4px;bottom:6px;width:1px}
+  .mini.otto::before{background:linear-gradient(180deg,transparent,rgba(110,154,128,.4) 8%,rgba(110,154,128,.4) 92%,transparent)}
+  .mini.martim::before{background:linear-gradient(180deg,transparent,rgba(176,101,76,.4) 8%,rgba(176,101,76,.4) 92%,transparent)}
+  .mrow{position:relative;padding:0 0 13px}
+  .mrow:last-child{padding-bottom:0}
+  .mrow .mhr{position:absolute;left:-54px;top:0;width:44px;text-align:right;
+    font-family:'Cormorant Garamond';font-style:italic;font-weight:500;font-size:14px;color:var(--muted);line-height:1.2}
+  .mrow .ml{font-size:13.5px;color:var(--ink);font-weight:400;line-height:1.3}
+  .mrow .ml b{font-weight:500}
+  .mrow.past .ml,.mrow.past .mhr{color:var(--faint)}
+  /* o furo por-criança — o ponto que respira vive AQUI, no Martim */
+  .mrow.open::before{content:"";position:absolute;left:-48px;top:5px;width:11px;height:11px;border-radius:50%;
+    background:var(--terra);animation:breatheCore 5.6s ease-in-out infinite}
+  .mrow.open .mhr{color:var(--terra-deep)}
+  .mrow.open .ml{color:var(--terra-deep);font-weight:500}
+  .mrow.open .ml b{color:var(--terra-deep);font-weight:600}
+
+  @media (max-width:420px){body{padding:30px 0 80px}.phone{border-radius:0;width:100%}.cap{padding:0 18px}}
+</style>
+</head>
+<body>
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ESTADO 1 · MORA JUNTO · MANHÃ · DIA TRANQUILO  (a tela primária)
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<div class="cap">
+  <span class="l">Estado 1 — <b>Dia tranquilo</b></span>
+  <em>moram juntos · manhã · nada exige você</em>
+</div>
+
+<div class="phone">
+  <div class="bar on-dark"><span>8:02</span><span class="net"><i></i><i></i><i></i><i></i></span></div>
+
+  <!-- HERÓI: a carta. A voz é tudo. -->
+  <section class="hero">
+    <div class="letterhead">
+      <div class="brand">
+        <span class="seal">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 20.5c-1.1-3-3.6-4.6-5.8-5.2C4 14.6 2.8 12.9 2.8 10.8 2.8 8.5 4.6 6.8 6.8 6.8c1.8 0 3 1 3.9 2.3.2.3.6.3.8 0 .9-1.3 2.1-2.3 3.9-2.3 2.2 0 4 1.7 4 4 0 .3 0 .6-.1.9" stroke="#F3ECDF" stroke-width="1.55" stroke-linecap="round"/>
+            <path d="M12 20.5c.9-2.5 2.6-4 4.5-4.8" stroke="#F3ECDF" stroke-width="1.55" stroke-linecap="round" opacity=".5"/>
+          </svg>
+        </span>
+        <span class="wm">Kindar</span>
+      </div>
+      <div class="dateline"><div class="d1">terça-feira</div><div class="d2">9 de junho</div></div>
+    </div>
+
+    <div class="hello">bom dia, Henrique</div>
+
+    <!-- A VOZ — curta, humana, inesquecível -->
+    <h1 class="voice">Dia tranquilo.<span class="q">Hoje a busca <em>é sua</em>.</span></h1>
+
+    <div class="signoff"><span class="by">seu Kindar</span><span class="k">K</span></div>
+  </section>
+
+  <div class="page">
+
+    <!-- O DIA · o meridiano. A hora é o único marcador. -->
+    <div class="sec"><span class="n serif">i.</span><span class="t">O dia</span><span class="r"></span></div>
+
+    <div class="day">
+      <div class="stop past">
+        <span class="hr serif">7h30</span>
+        <div class="ttl serif">Café e mochilas</div>
+      </div>
+      <div class="stop past">
+        <span class="hr serif">8h00</span>
+        <div class="ttl serif">A caminho da escola</div>
+        <span class="by-who co"><span class="ph" style="background:linear-gradient(150deg,#E8CDB0,#C99B6E)"></span>Fernanda levou</span>
+      </div>
+      <div class="stop now">
+        <span class="hr serif">agora</span>
+        <span class="nowtag serif">você está aqui</span>
+        <div class="ttl serif">Manhã livre</div>
+        <div class="sub">Nada entre você e o fim da tarde.</div>
+      </div>
+      <div class="stop">
+        <span class="hr serif">18h30</span>
+        <div class="ttl serif">Jiu-Jitsu</div>
+        <div class="sub">Os dois treinam · <b>kimonos já separados</b>.</div>
+      </div>
+      <div class="stop">
+        <span class="hr serif">19h45</span>
+        <div class="ttl serif">A volta pra casa</div>
+        <span class="by-who you"><span class="ph" style="background:linear-gradient(150deg,#E9C3B2,#BC734F)"></span>você busca os dois</span>
+      </div>
+    </div>
+
+    <!-- AS CRIANÇAS · rostos reais -->
+    <div class="sec"><span class="n serif">ii.</span><span class="t">Cada um</span><span class="r"></span></div>
+    <div class="kids">
+      <div class="kid">
+        <div class="face" style="background:
+          radial-gradient(60% 55% at 50% 32%, #5E8068 0%, rgba(94,128,104,0) 60%),
+          radial-gradient(85% 70% at 50% 118%, #2B2825 0%, rgba(43,40,37,0) 62%),
+          linear-gradient(150deg,#8AA992,#557A65)"></div>
+        <div class="kmeta">
+          <div class="kname serif">Otto <span class="age">· 6</span></div>
+          <div class="kline">Dia leve <span class="soft">· lição já entregue ontem</span></div>
+        </div>
+        <span class="ktag ok"><span class="d"></span>tudo certo</span>
+      </div>
+      <div class="kid">
+        <div class="face" style="background:
+          radial-gradient(60% 55% at 50% 32%, #C2785C 0%, rgba(194,120,92,0) 60%),
+          radial-gradient(85% 70% at 50% 118%, #2B2825 0%, rgba(43,40,37,0) 62%),
+          linear-gradient(150deg,#CC8B72,#9A5238)"></div>
+        <div class="kmeta">
+          <div class="kname serif">Martim <span class="age">· 8</span></div>
+          <div class="kline">Estreia o cinza no Jiu-Jitsu hoje</div>
+        </div>
+        <span class="ktag ok"><span class="d"></span>tudo certo</span>
+      </div>
+    </div>
+
+    <!-- SAÚDE · uma linha -->
+    <div class="sec"><span class="n serif">iii.</span><span class="t">Saúde</span><span class="r"></span></div>
+    <div class="health">
+      <span class="ic"><svg viewBox="0 0 24 24" fill="none"><path d="M12 20s-7-4.3-7-9.3C5 7.9 6.9 6 9.2 6c1.4 0 2.5.7 2.8 1.6.3-.9 1.4-1.6 2.8-1.6C19.1 6 21 7.9 21 10.7 21 15.7 12 20 12 20Z" stroke="#6E9A80" stroke-width="1.4" stroke-linejoin="round"/></svg></span>
+      <div class="tx">
+        <div class="h">Vacinas em dia · nenhum remédio pendente</div>
+        <div class="s">Próxima revisão do Otto em agosto.</div>
+      </div>
+      <span class="ok">Ok</span>
+    </div>
+
+    <div class="colophon"><span class="m serif">aproveita a manhã</span></div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ESTADO 2 · ATENÇÃO · o kimono sem dono  (o instante mais bonito)
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<div class="cap gap">
+  <span class="l">Estado 2 — <b>Atenção</b></span>
+  <em>algo está sem dono · convite, nunca cobrança</em>
+</div>
+
+<div class="phone">
+  <div class="bar on-dark"><span>8:02</span><span class="net"><i></i><i></i><i></i><i></i></span></div>
+
+  <section class="hero">
+    <div class="letterhead">
+      <div class="brand">
+        <span class="seal">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 20.5c-1.1-3-3.6-4.6-5.8-5.2C4 14.6 2.8 12.9 2.8 10.8 2.8 8.5 4.6 6.8 6.8 6.8c1.8 0 3 1 3.9 2.3.2.3.6.3.8 0 .9-1.3 2.1-2.3 3.9-2.3 2.2 0 4 1.7 4 4 0 .3 0 .6-.1.9" stroke="#F3ECDF" stroke-width="1.55" stroke-linecap="round"/>
+            <path d="M12 20.5c.9-2.5 2.6-4 4.5-4.8" stroke="#F3ECDF" stroke-width="1.55" stroke-linecap="round" opacity=".5"/>
+          </svg>
+        </span>
+        <span class="wm">Kindar</span>
+      </div>
+      <div class="dateline"><div class="d1">terça-feira</div><div class="d2">9 de junho</div></div>
+    </div>
+
+    <div class="hello">bom dia, Henrique</div>
+
+    <!-- a voz reconhece, gentil — sem dizer QUAL é o detalhe (isso vive só no terracota) -->
+    <h1 class="voice">Quase tudo no lugar.<span class="q">Falta uma <em>combinação</em>.</span></h1>
+
+    <div class="signoff"><span class="by">seu Kindar</span><span class="k">K</span></div>
+  </section>
+
+  <!-- O MOMENTO · full-bleed terracota. O fato vive aqui, e só aqui. -->
+  <section class="care">
+    <div class="eyebrow">sua atenção</div>
+    <p class="pull">O <em>kimono do Martim</em> ainda não tem quem leve ao Jiu-Jitsu.</p>
+    <div class="when"><span class="pip"></span>hoje, 18h30 · ninguém assumiu ainda</div>
+    <div class="claim">
+      <button class="take">
+        <svg class="hand" viewBox="0 0 24 24" fill="none"><path d="M7 11.5V6.6a1.5 1.5 0 0 1 3 0v4.4m0-1.4V5a1.5 1.5 0 0 1 3 0v5m0-.7V6.2a1.5 1.5 0 0 1 3 0v6.6c0 3.6-2.2 6.5-6 6.5-2.4 0-3.8-1-5.1-2.8l-1.9-2.7c-.6-.9.2-2 1.2-1.7l1.8.7" stroke="#9A5238" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        Eu cuido
+      </button>
+      <button class="pass">peço à Fernanda</button>
+    </div>
+  </section>
+
+  <div class="page">
+
+    <!-- O DIA · o meridiano. O kimono NÃO se repete aqui — uma verdade, um lugar. -->
+    <div class="sec"><span class="n serif">i.</span><span class="t">O dia</span><span class="r"></span></div>
+    <div class="day">
+      <div class="stop past">
+        <span class="hr serif">8h00</span>
+        <div class="ttl serif">A caminho da escola</div>
+        <span class="by-who co"><span class="ph" style="background:linear-gradient(150deg,#E8CDB0,#C99B6E)"></span>Fernanda levou</span>
+      </div>
+      <div class="stop now">
+        <span class="hr serif">agora</span>
+        <span class="nowtag serif">você está aqui</span>
+        <div class="ttl serif">Manhã livre</div>
+      </div>
+      <div class="stop">
+        <span class="hr serif">18h30</span>
+        <div class="ttl serif">Jiu-Jitsu</div>
+        <div class="sub">Os dois treinam.</div>
+      </div>
+      <div class="stop">
+        <span class="hr serif">19h45</span>
+        <div class="ttl serif">A volta pra casa</div>
+        <span class="by-who you"><span class="ph" style="background:linear-gradient(150deg,#E9C3B2,#BC734F)"></span>você busca os dois</span>
+      </div>
+    </div>
+
+    <!-- AS CRIANÇAS · Martim sem rótulo de pendência (já está no terracota) -->
+    <div class="sec"><span class="n serif">ii.</span><span class="t">Cada um</span><span class="r"></span></div>
+    <div class="kids">
+      <div class="kid">
+        <div class="face" style="background:
+          radial-gradient(60% 55% at 50% 32%, #5E8068 0%, rgba(94,128,104,0) 60%),
+          radial-gradient(85% 70% at 50% 118%, #2B2825 0%, rgba(43,40,37,0) 62%),
+          linear-gradient(150deg,#8AA992,#557A65)"></div>
+        <div class="kmeta">
+          <div class="kname serif">Otto <span class="age">· 6</span></div>
+          <div class="kline">Dia leve, sem pendências</div>
+        </div>
+        <span class="ktag ok"><span class="d"></span>tudo certo</span>
+      </div>
+      <div class="kid">
+        <div class="face" style="background:
+          radial-gradient(60% 55% at 50% 32%, #C2785C 0%, rgba(194,120,92,0) 60%),
+          radial-gradient(85% 70% at 50% 118%, #2B2825 0%, rgba(43,40,37,0) 62%),
+          linear-gradient(150deg,#CC8B72,#9A5238)"></div>
+        <div class="kmeta">
+          <div class="kname serif">Martim <span class="age">· 8</span></div>
+          <div class="kline">Jiu-Jitsu hoje, 18h30</div>
+        </div>
+        <span class="ktag ok"><span class="d"></span>tudo certo</span>
+      </div>
+    </div>
+
+    <div class="colophon"><span class="m serif">um toque, e o dia fica redondo</span></div>
+  </div>
+</div>
+
+
+<!-- ╔══════════════════════════════════════════════════════════════╗
+     ESTADO 3 · DOIS FILHOS, DIAS DIFERENTES  (herói vira manchete)
+     ╚══════════════════════════════════════════════════════════════╝ -->
+<div class="cap gap">
+  <span class="l">Estado 3 — <b>Dois filhos, dias diferentes</b></span>
+  <em>a manchete corta o ruído · o furo é por-criança</em>
+</div>
+
+<div class="phone">
+  <div class="bar on-dark"><span>8:02</span><span class="net"><i></i><i></i><i></i><i></i></span></div>
+
+  <section class="hero">
+    <div class="letterhead">
+      <div class="brand">
+        <span class="seal">
+          <svg viewBox="0 0 24 24" fill="none">
+            <path d="M12 20.5c-1.1-3-3.6-4.6-5.8-5.2C4 14.6 2.8 12.9 2.8 10.8 2.8 8.5 4.6 6.8 6.8 6.8c1.8 0 3 1 3.9 2.3.2.3.6.3.8 0 .9-1.3 2.1-2.3 3.9-2.3 2.2 0 4 1.7 4 4 0 .3 0 .6-.1.9" stroke="#F3ECDF" stroke-width="1.55" stroke-linecap="round"/>
+            <path d="M12 20.5c.9-2.5 2.6-4 4.5-4.8" stroke="#F3ECDF" stroke-width="1.55" stroke-linecap="round" opacity=".5"/>
+          </svg>
+        </span>
+        <span class="wm">Kindar</span>
+      </div>
+      <div class="dateline"><div class="d1">quinta-feira</div><div class="d2">12 de junho</div></div>
+    </div>
+
+    <div class="hello">as crianças estão com a Fernanda</div>
+
+    <!-- a manchete: nomeia SÓ o furo, por-criança -->
+    <h1 class="voice">Cada um num caminho.<span class="q">Só o <em>Martim das 19h</em> ainda espera você.</span></h1>
+
+    <div class="signoff"><span class="by">seu Kindar</span><span class="k">K</span></div>
+  </section>
+
+  <div class="page">
+
+    <div class="sec"><span class="n serif">i.</span><span class="t">Dois roteiros</span><span class="r"></span></div>
+
+    <div class="lanes">
+
+      <!-- OTTO · coberto de ponta a ponta -->
+      <div class="lane">
+        <div class="lane-head">
+          <div class="face" style="background:
+            radial-gradient(60% 55% at 50% 32%, #5E8068 0%, rgba(94,128,104,0) 60%),
+            radial-gradient(85% 70% at 50% 118%, #2B2825 0%, rgba(43,40,37,0) 62%),
+            linear-gradient(150deg,#8AA992,#557A65)"></div>
+          <div class="ln">
+            <div class="nm serif">Otto</div>
+            <div class="sb">6 · meio período</div>
+          </div>
+          <span class="st ok"><span class="d"></span>coberto</span>
+        </div>
+        <div class="mini otto">
+          <div class="mrow past"><span class="mhr serif">8h</span><div class="ml">Fernanda leva à escola</div></div>
+          <div class="mrow"><span class="mhr serif">12h</span><div class="ml">Avó busca <b>· almoço em casa</b></div></div>
+          <div class="mrow"><span class="mhr serif">tarde</span><div class="ml">Em casa com a avó</div></div>
+        </div>
+      </div>
+
+      <!-- MARTIM · o furo por-criança vive aqui, no ponto que respira -->
+      <div class="lane">
+        <div class="lane-head">
+          <div class="face" style="background:
+            radial-gradient(60% 55% at 50% 32%, #C2785C 0%, rgba(194,120,92,0) 60%),
+            radial-gradient(85% 70% at 50% 118%, #2B2825 0%, rgba(43,40,37,0) 62%),
+            linear-gradient(150deg,#CC8B72,#9A5238)"></div>
+          <div class="ln">
+            <div class="nm serif">Martim</div>
+            <div class="sb">8 · escola integral</div>
+          </div>
+          <span class="st open"><span class="d"></span>1 espaço aberto</span>
+        </div>
+        <div class="mini martim">
+          <div class="mrow past"><span class="mhr serif">8h</span><div class="ml">Fernanda leva à escola</div></div>
+          <div class="mrow"><span class="mhr serif">17h</span><div class="ml">Treino de natação</div></div>
+          <div class="mrow open"><span class="mhr serif">19h</span><div class="ml"><b>Buscar</b> — ainda sem dono</div></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- O ATO · só pra ponta aberta. Otto não aparece — já está coberto. -->
+    <div class="sec"><span class="n serif">ii.</span><span class="t">Sua atenção</span><span class="r"></span></div>
+    <section class="care" style="border-radius:18px;margin:0">
+      <div class="eyebrow">por-criança</div>
+      <p class="pull">Falta <em>buscar o Martim</em> às 19h.</p>
+      <div class="when"><span class="pip"></span>Otto já está coberto o dia todo · esse é o único espaço aberto</div>
+      <div class="claim">
+        <button class="take">
+          <svg class="hand" viewBox="0 0 24 24" fill="none"><path d="M7 11.5V6.6a1.5 1.5 0 0 1 3 0v4.4m0-1.4V5a1.5 1.5 0 0 1 3 0v5m0-.7V6.2a1.5 1.5 0 0 1 3 0v6.6c0 3.6-2.2 6.5-6 6.5-2.4 0-3.8-1-5.1-2.8l-1.9-2.7c-.6-.9.2-2 1.2-1.7l1.8.7" stroke="#9A5238" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Eu busco o Martim
+        </button>
+      </div>
+    </section>
+
+    <div class="colophon"><span class="m serif">o resto do dia já se cuida</span></div>
+  </div>
+</div>
+
+</body>
+</html>
