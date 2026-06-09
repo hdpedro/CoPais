@@ -2150,7 +2150,10 @@
         "coat": "Mantel",
         "other": "Größe"
       }
-    }
+    },
+    "delete": "Benachrichtigung löschen",
+    "clearAll": "Alle löschen",
+    "clearAllConfirm": "Alle Benachrichtigungen löschen?"
   },
   "push": {
     "chat": {

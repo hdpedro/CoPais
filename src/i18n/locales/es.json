@@ -2150,7 +2150,10 @@
         "coat": "abrigo",
         "other": "talla"
       }
-    }
+    },
+    "delete": "Eliminar notificación",
+    "clearAll": "Borrar todas",
+    "clearAllConfirm": "¿Eliminar todas las notificaciones?"
   },
   "push": {
     "chat": {

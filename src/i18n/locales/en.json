@@ -2150,7 +2150,10 @@
         "coat": "coat",
         "other": "size"
       }
-    }
+    },
+    "delete": "Delete notification",
+    "clearAll": "Clear all",
+    "clearAllConfirm": "Delete all notifications?"
   },
   "push": {
     "chat": {
