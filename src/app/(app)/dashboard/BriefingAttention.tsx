@@ -69,7 +69,7 @@ export default function BriefingAttention({ items }: { items: AttentionItem[] })
       <h3 className="text-[12px] uppercase tracking-wider text-[#7A8C8B] font-semibold mb-3 px-1">
         {t("briefing.attentionTitle")}
       </h3>
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm divide-y divide-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl border border-[#EDE7DF] shadow-[0_1px_2px_rgba(42,38,34,0.04)] divide-y divide-[#F2EDE6] overflow-hidden">
         {items.map((item) => {
           const { title, cta } = copy(item);
           const attention = item.tone === "attention";
@@ -78,22 +78,22 @@ export default function BriefingAttention({ items }: { items: AttentionItem[] })
               key={item.id}
               href={item.link}
               prefetch={false}
-              className="flex items-center gap-3 px-4 py-3 min-h-[56px] hover:bg-[#FBF8F4] transition-colors"
+              className="flex items-center gap-3.5 px-4 py-3.5 min-h-[58px] hover:bg-[#FBF7F3] transition-colors"
             >
               <span
                 aria-hidden="true"
                 className={`w-9 h-9 rounded-xl flex items-center justify-center text-base flex-shrink-0 ${
-                  attention ? "bg-[#E8A228]/[0.12]" : "bg-[#5B9E85]/[0.10]"
+                  attention ? "bg-[#C07055]/[0.12]" : "bg-[#5B9E85]/[0.10]"
                 }`}
               >
                 {ICON[item.kind]}
               </span>
-              <span className="flex-1 text-[13.5px] text-[#2C2C2C] font-medium leading-snug">
+              <span className="flex-1 text-[14px] text-[#2A2622] font-medium leading-snug">
                 {title}
               </span>
               <span
                 className={`text-[12px] font-semibold flex-shrink-0 ${
-                  attention ? "text-[#C2701E]" : "text-[#5B9E85]"
+                  attention ? "text-[#A85D47]" : "text-[#5B9E85]"
                 }`}
               >
                 {cta}

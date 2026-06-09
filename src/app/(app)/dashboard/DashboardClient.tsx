@@ -504,12 +504,12 @@ export default function DashboardClient(props: DashboardClientProps) {
   return (
     <div className="space-y-5 pb-4">
 
-      {/* === GREETING (always visible) === */}
-      <div>
-        <h1 className="text-[26px] font-bold text-[#2C2C2C] tracking-tight leading-tight">
+      {/* === GREETING (always visible) — editorial premium (Cormorant) === */}
+      <div className="pt-1">
+        <h1 className="font-display text-[32px] font-semibold text-[#2A2622] tracking-tight leading-[1.04]">
           {greetingText}, {firstName}
         </h1>
-        <p className="text-[13px] text-[#7A8C8B] mt-0.5">
+        <p className="text-[12.5px] text-[#9A8878] mt-1">
           {formattedDate}
           {custodySummary && <span> &middot; {custodySummary}</span>}
         </p>
