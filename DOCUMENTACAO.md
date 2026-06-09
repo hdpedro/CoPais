@@ -891,6 +891,18 @@ Politicas garantem que:
 - Gera eventos em lote no banco (batches de 100)
 - **Limpar escala** (`clearCustodySchedule`): permite resetar escala existente
 
+### 6b. Rotina de Leva & Busca (`/calendario/rotina`)
+Camada de logistica diaria — quem LEVA (dropoff) e quem BUSCA (pickup) cada dia da semana. Complementar a guarda noturna e ORTOGONAL a ela (nao deriva de `custody_resolved`, nao materializa `calendar_occurrences` — resolvido no read). Serve TODA forma de familia (separados, casal intacto, solo, cuidador).
+- **Editor** (`RoutineBuilder`): grade tap-to-cycle (Seg–Sex + FDS opcional) x [Leva][Busca] por crianca; atalho "dia inteiro"; modelos prontos; horario + destino opcionais; "aplicar a todos os filhos".
+- **Painel adaptavel** (`RoutineTodayCard`): por `coparenting_groups.arrangement` — `rotating` (Heroi de Guarda como hoje) vs `together`/`single` (a rotina vira o heroi, sem "proxima troca"). Mostra "Hoje · quem leva/busca" humanizado; empty-state que ensina; aditivo (heroi de guarda intocado).
+- **Trocar hoje** (override + ciencia bilateral): 1 toque passa a perna pro outro responsavel hoje (`care_routine_overrides`, vence o slot no read). Foundation collab `care_routine_override` → push + "Aguardando ciencia" pro criador / "[X] trocou · Confirmar" pro destinatario (`mark_collab_read`). NAO e aprovacao, e awareness.
+- **Lembrete** (cron `/api/cron/activity-due-reminders`): `runCareRoutineReminders` dispara push calmo 30min antes (override vence o slot), idempotente via `care_routine_reminder_sends`.
+- **Tabelas**: `care_routine_slots` (padrao semanal), `care_routine_overrides` (troca do dia), `care_routine_reminder_sends` (idempotencia), `coparenting_groups.arrangement` (forma da familia, default `rotating` = regressao-zero), `care_routine_logs` (Buscou?, 00115), `care_routine_slots.week_parity` (semana A/B, 00116). Migrations 00112–00116.
+- **Service** unico `src/lib/services/care-routine.ts` (paridade): `actions/care-routine.ts` (PWA) + `api/care-routine/route.ts` + `today/route.ts` (Native Bearer, na allowlist do middleware).
+- **i18n**: ~65 chaves `careRoutine.*` × 5 locales (PWA+Native). **Resolver puro** `src/lib/care-routine-resolve.ts` (+ core do cron) com testes unitarios.
+- **Fase 2 — assistente** (migration 00115 `care_routine_logs`): **"Buscou? Sim/Nao"** no card (registra `done`/`missed` por perna passada; `recordRoutineLog` upsert) + **follow-up** cron "Buscou o X?" (pickup +45min, idempotente `channel=followup`). **Corresponsabilidade** NEUTRA (`care-routine-metrics.ts` — so contagens, sem %/ranking; premium Harmonia) na rotina page. **Timeline "Jornada da Crianca"** (`/jornada` + `care-routine-journey.ts`): compoe casa(guarda)→leva→atividades→busca→casa cronologico. **Briefing in-app "Amanha"** no card (resolve a rotina de amanha sem round-trip extra).
+- **Fase 3 — recorrencia avancada** (migration 00116 `week_parity`): `alternating_week` (semana A/B, `weekParityOf`) + `custody_based` ("quem leva/busca segue a guarda" — responsavel derivado de `custody_resolved` no read). **Engine pronta+testada**; falta UI aditiva (editor de pattern_type + widget nativo — `docs/care-routine-widget-spec.md`).
+
 ### 7. Novo Compromisso (`/calendario/novo`) — Formulario Unificado Premium
 Formulario inteligente que unifica a criacao de atividades, eventos e guardas com UX premium:
 - **Seletor de categoria**: grid 4 colunas com icones grandes (2xl), 11 categorias incluindo Curso e Viagem

@@ -6,6 +6,7 @@ import { getSessionUser } from "@/lib/supabase/auth-helper";
 import { getRequestLocale, getServerT } from "@/i18n/server";
 import {
   resolveTodayCustody,
+  resolveCustodyOnDate,
   findNextCustodyHandover,
   computeCustodyStreak,
   type CustodyEvent as CustodyEventRow,
@@ -20,6 +21,14 @@ import TrialBanner from "@/components/billing/TrialBanner";
 import OnboardingQuest from "@/components/billing/OnboardingQuest";
 import { formatDateKey, computeSwapBalance, getBrazilNow, getBrazilToday, type CustodyEvent, type ParentColorMap } from "@/lib/calendar-utils";
 import { buildCustodyHero } from "@/lib/custody-hero";
+import {
+  resolveRoutineOnDate,
+  buildRoutineToday,
+  type RoutineSlot,
+  type RoutineOverride,
+  type ResolvedRoutine,
+  type RoutineToday,
+} from "@/lib/care-routine-resolve";
 // getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
 import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
 import dynamic from "next/dynamic";
@@ -386,6 +395,147 @@ export default async function DashboardPage() {
       },
       { total: 0, nextDueDate: null, nextDueVaccineName: null },
     );
+
+  // === CARE ROUTINE (Leva & Busca) — Fase 1 ===
+  // Leitura minúscula e tolerante a falha (não bloqueia o painel): slots do
+  // weekday de hoje + overrides do dia + arrangement do grupo. Resolvido em
+  // memória (sem materialização). Reusa parentColors/children já carregados.
+  const routineWeekday = new Date(todayKey + "T12:00:00").getDay();
+  const tomorrowWeekday = new Date(tomorrowKey + "T12:00:00").getDay();
+  const [
+    { data: routineSlotsRaw },
+    { data: routineOverridesRaw },
+    { data: groupArrangementRow },
+    { data: routineLogsRaw },
+  ] = await Promise.all([
+    supabase
+      .from("care_routine_slots")
+      .select("id, child_id, weekday, leg, pattern_type, responsible_id, time_of_day, label, week_parity")
+      .eq("group_id", groupId)
+      .in("weekday", [routineWeekday, tomorrowWeekday])
+      .eq("is_active", true)
+      .then((r) => r, () => ({ data: [] as never[] })),
+    supabase
+      .from("care_routine_overrides")
+      .select("id, child_id, occurrence_date, leg, responsible_id, created_by")
+      .eq("group_id", groupId)
+      .in("occurrence_date", [todayKey, tomorrowKey])
+      .then((r) => r, () => ({ data: [] as never[] })),
+    supabase
+      .from("coparenting_groups")
+      .select("arrangement")
+      .eq("id", groupId)
+      .maybeSingle()
+      .then((r) => r, () => ({ data: null })),
+    supabase
+      .from("care_routine_logs")
+      .select("child_id, leg, status")
+      .eq("group_id", groupId)
+      .eq("occurrence_date", todayKey)
+      .then((r) => r, () => ({ data: [] as never[] })),
+  ]);
+  // Mapa "childId:leg" → status (done/missed) das pernas JÁ registradas hoje.
+  const routineLogsToday: Record<string, "done" | "missed"> = {};
+  for (const l of (routineLogsRaw || []) as { child_id: string; leg: string; status: string }[]) {
+    routineLogsToday[`${l.child_id}:${l.leg}`] = l.status as "done" | "missed";
+  }
+  const allRoutineSlots = (routineSlotsRaw || []) as unknown as RoutineSlot[];
+  const allRoutineOverrides = (routineOverridesRaw || []) as unknown as RoutineOverride[];
+  const routineSlots = allRoutineSlots.filter((s) => s.weekday === routineWeekday);
+  const routineOverrides = allRoutineOverrides.filter((o) => o.occurrence_date === todayKey);
+  const hasRoutineSlots = routineSlots.length > 0;
+  const routineArrangement =
+    ((groupArrangementRow as { arrangement?: string } | null)?.arrangement as
+      | "rotating"
+      | "together"
+      | "single"
+      | "custom") ?? "rotating";
+  const routineChildren = (children || []).map((c) => ({
+    id: (c as { id: string }).id,
+    firstName: getDisplayName((c as { full_name: string | null }).full_name, true),
+  }));
+  // custody_based: o responsável da rotina deriva da guarda do dia.
+  const routineCustodyResolver = (cid: string, dk: string) =>
+    resolveCustodyOnDate((allCustodyEvents || []) as unknown as CustodyEventRow[], cid, dk)?.responsible_user_id ?? null;
+  const routineResolvedByChild: Record<string, ResolvedRoutine> = {};
+  for (const rc of routineChildren) {
+    routineResolvedByChild[rc.id] = resolveRoutineOnDate(routineSlots, routineOverrides, rc.id, todayKey, routineCustodyResolver);
+  }
+  const routineToday: RoutineToday = buildRoutineToday(
+    routineChildren,
+    routineResolvedByChild,
+    (uid) => parentColors[uid]?.name ?? getDisplayName(null, true),
+    user.id,
+  );
+
+  // === Amanhã (briefing in-app) — resolve a rotina de amanhã (mesma query,
+  // sem round-trip extra) e compõe um resumo compacto pro card. Só p/ together/
+  // single (uma linha); split fica fora pra não poluir.
+  const tmSlots = allRoutineSlots.filter((s) => s.weekday === tomorrowWeekday);
+  const tmOverrides = allRoutineOverrides.filter((o) => o.occurrence_date === tomorrowKey);
+  let routineTomorrowSummary: string | null = null;
+  if (tmSlots.length > 0) {
+    const tmResolvedByChild: Record<string, ResolvedRoutine> = {};
+    for (const rc of routineChildren) {
+      tmResolvedByChild[rc.id] = resolveRoutineOnDate(tmSlots, tmOverrides, rc.id, tomorrowKey, routineCustodyResolver);
+    }
+    const tmToday = buildRoutineToday(
+      routineChildren,
+      tmResolvedByChild,
+      (uid) => parentColors[uid]?.name ?? getDisplayName(null, true),
+      user.id,
+    );
+    if (tmToday.mode === "together") {
+      const e = tmToday.entries[0];
+      const parts: string[] = [];
+      if (e.dropoff) parts.push(t("careRoutine.tomorrowDropoff", { name: e.dropoff.responsibleName }));
+      if (e.pickup) parts.push(t("careRoutine.tomorrowPickup", { name: e.pickup.responsibleName }));
+      if (parts.length > 0) routineTomorrowSummary = parts.join(" · ");
+    }
+  }
+
+  // Ciência bilateral das trocas de HOJE (Foundation collab): quem trocou e se
+  // o outro responsável já viu. Drives o badge "Aguardando ciência" (criador) +
+  // o "Confirmar" (destinatário). Auto-mark marca o criador; "visto" = collab_reads
+  // de um user ≠ criador.
+  const routineOverrideRows = (routineOverridesRaw || []) as unknown as {
+    id: string;
+    leg: string;
+    created_by: string | null;
+  }[];
+  let routineAwaitingTheirAck = false;
+  const _pendingAckIds: string[] = [];
+  const _pendingAckNames = new Set<string>();
+  if (routineOverrideRows.length > 0) {
+    const { data: routineCollabReads } = await supabase
+      .from("collab_reads")
+      .select("record_id, user_id")
+      .eq("record_type", "care_routine_override")
+      .in("record_id", routineOverrideRows.map((o) => o.id));
+    const readsByOverride = new Map<string, Set<string>>();
+    for (const r of (routineCollabReads || []) as { record_id: string; user_id: string }[]) {
+      if (!readsByOverride.has(r.record_id)) readsByOverride.set(r.record_id, new Set());
+      readsByOverride.get(r.record_id)!.add(r.user_id);
+    }
+    for (const o of routineOverrideRows) {
+      const reads = readsByOverride.get(o.id) ?? new Set<string>();
+      if (o.created_by === user.id) {
+        if (!Array.from(reads).some((uid) => uid !== user.id)) routineAwaitingTheirAck = true;
+      } else if (o.created_by) {
+        if (!reads.has(user.id)) {
+          _pendingAckIds.push(o.id);
+          _pendingAckNames.add(parentColors[o.created_by]?.name ?? t("dashboard.serverFallbacks.otherParent"));
+        }
+      }
+    }
+  }
+  const routinePendingAck =
+    _pendingAckIds.length > 0
+      ? { fromName: Array.from(_pendingAckNames).join(", "), overrideIds: _pendingAckIds }
+      : null;
+  const routineCaregivers = Object.entries(parentColors)
+    .slice(0, 2)
+    .map(([uid, v]) => ({ id: uid, name: v.name }));
 
   // Filter decisions where user hasn't voted yet
   const openDecisionIds = (openDecisions || []).map(d => d.id);
@@ -1101,11 +1251,15 @@ export default async function DashboardPage() {
   // === CONTEXT-AWARE SECTION ORDERING ===
   // Prioritize sections based on what matters RIGHT NOW for this user.
   // Each section has a priority (lower = more important). Show top N, collapse rest.
-  type SectionId = "swapAlerts" | "hero" | "healthBlock" | "activities" | "schoolUnread" | "expensesUnread" | "saudeUnread" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
+  type SectionId = "swapAlerts" | "hero" | "careRoutine" | "healthBlock" | "activities" | "schoolUnread" | "expensesUnread" | "saudeUnread" | "pendingExpenses" | "pendingDecisions" | "pendingReports" | "financial" | "quickActions" | "childCards" | "invite" | "custodyActivation";
 
   const sectionPriorities: { id: SectionId; priority: number; hasData: boolean }[] = [
     { id: "swapAlerts", priority: 1, hasData: custodyEnabled && hasCustody && pendingSwapsProps.length > 0 },
     { id: "hero", priority: 2, hasData: true }, // always show
+    // Rotina de Leva & Busca: logo abaixo do herói. Aparece quando há rotina
+    // montada OU quando a família é intacta/solo (arrangement ≠ rotating) com
+    // filhos — aí mostra o empty-state que ensina/leva pro editor.
+    { id: "careRoutine", priority: 2.5, hasData: hasRoutineSlots || (routineArrangement !== "rotating" && (children?.length || 0) > 0) },
     { id: "childCards", priority: 3, hasData: (children?.length || 0) > 0 },
     { id: "healthBlock", priority: 4, hasData: childHealthSummaries.length > 0 },
     { id: "activities", priority: 5, hasData: hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities },
@@ -1158,6 +1312,14 @@ export default async function DashboardPage() {
     hasChildren: !!(children && children.length > 0),
     endDateLabel,
     custodyHero: custodyHeroProp,
+    routineToday,
+    routineArrangement,
+    hasRoutineSlots,
+    routineCaregivers,
+    routineAwaitingTheirAck,
+    routinePendingAck,
+    routineLogsToday,
+    routineTomorrowSummary,
     weekDays: weekDaysData,
     weekCustodyMap: weekCustodyEntries,
     parentColorEntries,

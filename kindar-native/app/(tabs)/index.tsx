@@ -29,6 +29,7 @@ import { useToast } from 'src/components/ui/ToastProvider';
 import { track, EVENTS } from 'src/lib/analytics';
 import { getBillingStatus } from 'src/services/billing';
 import TrialBanner from 'src/components/billing/TrialBanner';
+import RoutineTodayCard from 'src/components/RoutineTodayCard';
 
 // i18n keys for greetings — same keys the PWA uses
 // (`dashboard.goodMorning` / `goodAfternoon` / `goodEvening`).
@@ -473,6 +474,9 @@ export default function DashboardScreen() {
             </View>
           </Animated.View>
         ) : null}
+
+        {/* === ROTINA DE LEVA & BUSCA (chip read-only — paridade c/ PWA; edição no editor) === */}
+        <RoutineTodayCard />
 
         {/* === CHILD CARDS === */}
         {(data?.childCards?.length || 0) > 0 ? (

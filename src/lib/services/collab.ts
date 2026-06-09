@@ -50,6 +50,9 @@ export type CollabRecordType =
   | "vaccination_record"
   // Tamanhos (migration 00086): adoção #7. info priority por default.
   | "child_size"
+  // Rotina de leva/busca (migration 00114): troca pontual do dia → ciência
+  // bilateral ("aguardando ciência" até o outro responsável ver). important.
+  | "care_routine_override"
   // future:
   // | "decision"
   // | "calendar_event"
@@ -327,6 +330,9 @@ function collabModuleHome(recordType: CollabRecordType): string {
       // Tamanhos vivem no perfil da criança. Sem child_id no contexto do
       // coalesce, manda pra lista de filhos — user clica no nome certo.
       return "/criancas";
+    case "care_routine_override":
+      // /dashboard existe em PWA E Native (onde mora o card/ciência da rotina).
+      return "/dashboard";
     default:
       return "/dashboard";
   }

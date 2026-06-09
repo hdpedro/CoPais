@@ -13,6 +13,8 @@ const ActivityReportModal = dynamic(() => import("@/app/(app)/atividades/Activit
 const QuickActionsModal = dynamic(() => import("@/components/QuickActionsModal"), { ssr: false });
 // ShareActivityButton removed — activities section simplified
 import CustodyActivationCard from "@/components/CustodyActivationCard";
+import RoutineTodayCard from "./RoutineTodayCard";
+import type { RoutineToday } from "@/lib/care-routine-resolve";
 import { QUICK_ACTIONS_CATALOG, DEFAULT_QUICK_ACTIONS, type QuickActionDef } from "@/lib/constants";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { formatBRL } from "@/lib/format/currency";
@@ -279,6 +281,21 @@ export interface DashboardClientProps {
   // Tile separada da saudeUnread porque essa é AÇÃO (motor), aquela é AWARENESS.
   vaccinePendingCount: number;
   vaccineNextDue: { dueDate: string; vaccineName: string } | null;
+
+  // === ROTINA DE LEVA & BUSCA (migrations 00112-00114) ===
+  // Rotina de hoje já resolvida server-side (quem leva / quem busca) + a forma
+  // da família (drives onde o card aparece) + se há rotina montada (empty-state).
+  routineToday: RoutineToday;
+  routineArrangement: "rotating" | "together" | "single" | "custom";
+  hasRoutineSlots: boolean;
+  // Trocas de hoje + ciência bilateral (Foundation collab care_routine_override).
+  routineCaregivers: { id: string; name: string }[];
+  routineAwaitingTheirAck: boolean;
+  routinePendingAck: { fromName: string; overrideIds: string[] } | null;
+  // "Buscou?" (Fase 2): status registrado por "childId:leg" hoje (done/missed).
+  routineLogsToday: Record<string, "done" | "missed">;
+  // Briefing in-app "Amanhã" (Fase 2): resumo compacto da rotina de amanhã.
+  routineTomorrowSummary: string | null;
 }
 
 /* ------------------------------------------------------------------ */
@@ -309,6 +326,14 @@ export default function DashboardClient(props: DashboardClientProps) {
     hasChildren,
     endDateLabel,
     custodyHero,
+    routineToday,
+    routineArrangement,
+    hasRoutineSlots,
+    routineCaregivers,
+    routineAwaitingTheirAck,
+    routinePendingAck,
+    routineLogsToday,
+    routineTomorrowSummary,
     // weekDays, weekCustodyMap, parentColorEntries — removed with weekStrip
     // hasHealthAlerts, activeIllnesses, activeMedications, criticalAllergies, upcomingAppointments — replaced by healthBlock
     hasTomorrowActivities,
@@ -666,6 +691,22 @@ export default function DashboardClient(props: DashboardClientProps) {
             </Link>
           )}
         </div>
+      )}
+
+      {/* === ROTINA DE LEVA & BUSCA === */}
+      {show("careRoutine") && (
+        <RoutineTodayCard
+          routineToday={routineToday}
+          arrangement={routineArrangement}
+          hasRoutineSlots={hasRoutineSlots}
+          groupId={groupId}
+          todayDate={todayDate}
+          caregivers={routineCaregivers}
+          awaitingTheirAck={routineAwaitingTheirAck}
+          pendingAck={routinePendingAck}
+          logsToday={routineLogsToday}
+          tomorrowSummary={routineTomorrowSummary}
+        />
       )}
 
       {/* === CHILDREN === */}
