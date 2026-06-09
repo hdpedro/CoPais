@@ -18,6 +18,7 @@ import { apiFetch } from 'src/lib/api-fetch';
 import { useAuth } from 'src/store/auth';
 import { listInvitations, cancelInvitation, type Invitation } from 'src/services/invitations';
 import { useCachedFetch } from 'src/lib/use-cached-fetch';
+import { reportError } from 'src/lib/error-reporter';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
 import { useI18n } from 'src/i18n';
@@ -189,10 +190,23 @@ export default function FamiliaScreen() {
           onPress: async () => {
             setActing(inv.id);
             Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-            await cancelInvitation(inv.id, activeGroup.groupId);
-            Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+            const res = await cancelInvitation(inv.id, activeGroup.groupId);
             setActing(null);
-            await load();
+            if (res.success) {
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              await load();
+            } else {
+              // Antes engolia o resultado: em falha tocava "sucesso" + recarregava
+              // sem cancelar nada e sem erro (bug Matheus 09/jun: "a tela treme e
+              // não deixa, sem mensagem"). Agora reporta + mostra o motivo.
+              Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+              reportError(new Error(`[familia] cancelInvite failed: ${res.error ?? 'unknown'}`), {
+                severity: 'warning',
+                filePath: 'app/familia/index.tsx',
+                metadata: { event: 'cancel_invite_failed', invitationId: inv.id, groupId: activeGroup.groupId, error: res.error ?? null },
+              });
+              toast.show({ message: res.error || t('toasts.common.fallbackError'), variant: 'error' });
+            }
           },
         },
       ]
