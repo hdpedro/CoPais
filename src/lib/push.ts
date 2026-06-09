@@ -713,6 +713,8 @@ export function mapTypeToCategory(type: string): string | null {
     type === "activity_followup" ||  // "aconteceu? Sim/Não/Adiar" — mesma categoria/opt-out
     type === "activity_status_update" ||
     type === "custody_change" ||  // mudança de guarda = info de agenda
+    type === "care_routine_reminder" ||  // lembrete de leva/busca (mesma natureza logística)
+    type === "care_routine_override_created" ||  // troca de leva/busca (ciência) — controlável pelo mesmo toggle
     type.startsWith("activity_reminder")
   ) return "activity_reminders";
   // Vaccine / health Foundation Collab

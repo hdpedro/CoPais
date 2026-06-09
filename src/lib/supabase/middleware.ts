@@ -210,6 +210,12 @@ export async function updateSession(request: NextRequest) {
     // bounces the multipart POST to /session-recovery and the native
     // client renders the 500 HTML in the error banner.
     "/api/ai",
+    // /api/care-routine + /api/care-routine/today — Native (Bearer) lê a rotina
+    // de leva/busca do dia e salva grade/troca. Sem este prefix, middleware
+    // bouncava pra /session-recovery → HTML 200 → apiFetch.JSON.parse falhava →
+    // r.data null ("Falha ao..."). Mesmo landmine de /api/expenses (Alexandre
+    // 2026-06-03) e /api/notifications/prefs (Henrique 2026-05-26).
+    "/api/care-routine",
   ];
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)

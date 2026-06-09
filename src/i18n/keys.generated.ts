@@ -10,6 +10,8 @@
  */
 
 export type TranslationKey =
+  | "a11y.careRoutine.cell"
+  | "a11y.careRoutine.swap"
   | "activities.allReady"
   | "activities.bagReadyFor"
   | "activities.editToAddItems"
@@ -380,6 +382,72 @@ export type TranslationKey =
   | "calendar.weekView"
   | "calendar.weekendPlanner"
   | "calendar.you"
+  | "careRoutine.activationCta"
+  | "careRoutine.activationDescription"
+  | "careRoutine.activationTitle"
+  | "careRoutine.applyAllChildren"
+  | "careRoutine.awaitingAck"
+  | "careRoutine.changedToday"
+  | "careRoutine.child"
+  | "careRoutine.confirm"
+  | "careRoutine.confirmPickup"
+  | "careRoutine.confirming"
+  | "careRoutine.didDropoff"
+  | "careRoutine.didPickup"
+  | "careRoutine.dropoff"
+  | "careRoutine.editCta"
+  | "careRoutine.free"
+  | "careRoutine.fullDay"
+  | "careRoutine.fullDayShort"
+  | "careRoutine.heroDone"
+  | "careRoutine.heroDropoff"
+  | "careRoutine.heroDropoffTo"
+  | "careRoutine.heroFullDay"
+  | "careRoutine.heroPickup"
+  | "careRoutine.heroPickupAt"
+  | "careRoutine.hideWeekend"
+  | "careRoutine.journeyCta"
+  | "careRoutine.journeyDropoff"
+  | "careRoutine.journeyEmpty"
+  | "careRoutine.journeyHome"
+  | "careRoutine.journeyPickup"
+  | "careRoutine.journeyTitle"
+  | "careRoutine.labelDropoff"
+  | "careRoutine.labelPickup"
+  | "careRoutine.labelPlaceholder"
+  | "careRoutine.metricsCounts"
+  | "careRoutine.metricsPremium"
+  | "careRoutine.metricsSubtitle"
+  | "careRoutine.metricsTitle"
+  | "careRoutine.missedShort"
+  | "careRoutine.moreOptions"
+  | "careRoutine.no"
+  | "careRoutine.pickup"
+  | "careRoutine.presetAlternateFullDay"
+  | "careRoutine.presetIDropYouPick"
+  | "careRoutine.presetYouDropIPick"
+  | "careRoutine.presetsTitle"
+  | "careRoutine.reminderBodyAt"
+  | "careRoutine.reminderDropoffTitle"
+  | "careRoutine.reminderPickupTitle"
+  | "careRoutine.save"
+  | "careRoutine.saved"
+  | "careRoutine.saving"
+  | "careRoutine.showWeekend"
+  | "careRoutine.subtitle"
+  | "careRoutine.swapError"
+  | "careRoutine.swapTodayCta"
+  | "careRoutine.swapping"
+  | "careRoutine.tapToCycle"
+  | "careRoutine.timeDropoff"
+  | "careRoutine.timePickup"
+  | "careRoutine.title"
+  | "careRoutine.todayHeading"
+  | "careRoutine.tomorrowDropoff"
+  | "careRoutine.tomorrowHeading"
+  | "careRoutine.tomorrowPickup"
+  | "careRoutine.yes"
+  | "careRoutine.you"
   | "chat.addCaption"
   | "chat.aiSuggestion"
   | "chat.allMessages"
@@ -909,6 +977,7 @@ export type TranslationKey =
   | "error.auth.user_not_found"
   | "error.auth.validation_failed"
   | "error.auth.weak_password"
+  | "error.careRoutine.saveFailed"
   | "errors.boundary.btnHome"
   | "errors.boundary.btnReport"
   | "errors.boundary.btnRetry"
@@ -2611,6 +2680,8 @@ export type TranslationKey =
 
 /** All translation keys as a readonly array. Useful for orphan checkers. */
 export const TRANSLATION_KEYS = [
+  "a11y.careRoutine.cell",
+  "a11y.careRoutine.swap",
   "activities.allReady",
   "activities.bagReadyFor",
   "activities.editToAddItems",
@@ -2981,6 +3052,72 @@ export const TRANSLATION_KEYS = [
   "calendar.weekView",
   "calendar.weekendPlanner",
   "calendar.you",
+  "careRoutine.activationCta",
+  "careRoutine.activationDescription",
+  "careRoutine.activationTitle",
+  "careRoutine.applyAllChildren",
+  "careRoutine.awaitingAck",
+  "careRoutine.changedToday",
+  "careRoutine.child",
+  "careRoutine.confirm",
+  "careRoutine.confirmPickup",
+  "careRoutine.confirming",
+  "careRoutine.didDropoff",
+  "careRoutine.didPickup",
+  "careRoutine.dropoff",
+  "careRoutine.editCta",
+  "careRoutine.free",
+  "careRoutine.fullDay",
+  "careRoutine.fullDayShort",
+  "careRoutine.heroDone",
+  "careRoutine.heroDropoff",
+  "careRoutine.heroDropoffTo",
+  "careRoutine.heroFullDay",
+  "careRoutine.heroPickup",
+  "careRoutine.heroPickupAt",
+  "careRoutine.hideWeekend",
+  "careRoutine.journeyCta",
+  "careRoutine.journeyDropoff",
+  "careRoutine.journeyEmpty",
+  "careRoutine.journeyHome",
+  "careRoutine.journeyPickup",
+  "careRoutine.journeyTitle",
+  "careRoutine.labelDropoff",
+  "careRoutine.labelPickup",
+  "careRoutine.labelPlaceholder",
+  "careRoutine.metricsCounts",
+  "careRoutine.metricsPremium",
+  "careRoutine.metricsSubtitle",
+  "careRoutine.metricsTitle",
+  "careRoutine.missedShort",
+  "careRoutine.moreOptions",
+  "careRoutine.no",
+  "careRoutine.pickup",
+  "careRoutine.presetAlternateFullDay",
+  "careRoutine.presetIDropYouPick",
+  "careRoutine.presetYouDropIPick",
+  "careRoutine.presetsTitle",
+  "careRoutine.reminderBodyAt",
+  "careRoutine.reminderDropoffTitle",
+  "careRoutine.reminderPickupTitle",
+  "careRoutine.save",
+  "careRoutine.saved",
+  "careRoutine.saving",
+  "careRoutine.showWeekend",
+  "careRoutine.subtitle",
+  "careRoutine.swapError",
+  "careRoutine.swapTodayCta",
+  "careRoutine.swapping",
+  "careRoutine.tapToCycle",
+  "careRoutine.timeDropoff",
+  "careRoutine.timePickup",
+  "careRoutine.title",
+  "careRoutine.todayHeading",
+  "careRoutine.tomorrowDropoff",
+  "careRoutine.tomorrowHeading",
+  "careRoutine.tomorrowPickup",
+  "careRoutine.yes",
+  "careRoutine.you",
   "chat.addCaption",
   "chat.aiSuggestion",
   "chat.allMessages",
@@ -3510,6 +3647,7 @@ export const TRANSLATION_KEYS = [
   "error.auth.user_not_found",
   "error.auth.validation_failed",
   "error.auth.weak_password",
+  "error.careRoutine.saveFailed",
   "errors.boundary.btnHome",
   "errors.boundary.btnReport",
   "errors.boundary.btnRetry",
