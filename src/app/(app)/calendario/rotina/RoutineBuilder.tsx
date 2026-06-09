@@ -5,7 +5,16 @@ import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/provider";
 import { DAY_NAMES, getDisplayName } from "@/lib/constants";
 import { saveRoutineGrid } from "@/actions/care-routine";
-import type { RoutineSlotRow, RoutineCellInput, CareRoutineLeg } from "@/lib/services/care-routine";
+import type { RoutineSlotRow, CareRoutineLeg } from "@/lib/services/care-routine";
+import {
+  buildRoutineCells,
+  mapCells,
+  CUSTODY,
+  type RoutineGridState,
+  type CellMap,
+  type LegState,
+  type PatternMode,
+} from "@/lib/care-routine-cells";
 
 interface Member {
   user_id: string;
@@ -24,35 +33,13 @@ interface RoutineBuilderProps {
   initialSlots: RoutineSlotRow[];
 }
 
-type LegState = string | null; // responsible_id | CUSTODY | null
-type CellMap = Record<number, { dropoff: LegState; pickup: LegState }>;
-type PatternMode = "weekly" | "custody" | "alternating";
-
-const CUSTODY = "__custody__"; // sentinela "segue a guarda" no estado da célula
 const WEEKDAYS_CORE = [1, 2, 3, 4, 5]; // Seg–Sex
 const WEEKEND = [6, 0]; // Sáb, Dom
-const LEGS: CareRoutineLeg[] = ["dropoff", "pickup"];
 
-interface ChildGrid {
-  mode: PatternMode;
-  cells: CellMap; // weekly / custody / Semana A
-  cellsB: CellMap; // Semana B (só alternating)
-  dropoffTime: string;
-  pickupTime: string;
-  dropoffLabel: string;
-  pickupLabel: string;
-}
+type ChildGrid = RoutineGridState;
 
 function emptyGrid(): ChildGrid {
   return { mode: "weekly", cells: {}, cellsB: {}, dropoffTime: "", pickupTime: "", dropoffLabel: "", pickupLabel: "" };
-}
-
-function mapCells(cells: CellMap, fn: (v: LegState) => LegState): CellMap {
-  const out: CellMap = {};
-  for (const [wd, cell] of Object.entries(cells)) {
-    out[Number(wd)] = { dropoff: fn(cell.dropoff), pickup: fn(cell.pickup) };
-  }
-  return out;
 }
 
 function gridFromSlots(slots: RoutineSlotRow[], childId: string): ChildGrid {
@@ -185,38 +172,6 @@ export default function RoutineBuilder({
     setSaved(false);
   }
 
-  function cellsToInputs(g: ChildGrid, cells: CellMap, parity: number | null): RoutineCellInput[] {
-    const out: RoutineCellInput[] = [];
-    for (const wd of days) {
-      const cell = cells[wd];
-      if (!cell) continue;
-      for (const leg of LEGS) {
-        const v = cell[leg];
-        if (!v) continue;
-        out.push({
-          weekday: wd,
-          leg,
-          responsibleId: g.mode === "custody" ? null : v,
-          patternType:
-            g.mode === "custody" ? "custody_based" : g.mode === "alternating" ? "alternating_week" : "weekly",
-          weekParity: g.mode === "alternating" ? parity : null,
-          timeOfDay: (leg === "dropoff" ? g.dropoffTime : g.pickupTime) || null,
-          label: (leg === "dropoff" ? g.dropoffLabel : g.pickupLabel) || null,
-        });
-      }
-    }
-    return out;
-  }
-
-  function buildCells(g: ChildGrid): RoutineCellInput[] {
-    // Alternating envia AS DUAS semanas (parity 0 e 1) num único save —
-    // saveRoutineGrid faz upsert + delete-missing sobre o conjunto completo.
-    if (g.mode === "alternating") {
-      return [...cellsToInputs(g, g.cells, 0), ...cellsToInputs(g, g.cellsB, 1)];
-    }
-    return cellsToInputs(g, g.cells, null);
-  }
-
   async function handleSave() {
     if (!childId) return;
     setSubmitting(true);
@@ -224,7 +179,7 @@ export default function RoutineBuilder({
     const fd = new FormData();
     fd.set("groupId", groupId);
     fd.set("childId", childId);
-    fd.set("cells", JSON.stringify(buildCells(grid)));
+    fd.set("cells", JSON.stringify(buildRoutineCells(grid, days)));
     const res = await saveRoutineGrid(fd);
     setSubmitting(false);
     if (res?.error) {
