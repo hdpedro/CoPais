@@ -11,6 +11,7 @@ import {
 import { resolveCustodyOnDate, type CustodyEvent } from "@/lib/custody-resolve";
 import { buildChildJourney, type JourneyActivity, type JourneyItem } from "@/lib/care-routine-journey";
 import JourneyTimeline from "./JourneyTimeline";
+import { getServerT, getRequestLocale } from "@/i18n/server";
 
 export default async function JornadaPage() {
   const supabase = await createClient();
@@ -24,6 +25,16 @@ export default async function JornadaPage() {
   const { groupId } = activeGroup;
   const today = getBrazilToday();
   const weekday = new Date(today + "T12:00:00").getDay();
+
+  const t = await getServerT();
+  const locale = await getRequestLocale();
+  const intlLocale =
+    ({ pt: "pt-BR", en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE" } as Record<string, string>)[locale] ?? "pt-BR";
+  const dateLabel = new Intl.DateTimeFormat(intlLocale, {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+  }).format(new Date(today + "T12:00:00"));
 
   const [{ data: children }, { data: members }, { data: slotsRaw }, { data: overridesRaw }, { data: occ }, { data: custodyRaw }] =
     await Promise.all([
@@ -95,7 +106,13 @@ export default async function JornadaPage() {
   }
 
   return (
-    <div className="max-w-lg mx-auto pb-24 px-4 pt-4 space-y-5">
+    <div className="max-w-lg mx-auto pb-24 px-4 pt-5 space-y-5">
+      <header className="px-1">
+        <h1 className="font-display text-[27px] font-semibold text-[#2A2622] tracking-tight leading-[1.1]">
+          {t("careRoutine.journeyTitle")}
+        </h1>
+        <p className="mt-0.5 text-[12.5px] text-[#9A8878]">{dateLabel}</p>
+      </header>
       {journeys.map((j) => (
         <JourneyTimeline key={j.childId} childName={j.childName} items={j.items} />
       ))}

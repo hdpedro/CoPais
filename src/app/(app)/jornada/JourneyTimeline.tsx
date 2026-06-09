@@ -26,7 +26,7 @@ export default function JourneyTimeline({ childName, items }: { childName: strin
   return (
     <div className="bg-white rounded-2xl p-4 shadow-sm">
       <div className="flex items-center justify-between mb-3">
-        <h2 className="text-sm font-bold text-dark">{childName}</h2>
+        <h2 className="font-display text-[17px] font-semibold text-[#2A2622]">{childName}</h2>
         <span className="text-[11px] uppercase tracking-wide text-muted font-medium">{t("careRoutine.journeyTitle")}</span>
       </div>
       {items.length === 0 ? (

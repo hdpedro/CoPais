@@ -54,6 +54,9 @@ export default function RoutineTodayCard({
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
+  // Feedback OTIMISTA do "Buscou?/Levou?": marca na hora (o refresh confirma).
+  // Sem isso, clicar "Sim" não dá retorno visível até o round-trip do servidor.
+  const [optimisticLogs, setOptimisticLogs] = useState<Record<string, "done" | "missed">>({});
 
   const intlLocale =
     ({ pt: "pt-BR", en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE" } as Record<string, string>)[locale] ?? "pt-BR";
@@ -101,6 +104,13 @@ export default function RoutineTodayCard({
 
   function handleLog(childIds: string[], leg: Leg, status: "done" | "missed") {
     setError("");
+    const keys = childIds.map((c) => `${c}:${leg}`);
+    // Otimista: o status aparece IMEDIATAMENTE no clique.
+    setOptimisticLogs((prev) => {
+      const next = { ...prev };
+      keys.forEach((k) => (next[k] = status));
+      return next;
+    });
     startTransition(async () => {
       for (const childId of childIds) {
         const fd = new FormData();
@@ -111,6 +121,12 @@ export default function RoutineTodayCard({
         fd.set("status", status);
         const res = await recordRoutineLog(fd);
         if (res?.error) {
+          // Reverte o otimista e mostra o erro.
+          setOptimisticLogs((prev) => {
+            const next = { ...prev };
+            keys.forEach((k) => delete next[k]);
+            return next;
+          });
           setError(typeof res.error === "string" ? res.error : t("careRoutine.swapError"));
           return;
         }
@@ -127,7 +143,7 @@ export default function RoutineTodayCard({
     return h * 60 + (m || 0) <= nowMin;
   };
   const aggStatus = (childIds: string[], leg: Leg): "done" | "missed" | "none" => {
-    const ss = childIds.map((c) => logsToday[`${c}:${leg}`]);
+    const ss = childIds.map((c) => optimisticLogs[`${c}:${leg}`] ?? logsToday[`${c}:${leg}`]);
     if (ss.length > 0 && ss.every((s) => s === "done")) return "done";
     if (ss.length > 0 && ss.every((s) => s === "missed")) return "missed";
     return "none";
