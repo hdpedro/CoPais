@@ -450,7 +450,7 @@ export default function DashboardClient(props: DashboardClientProps) {
   const show = (id: string) => visibleSet.has(id);
 
   return (
-    <div className="space-y-5 pb-4">
+    <div className="space-y-6 pb-4">
 
       {/* === GREETING (always visible) — editorial premium (Cormorant) === */}
       <div className="pt-1">
@@ -755,7 +755,7 @@ export default function DashboardClient(props: DashboardClientProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full ${colors.dot}`} />
-                        <p className="text-[13px] font-semibold text-[#2C2C2C]">{child.childName}</p>
+                        <p className="font-display text-[15px] font-semibold text-[#2A2622]">{child.childName}</p>
                         <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded-full ${colors.bg} ${colors.text} ml-auto`}>
                           {child.statusLabel}
                         </span>
