@@ -694,7 +694,10 @@
       "cancelled": "hat storniert",
       "reopened": "hat erneut geöffnet",
       "restored": "hat Stornierung abgelehnt"
-    }
+    },
+    "awaitingApprovalHint": "Wartet auf die Genehmigung des Mitelternteils",
+    "howItWorksTitle": "Wie Ausgaben funktionieren",
+    "howItWorksBody": "1. Jeder Elternteil trägt ein, was er bezahlt hat.\n2. Der andere genehmigt oder lehnt ab.\n3. Der Saldo zeigt, wer wem schuldet.\n4. Den Ausgleich klärt ihr untereinander."
   },
   "health": {
     "title": "Gesundheit",

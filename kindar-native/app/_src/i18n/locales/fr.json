@@ -694,7 +694,10 @@
       "cancelled": "a annulé",
       "reopened": "a rouvert",
       "restored": "a refusé l'annulation"
-    }
+    },
+    "awaitingApprovalHint": "En attente de l'approbation du coparent",
+    "howItWorksTitle": "Comment fonctionnent les dépenses",
+    "howItWorksBody": "1. Chaque parent enregistre ce qu'il a payé.\n2. L'autre approuve ou rejette.\n3. Le solde indique qui doit à qui.\n4. Le règlement se fait entre vous."
   },
   "health": {
     "title": "Santé",
