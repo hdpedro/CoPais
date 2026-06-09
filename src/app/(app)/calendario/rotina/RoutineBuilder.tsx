@@ -9,6 +9,7 @@ import type { RoutineSlotRow, CareRoutineLeg } from "@/lib/services/care-routine
 import {
   buildRoutineCells,
   mapCells,
+  isCellMapEmpty,
   CUSTODY,
   type RoutineGridState,
   type CellMap,
@@ -309,18 +310,22 @@ export default function RoutineBuilder({
         {/* Toggle Semana A/B (só alternating) */}
         {grid.mode === "alternating" && (
           <div className="flex gap-1.5 bg-gray-100 rounded-lg p-1 mb-4">
-            {(["A", "B"] as const).map((w) => (
-              <button
-                key={w}
-                type="button"
-                onClick={() => setActiveWeek(w)}
-                className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
-                  activeWeek === w ? "bg-white text-dark shadow-sm" : "text-muted hover:text-dark"
-                }`}
-              >
-                {w === "A" ? t("careRoutine.weekA") : t("careRoutine.weekB")}
-              </button>
-            ))}
+            {(["A", "B"] as const).map((w) => {
+              const empty = isCellMapEmpty(w === "A" ? grid.cells : grid.cellsB);
+              return (
+                <button
+                  key={w}
+                  type="button"
+                  onClick={() => setActiveWeek(w)}
+                  className={`flex-1 py-1.5 text-xs font-semibold rounded-md transition-colors ${
+                    activeWeek === w ? "bg-white text-dark shadow-sm" : "text-muted hover:text-dark"
+                  }`}
+                >
+                  {w === "A" ? t("careRoutine.weekA") : t("careRoutine.weekB")}
+                  {empty && <span className="text-amber-600 font-normal"> {t("careRoutine.weekEmptyTag")}</span>}
+                </button>
+              );
+            })}
           </div>
         )}
 

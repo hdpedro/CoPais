@@ -4592,7 +4592,8 @@
     "weekA": "Week A",
     "weekB": "Week B",
     "followsGuard": "custody",
-    "tapToToggle": "Tap to mark the days with drop-off/pick-up."
+    "tapToToggle": "Tap to mark the days with drop-off/pick-up.",
+    "weekEmptyTag": "(empty)"
   },
   "a11y": {
     "careRoutine": {

@@ -4592,7 +4592,8 @@
     "weekA": "Semana A",
     "weekB": "Semana B",
     "followsGuard": "custodia",
-    "tapToToggle": "Toca para marcar los días con llevada/recogida."
+    "tapToToggle": "Toca para marcar los días con llevada/recogida.",
+    "weekEmptyTag": "(vacía)"
   },
   "a11y": {
     "careRoutine": {

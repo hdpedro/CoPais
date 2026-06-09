@@ -456,6 +456,7 @@ export type TranslationKey =
   | "careRoutine.tomorrowPickup"
   | "careRoutine.weekA"
   | "careRoutine.weekB"
+  | "careRoutine.weekEmptyTag"
   | "careRoutine.yes"
   | "careRoutine.you"
   | "chat.addCaption"
@@ -3136,6 +3137,7 @@ export const TRANSLATION_KEYS = [
   "careRoutine.tomorrowPickup",
   "careRoutine.weekA",
   "careRoutine.weekB",
+  "careRoutine.weekEmptyTag",
   "careRoutine.yes",
   "careRoutine.you",
   "chat.addCaption",

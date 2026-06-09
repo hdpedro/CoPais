@@ -4,7 +4,7 @@
  */
 
 import { describe, it, expect } from "vitest";
-import { buildRoutineCells, mapCells, CUSTODY, type RoutineGridState, type CellMap } from "@/lib/care-routine-cells";
+import { buildRoutineCells, mapCells, isCellMapEmpty, CUSTODY, type RoutineGridState, type CellMap } from "@/lib/care-routine-cells";
 
 const DAYS = [1, 2, 3, 4, 5];
 
@@ -101,6 +101,21 @@ describe("buildRoutineCells — alternating", () => {
 describe("buildRoutineCells — vazio", () => {
   it("grade vazia → []", () => {
     expect(buildRoutineCells(grid(), DAYS)).toHaveLength(0);
+  });
+});
+
+describe("isCellMapEmpty", () => {
+  it("grade vazia → true", () => {
+    expect(isCellMapEmpty({})).toBe(true);
+  });
+  it("células sem perna preenchida → true", () => {
+    expect(isCellMapEmpty({ 1: { dropoff: null, pickup: null } })).toBe(true);
+  });
+  it("uma perna preenchida → false", () => {
+    expect(isCellMapEmpty({ 1: { dropoff: "fernanda", pickup: null } })).toBe(false);
+  });
+  it("sentinela custody conta como preenchida → false", () => {
+    expect(isCellMapEmpty({ 2: { dropoff: CUSTODY, pickup: null } })).toBe(false);
   });
 });
 
