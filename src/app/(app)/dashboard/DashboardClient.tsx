@@ -144,6 +144,7 @@ interface ChildCard {
   fullName: string;
   firstName: string;
   initial: string;
+  photoUrl: string | null;
   age: number;
   birthLabel: string; // "Mar/2020"
   custodyInfo: { responsibleName: string; isWithMe: boolean } | null;
@@ -728,13 +729,9 @@ export default function DashboardClient(props: DashboardClientProps) {
             <Link key={child.id} href={`/criancas/${child.id}`} prefetch={false} className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80">
               {/* Header */}
               <div className="flex items-center gap-3 mb-3">
-                <div className="w-12 h-12 bg-[#FFF3E0] rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-[22px] font-bold text-[#D4735A]">
-                    {child.initial}
-                  </span>
-                </div>
+                <ChildAvatarWeb photoUrl={child.photoUrl} firstName={child.firstName} size={48} />
                 <div>
-                  <p className="font-bold text-[#2C2C2C] text-[15px]">{child.firstName}</p>
+                  <p className="font-display font-semibold text-[#2A2622] text-[18px] leading-tight">{child.firstName}</p>
                   <p className="text-[11px] text-[#9CA3AF]">
                     {child.age} {child.age === 1 ? t("dashboard.yearOld") : t("dashboard.yearsOld")} &middot; {t("dashboard.bornIn")} {child.birthLabel}
                   </p>

@@ -1238,6 +1238,8 @@ export default async function DashboardPage() {
       fullName: child.full_name || "",
       firstName: child.full_name?.split(" ")[0] || "",
       initial: child.full_name?.charAt(0).toUpperCase() || "",
+      // Rostos no painel (premium): reusa a foto JÁ assinada em childHealthSummaries.
+      photoUrl: childHealthSummaries.find((s) => s.childId === child.id)?.childPhotoUrl ?? null,
       age,
       birthLabel: `${birthMonthNames[birthDate.getMonth()]}/${birthDate.getFullYear()}`,
       custodyInfo: custody ? { responsibleName: custody.responsibleName, isWithMe: custody.isWithMe } : null,
