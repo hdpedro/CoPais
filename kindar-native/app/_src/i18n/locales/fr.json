@@ -4620,5 +4620,23 @@
     "careRoutine": {
       "saveFailed": "Impossible d'enregistrer la routine. Réessayez."
     }
+  },
+  "briefing": {
+    "attentionTitle": "Votre attention",
+    "calmTitle": "Une journée tranquille",
+    "calmSubtitle": "Rien ne vous attend aujourd'hui. Profitez-en.",
+    "swap": "{count, plural, one {{name} a demandé un échange} other {# demandes d'échange}}",
+    "routineAckTheirs": "{name} a modifié la routine d'aujourd'hui",
+    "routineAckMine": "En attente que l'autre voie votre changement",
+    "pendingReport": "{count, plural, one {Ça a eu lieu ? {activity} de {child}} other {# activités en attente de votre retour}}",
+    "pendingExpense": "{count, plural, one {1 dépense à approuver} other {# dépenses à approuver}}",
+    "pendingDecision": "{count, plural, one {1 décision à voter} other {# décisions à voter}}",
+    "schoolNew": "{count, plural, one {1 nouveauté de l'école} other {# nouveautés de l'école}}",
+    "expensesNew": "{count, plural, one {1 nouveauté côté dépenses} other {# nouveautés côté dépenses}}",
+    "saudeNew": "{count, plural, one {1 nouveauté santé} other {# nouveautés santé}}",
+    "vaccineCalm": "Santé préventive · quelques rappels à consulter",
+    "ctaView": "Voir",
+    "ctaReport": "Signaler",
+    "ctaVote": "Voter"
   }
 }
