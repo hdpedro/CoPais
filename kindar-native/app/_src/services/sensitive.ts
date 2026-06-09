@@ -8,17 +8,8 @@ import { supabase } from '../lib/supabase';
 import { apiFetch } from '../lib/api-fetch';
 import { notifyAction } from './notify';
 
-export type SensitiveTopic =
-  | 'consumo'
-  | 'bullying'
-  | 'conflito'
-  | 'saude_mental'
-  | 'sexualidade'
-  | 'morte_luto'
-  | 'divorcio'
-  | 'abuso'
-  | 'escola'
-  | 'outro';
+export { SENSITIVE_TOPICS, type SensitiveTopic } from '../lib/sensitive-topics';
+import type { SensitiveTopic } from '../lib/sensitive-topics';
 
 export interface SensitiveNote {
   id: string;

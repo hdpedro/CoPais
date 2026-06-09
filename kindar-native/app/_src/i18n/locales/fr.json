@@ -694,7 +694,10 @@
       "cancelled": "a annulé",
       "reopened": "a rouvert",
       "restored": "a refusé l'annulation"
-    }
+    },
+    "awaitingApprovalHint": "En attente de l'approbation du coparent",
+    "howItWorksTitle": "Comment fonctionnent les dépenses",
+    "howItWorksBody": "1. Chaque parent enregistre ce qu'il a payé.\n2. L'autre approuve ou rejette.\n3. Le solde indique qui doit à qui.\n4. Le règlement se fait entre vous."
   },
   "health": {
     "title": "Santé",
@@ -2966,7 +2969,9 @@
     },
     "growth": {
       "weightOutOfRange": "Poids hors de la plage attendue — confirmez la valeur",
-      "heightOutOfRange": "Taille hors de la plage attendue — confirmez en cm"
+      "heightOutOfRange": "Taille hors de la plage attendue — confirmez en cm",
+      "weightImpossibleForAge": "Poids impossible pour cet âge. Vérifiez — on confond parfois les kilos et les grammes.",
+      "heightImpossibleForAge": "Taille impossible pour cet âge. Vérifiez la valeur."
     },
     "emergency": {
       "tokenMissing": "Cet enfant n'a pas encore de jeton d'urgence. Générez-le sur la version web."
@@ -3490,7 +3495,11 @@
     "confirmDoseA11y": "Confirmer la dose de {name}",
     "confirmDose": "Confirmer la dose",
     "finishA11y": "Terminer {name}",
-    "recentDosesLogged": "Dernières doses enregistrées"
+    "recentDosesLogged": "Dernières doses enregistrées",
+    "editingBadge": "Modification",
+    "saveChanges": "Enregistrer les modifications",
+    "editA11y": "Modifier {name}",
+    "actionsHint": "Confirmez chaque dose donnée. Terminez à la fin du traitement."
   },
   "healthRegister": {
     "title": "Enregistrer un événement",
@@ -3561,7 +3570,11 @@
     "topicDivorce": "Divorce",
     "topicAbuse": "Abus",
     "topicSchool": "École",
-    "topicOther": "Autre"
+    "topicOther": "Autre",
+    "topicGenderViolence": "Violence de Genre",
+    "topicSexualViolence": "Violence Sexuelle",
+    "topicSubstanceAbuse": "Usage de Substances",
+    "topicSafety": "Sécurité"
   },
   "healthExport": {
     "screenTitle": "Export santé",

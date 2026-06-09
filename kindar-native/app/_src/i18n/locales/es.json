@@ -694,7 +694,10 @@
       "cancelled": "canceló",
       "reopened": "reabrió",
       "restored": "rechazó la cancelación"
-    }
+    },
+    "awaitingApprovalHint": "Esperando que el corresponsable apruebe",
+    "howItWorksTitle": "Cómo funcionan los gastos",
+    "howItWorksBody": "1. Cada responsable registra lo que pagó.\n2. El otro aprueba o rechaza.\n3. El saldo muestra quién le debe a quién.\n4. El ajuste se acuerda entre ustedes."
   },
   "health": {
     "title": "Salud",
@@ -2966,7 +2969,9 @@
     },
     "growth": {
       "weightOutOfRange": "Peso fuera del rango esperado — confirma el valor",
-      "heightOutOfRange": "Altura fuera del rango esperado — confirma el valor en cm"
+      "heightOutOfRange": "Altura fuera del rango esperado — confirma el valor en cm",
+      "weightImpossibleForAge": "Peso imposible para la edad. Revisa — a veces se confunden los kilos con los gramos.",
+      "heightImpossibleForAge": "Altura imposible para la edad. Revisa el valor."
     },
     "emergency": {
       "tokenMissing": "Este niño aún no tiene token de emergencia. Genéralo en la versión web."
@@ -3490,7 +3495,11 @@
     "confirmDoseA11y": "Confirmar dosis de {name}",
     "confirmDose": "Confirmar dosis",
     "finishA11y": "Finalizar {name}",
-    "recentDosesLogged": "Últimas dosis registradas"
+    "recentDosesLogged": "Últimas dosis registradas",
+    "editingBadge": "Editando",
+    "saveChanges": "Guardar cambios",
+    "editA11y": "Editar {name}",
+    "actionsHint": "Confirma cada dosis dada. Finaliza cuando termine el tratamiento."
   },
   "healthRegister": {
     "title": "Registrar evento",
@@ -3561,7 +3570,11 @@
     "topicDivorce": "Divorcio",
     "topicAbuse": "Abuso",
     "topicSchool": "Escuela",
-    "topicOther": "Otro"
+    "topicOther": "Otro",
+    "topicGenderViolence": "Violencia de Género",
+    "topicSexualViolence": "Violencia Sexual",
+    "topicSubstanceAbuse": "Uso de Sustancias",
+    "topicSafety": "Seguridad"
   },
   "healthExport": {
     "screenTitle": "Exportar salud",

@@ -694,7 +694,10 @@
       "cancelled": "cancelou",
       "reopened": "reabriu",
       "restored": "negou cancelamento"
-    }
+    },
+    "awaitingApprovalHint": "Aguardando o co-responsável aprovar",
+    "howItWorksTitle": "Como funcionam as despesas",
+    "howItWorksBody": "1. Cada responsável registra o que pagou.\n2. O outro aprova ou rejeita.\n3. O saldo mostra quem deve a quem.\n4. O acerto é combinado entre vocês (PIX, transferência)."
   },
   "health": {
     "title": "Saúde",
@@ -2966,7 +2969,9 @@
     },
     "growth": {
       "weightOutOfRange": "Peso fora do esperado — confirme o valor",
-      "heightOutOfRange": "Altura fora do esperado — confirme o valor em cm"
+      "heightOutOfRange": "Altura fora do esperado — confirme o valor em cm",
+      "weightImpossibleForAge": "Peso impossível para a idade. Confira — às vezes confunde-se quilos com gramas.",
+      "heightImpossibleForAge": "Altura impossível para a idade. Confira o valor."
     },
     "emergency": {
       "tokenMissing": "Esta criança ainda não tem token de emergência. Gere um na versão web."
@@ -3490,7 +3495,11 @@
     "confirmDoseA11y": "Confirmar dose de {name}",
     "confirmDose": "Confirmar dose",
     "finishA11y": "Finalizar {name}",
-    "recentDosesLogged": "Últimas doses registradas"
+    "recentDosesLogged": "Últimas doses registradas",
+    "editingBadge": "Editando",
+    "saveChanges": "Salvar alterações",
+    "editA11y": "Editar {name}",
+    "actionsHint": "Confirme a cada dose dada. Finalize quando o tratamento acabar."
   },
   "healthRegister": {
     "title": "Registrar evento",
@@ -3561,7 +3570,11 @@
     "topicDivorce": "Divórcio",
     "topicAbuse": "Abuso",
     "topicSchool": "Escola",
-    "topicOther": "Outro"
+    "topicOther": "Outro",
+    "topicGenderViolence": "Violência de Gênero",
+    "topicSexualViolence": "Violência Sexual",
+    "topicSubstanceAbuse": "Uso de Substâncias",
+    "topicSafety": "Segurança"
   },
   "healthExport": {
     "screenTitle": "Export de saúde",

@@ -694,7 +694,10 @@
       "cancelled": "cancelled",
       "reopened": "reopened",
       "restored": "denied cancellation"
-    }
+    },
+    "awaitingApprovalHint": "Waiting for the co-parent to approve",
+    "howItWorksTitle": "How expenses work",
+    "howItWorksBody": "1. Each parent logs what they paid.\n2. The other approves or rejects.\n3. The balance shows who owes whom.\n4. You settle up between yourselves."
   },
   "health": {
     "title": "Health",
@@ -2966,7 +2969,9 @@
     },
     "growth": {
       "weightOutOfRange": "Weight out of expected range — please confirm",
-      "heightOutOfRange": "Height out of expected range — confirm the value in cm"
+      "heightOutOfRange": "Height out of expected range — confirm the value in cm",
+      "weightImpossibleForAge": "Weight impossible for this age. Please double-check — sometimes kg gets confused with grams.",
+      "heightImpossibleForAge": "Height impossible for this age. Please check the value."
     },
     "emergency": {
       "tokenMissing": "This child has no emergency token yet. Generate one on the web app."
@@ -3490,7 +3495,11 @@
     "confirmDoseA11y": "Confirm dose of {name}",
     "confirmDose": "Confirm dose",
     "finishA11y": "Finish {name}",
-    "recentDosesLogged": "Recent doses logged"
+    "recentDosesLogged": "Recent doses logged",
+    "editingBadge": "Editing",
+    "saveChanges": "Save changes",
+    "editA11y": "Edit {name}",
+    "actionsHint": "Confirm each dose given. Finish when the treatment is over."
   },
   "healthRegister": {
     "title": "Log event",
@@ -3561,7 +3570,11 @@
     "topicDivorce": "Divorce",
     "topicAbuse": "Abuse",
     "topicSchool": "School",
-    "topicOther": "Other"
+    "topicOther": "Other",
+    "topicGenderViolence": "Gender Violence",
+    "topicSexualViolence": "Sexual Violence",
+    "topicSubstanceAbuse": "Substance Abuse",
+    "topicSafety": "Safety"
   },
   "healthExport": {
     "screenTitle": "Health export",

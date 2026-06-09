@@ -12,7 +12,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import {
   View, Text, SectionList, TouchableOpacity, RefreshControl, ActivityIndicator,
-  Modal, Image, Pressable, TextInput, ScrollView,
+  Modal, Image, Pressable, TextInput, ScrollView, Alert,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -454,6 +454,17 @@ export default function DespesasScreen() {
           </View>
         )}
 
+        {/* Própria + pendente: explica que está aguardando o co-responsável.
+            Feedback Jeniffer 08/jun ("como faço para pagar?"): a despesa que ela
+            criou ficava "Pendente" sem nenhum sinal de que esperava a aprovação
+            do outro (o botão Aprovar/Rejeitar só aparece pra quem RECEBE). */}
+        {isOwn && item.status === 'pending' && (
+          <View style={{ marginTop: spacing.sm, flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: 12 }}>⏳</Text>
+            <Text style={{ fontSize: 11, color: colors.textMuted, flex: 1 }}>{t('expenses.awaitingApprovalHint')}</Text>
+          </View>
+        )}
+
         {/* Cancel response */}
         {canRespondCancel && (
           <TouchableOpacity
@@ -520,9 +531,19 @@ export default function DespesasScreen() {
     <View style={{ marginBottom: spacing.lg }}>
       <View style={{ backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.xl, ...shadows.md }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-          <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
-            {t('expenses.myBalance')}
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+            <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1 }}>
+              {t('expenses.myBalance')}
+            </Text>
+            <TouchableOpacity
+              onPress={() => Alert.alert(t('expenses.howItWorksTitle'), t('expenses.howItWorksBody'))}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={t('expenses.howItWorksTitle')}
+            >
+              <Ionicons name="help-circle-outline" size={16} color={colors.textMuted} />
+            </TouchableOpacity>
+          </View>
           {unreadCount > 0 && (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
               <View style={{ backgroundColor: colors.brand, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>

@@ -694,7 +694,10 @@
       "cancelled": "hat storniert",
       "reopened": "hat erneut geöffnet",
       "restored": "hat Stornierung abgelehnt"
-    }
+    },
+    "awaitingApprovalHint": "Wartet auf die Genehmigung des Mitelternteils",
+    "howItWorksTitle": "Wie Ausgaben funktionieren",
+    "howItWorksBody": "1. Jeder Elternteil trägt ein, was er bezahlt hat.\n2. Der andere genehmigt oder lehnt ab.\n3. Der Saldo zeigt, wer wem schuldet.\n4. Den Ausgleich klärt ihr untereinander."
   },
   "health": {
     "title": "Gesundheit",
@@ -2966,7 +2969,9 @@
     },
     "growth": {
       "weightOutOfRange": "Gewicht außerhalb des erwarteten Bereichs — bitte prüfen",
-      "heightOutOfRange": "Größe außerhalb des erwarteten Bereichs — bitte in cm prüfen"
+      "heightOutOfRange": "Größe außerhalb des erwarteten Bereichs — bitte in cm prüfen",
+      "weightImpossibleForAge": "Gewicht für dieses Alter unmöglich. Bitte prüfen — manchmal werden Kilo mit Gramm verwechselt.",
+      "heightImpossibleForAge": "Größe für dieses Alter unmöglich. Bitte prüfen Sie den Wert."
     },
     "emergency": {
       "tokenMissing": "Dieses Kind hat noch keinen Notfall-Token. Erstelle einen in der Web-App."
@@ -3490,7 +3495,11 @@
     "confirmDoseA11y": "Dosis von {name} bestätigen",
     "confirmDose": "Dosis bestätigen",
     "finishA11y": "{name} beenden",
-    "recentDosesLogged": "Zuletzt erfasste Dosen"
+    "recentDosesLogged": "Zuletzt erfasste Dosen",
+    "editingBadge": "Bearbeiten",
+    "saveChanges": "Änderungen speichern",
+    "editA11y": "{name} bearbeiten",
+    "actionsHint": "Bestätige jede gegebene Dosis. Beende, wenn die Behandlung vorbei ist."
   },
   "healthRegister": {
     "title": "Ereignis erfassen",
@@ -3561,7 +3570,11 @@
     "topicDivorce": "Scheidung",
     "topicAbuse": "Missbrauch",
     "topicSchool": "Schule",
-    "topicOther": "Sonstiges"
+    "topicOther": "Sonstiges",
+    "topicGenderViolence": "Geschlechtsspezifische Gewalt",
+    "topicSexualViolence": "Sexuelle Gewalt",
+    "topicSubstanceAbuse": "Substanzmissbrauch",
+    "topicSafety": "Sicherheit"
   },
   "healthExport": {
     "screenTitle": "Gesundheitsexport",
