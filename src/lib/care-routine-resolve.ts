@@ -100,15 +100,6 @@ export function weekParityOf(dateKey: string): number {
   return ((weeks % 2) + 2) % 2;
 }
 
-/**
- * Regra de CONSISTÊNCIA arrangement ↔ custódia: quem reveza a guarda
- * (rotating/custom) usa as features de guarda; quem mora junto ou cuida sozinho
- * (together/single) não. O seletor de forma da família grava os dois juntos.
- */
-export function custodyEnabledForArrangement(arrangement: string): boolean {
-  return arrangement === "rotating" || arrangement === "custom";
-}
-
 /** Se o slot se aplica numa data, considerando o pattern_type. */
 function slotAppliesOn(slot: RoutineSlot, dateKey: string): boolean {
   switch (slot.pattern_type) {

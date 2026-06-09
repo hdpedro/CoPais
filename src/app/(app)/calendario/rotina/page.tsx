@@ -68,7 +68,7 @@ export default async function RoutinePage() {
   const monthLabel = new Intl.DateTimeFormat(bcp47, { month: "long", year: "numeric" }).format(
     new Date(todayStr + "T12:00:00"),
   );
-  const [{ data: monthLogs }, { data: monthOverrides }, subscription, { data: groupRow }] = await Promise.all([
+  const [{ data: monthLogs }, { data: monthOverrides }, subscription] = await Promise.all([
     supabase
       .from("care_routine_logs")
       .select("child_id, occurrence_date, leg, status")
@@ -82,13 +82,7 @@ export default async function RoutinePage() {
       .gte("occurrence_date", monthStart)
       .lte("occurrence_date", todayStr),
     getGroupSubscription(supabase, groupId),
-    supabase.from("coparenting_groups").select("arrangement").eq("id", groupId).maybeSingle(),
   ]);
-  const arrangement = ((groupRow?.arrangement as string) ?? "rotating") as
-    | "rotating"
-    | "together"
-    | "single"
-    | "custom";
   const metricRows = computeCorresponsibility(
     (slots || []) as unknown as RoutineSlot[],
     (monthOverrides || []) as unknown as RoutineOverride[],
@@ -107,7 +101,6 @@ export default async function RoutinePage() {
         members={membersList}
         currentUserId={user.id}
         initialSlots={(slots || []) as unknown as RoutineSlotRow[]}
-        currentArrangement={arrangement}
       />
       <CorresponsibilityCard rows={metricRows} premium={routinePremium} monthLabel={monthLabel} />
     </div>

@@ -10,7 +10,6 @@ import { describe, it, expect } from "vitest";
 import {
   weekdayOf,
   weekParityOf,
-  custodyEnabledForArrangement,
   resolveLegOnDate,
   resolveRoutineOnDate,
   buildRoutineToday,
@@ -181,20 +180,6 @@ describe("alternating_week (semana A/B)", () => {
   it("week_parity null → vale toda semana", () => {
     const s = [slot({ weekday: 1, leg: "dropoff", pattern_type: "alternating_week", week_parity: null })];
     expect(resolveLegOnDate(s, [], "c1", MON, "dropoff")?.responsibleId).toBe("fernanda");
-  });
-});
-
-describe("custodyEnabledForArrangement (consistência arrangement↔custódia)", () => {
-  it("rotating e custom usam custódia", () => {
-    expect(custodyEnabledForArrangement("rotating")).toBe(true);
-    expect(custodyEnabledForArrangement("custom")).toBe(true);
-  });
-  it("together e single NÃO usam custódia", () => {
-    expect(custodyEnabledForArrangement("together")).toBe(false);
-    expect(custodyEnabledForArrangement("single")).toBe(false);
-  });
-  it("valor desconhecido → false (conservador)", () => {
-    expect(custodyEnabledForArrangement("qualquer")).toBe(false);
   });
 });
 
