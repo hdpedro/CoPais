@@ -15,6 +15,8 @@ const QuickActionsModal = dynamic(() => import("@/components/QuickActionsModal")
 import CustodyActivationCard from "@/components/CustodyActivationCard";
 import RoutineTodayCard from "./RoutineTodayCard";
 import type { RoutineToday } from "@/lib/care-routine-resolve";
+import BriefingAttention from "./BriefingAttention";
+import type { AttentionItem } from "@/lib/briefing";
 import { QUICK_ACTIONS_CATALOG, DEFAULT_QUICK_ACTIONS, type QuickActionDef } from "@/lib/constants";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 import { formatBRL } from "@/lib/format/currency";
@@ -296,6 +298,8 @@ export interface DashboardClientProps {
   routineLogsToday: Record<string, "done" | "missed">;
   // Briefing in-app "Amanhã" (Fase 2): resumo compacto da rotina de amanhã.
   routineTomorrowSummary: string | null;
+  // Briefing v2.0 — "Sua Atenção": régua já priorizada no server (composeAttention).
+  briefingAttention: AttentionItem[];
 }
 
 /* ------------------------------------------------------------------ */
@@ -334,6 +338,7 @@ export default function DashboardClient(props: DashboardClientProps) {
     routinePendingAck,
     routineLogsToday,
     routineTomorrowSummary,
+    briefingAttention,
     // weekDays, weekCustodyMap, parentColorEntries — removed with weekStrip
     // hasHealthAlerts, activeIllnesses, activeMedications, criticalAllergies, upcomingAppointments — replaced by healthBlock
     hasTomorrowActivities,
@@ -708,6 +713,13 @@ export default function DashboardClient(props: DashboardClientProps) {
           tomorrowSummary={routineTomorrowSummary}
         />
       )}
+
+      {/* === SUA ATENÇÃO (Briefing v2.0) — régua UNIFICADA ===
+           Consolida o que antes vivia em 6 seções soltas (novidades de
+           escola/despesa/saúde, despesas a aprovar, votos, relatos pendentes e
+           reforços de vacina). Ungated (como o tile de vacina): aparece sempre
+           que há item; ordem priorizada pelo motor (src/lib/briefing.ts). */}
+      {briefingAttention.length > 0 && <BriefingAttention items={briefingAttention} />}
 
       {/* === CHILDREN === */}
       {show("childCards") && childCards.length > 0 && (
