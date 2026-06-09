@@ -4595,7 +4595,12 @@
     "tapToToggle": "Toca para marcar los días con llevada/recogida.",
     "weekEmptyTag": "(vacía)",
     "briefingPushTitle": "🌅 Mañana",
-    "briefingGap": "¿Quién recoge mañana?"
+    "briefingGap": "¿Quién recoge mañana?",
+    "familyFormTitle": "¿Cómo es la custodia en tu familia?",
+    "familyRotating": "Estamos separados y nos turnamos la custodia",
+    "familyTogether": "Vivimos juntos",
+    "familySingle": "Soy el único responsable",
+    "familyFormHint": "Esto ajusta el inicio de la app: si se turnan, muestra de quién es el turno; juntos o solo, solo la rutina de llevar y recoger."
   },
   "a11y": {
     "careRoutine": {

@@ -1255,11 +1255,16 @@ export default async function DashboardPage() {
 
   const sectionPriorities: { id: SectionId; priority: number; hasData: boolean }[] = [
     { id: "swapAlerts", priority: 1, hasData: custodyEnabled && hasCustody && pendingSwapsProps.length > 0 },
-    { id: "hero", priority: 2, hasData: true }, // always show
+    // Herói de GUARDA só p/ quem reveza (rotating/custom). together/single → a
+    // rotina de leva/busca vira o herói (sem "próxima troca"/"consecutivos").
+    { id: "hero", priority: 2, hasData: routineArrangement === "rotating" || routineArrangement === "custom" },
     // Rotina de Leva & Busca: logo abaixo do herói. Aparece quando há rotina
     // montada OU quando a família é intacta/solo (arrangement ≠ rotating) com
     // filhos — aí mostra o empty-state que ensina/leva pro editor.
-    { id: "careRoutine", priority: 2.5, hasData: hasRoutineSlots || (routineArrangement !== "rotating" && (children?.length || 0) > 0) },
+    // Mostra p/ QUALQUER família com filhos: rotina montada OU empty-state que
+    // ensina + leva pro editor (onde fica o seletor "Como é a guarda?"). Isso
+    // é o que torna a forma da família descobrível e trocável.
+    { id: "careRoutine", priority: 2.5, hasData: hasRoutineSlots || (children?.length || 0) > 0 },
     { id: "childCards", priority: 3, hasData: (children?.length || 0) > 0 },
     { id: "healthBlock", priority: 4, hasData: childHealthSummaries.length > 0 },
     { id: "activities", priority: 5, hasData: hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities },
@@ -1282,7 +1287,8 @@ export default async function DashboardPage() {
     { id: "financial", priority: 10, hasData: true },
     { id: "quickActions", priority: 11, hasData: !isReadonly },
     { id: "invite", priority: 12, hasData: (members?.length || 0) < 2 },
-    { id: "custodyActivation", priority: 13, hasData: !custodyEnabled && (members?.length || 0) >= 2 },
+    // Não prompta "ative a guarda" p/ quem mora junto / cuida sozinho.
+    { id: "custodyActivation", priority: 13, hasData: !custodyEnabled && (members?.length || 0) >= 2 && (routineArrangement === "rotating" || routineArrangement === "custom") },
   ];
 
   // Filter to sections with data, sort by priority
