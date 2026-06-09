@@ -4595,12 +4595,7 @@
     "tapToToggle": "Tippe, um die Tage mit Bringen/Abholen zu markieren.",
     "weekEmptyTag": "(leer)",
     "briefingPushTitle": "🌅 Morgen",
-    "briefingGap": "Wer holt morgen ab?",
-    "familyFormTitle": "Wie ist das Sorgerecht in deiner Familie?",
-    "familyRotating": "Wir sind getrennt und wechseln uns ab",
-    "familyTogether": "Wir wohnen zusammen",
-    "familySingle": "Ich bin allein verantwortlich",
-    "familyFormHint": "Das passt den App-Start an: beim Wechsel sieht man, wer dran ist; zusammen oder allein nur die Bring- und Abholroutine."
+    "briefingGap": "Wer holt morgen ab?"
   },
   "a11y": {
     "careRoutine": {

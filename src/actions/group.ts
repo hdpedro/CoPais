@@ -8,7 +8,6 @@ import { grantTrialIfEligible } from "@/lib/billing";
 import { getAttribution, attributionEventProps } from "@/lib/attribution";
 import { markQuestStep } from "@/actions/onboarding-quest";
 import { createChild, updateChild as updateChildService } from "@/lib/services/children";
-import { custodyEnabledForArrangement } from "@/lib/care-routine-resolve";
 
 export async function createGroup(formData: FormData): Promise<{ error?: string; success?: boolean }> {
   const supabase = await createClient();
@@ -101,10 +100,9 @@ export async function enableCustody(groupId: string): Promise<{ error?: string; 
   const membership = await verifyGroupMembership(supabase, groupId, user.id);
   if (!membership) return { error: "Sem permissão para este grupo." };
 
-  // Ativar guarda = forma "rotating" (revezamento) — mantém arrangement coerente.
   const { error } = await supabase
     .from("coparenting_groups")
-    .update({ custody_enabled: true, arrangement: "rotating" })
+    .update({ custody_enabled: true })
     .eq("id", groupId);
 
   if (error) return { error: error.message };
@@ -112,46 +110,6 @@ export async function enableCustody(groupId: string): Promise<{ error?: string; 
   captureServerEvent(user.id, "custody_enabled");
   revalidatePath("/dashboard");
   revalidatePath("/calendario");
-  return { success: true };
-}
-
-const VALID_ARRANGEMENTS = ["rotating", "together", "single", "custom"] as const;
-
-/**
- * Define a forma da família (arrangement) + acopla custody_enabled pra manter
- * tudo consistente: revezam guarda (rotating/custom) → custódia ON; moram
- * juntos / responsável único (together/single) → custódia OFF (some o herói de
- * guarda, calendário de guarda etc.). O painel inicial passa a mostrar a rotina
- * de leva/busca como herói pra together/single.
- */
-export async function setGroupArrangement(
-  groupId: string,
-  arrangement: string,
-): Promise<{ error?: string; success?: boolean }> {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { error: "Sessão expirada." };
-  if (!VALID_ARRANGEMENTS.includes(arrangement as (typeof VALID_ARRANGEMENTS)[number])) {
-    return { error: "Forma de família inválida." };
-  }
-
-  const membership = await verifyGroupMembership(supabase, groupId, user.id);
-  if (!membership) return { error: "Sem permissão para este grupo." };
-
-  const custodyEnabled = custodyEnabledForArrangement(arrangement);
-  const { error } = await supabase
-    .from("coparenting_groups")
-    .update({ arrangement, custody_enabled: custodyEnabled })
-    .eq("id", groupId);
-
-  if (error) return { error: error.message };
-
-  captureServerEvent(user.id, "group_arrangement_set", { arrangement });
-  revalidatePath("/dashboard");
-  revalidatePath("/calendario");
-  revalidatePath("/calendario/rotina");
   return { success: true };
 }
 
