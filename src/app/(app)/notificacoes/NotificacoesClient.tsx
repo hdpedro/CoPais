@@ -1,9 +1,10 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
-import { markNotificationRead, markAllNotificationsRead } from "@/actions/notifications";
+import { markNotificationRead, markAllNotificationsRead, deleteNotification, deleteAllNotifications } from "@/actions/notifications";
 
 interface Notification {
   id: string;
@@ -74,11 +75,19 @@ function sanitizeEmailInText(text: string): string {
 export default function NotificacoesClient({ notifications }: { notifications: Notification[] }) {
   const { t } = useI18n();
   const router = useRouter();
+  const [items, setItems] = useState(notifications);
+  // Ressincroniza o estado otimista com a verdade do servidor após a
+  // revalidação (delete / mark-read). Padrão controlado de prop→state sync.
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setItems(notifications);
+  }, [notifications]);
 
-  const hasUnread = notifications.some((n) => !n.is_read);
+  const hasUnread = items.some((n) => !n.is_read);
 
   async function handleClick(notification: Notification) {
     if (!notification.is_read) {
+      setItems((prev) => prev.map((n) => (n.id === notification.id ? { ...n, is_read: true } : n)));
       await markNotificationRead(notification.id);
     }
     if (notification.link) {
@@ -87,7 +96,20 @@ export default function NotificacoesClient({ notifications }: { notifications: N
   }
 
   async function handleMarkAllRead() {
+    setItems((prev) => prev.map((n) => ({ ...n, is_read: true })));
     await markAllNotificationsRead();
+  }
+
+  async function handleDelete(id: string) {
+    // Otimista: some na hora; a action revalida /notificacoes no servidor.
+    setItems((prev) => prev.filter((n) => n.id !== id));
+    await deleteNotification(id);
+  }
+
+  async function handleClearAll() {
+    if (!window.confirm(t("notifications.clearAllConfirm"))) return;
+    setItems([]);
+    await deleteAllNotifications();
   }
 
   return (
@@ -102,18 +124,28 @@ export default function NotificacoesClient({ notifications }: { notifications: N
           </Link>
           <h1 className="text-xl font-bold text-[#2C2C2C]">{t("notifications.title")}</h1>
         </div>
-        {hasUnread && (
-          <button
-            onClick={handleMarkAllRead}
-            className="text-sm text-[#D4735A] font-medium hover:underline"
-          >
-            {t("notifications.markAllRead")}
-          </button>
-        )}
+        <div className="flex items-center gap-4">
+          {hasUnread && (
+            <button
+              onClick={handleMarkAllRead}
+              className="text-sm text-[#D4735A] font-medium hover:underline"
+            >
+              {t("notifications.markAllRead")}
+            </button>
+          )}
+          {items.length > 0 && (
+            <button
+              onClick={handleClearAll}
+              className="text-sm text-[#9CA3AF] font-medium hover:underline hover:text-[#D4735A] transition-colors"
+            >
+              {t("notifications.clearAll")}
+            </button>
+          )}
+        </div>
       </div>
 
       {/* List */}
-      {notifications.length === 0 ? (
+      {items.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-16 text-center">
           <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#9CA3AF" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round">
@@ -126,38 +158,52 @@ export default function NotificacoesClient({ notifications }: { notifications: N
         </div>
       ) : (
         <div className="space-y-1">
-          {notifications.map((notification) => {
+          {items.map((notification) => {
             const icon = typeIcons[notification.type] || "\u{1F514}";
             return (
-              <button
+              <div
                 key={notification.id}
-                onClick={() => handleClick(notification)}
-                className={`w-full text-left flex items-start gap-3 p-3 rounded-xl transition-colors ${
+                className={`flex items-stretch rounded-xl transition-colors ${
                   notification.is_read
                     ? "bg-white hover:bg-gray-50"
                     : "bg-blue-50 hover:bg-blue-100/70"
                 }`}
               >
-                <span className="text-xl flex-shrink-0 mt-0.5" role="img" aria-label={t(typeLabelKeys[notification.type] || "notifications.system")}>
-                  {icon}
-                </span>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <p className={`text-sm truncate ${notification.is_read ? "text-[#2C2C2C]" : "text-[#2C2C2C] font-semibold"}`}>
-                      {sanitizeEmailInText(notification.title)}
-                    </p>
-                    <span className="text-[11px] text-[#9CA3AF] flex-shrink-0">
-                      {getRelativeTime(notification.created_at, t)}
-                    </span>
+                <button
+                  onClick={() => handleClick(notification)}
+                  className="flex-1 min-w-0 text-left flex items-start gap-3 p-3"
+                >
+                  <span className="text-xl flex-shrink-0 mt-0.5" role="img" aria-label={t(typeLabelKeys[notification.type] || "notifications.system")}>
+                    {icon}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-sm truncate ${notification.is_read ? "text-[#2C2C2C]" : "text-[#2C2C2C] font-semibold"}`}>
+                        {sanitizeEmailInText(notification.title)}
+                      </p>
+                      <span className="text-[11px] text-[#9CA3AF] flex-shrink-0">
+                        {getRelativeTime(notification.created_at, t)}
+                      </span>
+                    </div>
+                    {notification.message && (
+                      <p className="text-xs text-[#5A6B6A] mt-0.5 line-clamp-2">{sanitizeEmailInText(notification.message)}</p>
+                    )}
                   </div>
-                  {notification.message && (
-                    <p className="text-xs text-[#5A6B6A] mt-0.5 line-clamp-2">{sanitizeEmailInText(notification.message)}</p>
+                  {!notification.is_read && (
+                    <span className="w-2 h-2 rounded-full bg-[#D4735A] flex-shrink-0 mt-2" />
                   )}
-                </div>
-                {!notification.is_read && (
-                  <span className="w-2 h-2 rounded-full bg-[#D4735A] flex-shrink-0 mt-2" />
-                )}
-              </button>
+                </button>
+                <button
+                  onClick={() => handleDelete(notification.id)}
+                  aria-label={t("notifications.delete")}
+                  className="px-3 flex items-center text-[#9CA3AF] hover:text-[#D4735A] transition-colors flex-shrink-0"
+                >
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                </button>
+              </div>
             );
           })}
         </div>

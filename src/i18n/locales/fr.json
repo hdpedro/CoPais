@@ -2150,7 +2150,10 @@
         "coat": "manteau",
         "other": "taille"
       }
-    }
+    },
+    "delete": "Supprimer la notification",
+    "clearAll": "Tout effacer",
+    "clearAllConfirm": "Supprimer toutes les notifications ?"
   },
   "push": {
     "chat": {

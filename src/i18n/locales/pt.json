@@ -2150,7 +2150,10 @@
         "coat": "casaco",
         "other": "tamanho"
       }
-    }
+    },
+    "delete": "Excluir notificação",
+    "clearAll": "Limpar todas",
+    "clearAllConfirm": "Apagar todas as notificações?"
   },
   "push": {
     "chat": {
