@@ -3133,7 +3133,8 @@
     "errorDateInvalid": "Fecha inválida. Usa AAAA-MM-DD.",
     "toastSaved": "Talla registrada.",
     "toastUpdated": "Talla actualizada.",
-    "errorUnexpected": "Error inesperado. Inténtelo de nuevo."
+    "errorUnexpected": "Error inesperado. Inténtelo de nuevo.",
+    "errorShoeInvalid": "Talla de calzado inválida. Usa un número de 14 a 50 (ej.: 34)."
   },
   "splash": {
     "tagline": "Co-crianza con suavidad"
