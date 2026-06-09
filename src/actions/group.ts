@@ -2,6 +2,7 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { verifyGroupMembership } from "@/lib/auth-utils";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { grantTrialIfEligible } from "@/lib/billing";
@@ -109,6 +110,50 @@ export async function enableCustody(groupId: string): Promise<{ error?: string; 
 
   captureServerEvent(user.id, "custody_enabled");
   revalidatePath("/dashboard");
+  revalidatePath("/calendario");
+  return { success: true };
+}
+
+const FAMILY_ARRANGEMENTS = ["rotating", "together", "single", "custom"] as const;
+
+/**
+ * Define a FORMA DA FAMÍLIA (arrangement) a partir da tela Família — o lar
+ * natural/integrado dessa escolha. Acopla custody_enabled pra manter tudo
+ * coerente: revezam guarda (rotating/custom) → custódia ON + Herói de Guarda;
+ * moram juntos / cuidam sozinhos (together/single) → custódia OFF + Herói de
+ * Rotina. Afeta o GRUPO inteiro (decisão de família, vale pros dois).
+ *
+ * Escrita via ADMIN client (após verificar membership com o cookie client) —
+ * robusto, independe de policy de UPDATE em coparenting_groups.
+ */
+export async function setFamilyArrangement(
+  groupId: string,
+  arrangement: string,
+): Promise<{ error?: string; success?: boolean }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Sessão expirada." };
+  if (!FAMILY_ARRANGEMENTS.includes(arrangement as (typeof FAMILY_ARRANGEMENTS)[number])) {
+    return { error: "Forma de família inválida." };
+  }
+
+  const membership = await verifyGroupMembership(supabase, groupId, user.id);
+  if (!membership) return { error: "Sem permissão para este grupo." };
+
+  const custodyEnabled = arrangement === "rotating" || arrangement === "custom";
+  const admin = createAdminClient();
+  const { error } = await admin
+    .from("coparenting_groups")
+    .update({ arrangement, custody_enabled: custodyEnabled })
+    .eq("id", groupId);
+
+  if (error) return { error: error.message };
+
+  captureServerEvent(user.id, "family_arrangement_set", { arrangement });
+  revalidatePath("/dashboard");
+  revalidatePath("/familia");
   revalidatePath("/calendario");
   return { success: true };
 }
