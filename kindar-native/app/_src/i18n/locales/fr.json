@@ -4593,7 +4593,9 @@
     "weekB": "Semaine B",
     "followsGuard": "garde",
     "tapToToggle": "Touchez pour marquer les jours avec dépose/récupération.",
-    "weekEmptyTag": "(vide)"
+    "weekEmptyTag": "(vide)",
+    "briefingPushTitle": "🌅 Demain",
+    "briefingGap": "Qui récupère demain ?"
   },
   "a11y": {
     "careRoutine": {

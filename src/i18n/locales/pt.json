@@ -2915,7 +2915,9 @@
     "weekB": "Semana B",
     "followsGuard": "guarda",
     "tapToToggle": "Toque para marcar os dias com leva e busca.",
-    "weekEmptyTag": "(vazia)"
+    "weekEmptyTag": "(vazia)",
+    "briefingPushTitle": "🌅 Amanhã",
+    "briefingGap": "Quem busca amanhã?"
   },
   "a11y": {
     "careRoutine": {
