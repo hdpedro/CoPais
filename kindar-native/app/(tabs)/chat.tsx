@@ -115,6 +115,12 @@ export default function ChatScreen() {
       const readMap: Record<string, string> = {};
       (reads || []).forEach((r: any) => { readMap[r.channel_id] = r.last_read_at; });
 
+      // Nome do canal por-criança SEMPRE derivado do full_name ATUAL (fresh).
+      // chat_channels.name é denormalizado no seed e NÃO acompanha o rename da
+      // criança (bug 09/jun: chat mantinha o nome anterior). Geral/outros usam ch.name.
+      const childNameBySlug = new Map<string, string>();
+      for (const c of ((kids || []) as any[])) childNameBySlug.set(`child-${c.id}`, c.full_name);
+
       // Fetch last message per channel in ONE batch (rpc or limited parallel)
       // Use parallel but bounded (same as PWA page.tsx pattern).
       // withTimeout aqui tambem — sem ele o N+1 de last-message escala mal
@@ -138,7 +144,7 @@ export default function ChatScreen() {
             return {
               id: ch.id,
               slug: ch.slug,
-              name: ch.name,
+              name: childNameBySlug.get(ch.slug) ?? ch.name,
               channel_type: ch.channel_type,
               icon: ch.icon,
               lastMessage: lastMsg?.text?.slice(0, 60) || '',
