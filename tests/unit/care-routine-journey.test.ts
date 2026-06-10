@@ -127,3 +127,16 @@ describe("deep link da parada (sempre clicável — dono 10/jun)", () => {
     expect(items[0]?.activityId).toBe("act-123");
   });
 });
+
+describe("deep link de EVENTO (parada abre o evento específico — dono 10/jun)", () => {
+  it("eventId passa pra timeline e o dedup herda do absorvido", () => {
+    const out = dedupeJourneyActivities([
+      { name: "Reunião escolar: Reunião com pais", time: "16:30:00", category: "school" },
+      { name: "Reunião pais 303 - Martim São Vicente", time: "16:30:00", category: "evento", eventId: "evt-9" },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.eventId).toBe("evt-9");
+    const items = buildChildJourney({ dropoff: null, pickup: null, activities: out });
+    expect(items[0]?.eventId).toBe("evt-9");
+  });
+});

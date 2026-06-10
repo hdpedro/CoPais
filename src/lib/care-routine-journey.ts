@@ -15,6 +15,8 @@ export interface JourneyActivity {
   responsible?: string | null;
   /** Id da child_activity (null pra events — eles não têm detalhe próprio). */
   activityId?: string | null;
+  /** Id da row de events (deep-link `/calendario?day=…&eventId=…`). */
+  eventId?: string | null;
 }
 
 export type JourneyKind = "home" | "dropoff" | "activity" | "pickup";
@@ -33,6 +35,8 @@ export interface JourneyItem {
   responsible?: string | null;
   /** Id da child_activity (deep link pro detalhe; null em events/âncoras). */
   activityId?: string | null;
+  /** Id da row de events (deep-link pro evento específico no calendário). */
+  eventId?: string | null;
 }
 
 const ACTIVITY_ICON: Record<string, string> = {
@@ -80,7 +84,7 @@ function nameTokens(name: string): Set<string> {
  * Feedback do dono 10/jun: dois caminhos, mesmo destino — não confundir.
  */
 export function dedupeJourneyActivities(activities: readonly JourneyActivity[]): JourneyActivity[] {
-  const kept: { a: JourneyActivity; tokens: Set<string>; min: number | null; inheritedResp?: string | null; inheritedId?: string | null }[] = [];
+  const kept: { a: JourneyActivity; tokens: Set<string>; min: number | null; inheritedResp?: string | null; inheritedId?: string | null; inheritedEventId?: string | null }[] = [];
   const byShortest = [...activities].sort((x, y) => x.name.length - y.name.length);
   for (const a of byShortest) {
     const min = toMin(a.time);
@@ -94,6 +98,7 @@ export function dedupeJourneyActivities(activities: readonly JourneyActivity[]):
       // event engole atividade que tinha responsável/detalhe) — herda.
       if (!dup.a.responsible && a.responsible) dup.inheritedResp = a.responsible;
       if (!dup.a.activityId && a.activityId) dup.inheritedId = a.activityId;
+      if (!dup.a.eventId && a.eventId) dup.inheritedEventId = a.eventId;
       continue;
     }
     kept.push({ a, tokens, min });
@@ -102,12 +107,13 @@ export function dedupeJourneyActivities(activities: readonly JourneyActivity[]):
   return activities.flatMap((a) => {
     const k = kept.find((x) => x.a === a);
     if (!k) return [];
-    if (!k.inheritedResp && !k.inheritedId) return [a];
+    if (!k.inheritedResp && !k.inheritedId && !k.inheritedEventId) return [a];
     return [
       {
         ...a,
         responsible: a.responsible ?? k.inheritedResp ?? null,
         activityId: a.activityId ?? k.inheritedId ?? null,
+        eventId: a.eventId ?? k.inheritedEventId ?? null,
       },
     ];
   });
@@ -143,7 +149,7 @@ export function buildChildJourney(input: BuildJourneyInput): JourneyItem[] {
   dedupeJourneyActivities(input.activities).forEach((a, i) => {
     const min = toMin(a.time);
     if (min != null) {
-      items.push({ key: `act-${i}`, sortMin: min, icon: ACTIVITY_ICON[a.category] ?? "📋", text: a.name, time: a.time!.slice(0, 5), kind: "activity", responsible: a.responsible ?? null, activityId: a.activityId ?? null });
+      items.push({ key: `act-${i}`, sortMin: min, icon: ACTIVITY_ICON[a.category] ?? "📋", text: a.name, time: a.time!.slice(0, 5), kind: "activity", responsible: a.responsible ?? null, activityId: a.activityId ?? null, eventId: a.eventId ?? null });
     }
   });
   if (input.pickup) {

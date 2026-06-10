@@ -108,6 +108,7 @@ export default async function JornadaPage() {
       time: (evt.event_time as string | null) ?? null,
       category: "evento",
       responsible: nameOf((evt as { assigned_to?: string | null }).assigned_to) || null,
+      eventId: evt.id as string,
     });
     activitiesByChild.set(childId, arr);
   }
@@ -139,7 +140,7 @@ export default async function JornadaPage() {
         <p className="mt-0.5 text-[12.5px] text-[#9A8878]">{dateLabel}</p>
       </header>
       {journeys.map((j) => (
-        <JourneyTimeline key={j.childId} childName={j.childName} items={j.items} />
+        <JourneyTimeline key={j.childId} childName={j.childName} items={j.items} dateKey={today} />
       ))}
     </div>
   );

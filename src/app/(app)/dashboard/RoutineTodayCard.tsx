@@ -335,15 +335,18 @@ export default function RoutineTodayCard({
             {heroTimeline.map((it, i) => {
               const state = timelineState[i] ?? "future";
               const last = heroTimeline.length - 1;
-              // "Sempre clicável": atividade → detalhe relatável; evento →
-              // calendário; casa → calendário; leva/busca → editor da rotina.
+              // "Sempre clicável": atividade → detalhe relatável; evento → o
+              // EVENTO específico no calendário (deep-link day+eventId, mesmo
+              // contrato do painel); casa → o dia; leva/busca → editor da rotina.
               const stationHref =
                 it.kind === "activity"
                   ? it.activityId
                     ? `/atividades/${it.activityId}`
-                    : "/calendario"
+                    : it.eventId
+                      ? `/calendario?day=${todayDate}&eventId=${it.eventId}`
+                      : `/calendario?day=${todayDate}`
                   : it.kind === "home"
-                    ? "/calendario"
+                    ? `/calendario?day=${todayDate}`
                     : "/calendario/rotina";
               return (
                 <Link
