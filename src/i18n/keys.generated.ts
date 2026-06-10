@@ -330,6 +330,8 @@ export type TranslationKey =
   | "calendar.recurringActivity"
   | "calendar.recurringDeleteTitle"
   | "calendar.regular"
+  | "calendar.removeResponsible"
+  | "calendar.removeResponsibleAllHint"
   | "calendar.requestSentSuccess"
   | "calendar.requestSwap"
   | "calendar.requestSwapButton"
@@ -341,6 +343,7 @@ export type TranslationKey =
   | "calendar.responsible"
   | "calendar.responsibleChanged"
   | "calendar.responsibleForActivity"
+  | "calendar.responsibleRemoved"
   | "calendar.room"
   | "calendar.saveChanges"
   | "calendar.special"
@@ -3058,6 +3061,8 @@ export const TRANSLATION_KEYS = [
   "calendar.recurringActivity",
   "calendar.recurringDeleteTitle",
   "calendar.regular",
+  "calendar.removeResponsible",
+  "calendar.removeResponsibleAllHint",
   "calendar.requestSentSuccess",
   "calendar.requestSwap",
   "calendar.requestSwapButton",
@@ -3069,6 +3074,7 @@ export const TRANSLATION_KEYS = [
   "calendar.responsible",
   "calendar.responsibleChanged",
   "calendar.responsibleForActivity",
+  "calendar.responsibleRemoved",
   "calendar.room",
   "calendar.saveChanges",
   "calendar.special",
