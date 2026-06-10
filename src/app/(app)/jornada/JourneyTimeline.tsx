@@ -1,7 +1,16 @@
 "use client";
 
+import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import type { JourneyItem } from "@/lib/care-routine-journey";
+
+/** Toda parada navega ("sempre clicável" — dono 10/jun): atividade → detalhe
+ *  relatável; evento → calendário; casa → calendário; leva/busca → rotina. */
+function hrefFor(it: JourneyItem): string {
+  if (it.kind === "activity") return it.activityId ? `/atividades/${it.activityId}` : "/calendario";
+  if (it.kind === "home") return "/calendario";
+  return "/calendario/rotina";
+}
 
 /**
  * Timeline vertical da "Jornada da Criança" — casa → leva → atividades → busca
@@ -36,7 +45,11 @@ export default function JourneyTimeline({ childName, items }: { childName: strin
           {items.map((it) => (
             <li key={it.key} className="ml-4 relative">
               <span className="absolute -left-[1.5rem] -top-0.5 text-base bg-white">{it.icon}</span>
-              <div className="flex items-baseline gap-2">
+              <Link
+                href={hrefFor(it)}
+                prefetch={false}
+                className="flex items-baseline gap-2 -mx-1.5 px-1.5 py-0.5 rounded-lg hover:bg-[#F4F0E9] transition-colors"
+              >
                 {it.time ? (
                   <span className="text-[11px] tabular-nums text-muted w-10 flex-shrink-0">{it.time}</span>
                 ) : (
@@ -46,7 +59,7 @@ export default function JourneyTimeline({ childName, items }: { childName: strin
                 {it.responsible ? (
                   <span className="text-[12px] text-[#C07055] font-medium flex-shrink-0">· {it.responsible}</span>
                 ) : null}
-              </div>
+              </Link>
             </li>
           ))}
         </ol>

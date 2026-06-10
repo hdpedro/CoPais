@@ -13,6 +13,8 @@ export interface JourneyActivity {
   category: string;
   /** Nome do responsável pela atividade (child_activities.responsible_id). */
   responsible?: string | null;
+  /** Id da child_activity (null pra events — eles não têm detalhe próprio). */
+  activityId?: string | null;
 }
 
 export type JourneyKind = "home" | "dropoff" | "activity" | "pickup";
@@ -29,6 +31,8 @@ export interface JourneyItem {
   kind: JourneyKind;
   /** Responsável (só em atividades; âncoras/pernas já são pessoas no text). */
   responsible?: string | null;
+  /** Id da child_activity (deep link pro detalhe; null em events/âncoras). */
+  activityId?: string | null;
 }
 
 const ACTIVITY_ICON: Record<string, string> = {
@@ -76,7 +80,7 @@ function nameTokens(name: string): Set<string> {
  * Feedback do dono 10/jun: dois caminhos, mesmo destino — não confundir.
  */
 export function dedupeJourneyActivities(activities: readonly JourneyActivity[]): JourneyActivity[] {
-  const kept: { a: JourneyActivity; tokens: Set<string>; min: number | null; inheritedResp?: string | null }[] = [];
+  const kept: { a: JourneyActivity; tokens: Set<string>; min: number | null; inheritedResp?: string | null; inheritedId?: string | null }[] = [];
   const byShortest = [...activities].sort((x, y) => x.name.length - y.name.length);
   for (const a of byShortest) {
     const min = toMin(a.time);
@@ -86,9 +90,10 @@ export function dedupeJourneyActivities(activities: readonly JourneyActivity[]):
         ? kept.find((k) => k.min === min && [...tokens].some((t) => k.tokens.has(t)))
         : undefined;
     if (dup) {
-      // O absorvido pode carregar a informação de responsável que o mantido
-      // não tem (ex.: event sem responsável engole atividade com) — herda.
+      // O absorvido pode carregar informação que o mantido não tem (ex.:
+      // event engole atividade que tinha responsável/detalhe) — herda.
       if (!dup.a.responsible && a.responsible) dup.inheritedResp = a.responsible;
+      if (!dup.a.activityId && a.activityId) dup.inheritedId = a.activityId;
       continue;
     }
     kept.push({ a, tokens, min });
@@ -97,7 +102,14 @@ export function dedupeJourneyActivities(activities: readonly JourneyActivity[]):
   return activities.flatMap((a) => {
     const k = kept.find((x) => x.a === a);
     if (!k) return [];
-    return [k.inheritedResp ? { ...a, responsible: k.inheritedResp } : a];
+    if (!k.inheritedResp && !k.inheritedId) return [a];
+    return [
+      {
+        ...a,
+        responsible: a.responsible ?? k.inheritedResp ?? null,
+        activityId: a.activityId ?? k.inheritedId ?? null,
+      },
+    ];
   });
 }
 
@@ -131,7 +143,7 @@ export function buildChildJourney(input: BuildJourneyInput): JourneyItem[] {
   dedupeJourneyActivities(input.activities).forEach((a, i) => {
     const min = toMin(a.time);
     if (min != null) {
-      items.push({ key: `act-${i}`, sortMin: min, icon: ACTIVITY_ICON[a.category] ?? "📋", text: a.name, time: a.time!.slice(0, 5), kind: "activity", responsible: a.responsible ?? null });
+      items.push({ key: `act-${i}`, sortMin: min, icon: ACTIVITY_ICON[a.category] ?? "📋", text: a.name, time: a.time!.slice(0, 5), kind: "activity", responsible: a.responsible ?? null, activityId: a.activityId ?? null });
     }
   });
   if (input.pickup) {

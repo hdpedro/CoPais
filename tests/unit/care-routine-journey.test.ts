@@ -114,3 +114,16 @@ describe("responsável da atividade (dono 10/jun)", () => {
     expect(items[0]?.responsible).toBe("Henrique");
   });
 });
+
+describe("deep link da parada (sempre clicável — dono 10/jun)", () => {
+  it("activityId passa pra timeline e o dedup herda do absorvido", () => {
+    const out = dedupeJourneyActivities([
+      { name: "Reunião escolar: Reunião com pais", time: "16:30:00", category: "school" },
+      { name: "Reunião pais 303 - Martim São Vicente", time: "16:30:00", category: "evento", activityId: "act-123" },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.activityId).toBe("act-123");
+    const items = buildChildJourney({ dropoff: null, pickup: null, activities: out });
+    expect(items[0]?.activityId).toBe("act-123");
+  });
+});

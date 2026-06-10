@@ -53,7 +53,7 @@ export default async function JornadaPage() {
         .eq("occurrence_date", today),
       supabase
         .from("calendar_occurrences")
-        .select("child_id, child_activities!inner(name, category, time_start, responsible_id)")
+        .select("child_id, child_activities!inner(id, name, category, time_start, responsible_id)")
         .eq("group_id", groupId)
         .eq("occurrence_date", today),
       supabase
@@ -96,6 +96,7 @@ export default async function JornadaPage() {
       time: (act.time_start as string | null) ?? null,
       category: (act.category as string) ?? "other",
       responsible: nameOf((act as { responsible_id?: string | null }).responsible_id) || null,
+      activityId: ((act as { id?: string }).id as string) ?? null,
     });
     activitiesByChild.set(childId, arr);
   }

@@ -591,6 +591,8 @@ export default async function DashboardPage() {
     activity_checklist_items: { id: string; name: string }[];
     state?: TodayState;
     responsible_id?: string | null;
+    /** true quando a row veio da tabela events (id NÃO é child_activity). */
+    isEvent?: boolean;
   }
 
   const todayReportedSet = new Set(
@@ -656,6 +658,7 @@ export default async function DashboardPage() {
         // events.assigned_to É o responsável do evento (migration 00024) —
         // alimenta a estação do herói igual ao responsible_id das atividades.
         responsible_id: (evt as { assigned_to?: string | null }).assigned_to ?? null,
+        isEvent: true,
       };
       if (evt.event_date === todayKey) {
         // Eventos nao tem activity_reports — nao da pra "Relatar". Entao
@@ -1369,6 +1372,7 @@ export default async function DashboardPage() {
             time: a.time_start as string,
             category: a.category,
             responsible: a.responsible_id ? parentColors[a.responsible_id]?.name ?? null : null,
+            activityId: a.isEvent ? null : a.id,
           })),
         homeMorning: _heroHomeParent,
         homeEvening: _heroHomeParent,

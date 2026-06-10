@@ -335,8 +335,23 @@ export default function RoutineTodayCard({
             {heroTimeline.map((it, i) => {
               const state = timelineState[i] ?? "future";
               const last = heroTimeline.length - 1;
+              // "Sempre clicável": atividade → detalhe relatável; evento →
+              // calendário; casa → calendário; leva/busca → editor da rotina.
+              const stationHref =
+                it.kind === "activity"
+                  ? it.activityId
+                    ? `/atividades/${it.activityId}`
+                    : "/calendario"
+                  : it.kind === "home"
+                    ? "/calendario"
+                    : "/calendario/rotina";
               return (
-                <div key={it.key} className="relative flex min-w-0 flex-1 flex-col items-center gap-[5px] text-center">
+                <Link
+                  key={it.key}
+                  href={stationHref}
+                  prefetch={false}
+                  className="relative flex min-w-0 flex-1 flex-col items-center gap-[5px] text-center rounded-xl py-1 -my-1 hover:bg-white/[0.045] transition-colors"
+                >
                   {i > 0 && (
                     <span
                       aria-hidden
@@ -395,7 +410,7 @@ export default function RoutineTodayCard({
                       {it.responsible}
                     </span>
                   ) : null}
-                </div>
+                </Link>
               );
             })}
           </div>
