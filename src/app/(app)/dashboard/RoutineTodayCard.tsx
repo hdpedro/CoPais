@@ -247,6 +247,27 @@ export default function RoutineTodayCard({
   // " - ", " · ") pra mostrar o título principal sem truncar no meio da palavra.
   const shortLabel = (s: string) => s.split(/:\s|\s[–·-]\s/)[0].trim();
 
+  // Estado de cada parada pela hora do sistema (reusa o nowMin do "Buscou?"):
+  // "passed" (já foi, apagado), "next" (a próxima, em destaque) ou "future".
+  const timelineState: ("passed" | "next" | "future")[] = (() => {
+    const mins = heroTimeline.map((it) => {
+      if (!it.time) return null;
+      const [h, m] = it.time.split(":").map(Number);
+      return Number.isNaN(h) ? null : h * 60 + (m || 0);
+    });
+    const firstTimed = mins.find((m) => m != null) ?? null;
+    const passed = heroTimeline.map((_, i) => {
+      const m = mins[i];
+      if (m != null) return m <= nowMin;
+      // Casa da manhã: apaga quando o dia entra em movimento. Casa da noite:
+      // nunca "passa" — vira o destaque quando tudo terminou (estamos em casa).
+      if (i === 0) return firstTimed != null && nowMin >= firstTimed;
+      return false;
+    });
+    const nextIdx = passed.findIndex((p) => !p);
+    return heroTimeline.map((_, i) => (passed[i] ? "passed" : i === nextIdx ? "next" : "future"));
+  })();
+
   return (
     <div
       className="rounded-2xl p-5 shadow-sm text-[#EFE7DC]"
@@ -289,17 +310,53 @@ export default function RoutineTodayCard({
         </div>
       </div>
 
-      {/* Timeline horizontal do dia: casa → leva → atividades → busca → casa. */}
+      {/* Timeline horizontal do dia: casa ── leva ── atividades ── busca ── casa.
+          Viva pela hora do sistema: percorrido apagado, PRÓXIMO em destaque,
+          conectores acesos até onde o dia chegou (mockup do dono, 10/jun). */}
       {heroTimeline.length > 1 && (
         <div className="mt-3.5 pt-3 border-t border-white/10">
-          <div className="flex items-start gap-1">
-            {heroTimeline.map((it) => (
-              <div key={it.key} className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
-                <span className="text-[14px] leading-none">{it.icon}</span>
-                <span className="text-[10px] leading-none tabular-nums text-[#C9A98B]">{it.time ?? "·"}</span>
-                <span className="w-full truncate text-[9px] leading-tight text-[#9A8A77]">{shortLabel(it.text)}</span>
-              </div>
-            ))}
+          <div className="flex items-start">
+            {heroTimeline.map((it, i) => {
+              const state = timelineState[i] ?? "future";
+              const last = heroTimeline.length - 1;
+              return (
+                <div key={it.key} className="relative flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
+                  {i > 0 && (
+                    <span
+                      aria-hidden
+                      className={`absolute left-0 right-1/2 top-[8px] h-px mr-3 ${state !== "future" ? "bg-[#A97B5E]" : "bg-white/10"}`}
+                    />
+                  )}
+                  {i < last && (
+                    <span
+                      aria-hidden
+                      className={`absolute left-1/2 right-0 top-[8px] h-px ml-3 ${state === "passed" ? "bg-[#A97B5E]" : "bg-white/10"}`}
+                    />
+                  )}
+                  <span
+                    className={`relative h-4 flex items-center justify-center text-[14px] leading-none transition-opacity ${
+                      state === "passed" ? "opacity-35" : ""
+                    } ${state === "next" ? "px-1.5 -mx-1.5 rounded-full bg-[#E7AE80]/15 ring-1 ring-[#E7AE80]/30" : ""}`}
+                  >
+                    {it.icon}
+                  </span>
+                  <span
+                    className={`text-[10px] leading-none tabular-nums ${
+                      state === "next" ? "text-[#E7AE80] font-semibold" : state === "passed" ? "text-[#C9A98B]/40" : "text-[#C9A98B]"
+                    }`}
+                  >
+                    {it.time ?? "·"}
+                  </span>
+                  <span
+                    className={`w-full truncate text-[9px] leading-tight ${
+                      state === "next" ? "text-[#D8CBB9]" : state === "passed" ? "text-[#9A8A77]/40" : "text-[#9A8A77]"
+                    }`}
+                  >
+                    {shortLabel(it.text)}
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

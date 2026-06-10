@@ -47,6 +47,45 @@ function toMin(t: string | null): number | null {
   return h * 60 + (m || 0);
 }
 
+const NAME_STOPWORDS = new Set([
+  "de", "da", "do", "das", "dos", "com", "para", "pra", "e", "o", "a", "os", "as", "em", "no", "na", "nos", "nas",
+]);
+
+/** Tokens significativos do nome (sem acento/caixa/números puros/stopwords). */
+function nameTokens(name: string): Set<string> {
+  return new Set(
+    name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .split(/[^a-z0-9]+/)
+      .filter((t) => t.length >= 3 && !NAME_STOPWORDS.has(t) && !/^\d+$/.test(t)),
+  );
+}
+
+/**
+ * Dedup de atividades lançadas 2× por caminhos diferentes (ex.: calendário E
+ * registro escolar — "Reunião escolar: Reunião com pais" + "Reunião pais 303"
+ * às 16:30): MESMO horário + ao menos um token de nome em comum ⇒ mesmo
+ * evento, mantém só o de título mais curto (mais limpo). "Teatro" × "Futsal"
+ * às 18:00 NÃO dedupa (nenhum token em comum). Sem horário não dedupa.
+ * Feedback do dono 10/jun: dois caminhos, mesmo destino — não confundir.
+ */
+export function dedupeJourneyActivities(activities: readonly JourneyActivity[]): JourneyActivity[] {
+  const kept: { a: JourneyActivity; tokens: Set<string>; min: number | null }[] = [];
+  const byShortest = [...activities].sort((x, y) => x.name.length - y.name.length);
+  for (const a of byShortest) {
+    const min = toMin(a.time);
+    const tokens = nameTokens(a.name);
+    const isDup =
+      min != null &&
+      kept.some((k) => k.min === min && [...tokens].some((t) => k.tokens.has(t)));
+    if (!isDup) kept.push({ a, tokens, min });
+  }
+  // Preserva a ordem original de entrada entre os mantidos.
+  return activities.filter((a) => kept.some((k) => k.a === a));
+}
+
 export interface BuildJourneyInput {
   dropoff: { name: string; time: string | null } | null;
   pickup: { name: string; time: string | null } | null;
@@ -74,7 +113,7 @@ export function buildChildJourney(input: BuildJourneyInput): JourneyItem[] {
       items.push({ key: "dropoff", sortMin: min, icon: "🚗", text: input.dropoff.name, time: input.dropoff.time!.slice(0, 5), kind: "dropoff" });
     }
   }
-  input.activities.forEach((a, i) => {
+  dedupeJourneyActivities(input.activities).forEach((a, i) => {
     const min = toMin(a.time);
     if (min != null) {
       items.push({ key: `act-${i}`, sortMin: min, icon: ACTIVITY_ICON[a.category] ?? "📋", text: a.name, time: a.time!.slice(0, 5), kind: "activity" });

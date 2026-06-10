@@ -1,10 +1,10 @@
-/**
+﻿/**
  * Testes da Jornada da Criança (src/lib/care-routine-journey.ts).
  * Composição ordenada casa → leva → atividades → busca → casa.
  */
 
 import { describe, it, expect } from "vitest";
-import { buildChildJourney } from "@/lib/care-routine-journey";
+import { buildChildJourney, dedupeJourneyActivities } from "@/lib/care-routine-journey";
 
 describe("buildChildJourney", () => {
   it("ordena casa(manhã) → leva 8h → atividade 18h → busca 19h → casa(noite)", () => {
@@ -51,5 +51,53 @@ describe("buildChildJourney", () => {
 
   it("dia vazio → timeline vazia", () => {
     expect(buildChildJourney({ dropoff: null, pickup: null, activities: [] })).toHaveLength(0);
+  });
+});
+
+describe("dedupeJourneyActivities (dois caminhos, mesmo evento — feedback 10/jun)", () => {
+  it("mesmo horário + token de nome em comum ⇒ dedupa, mantém o título mais curto", () => {
+    const out = dedupeJourneyActivities([
+      { name: "Reunião escolar: Reunião com pais", time: "16:30:00", category: "school" },
+      { name: "Reunião pais 303 - Martim São Vicente", time: "16:30:00", category: "evento" },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.name).toBe("Reunião escolar: Reunião com pais");
+  });
+
+  it("mesmo horário mas nomes SEM token em comum ⇒ NÃO dedupa (Teatro × Futsal)", () => {
+    const out = dedupeJourneyActivities([
+      { name: "Teatro", time: "18:00:00", category: "art" },
+      { name: "Futsal", time: "18:00:00", category: "sport" },
+    ]);
+    expect(out).toHaveLength(2);
+  });
+
+  it("nomes parecidos em horários DIFERENTES ⇒ não dedupa", () => {
+    const out = dedupeJourneyActivities([
+      { name: "Natação Otto", time: "10:00:00", category: "sport" },
+      { name: "Natação Martim", time: "15:00:00", category: "sport" },
+    ]);
+    expect(out).toHaveLength(2);
+  });
+
+  it("sem horário não dedupa (não dá pra afirmar que é o mesmo evento)", () => {
+    const out = dedupeJourneyActivities([
+      { name: "Dever de casa", time: null, category: "school" },
+      { name: "Dever de matemática", time: null, category: "school" },
+    ]);
+    expect(out).toHaveLength(2);
+  });
+
+  it("buildChildJourney aplica a dedup (a dupla 16:30 vira UMA parada)", () => {
+    const items = buildChildJourney({
+      dropoff: null,
+      pickup: null,
+      activities: [
+        { name: "Reunião escolar: Reunião com pais", time: "16:30:00", category: "school" },
+        { name: "Reunião pais 303 - Martim São Vicente", time: "16:30:00", category: "evento" },
+        { name: "Teatro", time: "18:00:00", category: "art" },
+      ],
+    });
+    expect(items.map((i) => i.text)).toEqual(["Reunião escolar: Reunião com pais", "Teatro"]);
   });
 });
