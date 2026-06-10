@@ -159,7 +159,9 @@ export default function RoutineTodayCard({
     const swapResp = entry.dropoff?.responsibleId ?? entry.pickup?.responsibleId;
     return (
       <div className="mt-2 flex items-center gap-3 flex-wrap">
-        {status === "done" ? (
+        {/* "Buscou?" só faz sentido com handoff real — numa rotina "dia todo"
+            (mesmo responsável nas 2 pernas) não houve busca, então some. */}
+        {entry.sameAllDay ? null : status === "done" ? (
           <span className="text-[12px] text-[#7FBE9C] font-medium">{t("careRoutine.heroDone")}</span>
         ) : status === "missed" ? (
           <span className="text-[12px] text-[#A89A88]">{t("careRoutine.missedShort")}</span>
@@ -241,6 +243,10 @@ export default function RoutineTodayCard({
     );
   };
 
+  // Label curto pro timeline (coluna estreita): corta no 1º separador (": ",
+  // " - ", " · ") pra mostrar o título principal sem truncar no meio da palavra.
+  const shortLabel = (s: string) => s.split(/:\s|\s[–·-]\s/)[0].trim();
+
   return (
     <div
       className="rounded-2xl p-5 shadow-sm text-[#EFE7DC]"
@@ -291,7 +297,7 @@ export default function RoutineTodayCard({
               <div key={it.key} className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
                 <span className="text-[14px] leading-none">{it.icon}</span>
                 <span className="text-[10px] leading-none tabular-nums text-[#C9A98B]">{it.time ?? "·"}</span>
-                <span className="w-full truncate text-[9px] leading-tight text-[#9A8A77]">{it.text}</span>
+                <span className="w-full truncate text-[9px] leading-tight text-[#9A8A77]">{shortLabel(it.text)}</span>
               </div>
             ))}
           </div>
