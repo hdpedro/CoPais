@@ -123,6 +123,10 @@ const FAMILY_ARRANGEMENTS = ["rotating", "together", "single", "custom"] as cons
  * moram juntos / cuidam sozinhos (together/single) → custódia OFF + Herói de
  * Rotina. Afeta o GRUPO inteiro (decisão de família, vale pros dois).
  *
+ * Permissão: QUALQUER responsável pleno (admin OU member) pode alterar — os
+ * dois pais têm a mesma liberdade (decisão do dono 10/jun). Só `readonly`
+ * (visualizante: avó, advogado…) não pode.
+ *
  * Escrita via ADMIN client (após verificar membership com o cookie client) —
  * robusto, independe de policy de UPDATE em coparenting_groups.
  */
@@ -140,7 +144,9 @@ export async function setFamilyArrangement(
   }
 
   const membership = await verifyGroupMembership(supabase, groupId, user.id);
-  if (!membership) return { error: "Sem permissão para este grupo." };
+  if (!membership || membership.role === "readonly") {
+    return { error: "Sem permissão para este grupo." };
+  }
 
   const custodyEnabled = arrangement === "rotating" || arrangement === "custom";
   const admin = createAdminClient();

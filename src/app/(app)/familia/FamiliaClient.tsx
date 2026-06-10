@@ -41,6 +41,8 @@ interface FamiliaClientProps {
   arrangement: "rotating" | "together" | "single" | "custom";
   createdBy: string | null;
   isAdmin: boolean;
+  /** Forma da família: os DOIS pais editam (admin+member); só readonly não. */
+  canEditArrangement: boolean;
   isOnlyAdmin: boolean;
   currentUserId: string;
   members: SerializedMember[];
@@ -59,6 +61,7 @@ export default function FamiliaClient({
   arrangement,
   createdBy,
   isAdmin,
+  canEditArrangement,
   isOnlyAdmin,
   currentUserId,
   members,
@@ -194,7 +197,7 @@ export default function FamiliaClient({
         </div>
       </section>
 
-      <FamilyArrangementCard groupId={groupId} arrangement={arrangement} isAdmin={isAdmin} />
+      <FamilyArrangementCard groupId={groupId} arrangement={arrangement} canEdit={canEditArrangement} />
 
       {/* Children Section */}
       {children && children.length > 0 && (

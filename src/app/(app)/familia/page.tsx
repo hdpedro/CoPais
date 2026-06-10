@@ -126,6 +126,7 @@ export default async function FamiliaPage({
       arrangement={arrangement}
       createdBy={group?.created_by || null}
       isAdmin={isAdmin}
+      canEditArrangement={activeGroup.role !== "readonly"}
       isOnlyAdmin={isOnlyAdmin}
       currentUserId={user.id}
       members={serializedMembers}

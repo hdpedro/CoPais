@@ -15,17 +15,18 @@ const OPTIONS: { key: Exclude<Arrangement, "custom">; icon: string; labelKey: st
 /**
  * Card "Forma da família" na tela Família — o lar integrado da escolha
  * separados ↔ moram juntos/solo. Move o Herói do painel (guarda vs rotina) +
- * acopla custódia. Escrita via action robusta (admin write). Editável só por
- * admin; afeta o grupo inteiro (decisão de família).
+ * acopla custódia. Escrita via action robusta (admin write). Editável por
+ * QUALQUER responsável pleno (admin ou member — os dois pais têm a mesma
+ * liberdade; dono 10/jun); só visualizante (readonly) não.
  */
 export default function FamilyArrangementCard({
   groupId,
   arrangement: initial,
-  isAdmin,
+  canEdit,
 }: {
   groupId: string;
   arrangement: Arrangement;
-  isAdmin: boolean;
+  canEdit: boolean;
 }) {
   const { t } = useI18n();
   const [arrangement, setArrangement] = useState<Arrangement>(initial);
@@ -33,7 +34,7 @@ export default function FamilyArrangementCard({
   const [pending, startTransition] = useTransition();
 
   function choose(a: Exclude<Arrangement, "custom">) {
-    if (!isAdmin || a === arrangement || pending) return;
+    if (!canEdit || a === arrangement || pending) return;
     const prev = arrangement;
     setArrangement(a); // otimista
     setFeedback(null);
@@ -63,13 +64,13 @@ export default function FamilyArrangementCard({
                 key={o.key}
                 type="button"
                 onClick={() => choose(o.key)}
-                disabled={!isAdmin || pending}
+                disabled={!canEdit || pending}
                 aria-pressed={selected}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg border-2 text-left text-sm transition-colors disabled:opacity-60 ${
                   selected
                     ? "border-primary bg-primary/5 text-dark font-medium"
                     : "border-gray-200 text-muted hover:border-gray-300"
-                } ${isAdmin ? "" : "cursor-default"}`}
+                } ${canEdit ? "" : "cursor-default"}`}
               >
                 <span className="text-base flex-shrink-0" aria-hidden="true">{o.icon}</span>
                 <span className="flex-1">{t(o.labelKey)}</span>
