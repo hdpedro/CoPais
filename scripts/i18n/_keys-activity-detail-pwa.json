@@ -1,0 +1,34 @@
+{
+  "activityDetail": {
+    "pt": {
+      "upcomingHeading": "Próximas",
+      "recentHeading": "Últimos dias",
+      "reportedBadge": "Relatado",
+      "noOccurrences": "Sem ocorrências nos próximos dias."
+    },
+    "en": {
+      "upcomingHeading": "Upcoming",
+      "recentHeading": "Recent days",
+      "reportedBadge": "Reported",
+      "noOccurrences": "No occurrences in the next few days."
+    },
+    "es": {
+      "upcomingHeading": "Próximas",
+      "recentHeading": "Últimos días",
+      "reportedBadge": "Relatado",
+      "noOccurrences": "Sin ocurrencias en los próximos días."
+    },
+    "fr": {
+      "upcomingHeading": "À venir",
+      "recentHeading": "Derniers jours",
+      "reportedBadge": "Raconté",
+      "noOccurrences": "Aucune occurrence dans les prochains jours."
+    },
+    "de": {
+      "upcomingHeading": "Anstehend",
+      "recentHeading": "Letzte Tage",
+      "reportedBadge": "Berichtet",
+      "noOccurrences": "Keine Termine in den nächsten Tagen."
+    }
+  }
+}

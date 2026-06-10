@@ -1,0 +1,39 @@
+{
+  "activityReport": {
+    "pt": {
+      "pendingTitle": "Esperando seu relato",
+      "pendingSubtitle": "Conte como foi — o outro responsável fica por dentro.",
+      "pendingEmpty": "Tudo relatado por aqui.",
+      "pendingEmptyHint": "Quando uma atividade passar sem relato, ela aparece aqui.",
+      "reportCta": "Relatar"
+    },
+    "en": {
+      "pendingTitle": "Waiting for your report",
+      "pendingSubtitle": "Share how it went — the other caregiver stays in the loop.",
+      "pendingEmpty": "All caught up here.",
+      "pendingEmptyHint": "When an activity goes by without a report, it shows up here.",
+      "reportCta": "Report"
+    },
+    "es": {
+      "pendingTitle": "Esperando tu relato",
+      "pendingSubtitle": "Cuenta cómo fue: la otra persona responsable se mantiene al tanto.",
+      "pendingEmpty": "Todo al día por aquí.",
+      "pendingEmptyHint": "Cuando una actividad pase sin relato, aparecerá aquí.",
+      "reportCta": "Relatar"
+    },
+    "fr": {
+      "pendingTitle": "En attente de ton compte-rendu",
+      "pendingSubtitle": "Raconte comment ça s'est passé — l'autre responsable reste au courant.",
+      "pendingEmpty": "Tout est à jour ici.",
+      "pendingEmptyHint": "Quand une activité passe sans compte-rendu, elle apparaît ici.",
+      "reportCta": "Raconter"
+    },
+    "de": {
+      "pendingTitle": "Wartet auf deinen Bericht",
+      "pendingSubtitle": "Erzähl, wie es war — die andere Bezugsperson bleibt informiert.",
+      "pendingEmpty": "Hier ist alles erledigt.",
+      "pendingEmptyHint": "Wenn eine Aktivität ohne Bericht bleibt, erscheint sie hier.",
+      "reportCta": "Berichten"
+    }
+  }
+}

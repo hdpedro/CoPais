@@ -2096,7 +2096,12 @@
     "reportNow": "Update",
     "daysAgo": "{count}d ago",
     "reminderYesterday": "{activity} from yesterday - how was it?",
-    "cancelledOccurrence": "Cancelled occurrence"
+    "cancelledOccurrence": "Cancelled occurrence",
+    "pendingTitle": "Waiting for your report",
+    "pendingSubtitle": "Share how it went — the other caregiver stays in the loop.",
+    "pendingEmpty": "All caught up here.",
+    "pendingEmptyHint": "When an activity goes by without a report, it shows up here.",
+    "reportCta": "Report"
   },
   "notifications": {
     "title": "Notifications",
@@ -2957,5 +2962,11 @@
     "ctaView": "View",
     "ctaReport": "Report",
     "ctaVote": "Vote"
+  },
+  "activityDetail": {
+    "upcomingHeading": "Upcoming",
+    "recentHeading": "Recent days",
+    "reportedBadge": "Reported",
+    "noOccurrences": "No occurrences in the next few days."
   }
 }

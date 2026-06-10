@@ -25,6 +25,10 @@ export type TranslationKey =
   | "activities.removeConfirmText"
   | "activities.removing"
   | "activities.startTime"
+  | "activityDetail.noOccurrences"
+  | "activityDetail.recentHeading"
+  | "activityDetail.reportedBadge"
+  | "activityDetail.upcomingHeading"
   | "activityReport.activityCancelled"
   | "activityReport.activityCompleted"
   | "activityReport.activityMissed"
@@ -38,9 +42,14 @@ export type TranslationKey =
   | "activityReport.mood_sad"
   | "activityReport.mood_tired"
   | "activityReport.notesPlaceholder"
+  | "activityReport.pendingEmpty"
+  | "activityReport.pendingEmptyHint"
   | "activityReport.pendingReport"
   | "activityReport.pendingReports"
+  | "activityReport.pendingSubtitle"
+  | "activityReport.pendingTitle"
   | "activityReport.reminderYesterday"
+  | "activityReport.reportCta"
   | "activityReport.reportNow"
   | "activityReport.submit"
   | "activityReport.submitReport"
@@ -2167,8 +2176,11 @@ export type TranslationKey =
   | "notifPrefs.testSent"
   | "notifPrefs.title"
   | "notifications.chatMessage"
+  | "notifications.clearAll"
+  | "notifications.clearAllConfirm"
   | "notifications.custodyChange"
   | "notifications.daysAgo"
+  | "notifications.delete"
   | "notifications.documentUploaded"
   | "notifications.empty"
   | "notifications.emptyDescription"
@@ -2736,6 +2748,10 @@ export const TRANSLATION_KEYS = [
   "activities.removeConfirmText",
   "activities.removing",
   "activities.startTime",
+  "activityDetail.noOccurrences",
+  "activityDetail.recentHeading",
+  "activityDetail.reportedBadge",
+  "activityDetail.upcomingHeading",
   "activityReport.activityCancelled",
   "activityReport.activityCompleted",
   "activityReport.activityMissed",
@@ -2749,9 +2765,14 @@ export const TRANSLATION_KEYS = [
   "activityReport.mood_sad",
   "activityReport.mood_tired",
   "activityReport.notesPlaceholder",
+  "activityReport.pendingEmpty",
+  "activityReport.pendingEmptyHint",
   "activityReport.pendingReport",
   "activityReport.pendingReports",
+  "activityReport.pendingSubtitle",
+  "activityReport.pendingTitle",
   "activityReport.reminderYesterday",
+  "activityReport.reportCta",
   "activityReport.reportNow",
   "activityReport.submit",
   "activityReport.submitReport",
@@ -4878,8 +4899,11 @@ export const TRANSLATION_KEYS = [
   "notifPrefs.testSent",
   "notifPrefs.title",
   "notifications.chatMessage",
+  "notifications.clearAll",
+  "notifications.clearAllConfirm",
   "notifications.custodyChange",
   "notifications.daysAgo",
+  "notifications.delete",
   "notifications.documentUploaded",
   "notifications.empty",
   "notifications.emptyDescription",

@@ -2096,7 +2096,12 @@
     "reportNow": "Atualizar",
     "daysAgo": "ha {count}d",
     "reminderYesterday": "{activity} de ontem - como foi?",
-    "cancelledOccurrence": "Ocorrência cancelada"
+    "cancelledOccurrence": "Ocorrência cancelada",
+    "pendingTitle": "Esperando seu relato",
+    "pendingSubtitle": "Conte como foi — o outro responsável fica por dentro.",
+    "pendingEmpty": "Tudo relatado por aqui.",
+    "pendingEmptyHint": "Quando uma atividade passar sem relato, ela aparece aqui.",
+    "reportCta": "Relatar"
   },
   "notifications": {
     "title": "Notificações",
@@ -2957,5 +2962,11 @@
     "ctaView": "Ver",
     "ctaReport": "Relatar",
     "ctaVote": "Votar"
+  },
+  "activityDetail": {
+    "upcomingHeading": "Próximas",
+    "recentHeading": "Últimos dias",
+    "reportedBadge": "Relatado",
+    "noOccurrences": "Sem ocorrências nos próximos dias."
   }
 }

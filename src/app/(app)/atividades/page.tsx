@@ -86,7 +86,11 @@ export default async function AtividadesPage() {
             }
 
             return (
-              <div key={act.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 hover:shadow-md transition-shadow">
+              <Link
+                key={act.id}
+                href={`/atividades/${act.id}`}
+                className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 hover:shadow-md transition-shadow"
+              >
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-[#C07055]/10 flex items-center justify-center text-lg flex-shrink-0">
                     {cat?.icon || "📋"}
@@ -121,7 +125,7 @@ export default async function AtividadesPage() {
                     Responsavel: {getDisplayName(responsibleName, true)}
                   </p>
                 )}
-              </div>
+              </Link>
             );
           })}
         </div>
