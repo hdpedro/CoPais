@@ -520,7 +520,10 @@
       "formNotesPlaceholder": "Ex : Voyage à la plage, camp d'hiver...",
       "formSaving": "Enregistrement...",
       "formSave": "Enregistrer les vacances"
-    }
+    },
+    "removeResponsible": "Retirer le responsable",
+    "removeResponsibleAllHint": "Retire le responsable de toutes les occurrences",
+    "responsibleRemoved": "Responsable retiré"
   },
   "chat": {
     "title": "Chat",

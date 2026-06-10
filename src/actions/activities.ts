@@ -896,7 +896,7 @@ export async function editActivityOccurrence(formData: FormData) {
 // como responsável no Evento e não foi"). Esta action cobre o caso evento.
 export async function changeEventResponsible(
   eventId: string,
-  newResponsibleId: string
+  newResponsibleId: string | null
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -928,31 +928,43 @@ export async function changeEventResponsible(
 
   // Side-effects NÃO-fatais: o assigned_to já foi salvo; notificação/chat não
   // podem derrubar a operação (lição write committed + bug Hailla PR#96).
+  // newResponsibleId null = ZERAR o responsável (feedback Henrique 10/jun) —
+  // sem push (não há quem notificar), chat registra a remoção.
   try {
-    const { data: newResponsibleProfile } = await supabase
-      .from("profiles")
-      .select("full_name")
-      .eq("id", newResponsibleId)
-      .single();
-    const newResponsibleName = newResponsibleProfile?.full_name?.split(" ")[0] || "Alguem";
+    if (newResponsibleId) {
+      const { data: newResponsibleProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", newResponsibleId)
+        .single();
+      const newResponsibleName = newResponsibleProfile?.full_name?.split(" ")[0] || "Alguem";
 
-    if (newResponsibleId !== user.id) {
-      await createNotificationWithPush(
-        newResponsibleId,
-        "activity",
-        `Voce e o responsavel por ${ev.title}`,
-        `Voce foi designado como responsavel pelo evento ${ev.title}.`,
-        "/calendario"
+      if (newResponsibleId !== user.id) {
+        await createNotificationWithPush(
+          newResponsibleId,
+          "activity",
+          `Voce e o responsavel por ${ev.title}`,
+          `Voce foi designado como responsavel pelo evento ${ev.title}.`,
+          "/calendario"
+        );
+      }
+
+      const { postChatNotification } = await import("@/lib/chat-notify");
+      await postChatNotification(
+        supabase,
+        activeGroup.groupId,
+        user.id,
+        `Responsavel pelo evento ${ev.title} alterado para ${newResponsibleName}.`
+      );
+    } else {
+      const { postChatNotification } = await import("@/lib/chat-notify");
+      await postChatNotification(
+        supabase,
+        activeGroup.groupId,
+        user.id,
+        `Responsavel pelo evento ${ev.title} removido.`
       );
     }
-
-    const { postChatNotification } = await import("@/lib/chat-notify");
-    await postChatNotification(
-      supabase,
-      activeGroup.groupId,
-      user.id,
-      `Responsavel pelo evento ${ev.title} alterado para ${newResponsibleName}.`
-    );
   } catch {
     // não-fatal — o responsável já foi salvo
   }
@@ -965,7 +977,7 @@ export async function changeEventResponsible(
 
 export async function changeActivityResponsibleAll(
   activityId: string,
-  newResponsibleId: string
+  newResponsibleId: string | null
 ) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -1005,40 +1017,57 @@ export async function changeActivityResponsibleAll(
     .eq("activity_id", activityId)
     .not("responsible_override", "is", null);
 
-  // Get the name of the new responsible
-  const { data: newResponsibleProfile } = await supabase
-    .from("profiles")
-    .select("full_name")
-    .eq("id", newResponsibleId)
-    .single();
+  // newResponsibleId null = ZERAR o responsável fixo (feedback Henrique
+  // 10/jun). Side-effects NÃO-fatais e guardados: sem push quando remove
+  // (não há quem notificar); chat registra a remoção.
+  try {
+    const childName = await resolveChildrenName(adminDb, {
+      childId: activity.child_id,
+      groupId: activeGroup.groupId,
+      embeddedFullName:
+        (activity.children as unknown as { full_name: string | null } | null)?.full_name ?? null,
+    });
 
-  const newResponsibleName = newResponsibleProfile?.full_name?.split(" ")[0] || "Alguem";
-  const childName = await resolveChildrenName(adminDb, {
-    childId: activity.child_id,
-    groupId: activeGroup.groupId,
-    embeddedFullName:
-      (activity.children as unknown as { full_name: string | null } | null)?.full_name ?? null,
-  });
+    const { postChatNotification } = await import("@/lib/chat-notify");
 
-  // Send push notification to the new responsible
-  if (newResponsibleId !== user.id) {
-    await createNotificationWithPush(
-      newResponsibleId,
-      "activity",
-      `Voce e o responsavel por ${activity.name}`,
-      `Voce foi designado permanentemente para ${childName} - ${activity.name}.`,
-      "/calendario"
-    );
+    if (newResponsibleId) {
+      // Get the name of the new responsible
+      const { data: newResponsibleProfile } = await supabase
+        .from("profiles")
+        .select("full_name")
+        .eq("id", newResponsibleId)
+        .single();
+
+      const newResponsibleName = newResponsibleProfile?.full_name?.split(" ")[0] || "Alguem";
+
+      // Send push notification to the new responsible
+      if (newResponsibleId !== user.id) {
+        await createNotificationWithPush(
+          newResponsibleId,
+          "activity",
+          `Voce e o responsavel por ${activity.name}`,
+          `Voce foi designado permanentemente para ${childName} - ${activity.name}.`,
+          "/calendario"
+        );
+      }
+
+      await postChatNotification(
+        supabase,
+        activeGroup.groupId,
+        user.id,
+        `Responsavel por ${activity.name} de ${childName} alterado permanentemente para ${newResponsibleName}.`
+      );
+    } else {
+      await postChatNotification(
+        supabase,
+        activeGroup.groupId,
+        user.id,
+        `Responsavel por ${activity.name} de ${childName} removido.`
+      );
+    }
+  } catch {
+    // não-fatal — o responsável já foi salvo
   }
-
-  // Post chat notification
-  const { postChatNotification } = await import("@/lib/chat-notify");
-  await postChatNotification(
-    supabase,
-    activeGroup.groupId,
-    user.id,
-    `Responsavel por ${activity.name} de ${childName} alterado permanentemente para ${newResponsibleName}.`
-  );
 
   const { revalidatePath } = await import("next/cache");
   revalidatePath("/calendario");

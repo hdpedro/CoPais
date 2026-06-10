@@ -520,7 +520,10 @@
       "formNotesPlaceholder": "Ex: Viagem pra Caraguá, acampamento de inverno...",
       "formSaving": "Salvando...",
       "formSave": "Salvar férias"
-    }
+    },
+    "removeResponsible": "Remover responsável",
+    "removeResponsibleAllHint": "Remove o responsável fixo de todas as ocorrências",
+    "responsibleRemoved": "Responsável removido"
   },
   "chat": {
     "title": "Chat",
