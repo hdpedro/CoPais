@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, memo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createSwapRequest } from "@/actions/calendar";
-import { deleteActivity, deleteEvent, deleteAppointment, cancelActivityOccurrence, changeActivityResponsible, changeActivityResponsibleAll, toggleChecklistItem, editActivityAll, editActivityOccurrence } from "@/actions/activities";
+import { deleteActivity, deleteEvent, deleteAppointment, cancelActivityOccurrence, changeActivityResponsible, changeActivityResponsibleAll, changeEventResponsible, toggleChecklistItem, editActivityAll, editActivityOccurrence } from "@/actions/activities";
 import { updateEvent as updateEventAction } from "@/actions/events";
 import { getBrazilToday, type CustodyDayInfo } from "@/lib/calendar-utils";
 import { ACTIVITY_CATEGORIES } from "@/lib/constants";
@@ -162,11 +162,15 @@ export default memo(function DayDetailSheet({
     }
   }, [dateKey, router]);
 
-  const handleChangeResponsible = useCallback(async (activityId: string, newResponsibleId: string) => {
+  const handleChangeResponsible = useCallback(async (activityId: string, newResponsibleId: string, source?: string) => {
     setResponsibleSaving(true);
     setResponsibleSuccess(null);
     try {
-      const result = await changeActivityResponsible(activityId, dateKey, newResponsibleId);
+      // Eventos guardam o responsável em events.assigned_to, não em
+      // child_activities — rotear pra action certa (bug Henrique 10/jun).
+      const result = source === "event"
+        ? await changeEventResponsible(activityId, newResponsibleId)
+        : await changeActivityResponsible(activityId, dateKey, newResponsibleId);
       if (result?.error) {
         setError(result.error);
       } else {
@@ -185,11 +189,14 @@ export default memo(function DayDetailSheet({
     }
   }, [dateKey, memberNames]);
 
-  const handleChangeResponsibleAll = useCallback(async (activityId: string, newResponsibleId: string) => {
+  const handleChangeResponsibleAll = useCallback(async (activityId: string, newResponsibleId: string, source?: string) => {
     setResponsibleSaving(true);
     setResponsibleSuccess(null);
     try {
-      const result = await changeActivityResponsibleAll(activityId, newResponsibleId);
+      // Evento tem um único assigned_to (sem "todas as ocorrências") — mesma action.
+      const result = source === "event"
+        ? await changeEventResponsible(activityId, newResponsibleId)
+        : await changeActivityResponsibleAll(activityId, newResponsibleId);
       if (result?.error) {
         setError(result.error);
       } else {
@@ -667,7 +674,7 @@ export default memo(function DayDetailSheet({
                                             setSelectedNewResponsible(member);
                                             setResponsibleMode("confirm");
                                           } else {
-                                            handleChangeResponsible(act.id, member.id);
+                                            handleChangeResponsible(act.id, member.id, act.source);
                                           }
                                         }}
                                         disabled={responsibleSaving}
@@ -695,7 +702,7 @@ export default memo(function DayDetailSheet({
                                   <div className="space-y-1.5">
                                     <button
                                       type="button"
-                                      onClick={(e) => { e.stopPropagation(); handleChangeResponsible(act.id, selectedNewResponsible.id); }}
+                                      onClick={(e) => { e.stopPropagation(); handleChangeResponsible(act.id, selectedNewResponsible.id, act.source); }}
                                       disabled={responsibleSaving}
                                       className="w-full px-3 py-2.5 text-xs bg-white border border-[#C07055]/15 text-[#2C2C2C] rounded-lg hover:bg-[#C07055]/[0.04] transition-colors disabled:opacity-50 font-medium"
                                     >
@@ -703,7 +710,7 @@ export default memo(function DayDetailSheet({
                                     </button>
                                     <button
                                       type="button"
-                                      onClick={(e) => { e.stopPropagation(); handleChangeResponsibleAll(act.id, selectedNewResponsible.id); }}
+                                      onClick={(e) => { e.stopPropagation(); handleChangeResponsibleAll(act.id, selectedNewResponsible.id, act.source); }}
                                       disabled={responsibleSaving}
                                       className="w-full px-3 py-2.5 text-xs bg-[#C07055] text-white rounded-lg hover:bg-[#A85D47] transition-colors disabled:opacity-50 font-semibold"
                                     >

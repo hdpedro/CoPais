@@ -890,6 +890,79 @@ export async function editActivityOccurrence(formData: FormData) {
   return { success: true };
 }
 
+// Eventos vivem na tabela `events` (NÃO `child_activities`) e guardam o
+// responsável em `assigned_to`. changeActivityResponsible/All falhavam com
+// "Atividade nao encontrada" para eventos (bug Henrique 10/jun: "atribuir Eu
+// como responsável no Evento e não foi"). Esta action cobre o caso evento.
+export async function changeEventResponsible(
+  eventId: string,
+  newResponsibleId: string
+) {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) redirect("/login");
+
+  const activeGroup = await getActiveGroup(supabase, user.id);
+  if (!activeGroup) return { error: "Sem grupo" };
+
+  const { createAdminClient } = await import("@/lib/supabase/admin");
+  const adminDb = createAdminClient();
+
+  // Verify event belongs to user's group
+  const { data: ev } = await adminDb
+    .from("events")
+    .select("id, title, group_id")
+    .eq("id", eventId)
+    .single();
+
+  if (!ev || ev.group_id !== activeGroup.groupId) {
+    return { error: "Evento nao encontrado" };
+  }
+
+  const { error } = await adminDb
+    .from("events")
+    .update({ assigned_to: newResponsibleId })
+    .eq("id", eventId);
+
+  if (error) return { error: error.message };
+
+  // Side-effects NÃO-fatais: o assigned_to já foi salvo; notificação/chat não
+  // podem derrubar a operação (lição write committed + bug Hailla PR#96).
+  try {
+    const { data: newResponsibleProfile } = await supabase
+      .from("profiles")
+      .select("full_name")
+      .eq("id", newResponsibleId)
+      .single();
+    const newResponsibleName = newResponsibleProfile?.full_name?.split(" ")[0] || "Alguem";
+
+    if (newResponsibleId !== user.id) {
+      await createNotificationWithPush(
+        newResponsibleId,
+        "activity",
+        `Voce e o responsavel por ${ev.title}`,
+        `Voce foi designado como responsavel pelo evento ${ev.title}.`,
+        "/calendario"
+      );
+    }
+
+    const { postChatNotification } = await import("@/lib/chat-notify");
+    await postChatNotification(
+      supabase,
+      activeGroup.groupId,
+      user.id,
+      `Responsavel pelo evento ${ev.title} alterado para ${newResponsibleName}.`
+    );
+  } catch {
+    // não-fatal — o responsável já foi salvo
+  }
+
+  const { revalidatePath } = await import("next/cache");
+  revalidatePath("/calendario");
+
+  return { success: true };
+}
+
 export async function changeActivityResponsibleAll(
   activityId: string,
   newResponsibleId: string
