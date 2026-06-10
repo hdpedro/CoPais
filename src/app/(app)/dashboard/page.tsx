@@ -243,7 +243,7 @@ export default async function DashboardPage() {
     // Social events for today/tomorrow/upcoming (moved from sequential to parallel)
     supabase
       .from("events")
-      .select("id, title, event_date, event_time, location, child_id, status, children(full_name)")
+      .select("id, title, event_date, event_time, location, child_id, status, assigned_to, children(full_name)")
       .eq("group_id", groupId)
       .neq("status", "cancelled")
       .gte("event_date", todayKey)
@@ -653,6 +653,9 @@ export default async function DashboardPage() {
         location: evt.location,
         children: evt.children,
         activity_checklist_items: [],
+        // events.assigned_to É o responsável do evento (migration 00024) —
+        // alimenta a estação do herói igual ao responsible_id das atividades.
+        responsible_id: (evt as { assigned_to?: string | null }).assigned_to ?? null,
       };
       if (evt.event_date === todayKey) {
         // Eventos nao tem activity_reports — nao da pra "Relatar". Entao

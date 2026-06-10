@@ -66,7 +66,7 @@ export default async function JornadaPage() {
       // funde em "Hoje". Sem ela a Reunião não constava na jornada (dono 10/jun).
       supabase
         .from("events")
-        .select("id, title, event_date, event_time, child_id, status")
+        .select("id, title, event_date, event_time, child_id, status, assigned_to")
         .eq("group_id", groupId)
         .neq("status", "cancelled")
         .eq("event_date", today),
@@ -102,7 +102,12 @@ export default async function JornadaPage() {
   for (const evt of eventsRaw ?? []) {
     const childId = (evt.child_id as string | null) ?? "__all__";
     const arr = activitiesByChild.get(childId) ?? [];
-    arr.push({ name: evt.title as string, time: (evt.event_time as string | null) ?? null, category: "evento" });
+    arr.push({
+      name: evt.title as string,
+      time: (evt.event_time as string | null) ?? null,
+      category: "evento",
+      responsible: nameOf((evt as { assigned_to?: string | null }).assigned_to) || null,
+    });
     activitiesByChild.set(childId, arr);
   }
 
