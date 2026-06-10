@@ -151,12 +151,18 @@ export default function RoutineTodayCard({
     if (simulateNowMin != null) return; // playground: relógio congelado via prop
     const update = () => {
       const d = new Date();
+      // Virou o dia com a aba aberta → os dados do server são de ontem;
+      // recarrega em vez de mostrar as estações de ontem como futuras.
+      if (d.toLocaleDateString("sv-SE") !== todayDate) {
+        router.refresh();
+        return;
+      }
       setClockMin(d.getHours() * 60 + d.getMinutes());
     };
     update();
     const id = setInterval(update, 60_000);
     return () => clearInterval(id);
-  }, [simulateNowMin]);
+  }, [simulateNowMin, todayDate, router]);
   const nowMin = simulateNowMin ?? clockMin;
 
   // "Buscou?/Levou?" — só pra pernas já passadas e ainda não registradas.
@@ -274,15 +280,19 @@ export default function RoutineTodayCard({
   const DAY_START = 6 * 60;
   const DAY_END = 21 * 60;
   const arcStations = (() => {
-    const map = new Map<string, { time: string; min: number; items: typeof heroTimeline }>();
+    // Cluster pela posição CLAMPADA na janela 06h–21h (auditoria #1): itens
+    // fora da janela (05:30, 22:00…) fundem num só bead de borda com contador,
+    // em vez de empilharem por cima das âncoras de casa.
+    const map = new Map<number, { time: string; min: number; items: typeof heroTimeline }>();
     for (const it of heroTimeline) {
       if (!it.time) continue;
       const [h, m] = it.time.split(":").map(Number);
       if (Number.isNaN(h)) continue;
-      const min = h * 60 + (m || 0);
-      const c = map.get(it.time) ?? { time: it.time, min, items: [] as typeof heroTimeline };
+      const rawMin = h * 60 + (m || 0);
+      const min = Math.max(DAY_START, Math.min(DAY_END, rawMin));
+      const c = map.get(min) ?? { time: it.time, min, items: [] as typeof heroTimeline };
       c.items.push(it);
-      map.set(it.time, c);
+      map.set(min, c);
     }
     return [...map.values()].sort((a, b) => a.min - b.min);
   })();
@@ -291,6 +301,9 @@ export default function RoutineTodayCard({
   const arcF = (min: number) => Math.min(1, Math.max(0, (min - DAY_START) / (DAY_END - DAY_START)));
   const arcX = (f: number) => 10 + 580 * f;
   const arcY = (f: number) => 86 - 256 * f + 256 * f * f;
+  // Estações usam um leve inset nas pontas pra nunca cobrirem as âncoras de
+  // casa (auditoria #12); sol e casas usam a faixa completa.
+  const arcFStation = (min: number) => Math.min(0.97, Math.max(0.03, arcF(min)));
   const nowF = nowMin == null ? null : arcF(nowMin);
   const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
   const AP0 = { x: 10, y: 86 };
@@ -305,12 +318,11 @@ export default function RoutineTodayCard({
     const [h, m] = tm.split(":");
     return (m ?? "00") === "00" ? `${parseInt(h, 10)}h` : `${parseInt(h, 10)}h${m}`;
   };
-  // Próximo momento: a primeira estação ainda por vir (SSR: a primeira).
-  const nextStation = (() => {
+  // Próximo momento: o primeiro CLUSTER ainda por vir (SSR: o primeiro).
+  const nextCluster = (() => {
     if (arcStations.length === 0) return null;
-    if (nowMin == null) return arcStations[0].items[0];
-    const c = arcStations.find((s) => s.min > nowMin);
-    return c ? c.items[0] : null;
+    if (nowMin == null) return arcStations[0];
+    return arcStations.find((s) => s.min > nowMin) ?? null;
   })();
   // "Sempre clicável": atividade → detalhe relatável; evento → o EVENTO no
   // calendário (deep-link day+eventId); casa → o dia; leva/busca → rotina.
@@ -330,16 +342,27 @@ export default function RoutineTodayCard({
   const arcLabeled = (() => {
     const lastXAtLevel = [-999, -999];
     return arcStations.map((c) => {
-      const x = arcX(arcF(c.min));
+      const x = arcX(arcFStation(c.min));
+      // Nível 0 → nível 1 (zigzag) → SEM dizeres (só a hora): com 3+ estações
+      // apertadas, texto embolado é pior que menos texto (achado S1/S7/S8 do
+      // playground). O nome completo segue no tooltip e no Próximo momento.
+      const g0 = x - lastXAtLevel[0];
+      const g1 = x - lastXAtLevel[1];
       let level = 0;
-      if (x - lastXAtLevel[0] < 92) level = x - lastXAtLevel[1] < 92 ? 0 : 1;
-      lastXAtLevel[level] = x;
+      let showLabels = true;
+      if (g0 < 92) {
+        if (g1 >= 92) level = 1;
+        else if (Math.max(g0, g1) >= 50) level = g0 >= g1 ? 0 : 1;
+        else showLabels = false;
+      }
+      if (showLabels) lastXAtLevel[level] = x;
       const names = c.items.map((i) => shortLabel(i.text)).join(" + ");
       const resps = [...new Set(c.items.map((i) => i.responsible).filter((r): r is string => !!r))];
       return {
         c,
         x,
         level,
+        showLabels,
         display: names.length > 17 ? `${names.slice(0, 16)}…` : names,
         fullNames: names,
         resp: resps.length === 1 ? resps[0] : null,
@@ -400,7 +423,9 @@ export default function RoutineTodayCard({
           marcados, as casas e o sol mantêm o dia vivo (feedback 10/jun). */}
       {heroTimeline.length > 0 && (
         <div className="mt-4 pt-3 border-t border-white/10">
-          <svg viewBox="0 0 600 112" className="w-full h-auto" style={{ overflow: "visible" }} aria-hidden>
+          {/* SEM aria-hidden: há links reais dentro (auditoria #8/#18) —
+              o decorativo (trilho/eixo) é que recebe aria-hidden. */}
+          <svg viewBox="0 0 600 112" className="w-full h-auto" style={{ overflow: "visible" }}>
             <defs>
               {/* Sol esférico: núcleo quente deslocado (luz vindo de cima) */}
               <radialGradient id="arcSun" cx="38%" cy="32%" r="75%">
@@ -473,6 +498,7 @@ export default function RoutineTodayCard({
               onKeyDown={homeAm ? (e) => { if (e.key === "Enter") router.push(hrefForStation(homeAm)); } : undefined}
             >
               {homeAm && <title>{`🏠 ${homeAm.text}`}</title>}
+              {homeAm && <circle cx={AP0.x + 14} cy={AP0.y - 4} r="20" fill="transparent" />}
               <circle cx={AP0.x} cy={AP0.y} r="3.2" fill="rgba(255,255,255,0.3)" />
               {homeAm && (
                 <text x={AP0.x} y={AP0.y - 9} textAnchor="start" fontSize="9.5" fill="#E7AE80">
@@ -489,6 +515,7 @@ export default function RoutineTodayCard({
               onKeyDown={homePm ? (e) => { if (e.key === "Enter") router.push(hrefForStation(homePm)); } : undefined}
             >
               {homePm && <title>{`🏠 ${homePm.text}`}</title>}
+              {homePm && <circle cx={AP2.x - 14} cy={AP2.y - 4} r="20" fill="transparent" />}
               <circle cx={AP2.x} cy={AP2.y} r="3.2" fill="rgba(255,255,255,0.3)" />
               {homePm && (
                 <text x={AP2.x} y={AP2.y - 9} textAnchor="end" fontSize="9.5" fill="#E7AE80">
@@ -496,16 +523,18 @@ export default function RoutineTodayCard({
                 </text>
               )}
             </g>
-            {arcLabeled.map(({ c, x, level, display, fullNames, resp, href }) => {
-              const f = arcF(c.min);
+            {arcLabeled.map(({ c, x, level, showLabels, display, fullNames, resp, href }) => {
+              const f = arcFStation(c.min);
               const y = arcY(f);
               const passed = nowMin != null && c.min <= nowMin;
-              const nameY = Math.min(y + 21 + level * 12, 88);
+              // Clamp ANTES do offset de nível — preserva a separação do
+              // zigzag mesmo nas bordas do arco (auditoria #6).
+              const nameY = Math.min(y + 21, 76) + level * 12;
               return (
                 <g
-                  key={c.time}
-                  opacity={passed ? 0.38 : 1}
-                  className="cursor-pointer"
+                  key={c.min}
+                  opacity={passed ? 0.55 : 1}
+                  className="cursor-pointer focus-visible:outline-2 focus-visible:outline-[#E7AE80]"
                   role="link"
                   tabIndex={0}
                   aria-label={`${fmtArcTime(c.time)} · ${fullNames}`}
@@ -513,7 +542,9 @@ export default function RoutineTodayCard({
                   onKeyDown={(e) => { if (e.key === "Enter") router.push(href); }}
                 >
                   <title>{`${fmtArcTime(c.time)} · ${fullNames}${resp ? ` · ${resp}` : ""}`}</title>
-                  <text x={x} y={y - 16} textAnchor="middle" fontSize="10" fill={passed ? "#9A8A77" : "#C9A98B"}>
+                  {/* Alvo de toque ~44px (mobile) — transparente mas clicável. */}
+                  <circle cx={x} cy={y} r="22" fill="transparent" />
+                  <text x={x} y={y - 16 - level * 11} textAnchor="middle" fontSize="10" fill={passed ? "#9A8A77" : "#C9A98B"}>
                     {fmtArcTime(c.time)}
                   </text>
                   <circle cx={x} cy={y} r="9" fill="url(#arcBead)" stroke="rgba(255,255,255,0.25)" strokeWidth="1" filter="url(#arcLift)" />
@@ -525,12 +556,15 @@ export default function RoutineTodayCard({
                   ) : (
                     <circle cx={x} cy={y} r="2.5" fill="#C9A98B" />
                   )}
-                  {/* Dizeres: nome da parada + responsável (terracota = pessoa). */}
-                  <text x={x} y={nameY} textAnchor="middle" fontSize="9.5" fill={passed ? "#9A8A77" : "#C9BCAA"}>
-                    {display}
-                  </text>
-                  {resp && (
-                    <text x={x} y={nameY + 11} textAnchor="middle" fontSize="9" fill={passed ? "rgba(231,174,128,0.5)" : "#E7AE80"}>
+                  {/* Dizeres: nome + responsável — SÓ quando há espaço (senão a
+                      hora + tooltip contam a história; texto embolado nunca). */}
+                  {showLabels && (
+                    <text x={x} y={nameY} textAnchor="middle" fontSize="9.5" fill={passed ? "#9A8A77" : "#C9BCAA"}>
+                      {display}
+                    </text>
+                  )}
+                  {showLabels && resp && (
+                    <text x={x} y={nameY + 11} textAnchor="middle" fontSize="9" fill={passed ? "rgba(231,174,128,0.6)" : "#E7AE80"}>
                       {resp}
                     </text>
                   )}
@@ -539,7 +573,7 @@ export default function RoutineTodayCard({
             })}
             {nowF != null && (
               <g
-                className="cursor-pointer"
+                className="cursor-pointer focus-visible:outline-2 focus-visible:outline-[#E7AE80]"
                 role="link"
                 tabIndex={0}
                 aria-label={t("careRoutine.journeyCta")}
@@ -547,13 +581,16 @@ export default function RoutineTodayCard({
                 onKeyDown={(e) => { if (e.key === "Enter") router.push("/jornada"); }}
               >
                 <title>{t("careRoutine.journeyCta")}</title>
+                <circle cx={arcX(nowF)} cy={arcY(nowF)} r="20" fill="transparent" />
                 <circle cx={arcX(nowF)} cy={arcY(nowF)} r="15" fill="#E7AE80" opacity="0.18" filter="url(#arcGlow)" />
                 <circle cx={arcX(nowF)} cy={arcY(nowF)} r="9" fill="#E7AE80" opacity="0.30" filter="url(#arcGlow)" />
                 <circle cx={arcX(nowF)} cy={arcY(nowF)} r="6.8" fill="url(#arcSun)" />
                 <circle cx={arcX(nowF) - 2.1} cy={arcY(nowF) - 2.4} r="2" fill="#FFF3E2" opacity="0.85" />
                 <text
                   x={Math.min(556, Math.max(44, arcX(nowF)))}
-                  y={Math.max(10, arcY(nowF) - 19)}
+                  // Sobe quando há estação por perto — "agora" nunca pinta por
+                  // cima do horário de uma parada (auditoria #2/#10).
+                  y={Math.max(10, arcY(nowF) - (arcLabeled.some((s) => Math.abs(s.x - arcX(nowF!)) < 32) ? 31 : 19))}
                   textAnchor="middle"
                   fontSize="10.5"
                   fontWeight="700"
@@ -564,17 +601,21 @@ export default function RoutineTodayCard({
                 </text>
               </g>
             )}
-            <text x="10" y="106" fontSize="10" fill="#8A7A6A">06h</text>
-            <text x={arcX(arcF(9 * 60))} y="106" textAnchor="middle" fontSize="10" fill="#8A7A6A">{t("careRoutine.arcMorning")}</text>
-            <text x={arcX(arcF(15 * 60))} y="106" textAnchor="middle" fontSize="10" fill="#8A7A6A">{t("careRoutine.arcAfternoon")}</text>
-            <text x={arcX(arcF(19.5 * 60))} y="106" textAnchor="middle" fontSize="10" fill="#8A7A6A">{t("careRoutine.arcEvening")}</text>
-            <text x="590" y="106" textAnchor="end" fontSize="10" fill="#8A7A6A">21h</text>
+            <g aria-hidden="true">
+              <text x="10" y="106" fontSize="10" fill="#A89A88">06h</text>
+              <text x={arcX(arcF(9 * 60))} y="106" textAnchor="middle" fontSize="10" fill="#A89A88">{t("careRoutine.arcMorning")}</text>
+              <text x={arcX(arcF(15 * 60))} y="106" textAnchor="middle" fontSize="10" fill="#A89A88">{t("careRoutine.arcAfternoon")}</text>
+              <text x={arcX(arcF(19.5 * 60))} y="106" textAnchor="middle" fontSize="10" fill="#A89A88">{t("careRoutine.arcEvening")}</text>
+              <text x="590" y="106" textAnchor="end" fontSize="10" fill="#A89A88">21h</text>
+            </g>
           </svg>
 
-          {/* Próximo momento — o que vem agora, clicável pro destino certo. */}
-          {nextStation && nextStation.time && (
+          {/* Próximo momento — o cluster inteiro que vem agora (auditoria #11):
+              2+ no mesmo horário mostram os dois nomes e vão pra /jornada;
+              perna ganha o verbo (Busca · Henrique), não só o nome. */}
+          {nextCluster && (
             <Link
-              href={hrefForStation(nextStation)}
+              href={nextCluster.items.length === 1 ? hrefForStation(nextCluster.items[0]) : "/jornada"}
               prefetch={false}
               className="mt-2.5 block rounded-xl bg-white/[0.05] border border-white/10 px-3.5 py-3 hover:bg-white/[0.08] transition-colors"
             >
@@ -583,13 +624,19 @@ export default function RoutineTodayCard({
               </p>
               <div className="flex items-center gap-3">
                 <span className="font-display text-[21px] leading-none text-[#E7AE80] tabular-nums flex-shrink-0">
-                  {nextStation.time}
+                  {nextCluster.items[0].time}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[13px] font-semibold text-[#F4ECE1] truncate">{shortLabel(nextStation.text)}</p>
-                  {(nextStation.location || nextStation.responsible) && (
+                  <p className="text-[13px] font-semibold text-[#F4ECE1] truncate">
+                    {nextCluster.items.length > 1
+                      ? nextCluster.items.map((i) => shortLabel(i.text)).join(" + ")
+                      : nextCluster.items[0].kind === "activity"
+                        ? shortLabel(nextCluster.items[0].text)
+                        : `${t(nextCluster.items[0].kind === "pickup" ? "careRoutine.pickup" : "careRoutine.dropoff")} · ${nextCluster.items[0].text}`}
+                  </p>
+                  {nextCluster.items.length === 1 && (nextCluster.items[0].location || nextCluster.items[0].responsible) && (
                     <p className="text-[11.5px] text-[#A89A88] truncate">
-                      {[nextStation.location, nextStation.responsible].filter(Boolean).join(" — ")}
+                      {[nextCluster.items[0].location, nextCluster.items[0].responsible].filter(Boolean).join(" — ")}
                     </p>
                   )}
                 </div>
@@ -617,7 +664,8 @@ export default function RoutineTodayCard({
         </p>
       )}
 
-      {error && <p className="mt-2 text-[12px] text-[#F0A8A0]">{error}</p>}
+      {/* Âmbar, nunca vermelho (marca) + anunciado a leitores de tela. */}
+      {error && <p role="alert" className="mt-2 text-[12px] text-[#E8A228]">{error}</p>}
     </div>
   );
 }

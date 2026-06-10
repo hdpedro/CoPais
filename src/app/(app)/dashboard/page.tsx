@@ -1395,6 +1395,10 @@ export default async function DashboardPage() {
       if (!leg?.time) return;
       const [h, m] = leg.time.split(":").map(Number);
       if (Number.isNaN(h)) return;
+      // Perna idêntica já presente (mesma perna/hora/pessoa compartilhada
+      // entre filhos) não duplica a estação (auditoria #15).
+      const legTime = leg.time.slice(0, 5);
+      if (heroTimeline.some((x) => x.kind === legKind && x.time === legTime && x.text === leg.responsibleName)) return;
       heroTimeline.push({
         key: `leg${i}-${legKind}`,
         sortMin: h * 60 + (m || 0),
