@@ -1380,6 +1380,30 @@ export default async function DashboardPage() {
         homeEvening: _heroHomeParent,
       })
     : [];
+  // Modo split (rotina diferente por filho): as pernas COM HORÁRIO das demais
+  // entries também viram estações do arco — antes só a 1ª entry aparecia e a
+  // família com 2 filhos perdia as pernas do 2º (visto na conta de teste).
+  for (let i = 1; i < routineToday.entries.length; i++) {
+    const e = routineToday.entries[i];
+    ([["dropoff", e.dropoff], ["pickup", e.pickup]] as const).forEach(([legKind, leg]) => {
+      if (!leg?.time) return;
+      const [h, m] = leg.time.split(":").map(Number);
+      if (Number.isNaN(h)) return;
+      heroTimeline.push({
+        key: `leg${i}-${legKind}`,
+        sortMin: h * 60 + (m || 0),
+        icon: legKind === "dropoff" ? "🚗" : "🏠",
+        text: leg.responsibleName,
+        time: leg.time.slice(0, 5),
+        kind: legKind,
+        responsible: null,
+        activityId: null,
+        eventId: null,
+        location: null,
+      });
+    });
+  }
+  heroTimeline.sort((a, b) => a.sortMin - b.sortMin);
 
   const clientProps: DashboardClientProps = {
     custodyEnabled,

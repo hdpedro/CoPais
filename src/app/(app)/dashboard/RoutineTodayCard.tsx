@@ -390,7 +390,9 @@ export default function RoutineTodayCard({
       {/* ARCO DO DIA — trajetória de sol 06h→21h (mockup do dono): percorrido
           sólido em terracota, futuro tracejado, sol em "agora", estações
           agrupadas por horário (contador quando 2+ no mesmo minuto). */}
-      {arcStations.length > 0 && (
+      {/* O arco aparece SEMPRE que o herói aparece: mesmo num dia sem horários
+          marcados, as casas e o sol mantêm o dia vivo (feedback 10/jun). */}
+      {heroTimeline.length > 0 && (
         <div className="mt-4 pt-3 border-t border-white/10">
           <svg viewBox="0 0 600 112" className="w-full h-auto" style={{ overflow: "visible" }} aria-hidden>
             <defs>
