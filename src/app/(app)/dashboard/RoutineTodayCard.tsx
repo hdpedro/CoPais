@@ -44,6 +44,9 @@ interface RoutineTodayCardProps {
   dayCalm: boolean;
   /** Jornada compacta do dia (casa → leva → atividades → busca) pro card dark. */
   heroTimeline: JourneyItem[];
+  /** SÓ pro playground /prototipo/heroi: congela o relógio num minuto do dia
+   *  (simulação de cenários). Em produção fica undefined → relógio do device. */
+  simulateNowMin?: number | null;
 }
 
 export default function RoutineTodayCard({
@@ -58,6 +61,7 @@ export default function RoutineTodayCard({
   tomorrowSummary,
   dayCalm,
   heroTimeline,
+  simulateNowMin = null,
 }: RoutineTodayCardProps) {
   const { t } = useI18n();
   const router = useRouter();
@@ -142,16 +146,18 @@ export default function RoutineTodayCard({
   // e o navegador preserva os atributos do server na hydration — os estados
   // de hora ficavam imprecisos (visto pelo dono 10/jun). null no SSR → tudo
   // neutro; acende no mount e atualiza a cada minuto.
-  const [nowMin, setNowMin] = useState<number | null>(null);
+  const [clockMin, setClockMin] = useState<number | null>(null);
   useEffect(() => {
+    if (simulateNowMin != null) return; // playground: relógio congelado via prop
     const update = () => {
       const d = new Date();
-      setNowMin(d.getHours() * 60 + d.getMinutes());
+      setClockMin(d.getHours() * 60 + d.getMinutes());
     };
     update();
     const id = setInterval(update, 60_000);
     return () => clearInterval(id);
-  }, []);
+  }, [simulateNowMin]);
+  const nowMin = simulateNowMin ?? clockMin;
 
   // "Buscou?/Levou?" — só pra pernas já passadas e ainda não registradas.
   const isPast = (time: string | null) => {
