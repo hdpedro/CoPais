@@ -16,7 +16,7 @@ import RoutineTodayCard from "./RoutineTodayCard";
 import type { RoutineToday } from "@/lib/care-routine-resolve";
 import type { JourneyItem } from "@/lib/care-routine-journey";
 import BriefingAttention from "./BriefingAttention";
-import type { AttentionItem } from "@/lib/briefing";
+import { selectHeroKind, type AttentionItem } from "@/lib/briefing";
 import { QUICK_ACTIONS_CATALOG, DEFAULT_QUICK_ACTIONS, type QuickActionDef } from "@/lib/constants";
 import OnboardingChecklist from "@/components/OnboardingChecklist";
 
@@ -427,6 +427,15 @@ export default function DashboardClient(props: DashboardClientProps) {
   // nowMs ainda é usado pelo tile de vacina (cálculo de dias até a próxima dose).
   const nowMs = Date.now(); // eslint-disable-line react-hooks/purity
 
+  // UM herói por forma de família ("é um OU outro" — dono 10/jun): rotating
+  // com guarda hoje → Herói de Guarda; together/single (ou rotating sem guarda
+  // resolvida hoje) → card da Rotina com o arco. Nunca os dois empilhados.
+  const heroKind = selectHeroKind({
+    arrangement: routineArrangement,
+    hasCustody: hasTodayCustody && !!custodyHero,
+    hasRoutineSlots,
+  });
+
   // Memoize streak bar items to avoid inline style object recreation
   const streakBarItems = useMemo(() => {
     if (streakTotal <= 1 || !firstCustody) return [];
@@ -529,7 +538,7 @@ export default function DashboardClient(props: DashboardClientProps) {
             </Link>
           )}
         </div>
-      ) : hasTodayCustody && custodyHero ? (
+      ) : heroKind === "custody" && custodyHero ? (
         <div className="relative rounded-2xl overflow-hidden bg-[#2C2C2C] p-5 text-white">
           <div className="absolute inset-0 bg-gradient-to-br from-white/[0.04] to-transparent" />
           <div className="relative">
@@ -649,8 +658,8 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       )}
 
-      {/* === ROTINA DE LEVA & BUSCA === */}
-      {show("careRoutine") && (
+      {/* === ROTINA DE LEVA & BUSCA — só quando ELA é o herói (nunca os dois) === */}
+      {show("careRoutine") && heroKind !== "custody" && (
         <RoutineTodayCard
           routineToday={routineToday}
           arrangement={routineArrangement}
