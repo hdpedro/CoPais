@@ -520,7 +520,10 @@
       "formNotesPlaceholder": "e.g. Trip to the beach, winter camp...",
       "formSaving": "Saving...",
       "formSave": "Save vacation"
-    }
+    },
+    "removeResponsible": "Remove responsible person",
+    "removeResponsibleAllHint": "Removes the assigned person from all occurrences",
+    "responsibleRemoved": "Responsible person removed"
   },
   "chat": {
     "title": "Chat",

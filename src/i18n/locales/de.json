@@ -520,7 +520,10 @@
       "formNotesPlaceholder": "z. B. Reise an den Strand, Winterlager...",
       "formSaving": "Wird gespeichert...",
       "formSave": "Urlaub speichern"
-    }
+    },
+    "removeResponsible": "Verantwortliche Person entfernen",
+    "removeResponsibleAllHint": "Entfernt die feste Zuständigkeit aus allen Terminen",
+    "responsibleRemoved": "Verantwortliche Person entfernt"
   },
   "chat": {
     "title": "Chat",

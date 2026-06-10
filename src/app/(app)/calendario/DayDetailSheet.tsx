@@ -92,6 +92,8 @@ export default memo(function DayDetailSheet({
   const [changingResponsible, setChangingResponsible] = useState<string | null>(null);
   const [responsibleSaving, setResponsibleSaving] = useState(false);
   const [responsibleSuccess, setResponsibleSuccess] = useState<string | null>(null);
+  // true = o sucesso foi uma REMOÇÃO (zerar responsável), muda a copy do toast
+  const [responsibleRemoved, setResponsibleRemoved] = useState(false);
   const [checklistExpanded, setChecklistExpanded] = useState<string | null>(null);
   const [optimisticChecklist, setOptimisticChecklist] = useState<Record<string, Record<string, boolean>>>({});
   const [responsibleMode, setResponsibleMode] = useState<"pick" | "confirm">("pick");
@@ -162,9 +164,37 @@ export default memo(function DayDetailSheet({
     }
   }, [dateKey, router]);
 
+  // Zerar o responsável de um item já criado (feedback Henrique 10/jun).
+  // Evento → events.assigned_to = null; atividade → limpa o responsible_id
+  // fixo + overrides (changeActivityResponsibleAll com null).
+  const handleRemoveResponsible = useCallback(async (activityId: string, source?: string) => {
+    setResponsibleSaving(true);
+    setResponsibleSuccess(null);
+    setResponsibleRemoved(false);
+    try {
+      const result = source === "event"
+        ? await changeEventResponsible(activityId, null)
+        : await changeActivityResponsibleAll(activityId, null);
+      if (result?.error) {
+        setError(result.error);
+      } else {
+        setChangingResponsible(null);
+        setResponsibleMode("pick");
+        setSelectedNewResponsible(null);
+        setResponsibleRemoved(true); // toast renderiza a copy "removido"
+        setTimeout(() => globalThis.location.reload(), 1500);
+      }
+    } catch {
+      // ignore
+    } finally {
+      setResponsibleSaving(false);
+    }
+  }, []);
+
   const handleChangeResponsible = useCallback(async (activityId: string, newResponsibleId: string, source?: string) => {
     setResponsibleSaving(true);
     setResponsibleSuccess(null);
+    setResponsibleRemoved(false);
     try {
       // Eventos guardam o responsável em events.assigned_to, não em
       // child_activities — rotear pra action certa (bug Henrique 10/jun).
@@ -192,6 +222,7 @@ export default memo(function DayDetailSheet({
   const handleChangeResponsibleAll = useCallback(async (activityId: string, newResponsibleId: string, source?: string) => {
     setResponsibleSaving(true);
     setResponsibleSuccess(null);
+    setResponsibleRemoved(false);
     try {
       // Evento tem um único assigned_to (sem "todas as ocorrências") — mesma action.
       const result = source === "event"
@@ -388,6 +419,8 @@ export default memo(function DayDetailSheet({
     setError("");
     setSuccess(false);
     setChangingResponsible(null);
+    setResponsibleSuccess(null);
+    setResponsibleRemoved(false);
     setChecklistExpanded(null);
     setOptimisticChecklist({});
     setResponsibleMode("pick");
@@ -517,10 +550,12 @@ export default memo(function DayDetailSheet({
                 {t("calendar.activities")}
               </p>
               {/* Success message after changing responsible */}
-              {responsibleSuccess && (
+              {(responsibleSuccess || responsibleRemoved) && (
                 <div className="flex items-center gap-2 px-3 py-2.5 bg-[#2E7268]/10 border border-[#2E7268]/15 rounded-xl text-[12px] text-[#2E7268] font-medium animate-[fadeIn_200ms_ease-out]">
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2E7268" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round"><path d="M5 13l4 4L19 7" /></svg>
-                  Responsavel alterado para <strong>{responsibleSuccess}</strong>
+                  {responsibleRemoved
+                    ? t("calendar.responsibleRemoved")
+                    : <>Responsavel alterado para <strong>{responsibleSuccess}</strong></>}
                 </div>
               )}
               <div className="space-y-2">
@@ -688,6 +723,33 @@ export default memo(function DayDetailSheet({
                                       </button>
                                     ))}
                                   </div>
+                                  {/* Zerar responsável — só quando há um responsável EXPLÍCITO
+                                      (override do dia, fixo da atividade ou assigned_to do evento);
+                                      o fallback de custódia não tem o que zerar. Gate pelo ID cru
+                                      (não pelo nome resolvido): ex-membro do grupo não resolve em
+                                      memberNames e é justamente o caso em que zerar mais importa. */}
+                                  {(act.report?.responsible_override || act.responsible_id || act.assigned_to_name) && (
+                                    <button
+                                      type="button"
+                                      onClick={(e) => { e.stopPropagation(); handleRemoveResponsible(act.id, act.source); }}
+                                      disabled={responsibleSaving}
+                                      className="w-full mt-1.5 text-left px-3 py-2.5 text-xs bg-white border border-red-100 rounded-lg hover:bg-red-50/60 transition-colors disabled:opacity-50 flex items-center gap-2.5 active:scale-[0.98]"
+                                    >
+                                      <span className="w-7 h-7 bg-red-50 rounded-full flex items-center justify-center text-red-400 font-bold text-[12px]">&#x2715;</span>
+                                      <span className="flex-1">
+                                        <span className="block text-[#2C2C2C] font-medium">{t("calendar.removeResponsible")}</span>
+                                        {act.source !== "event" && (
+                                          <span className="block text-[9px] text-[#9A8878] mt-0.5">{t("calendar.removeResponsibleAllHint")}</span>
+                                        )}
+                                      </span>
+                                      {responsibleSaving && <span className="text-[10px] text-[#C07055]">...</span>}
+                                    </button>
+                                  )}
+                                  {/* Erro da troca/remoção — sem isto a falha era invisível
+                                      (o {error} global só renderiza no form de swap). */}
+                                  {error && (
+                                    <p className="text-[10px] text-red-500 mt-1.5">{error}</p>
+                                  )}
                                 </div>
                               )}
                               {/* Confirm scope: this day or all future */}
