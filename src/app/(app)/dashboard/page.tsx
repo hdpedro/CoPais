@@ -1320,8 +1320,13 @@ export default async function DashboardPage() {
   // busca → casa) pro card dark. Reusa buildChildJourney; só no modo together
   // (uma linha). Itens sem horário são omitidos (não dá pra posicionar).
   const _heroFirstChild = (children || [])[0] as { id: string } | undefined;
-  const _heroHomeParent = _heroFirstChild
-    ? todayCustodyByChild[_heroFirstChild.id]?.responsibleName ?? null
+  // Casa = guarda do dia, pela MESMA fonte da /jornada (resolveCustodyOnDate),
+  // que resolve mesmo sem custody_enabled (os eventos existem). uid → nome.
+  const _heroCustody = _heroFirstChild
+    ? resolveCustodyOnDate((allCustodyEvents || []) as unknown as CustodyEventRow[], _heroFirstChild.id, todayKey)
+    : null;
+  const _heroHomeParent = _heroCustody
+    ? parentColors[_heroCustody.responsible_user_id]?.name ?? null
     : null;
   const _heroEntry = routineToday.mode === "together" ? routineToday.entries[0] : null;
   const heroTimeline: JourneyItem[] = _heroEntry
