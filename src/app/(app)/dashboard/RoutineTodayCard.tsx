@@ -15,7 +15,7 @@
  * NÃO toca no Herói de Guarda — bloco aditivo.
  */
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
@@ -138,9 +138,24 @@ export default function RoutineTodayCard({
     });
   }
 
+  // Relógio do DEVICE (não do server): o SSR roda em UTC (3h à frente do BR)
+  // e o navegador preserva os atributos do server na hydration — os estados
+  // de hora ficavam imprecisos (visto pelo dono 10/jun). null no SSR → tudo
+  // neutro; acende no mount e atualiza a cada minuto.
+  const [nowMin, setNowMin] = useState<number | null>(null);
+  useEffect(() => {
+    const update = () => {
+      const d = new Date();
+      setNowMin(d.getHours() * 60 + d.getMinutes());
+    };
+    update();
+    const id = setInterval(update, 60_000);
+    return () => clearInterval(id);
+  }, []);
+
   // "Buscou?/Levou?" — só pra pernas já passadas e ainda não registradas.
-  const nowMin = new Date().getHours() * 60 + new Date().getMinutes();
   const isPast = (time: string | null) => {
+    if (nowMin == null) return false;
     if (!time) return true;
     const [h, m] = time.split(":").map(Number);
     return h * 60 + (m || 0) <= nowMin;
@@ -255,6 +270,7 @@ export default function RoutineTodayCard({
       const [h, m] = it.time.split(":").map(Number);
       return Number.isNaN(h) ? null : h * 60 + (m || 0);
     });
+    if (nowMin == null) return heroTimeline.map(() => "future");
     const firstTimed = mins.find((m) => m != null) ?? null;
     const passed = heroTimeline.map((_, i) => {
       const m = mins[i];
@@ -369,6 +385,16 @@ export default function RoutineTodayCard({
                   >
                     {shortLabel(it.text)}
                   </span>
+                  {/* Responsável da atividade — pessoa, então terracota. */}
+                  {it.kind === "activity" && it.responsible ? (
+                    <span
+                      className={`w-full truncate text-[9px] leading-tight ${
+                        state === "next" ? "text-[#E7AE80] font-medium" : state === "passed" ? "text-[#E7AE80]/35" : "text-[#E7AE80]/85"
+                      }`}
+                    >
+                      {it.responsible}
+                    </span>
+                  ) : null}
                 </div>
               );
             })}

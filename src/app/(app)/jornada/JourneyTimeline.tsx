@@ -43,6 +43,9 @@ export default function JourneyTimeline({ childName, items }: { childName: strin
                   <span className="w-10 flex-shrink-0" />
                 )}
                 <span className="text-[13px] text-dark">{label(it)}</span>
+                {it.responsible ? (
+                  <span className="text-[12px] text-[#C07055] font-medium flex-shrink-0">· {it.responsible}</span>
+                ) : null}
               </div>
             </li>
           ))}

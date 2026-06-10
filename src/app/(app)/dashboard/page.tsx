@@ -234,7 +234,7 @@ export default async function DashboardPage() {
     // Activity occurrences for today through 7 days ahead (pre-computed, no runtime recurrence)
     supabase
       .from("calendar_occurrences")
-      .select("occurrence_date, activity_id, child_activities!inner(id, name, category, time_start, time_end, location, child_id, children(full_name), activity_checklist_items(id, name))")
+      .select("occurrence_date, activity_id, child_activities!inner(id, name, category, time_start, time_end, location, child_id, responsible_id, children(full_name), activity_checklist_items(id, name))")
       .eq("group_id", groupId)
       .gte("occurrence_date", todayKey)
       .lte("occurrence_date", sevenDaysKey)
@@ -590,6 +590,7 @@ export default async function DashboardPage() {
     children: { full_name: string | null } | { full_name: string | null }[] | null;
     activity_checklist_items: { id: string; name: string }[];
     state?: TodayState;
+    responsible_id?: string | null;
   }
 
   const todayReportedSet = new Set(
@@ -624,6 +625,7 @@ export default async function DashboardPage() {
       location: act.location,
       children: act.children,
       activity_checklist_items: act.activity_checklist_items || [],
+      responsible_id: (act as { responsible_id?: string | null }).responsible_id ?? null,
     };
 
     if (dateKey === todayKey) {
@@ -1359,7 +1361,12 @@ export default async function DashboardPage() {
           : null,
         activities: todayActivities
           .filter((a) => a.time_start)
-          .map((a) => ({ name: a.name, time: a.time_start as string, category: a.category })),
+          .map((a) => ({
+            name: a.name,
+            time: a.time_start as string,
+            category: a.category,
+            responsible: a.responsible_id ? parentColors[a.responsible_id]?.name ?? null : null,
+          })),
         homeMorning: _heroHomeParent,
         homeEvening: _heroHomeParent,
       })

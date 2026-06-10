@@ -36,7 +36,7 @@ export default async function JornadaPage() {
     month: "long",
   }).format(new Date(today + "T12:00:00"));
 
-  const [{ data: children }, { data: members }, { data: slotsRaw }, { data: overridesRaw }, { data: occ }, { data: custodyRaw }] =
+  const [{ data: children }, { data: members }, { data: slotsRaw }, { data: overridesRaw }, { data: occ }, { data: custodyRaw }, { data: eventsRaw }] =
     await Promise.all([
       supabase.from("children").select("id, full_name").eq("group_id", groupId).order("birth_date", { ascending: true }),
       supabase.from("group_members").select("user_id, profiles(display_name, full_name)").eq("group_id", groupId),
@@ -53,7 +53,7 @@ export default async function JornadaPage() {
         .eq("occurrence_date", today),
       supabase
         .from("calendar_occurrences")
-        .select("child_id, child_activities!inner(name, category, time_start)")
+        .select("child_id, child_activities!inner(name, category, time_start, responsible_id)")
         .eq("group_id", groupId)
         .eq("occurrence_date", today),
       supabase
@@ -62,6 +62,14 @@ export default async function JornadaPage() {
         .eq("group_id", groupId)
         .lte("start_date", today)
         .gte("end_date", today),
+      // Eventos (calendário/escola) de hoje — a MESMA fonte extra que o painel
+      // funde em "Hoje". Sem ela a Reunião não constava na jornada (dono 10/jun).
+      supabase
+        .from("events")
+        .select("id, title, event_date, event_time, child_id, status")
+        .eq("group_id", groupId)
+        .neq("status", "cancelled")
+        .eq("event_date", today),
     ]);
 
   const nameById = new Map<string, string>();
@@ -83,7 +91,18 @@ export default async function JornadaPage() {
     if (!act) continue;
     const childId = (o.child_id as string | null) ?? "__all__";
     const arr = activitiesByChild.get(childId) ?? [];
-    arr.push({ name: act.name as string, time: (act.time_start as string | null) ?? null, category: (act.category as string) ?? "other" });
+    arr.push({
+      name: act.name as string,
+      time: (act.time_start as string | null) ?? null,
+      category: (act.category as string) ?? "other",
+      responsible: nameOf((act as { responsible_id?: string | null }).responsible_id) || null,
+    });
+    activitiesByChild.set(childId, arr);
+  }
+  for (const evt of eventsRaw ?? []) {
+    const childId = (evt.child_id as string | null) ?? "__all__";
+    const arr = activitiesByChild.get(childId) ?? [];
+    arr.push({ name: evt.title as string, time: (evt.event_time as string | null) ?? null, category: "evento" });
     activitiesByChild.set(childId, arr);
   }
 

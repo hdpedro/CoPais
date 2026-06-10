@@ -101,3 +101,16 @@ describe("dedupeJourneyActivities (dois caminhos, mesmo evento — feedback 10/j
     expect(items.map((i) => i.text)).toEqual(["Reunião escolar: Reunião com pais", "Teatro"]);
   });
 });
+
+describe("responsável da atividade (dono 10/jun)", () => {
+  it("passa pra timeline e sobrevive ao dedup (mantido herda do absorvido)", () => {
+    const out = dedupeJourneyActivities([
+      { name: "Reunião escolar: Reunião com pais", time: "16:30:00", category: "school" },
+      { name: "Reunião pais 303 - Martim São Vicente", time: "16:30:00", category: "evento", responsible: "Henrique" },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.responsible).toBe("Henrique");
+    const items = buildChildJourney({ dropoff: null, pickup: null, activities: out });
+    expect(items[0]?.responsible).toBe("Henrique");
+  });
+});
