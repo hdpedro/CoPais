@@ -1143,6 +1143,71 @@ export default async function DashboardPage() {
     };
   })();
 
+  // ——— HERÓI DE GUARDA UNIVERSAL (cutover, dono 10/jun) ———
+  // Contexto mastigado pro card dark: voz com perspectiva ("com você até
+  // dom."), ritmo da semana (RESTAURA a Semana Colorida), contagem 3 de 7,
+  // próxima troca com "Você pega", handoff no dia de troca. Contrato de
+  // não-regressão: preserva tudo do herói de guarda antigo.
+  const custodyContextProp: DashboardClientProps["custodyContext"] = (() => {
+    if (!custodyHeroProp || !hasTodayCustody) return null;
+    const week = weekDaysData.map((d) => ({
+      label: d.label,
+      color: weekCustodyEntries.find((e) => e.dateKey === d.dateKey)?.color ?? null,
+      isToday: d.isToday,
+    }));
+    const nextSwap = nextSwapEvent
+      ? {
+          dateLabel: formatSwapDate(nextSwapEvent.start_date),
+          dateKey: nextSwapEvent.start_date,
+          name: getDisplayName(
+            (nextSwapEvent.profiles as unknown as { full_name: string | null } | null)?.full_name,
+            true,
+          ),
+          isMine: nextSwapEvent.responsible_user_id === user.id,
+        }
+      : null;
+    const handoff = nextSwap && nextSwap.dateKey === todayKey ? { name: nextSwap.name, isMe: nextSwap.isMine } : null;
+    const untilLabel = firstCustody
+      ? new Intl.DateTimeFormat(bcp47, { weekday: "short" }).format(new Date(firstCustody.endDate + "T12:00:00"))
+      : null;
+    const kids = (children || [])
+      .filter((c) => todayCustodyByChild[(c as { id: string }).id])
+      .map((c) => (c as { full_name?: string | null }).full_name?.split(" ")[0] || "")
+      .filter(Boolean);
+    if (custodyHeroProp.mode === "split") {
+      return {
+        mode: "split" as const,
+        withName: "",
+        withIsMe: false,
+        kids,
+        untilLabel: null,
+        handoff,
+        groups: custodyHeroProp.groups.map((gr) => ({
+          name: gr.responsibleName,
+          isMe: gr.isWithMe,
+          colorHex: gr.colorHex,
+          kids: gr.childNames,
+        })),
+        streakDays,
+        streakTotal,
+        week,
+        nextSwap,
+      };
+    }
+    return {
+      mode: custodyHeroProp.mode,
+      withName: custodyHeroProp.responsibleName,
+      withIsMe: custodyHeroProp.isWithMe,
+      kids: custodyHeroProp.mode === "single" && custodyHeroProp.childName ? [custodyHeroProp.childName] : kids,
+      untilLabel: custodyHeroProp.showStreak ? untilLabel : null,
+      handoff,
+      streakDays,
+      streakTotal,
+      week,
+      nextSwap,
+    };
+  })();
+
   // Illnesses
   const illnessProps: DashboardClientProps["activeIllnesses"] = (activeIllnesses || []).map((illness) => {
     const childName = (illness.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || t("dashboard.serverFallbacks.childGeneric");
@@ -1378,12 +1443,14 @@ export default async function DashboardPage() {
         : _heroCustody
           ? parentColors[_heroCustody.responsible_user_id]?.name ?? null
           : null;
-  const heroTimeline: JourneyItem[] = _heroEntry
+  // Com rotina OU no modo guarda (pais separados sem rotina ainda têm arco
+  // com casas + atividades do dia).
+  const heroTimeline: JourneyItem[] = _heroEntry || custodyContextProp
     ? buildChildJourney({
-        dropoff: _heroEntry.dropoff
+        dropoff: _heroEntry?.dropoff
           ? { name: _heroEntry.dropoff.responsibleName, time: _heroEntry.dropoff.time }
           : null,
-        pickup: _heroEntry.pickup
+        pickup: _heroEntry?.pickup
           ? { name: _heroEntry.pickup.responsibleName, time: _heroEntry.pickup.time }
           : null,
         activities: [...todayActivities, ...pastTodayEvents]
@@ -1399,7 +1466,9 @@ export default async function DashboardPage() {
             childId: a.childId ?? null,
           })),
         homeMorning: _heroHomeParent,
-        homeEvening: _heroHomeParent,
+        // Dia de TROCA: a casa da noite é do PRÓXIMO responsável — o arco
+        // conta o handoff visualmente (🏠 Fernanda ── ☀️ ── 🏠 Henrique).
+        homeEvening: custodyContextProp?.handoff ? custodyContextProp.handoff.name : _heroHomeParent,
       })
     : [];
   // Modo split (rotina diferente por filho): as pernas COM HORÁRIO das demais
@@ -1461,6 +1530,7 @@ export default async function DashboardPage() {
     routineLogsToday,
     routineTomorrowSummary,
     heroTimeline,
+    custodyContext: custodyContextProp,
     weekDays: weekDaysData,
     weekCustodyMap: weekCustodyEntries,
     parentColorEntries,
