@@ -324,13 +324,13 @@ export default function RoutineTodayCard({
                   {i > 0 && (
                     <span
                       aria-hidden
-                      className={`absolute left-0 right-1/2 top-3 h-px mr-3 ${state !== "future" ? "bg-[#B0805F]" : "bg-white/[0.08]"}`}
+                      className={`absolute left-0 right-1/2 top-3 h-px mr-3 ${state !== "future" ? "bg-[#B0805F]" : "bg-white/[0.15]"}`}
                     />
                   )}
                   {i < last && (
                     <span
                       aria-hidden
-                      className={`absolute left-1/2 right-0 top-3 h-px ml-3 ${state === "passed" ? "bg-[#B0805F]" : "bg-white/[0.08]"}`}
+                      className={`absolute left-1/2 right-0 top-3 h-px ml-3 ${state === "passed" ? "bg-[#B0805F]" : "bg-white/[0.15]"}`}
                     />
                   )}
                   <span
@@ -351,9 +351,20 @@ export default function RoutineTodayCard({
                   >
                     {it.time ?? " "}
                   </span>
+                  {/* Pessoas (casa/leva/busca) herdam o terracota da voz; atividades neutras. */}
                   <span
                     className={`w-full truncate text-[9.5px] leading-tight ${
-                      state === "next" ? "text-[#EFE4D6] font-medium" : state === "passed" ? "text-[#9A8A77]/40" : "text-[#A89884]"
+                      it.kind !== "activity"
+                        ? state === "next"
+                          ? "text-[#E7AE80] font-medium"
+                          : state === "passed"
+                            ? "text-[#E7AE80]/35"
+                            : "text-[#E7AE80]/85"
+                        : state === "next"
+                          ? "text-[#EFE4D6] font-medium"
+                          : state === "passed"
+                            ? "text-[#9A8A77]/40"
+                            : "text-[#A89884]"
                     }`}
                   >
                     {shortLabel(it.text)}
