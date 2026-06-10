@@ -964,6 +964,12 @@ export default async function DashboardPage() {
 
   const hasAnyCriticalChild = childHealthSummaries.some(c => c.status === "treatment");
 
+  // Saúde no painel SÓ quando tem algo a dizer (dono 10/jun): medicação ativa,
+  // doença, check-in recente ou consulta marcada (status ≠ healthy). Linhas
+  // "Saudável · Sem registros recentes" são ruído — a seção some. O array
+  // completo continua existindo (os rostos dos filhos reusam as fotos dele).
+  const noteworthyHealth = childHealthSummaries.filter((s) => s.status !== "healthy");
+
   // UI constants — prefere display_name (coluna gerada do banco, migration 00081)
   // sobre full_name. getDisplayName é defensiva final: vazio → "Usuário".
   const profileRow = profile as ({ display_name?: string | null; full_name?: string | null } | null);
@@ -1281,7 +1287,7 @@ export default async function DashboardPage() {
     // filhos — aí mostra o empty-state que ensina/leva pro editor.
     { id: "careRoutine", priority: 2.5, hasData: hasRoutineSlots || (routineArrangement !== "rotating" && (children?.length || 0) > 0) },
     { id: "childCards", priority: 3, hasData: (children?.length || 0) > 0 },
-    { id: "healthBlock", priority: 4, hasData: childHealthSummaries.length > 0 },
+    { id: "healthBlock", priority: 4, hasData: noteworthyHealth.length > 0 },
     { id: "activities", priority: 5, hasData: hasTodayActivities || hasTomorrowActivities || hasUpcomingActivities },
     // Briefing v2.0: escola/despesa/saúde (novidades), despesas a aprovar,
     // votos e relatos pendentes NÃO ficam mais aqui — foram unificados na
@@ -1470,8 +1476,8 @@ export default async function DashboardPage() {
       category: d.category,
       deadline: d.deadline,
     })),
-    childHealthSummaries: childHealthSummaries.slice(0, 3),
-    childHealthOverflow: Math.max(0, childHealthSummaries.length - 3),
+    childHealthSummaries: noteworthyHealth.slice(0, 3),
+    childHealthOverflow: Math.max(0, noteworthyHealth.length - 3),
     hasAnyCriticalChild,
     todayDate: todayKey,
     tomorrowDate: tomorrowKey,
