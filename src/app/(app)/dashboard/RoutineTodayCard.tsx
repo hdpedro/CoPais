@@ -3,17 +3,15 @@
 /**
  * Card "Hoje: quem leva · quem busca" do painel (Rotina de Leva & Busca).
  *
- * Adaptável à forma da família (`arrangement`):
- *   - together / single  → a rotina é protagonista (card destacado).
- *   - rotating           → card complementar abaixo do Herói de Guarda.
- * Sem slots → empty-state que ensina e leva pro editor (`/calendario/rotina`).
+ * Pele PREMIUM (mockup do dono): card ESCURO + VOZ editorial em Cormorant
+ * (nomes em terracota) que resume o dia — "Dia tranquilo. Fernanda leva as
+ * crianças e Henrique busca." — em vez de linhas técnicas. Mantém as interações:
+ *   - "Buscou?/Levou? Sim · Não" (registro otimista).
+ *   - "Trocar hoje" (⇄): cria override pro outro responsável + ciência bilateral.
+ *   - "Aguardando ciência" (criador) / "Confirmar" (destinatário).
  *
- * Interações:
- *   - "Trocar hoje" por perna (⇄): cria override pro outro responsável (1 toque
- *     quando há 2 cuidadores). Dispara ciência bilateral (Foundation).
- *   - Criador vê "⚠️ Aguardando ciência" até o outro confirmar.
- *   - Destinatário vê "[X] trocou a rotina de hoje · Confirmar" → mark_collab_read.
- *
+ * Voz compõe a partir das chaves i18n EXISTENTES (heroFullDay/heroDropoff/
+ * heroPickup) com um sentinela pra colorir só o nome — sem chave nova.
  * NÃO toca no Herói de Guarda — bloco aditivo.
  */
 
@@ -22,9 +20,13 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { createRoutineOverride, markRoutineOverrideRead, recordRoutineLog } from "@/actions/care-routine";
-import type { RoutineToday, RoutineHeroEntry, RoutineHeroLeg } from "@/lib/care-routine-resolve";
+import type { RoutineToday, RoutineHeroEntry } from "@/lib/care-routine-resolve";
 
 type Leg = "dropoff" | "pickup";
+
+/** Sentinela (char de controle improvável num nome) que envolve {name} pra
+ *  a voz partir e colorir só o nome, reusando as chaves i18n existentes. */
+const NAME_MARK = String.fromCharCode(1);
 
 interface RoutineTodayCardProps {
   routineToday: RoutineToday;
@@ -37,6 +39,8 @@ interface RoutineTodayCardProps {
   pendingAck: { fromName: string; overrideIds: string[] } | null;
   logsToday: Record<string, "done" | "missed">;
   tomorrowSummary: string | null;
+  /** true quando nada exige você hoje → acende a voz "Dia tranquilo." */
+  dayCalm: boolean;
 }
 
 export default function RoutineTodayCard({
@@ -49,19 +53,16 @@ export default function RoutineTodayCard({
   pendingAck,
   logsToday,
   tomorrowSummary,
+  dayCalm,
 }: RoutineTodayCardProps) {
-  const { t, locale } = useI18n();
+  const { t } = useI18n();
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   // Feedback OTIMISTA do "Buscou?/Levou?": marca na hora (o refresh confirma).
-  // Sem isso, clicar "Sim" não dá retorno visível até o round-trip do servidor.
   const [optimisticLogs, setOptimisticLogs] = useState<Record<string, "done" | "missed">>({});
 
-  const intlLocale =
-    ({ pt: "pt-BR", en: "en-US", es: "es-ES", fr: "fr-FR", de: "de-DE" } as Record<string, string>)[locale] ?? "pt-BR";
-  const listFmt = new Intl.ListFormat(intlLocale, { style: "long", type: "conjunction" });
-  const kidsLabel = (names: string[]) => (names.length ? listFmt.format(names) : "");
+  const kidsLabel = (names: string[]) => (names.length ? names.join(", ") : "");
 
   // Só dá pra "trocar" quando há exatamente 2 cuidadores (passa pro outro).
   const canSwap = caregivers.length === 2;
@@ -105,7 +106,6 @@ export default function RoutineTodayCard({
   function handleLog(childIds: string[], leg: Leg, status: "done" | "missed") {
     setError("");
     const keys = childIds.map((c) => `${c}:${leg}`);
-    // Otimista: o status aparece IMEDIATAMENTE no clique.
     setOptimisticLogs((prev) => {
       const next = { ...prev };
       keys.forEach((k) => (next[k] = status));
@@ -121,7 +121,6 @@ export default function RoutineTodayCard({
         fd.set("status", status);
         const res = await recordRoutineLog(fd);
         if (res?.error) {
-          // Reverte o otimista e mostra o erro.
           setOptimisticLogs((prev) => {
             const next = { ...prev };
             keys.forEach((k) => delete next[k]);
@@ -148,25 +147,45 @@ export default function RoutineTodayCard({
     if (ss.length > 0 && ss.every((s) => s === "missed")) return "missed";
     return "none";
   };
-  const legStatusRow = (childIds: string[], leg: Leg, time: string | null) => {
-    const status = aggStatus(childIds, leg);
-    if (status === "done") return <span className="text-[11px] text-[#5B9E85] font-medium">{t("careRoutine.heroDone")}</span>;
-    if (status === "missed") return <span className="text-[11px] text-[#7A8C8B]">{t("careRoutine.missedShort")}</span>;
-    if (!isPast(time)) return null;
+
+  // Linha de ação (dark): "Buscou? Sim · Não" / "✓ feito" + "⇄ Trocar hoje".
+  const actionRow = (entry: RoutineHeroEntry) => {
+    const status = aggStatus(entry.childIds, "pickup");
+    const past = isPast(entry.pickup?.time ?? entry.dropoff?.time ?? null);
+    const swapResp = entry.dropoff?.responsibleId ?? entry.pickup?.responsibleId;
     return (
-      <div className="flex items-center gap-2.5">
-        <span className="text-[11px] text-[#7A8C8B]">{leg === "dropoff" ? t("careRoutine.didDropoff") : t("careRoutine.didPickup")}</span>
-        <button type="button" disabled={isPending} onClick={() => handleLog(childIds, leg, "done")} className="text-[11px] font-semibold text-[#5B9E85] disabled:opacity-40">
-          {t("careRoutine.yes")}
-        </button>
-        <button type="button" disabled={isPending} onClick={() => handleLog(childIds, leg, "missed")} className="text-[11px] font-medium text-[#7A8C8B] disabled:opacity-40">
-          {t("careRoutine.no")}
-        </button>
+      <div className="mt-2 flex items-center gap-3 flex-wrap">
+        {status === "done" ? (
+          <span className="text-[12px] text-[#7FBE9C] font-medium">{t("careRoutine.heroDone")}</span>
+        ) : status === "missed" ? (
+          <span className="text-[12px] text-[#A89A88]">{t("careRoutine.missedShort")}</span>
+        ) : past ? (
+          <span className="flex items-center gap-2.5">
+            <span className="text-[12px] text-[#A89A88]">{t("careRoutine.didPickup")}</span>
+            <button type="button" disabled={isPending} onClick={() => handleLog(entry.childIds, "pickup", "done")} className="text-[12px] font-semibold text-[#7FBE9C] disabled:opacity-40">
+              {t("careRoutine.yes")}
+            </button>
+            <button type="button" disabled={isPending} onClick={() => handleLog(entry.childIds, "pickup", "missed")} className="text-[12px] font-medium text-[#A89A88] disabled:opacity-40">
+              {t("careRoutine.no")}
+            </button>
+          </span>
+        ) : null}
+        {canSwap && swapResp ? (
+          <button
+            type="button"
+            onClick={() => handleSwap(entry.childIds, ["dropoff", "pickup"], swapResp)}
+            disabled={isPending}
+            title={t("careRoutine.swapTodayCta")}
+            className="ml-auto text-[12px] font-medium text-[#C9A98B] hover:text-[#E3C9AC] disabled:opacity-40 flex-shrink-0"
+          >
+            ⇄ {t("careRoutine.swapTodayCta")}
+          </button>
+        ) : null}
       </div>
     );
   };
 
-  // Empty-state: ensina + CTA pro editor.
+  // Empty-state: ensina + CTA pro editor (claro — é estado de ativação).
   if (!hasRoutineSlots || routineToday.mode === "none") {
     return (
       <Link href="/calendario/rotina" prefetch={false} className="block">
@@ -184,116 +203,100 @@ export default function RoutineTodayCard({
     );
   }
 
-  const SwapButton = ({ childIds, legs, responsibleId, legKey }: { childIds: string[]; legs: Leg[]; responsibleId: string; legKey: Leg }) =>
-    canSwap ? (
-      <button
-        type="button"
-        onClick={() => handleSwap(childIds, legs, responsibleId)}
-        disabled={isPending}
-        aria-label={t("a11y.careRoutine.swap", { leg: legKey === "dropoff" ? t("careRoutine.dropoff") : t("careRoutine.pickup") })}
-        title={t("careRoutine.swapTodayCta")}
-        className="ml-auto text-[11px] font-medium text-[#5B9E85] hover:underline disabled:opacity-40 flex-shrink-0"
-      >
-        ⇄ {t("careRoutine.swapTodayCta")}
-      </button>
-    ) : null;
-
-  const renderLeg = (leg: RoutineHeroLeg | null, kind: Leg, kids: string, childIds: string[]) => {
-    if (!leg) return null;
-    const name = leg.responsibleName;
-    let text: string;
-    if (kind === "dropoff") {
-      text = leg.label
-        ? t("careRoutine.heroDropoffTo", { name, kids, label: leg.label })
-        : t("careRoutine.heroDropoff", { name, kids });
-    } else {
-      text = leg.time
-        ? t("careRoutine.heroPickupAt", { name, kids, time: leg.time.slice(0, 5) })
-        : t("careRoutine.heroPickup", { name, kids });
-    }
-    return (
-      <div>
-        <div className="flex items-center gap-2">
-          <span className="text-base flex-shrink-0">{kind === "dropoff" ? "🚗" : "🏠"}</span>
-          <span className={`text-[13px] ${leg.isMe ? "font-semibold text-[#2C2C2C]" : "text-[#3A3A3A]"}`}>{text}</span>
-          <SwapButton childIds={childIds} legs={[kind]} responsibleId={leg.responsibleId} legKey={kind} />
-        </div>
-        <div className="ml-7 mt-0.5">{legStatusRow(childIds, kind, leg.time)}</div>
-      </div>
+  // Voz: colore só o NOME, reusando as chaves existentes via NAME_MARK.
+  const vozColor = (s: string) => {
+    const p = s.split(NAME_MARK);
+    return p.length === 3 ? (
+      <>
+        {p[0]}
+        <span className="text-[#E7AE80] font-medium">{p[1]}</span>
+        {p[2]}
+      </>
+    ) : (
+      s
     );
   };
-
-  const renderEntry = (entry: RoutineHeroEntry, key: string | number) => {
+  const mark = (name: string) => NAME_MARK + name + NAME_MARK;
+  const vozLine = (entry: RoutineHeroEntry) => {
     const kids = kidsLabel(entry.childNames);
     if (entry.sameAllDay && entry.dropoff) {
-      return (
-        <div key={key}>
-          <div className="flex items-center gap-2">
-            <span className="text-base flex-shrink-0">🤝</span>
-            <span className={`text-[13px] ${entry.dropoff.isMe ? "font-semibold text-[#2C2C2C]" : "text-[#3A3A3A]"}`}>
-              {t("careRoutine.heroFullDay", { name: entry.dropoff.responsibleName, kids })}
-            </span>
-            <SwapButton childIds={entry.childIds} legs={["dropoff", "pickup"]} responsibleId={entry.dropoff.responsibleId} legKey="dropoff" />
-          </div>
-          <div className="ml-7 mt-0.5">{legStatusRow(entry.childIds, "pickup", entry.pickup?.time ?? entry.dropoff.time)}</div>
-        </div>
-      );
+      return vozColor(t("careRoutine.heroFullDay", { name: mark(entry.dropoff.responsibleName), kids }));
     }
     return (
-      <div key={key} className="space-y-1.5">
-        {entry.childNames.length > 1 || routineToday.mode === "split" ? (
-          <p className="text-[11px] uppercase tracking-wide text-[#7A8C8B] font-medium">{kids}</p>
-        ) : null}
-        {renderLeg(entry.dropoff, "dropoff", kids, entry.childIds)}
-        {renderLeg(entry.pickup, "pickup", kids, entry.childIds)}
-      </div>
+      <>
+        {entry.dropoff ? vozColor(t("careRoutine.heroDropoff", { name: mark(entry.dropoff.responsibleName), kids })) : null}
+        {entry.dropoff && entry.pickup ? <span className="text-[#8A7A6A]"> · </span> : null}
+        {entry.pickup
+          ? vozColor(
+              entry.pickup.time
+                ? t("careRoutine.heroPickupAt", { name: mark(entry.pickup.responsibleName), kids, time: entry.pickup.time.slice(0, 5) })
+                : t("careRoutine.heroPickup", { name: mark(entry.pickup.responsibleName), kids }),
+            )
+          : null}
+      </>
     );
   };
 
   return (
-    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm">
+    <div
+      className="rounded-2xl p-5 shadow-sm text-[#EFE7DC]"
+      style={{ background: "linear-gradient(157deg, #2E2823 0%, #211C18 100%)" }}
+    >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[12px] uppercase tracking-wider text-[#7A8C8B] font-semibold">📍 {t("careRoutine.todayHeading")}</h3>
-        <Link href="/calendario/rotina" prefetch={false} className="text-[12px] font-medium text-[#5B9E85] hover:underline">
+        <h3 className="text-[11px] uppercase tracking-[0.18em] text-[#B79B7E] font-semibold">
+          📍 {t("careRoutine.todayHeading")}
+        </h3>
+        <Link href="/calendario/rotina" prefetch={false} className="text-[12px] font-medium text-[#C9A98B] hover:text-[#E3C9AC]">
           {t("careRoutine.editCta")}
         </Link>
       </div>
 
       {/* Destinatário: alguém trocou e eu ainda não dei ciência */}
       {pendingAck && (
-        <div className="mb-3 rounded-xl bg-[#E8A228]/[0.08] border border-[#E8A228]/25 px-3 py-2.5 flex items-center gap-2">
-          <span className="text-[13px] text-[#2C2C2C] flex-1">{t("careRoutine.changedToday", { name: pendingAck.fromName })}</span>
+        <div className="mb-3.5 rounded-xl bg-[#E8A228]/[0.14] border border-[#E8A228]/30 px-3 py-2.5 flex items-center gap-2">
+          <span className="text-[13px] text-[#F4ECE1] flex-1">{t("careRoutine.changedToday", { name: pendingAck.fromName })}</span>
           <button
             type="button"
             onClick={handleConfirmAck}
             disabled={isPending}
-            className="text-[12px] font-semibold text-white bg-[#E8A228] rounded-lg px-3 py-1.5 disabled:opacity-50 flex-shrink-0"
+            className="text-[12px] font-semibold text-[#211C18] bg-[#E8A228] rounded-lg px-3 py-1.5 disabled:opacity-50 flex-shrink-0"
           >
             {isPending ? t("careRoutine.confirming") : t("careRoutine.confirm")}
           </button>
         </div>
       )}
 
-      <div className="space-y-3">{routineToday.entries.map((entry, i) => renderEntry(entry, i))}</div>
+      {/* VOZ — editorial, Cormorant, nomes em terracota. */}
+      <div className="mb-1">
+        {dayCalm && <p className="font-display text-[21px] leading-[1.12] text-[#F4ECE1]">{t("briefing.calmTitle")}</p>}
+        <div className="space-y-2.5 mt-1">
+          {routineToday.entries.map((entry, i) => (
+            <div key={i}>
+              <p className="font-display text-[19px] leading-[1.32] text-[#E9DECF]">{vozLine(entry)}</p>
+              {actionRow(entry)}
+            </div>
+          ))}
+        </div>
+      </div>
 
       {tomorrowSummary && (
-        <p className="mt-3 pt-2.5 border-t border-gray-100 text-[12px] text-[#7A8C8B]">
-          🌅 <span className="font-medium text-[#3A3A3A]">{t("careRoutine.tomorrowHeading")}</span> · {tomorrowSummary}
+        <p className="mt-3.5 pt-2.5 border-t border-white/10 text-[12px] text-[#A89A88]">
+          🌅 <span className="font-medium text-[#D8CBB9]">{t("careRoutine.tomorrowHeading")}</span> · {tomorrowSummary}
         </p>
       )}
 
-      <Link href="/jornada" prefetch={false} className="mt-3 inline-block text-[12px] font-medium text-[#5B9E85] hover:underline">
+      <Link href="/jornada" prefetch={false} className="mt-3 inline-block text-[12px] font-medium text-[#C9A98B] hover:text-[#E3C9AC]">
         {t("careRoutine.journeyCta")} →
       </Link>
 
       {/* Criador: troquei e aguardo ciência do outro */}
       {awaitingTheirAck && !pendingAck && (
-        <p className="mt-3 pt-2.5 border-t border-gray-100 text-[11px] text-[#E8A228] font-medium flex items-center gap-1">
+        <p className="mt-3 pt-2.5 border-t border-white/10 text-[11px] text-[#E8A228] font-medium flex items-center gap-1">
           ⚠️ {t("careRoutine.awaitingAck")}
         </p>
       )}
 
-      {error && <p className="mt-2 text-[12px] text-[#E53935]">{error}</p>}
+      {error && <p className="mt-2 text-[12px] text-[#F0A8A0]">{error}</p>}
     </div>
   );
 }

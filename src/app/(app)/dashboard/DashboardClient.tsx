@@ -659,6 +659,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           pendingAck={routinePendingAck}
           logsToday={routineLogsToday}
           tomorrowSummary={routineTomorrowSummary}
+          dayCalm={briefingAttention.length === 0}
         />
       )}
 
