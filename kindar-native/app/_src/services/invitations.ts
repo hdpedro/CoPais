@@ -2,7 +2,9 @@
  * Invitations service — mirrors PWA src/actions/invitation.ts.
  *
  * Workflow 1/8 da aprovacao: convidar outro responsavel a entrar no grupo.
- * Estados: pending → accepted | expired | cancelled.
+ * Estados: pending → accepted | expired | revoked (enum invitation_status do DB;
+ * NÃO existe 'cancelled' — bug Matheus 09/jun: cancelInvitation mandava
+ * 'cancelled' e o enum rejeitava silenciosamente).
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -17,7 +19,7 @@ export interface Invitation {
   role: string;
   group_role: 'admin' | 'member' | 'readonly';
   token: string;
-  status: 'pending' | 'accepted' | 'expired' | 'cancelled';
+  status: 'pending' | 'accepted' | 'expired' | 'revoked';
   invited_by: string;
   created_at: string;
   expires_at: string;
@@ -76,7 +78,7 @@ export async function cancelInvitation(invitationId: string, groupId: string): P
   // path stays here while a future API wrapper unifies the audit trail.
   const { error } = await supabase
     .from('invitations')
-    .update({ status: 'cancelled' })
+    .update({ status: 'revoked' })
     .eq('id', invitationId);
   if (error) return { success: false, error: error.message };
 
