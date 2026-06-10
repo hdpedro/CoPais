@@ -62,19 +62,20 @@ export default function WeeklySummaryClient({
 
         {/* KPI Chips */}
         <div className="flex gap-1.5 overflow-x-auto pb-0.5 -mx-1 px-1 scrollbar-hide">
-          <Chip icon="📅" value={kpis.totalEvents} label="eventos" empty={kpis.totalEvents === 0} />
-          <Chip icon="✅" value={kpis.totalCheckins} label="check-ins" empty={kpis.totalCheckins === 0} />
-          {kpis.medsCount > 0 && <Chip icon="💊" value={kpis.medsCount} label="med." accent />}
-          {kpis.appointmentsCount > 0 && <Chip icon="🩺" value={kpis.appointmentsCount} label="consultas" />}
+          <Chip icon="📅" value={kpis.totalEvents} label="eventos" empty={kpis.totalEvents === 0} href="/calendario" />
+          <Chip icon="✅" value={kpis.totalCheckins} label="check-ins" empty={kpis.totalCheckins === 0} href="/checkin" />
+          {kpis.medsCount > 0 && <Chip icon="💊" value={kpis.medsCount} label="med." accent href="/saude" />}
+          {kpis.appointmentsCount > 0 && <Chip icon="🩺" value={kpis.appointmentsCount} label="consultas" href="/saude" />}
           {kpis.pendingCount > 0 && (
             <Chip
               icon="⚠️"
               value={kpis.pendingCount}
               label={kpis.pendingCount === 1 ? "pendência" : "pendências"}
               accent
+              href="/calendario"
             />
           )}
-          <Chip icon="💬" value={kpis.messagesCount} label="msgs" empty={kpis.messagesCount === 0} />
+          <Chip icon="💬" value={kpis.messagesCount} label="msgs" empty={kpis.messagesCount === 0} href="/chat" />
         </div>
       </div>
 
@@ -184,7 +185,7 @@ export default function WeeklySummaryClient({
           {childSummaries.map((child) => {
             const health = healthConfig[child.healthStatus] || healthConfig.healthy;
             return (
-              <div key={child.id} className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 hover:shadow-md transition-shadow">
+              <Link key={child.id} href={`/criancas/${child.id}`} prefetch={false} className="block bg-white rounded-2xl p-4 shadow-sm border border-gray-100/80 hover:shadow-md hover:border-[#C07055]/20 transition-all active:scale-[0.99] cursor-pointer group">
                 <div className="flex items-center gap-3 mb-3">
                   <div className="relative">
                     <div className="w-10 h-10 rounded-full bg-[#C07055]/10 flex items-center justify-center text-[15px] font-bold text-[#C07055]">
@@ -202,6 +203,9 @@ export default function WeeklySummaryClient({
                       </span>
                     </div>
                   </div>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#D1D5DB" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0 group-hover:stroke-[#C07055] transition-colors">
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
                 </div>
 
                 {/* Stats row */}
@@ -225,7 +229,7 @@ export default function WeeklySummaryClient({
                     }
                   </p>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>
@@ -298,20 +302,24 @@ export default function WeeklySummaryClient({
 
 /* ─── Sub-components ─── */
 
-function Chip({ icon, value, label, accent, empty }: { icon: string; value: number; label: string; accent?: boolean; empty?: boolean }) {
-  return (
-    <div className={`flex items-center gap-1 px-2.5 py-1.5 rounded-full whitespace-nowrap text-[11px] font-medium transition-colors ${
-      accent
-        ? "bg-[#D4735A]/10 text-[#D4735A]"
-        : empty
-          ? "bg-gray-100/60 text-[#9A8878]"
-          : "bg-white/80 text-[#2C2C2C] shadow-sm shadow-black/[0.03]"
-    }`}>
+function Chip({ icon, value, label, accent, empty, href }: { icon: string; value: number; label: string; accent?: boolean; empty?: boolean; href?: string }) {
+  const cls = `flex items-center gap-1 px-2.5 py-1.5 rounded-full whitespace-nowrap text-[11px] font-medium transition-all ${
+    accent
+      ? "bg-[#D4735A]/10 text-[#D4735A]"
+      : empty
+        ? "bg-gray-100/60 text-[#9A8878]"
+        : "bg-white/80 text-[#2C2C2C] shadow-sm shadow-black/[0.03]"
+  } ${href ? "cursor-pointer hover:shadow-md hover:scale-[1.04] active:scale-95" : ""}`;
+  const inner = (
+    <>
       <span className="text-xs">{icon}</span>
       <span className="font-bold">{empty ? "—" : value}</span>
       <span className={empty ? "text-[#B8B0A8]" : "text-[#9A8878]"}>{label}</span>
-    </div>
+    </>
   );
+  return href
+    ? <Link href={href} prefetch={false} className={cls}>{inner}</Link>
+    : <div className={cls}>{inner}</div>;
 }
 
 function MiniStat({ icon, value, label, empty, accent }: { icon: string; value: number; label: string; empty?: boolean; accent?: boolean }) {
