@@ -318,6 +318,32 @@ export default function RoutineTodayCard({
       : it.kind === "home"
         ? `/calendario?day=${todayDate}`
         : "/calendario/rotina";
+  // Rótulos do arco (os dizeres da linha antiga): nome + responsável sob cada
+  // ponto, com zigzag automático quando estações ficam próximas. Clique:
+  // 1 item → destino dele; 2+ no mesmo horário → /jornada (lista o dia).
+  const arcLabeled = (() => {
+    const lastXAtLevel = [-999, -999];
+    return arcStations.map((c) => {
+      const x = arcX(arcF(c.min));
+      let level = 0;
+      if (x - lastXAtLevel[0] < 92) level = x - lastXAtLevel[1] < 92 ? 0 : 1;
+      lastXAtLevel[level] = x;
+      const names = c.items.map((i) => shortLabel(i.text)).join(" + ");
+      const resps = [...new Set(c.items.map((i) => i.responsible).filter((r): r is string => !!r))];
+      return {
+        c,
+        x,
+        level,
+        display: names.length > 17 ? `${names.slice(0, 16)}…` : names,
+        fullNames: names,
+        resp: resps.length === 1 ? resps[0] : null,
+        href: c.items.length === 1 ? hrefForStation(c.items[0]) : "/jornada",
+      };
+    });
+  })();
+  const homeAm = heroTimeline.find((i) => i.key === "home-am") ?? null;
+  const homePm = heroTimeline.find((i) => i.key === "home-pm") ?? null;
+  const dayMoving = nowMin != null && arcStations.length > 0 && nowMin >= arcStations[0].min;
 
   return (
     <div
@@ -428,30 +454,91 @@ export default function RoutineTodayCard({
                 strokeLinecap="round"
               />
             )}
-            <circle cx={AP0.x} cy={AP0.y} r="3" fill="rgba(255,255,255,0.25)" />
-            <circle cx={AP2.x} cy={AP2.y} r="3" fill="rgba(255,255,255,0.25)" />
-            {arcStations.map((c) => {
+            {/* Casas nas pontas do dia — com nome (dizeres) e clicáveis. */}
+            <g
+              opacity={dayMoving ? 0.45 : 1}
+              className={homeAm ? "cursor-pointer" : undefined}
+              role={homeAm ? "link" : undefined}
+              tabIndex={homeAm ? 0 : undefined}
+              aria-label={homeAm?.text}
+              onClick={homeAm ? () => router.push(hrefForStation(homeAm)) : undefined}
+              onKeyDown={homeAm ? (e) => { if (e.key === "Enter") router.push(hrefForStation(homeAm)); } : undefined}
+            >
+              {homeAm && <title>{`🏠 ${homeAm.text}`}</title>}
+              <circle cx={AP0.x} cy={AP0.y} r="3.2" fill="rgba(255,255,255,0.3)" />
+              {homeAm && (
+                <text x={AP0.x} y={AP0.y - 9} textAnchor="start" fontSize="9.5" fill="#E7AE80">
+                  🏠 {homeAm.text}
+                </text>
+              )}
+            </g>
+            <g
+              className={homePm ? "cursor-pointer" : undefined}
+              role={homePm ? "link" : undefined}
+              tabIndex={homePm ? 0 : undefined}
+              aria-label={homePm?.text}
+              onClick={homePm ? () => router.push(hrefForStation(homePm)) : undefined}
+              onKeyDown={homePm ? (e) => { if (e.key === "Enter") router.push(hrefForStation(homePm)); } : undefined}
+            >
+              {homePm && <title>{`🏠 ${homePm.text}`}</title>}
+              <circle cx={AP2.x} cy={AP2.y} r="3.2" fill="rgba(255,255,255,0.3)" />
+              {homePm && (
+                <text x={AP2.x} y={AP2.y - 9} textAnchor="end" fontSize="9.5" fill="#E7AE80">
+                  🏠 {homePm.text}
+                </text>
+              )}
+            </g>
+            {arcLabeled.map(({ c, x, level, display, fullNames, resp, href }) => {
               const f = arcF(c.min);
+              const y = arcY(f);
               const passed = nowMin != null && c.min <= nowMin;
+              const nameY = Math.min(y + 21 + level * 12, 88);
               return (
-                <g key={c.time} opacity={passed ? 0.38 : 1}>
-                  <text x={arcX(f)} y={arcY(f) - 16} textAnchor="middle" fontSize="10" fill={passed ? "#9A8A77" : "#C9A98B"}>
+                <g
+                  key={c.time}
+                  opacity={passed ? 0.38 : 1}
+                  className="cursor-pointer"
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`${fmtArcTime(c.time)} · ${fullNames}`}
+                  onClick={() => router.push(href)}
+                  onKeyDown={(e) => { if (e.key === "Enter") router.push(href); }}
+                >
+                  <title>{`${fmtArcTime(c.time)} · ${fullNames}${resp ? ` · ${resp}` : ""}`}</title>
+                  <text x={x} y={y - 16} textAnchor="middle" fontSize="10" fill={passed ? "#9A8A77" : "#C9A98B"}>
                     {fmtArcTime(c.time)}
                   </text>
-                  <circle cx={arcX(f)} cy={arcY(f)} r="9" fill="url(#arcBead)" stroke="rgba(255,255,255,0.25)" strokeWidth="1" filter="url(#arcLift)" />
-                  <circle cx={arcX(f) - 3} cy={arcY(f) - 3.2} r="2.2" fill="rgba(255,255,255,0.18)" />
+                  <circle cx={x} cy={y} r="9" fill="url(#arcBead)" stroke="rgba(255,255,255,0.25)" strokeWidth="1" filter="url(#arcLift)" />
+                  <circle cx={x - 3} cy={y - 3.2} r="2.2" fill="rgba(255,255,255,0.18)" />
                   {c.items.length > 1 ? (
-                    <text x={arcX(f)} y={arcY(f) + 3.5} textAnchor="middle" fontSize="10" fontWeight="600" fill="#E7E0D5">
+                    <text x={x} y={y + 3.5} textAnchor="middle" fontSize="10" fontWeight="600" fill="#E7E0D5">
                       {c.items.length}
                     </text>
                   ) : (
-                    <circle cx={arcX(f)} cy={arcY(f)} r="2.5" fill="#C9A98B" />
+                    <circle cx={x} cy={y} r="2.5" fill="#C9A98B" />
+                  )}
+                  {/* Dizeres: nome da parada + responsável (terracota = pessoa). */}
+                  <text x={x} y={nameY} textAnchor="middle" fontSize="9.5" fill={passed ? "#9A8A77" : "#C9BCAA"}>
+                    {display}
+                  </text>
+                  {resp && (
+                    <text x={x} y={nameY + 11} textAnchor="middle" fontSize="9" fill={passed ? "rgba(231,174,128,0.5)" : "#E7AE80"}>
+                      {resp}
+                    </text>
                   )}
                 </g>
               );
             })}
             {nowF != null && (
-              <g>
+              <g
+                className="cursor-pointer"
+                role="link"
+                tabIndex={0}
+                aria-label={t("careRoutine.journeyCta")}
+                onClick={() => router.push("/jornada")}
+                onKeyDown={(e) => { if (e.key === "Enter") router.push("/jornada"); }}
+              >
+                <title>{t("careRoutine.journeyCta")}</title>
                 <circle cx={arcX(nowF)} cy={arcY(nowF)} r="15" fill="#E7AE80" opacity="0.18" filter="url(#arcGlow)" />
                 <circle cx={arcX(nowF)} cy={arcY(nowF)} r="9" fill="#E7AE80" opacity="0.30" filter="url(#arcGlow)" />
                 <circle cx={arcX(nowF)} cy={arcY(nowF)} r="6.8" fill="url(#arcSun)" />
