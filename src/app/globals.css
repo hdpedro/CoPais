@@ -208,3 +208,11 @@ button, a, [role="button"] {
   position: fixed;
   overscroll-behavior: contain;
 }
+
+/* Foco visível nos alvos do Arco do Dia (SVG <g role="link">): outline em
+   Chromium/Firefox/Safari 17+. Cobre o gap do focus-visible utilitário em
+   alguns Safaris (auditoria a11y #19). */
+svg g[role="link"]:focus-visible {
+  outline: 2px solid #e7ae80;
+  outline-offset: 2px;
+}

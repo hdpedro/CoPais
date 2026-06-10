@@ -19,6 +19,9 @@ export interface JourneyActivity {
   eventId?: string | null;
   /** Local da atividade/evento (subtítulo do "Próximo momento" no herói). */
   location?: string | null;
+  /** Criança dona do item (null = família toda). Irmãos com atividade
+   *  homônima no mesmo horário NÃO são a mesma coisa (auditoria #14). */
+  childId?: string | null;
 }
 
 export type JourneyKind = "home" | "dropoff" | "activity" | "pickup";
@@ -88,14 +91,20 @@ function nameTokens(name: string): Set<string> {
  * Feedback do dono 10/jun: dois caminhos, mesmo destino — não confundir.
  */
 export function dedupeJourneyActivities(activities: readonly JourneyActivity[]): JourneyActivity[] {
-  const kept: { a: JourneyActivity; tokens: Set<string>; min: number | null; inheritedResp?: string | null; inheritedId?: string | null; inheritedEventId?: string | null }[] = [];
+  const kept: { a: JourneyActivity; tokens: Set<string>; min: number | null; inheritedResp?: string | null; inheritedId?: string | null; inheritedEventId?: string | null; inheritedLocation?: string | null }[] = [];
   const byShortest = [...activities].sort((x, y) => x.name.length - y.name.length);
   for (const a of byShortest) {
     const min = toMin(a.time);
     const tokens = nameTokens(a.name);
     const dup =
       min != null
-        ? kept.find((k) => k.min === min && [...tokens].some((t) => k.tokens.has(t)))
+        ? kept.find(
+            (k) =>
+              k.min === min &&
+              // Irmãos: childIds DIFERENTES e ambos definidos ⇒ itens distintos.
+              (k.a.childId == null || a.childId == null || k.a.childId === a.childId) &&
+              [...tokens].some((t) => k.tokens.has(t)),
+          )
         : undefined;
     if (dup) {
       // O absorvido pode carregar informação que o mantido não tem (ex.:
@@ -103,6 +112,7 @@ export function dedupeJourneyActivities(activities: readonly JourneyActivity[]):
       if (!dup.a.responsible && a.responsible) dup.inheritedResp = a.responsible;
       if (!dup.a.activityId && a.activityId) dup.inheritedId = a.activityId;
       if (!dup.a.eventId && a.eventId) dup.inheritedEventId = a.eventId;
+      if (!dup.a.location && a.location) dup.inheritedLocation = a.location;
       continue;
     }
     kept.push({ a, tokens, min });
@@ -111,13 +121,14 @@ export function dedupeJourneyActivities(activities: readonly JourneyActivity[]):
   return activities.flatMap((a) => {
     const k = kept.find((x) => x.a === a);
     if (!k) return [];
-    if (!k.inheritedResp && !k.inheritedId && !k.inheritedEventId) return [a];
+    if (!k.inheritedResp && !k.inheritedId && !k.inheritedEventId && !k.inheritedLocation) return [a];
     return [
       {
         ...a,
         responsible: a.responsible ?? k.inheritedResp ?? null,
         activityId: a.activityId ?? k.inheritedId ?? null,
         eventId: a.eventId ?? k.inheritedEventId ?? null,
+        location: a.location ?? k.inheritedLocation ?? null,
       },
     ];
   });

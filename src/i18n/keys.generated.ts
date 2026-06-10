@@ -410,6 +410,7 @@ export type TranslationKey =
   | "calendar.weekView"
   | "calendar.weekendPlanner"
   | "calendar.you"
+  | "careRoutine.a11yHomeAnchor"
   | "careRoutine.activationCta"
   | "careRoutine.activationDescription"
   | "careRoutine.activationTitle"
@@ -3141,6 +3142,7 @@ export const TRANSLATION_KEYS = [
   "calendar.weekView",
   "calendar.weekendPlanner",
   "calendar.you",
+  "careRoutine.a11yHomeAnchor",
   "careRoutine.activationCta",
   "careRoutine.activationDescription",
   "careRoutine.activationTitle",

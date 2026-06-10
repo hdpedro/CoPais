@@ -593,6 +593,8 @@ export default async function DashboardPage() {
     responsible_id?: string | null;
     /** true quando a row veio da tabela events (id NÃO é child_activity). */
     isEvent?: boolean;
+    /** Criança dona do item (null = família toda) — dedup por irmão. */
+    childId?: string | null;
   }
 
   const todayReportedSet = new Set(
@@ -611,6 +613,10 @@ export default async function DashboardPage() {
 
   const tomorrowActivities: DashActivityItem[] = [];
   const todayActivities: DashActivityItem[] = [];
+  // Eventos de hoje que JÁ passaram: somem da lista (decisão antiga — não há
+  // "Relatar" pra evento), mas continuam no ARCO como estação apagada, igual
+  // às atividades passadas (auditoria #16).
+  const pastTodayEvents: DashActivityItem[] = [];
   const upcomingActivities: { act: DashActivityItem; date: string; dayLabel: string }[] = [];
   const dayAfterTomorrowKey = formatDateKey(new Date(now.getFullYear(), now.getMonth(), now.getDate() + 2));
 
@@ -628,6 +634,7 @@ export default async function DashboardPage() {
       children: act.children,
       activity_checklist_items: act.activity_checklist_items || [],
       responsible_id: (act as { responsible_id?: string | null }).responsible_id ?? null,
+      childId: (act as { child_id?: string | null }).child_id ?? null,
     };
 
     if (dateKey === todayKey) {
@@ -659,6 +666,7 @@ export default async function DashboardPage() {
         // alimenta a estação do herói igual ao responsible_id das atividades.
         responsible_id: (evt as { assigned_to?: string | null }).assigned_to ?? null,
         isEvent: true,
+        childId: (evt.child_id as string | null) ?? null,
       };
       if (evt.event_date === todayKey) {
         // Eventos nao tem activity_reports — nao da pra "Relatar". Entao
@@ -671,6 +679,8 @@ export default async function DashboardPage() {
           if (h * 60 + (m || 0) >= realNowMinutes) {
             (fakeAct as DashActivityItem).state = 'upcoming';
             todayActivities.push(fakeAct);
+          } else {
+            pastTodayEvents.push(fakeAct);
           }
         } else {
           (fakeAct as DashActivityItem).state = 'upcoming';
@@ -1357,12 +1367,17 @@ export default async function DashboardPage() {
   // Rotina "dia todo" (mesmo responsável nas 2 pernas, incluindo override de
   // "Trocar hoje"): a casa É de quem fica — senão a voz diz "Henrique fica o
   // dia todo" e as âncoras mostram "Fernanda" (inconsistência vista pelo dono).
+  // Split (rotina diferente por filho): a casa é AMBÍGUA pra família inteira
+  // (a noite da Eduarda é com Angelino, a do Joao com Henrique) — âncoras
+  // ficam sem nome em vez de generalizar a do 1º filho (auditoria #13).
   const _heroHomeParent =
-    _heroEntry?.sameAllDay && _heroEntry.dropoff
-      ? _heroEntry.dropoff.responsibleName
-      : _heroCustody
-        ? parentColors[_heroCustody.responsible_user_id]?.name ?? null
-        : null;
+    routineToday.entries.length > 1
+      ? null
+      : _heroEntry?.sameAllDay && _heroEntry.dropoff
+        ? _heroEntry.dropoff.responsibleName
+        : _heroCustody
+          ? parentColors[_heroCustody.responsible_user_id]?.name ?? null
+          : null;
   const heroTimeline: JourneyItem[] = _heroEntry
     ? buildChildJourney({
         dropoff: _heroEntry.dropoff
@@ -1371,7 +1386,7 @@ export default async function DashboardPage() {
         pickup: _heroEntry.pickup
           ? { name: _heroEntry.pickup.responsibleName, time: _heroEntry.pickup.time }
           : null,
-        activities: todayActivities
+        activities: [...todayActivities, ...pastTodayEvents]
           .filter((a) => a.time_start)
           .map((a) => ({
             name: a.name,
@@ -1381,6 +1396,7 @@ export default async function DashboardPage() {
             activityId: a.isEvent ? null : a.id,
             eventId: a.isEvent ? a.id : null,
             location: a.location ?? null,
+            childId: a.childId ?? null,
           })),
         homeMorning: _heroHomeParent,
         homeEvening: _heroHomeParent,

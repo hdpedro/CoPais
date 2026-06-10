@@ -2945,7 +2945,8 @@
     "arcMorning": "morning",
     "arcAfternoon": "afternoon",
     "arcEvening": "evening",
-    "nextMomentLabel": "Next moment"
+    "nextMomentLabel": "Next moment",
+    "a11yHomeAnchor": "{name}'s home"
   },
   "a11y": {
     "careRoutine": {

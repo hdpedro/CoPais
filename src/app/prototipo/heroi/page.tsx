@@ -41,7 +41,8 @@ interface ProtoActivity {
 /** Replica a composição do page.tsx: buildChildJourney + pernas das demais entries. */
 function composeTimeline(routine: RoutineToday, activities: ProtoActivity[], homeName: string | null): JourneyItem[] {
   const e0: RoutineHeroEntry | null = routine.entries[0] ?? null;
-  const home = e0?.sameAllDay && e0.dropoff ? e0.dropoff.responsibleName : homeName;
+  // Espelha o page.tsx: split (2+ entries) → casas sem nome (ambíguas).
+  const home = routine.entries.length > 1 ? null : e0?.sameAllDay && e0.dropoff ? e0.dropoff.responsibleName : homeName;
   const items: JourneyItem[] = e0
     ? buildChildJourney({
         dropoff: e0.dropoff ? { name: e0.dropoff.responsibleName, time: e0.dropoff.time } : null,

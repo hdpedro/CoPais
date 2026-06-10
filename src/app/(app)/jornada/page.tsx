@@ -97,6 +97,7 @@ export default async function JornadaPage() {
       category: (act.category as string) ?? "other",
       responsible: nameOf((act as { responsible_id?: string | null }).responsible_id) || null,
       activityId: ((act as { id?: string }).id as string) ?? null,
+      childId: (o.child_id as string | null) ?? null,
     });
     activitiesByChild.set(childId, arr);
   }
@@ -109,6 +110,7 @@ export default async function JornadaPage() {
       category: "evento",
       responsible: nameOf((evt as { assigned_to?: string | null }).assigned_to) || null,
       eventId: evt.id as string,
+      childId: (evt.child_id as string | null) ?? null,
     });
     activitiesByChild.set(childId, arr);
   }

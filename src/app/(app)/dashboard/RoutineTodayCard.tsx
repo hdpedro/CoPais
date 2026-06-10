@@ -19,6 +19,7 @@ import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
+import { INTL_LOCALE_MAP } from "@/lib/locale-utils";
 import { createRoutineOverride, markRoutineOverrideRead, recordRoutineLog } from "@/actions/care-routine";
 import type { RoutineToday, RoutineHeroEntry } from "@/lib/care-routine-resolve";
 import type { JourneyItem } from "@/lib/care-routine-journey";
@@ -63,14 +64,17 @@ export default function RoutineTodayCard({
   heroTimeline,
   simulateNowMin = null,
 }: RoutineTodayCardProps) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+  const intlLocale = INTL_LOCALE_MAP[locale] ?? "pt-BR";
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
   // Feedback OTIMISTA do "Buscou?/Levou?": marca na hora (o refresh confirma).
   const [optimisticLogs, setOptimisticLogs] = useState<Record<string, "done" | "missed">>({});
 
-  const kidsLabel = (names: string[]) => (names.length ? names.join(", ") : "");
+  // Lista localizada ("Otto e Martim" / "Otto and Martim") — Regra Canônica 8.
+  const kidsLabel = (names: string[]) =>
+    names.length ? new Intl.ListFormat(intlLocale, { type: "conjunction" }).format(names) : "";
 
   // Só dá pra "trocar" quando há exatamente 2 cuidadores (passa pro outro).
   const canSwap = caregivers.length === 2;
@@ -314,9 +318,24 @@ export default function RoutineTodayCard({
   const AQ1 = { x: lerp(AP0.x, AC.x, splitT), y: lerp(AP0.y, AC.y, splitT) };
   const AQ2 = { x: lerp(AC.x, AP2.x, splitT), y: lerp(AC.y, AP2.y, splitT) };
   const AR = { x: lerp(AQ1.x, AQ2.x, splitT), y: lerp(AQ1.y, AQ2.y, splitT) };
+  // Hora compacta do arco por locale (Regra Canônica 8): pt/fr mantêm o
+  // estilo de marca "16h30"; demais via Intl (en → "4:30 PM", de → "16:30").
   const fmtArcTime = (tm: string) => {
-    const [h, m] = tm.split(":");
-    return (m ?? "00") === "00" ? `${parseInt(h, 10)}h` : `${parseInt(h, 10)}h${m}`;
+    const [hs, ms] = tm.split(":");
+    const h = parseInt(hs, 10);
+    const m = parseInt(ms ?? "0", 10) || 0;
+    if (locale === "pt" || locale === "fr") return m === 0 ? `${h}h` : `${h}h${String(m).padStart(2, "0")}`;
+    return new Intl.DateTimeFormat(intlLocale, { hour: "numeric", minute: m === 0 ? undefined : "2-digit" }).format(
+      new Date(2000, 0, 1, h, m),
+    );
+  };
+  // Hora "cheia" (Próximo momento): 24h nos locales 24h; Intl pro inglês.
+  const fmtClock = (tm: string) => {
+    if (locale !== "en") return tm.slice(0, 5);
+    const [hs, ms] = tm.split(":");
+    return new Intl.DateTimeFormat(intlLocale, { hour: "numeric", minute: "2-digit" }).format(
+      new Date(2000, 0, 1, parseInt(hs, 10), parseInt(ms ?? "0", 10) || 0),
+    );
   };
   // Próximo momento: o primeiro CLUSTER ainda por vir (SSR: o primeiro).
   const nextCluster = (() => {
@@ -363,7 +382,8 @@ export default function RoutineTodayCard({
         x,
         level,
         showLabels,
-        display: names.length > 17 ? `${names.slice(0, 16)}…` : names,
+        // Truncamento por code point (emoji não é cortado ao meio — aud. #25).
+        display: [...names].length > 17 ? `${[...names].slice(0, 16).join("")}…` : names,
         fullNames: names,
         resp: resps.length === 1 ? resps[0] : null,
         href: c.items.length === 1 ? hrefForStation(c.items[0]) : "/jornada",
@@ -381,7 +401,8 @@ export default function RoutineTodayCard({
     >
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-[11px] uppercase tracking-[0.18em] text-[#B79B7E] font-semibold">
-          📍 {t("careRoutine.todayHeading")}
+          <span aria-hidden="true">📍 </span>
+          {t("careRoutine.todayHeading")}
         </h3>
         <Link href="/calendario/rotina" prefetch={false} className="text-[12px] font-medium text-[#C9A98B] hover:text-[#E3C9AC]">
           {t("careRoutine.editCta")}
@@ -487,42 +508,7 @@ export default function RoutineTodayCard({
                 strokeLinecap="round"
               />
             )}
-            {/* Casas nas pontas do dia — com nome (dizeres) e clicáveis. */}
-            <g
-              opacity={dayMoving ? 0.45 : 1}
-              className={homeAm ? "cursor-pointer" : undefined}
-              role={homeAm ? "link" : undefined}
-              tabIndex={homeAm ? 0 : undefined}
-              aria-label={homeAm?.text}
-              onClick={homeAm ? () => router.push(hrefForStation(homeAm)) : undefined}
-              onKeyDown={homeAm ? (e) => { if (e.key === "Enter") router.push(hrefForStation(homeAm)); } : undefined}
-            >
-              {homeAm && <title>{`🏠 ${homeAm.text}`}</title>}
-              {homeAm && <circle cx={AP0.x + 14} cy={AP0.y - 4} r="20" fill="transparent" />}
-              <circle cx={AP0.x} cy={AP0.y} r="3.2" fill="rgba(255,255,255,0.3)" />
-              {homeAm && (
-                <text x={AP0.x} y={AP0.y - 9} textAnchor="start" fontSize="9.5" fill="#E7AE80">
-                  🏠 {homeAm.text}
-                </text>
-              )}
-            </g>
-            <g
-              className={homePm ? "cursor-pointer" : undefined}
-              role={homePm ? "link" : undefined}
-              tabIndex={homePm ? 0 : undefined}
-              aria-label={homePm?.text}
-              onClick={homePm ? () => router.push(hrefForStation(homePm)) : undefined}
-              onKeyDown={homePm ? (e) => { if (e.key === "Enter") router.push(hrefForStation(homePm)); } : undefined}
-            >
-              {homePm && <title>{`🏠 ${homePm.text}`}</title>}
-              {homePm && <circle cx={AP2.x - 14} cy={AP2.y - 4} r="20" fill="transparent" />}
-              <circle cx={AP2.x} cy={AP2.y} r="3.2" fill="rgba(255,255,255,0.3)" />
-              {homePm && (
-                <text x={AP2.x} y={AP2.y - 9} textAnchor="end" fontSize="9.5" fill="#E7AE80">
-                  🏠 {homePm.text}
-                </text>
-              )}
-            </g>
+            {/* (Casas renderizadas DEPOIS do sol — nomes nunca ficam sob o halo.) */}
             {arcLabeled.map(({ c, x, level, showLabels, display, fullNames, resp, href }) => {
               const f = arcFStation(c.min);
               const y = arcY(f);
@@ -601,6 +587,42 @@ export default function RoutineTodayCard({
                 </text>
               </g>
             )}
+            {/* Casas nas pontas — POR CIMA do sol (nome legível nas bordas). */}
+            <g
+              opacity={dayMoving ? 0.55 : 1}
+              className={homeAm ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-[#E7AE80]" : undefined}
+              role={homeAm ? "link" : undefined}
+              tabIndex={homeAm ? 0 : undefined}
+              aria-label={homeAm ? t("careRoutine.a11yHomeAnchor", { name: homeAm.text }) : undefined}
+              onClick={homeAm ? () => router.push(hrefForStation(homeAm)) : undefined}
+              onKeyDown={homeAm ? (e) => { if (e.key === "Enter") router.push(hrefForStation(homeAm)); } : undefined}
+            >
+              {homeAm && <title>{t("careRoutine.a11yHomeAnchor", { name: homeAm.text })}</title>}
+              {homeAm && <circle cx={AP0.x + 14} cy={AP0.y - 4} r="20" fill="transparent" />}
+              <circle cx={AP0.x} cy={AP0.y} r="3.2" fill="rgba(255,255,255,0.3)" />
+              {homeAm && (
+                <text x={AP0.x} y={AP0.y - 9} textAnchor="start" fontSize="9.5" fill="#E7AE80">
+                  🏠 {homeAm.text}
+                </text>
+              )}
+            </g>
+            <g
+              className={homePm ? "cursor-pointer focus-visible:outline-2 focus-visible:outline-[#E7AE80]" : undefined}
+              role={homePm ? "link" : undefined}
+              tabIndex={homePm ? 0 : undefined}
+              aria-label={homePm ? t("careRoutine.a11yHomeAnchor", { name: homePm.text }) : undefined}
+              onClick={homePm ? () => router.push(hrefForStation(homePm)) : undefined}
+              onKeyDown={homePm ? (e) => { if (e.key === "Enter") router.push(hrefForStation(homePm)); } : undefined}
+            >
+              {homePm && <title>{t("careRoutine.a11yHomeAnchor", { name: homePm.text })}</title>}
+              {homePm && <circle cx={AP2.x - 14} cy={AP2.y - 4} r="20" fill="transparent" />}
+              <circle cx={AP2.x} cy={AP2.y} r="3.2" fill="rgba(255,255,255,0.3)" />
+              {homePm && (
+                <text x={AP2.x} y={AP2.y - 9} textAnchor="end" fontSize="9.5" fill="#E7AE80">
+                  🏠 {homePm.text}
+                </text>
+              )}
+            </g>
             <g aria-hidden="true">
               <text x="10" y="106" fontSize="10" fill="#A89A88">06h</text>
               <text x={arcX(arcF(9 * 60))} y="106" textAnchor="middle" fontSize="10" fill="#A89A88">{t("careRoutine.arcMorning")}</text>
@@ -624,7 +646,7 @@ export default function RoutineTodayCard({
               </p>
               <div className="flex items-center gap-3">
                 <span className="font-display text-[21px] leading-none text-[#E7AE80] tabular-nums flex-shrink-0">
-                  {nextCluster.items[0].time}
+                  {fmtClock(nextCluster.items[0].time ?? "")}
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[13px] font-semibold text-[#F4ECE1] truncate">
@@ -649,7 +671,8 @@ export default function RoutineTodayCard({
 
       {tomorrowSummary && (
         <p className="mt-3.5 pt-2.5 border-t border-white/10 text-[12px] text-[#A89A88]">
-          🌅 <span className="font-medium text-[#D8CBB9]">{t("careRoutine.tomorrowHeading")}</span> · {tomorrowSummary}
+          <span aria-hidden="true">🌅 </span>
+          <span className="font-medium text-[#D8CBB9]">{t("careRoutine.tomorrowHeading")}</span> · {tomorrowSummary}
         </p>
       )}
 
@@ -660,7 +683,8 @@ export default function RoutineTodayCard({
       {/* Criador: troquei e aguardo ciência do outro */}
       {awaitingTheirAck && !pendingAck && (
         <p className="mt-3 pt-2.5 border-t border-white/10 text-[11px] text-[#E8A228] font-medium flex items-center gap-1">
-          ⚠️ {t("careRoutine.awaitingAck")}
+          <span aria-hidden="true">⚠️ </span>
+          {t("careRoutine.awaitingAck")}
         </p>
       )}
 

@@ -1,0 +1,9 @@
+{
+  "careRoutine": {
+    "pt": { "a11yHomeAnchor": "Casa de {name}" },
+    "en": { "a11yHomeAnchor": "{name}'s home" },
+    "es": { "a11yHomeAnchor": "Casa de {name}" },
+    "fr": { "a11yHomeAnchor": "Maison de {name}" },
+    "de": { "a11yHomeAnchor": "Zuhause von {name}" }
+  }
+}

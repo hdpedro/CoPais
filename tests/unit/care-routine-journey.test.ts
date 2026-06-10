@@ -140,3 +140,30 @@ describe("deep link de EVENTO (parada abre o evento específico — dono 10/jun)
     expect(items[0]?.eventId).toBe("evt-9");
   });
 });
+
+describe("dedup respeita irmãos + herda location (auditoria #14/#17)", () => {
+  it("irmãos com atividade homônima no MESMO horário não colapsam", () => {
+    const out = dedupeJourneyActivities([
+      { name: "Natação", time: "16:00:00", category: "sport", childId: "otto" },
+      { name: "Natação", time: "16:00:00", category: "sport", childId: "martim" },
+    ]);
+    expect(out).toHaveLength(2);
+  });
+
+  it("childId null (família toda) ainda dedupa com item de criança", () => {
+    const out = dedupeJourneyActivities([
+      { name: "Reunião escolar: Reunião com pais", time: "16:30:00", category: "school", childId: "martim" },
+      { name: "Reunião pais 303", time: "16:30:00", category: "evento", childId: null },
+    ]);
+    expect(out).toHaveLength(1);
+  });
+
+  it("mantido herda o location do absorvido", () => {
+    const out = dedupeJourneyActivities([
+      { name: "Reunião escolar: Reunião com pais", time: "16:30:00", category: "school" },
+      { name: "Reunião pais 303", time: "16:30:00", category: "evento", location: "Sala 303" },
+    ]);
+    expect(out).toHaveLength(1);
+    expect(out[0]?.location).toBe("Sala 303");
+  });
+});
