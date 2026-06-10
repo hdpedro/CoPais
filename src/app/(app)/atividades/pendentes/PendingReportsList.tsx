@@ -51,9 +51,7 @@ export default function PendingReportsList({ items }: { items: PendingItem[] }) 
                 <div className="flex-1 min-w-0">
                   <p className="text-[14px] font-semibold text-[#2C2C2C] truncate">{p.activityName}</p>
                   <p className="text-[11px] text-[#9A8878]">
-                    {p.childName}
-                    {p.timeStart && ` · ${p.timeStart.slice(0, 5)}`}
-                    {` · ${p.dateLabel}`}
+                    {[p.childName, p.timeStart?.slice(0, 5), p.dateLabel].filter(Boolean).join(" · ")}
                   </p>
                 </div>
                 <span className="text-[12px] font-semibold text-[#C07055] flex-shrink-0">
