@@ -14,6 +14,7 @@ const QuickActionsModal = dynamic(() => import("@/components/QuickActionsModal")
 import CustodyActivationCard from "@/components/CustodyActivationCard";
 import RoutineTodayCard from "./RoutineTodayCard";
 import type { RoutineToday } from "@/lib/care-routine-resolve";
+import type { JourneyItem } from "@/lib/care-routine-journey";
 import BriefingAttention from "./BriefingAttention";
 import type { AttentionItem } from "@/lib/briefing";
 import { QUICK_ACTIONS_CATALOG, DEFAULT_QUICK_ACTIONS, type QuickActionDef } from "@/lib/constants";
@@ -297,6 +298,7 @@ export interface DashboardClientProps {
   routineLogsToday: Record<string, "done" | "missed">;
   // Briefing in-app "Amanhã" (Fase 2): resumo compacto da rotina de amanhã.
   routineTomorrowSummary: string | null;
+  heroTimeline: JourneyItem[];
   // Briefing v2.0 — "Sua Atenção": régua já priorizada no server (composeAttention).
   briefingAttention: AttentionItem[];
 }
@@ -337,6 +339,7 @@ export default function DashboardClient(props: DashboardClientProps) {
     routinePendingAck,
     routineLogsToday,
     routineTomorrowSummary,
+    heroTimeline,
     briefingAttention,
     // weekDays, weekCustodyMap, parentColorEntries — removed with weekStrip
     // hasHealthAlerts, activeIllnesses, activeMedications, criticalAllergies, upcomingAppointments — replaced by healthBlock
@@ -660,6 +663,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           logsToday={routineLogsToday}
           tomorrowSummary={routineTomorrowSummary}
           dayCalm={briefingAttention.length === 0}
+          heroTimeline={heroTimeline}
         />
       )}
 

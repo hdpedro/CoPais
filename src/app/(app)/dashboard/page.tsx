@@ -30,6 +30,7 @@ import {
   type RoutineToday,
 } from "@/lib/care-routine-resolve";
 import { composeAttention } from "@/lib/briefing";
+import { buildChildJourney, type JourneyItem } from "@/lib/care-routine-journey";
 // getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
 import { PARENT_COLORS, getDisplayName } from "@/lib/constants";
 import dynamic from "next/dynamic";
@@ -1315,6 +1316,30 @@ export default async function DashboardPage() {
     vaccineNextDue: null,
   });
 
+  // Timeline compacta do herói (a jornada do dia: casa → leva → atividades →
+  // busca → casa) pro card dark. Reusa buildChildJourney; só no modo together
+  // (uma linha). Itens sem horário são omitidos (não dá pra posicionar).
+  const _heroFirstChild = (children || [])[0] as { id: string } | undefined;
+  const _heroHomeParent = _heroFirstChild
+    ? todayCustodyByChild[_heroFirstChild.id]?.responsibleName ?? null
+    : null;
+  const _heroEntry = routineToday.mode === "together" ? routineToday.entries[0] : null;
+  const heroTimeline: JourneyItem[] = _heroEntry
+    ? buildChildJourney({
+        dropoff: _heroEntry.dropoff
+          ? { name: _heroEntry.dropoff.responsibleName, time: _heroEntry.dropoff.time }
+          : null,
+        pickup: _heroEntry.pickup
+          ? { name: _heroEntry.pickup.responsibleName, time: _heroEntry.pickup.time }
+          : null,
+        activities: todayActivities
+          .filter((a) => a.time_start)
+          .map((a) => ({ name: a.name, time: a.time_start as string, category: a.category })),
+        homeMorning: _heroHomeParent,
+        homeEvening: _heroHomeParent,
+      })
+    : [];
+
   const clientProps: DashboardClientProps = {
     custodyEnabled,
     groupId,
@@ -1344,6 +1369,7 @@ export default async function DashboardPage() {
     routinePendingAck,
     routineLogsToday,
     routineTomorrowSummary,
+    heroTimeline,
     weekDays: weekDaysData,
     weekCustodyMap: weekCustodyEntries,
     parentColorEntries,

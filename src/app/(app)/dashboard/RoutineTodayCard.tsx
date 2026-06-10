@@ -21,6 +21,7 @@ import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { createRoutineOverride, markRoutineOverrideRead, recordRoutineLog } from "@/actions/care-routine";
 import type { RoutineToday, RoutineHeroEntry } from "@/lib/care-routine-resolve";
+import type { JourneyItem } from "@/lib/care-routine-journey";
 
 type Leg = "dropoff" | "pickup";
 
@@ -41,6 +42,8 @@ interface RoutineTodayCardProps {
   tomorrowSummary: string | null;
   /** true quando nada exige você hoje → acende a voz "Dia tranquilo." */
   dayCalm: boolean;
+  /** Jornada compacta do dia (casa → leva → atividades → busca) pro card dark. */
+  heroTimeline: JourneyItem[];
 }
 
 export default function RoutineTodayCard({
@@ -54,6 +57,7 @@ export default function RoutineTodayCard({
   logsToday,
   tomorrowSummary,
   dayCalm,
+  heroTimeline,
 }: RoutineTodayCardProps) {
   const { t } = useI18n();
   const router = useRouter();
@@ -278,6 +282,21 @@ export default function RoutineTodayCard({
           ))}
         </div>
       </div>
+
+      {/* Timeline horizontal do dia: casa → leva → atividades → busca → casa. */}
+      {heroTimeline.length > 1 && (
+        <div className="mt-3.5 pt-3 border-t border-white/10">
+          <div className="flex items-start gap-1">
+            {heroTimeline.map((it) => (
+              <div key={it.key} className="flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
+                <span className="text-[14px] leading-none">{it.icon}</span>
+                <span className="text-[10px] leading-none tabular-nums text-[#C9A98B]">{it.time ?? "·"}</span>
+                <span className="w-full truncate text-[9px] leading-tight text-[#9A8A77]">{it.text}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {tomorrowSummary && (
         <p className="mt-3.5 pt-2.5 border-t border-white/10 text-[12px] text-[#A89A88]">
