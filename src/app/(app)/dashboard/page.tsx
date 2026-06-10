@@ -1320,15 +1320,29 @@ export default async function DashboardPage() {
   // busca → casa) pro card dark. Reusa buildChildJourney; só no modo together
   // (uma linha). Itens sem horário são omitidos (não dá pra posicionar).
   const _heroFirstChild = (children || [])[0] as { id: string } | undefined;
-  // Casa = guarda do dia, pela MESMA fonte da /jornada (resolveCustodyOnDate),
-  // que resolve mesmo sem custody_enabled (os eventos existem). uid → nome.
+  // Pega a 1a entrada da rotina (together/single/split). Itens sem horário são
+  // omitidos pelo buildChildJourney (não dá pra posicionar).
+  const _heroEntry = routineToday.entries[0] ?? null;
+  // Casa = guarda de HOJE. O dashboard só busca a guarda quando custody_enabled;
+  // pra a timeline (que vale pra família intacta também) buscamos os eventos de
+  // hoje à parte — query pequena indexada (group_id + janela do dia, mesmos
+  // campos da /jornada) — só quando não veio acima E há rotina pra mostrar.
+  let _heroCustodyEvents = (allCustodyEvents || []) as unknown as CustodyEventRow[];
+  if (_heroEntry && _heroFirstChild && _heroCustodyEvents.length === 0) {
+    const { data: _heroCustodyRaw } = await supabase
+      .from("custody_events")
+      .select("id, child_id, start_date, end_date, responsible_user_id, custody_type, created_at")
+      .eq("group_id", groupId)
+      .lte("start_date", todayKey)
+      .gte("end_date", todayKey);
+    _heroCustodyEvents = (_heroCustodyRaw || []) as unknown as CustodyEventRow[];
+  }
   const _heroCustody = _heroFirstChild
-    ? resolveCustodyOnDate((allCustodyEvents || []) as unknown as CustodyEventRow[], _heroFirstChild.id, todayKey)
+    ? resolveCustodyOnDate(_heroCustodyEvents, _heroFirstChild.id, todayKey)
     : null;
   const _heroHomeParent = _heroCustody
     ? parentColors[_heroCustody.responsible_user_id]?.name ?? null
     : null;
-  const _heroEntry = routineToday.mode === "together" ? routineToday.entries[0] : null;
   const heroTimeline: JourneyItem[] = _heroEntry
     ? buildChildJourney({
         dropoff: _heroEntry.dropoff
