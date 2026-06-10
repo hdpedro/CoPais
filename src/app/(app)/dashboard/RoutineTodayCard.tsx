@@ -310,46 +310,50 @@ export default function RoutineTodayCard({
         </div>
       </div>
 
-      {/* Timeline horizontal do dia: casa ── leva ── atividades ── busca ── casa.
-          Viva pela hora do sistema: percorrido apagado, PRÓXIMO em destaque,
-          conectores acesos até onde o dia chegou (mockup do dono, 10/jun). */}
+      {/* Timeline "linha de metrô" do dia: casa ─● leva ─● atividades ─● casa.
+          Estações como moedas ancoradas NA linha; trecho percorrido aceso em
+          terracota, estação atual com brilho, passado apagado (mockup, 10/jun). */}
       {heroTimeline.length > 1 && (
-        <div className="mt-3.5 pt-3 border-t border-white/10">
+        <div className="mt-4 pt-3.5 border-t border-white/10">
           <div className="flex items-start">
             {heroTimeline.map((it, i) => {
               const state = timelineState[i] ?? "future";
               const last = heroTimeline.length - 1;
               return (
-                <div key={it.key} className="relative flex min-w-0 flex-1 flex-col items-center gap-1 text-center">
+                <div key={it.key} className="relative flex min-w-0 flex-1 flex-col items-center gap-[5px] text-center">
                   {i > 0 && (
                     <span
                       aria-hidden
-                      className={`absolute left-0 right-1/2 top-[8px] h-px mr-3 ${state !== "future" ? "bg-[#A97B5E]" : "bg-white/10"}`}
+                      className={`absolute left-0 right-1/2 top-3 h-px mr-3 ${state !== "future" ? "bg-[#B0805F]" : "bg-white/[0.08]"}`}
                     />
                   )}
                   {i < last && (
                     <span
                       aria-hidden
-                      className={`absolute left-1/2 right-0 top-[8px] h-px ml-3 ${state === "passed" ? "bg-[#A97B5E]" : "bg-white/10"}`}
+                      className={`absolute left-1/2 right-0 top-3 h-px ml-3 ${state === "passed" ? "bg-[#B0805F]" : "bg-white/[0.08]"}`}
                     />
                   )}
                   <span
-                    className={`relative h-4 flex items-center justify-center text-[14px] leading-none transition-opacity ${
-                      state === "passed" ? "opacity-35" : ""
-                    } ${state === "next" ? "px-1.5 -mx-1.5 rounded-full bg-[#E7AE80]/15 ring-1 ring-[#E7AE80]/30" : ""}`}
+                    className={`relative w-6 h-6 rounded-full flex items-center justify-center text-[13px] leading-none ${
+                      state === "next"
+                        ? "bg-[#E7AE80]/20 ring-1 ring-[#E7AE80]/45 shadow-[0_0_14px_rgba(231,174,128,0.28)]"
+                        : state === "passed"
+                          ? "bg-white/[0.04] opacity-40"
+                          : "bg-white/[0.06] ring-1 ring-white/10"
+                    }`}
                   >
                     {it.icon}
                   </span>
                   <span
-                    className={`text-[10px] leading-none tabular-nums ${
-                      state === "next" ? "text-[#E7AE80] font-semibold" : state === "passed" ? "text-[#C9A98B]/40" : "text-[#C9A98B]"
+                    className={`text-[10.5px] leading-none tabular-nums tracking-wide ${
+                      state === "next" ? "text-[#E7AE80] font-semibold" : state === "passed" ? "text-[#C9A98B]/35" : "text-[#C9A98B]/75"
                     }`}
                   >
-                    {it.time ?? "·"}
+                    {it.time ?? " "}
                   </span>
                   <span
-                    className={`w-full truncate text-[9px] leading-tight ${
-                      state === "next" ? "text-[#D8CBB9]" : state === "passed" ? "text-[#9A8A77]/40" : "text-[#9A8A77]"
+                    className={`w-full truncate text-[9.5px] leading-tight ${
+                      state === "next" ? "text-[#EFE4D6] font-medium" : state === "passed" ? "text-[#9A8A77]/40" : "text-[#A89884]"
                     }`}
                   >
                     {shortLabel(it.text)}

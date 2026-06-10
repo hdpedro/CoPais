@@ -1340,9 +1340,15 @@ export default async function DashboardPage() {
   const _heroCustody = _heroFirstChild
     ? resolveCustodyOnDate(_heroCustodyEvents, _heroFirstChild.id, todayKey)
     : null;
-  const _heroHomeParent = _heroCustody
-    ? parentColors[_heroCustody.responsible_user_id]?.name ?? null
-    : null;
+  // Rotina "dia todo" (mesmo responsável nas 2 pernas, incluindo override de
+  // "Trocar hoje"): a casa É de quem fica — senão a voz diz "Henrique fica o
+  // dia todo" e as âncoras mostram "Fernanda" (inconsistência vista pelo dono).
+  const _heroHomeParent =
+    _heroEntry?.sameAllDay && _heroEntry.dropoff
+      ? _heroEntry.dropoff.responsibleName
+      : _heroCustody
+        ? parentColors[_heroCustody.responsible_user_id]?.name ?? null
+        : null;
   const heroTimeline: JourneyItem[] = _heroEntry
     ? buildChildJourney({
         dropoff: _heroEntry.dropoff
