@@ -366,10 +366,49 @@ export default function RoutineTodayCard({
           agrupadas por horário (contador quando 2+ no mesmo minuto). */}
       {arcStations.length > 0 && (
         <div className="mt-4 pt-3 border-t border-white/10">
-          <svg viewBox="0 0 600 112" className="w-full h-auto" aria-hidden>
+          <svg viewBox="0 0 600 112" className="w-full h-auto" style={{ overflow: "visible" }} aria-hidden>
+            <defs>
+              {/* Sol esférico: núcleo quente deslocado (luz vindo de cima) */}
+              <radialGradient id="arcSun" cx="38%" cy="32%" r="75%">
+                <stop offset="0%" stopColor="#FFE9CF" />
+                <stop offset="45%" stopColor="#F0B988" />
+                <stop offset="100%" stopColor="#D08A55" />
+              </radialGradient>
+              {/* Contas das estações com volume (highlight no topo-esquerda) */}
+              <radialGradient id="arcBead" cx="35%" cy="30%" r="80%">
+                <stop offset="0%" stopColor="#564B3F" />
+                <stop offset="100%" stopColor="#26211C" />
+              </radialGradient>
+              {/* Trilho percorrido acende em direção ao sol */}
+              <linearGradient id="arcTrailGrad" gradientUnits="userSpaceOnUse" x1={AP0.x} y1="0" x2={arcX(nowF ?? 0)} y2="0">
+                <stop offset="0%" stopColor="rgba(201,165,115,0.30)" />
+                <stop offset="70%" stopColor="#C9A573" />
+                <stop offset="100%" stopColor="#F0B988" />
+              </linearGradient>
+              {/* Luz de amanhecer sob o trecho já percorrido */}
+              <linearGradient id="arcSkyGlow" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor="rgba(231,174,128,0.16)" />
+                <stop offset="100%" stopColor="rgba(231,174,128,0)" />
+              </linearGradient>
+              <filter id="arcGlow" x="-80%" y="-80%" width="260%" height="260%">
+                <feGaussianBlur stdDeviation="3" />
+              </filter>
+              {/* Relevo: sombra curta projetada pelo trilho/contas */}
+              <filter id="arcLift" x="-30%" y="-30%" width="160%" height="180%">
+                <feDropShadow dx="0" dy="1.4" stdDeviation="1.2" floodColor="#000000" floodOpacity="0.45" />
+              </filter>
+            </defs>
             {nowF != null && nowF > 0 ? (
               <>
-                <path d={`M ${AP0.x} ${AP0.y} Q ${AQ1.x} ${AQ1.y} ${AR.x} ${AR.y}`} fill="none" stroke="#C9A573" strokeWidth="2" />
+                <path d={`M ${AP0.x} ${AP0.y} Q ${AQ1.x} ${AQ1.y} ${AR.x} ${AR.y} L ${AR.x} 86 Z`} fill="url(#arcSkyGlow)" stroke="none" />
+                <path
+                  d={`M ${AP0.x} ${AP0.y} Q ${AQ1.x} ${AQ1.y} ${AR.x} ${AR.y}`}
+                  fill="none"
+                  stroke="url(#arcTrailGrad)"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  filter="url(#arcLift)"
+                />
                 <path
                   d={`M ${AR.x} ${AR.y} Q ${AQ2.x} ${AQ2.y} ${AP2.x} ${AP2.y}`}
                   fill="none"
@@ -399,7 +438,8 @@ export default function RoutineTodayCard({
                   <text x={arcX(f)} y={arcY(f) - 16} textAnchor="middle" fontSize="10" fill={passed ? "#9A8A77" : "#C9A98B"}>
                     {fmtArcTime(c.time)}
                   </text>
-                  <circle cx={arcX(f)} cy={arcY(f)} r="9" fill="#3A332C" stroke="rgba(255,255,255,0.22)" strokeWidth="1" />
+                  <circle cx={arcX(f)} cy={arcY(f)} r="9" fill="url(#arcBead)" stroke="rgba(255,255,255,0.25)" strokeWidth="1" filter="url(#arcLift)" />
+                  <circle cx={arcX(f) - 3} cy={arcY(f) - 3.2} r="2.2" fill="rgba(255,255,255,0.18)" />
                   {c.items.length > 1 ? (
                     <text x={arcX(f)} y={arcY(f) + 3.5} textAnchor="middle" fontSize="10" fontWeight="600" fill="#E7E0D5">
                       {c.items.length}
@@ -412,8 +452,10 @@ export default function RoutineTodayCard({
             })}
             {nowF != null && (
               <g>
-                <circle cx={arcX(nowF)} cy={arcY(nowF)} r="13" fill="#E7AE80" opacity="0.16" />
-                <circle cx={arcX(nowF)} cy={arcY(nowF)} r="6.5" fill="#E7AE80" />
+                <circle cx={arcX(nowF)} cy={arcY(nowF)} r="15" fill="#E7AE80" opacity="0.18" filter="url(#arcGlow)" />
+                <circle cx={arcX(nowF)} cy={arcY(nowF)} r="9" fill="#E7AE80" opacity="0.30" filter="url(#arcGlow)" />
+                <circle cx={arcX(nowF)} cy={arcY(nowF)} r="6.8" fill="url(#arcSun)" />
+                <circle cx={arcX(nowF) - 2.1} cy={arcY(nowF) - 2.4} r="2" fill="#FFF3E2" opacity="0.85" />
                 <text
                   x={Math.min(556, Math.max(44, arcX(nowF)))}
                   y={Math.max(10, arcY(nowF) - 19)}
