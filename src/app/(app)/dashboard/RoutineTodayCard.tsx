@@ -262,27 +262,62 @@ export default function RoutineTodayCard({
   // " - ", " · ") pra mostrar o título principal sem truncar no meio da palavra.
   const shortLabel = (s: string) => s.split(/:\s|\s[–·-]\s/)[0].trim();
 
-  // Estado de cada parada pela hora do sistema (reusa o nowMin do "Buscou?"):
-  // "passed" (já foi, apagado), "next" (a próxima, em destaque) ou "future".
-  const timelineState: ("passed" | "next" | "future")[] = (() => {
-    const mins = heroTimeline.map((it) => {
-      if (!it.time) return null;
+  // ——— ARCO DO DIA (mockup do dono): trajetória de sol 06h→21h. ———
+  // Estações com horário viram pontos NO arco (agrupadas quando coincidem);
+  // o sol marca "agora"; percorrido sólido, futuro tracejado.
+  const DAY_START = 6 * 60;
+  const DAY_END = 21 * 60;
+  const arcStations = (() => {
+    const map = new Map<string, { time: string; min: number; items: typeof heroTimeline }>();
+    for (const it of heroTimeline) {
+      if (!it.time) continue;
       const [h, m] = it.time.split(":").map(Number);
-      return Number.isNaN(h) ? null : h * 60 + (m || 0);
-    });
-    if (nowMin == null) return heroTimeline.map(() => "future");
-    const firstTimed = mins.find((m) => m != null) ?? null;
-    const passed = heroTimeline.map((_, i) => {
-      const m = mins[i];
-      if (m != null) return m <= nowMin;
-      // Casa da manhã: apaga quando o dia entra em movimento. Casa da noite:
-      // nunca "passa" — vira o destaque quando tudo terminou (estamos em casa).
-      if (i === 0) return firstTimed != null && nowMin >= firstTimed;
-      return false;
-    });
-    const nextIdx = passed.findIndex((p) => !p);
-    return heroTimeline.map((_, i) => (passed[i] ? "passed" : i === nextIdx ? "next" : "future"));
+      if (Number.isNaN(h)) continue;
+      const min = h * 60 + (m || 0);
+      const c = map.get(it.time) ?? { time: it.time, min, items: [] as typeof heroTimeline };
+      c.items.push(it);
+      map.set(it.time, c);
+    }
+    return [...map.values()].sort((a, b) => a.min - b.min);
   })();
+  // Bezier quadrática com controle no meio ⇒ x é LINEAR no parâmetro t
+  // (t = fração do dia), então posicionar por horário é exato.
+  const arcF = (min: number) => Math.min(1, Math.max(0, (min - DAY_START) / (DAY_END - DAY_START)));
+  const arcX = (f: number) => 10 + 580 * f;
+  const arcY = (f: number) => 86 - 256 * f + 256 * f * f;
+  const nowF = nowMin == null ? null : arcF(nowMin);
+  const lerp = (a: number, b: number, u: number) => a + (b - a) * u;
+  const AP0 = { x: 10, y: 86 };
+  const AC = { x: 300, y: -42 };
+  const AP2 = { x: 590, y: 86 };
+  // de Casteljau: divide o arco em percorrido (sólido) + futuro (tracejado).
+  const splitT = nowF ?? 0;
+  const AQ1 = { x: lerp(AP0.x, AC.x, splitT), y: lerp(AP0.y, AC.y, splitT) };
+  const AQ2 = { x: lerp(AC.x, AP2.x, splitT), y: lerp(AC.y, AP2.y, splitT) };
+  const AR = { x: lerp(AQ1.x, AQ2.x, splitT), y: lerp(AQ1.y, AQ2.y, splitT) };
+  const fmtArcTime = (tm: string) => {
+    const [h, m] = tm.split(":");
+    return (m ?? "00") === "00" ? `${parseInt(h, 10)}h` : `${parseInt(h, 10)}h${m}`;
+  };
+  // Próximo momento: a primeira estação ainda por vir (SSR: a primeira).
+  const nextStation = (() => {
+    if (arcStations.length === 0) return null;
+    if (nowMin == null) return arcStations[0].items[0];
+    const c = arcStations.find((s) => s.min > nowMin);
+    return c ? c.items[0] : null;
+  })();
+  // "Sempre clicável": atividade → detalhe relatável; evento → o EVENTO no
+  // calendário (deep-link day+eventId); casa → o dia; leva/busca → rotina.
+  const hrefForStation = (it: (typeof heroTimeline)[number]) =>
+    it.kind === "activity"
+      ? it.activityId
+        ? `/atividades/${it.activityId}`
+        : it.eventId
+          ? `/calendario?day=${todayDate}&eventId=${it.eventId}`
+          : `/calendario?day=${todayDate}`
+      : it.kind === "home"
+        ? `/calendario?day=${todayDate}`
+        : "/calendario/rotina";
 
   return (
     <div
@@ -326,97 +361,105 @@ export default function RoutineTodayCard({
         </div>
       </div>
 
-      {/* Timeline "linha de metrô" do dia: casa ─● leva ─● atividades ─● casa.
-          Estações como moedas ancoradas NA linha; trecho percorrido aceso em
-          terracota, estação atual com brilho, passado apagado (mockup, 10/jun). */}
-      {heroTimeline.length > 1 && (
-        <div className="mt-4 pt-3.5 border-t border-white/10">
-          <div className="flex items-start">
-            {heroTimeline.map((it, i) => {
-              const state = timelineState[i] ?? "future";
-              const last = heroTimeline.length - 1;
-              // "Sempre clicável": atividade → detalhe relatável; evento → o
-              // EVENTO específico no calendário (deep-link day+eventId, mesmo
-              // contrato do painel); casa → o dia; leva/busca → editor da rotina.
-              const stationHref =
-                it.kind === "activity"
-                  ? it.activityId
-                    ? `/atividades/${it.activityId}`
-                    : it.eventId
-                      ? `/calendario?day=${todayDate}&eventId=${it.eventId}`
-                      : `/calendario?day=${todayDate}`
-                  : it.kind === "home"
-                    ? `/calendario?day=${todayDate}`
-                    : "/calendario/rotina";
+      {/* ARCO DO DIA — trajetória de sol 06h→21h (mockup do dono): percorrido
+          sólido em terracota, futuro tracejado, sol em "agora", estações
+          agrupadas por horário (contador quando 2+ no mesmo minuto). */}
+      {arcStations.length > 0 && (
+        <div className="mt-4 pt-3 border-t border-white/10">
+          <svg viewBox="0 0 600 112" className="w-full h-auto" aria-hidden>
+            {nowF != null && nowF > 0 ? (
+              <>
+                <path d={`M ${AP0.x} ${AP0.y} Q ${AQ1.x} ${AQ1.y} ${AR.x} ${AR.y}`} fill="none" stroke="#C9A573" strokeWidth="2" />
+                <path
+                  d={`M ${AR.x} ${AR.y} Q ${AQ2.x} ${AQ2.y} ${AP2.x} ${AP2.y}`}
+                  fill="none"
+                  stroke="rgba(255,255,255,0.30)"
+                  strokeWidth="1.5"
+                  strokeDasharray="2 6"
+                  strokeLinecap="round"
+                />
+              </>
+            ) : (
+              <path
+                d={`M ${AP0.x} ${AP0.y} Q ${AC.x} ${AC.y} ${AP2.x} ${AP2.y}`}
+                fill="none"
+                stroke="rgba(255,255,255,0.30)"
+                strokeWidth="1.5"
+                strokeDasharray="2 6"
+                strokeLinecap="round"
+              />
+            )}
+            <circle cx={AP0.x} cy={AP0.y} r="3" fill="rgba(255,255,255,0.25)" />
+            <circle cx={AP2.x} cy={AP2.y} r="3" fill="rgba(255,255,255,0.25)" />
+            {arcStations.map((c) => {
+              const f = arcF(c.min);
+              const passed = nowMin != null && c.min <= nowMin;
               return (
-                <Link
-                  key={it.key}
-                  href={stationHref}
-                  prefetch={false}
-                  className="relative flex min-w-0 flex-1 flex-col items-center gap-[5px] text-center rounded-xl py-1 -my-1 hover:bg-white/[0.045] transition-colors"
-                >
-                  {i > 0 && (
-                    <span
-                      aria-hidden
-                      className={`absolute left-0 right-1/2 top-3 h-px mr-3 ${state !== "future" ? "bg-[#B0805F]" : "bg-white/[0.15]"}`}
-                    />
+                <g key={c.time} opacity={passed ? 0.38 : 1}>
+                  <text x={arcX(f)} y={arcY(f) - 16} textAnchor="middle" fontSize="10" fill={passed ? "#9A8A77" : "#C9A98B"}>
+                    {fmtArcTime(c.time)}
+                  </text>
+                  <circle cx={arcX(f)} cy={arcY(f)} r="9" fill="#3A332C" stroke="rgba(255,255,255,0.22)" strokeWidth="1" />
+                  {c.items.length > 1 ? (
+                    <text x={arcX(f)} y={arcY(f) + 3.5} textAnchor="middle" fontSize="10" fontWeight="600" fill="#E7E0D5">
+                      {c.items.length}
+                    </text>
+                  ) : (
+                    <circle cx={arcX(f)} cy={arcY(f)} r="2.5" fill="#C9A98B" />
                   )}
-                  {i < last && (
-                    <span
-                      aria-hidden
-                      className={`absolute left-1/2 right-0 top-3 h-px ml-3 ${state === "passed" ? "bg-[#B0805F]" : "bg-white/[0.15]"}`}
-                    />
-                  )}
-                  <span
-                    className={`relative w-6 h-6 rounded-full flex items-center justify-center text-[13px] leading-none ${
-                      state === "next"
-                        ? "bg-[#E7AE80]/20 ring-1 ring-[#E7AE80]/45 shadow-[0_0_14px_rgba(231,174,128,0.28)]"
-                        : state === "passed"
-                          ? "bg-white/[0.04] opacity-40"
-                          : "bg-white/[0.06] ring-1 ring-white/10"
-                    }`}
-                  >
-                    {it.icon}
-                  </span>
-                  <span
-                    className={`text-[10.5px] leading-none tabular-nums tracking-wide ${
-                      state === "next" ? "text-[#E7AE80] font-semibold" : state === "passed" ? "text-[#C9A98B]/35" : "text-[#C9A98B]/75"
-                    }`}
-                  >
-                    {it.time ?? " "}
-                  </span>
-                  {/* Pessoas (casa/leva/busca) herdam o terracota da voz; atividades neutras. */}
-                  <span
-                    className={`w-full truncate text-[9.5px] leading-tight ${
-                      it.kind !== "activity"
-                        ? state === "next"
-                          ? "text-[#E7AE80] font-medium"
-                          : state === "passed"
-                            ? "text-[#E7AE80]/35"
-                            : "text-[#E7AE80]/85"
-                        : state === "next"
-                          ? "text-[#EFE4D6] font-medium"
-                          : state === "passed"
-                            ? "text-[#9A8A77]/40"
-                            : "text-[#A89884]"
-                    }`}
-                  >
-                    {shortLabel(it.text)}
-                  </span>
-                  {/* Responsável da atividade — pessoa, então terracota. */}
-                  {it.kind === "activity" && it.responsible ? (
-                    <span
-                      className={`w-full truncate text-[9px] leading-tight ${
-                        state === "next" ? "text-[#E7AE80] font-medium" : state === "passed" ? "text-[#E7AE80]/35" : "text-[#E7AE80]/85"
-                      }`}
-                    >
-                      {it.responsible}
-                    </span>
-                  ) : null}
-                </Link>
+                </g>
               );
             })}
-          </div>
+            {nowF != null && (
+              <g>
+                <circle cx={arcX(nowF)} cy={arcY(nowF)} r="13" fill="#E7AE80" opacity="0.16" />
+                <circle cx={arcX(nowF)} cy={arcY(nowF)} r="6.5" fill="#E7AE80" />
+                <text
+                  x={Math.min(556, Math.max(44, arcX(nowF)))}
+                  y={Math.max(10, arcY(nowF) - 19)}
+                  textAnchor="middle"
+                  fontSize="10.5"
+                  fontWeight="700"
+                  fill="#E7AE80"
+                  letterSpacing="0.08em"
+                >
+                  {t("careRoutine.arcNow")}
+                </text>
+              </g>
+            )}
+            <text x="10" y="106" fontSize="10" fill="#8A7A6A">06h</text>
+            <text x={arcX(arcF(9 * 60))} y="106" textAnchor="middle" fontSize="10" fill="#8A7A6A">{t("careRoutine.arcMorning")}</text>
+            <text x={arcX(arcF(15 * 60))} y="106" textAnchor="middle" fontSize="10" fill="#8A7A6A">{t("careRoutine.arcAfternoon")}</text>
+            <text x={arcX(arcF(19.5 * 60))} y="106" textAnchor="middle" fontSize="10" fill="#8A7A6A">{t("careRoutine.arcEvening")}</text>
+            <text x="590" y="106" textAnchor="end" fontSize="10" fill="#8A7A6A">21h</text>
+          </svg>
+
+          {/* Próximo momento — o que vem agora, clicável pro destino certo. */}
+          {nextStation && nextStation.time && (
+            <Link
+              href={hrefForStation(nextStation)}
+              prefetch={false}
+              className="mt-2.5 block rounded-xl bg-white/[0.05] border border-white/10 px-3.5 py-3 hover:bg-white/[0.08] transition-colors"
+            >
+              <p className="text-[10px] uppercase tracking-[0.16em] text-[#9A8A77] font-semibold mb-1.5">
+                {t("careRoutine.nextMomentLabel")}
+              </p>
+              <div className="flex items-center gap-3">
+                <span className="font-display text-[21px] leading-none text-[#E7AE80] tabular-nums flex-shrink-0">
+                  {nextStation.time}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold text-[#F4ECE1] truncate">{shortLabel(nextStation.text)}</p>
+                  {(nextStation.location || nextStation.responsible) && (
+                    <p className="text-[11.5px] text-[#A89A88] truncate">
+                      {[nextStation.location, nextStation.responsible].filter(Boolean).join(" — ")}
+                    </p>
+                  )}
+                </div>
+                <span className="text-[#C9A98B] flex-shrink-0" aria-hidden>›</span>
+              </div>
+            </Link>
+          )}
         </div>
       )}
 

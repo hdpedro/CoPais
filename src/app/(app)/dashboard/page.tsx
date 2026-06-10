@@ -1374,6 +1374,7 @@ export default async function DashboardPage() {
             responsible: a.responsible_id ? parentColors[a.responsible_id]?.name ?? null : null,
             activityId: a.isEvent ? null : a.id,
             eventId: a.isEvent ? a.id : null,
+            location: a.location ?? null,
           })),
         homeMorning: _heroHomeParent,
         homeEvening: _heroHomeParent,

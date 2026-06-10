@@ -412,6 +412,10 @@ export type TranslationKey =
   | "careRoutine.activationTitle"
   | "careRoutine.alternatingHint"
   | "careRoutine.applyAllChildren"
+  | "careRoutine.arcAfternoon"
+  | "careRoutine.arcEvening"
+  | "careRoutine.arcMorning"
+  | "careRoutine.arcNow"
   | "careRoutine.awaitingAck"
   | "careRoutine.briefingGap"
   | "careRoutine.briefingPushTitle"
@@ -451,6 +455,7 @@ export type TranslationKey =
   | "careRoutine.metricsTitle"
   | "careRoutine.missedShort"
   | "careRoutine.moreOptions"
+  | "careRoutine.nextMomentLabel"
   | "careRoutine.no"
   | "careRoutine.patternAlternating"
   | "careRoutine.patternCustody"
@@ -3135,6 +3140,10 @@ export const TRANSLATION_KEYS = [
   "careRoutine.activationTitle",
   "careRoutine.alternatingHint",
   "careRoutine.applyAllChildren",
+  "careRoutine.arcAfternoon",
+  "careRoutine.arcEvening",
+  "careRoutine.arcMorning",
+  "careRoutine.arcNow",
   "careRoutine.awaitingAck",
   "careRoutine.briefingGap",
   "careRoutine.briefingPushTitle",
@@ -3174,6 +3183,7 @@ export const TRANSLATION_KEYS = [
   "careRoutine.metricsTitle",
   "careRoutine.missedShort",
   "careRoutine.moreOptions",
+  "careRoutine.nextMomentLabel",
   "careRoutine.no",
   "careRoutine.patternAlternating",
   "careRoutine.patternCustody",

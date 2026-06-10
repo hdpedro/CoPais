@@ -2940,7 +2940,12 @@
     "tapToToggle": "Tap to mark the days with drop-off/pick-up.",
     "weekEmptyTag": "(empty)",
     "briefingPushTitle": "🌅 Tomorrow",
-    "briefingGap": "Who picks up tomorrow?"
+    "briefingGap": "Who picks up tomorrow?",
+    "arcNow": "now",
+    "arcMorning": "morning",
+    "arcAfternoon": "afternoon",
+    "arcEvening": "evening",
+    "nextMomentLabel": "Next moment"
   },
   "a11y": {
     "careRoutine": {

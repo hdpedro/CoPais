@@ -1,0 +1,39 @@
+{
+  "careRoutine": {
+    "pt": {
+      "arcNow": "agora",
+      "arcMorning": "manhã",
+      "arcAfternoon": "tarde",
+      "arcEvening": "noite",
+      "nextMomentLabel": "Próximo momento"
+    },
+    "en": {
+      "arcNow": "now",
+      "arcMorning": "morning",
+      "arcAfternoon": "afternoon",
+      "arcEvening": "evening",
+      "nextMomentLabel": "Next moment"
+    },
+    "es": {
+      "arcNow": "ahora",
+      "arcMorning": "mañana",
+      "arcAfternoon": "tarde",
+      "arcEvening": "noche",
+      "nextMomentLabel": "Próximo momento"
+    },
+    "fr": {
+      "arcNow": "maintenant",
+      "arcMorning": "matin",
+      "arcAfternoon": "après-midi",
+      "arcEvening": "soir",
+      "nextMomentLabel": "Prochain moment"
+    },
+    "de": {
+      "arcNow": "jetzt",
+      "arcMorning": "Vormittag",
+      "arcAfternoon": "Nachmittag",
+      "arcEvening": "Abend",
+      "nextMomentLabel": "Nächster Moment"
+    }
+  }
+}

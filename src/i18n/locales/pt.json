@@ -2940,7 +2940,12 @@
     "tapToToggle": "Toque para marcar os dias com leva e busca.",
     "weekEmptyTag": "(vazia)",
     "briefingPushTitle": "🌅 Amanhã",
-    "briefingGap": "Quem busca amanhã?"
+    "briefingGap": "Quem busca amanhã?",
+    "arcNow": "agora",
+    "arcMorning": "manhã",
+    "arcAfternoon": "tarde",
+    "arcEvening": "noite",
+    "nextMomentLabel": "Próximo momento"
   },
   "a11y": {
     "careRoutine": {

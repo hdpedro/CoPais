@@ -2940,7 +2940,12 @@
     "tapToToggle": "Toca para marcar los días con llevada/recogida.",
     "weekEmptyTag": "(vacía)",
     "briefingPushTitle": "🌅 Mañana",
-    "briefingGap": "¿Quién recoge mañana?"
+    "briefingGap": "¿Quién recoge mañana?",
+    "arcNow": "ahora",
+    "arcMorning": "mañana",
+    "arcAfternoon": "tarde",
+    "arcEvening": "noche",
+    "nextMomentLabel": "Próximo momento"
   },
   "a11y": {
     "careRoutine": {

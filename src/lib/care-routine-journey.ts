@@ -17,6 +17,8 @@ export interface JourneyActivity {
   activityId?: string | null;
   /** Id da row de events (deep-link `/calendario?day=…&eventId=…`). */
   eventId?: string | null;
+  /** Local da atividade/evento (subtítulo do "Próximo momento" no herói). */
+  location?: string | null;
 }
 
 export type JourneyKind = "home" | "dropoff" | "activity" | "pickup";
@@ -37,6 +39,8 @@ export interface JourneyItem {
   activityId?: string | null;
   /** Id da row de events (deep-link pro evento específico no calendário). */
   eventId?: string | null;
+  /** Local (só em atividades/eventos; null nas âncoras). */
+  location?: string | null;
 }
 
 const ACTIVITY_ICON: Record<string, string> = {
@@ -149,7 +153,7 @@ export function buildChildJourney(input: BuildJourneyInput): JourneyItem[] {
   dedupeJourneyActivities(input.activities).forEach((a, i) => {
     const min = toMin(a.time);
     if (min != null) {
-      items.push({ key: `act-${i}`, sortMin: min, icon: ACTIVITY_ICON[a.category] ?? "📋", text: a.name, time: a.time!.slice(0, 5), kind: "activity", responsible: a.responsible ?? null, activityId: a.activityId ?? null, eventId: a.eventId ?? null });
+      items.push({ key: `act-${i}`, sortMin: min, icon: ACTIVITY_ICON[a.category] ?? "📋", text: a.name, time: a.time!.slice(0, 5), kind: "activity", responsible: a.responsible ?? null, activityId: a.activityId ?? null, eventId: a.eventId ?? null, location: a.location ?? null });
     }
   });
   if (input.pickup) {

@@ -2940,7 +2940,12 @@
     "tapToToggle": "Tippe, um die Tage mit Bringen/Abholen zu markieren.",
     "weekEmptyTag": "(leer)",
     "briefingPushTitle": "🌅 Morgen",
-    "briefingGap": "Wer holt morgen ab?"
+    "briefingGap": "Wer holt morgen ab?",
+    "arcNow": "jetzt",
+    "arcMorning": "Vormittag",
+    "arcAfternoon": "Nachmittag",
+    "arcEvening": "Abend",
+    "nextMomentLabel": "Nächster Moment"
   },
   "a11y": {
     "careRoutine": {

@@ -2940,7 +2940,12 @@
     "tapToToggle": "Touchez pour marquer les jours avec dépose/récupération.",
     "weekEmptyTag": "(vide)",
     "briefingPushTitle": "🌅 Demain",
-    "briefingGap": "Qui récupère demain ?"
+    "briefingGap": "Qui récupère demain ?",
+    "arcNow": "maintenant",
+    "arcMorning": "matin",
+    "arcAfternoon": "après-midi",
+    "arcEvening": "soir",
+    "nextMomentLabel": "Prochain moment"
   },
   "a11y": {
     "careRoutine": {
