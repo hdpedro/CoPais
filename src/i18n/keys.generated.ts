@@ -433,16 +433,24 @@ export type TranslationKey =
   | "careRoutine.didPickup"
   | "careRoutine.dropoff"
   | "careRoutine.editCta"
+  | "careRoutine.editScheduleCta"
   | "careRoutine.followsGuard"
   | "careRoutine.free"
   | "careRoutine.fullDay"
   | "careRoutine.fullDayShort"
+  | "careRoutine.heroCustodyHandoffToOther"
+  | "careRoutine.heroCustodyHandoffToYou"
+  | "careRoutine.heroCustodyUntil"
+  | "careRoutine.heroCustodyWithOther"
+  | "careRoutine.heroCustodyWithYou"
   | "careRoutine.heroDone"
   | "careRoutine.heroDropoff"
   | "careRoutine.heroDropoffTo"
   | "careRoutine.heroFullDay"
   | "careRoutine.heroPickup"
   | "careRoutine.heroPickupAt"
+  | "careRoutine.heroRhythmLabel"
+  | "careRoutine.heroYouPickUp"
   | "careRoutine.hideWeekend"
   | "careRoutine.journeyCta"
   | "careRoutine.journeyDropoff"
@@ -3165,16 +3173,24 @@ export const TRANSLATION_KEYS = [
   "careRoutine.didPickup",
   "careRoutine.dropoff",
   "careRoutine.editCta",
+  "careRoutine.editScheduleCta",
   "careRoutine.followsGuard",
   "careRoutine.free",
   "careRoutine.fullDay",
   "careRoutine.fullDayShort",
+  "careRoutine.heroCustodyHandoffToOther",
+  "careRoutine.heroCustodyHandoffToYou",
+  "careRoutine.heroCustodyUntil",
+  "careRoutine.heroCustodyWithOther",
+  "careRoutine.heroCustodyWithYou",
   "careRoutine.heroDone",
   "careRoutine.heroDropoff",
   "careRoutine.heroDropoffTo",
   "careRoutine.heroFullDay",
   "careRoutine.heroPickup",
   "careRoutine.heroPickupAt",
+  "careRoutine.heroRhythmLabel",
+  "careRoutine.heroYouPickUp",
   "careRoutine.hideWeekend",
   "careRoutine.journeyCta",
   "careRoutine.journeyDropoff",

@@ -2946,7 +2946,15 @@
     "arcAfternoon": "afternoon",
     "arcEvening": "evening",
     "nextMomentLabel": "Next moment",
-    "a11yHomeAnchor": "{name}'s home"
+    "a11yHomeAnchor": "{name}'s home",
+    "heroCustodyWithYou": "{count, plural, one {{kids} is with you} other {{kids} are with you}}",
+    "heroCustodyWithOther": "{count, plural, one {{kids} is with {name}} other {{kids} are with {name}}}",
+    "heroCustodyUntil": "until {date}",
+    "heroCustodyHandoffToYou": "they come to you today",
+    "heroCustodyHandoffToOther": "they go to {name} today",
+    "heroYouPickUp": "You pick up",
+    "heroRhythmLabel": "Week rhythm",
+    "editScheduleCta": "Edit schedule"
   },
   "a11y": {
     "careRoutine": {

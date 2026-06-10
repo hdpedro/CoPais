@@ -2946,7 +2946,15 @@
     "arcAfternoon": "tarde",
     "arcEvening": "noite",
     "nextMomentLabel": "Próximo momento",
-    "a11yHomeAnchor": "Casa de {name}"
+    "a11yHomeAnchor": "Casa de {name}",
+    "heroCustodyWithYou": "{count, plural, one {{kids} está com você} other {{kids} estão com você}}",
+    "heroCustodyWithOther": "{count, plural, one {{kids} está com {name}} other {{kids} estão com {name}}}",
+    "heroCustodyUntil": "até {date}",
+    "heroCustodyHandoffToYou": "hoje vêm para você",
+    "heroCustodyHandoffToOther": "hoje vão para {name}",
+    "heroYouPickUp": "Você pega",
+    "heroRhythmLabel": "Ritmo da semana",
+    "editScheduleCta": "Editar escala"
   },
   "a11y": {
     "careRoutine": {

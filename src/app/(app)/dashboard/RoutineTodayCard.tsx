@@ -26,6 +26,27 @@ import type { JourneyItem } from "@/lib/care-routine-journey";
 
 type Leg = "dropoff" | "pickup";
 
+/** Contexto de GUARDA (pais separados): quando presente, o card vira o Herói
+ *  de Guarda universal — voz com perspectiva ("com você até dom."), badge
+ *  Guarda ativa, ritmo da semana colorido + contagem, próxima troca clicável.
+ *  Contrato de não-regressão: preserva TUDO do herói de guarda antigo. */
+export interface HeroCustodyContext {
+  mode: "single" | "together" | "split";
+  withName: string;
+  withIsMe: boolean;
+  kids: string[];
+  untilLabel: string | null;
+  /** Troca acontecendo hoje (handover dateKey = hoje/amanhã cedo). */
+  handoff: { name: string; isMe: boolean } | null;
+  /** Só no mode split: grupos por responsável (cores preservadas). */
+  groups?: { name: string; isMe: boolean; colorHex: string; kids: string[] }[];
+  streakDays: number;
+  streakTotal: number;
+  /** Ritmo da semana (restaura a Semana Colorida): 7 dias com cor da guarda. */
+  week: { label: string; color: string | null; isToday: boolean }[];
+  nextSwap: { dateLabel: string; dateKey: string; name: string; isMine: boolean } | null;
+}
+
 /** Sentinela (char de controle improvável num nome) que envolve {name} pra
  *  a voz partir e colorir só o nome, reusando as chaves i18n existentes. */
 const NAME_MARK = String.fromCharCode(1);
@@ -48,6 +69,8 @@ interface RoutineTodayCardProps {
   /** SÓ pro playground /prototipo/heroi: congela o relógio num minuto do dia
    *  (simulação de cenários). Em produção fica undefined → relógio do device. */
   simulateNowMin?: number | null;
+  /** Pais separados: o card vira o Herói de Guarda universal. */
+  custodyContext?: HeroCustodyContext | null;
 }
 
 export default function RoutineTodayCard({
@@ -63,6 +86,7 @@ export default function RoutineTodayCard({
   dayCalm,
   heroTimeline,
   simulateNowMin = null,
+  custodyContext = null,
 }: RoutineTodayCardProps) {
   const { t, locale } = useI18n();
   const intlLocale = INTL_LOCALE_MAP[locale] ?? "pt-BR";
@@ -223,7 +247,8 @@ export default function RoutineTodayCard({
   };
 
   // Empty-state: ensina + CTA pro editor (claro — é estado de ativação).
-  if (!hasRoutineSlots || routineToday.mode === "none") {
+  // NUNCA no modo guarda: pais separados sem rotina ainda têm o herói.
+  if (!custodyContext && (!hasRoutineSlots || routineToday.mode === "none")) {
     return (
       <Link href="/calendario/rotina" prefetch={false} className="block">
         <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:border-[#5B9E85]/40 transition-colors">
@@ -400,13 +425,28 @@ export default function RoutineTodayCard({
       style={{ background: "linear-gradient(157deg, #2E2823 0%, #211C18 100%)" }}
     >
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[11px] uppercase tracking-[0.18em] text-[#B79B7E] font-semibold">
-          <span aria-hidden="true">📍 </span>
-          {t("careRoutine.todayHeading")}
-        </h3>
-        <Link href="/calendario/rotina" prefetch={false} className="text-[12px] font-medium text-[#C9A98B] hover:text-[#E3C9AC]">
-          {t("careRoutine.editCta")}
-        </Link>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <h3 className="text-[11px] uppercase tracking-[0.18em] text-[#B79B7E] font-semibold flex-shrink-0">
+            <span aria-hidden="true">📍 </span>
+            {t("careRoutine.todayHeading")}
+          </h3>
+          {/* Badge "Guarda ativa" — preservado do herói antigo (decisão do dono). */}
+          {custodyContext && (
+            <span className="flex items-center gap-1.5 text-[10px] font-semibold bg-white/10 rounded-full px-2.5 py-[3px] text-[#D9E4D9] flex-shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" aria-hidden="true" />
+              {t("dashboard.activeCustody")}
+            </span>
+          )}
+        </div>
+        {custodyContext ? (
+          <Link href="/calendario/escala" prefetch={false} className="text-[12px] font-medium text-[#C9A98B] hover:text-[#E3C9AC] flex-shrink-0">
+            {t("careRoutine.editScheduleCta")}
+          </Link>
+        ) : (
+          <Link href="/calendario/rotina" prefetch={false} className="text-[12px] font-medium text-[#C9A98B] hover:text-[#E3C9AC] flex-shrink-0">
+            {t("careRoutine.editCta")}
+          </Link>
+        )}
       </div>
 
       {/* Destinatário: alguém trocou e eu ainda não dei ciência */}
@@ -427,14 +467,58 @@ export default function RoutineTodayCard({
       {/* VOZ — editorial, Cormorant, nomes em terracota. */}
       <div className="mb-1">
         {dayCalm && <p className="font-display text-[21px] leading-[1.12] text-[#F4ECE1]">{t("briefing.calmTitle")}</p>}
-        <div className="space-y-2.5 mt-1">
-          {routineToday.entries.map((entry, i) => (
-            <div key={i}>
-              <p className="font-display text-[19px] leading-[1.32] text-[#E9DECF]">{vozLine(entry)}</p>
-              {actionRow(entry)}
+        {custodyContext ? (
+          /* GUARDA (pais separados): com quem estão, até quando, perspectiva. */
+          custodyContext.mode === "split" && custodyContext.groups ? (
+            <div className="space-y-1.5 mt-1">
+              {custodyContext.groups.map((g, i) => (
+                <p key={i} className="font-display text-[19px] leading-[1.32] text-[#E9DECF] flex items-center gap-2.5">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: g.colorHex }} aria-hidden="true" />
+                  <span className="min-w-0">
+                    {vozColor(
+                      g.isMe
+                        ? t("careRoutine.heroCustodyWithYou", { kids: kidsLabel(g.kids), count: g.kids.length })
+                        : t("careRoutine.heroCustodyWithOther", { kids: kidsLabel(g.kids), name: mark(g.name), count: g.kids.length }),
+                    )}
+                  </span>
+                </p>
+              ))}
             </div>
-          ))}
-        </div>
+          ) : (
+            <p className="font-display text-[21px] leading-[1.25] text-[#E9DECF] mt-1">
+              {vozColor(
+                custodyContext.withIsMe
+                  ? t("careRoutine.heroCustodyWithYou", { kids: kidsLabel(custodyContext.kids), count: custodyContext.kids.length })
+                  : t("careRoutine.heroCustodyWithOther", {
+                      kids: kidsLabel(custodyContext.kids),
+                      name: mark(custodyContext.withName),
+                      count: custodyContext.kids.length,
+                    }),
+              )}
+              {custodyContext.handoff ? (
+                <>
+                  <span className="text-[#8A7A6A]"> — </span>
+                  {vozColor(
+                    custodyContext.handoff.isMe
+                      ? t("careRoutine.heroCustodyHandoffToYou")
+                      : t("careRoutine.heroCustodyHandoffToOther", { name: mark(custodyContext.handoff.name) }),
+                  )}
+                </>
+              ) : custodyContext.untilLabel ? (
+                <span className="text-[#C9B79F]"> {t("careRoutine.heroCustodyUntil", { date: custodyContext.untilLabel })}</span>
+              ) : null}
+            </p>
+          )
+        ) : (
+          <div className="space-y-2.5 mt-1">
+            {routineToday.entries.map((entry, i) => (
+              <div key={i}>
+                <p className="font-display text-[19px] leading-[1.32] text-[#E9DECF]">{vozLine(entry)}</p>
+                {actionRow(entry)}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* ARCO DO DIA — trajetória de sol 06h→21h (mockup do dono): percorrido
@@ -667,6 +751,58 @@ export default function RoutineTodayCard({
             </Link>
           )}
         </div>
+      )}
+
+      {/* RITMO DA SEMANA + contagem — restaura a Semana Colorida (decisão do
+          dono): 7 dias na cor da guarda, hoje com anel, "3 de 7 consecutivos".
+          Clicável → calendário (onde vivem weekends/saldo/escala). */}
+      {custodyContext && custodyContext.week.length > 0 && (
+        <Link
+          href="/calendario"
+          prefetch={false}
+          aria-label={t("careRoutine.heroRhythmLabel")}
+          className="mt-3.5 pt-3 border-t border-white/10 flex items-center gap-3 group"
+        >
+          <span className="flex gap-1 flex-1 min-w-0">
+            {custodyContext.week.map((d, i) => (
+              <span
+                key={i}
+                className={`flex-1 h-5 rounded-md flex items-center justify-center text-[9px] font-semibold transition-opacity group-hover:opacity-85 ${
+                  d.isToday ? "ring-1 ring-[#E7AE80]" : ""
+                }`}
+                style={{
+                  backgroundColor: d.color ? `${d.color}59` : "rgba(255,255,255,0.06)",
+                  color: d.color ? "#F4ECE1" : "#9A8A77",
+                }}
+              >
+                {d.label}
+              </span>
+            ))}
+          </span>
+          {custodyContext.streakTotal > 1 && (
+            <span className="text-[10.5px] text-[#C9A98B] flex-shrink-0">
+              {t("dashboard.consecutive", { current: custodyContext.streakDays, total: custodyContext.streakTotal })}
+            </span>
+          )}
+        </Link>
+      )}
+
+      {/* PRÓXIMA TROCA — com perspectiva ("Você pega" quando é tua vez). */}
+      {custodyContext?.nextSwap && (
+        <Link
+          href={`/calendario?day=${custodyContext.nextSwap.dateKey}`}
+          prefetch={false}
+          className="mt-3 flex items-center gap-1.5 text-[12px] text-[#A89A88] hover:text-[#C9B79F] transition-colors"
+        >
+          <span aria-hidden="true">🔄</span>
+          <span className="font-medium text-[#D8CBB9]">
+            {custodyContext.nextSwap.isMine ? t("careRoutine.heroYouPickUp") : t("dashboard.nextSwap")}
+          </span>
+          <span className="truncate">
+            · {custodyContext.nextSwap.dateLabel}
+            {custodyContext.nextSwap.isMine ? "" : ` · ${custodyContext.nextSwap.name}`}
+          </span>
+        </Link>
       )}
 
       {tomorrowSummary && (

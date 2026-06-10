@@ -1,0 +1,54 @@
+{
+  "careRoutine": {
+    "pt": {
+      "heroCustodyWithYou": "{count, plural, one {{kids} está com você} other {{kids} estão com você}}",
+      "heroCustodyWithOther": "{count, plural, one {{kids} está com {name}} other {{kids} estão com {name}}}",
+      "heroCustodyUntil": "até {date}",
+      "heroCustodyHandoffToYou": "hoje vêm para você",
+      "heroCustodyHandoffToOther": "hoje vão para {name}",
+      "heroYouPickUp": "Você pega",
+      "heroRhythmLabel": "Ritmo da semana",
+      "editScheduleCta": "Editar escala"
+    },
+    "en": {
+      "heroCustodyWithYou": "{count, plural, one {{kids} is with you} other {{kids} are with you}}",
+      "heroCustodyWithOther": "{count, plural, one {{kids} is with {name}} other {{kids} are with {name}}}",
+      "heroCustodyUntil": "until {date}",
+      "heroCustodyHandoffToYou": "they come to you today",
+      "heroCustodyHandoffToOther": "they go to {name} today",
+      "heroYouPickUp": "You pick up",
+      "heroRhythmLabel": "Week rhythm",
+      "editScheduleCta": "Edit schedule"
+    },
+    "es": {
+      "heroCustodyWithYou": "{count, plural, one {{kids} está contigo} other {{kids} están contigo}}",
+      "heroCustodyWithOther": "{count, plural, one {{kids} está con {name}} other {{kids} están con {name}}}",
+      "heroCustodyUntil": "hasta {date}",
+      "heroCustodyHandoffToYou": "hoy vienen contigo",
+      "heroCustodyHandoffToOther": "hoy van con {name}",
+      "heroYouPickUp": "Tú recoges",
+      "heroRhythmLabel": "Ritmo de la semana",
+      "editScheduleCta": "Editar calendario"
+    },
+    "fr": {
+      "heroCustodyWithYou": "{count, plural, one {{kids} est avec toi} other {{kids} sont avec toi}}",
+      "heroCustodyWithOther": "{count, plural, one {{kids} est avec {name}} other {{kids} sont avec {name}}}",
+      "heroCustodyUntil": "jusqu'à {date}",
+      "heroCustodyHandoffToYou": "ils viennent chez toi aujourd'hui",
+      "heroCustodyHandoffToOther": "ils vont chez {name} aujourd'hui",
+      "heroYouPickUp": "Tu récupères",
+      "heroRhythmLabel": "Rythme de la semaine",
+      "editScheduleCta": "Modifier le planning"
+    },
+    "de": {
+      "heroCustodyWithYou": "{count, plural, one {{kids} ist bei dir} other {{kids} sind bei dir}}",
+      "heroCustodyWithOther": "{count, plural, one {{kids} ist bei {name}} other {{kids} sind bei {name}}}",
+      "heroCustodyUntil": "bis {date}",
+      "heroCustodyHandoffToYou": "heute kommen sie zu dir",
+      "heroCustodyHandoffToOther": "heute gehen sie zu {name}",
+      "heroYouPickUp": "Du holst ab",
+      "heroRhythmLabel": "Wochenrhythmus",
+      "editScheduleCta": "Plan bearbeiten"
+    }
+  }
+}

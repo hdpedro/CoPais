@@ -10,7 +10,7 @@
  */
 
 import { I18nProvider } from "@/i18n/provider";
-import RoutineTodayCard from "@/app/(app)/dashboard/RoutineTodayCard";
+import RoutineTodayCard, { type HeroCustodyContext } from "@/app/(app)/dashboard/RoutineTodayCard";
 import { buildChildJourney, type JourneyItem } from "@/lib/care-routine-journey";
 import type { RoutineToday, RoutineHeroEntry, RoutineHeroLeg } from "@/lib/care-routine-resolve";
 
@@ -39,27 +39,30 @@ interface ProtoActivity {
 }
 
 /** Replica a composição do page.tsx: buildChildJourney + pernas das demais entries. */
-function composeTimeline(routine: RoutineToday, activities: ProtoActivity[], homeName: string | null): JourneyItem[] {
+function composeTimeline(
+  routine: RoutineToday,
+  activities: ProtoActivity[],
+  homeName: string | null,
+  homeEveningName?: string | null,
+): JourneyItem[] {
   const e0: RoutineHeroEntry | null = routine.entries[0] ?? null;
   // Espelha o page.tsx: split (2+ entries) → casas sem nome (ambíguas).
   const home = routine.entries.length > 1 ? null : e0?.sameAllDay && e0.dropoff ? e0.dropoff.responsibleName : homeName;
-  const items: JourneyItem[] = e0
-    ? buildChildJourney({
-        dropoff: e0.dropoff ? { name: e0.dropoff.responsibleName, time: e0.dropoff.time } : null,
-        pickup: e0.pickup ? { name: e0.pickup.responsibleName, time: e0.pickup.time } : null,
-        activities: activities.map((a) => ({
-          name: a.name,
-          time: a.time,
-          category: a.category,
-          responsible: a.responsible ?? null,
-          activityId: null,
-          eventId: null,
-          location: a.location ?? null,
-        })),
-        homeMorning: home,
-        homeEvening: home,
-      })
-    : [];
+  const items: JourneyItem[] = buildChildJourney({
+    dropoff: e0?.dropoff ? { name: e0.dropoff.responsibleName, time: e0.dropoff.time } : null,
+    pickup: e0?.pickup ? { name: e0.pickup.responsibleName, time: e0.pickup.time } : null,
+    activities: activities.map((a) => ({
+      name: a.name,
+      time: a.time,
+      category: a.category,
+      responsible: a.responsible ?? null,
+      activityId: null,
+      eventId: null,
+      location: a.location ?? null,
+    })),
+    homeMorning: home,
+    homeEvening: homeEveningName !== undefined ? homeEveningName : home,
+  });
   for (let i = 1; i < routine.entries.length; i++) {
     const e = routine.entries[i];
     ([["dropoff", e.dropoff], ["pickup", e.pickup]] as const).forEach(([legKind, leg]) => {
@@ -119,7 +122,19 @@ interface Scenario {
   logsToday?: Record<string, "done" | "missed">;
   tomorrowSummary?: string | null;
   hasRoutineSlots?: boolean;
+  custody?: HeroCustodyContext;
+  homeEveningName?: string | null;
 }
+
+// Ritmo de semana sintético: cores reais do app (eu terracota / outro verde).
+const ME = "#D4735A";
+const OTHER = "#5B9E85";
+const mkWeek = (owners: ("me" | "other" | null)[], todayIdx: number) =>
+  ["S", "T", "Q", "Q", "S", "S", "D"].map((label, i) => ({
+    label,
+    color: owners[i] === "me" ? ME : owners[i] === "other" ? OTHER : null,
+    isToday: i === todayIdx,
+  }));
 
 const SCENARIOS: Scenario[] = [
   { id: "s1", title: "S1 · Dia rico — manhã (09:00)", desc: "Leva/busca com hora + 4 atividades (cluster ② às 18h). Sol no início, tudo à frente.", nowMin: 9 * 60, routine: RICH_ROUTINE, acts: RICH_ACTS, tomorrowSummary: "Fernanda leva · Henrique busca" },
@@ -154,6 +169,15 @@ const SCENARIOS: Scenario[] = [
   { id: "s12", title: "S12 · Buscou? pendente (18:30)", desc: "Busca 17:30 já passou sem registro → Sim/Não visíveis.", nowMin: 18 * 60 + 30, routine: RICH_ROUTINE, acts: RICH_ACTS },
   { id: "s13", title: "S13 · Buscou? registrado (18:30)", desc: "Logs done pros dois filhos → ✓ feito.", nowMin: 18 * 60 + 30, routine: RICH_ROUTINE, acts: RICH_ACTS, logsToday: { "otto:pickup": "done", "martim:pickup": "done" } },
   { id: "s14", title: "S14 · Sem rotina (empty state)", desc: "Sem slots: card de ativação com CTA pro editor.", nowMin: 12 * 60, routine: { mode: "none", entries: [] }, acts: [], hasRoutineSlots: false },
+  // ——— PAIS SEPARADOS (modo guarda) ———
+  { id: "r1", title: "R1 · Guarda: com VOCÊ até dom. (14:00)", desc: "Voz com perspectiva + badge + ritmo colorido + 3 de 7 + próxima troca pro outro.", nowMin: 14 * 60, routine: { mode: "none", entries: [] }, acts: [{ name: "Futsal", time: "18:00:00", category: "sport" }], hasRoutineSlots: false, homeEveningName: undefined,
+    custody: { mode: "together", withName: "Henrique", withIsMe: true, kids: ["Otto", "Martim"], untilLabel: "dom.", handoff: null, streakDays: 3, streakTotal: 7, week: mkWeek(["me", "me", "me", "me", "other", "other", "other"], 2), nextSwap: { dateLabel: "seg. 15/6", dateKey: "2026-06-15", name: "Fernanda", isMine: false } } },
+  { id: "r2", title: "R2 · Guarda: com a OUTRA — você pega (10:00)", desc: "Perspectiva do pai longe: 'estão com Fernanda até dom.' + 'Você pega · seg 15/6'. Atividades visíveis (transparência).", nowMin: 10 * 60, routine: { mode: "none", entries: [] }, acts: [{ name: "Reunião de pais", time: "16:30:00", category: "evento", responsible: "Henrique", location: "Sala 303" }, { name: "Teatro", time: "18:00:00", category: "art", responsible: "Fernanda" }], hasRoutineSlots: false, homeEveningName: "Fernanda",
+    custody: { mode: "together", withName: "Fernanda", withIsMe: false, kids: ["Otto", "Martim"], untilLabel: "dom.", handoff: null, streakDays: 2, streakTotal: 7, week: mkWeek(["other", "other", "other", "other", "other", "me", "me"], 1), nextSwap: { dateLabel: "seg. 15/6", dateKey: "2026-06-15", name: "Henrique", isMine: true } } },
+  { id: "r3", title: "R3 · DIA DE TROCA (15:00)", desc: "Handoff: 'estão com Fernanda — hoje vêm para você'. Casas DIFERENTES nas pontas do arco.", nowMin: 15 * 60, routine: { mode: "none", entries: [] }, acts: [{ name: "Escola", time: "08:00:00", category: "school" }], hasRoutineSlots: false, homeEveningName: "Henrique",
+    custody: { mode: "together", withName: "Fernanda", withIsMe: false, kids: ["Otto", "Martim"], untilLabel: null, handoff: { name: "Henrique", isMe: true }, streakDays: 7, streakTotal: 7, week: mkWeek(["other", "other", "me", "me", "me", "me", "me"], 2), nextSwap: { dateLabel: "hoje", dateKey: "2026-06-10", name: "Henrique", isMine: true } } },
+  { id: "r4", title: "R4 · Guarda SPLIT — um com cada (11:00)", desc: "Grupos coloridos preservados: Otto com você · Martim com Fernanda.", nowMin: 11 * 60, routine: { mode: "none", entries: [] }, acts: [], hasRoutineSlots: false, homeEveningName: null,
+    custody: { mode: "split", withName: "", withIsMe: false, kids: [], untilLabel: null, handoff: null, groups: [{ name: "Henrique", isMe: true, colorHex: ME, kids: ["Otto"] }, { name: "Fernanda", isMe: false, colorHex: "#E6A9B0", kids: ["Martim"] }], streakDays: 2, streakTotal: 3, week: mkWeek(["me", "other", "me", "other", "me", null, null], 3), nextSwap: { dateLabel: "qui. 11/6", dateKey: "2026-06-11", name: "Fernanda", isMine: false } } },
 ];
 
 export default function HeroiPlaygroundPage() {
@@ -184,8 +208,14 @@ export default function HeroiPlaygroundPage() {
                 logsToday={s.logsToday ?? {}}
                 tomorrowSummary={s.tomorrowSummary ?? null}
                 dayCalm={s.dayCalm ?? false}
-                heroTimeline={composeTimeline(s.routine, s.acts, "Fernanda")}
+                heroTimeline={composeTimeline(
+                  s.routine,
+                  s.acts,
+                  s.custody ? s.custody.withName || null : "Fernanda",
+                  s.homeEveningName,
+                )}
                 simulateNowMin={s.nowMin}
+                custodyContext={s.custody ?? null}
               />
             </section>
           ))}
