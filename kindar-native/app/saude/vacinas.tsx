@@ -5,7 +5,7 @@
  * Espelha o PWA `/saude/vacinas`. Banco como fonte de verdade — chama
  * apiFetch via `getVaccineStatus`.
  */
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -76,6 +76,7 @@ export default function VacinasScreen() {
   const [savingPref, setSavingPref] = useState(false);
   const [heroExpanded, setHeroExpanded] = useState(false);
   const [postVaccineRecordId, setPostVaccineRecordId] = useState<string | null>(null);
+  const loadEpoch = useRef(0);
 
   const selectedChild = useMemo(
     () => children.find((c) => c.id === selectedChildId) || null,
@@ -83,6 +84,10 @@ export default function VacinasScreen() {
   );
 
   const load = useCallback(async () => {
+    // Guard against stale async responses when the user switches children quickly.
+    // If load() is called again before this invocation finishes, the newer call
+    // increments the epoch and this one bails out before writing state.
+    const epoch = ++loadEpoch.current;
     if (!activeGroup) {
       setLoading(false);
       return;
@@ -98,6 +103,7 @@ export default function VacinasScreen() {
         7000,
         'vaccines.children',
       );
+      if (epoch !== loadEpoch.current) return;
       const list = (kids || []) as Child[];
       setChildren(list);
       if (list.length === 0) {
@@ -125,13 +131,18 @@ export default function VacinasScreen() {
           'vaccines.history',
         ),
       ]);
+      if (epoch !== loadEpoch.current) return;
       setStatus(st);
       setHistory((hist.data || []) as HistoryRecord[]);
     } catch (e) {
-      reportError(e, { filePath: 'app/saude/vacinas.tsx', metadata: { childId: selectedChildId } });
+      if (epoch === loadEpoch.current) {
+        reportError(e, { filePath: 'app/saude/vacinas.tsx', metadata: { childId: selectedChildId } });
+      }
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      if (epoch === loadEpoch.current) {
+        setLoading(false);
+        setRefreshing(false);
+      }
     }
   }, [activeGroup, selectedChildId]);
 
