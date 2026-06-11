@@ -34,6 +34,7 @@ export async function listInvitations(groupId: string): Promise<Invitation[]> {
     .order('created_at', { ascending: false })
     .limit(50);
 
+  const now = new Date();
   return (data || []).map((i: any) => ({
     id: i.id,
     group_id: i.group_id,
@@ -41,7 +42,8 @@ export async function listInvitations(groupId: string): Promise<Invitation[]> {
     role: i.role,
     group_role: i.group_role,
     token: i.token,
-    status: i.status,
+    // Normaliza no client: pending com expires_at passado = expired (DB pode estar stale)
+    status: i.status === 'pending' && new Date(i.expires_at) < now ? 'expired' : i.status,
     invited_by: i.invited_by,
     created_at: i.created_at,
     expires_at: i.expires_at,

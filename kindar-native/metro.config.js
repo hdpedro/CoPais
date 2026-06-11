@@ -47,4 +47,7 @@ config.resolver.extraNodeModules = {
   src: path.join(projectRoot, 'app', '_src'),
 };
 
+// OTA bundle: cap workers pra evitar OOM em máquinas com muitos cores + pouca RAM
+config.maxWorkers = 3;
+
 module.exports = config;
