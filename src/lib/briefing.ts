@@ -169,8 +169,8 @@ export function composeAttention(input: BriefingInput): AttentionItem[] {
     const first = input.pendingReports[0];
     items.push(
       makeItem("pending_report", input.pendingReports.length, "/atividades/pendentes", {
-        activityName: first.activityName,
-        childName: first.childName,
+        activity: first.activityName,
+        child: first.childName,
         count: input.pendingReports.length,
       }),
     );
