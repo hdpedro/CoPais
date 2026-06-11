@@ -69,8 +69,8 @@ describe("composeAttention — régua de prioridade", () => {
     );
     expect(a[0].kind).toBe("pending_report");
     expect(a[0].count).toBe(2);
-    expect(a[0].data.activityName).toBe("Futsal");
-    expect(a[0].data.childName).toBe("Otto");
+    expect(a[0].data.activity).toBe("Futsal");
+    expect(a[0].data.child).toBe("Otto");
   });
 
   it("inclui pending_expense agregado por count", () => {
