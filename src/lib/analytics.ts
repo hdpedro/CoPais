@@ -131,12 +131,23 @@ export const EVENTS = {
 export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
 
 // ============================================================
+// GTM INTEGRATION — whitelist of conversion events
+// ============================================================
+
+const GTM_EVENTS = [
+  EVENTS.SIGNUP_COMPLETED,  // Lead: account created
+  EVENTS.GROUP_CREATED,     // Conversion 1: family created (initial activation)
+  // "child_added" is tracked via activity logs, no direct EVENTS entry yet
+] as const;
+
+// ============================================================
 // CLIENT-SIDE tracking
 // ============================================================
 
 /**
  * Track an event from client components. No-op if PostHog isn't
  * configured — never blocks the UI on analytics failure.
+ * Also syncs conversion events to GTM dataLayer for Google Ads.
  */
 export function trackEvent(event: EventName, properties?: Record<string, unknown>): void {
   const posthog = getPostHogClient();
@@ -145,6 +156,22 @@ export function trackEvent(event: EventName, properties?: Record<string, unknown
     posthog.capture(event, properties);
   } catch {
     // swallow — analytics failures never break UX
+  }
+
+  // Sync selected events to GTM dataLayer
+  if (typeof window !== 'undefined') {
+    const isGTMEvent = GTM_EVENTS.some((gtmEvent) => gtmEvent === event);
+    if (isGTMEvent) {
+      try {
+        window.dataLayer = window.dataLayer || [];
+        window.dataLayer.push({
+          event,
+          ...(properties || {}),
+        } as Record<string, string | number | boolean | Record<string, unknown> | undefined>);
+      } catch {
+        // swallow — GTM failures never break UX
+      }
+    }
   }
 }
 
