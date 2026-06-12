@@ -23,6 +23,7 @@ export const EVENTS = {
   PRICING_VIEWED: "pricing_viewed",
   SIGNUP_STARTED: "signup_started",
   SIGNUP_COMPLETED: "signup_completed",
+  FORM_SUBMIT: "form_submit",
 
   // Onboarding
   GROUP_CREATED: "group_created",
@@ -137,6 +138,7 @@ export type EventName = (typeof EVENTS)[keyof typeof EVENTS];
 const GTM_EVENTS = [
   EVENTS.SIGNUP_COMPLETED,  // Lead: account created
   EVENTS.GROUP_CREATED,     // Conversion 1: family created (initial activation)
+  EVENTS.FORM_SUBMIT,       // Email verification form completed
   // "child_added" is tracked via activity logs, no direct EVENTS entry yet
 ] as const;
 

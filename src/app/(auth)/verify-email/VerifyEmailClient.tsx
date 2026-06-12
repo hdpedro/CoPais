@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useI18n } from "@/i18n/provider";
+import { trackEvent, EVENTS } from "@/lib/analytics";
 import { resendConfirmation, sendMagicLink, signInWithOAuth } from "@/actions/auth";
 
 interface Props {
@@ -75,6 +76,7 @@ export default function VerifyEmailClient({ initialEmail, initialError, initialR
         const data = await res.json();
         if (data.confirmed) {
           setConfirmed(true);
+          trackEvent(EVENTS.FORM_SUBMIT, { form_type: 'email_verification' });
           setTimeout(() => router.push("/dashboard"), 1200);
         }
       } catch {
