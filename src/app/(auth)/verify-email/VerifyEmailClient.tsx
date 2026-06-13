@@ -63,6 +63,24 @@ export default function VerifyEmailClient({ initialEmail, initialError, initialR
   const [isResending, startResend] = useTransition();
   const [isSendingMagic, startMagicLink] = useTransition();
 
+  // form_submit — dispara ao CHEGAR nesta tela (= cadastro concluído, agora
+  // aguardando confirmação de e-mail). É o sinal de conversão "formulário de
+  // signup submetido" que a Escala/Google Ads rastreia. Guard por
+  // sessionStorage pra não duplicar em reloads da mesma sessão.
+  const formSubmitFiredRef = useRef(false);
+  useEffect(() => {
+    if (!email || formSubmitFiredRef.current) return;
+    formSubmitFiredRef.current = true;
+    const storageKey = `kindar_form_submit_${email}`;
+    try {
+      if (sessionStorage.getItem(storageKey)) return;
+      sessionStorage.setItem(storageKey, "1");
+    } catch {
+      // sessionStorage indisponível — dispara mesmo assim
+    }
+    trackEvent(EVENTS.FORM_SUBMIT, { form_type: "signup" });
+  }, [email]);
+
   // Polling (auto-redirect quando user confirma em outro device)
   const pollTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   useEffect(() => {
@@ -76,7 +94,6 @@ export default function VerifyEmailClient({ initialEmail, initialError, initialR
         const data = await res.json();
         if (data.confirmed) {
           setConfirmed(true);
-          trackEvent(EVENTS.FORM_SUBMIT, { form_type: 'email_verification' });
           setTimeout(() => router.push("/dashboard"), 1200);
         }
       } catch {
