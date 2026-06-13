@@ -385,6 +385,8 @@ export default function RoutineTodayCard({
   // 1 item → destino dele; 2+ no mesmo horário → /jornada (lista o dia).
   const arcLabeled = (() => {
     const lastXAtLevel = [-999, -999];
+    const hasHomeAm = heroTimeline.some((i) => i.key === "home-am");
+    const hasHomePm = heroTimeline.some((i) => i.key === "home-pm");
     return arcStations.map((c) => {
       const x = arcX(arcFStation(c.min));
       // Nível 0 → nível 1 (zigzag) → SEM dizeres (só a hora): com 3+ estações
@@ -398,6 +400,11 @@ export default function RoutineTodayCard({
         if (g1 >= 92) level = 1;
         else if (Math.max(g0, g1) >= 50) level = g0 >= g1 ? 0 : 1;
         else showLabels = false;
+      }
+      // Estação colada numa casa NOMEADA: dizeres descem um nível pra não
+      // pintar por cima do "🏠 Nome" (colisão vista pelo dono, 11/jun).
+      if (showLabels && level === 0 && ((hasHomeAm && x < 118) || (hasHomePm && x > 482))) {
+        level = 1;
       }
       if (showLabels) lastXAtLevel[level] = x;
       const names = c.items.map((i) => shortLabel(i.text)).join(" + ");
