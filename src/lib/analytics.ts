@@ -147,20 +147,27 @@ const GTM_EVENTS = [
 // ============================================================
 
 /**
- * Track an event from client components. No-op if PostHog isn't
- * configured — never blocks the UI on analytics failure.
- * Also syncs conversion events to GTM dataLayer for Google Ads.
+ * Track an event from client components. Never blocks the UI on
+ * analytics failure.
+ *
+ * PostHog and GTM are INDEPENDENT sinks — a failure (or absence) of one
+ * must never block the other. PostHog respeita Do-Not-Track e pode nem
+ * inicializar (DNT/adblock); o GTM dataLayer push roda mesmo assim, senão
+ * conversões de Google Ads sumiriam justamente pros users com DNT/adblock
+ * (comum em pessoal de marketing/analytics).
  */
 export function trackEvent(event: EventName, properties?: Record<string, unknown>): void {
+  // Sink 1: PostHog (best-effort, pode estar ausente por DNT/adblock)
   const posthog = getPostHogClient();
-  if (!posthog) return;
-  try {
-    posthog.capture(event, properties);
-  } catch {
-    // swallow — analytics failures never break UX
+  if (posthog) {
+    try {
+      posthog.capture(event, properties);
+    } catch {
+      // swallow — analytics failures never break UX
+    }
   }
 
-  // Sync selected events to GTM dataLayer
+  // Sink 2: GTM dataLayer — INDEPENDENTE do PostHog acima
   if (typeof window !== 'undefined') {
     const isGTMEvent = GTM_EVENTS.some((gtmEvent) => gtmEvent === event);
     if (isGTMEvent) {
