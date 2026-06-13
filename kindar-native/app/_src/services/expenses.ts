@@ -183,32 +183,46 @@ export async function createExpense(params: {
   return result;
 }
 
-export async function approveExpense(expenseId: string, userId: string, groupId: string, description?: string) {
-  const result = await safeWrite({
-    table: 'expenses',
-    operation: 'update',
-    payload: { id: expenseId, status: 'approved', approved_by: userId },
-  });
-  if (result.success && !result.queued) {
-    notifyAction('expense_approved', groupId, { description: description || '' });
+// Aprovar/rejeitar roteiam pela API consolidada (updateExpenseStatus) — NÃO via
+// safeWrite. O servidor garante o que o safeWrite divergente quebrava (auditoria
+// de release 13/jun): seta approved_at/rejected_at, escreve rejected_by (não
+// approved_by), limpa a coluna oposta, BLOQUEIA auto-aprovação, audit trail e
+// notifica o criador. Tradeoff aceito: aprovação/rejeição não enfileiram offline
+// (são ações de revisão; o servidor é fonte de verdade). userId/description ficam
+// na assinatura por compat de callers — o servidor resolve o ator via Bearer.
+async function setExpenseStatus(
+  expenseId: string,
+  status: 'approved' | 'rejected',
+  rejectionReason?: string | null,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const r = await apiFetch('/api/expenses', {
+      method: 'PATCH',
+      query: { action: 'status' },
+      body: { expenseId, status, rejectionReason: rejectionReason ?? null },
+    });
+    return { success: r.ok, error: r.error };
+  } catch {
+    return { success: false, error: 'Falha de conexão.' };
   }
-  return result;
+}
+
+export async function approveExpense(expenseId: string, _userId: string, _groupId: string, _description?: string) {
+  return setExpenseStatus(expenseId, 'approved');
 }
 
 export async function deleteExpense(expenseId: string) {
   return safeWrite({ table: 'expenses', operation: 'delete', payload: { id: expenseId } });
 }
 
-export async function rejectExpense(expenseId: string, userId: string, groupId: string, description?: string) {
-  const result = await safeWrite({
-    table: 'expenses',
-    operation: 'update',
-    payload: { id: expenseId, status: 'rejected', approved_by: userId },
-  });
-  if (result.success && !result.queued) {
-    notifyAction('expense_rejected', groupId, { description: description || '' });
-  }
-  return result;
+export async function rejectExpense(
+  expenseId: string,
+  _userId: string,
+  _groupId: string,
+  _description?: string,
+  rejectionReason?: string,
+) {
+  return setExpenseStatus(expenseId, 'rejected', rejectionReason);
 }
 
 /**
