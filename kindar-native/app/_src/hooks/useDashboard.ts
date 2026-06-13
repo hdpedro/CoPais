@@ -19,6 +19,9 @@ import {
   computeCustodyStreak,
   type CustodyEvent as CustodyEventInput,
 } from '../lib/custody-resolve';
+// Porte do dashboard novo (Arco do Dia + Guarda universal + Dia em Família).
+import { buildChildJourney, type JourneyItem } from '../lib/care-routine-journey';
+import type { HeroCustodyContext, HeroFamilyDayContext } from '../components/DashboardHero';
 import { signChildAvatar } from '../services/children';
 import { PARENT_COLORS, getDisplayName } from '../lib/constants';
 import { cacheGet, cacheSet, isOnline } from '../services/offline';
@@ -195,6 +198,18 @@ interface DashboardData {
   // somadas em todas crianças do grupo via view child_vaccine_coverage.
   vaccinePendingCount: number;
   vaccineNextDue: { dueDate: string; vaccineName: string } | null;
+
+  // === Hero v2 (porte do dashboard novo) — alimenta o DashboardHero nativo. ===
+  /** Forma da família (coparenting_groups.arrangement; default 'rotating'). */
+  arrangement: 'rotating' | 'together' | 'single' | 'custom';
+  /** Jornada do dia (casa + atividades) pro Arco do Dia. Vazio = sem arco. */
+  heroTimeline: JourneyItem[];
+  /** Há atividade COM horário hoje (drives o arco no dia em família). */
+  hasTodayEvents: boolean;
+  /** Pais separados → Herói de Guarda universal (null caso contrário). */
+  custodyContext: HeroCustodyContext | null;
+  /** Família intacta/solo → voz de presença (null caso contrário). */
+  familyDayContext: HeroFamilyDayContext | null;
 }
 
 function formatDate(): string {
@@ -270,20 +285,32 @@ export function useDashboard() {
       // empty state mesmo pra returning user.
       // Agora: 1 round-trip + 1 plan + 1 RLS context. EXPLAIN ANALYZE: 35ms.
       // RLS continua aplicada (SECURITY INVOKER) — corrigida em 00098-00100.
-      const rpcRes = await withTimeout(
-        supabase.rpc('get_dashboard_payload', {
-          p_group_id: groupId,
-          p_today: today,
-          p_tomorrow: tomorrowStr,
-          p_sixty_days_from_today: sixtyDaysFromTodayStr,
-          p_week_ago: weekAgoStr,
-          p_yesterday: yesterdayStr,
-        }),
-        FETCH_TIMEOUT_MS,
-        'useDashboard:rpc',
-      );
+      // `arrangement` (forma da família) NÃO está na RPC consolidada (00101 <
+      // 00112). Query separada EM PARALELO com a RPC (não serializa o caminho
+      // crítico) + fallback 'rotating' (não-fatal: erro → trata como rotating,
+      // comportamento idêntico ao de hoje).
+      const [rpcRes, arrRes] = await Promise.all([
+        withTimeout(
+          supabase.rpc('get_dashboard_payload', {
+            p_group_id: groupId,
+            p_today: today,
+            p_tomorrow: tomorrowStr,
+            p_sixty_days_from_today: sixtyDaysFromTodayStr,
+            p_week_ago: weekAgoStr,
+            p_yesterday: yesterdayStr,
+          }),
+          FETCH_TIMEOUT_MS,
+          'useDashboard:rpc',
+        ),
+        supabase.from('coparenting_groups').select('arrangement').eq('id', groupId).maybeSingle(),
+      ]);
       if (rpcRes.error) throw new Error(rpcRes.error.message || 'rpc failed');
       const payload = (rpcRes.data || {}) as any;
+      const arrangement = (((arrRes as any)?.data?.arrangement) ?? 'rotating') as
+        | 'rotating'
+        | 'together'
+        | 'single'
+        | 'custom';
 
       // Re-shape payload pra bater com os formatos que o resto do hook espera
       // (mantém código de custody-resolve, healthSummaries, balance etc. intacto).
@@ -404,6 +431,11 @@ export function useDashboard() {
       let streakDays = 0;
       let streakTotal = 0;
       let endDateLabel: string | null = null;
+      // Hero v2: contexto de guarda + nomes de casa do arco (populados no bloco
+      // de custody abaixo; consumidos no DashboardHero/heroTimeline).
+      let custodyContext: HeroCustodyContext | null = null;
+      let heroHomeName: string | null = null;
+      let heroHomeEvening: string | null = null;
       if (dedupedToday.length > 0) {
         const ce = dedupedToday[0];
         const endDate = new Date(ce.end_date + 'T12:00:00');
@@ -490,6 +522,67 @@ export function useDashboard() {
         } else {
           endDateLabel = typeLabel ? `${typeLabel} · ${relativeEndDay}` : `até ${relativeEndDay}`;
         }
+
+        // === Hero v2: monta o custodyContext (Herói de Guarda universal). =====
+        const distinctResp = [...new Set(dedupedToday.map((e: any) => e.responsible_user_id))];
+        const isSplit = distinctResp.length > 1;
+        const heroKids = custodyChildren.map((c) => c.childFirstName);
+        const primaryChild = custodyChildren[0];
+        const handoffMember = handover ? memberList.find((m: any) => m.user_id === handover.event.responsible_user_id) : null;
+        const handoffName = handoffMember?.name ?? '';
+        const handoffToday = !!handover && handover.dateKey === today;
+        heroHomeName = isSplit ? null : primaryChild.responsibleName;
+        heroHomeEvening = handoffToday && handoffName ? handoffName : heroHomeName;
+        const groups = isSplit
+          ? distinctResp.map((rid) => {
+              const kidsOfResp = dedupedToday.filter((e: any) => e.responsible_user_id === rid);
+              const m = memberList.find((mm: any) => mm.user_id === rid);
+              return {
+                name: m?.name ?? '',
+                isMe: rid === userId,
+                colorHex: m?.color ?? PARENT_COLORS.primary,
+                kids: kidsOfResp.map((e: any) => getDisplayName(e.children?.full_name)),
+              };
+            })
+          : undefined;
+        // Semana colorida (Seg..Dom): resolve a guarda por dia. NOTA: a janela
+        // de custody é hoje..+60d → dias ANTERIORES a hoje nesta semana podem
+        // ficar sem cor (gap conhecido; o streak "N de M" segue correto).
+        const weekLabels = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+        const nowD = new Date(today + 'T12:00:00');
+        const mondayIdx = (nowD.getDay() + 6) % 7;
+        const monday = new Date(nowD);
+        monday.setDate(nowD.getDate() - mondayIdx);
+        const firstChildId = dedupedToday[0]?.child_id ?? null;
+        const week = weekLabels.map((label, i) => {
+          const d = new Date(monday);
+          d.setDate(monday.getDate() + i);
+          const winners = resolveTodayCustody(allCustodyForResolve, formatDateKey(d));
+          let color: string | null = null;
+          for (const w of winners.values()) {
+            if (firstChildId == null || (w as any).child_id === firstChildId) {
+              const m = memberList.find((mm: any) => mm.user_id === (w as any).responsible_user_id);
+              color = m?.color ?? null;
+              break;
+            }
+          }
+          return { label, color, isToday: i === mondayIdx };
+        });
+        custodyContext = {
+          mode: isSplit ? 'split' : heroKids.length === 1 ? 'single' : 'together',
+          withName: primaryChild.responsibleName,
+          withIsMe: primaryChild.isWithMe,
+          kids: heroKids,
+          untilLabel: relativeEndDay,
+          handoff: handoffToday ? { name: handoffName, isMe: handover!.event.responsible_user_id === userId } : null,
+          groups,
+          streakDays,
+          streakTotal,
+          week,
+          nextSwap: handover
+            ? { dateLabel: nextSwapLabel ?? '', dateKey: handover.dateKey, name: handoffName, isMine: handover.event.responsible_user_id === userId }
+            : null,
+        };
       }
 
       // Custody summary for greeting subtitle. Suporta multiplos filhos:
@@ -781,6 +874,36 @@ export function useDashboard() {
         || '';
       const firstName = displayFirst.charAt(0).toUpperCase() + displayFirst.slice(1);
 
+      // === Hero v2: jornada do arco + dia em família ===========================
+      const todayActsList = mapOccurrences(todayOccurrences || [], true);
+      const hasTodayEvents = todayActsList.some((a) => !!a.timeStr);
+      const familyDayContext: HeroFamilyDayContext | null =
+        arrangement === 'together' || arrangement === 'single'
+          ? { mode: arrangement, kids: (children || []).map((c: any) => getDisplayName(c.full_name, true)).filter(Boolean) }
+          : null;
+      // Arco com guarda OU dia em família. As pernas de leva/busca (rotina)
+      // entram no index.tsx (outro hook) — v1 do arco nativo mostra casas +
+      // atividades; beads de leva/busca = follow-up documentado.
+      const heroTimeline: JourneyItem[] =
+        custodyChildren.length > 0 || familyDayContext
+          ? buildChildJourney({
+              dropoff: null,
+              pickup: null,
+              activities: todayActsList
+                .filter((a) => !!a.timeStr)
+                .map((a) => ({
+                  name: a.name,
+                  time: a.timeStr,
+                  category: a.category,
+                  activityId: a.id,
+                  location: a.location || null,
+                  childId: a.childId,
+                })),
+              homeMorning: heroHomeName,
+              homeEvening: heroHomeEvening ?? heroHomeName,
+            })
+          : [];
+
       const dashData: DashboardData = {
         greeting: getGreeting(),
         firstName,
@@ -794,7 +917,7 @@ export function useDashboard() {
         streakTotal,
         endDateLabel,
         children: children || [],
-        todayActivities: mapOccurrences(todayOccurrences || [], true),
+        todayActivities: todayActsList,
         tomorrowActivities: mapOccurrences(tomorrowOccurrences || [], false),
         members: memberList,
         groupName: activeGroup.groupName || 'Familia',
@@ -818,6 +941,12 @@ export function useDashboard() {
         saudeUnreadCount,
         vaccinePendingCount,
         vaccineNextDue,
+        // Hero v2 (porte do dashboard novo).
+        arrangement,
+        heroTimeline,
+        hasTodayEvents,
+        custodyContext,
+        familyDayContext,
       };
       setData(dashData);
       cacheSet(cacheKey, dashData);

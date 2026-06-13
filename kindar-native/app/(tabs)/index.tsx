@@ -30,6 +30,13 @@ import { track, EVENTS } from 'src/lib/analytics';
 import { getBillingStatus } from 'src/services/billing';
 import TrialBanner from 'src/components/billing/TrialBanner';
 import RoutineTodayCard from 'src/components/RoutineTodayCard';
+import DashboardHero from 'src/components/DashboardHero';
+import { useCareRoutineToday } from 'src/hooks/use-care-routine-today';
+
+// Cutover do Herói do Dashboard: false mantém o hero inline antigo (rollback no
+// device); true rende o DashboardHero novo (arco + guarda universal + dia em
+// família). ⚠️ Validar em device antes de publicar — ver docs/PORTE-NATIVO-DASHBOARD-HERO.md.
+const SHOW_LEGACY_HERO = false;
 
 // i18n keys for greetings — same keys the PWA uses
 // (`dashboard.goodMorning` / `goodAfternoon` / `goodEvening`).
@@ -93,6 +100,16 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const { activeGroup, userId, profile } = useAuth();
   const { data, loading, refresh } = useDashboard();
+  // Relógio do device pro Arco do Dia (sol em "agora"); tick de 1min.
+  const [nowMin, setNowMin] = useState(() => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); });
+  useEffect(() => {
+    const id = setInterval(() => { const d = new Date(); setNowMin(d.getHours() * 60 + d.getMinutes()); }, 60000);
+    return () => clearInterval(id);
+  }, []);
+  // Rotina de leva/busca (hook próprio) — alimenta a voz de rotina do hero.
+  const routinePayload = useCareRoutineToday();
+  const hasRoutineSlots = !!routinePayload && routinePayload.today.mode !== 'none';
+  const routineEntries = hasRoutineSlots ? routinePayload!.today.entries : [];
   const t = useI18n(s => s.t);
   const intl = useIntl();
   const toast = useToast();
@@ -356,8 +373,24 @@ export default function DashboardScreen() {
           </View>
         </Animated.View>
 
-        {/* === HERO CARD (custody) === */}
-        {data?.hasCustody && firstCustody ? (
+        {/* === HERO (porte do dashboard novo): guarda universal / dia em família /
+            rotina — UM card escuro com o Arco do Dia (é um OU outro). === */}
+        {!SHOW_LEGACY_HERO && data &&
+        (data.custodyContext || (data.familyDayContext && (data.hasTodayEvents || hasRoutineSlots)) || (hasRoutineSlots && routineEntries.length > 0)) ? (
+          <Animated.View entering={FadeInDown.delay(100).duration(400)}>
+            <DashboardHero
+              heroTimeline={data.heroTimeline ?? []}
+              nowMin={nowMin}
+              custodyContext={data.custodyContext ?? null}
+              familyDayContext={data.custodyContext || hasRoutineSlots ? null : (data.familyDayContext ?? null)}
+              routineEntries={routineEntries}
+              hasRoutineSlots={hasRoutineSlots}
+            />
+          </Animated.View>
+        ) : null}
+
+        {/* === HERO CARD (custody) — LEGADO atrás de SHOW_LEGACY_HERO p/ rollback === */}
+        {SHOW_LEGACY_HERO && data?.hasCustody && firstCustody ? (
           <Animated.View entering={FadeInDown.delay(100).duration(400)}>
             <View style={{
               backgroundColor: '#2C2C2C', borderRadius: radius.xl,
@@ -475,8 +508,9 @@ export default function DashboardScreen() {
           </Animated.View>
         ) : null}
 
-        {/* === ROTINA DE LEVA & BUSCA (chip read-only — paridade c/ PWA; edição no editor) === */}
-        <RoutineTodayCard />
+        {/* === ROTINA DE LEVA & BUSCA — absorvida pelo DashboardHero (rotina via
+            routineEntries). Chip antigo só atrás de SHOW_LEGACY_HERO. === */}
+        {SHOW_LEGACY_HERO ? <RoutineTodayCard /> : null}
 
         {/* === CHILD CARDS === */}
         {(data?.childCards?.length || 0) > 0 ? (
