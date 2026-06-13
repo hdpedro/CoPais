@@ -48,7 +48,14 @@ export default function BriefingAttention({ items }: { items: AttentionItem[] })
           cta: t("briefing.ctaView"),
         };
       case "pending_report":
-        return { title: t("briefing.pendingReport", item.data), cta: t("briefing.ctaReport") };
+        // Atividade da família toda → child vazio → variação sem "de {child}"
+        // ("Aconteceu? Jiu Jitsu de " quebrado — print do dono 12/jun).
+        return {
+          title: item.data.child
+            ? t("briefing.pendingReport", item.data)
+            : t("briefing.pendingReportFamily", item.data),
+          cta: t("briefing.ctaReport"),
+        };
       case "pending_expense":
         return { title: t("briefing.pendingExpense", item.data), cta: t("briefing.ctaView") };
       case "pending_decision":

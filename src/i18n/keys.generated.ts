@@ -265,6 +265,7 @@ export type TranslationKey =
   | "briefing.pendingDecision"
   | "briefing.pendingExpense"
   | "briefing.pendingReport"
+  | "briefing.pendingReportFamily"
   | "briefing.routineAckMine"
   | "briefing.routineAckTheirs"
   | "briefing.saudeNew"
@@ -1223,7 +1224,9 @@ export type TranslationKey =
   | "health.addChildToRegisterMeasurements"
   | "health.addMedication"
   | "health.addMedicationsToTrack"
+  | "health.addProcedure"
   | "health.addRecord"
+  | "health.addTreatment"
   | "health.additionalMeasurementInfo"
   | "health.address"
   | "health.allergies"
@@ -1305,6 +1308,10 @@ export type TranslationKey =
   | "health.batchNumberPlaceholder"
   | "health.bloodType"
   | "health.cancelled"
+  | "health.careType"
+  | "health.careTypeMedication"
+  | "health.careTypeProcedure"
+  | "health.careTypeTreatment"
   | "health.child"
   | "health.childIsWell"
   | "health.completeAppointment.complete"
@@ -1532,6 +1539,7 @@ export type TranslationKey =
   | "health.improving"
   | "health.inMonths"
   | "health.inTreatment"
+  | "health.indicatedByLabel"
   | "health.insurance"
   | "health.insuranceNumber"
   | "health.lastBy"
@@ -1559,7 +1567,9 @@ export type TranslationKey =
   | "health.newAppointmentOrExam"
   | "health.newGrowthMeasurement"
   | "health.newMedication"
+  | "health.newProcedure"
   | "health.newProfessional"
+  | "health.newTreatment"
   | "health.newVaccineRecord"
   | "health.nextAt"
   | "health.nextDose"
@@ -1645,6 +1655,10 @@ export type TranslationKey =
   | "health.prescription.takePhoto"
   | "health.prescriptionHint"
   | "health.previousUpdates"
+  | "health.procedureDetailsLabel"
+  | "health.procedureDetailsPlaceholder"
+  | "health.procedureName"
+  | "health.procedureNamePlaceholder"
   | "health.professionals"
   | "health.progress"
   | "health.quickActions"
@@ -1684,6 +1698,7 @@ export type TranslationKey =
   | "health.registeredBy"
   | "health.registeredByOn"
   | "health.registeredProfessionals"
+  | "health.requestedByLabel"
   | "health.resolve.cancel"
   | "health.resolve.confirmMessage"
   | "health.resolve.finishMedsQuestion"
@@ -1727,6 +1742,10 @@ export type TranslationKey =
   | "health.tools"
   | "health.trackHealthHistory"
   | "health.trackingOf"
+  | "health.treatmentGuidanceLabel"
+  | "health.treatmentGuidancePlaceholder"
+  | "health.treatmentName"
+  | "health.treatmentNamePlaceholder"
   | "health.treatmentProgress"
   | "health.type"
   | "health.unknown"
@@ -1883,6 +1902,8 @@ export type TranslationKey =
   | "health.whatsapp.reasonPlaceholder"
   | "health.whatsapp.scheduleViaWhatsApp"
   | "health.whatsapp.time"
+  | "health.whenToRepeatLabel"
+  | "health.whenToRepeatPlaceholder"
   | "health.wizard.appointmentTitlePlaceholder"
   | "health.wizard.back"
   | "health.wizard.leaveEmptyContinuous"
@@ -3005,6 +3026,7 @@ export const TRANSLATION_KEYS = [
   "briefing.pendingDecision",
   "briefing.pendingExpense",
   "briefing.pendingReport",
+  "briefing.pendingReportFamily",
   "briefing.routineAckMine",
   "briefing.routineAckTheirs",
   "briefing.saudeNew",
@@ -3963,7 +3985,9 @@ export const TRANSLATION_KEYS = [
   "health.addChildToRegisterMeasurements",
   "health.addMedication",
   "health.addMedicationsToTrack",
+  "health.addProcedure",
   "health.addRecord",
+  "health.addTreatment",
   "health.additionalMeasurementInfo",
   "health.address",
   "health.allergies",
@@ -4045,6 +4069,10 @@ export const TRANSLATION_KEYS = [
   "health.batchNumberPlaceholder",
   "health.bloodType",
   "health.cancelled",
+  "health.careType",
+  "health.careTypeMedication",
+  "health.careTypeProcedure",
+  "health.careTypeTreatment",
   "health.child",
   "health.childIsWell",
   "health.completeAppointment.complete",
@@ -4272,6 +4300,7 @@ export const TRANSLATION_KEYS = [
   "health.improving",
   "health.inMonths",
   "health.inTreatment",
+  "health.indicatedByLabel",
   "health.insurance",
   "health.insuranceNumber",
   "health.lastBy",
@@ -4299,7 +4328,9 @@ export const TRANSLATION_KEYS = [
   "health.newAppointmentOrExam",
   "health.newGrowthMeasurement",
   "health.newMedication",
+  "health.newProcedure",
   "health.newProfessional",
+  "health.newTreatment",
   "health.newVaccineRecord",
   "health.nextAt",
   "health.nextDose",
@@ -4385,6 +4416,10 @@ export const TRANSLATION_KEYS = [
   "health.prescription.takePhoto",
   "health.prescriptionHint",
   "health.previousUpdates",
+  "health.procedureDetailsLabel",
+  "health.procedureDetailsPlaceholder",
+  "health.procedureName",
+  "health.procedureNamePlaceholder",
   "health.professionals",
   "health.progress",
   "health.quickActions",
@@ -4424,6 +4459,7 @@ export const TRANSLATION_KEYS = [
   "health.registeredBy",
   "health.registeredByOn",
   "health.registeredProfessionals",
+  "health.requestedByLabel",
   "health.resolve.cancel",
   "health.resolve.confirmMessage",
   "health.resolve.finishMedsQuestion",
@@ -4467,6 +4503,10 @@ export const TRANSLATION_KEYS = [
   "health.tools",
   "health.trackHealthHistory",
   "health.trackingOf",
+  "health.treatmentGuidanceLabel",
+  "health.treatmentGuidancePlaceholder",
+  "health.treatmentName",
+  "health.treatmentNamePlaceholder",
   "health.treatmentProgress",
   "health.type",
   "health.unknown",
@@ -4623,6 +4663,8 @@ export const TRANSLATION_KEYS = [
   "health.whatsapp.reasonPlaceholder",
   "health.whatsapp.scheduleViaWhatsApp",
   "health.whatsapp.time",
+  "health.whenToRepeatLabel",
+  "health.whenToRepeatPlaceholder",
   "health.wizard.appointmentTitlePlaceholder",
   "health.wizard.back",
   "health.wizard.leaveEmptyContinuous",

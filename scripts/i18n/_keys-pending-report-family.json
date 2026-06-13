@@ -1,0 +1,9 @@
+{
+  "briefing": {
+    "pt": { "pendingReportFamily": "{count, plural, one {Aconteceu? {activity}} other {# atividades esperando seu relato}}" },
+    "en": { "pendingReportFamily": "{count, plural, one {Did it happen? {activity}} other {# activities awaiting your report}}" },
+    "es": { "pendingReportFamily": "{count, plural, one {¿Pasó? {activity}} other {# actividades esperando tu informe}}" },
+    "fr": { "pendingReportFamily": "{count, plural, one {Ça a eu lieu ? {activity}} other {# activités en attente de votre retour}}" },
+    "de": { "pendingReportFamily": "{count, plural, one {Hat es stattgefunden? {activity}} other {# Aktivitäten warten auf Ihre Rückmeldung}}" }
+  }
+}
