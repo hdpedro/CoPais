@@ -4634,7 +4634,9 @@
     "arcMorning": "matin",
     "arcAfternoon": "après-midi",
     "arcEvening": "soir",
-    "nextMomentLabel": "Prochain moment"
+    "nextMomentLabel": "Prochain moment",
+    "heroFamilyTogether": "{kids} avec vous aujourd'hui",
+    "heroFamilySingle": "{kids} avec toi aujourd'hui"
   },
   "a11y": {
     "careRoutine": {
