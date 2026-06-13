@@ -2974,7 +2974,9 @@
     "heroCustodyHandoffToOther": "they go to {name} today",
     "heroYouPickUp": "You pick up",
     "heroRhythmLabel": "Week rhythm",
-    "editScheduleCta": "Edit schedule"
+    "editScheduleCta": "Edit schedule",
+    "heroFamilyTogether": "{kids} with you both today",
+    "heroFamilySingle": "{kids} with you today"
   },
   "a11y": {
     "careRoutine": {

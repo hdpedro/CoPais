@@ -10,7 +10,7 @@
  */
 
 import { I18nProvider } from "@/i18n/provider";
-import RoutineTodayCard, { type HeroCustodyContext } from "@/app/(app)/dashboard/RoutineTodayCard";
+import RoutineTodayCard, { type HeroCustodyContext, type HeroFamilyDayContext } from "@/app/(app)/dashboard/RoutineTodayCard";
 import { buildChildJourney, type JourneyItem } from "@/lib/care-routine-journey";
 import type { RoutineToday, RoutineHeroEntry, RoutineHeroLeg } from "@/lib/care-routine-resolve";
 
@@ -123,6 +123,7 @@ interface Scenario {
   tomorrowSummary?: string | null;
   hasRoutineSlots?: boolean;
   custody?: HeroCustodyContext;
+  family?: HeroFamilyDayContext;
   homeEveningName?: string | null;
 }
 
@@ -178,6 +179,13 @@ const SCENARIOS: Scenario[] = [
     custody: { mode: "together", withName: "Fernanda", withIsMe: false, kids: ["Otto", "Martim"], untilLabel: null, handoff: { name: "Henrique", isMe: true }, streakDays: 7, streakTotal: 7, week: mkWeek(["other", "other", "me", "me", "me", "me", "me"], 2), nextSwap: { dateLabel: "hoje", dateKey: "2026-06-10", name: "Henrique", isMine: true } } },
   { id: "r4", title: "R4 · Guarda SPLIT — um com cada (11:00)", desc: "Grupos coloridos preservados: Otto com você · Martim com Fernanda.", nowMin: 11 * 60, routine: { mode: "none", entries: [] }, acts: [], hasRoutineSlots: false, homeEveningName: null,
     custody: { mode: "split", withName: "", withIsMe: false, kids: [], untilLabel: null, handoff: null, groups: [{ name: "Henrique", isMe: true, colorHex: ME, kids: ["Otto"] }, { name: "Fernanda", isMe: false, colorHex: "#E6A9B0", kids: ["Martim"] }], streakDays: 2, streakTotal: 3, week: mkWeek(["me", "other", "me", "other", "me", null, null], 3), nextSwap: { dateLabel: "qui. 11/6", dateKey: "2026-06-11", name: "Fernanda", isMine: false } } },
+  // ——— DIA EM FAMÍLIA (intacta/solo — o arco lidera mesmo sem rotina/guarda) ———
+  { id: "f1", title: "F1 · Família — fim de semana com evento (10:00)", desc: "Together sem rotina/guarda: voz de presença 'Otto e Martim com vocês hoje' + arco SÓ com o evento (Piquenique 09:00), sem casas.", nowMin: 10 * 60, routine: { mode: "none", entries: [] }, acts: [{ name: "Piquenique escolar", time: "09:00:00", category: "evento", location: "Parque da Cidade" }], hasRoutineSlots: false,
+    family: { mode: "together", kids: ["Otto", "Martim"] } },
+  { id: "f2", title: "F2 · Família — solo, um filho à tarde (15:00)", desc: "Single: 'Otto com você hoje' + Natação 16:00 ainda à frente.", nowMin: 15 * 60, routine: { mode: "none", entries: [] }, acts: [{ name: "Natação", time: "16:00:00", category: "sport", location: "Aquafit" }], hasRoutineSlots: false,
+    family: { mode: "single", kids: ["Otto"] } },
+  { id: "f3", title: "F3 · Família — vários eventos no dia (13:00)", desc: "Together com 3 eventos (manhã/tarde/noite): voz de presença + arco rico sem leva/busca.", nowMin: 13 * 60, routine: { mode: "none", entries: [] }, acts: [{ name: "Feira de ciências", time: "09:30:00", category: "school", location: "Colégio" }, { name: "Almoço com avós", time: "12:30:00", category: "evento" }, { name: "Cinema", time: "19:00:00", category: "evento", location: "Shopping" }], hasRoutineSlots: false,
+    family: { mode: "together", kids: ["Otto", "Martim"] } },
 ];
 
 export default function HeroiPlaygroundPage() {
@@ -211,11 +219,13 @@ export default function HeroiPlaygroundPage() {
                 heroTimeline={composeTimeline(
                   s.routine,
                   s.acts,
-                  s.custody ? s.custody.withName || null : "Fernanda",
+                  // Dia em família não tem casas nomeadas (espelha _heroHomeParent=null).
+                  s.family ? null : s.custody ? s.custody.withName || null : "Fernanda",
                   s.homeEveningName,
                 )}
                 simulateNowMin={s.nowMin}
                 custodyContext={s.custody ?? null}
+                familyDayContext={s.family ?? null}
               />
             </section>
           ))}

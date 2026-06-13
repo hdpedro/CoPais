@@ -179,6 +179,31 @@ describe("selectHeroKind — herói por forma de família", () => {
   it("custom (revezamento avançado) com guarda → guarda", () => {
     expect(selectHeroKind({ arrangement: "custom", hasCustody: true, hasRoutineSlots: false })).toBe("custody");
   });
+
+  // Dia em família (dono 13/jun): "o herói é bonito demais pra ficar escondido".
+  it("together sem rotina/guarda MAS com evento hoje → herói de ROTINA (arco do dia em família)", () => {
+    expect(
+      selectHeroKind({ arrangement: "together", hasCustody: false, hasRoutineSlots: false, hasTodayEvents: true }),
+    ).toBe("routine");
+  });
+
+  it("single sem rotina/guarda MAS com evento hoje → herói de ROTINA", () => {
+    expect(
+      selectHeroKind({ arrangement: "single", hasCustody: false, hasRoutineSlots: false, hasTodayEvents: true }),
+    ).toBe("routine");
+  });
+
+  it("together sem nada (nem evento) → setup (arco vazio não lidera)", () => {
+    expect(
+      selectHeroKind({ arrangement: "together", hasCustody: false, hasRoutineSlots: false, hasTodayEvents: false }),
+    ).toBe("setup");
+  });
+
+  it("rotating com evento mas sem guarda nem rotina → continua setup (separado configura escala, não vira dia-em-família)", () => {
+    expect(
+      selectHeroKind({ arrangement: "rotating", hasCustody: false, hasRoutineSlots: false, hasTodayEvents: true }),
+    ).toBe("setup");
+  });
 });
 
 describe("composeBriefing — estrutura completa", () => {

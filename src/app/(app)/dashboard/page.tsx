@@ -1443,9 +1443,18 @@ export default async function DashboardPage() {
         : _heroCustody
           ? parentColors[_heroCustody.responsible_user_id]?.name ?? null
           : null;
-  // Com rotina OU no modo guarda (pais separados sem rotina ainda têm arco
-  // com casas + atividades do dia).
-  const heroTimeline: JourneyItem[] = _heroEntry || custodyContextProp
+  // Dia em família (intacta/solo): sem guarda nem leva/busca, mas há evento COM
+  // horário hoje → o Arco do Dia ainda lidera. Voz de presença, não revezamento
+  // ("o herói é bonito demais pra ficar escondido", dono 13/jun).
+  const _familyDayHasEvents = [...todayActivities, ...pastTodayEvents].some((a) => a.time_start);
+  const familyDayContextProp: DashboardClientProps["familyDayContext"] =
+    routineArrangement === "together" || routineArrangement === "single"
+      ? { mode: routineArrangement, kids: routineChildren.map((c) => c.firstName).filter(Boolean) }
+      : null;
+
+  // Com rotina, no modo guarda (pais separados) OU no dia em família com evento:
+  // os três rendem o arco (casas/leva/busca quando houver + atividades do dia).
+  const heroTimeline: JourneyItem[] = _heroEntry || custodyContextProp || (familyDayContextProp && _familyDayHasEvents)
     ? buildChildJourney({
         dropoff: _heroEntry?.dropoff
           ? { name: _heroEntry.dropoff.responsibleName, time: _heroEntry.dropoff.time }
@@ -1531,6 +1540,8 @@ export default async function DashboardPage() {
     routineTomorrowSummary,
     heroTimeline,
     custodyContext: custodyContextProp,
+    familyDayContext: familyDayContextProp,
+    hasTodayEvents: _familyDayHasEvents,
     weekDays: weekDaysData,
     weekCustodyMap: weekCustodyEntries,
     parentColorEntries,

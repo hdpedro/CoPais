@@ -12,7 +12,7 @@ import { trackEvent, EVENTS } from "@/lib/analytics";
 const QuickActionsModal = dynamic(() => import("@/components/QuickActionsModal"), { ssr: false });
 // ShareActivityButton removed — activities section simplified
 import CustodyActivationCard from "@/components/CustodyActivationCard";
-import RoutineTodayCard, { type HeroCustodyContext } from "./RoutineTodayCard";
+import RoutineTodayCard, { type HeroCustodyContext, type HeroFamilyDayContext } from "./RoutineTodayCard";
 import type { RoutineToday } from "@/lib/care-routine-resolve";
 import type { JourneyItem } from "@/lib/care-routine-journey";
 import BriefingAttention from "./BriefingAttention";
@@ -301,6 +301,10 @@ export interface DashboardClientProps {
   heroTimeline: JourneyItem[];
   /** Pais separados: contexto do Herói de Guarda universal (null = rotina). */
   custodyContext: HeroCustodyContext | null;
+  /** Família intacta/solo: voz de presença pro arco quando não há rotina. */
+  familyDayContext: HeroFamilyDayContext | null;
+  /** Há evento COM horário hoje (drives o arco no dia em família). */
+  hasTodayEvents: boolean;
   // Briefing v2.0 — "Sua Atenção": régua já priorizada no server (composeAttention).
   briefingAttention: AttentionItem[];
 }
@@ -340,6 +344,8 @@ export default function DashboardClient(props: DashboardClientProps) {
     routineTomorrowSummary,
     heroTimeline,
     custodyContext,
+    familyDayContext,
+    hasTodayEvents,
     briefingAttention,
     // weekDays, weekCustodyMap, parentColorEntries — removed with weekStrip
     // hasHealthAlerts, activeIllnesses, activeMedications, criticalAllergies, upcomingAppointments — replaced by healthBlock
@@ -434,6 +440,7 @@ export default function DashboardClient(props: DashboardClientProps) {
     arrangement: routineArrangement,
     hasCustody: hasTodayCustody && !!custodyHero,
     hasRoutineSlots,
+    hasTodayEvents,
   });
 
   // (streakBarItems do herói antigo removido no cutover — a contagem vive no
@@ -512,23 +519,8 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       )}
 
-      {/* === HERO CARD === */}
-      {!show("hero") ? null : !custodyEnabled || !hasCustody ? (
-        <div className="rounded-2xl bg-[#2C2C2C] p-5 text-white">
-          <h2 className="text-xl font-bold tracking-tight">
-            {greetingText}, {firstName}
-          </h2>
-          <p className="text-white/50 text-[13px] mt-1">{groupName}</p>
-          {custodyEnabled && hasChildren && (
-            <Link href="/calendario/escala" prefetch={false} className="inline-flex items-center gap-2 mt-4 text-sm font-semibold text-[#2C2C2C] bg-white rounded-xl px-5 py-3 hover:bg-white/90 transition-colors active:scale-[0.98]">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-              {t("dashboard.setupSchedule")}
-            </Link>
-          )}
-        </div>
-      ) : heroKind === "custody" && custodyContext ? (
+      {/* === HERO CARD === heroKind decide UM herói por forma de família. */}
+      {!show("hero") ? null : heroKind === "custody" && custodyContext ? (
         /* HERÓI DE GUARDA UNIVERSAL (cutover, dono 10/jun): o mesmo card dark
            premium da rotina, em modo guarda — voz com perspectiva + badge +
            arco com casas de guarda + ritmo da semana + próxima troca. O JSX
@@ -548,6 +540,41 @@ export default function DashboardClient(props: DashboardClientProps) {
           heroTimeline={heroTimeline}
           custodyContext={custodyContext}
         />
+      ) : heroKind === "routine" ? (
+        /* HERÓI DA ROTINA / DIA EM FAMÍLIA (dono 13/jun): o mesmo card escuro com
+           o Arco do Dia. Com leva/busca → voz de rotina; família intacta/solo sem
+           rotina mas com evento hoje → voz de presença ("{filhos} com vocês hoje").
+           O herói é bonito demais pra ficar escondido. */
+        <RoutineTodayCard
+          routineToday={routineToday}
+          arrangement={routineArrangement}
+          hasRoutineSlots={hasRoutineSlots}
+          groupId={groupId}
+          todayDate={todayDate}
+          caregivers={routineCaregivers}
+          awaitingTheirAck={routineAwaitingTheirAck}
+          pendingAck={routinePendingAck}
+          logsToday={routineLogsToday}
+          tomorrowSummary={routineTomorrowSummary}
+          dayCalm={briefingAttention.length === 0}
+          heroTimeline={heroTimeline}
+          familyDayContext={!hasRoutineSlots ? familyDayContext : null}
+        />
+      ) : !custodyEnabled || !hasCustody ? (
+        <div className="rounded-2xl bg-[#2C2C2C] p-5 text-white">
+          <h2 className="text-xl font-bold tracking-tight">
+            {greetingText}, {firstName}
+          </h2>
+          <p className="text-white/50 text-[13px] mt-1">{groupName}</p>
+          {custodyEnabled && hasChildren && (
+            <Link href="/calendario/escala" prefetch={false} className="inline-flex items-center gap-2 mt-4 text-sm font-semibold text-[#2C2C2C] bg-white rounded-xl px-5 py-3 hover:bg-white/90 transition-colors active:scale-[0.98]">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+              </svg>
+              {t("dashboard.setupSchedule")}
+            </Link>
+          )}
+        </div>
       ) : (
         <div className="rounded-2xl bg-[#2C2C2C] p-5 text-white">
           <div className="flex items-center gap-2 mb-3">
@@ -571,8 +598,9 @@ export default function DashboardClient(props: DashboardClientProps) {
         </div>
       )}
 
-      {/* === ROTINA DE LEVA & BUSCA — só quando ELA é o herói (nunca os dois) === */}
-      {show("careRoutine") && heroKind !== "custody" && (
+      {/* === ROTINA DE LEVA & BUSCA — só como ATIVAÇÃO (heroKind setup); quando
+           ela é herói (routine/custody) o card já está acima, sem empilhar. === */}
+      {show("careRoutine") && heroKind !== "custody" && heroKind !== "routine" && (
         <RoutineTodayCard
           routineToday={routineToday}
           arrangement={routineArrangement}

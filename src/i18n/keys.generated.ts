@@ -447,6 +447,8 @@ export type TranslationKey =
   | "careRoutine.heroDone"
   | "careRoutine.heroDropoff"
   | "careRoutine.heroDropoffTo"
+  | "careRoutine.heroFamilySingle"
+  | "careRoutine.heroFamilyTogether"
   | "careRoutine.heroFullDay"
   | "careRoutine.heroPickup"
   | "careRoutine.heroPickupAt"
@@ -3208,6 +3210,8 @@ export const TRANSLATION_KEYS = [
   "careRoutine.heroDone",
   "careRoutine.heroDropoff",
   "careRoutine.heroDropoffTo",
+  "careRoutine.heroFamilySingle",
+  "careRoutine.heroFamilyTogether",
   "careRoutine.heroFullDay",
   "careRoutine.heroPickup",
   "careRoutine.heroPickupAt",

@@ -1,0 +1,24 @@
+{
+  "careRoutine": {
+    "pt": {
+      "heroFamilyTogether": "{kids} com vocês hoje",
+      "heroFamilySingle": "{kids} com você hoje"
+    },
+    "en": {
+      "heroFamilyTogether": "{kids} with you both today",
+      "heroFamilySingle": "{kids} with you today"
+    },
+    "es": {
+      "heroFamilyTogether": "{kids} con ustedes hoy",
+      "heroFamilySingle": "{kids} contigo hoy"
+    },
+    "fr": {
+      "heroFamilyTogether": "{kids} avec vous aujourd'hui",
+      "heroFamilySingle": "{kids} avec toi aujourd'hui"
+    },
+    "de": {
+      "heroFamilyTogether": "{kids} heute bei euch",
+      "heroFamilySingle": "{kids} heute bei dir"
+    }
+  }
+}

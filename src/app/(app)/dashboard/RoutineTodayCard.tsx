@@ -47,6 +47,16 @@ export interface HeroCustodyContext {
   nextSwap: { dateLabel: string; dateKey: string; name: string; isMine: boolean } | null;
 }
 
+/** Contexto de DIA EM FAMÍLIA (intacta/solo): sem guarda nem leva/busca, mas
+ *  o dia tem evento → o Arco do Dia lidera assim mesmo, com voz de presença
+ *  ("{filhos} com vocês hoje") em vez da linguagem de revezamento. "O herói é
+ *  bonito demais pra ficar escondido" (dono 13/jun). */
+export interface HeroFamilyDayContext {
+  mode: "together" | "single";
+  /** Primeiros nomes dos filhos, pra voz de presença. Vazio → voz calma. */
+  kids: string[];
+}
+
 /** Sentinela (char de controle improvável num nome) que envolve {name} pra
  *  a voz partir e colorir só o nome, reusando as chaves i18n existentes. */
 const NAME_MARK = String.fromCharCode(1);
@@ -71,6 +81,8 @@ interface RoutineTodayCardProps {
   simulateNowMin?: number | null;
   /** Pais separados: o card vira o Herói de Guarda universal. */
   custodyContext?: HeroCustodyContext | null;
+  /** Família intacta/solo sem rotina: o arco lidera com voz de presença. */
+  familyDayContext?: HeroFamilyDayContext | null;
 }
 
 export default function RoutineTodayCard({
@@ -87,6 +99,7 @@ export default function RoutineTodayCard({
   heroTimeline,
   simulateNowMin = null,
   custodyContext = null,
+  familyDayContext = null,
 }: RoutineTodayCardProps) {
   const { t, locale } = useI18n();
   const intlLocale = INTL_LOCALE_MAP[locale] ?? "pt-BR";
@@ -247,8 +260,9 @@ export default function RoutineTodayCard({
   };
 
   // Empty-state: ensina + CTA pro editor (claro — é estado de ativação).
-  // NUNCA no modo guarda: pais separados sem rotina ainda têm o herói.
-  if (!custodyContext && (!hasRoutineSlots || routineToday.mode === "none")) {
+  // NUNCA no modo guarda nem no dia em família: ambos exibem o arco mesmo sem
+  // rotina de leva/busca configurada.
+  if (!custodyContext && !familyDayContext && (!hasRoutineSlots || routineToday.mode === "none")) {
     return (
       <Link href="/calendario/rotina" prefetch={false} className="block">
         <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm hover:border-[#5B9E85]/40 transition-colors">
@@ -473,8 +487,24 @@ export default function RoutineTodayCard({
 
       {/* VOZ — editorial, Cormorant, nomes em terracota. */}
       <div className="mb-1">
-        {dayCalm && <p className="font-display text-[21px] leading-[1.12] text-[#F4ECE1]">{t("briefing.calmTitle")}</p>}
-        {custodyContext ? (
+        {/* calmTitle só quando NÃO há voz de família (senão a linha de presença
+            já é o cabeçalho do dia). */}
+        {dayCalm && !familyDayContext && (
+          <p className="font-display text-[21px] leading-[1.12] text-[#F4ECE1]">{t("briefing.calmTitle")}</p>
+        )}
+        {familyDayContext && routineToday.entries.length === 0 ? (
+          /* DIA EM FAMÍLIA (intacta/solo): voz de presença, sem revezamento. */
+          <p className="font-display text-[21px] leading-[1.25] text-[#E9DECF] mt-1">
+            {familyDayContext.kids.length
+              ? t(
+                  familyDayContext.mode === "single"
+                    ? "careRoutine.heroFamilySingle"
+                    : "careRoutine.heroFamilyTogether",
+                  { kids: kidsLabel(familyDayContext.kids) },
+                )
+              : t("briefing.calmTitle")}
+          </p>
+        ) : custodyContext ? (
           /* GUARDA (pais separados): com quem estão, até quando, perspectiva. */
           custodyContext.mode === "split" && custodyContext.groups ? (
             <div className="space-y-1.5 mt-1">
