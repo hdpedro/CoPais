@@ -186,6 +186,8 @@ const SCENARIOS: Scenario[] = [
     family: { mode: "single", kids: ["Otto"] } },
   { id: "f3", title: "F3 · Família — vários eventos no dia (13:00)", desc: "Together com 3 eventos (manhã/tarde/noite): voz de presença + arco rico sem leva/busca.", nowMin: 13 * 60, routine: { mode: "none", entries: [] }, acts: [{ name: "Feira de ciências", time: "09:30:00", category: "school", location: "Colégio" }, { name: "Almoço com avós", time: "12:30:00", category: "evento" }, { name: "Cinema", time: "19:00:00", category: "evento", location: "Shopping" }], hasRoutineSlots: false,
     family: { mode: "together", kids: ["Otto", "Martim"] } },
+  { id: "f4", title: "F4 · Família — dia 100% vazio (14:00)", desc: "Sem evento NENHUM: arco só com o sol na trajetória + voz calma 'Otto e Martim com vocês hoje'. NÃO mostra o card branco de ativação; header vira 'Montar rotina'.", nowMin: 14 * 60, routine: { mode: "none", entries: [] }, acts: [], hasRoutineSlots: false, dayCalm: true,
+    family: { mode: "together", kids: ["Otto", "Martim"] } },
 ];
 
 export default function HeroiPlaygroundPage() {

@@ -1541,7 +1541,6 @@ export default async function DashboardPage() {
     heroTimeline,
     custodyContext: custodyContextProp,
     familyDayContext: familyDayContextProp,
-    hasTodayEvents: _familyDayHasEvents,
     weekDays: weekDaysData,
     weekCustodyMap: weekCustodyEntries,
     parentColorEntries,

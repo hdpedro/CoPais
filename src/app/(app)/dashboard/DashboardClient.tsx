@@ -303,8 +303,6 @@ export interface DashboardClientProps {
   custodyContext: HeroCustodyContext | null;
   /** Família intacta/solo: voz de presença pro arco quando não há rotina. */
   familyDayContext: HeroFamilyDayContext | null;
-  /** Há evento COM horário hoje (drives o arco no dia em família). */
-  hasTodayEvents: boolean;
   // Briefing v2.0 — "Sua Atenção": régua já priorizada no server (composeAttention).
   briefingAttention: AttentionItem[];
 }
@@ -345,7 +343,6 @@ export default function DashboardClient(props: DashboardClientProps) {
     heroTimeline,
     custodyContext,
     familyDayContext,
-    hasTodayEvents,
     briefingAttention,
     // weekDays, weekCustodyMap, parentColorEntries — removed with weekStrip
     // hasHealthAlerts, activeIllnesses, activeMedications, criticalAllergies, upcomingAppointments — replaced by healthBlock
@@ -597,7 +594,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           tomorrowSummary={routineTomorrowSummary}
           dayCalm={briefingAttention.length === 0}
           heroTimeline={heroTimeline}
-          familyDayContext={hasTodayEvents && !hasRoutineSlots ? familyDayContext : null}
+          familyDayContext={!hasRoutineSlots ? familyDayContext : null}
         />
       )}
 

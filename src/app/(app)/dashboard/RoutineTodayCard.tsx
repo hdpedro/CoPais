@@ -465,7 +465,8 @@ export default function RoutineTodayCard({
           </Link>
         ) : (
           <Link href="/calendario/rotina" prefetch={false} className="text-[12px] font-medium text-[#C9A98B] hover:text-[#E3C9AC] flex-shrink-0">
-            {t("careRoutine.editCta")}
+            {/* Sem rotina montada (dia em família) → convida a montar; senão edita. */}
+            {hasRoutineSlots ? t("careRoutine.editCta") : t("careRoutine.activationCta")}
           </Link>
         )}
       </div>
@@ -562,8 +563,10 @@ export default function RoutineTodayCard({
           sólido em terracota, futuro tracejado, sol em "agora", estações
           agrupadas por horário (contador quando 2+ no mesmo minuto). */}
       {/* O arco aparece SEMPRE que o herói aparece: mesmo num dia sem horários
-          marcados, as casas e o sol mantêm o dia vivo (feedback 10/jun). */}
-      {heroTimeline.length > 0 && (
+          marcados, as casas e o sol mantêm o dia vivo (feedback 10/jun). No dia
+          em família 100% vazio (sem evento) o arco fica só com o sol na
+          trajetória — "o herói é bonito demais pra ficar escondido" (13/jun). */}
+      {(heroTimeline.length > 0 || familyDayContext) && (
         <div className="mt-4 pt-3 border-t border-white/10">
           {/* SEM aria-hidden: há links reais dentro (auditoria #8/#18) —
               o decorativo (trilho/eixo) é que recebe aria-hidden. */}
