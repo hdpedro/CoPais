@@ -231,6 +231,7 @@ export default function AIAssistantSheet() {
         {/* Messages */}
         <ScrollView
           ref={scrollRef}
+          style={{ flex: 1 }}
           contentContainerStyle={{ paddingVertical: spacing.md }}
           onContentSizeChange={onScrollContentSizeChange}
           keyboardShouldPersistTaps="handled"
