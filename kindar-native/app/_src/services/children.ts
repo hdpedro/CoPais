@@ -410,6 +410,12 @@ export async function upsertChildEducation(params: {
  * a column → all inserts failed with HTTP 400. Fixed 2026-04-27 by
  * aligning with the actual column name and accepting an `allergies: string[]`.
  */
+// Crianças add/edit roteiam pela API consolidada (services/children.ts) — NÃO
+// via safeWrite (auditoria de release 13/jun). O onboarding já usava /api/children;
+// alinhamos add/edit pós-onboarding pra herdar o mapeamento PG→mensagem humana
+// (23503 FK / 23514 / 42501 / PGRST116 — bug Luísa/Jucilande 2026-05-15) e a
+// telemetria child_added/child_updated. Não há requisito offline aqui (criação de
+// criança é fluxo online, como o onboarding).
 export async function createChild(params: {
   groupId: string;
   fullName: string;
@@ -417,25 +423,49 @@ export async function createChild(params: {
   sex?: 'M' | 'F' | null;
   allergies?: string[] | null;
   notes?: string;
-}) {
-  const result = await safeWrite({
-    table: 'children',
-    operation: 'insert',
-    payload: {
-      group_id: params.groupId,
-      full_name: params.fullName.trim(),
-      birth_date: params.birthDate,
-      sex: params.sex || null,
-      allergies: params.allergies && params.allergies.length > 0 ? params.allergies : null,
-      notes: params.notes?.trim() || null,
-    },
-  });
-  if (result.success && !result.queued) {
-    notifyAction('child_created', params.groupId, { childName: params.fullName });
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const r = await apiFetch('/api/children', {
+      method: 'POST',
+      body: {
+        groupId: params.groupId,
+        fullName: params.fullName.trim(),
+        birthDate: params.birthDate,
+        sex: params.sex ?? null,
+        allergies: params.allergies && params.allergies.length > 0 ? params.allergies : null,
+        notes: params.notes?.trim() || null,
+      },
+    });
+    if (r.ok && params.groupId) {
+      notifyAction('child_created', params.groupId, { childName: params.fullName });
+    }
+    return { success: r.ok, error: r.error };
+  } catch {
+    return { success: false, error: 'Falha de conexão.' };
   }
-  return result;
 }
 
-export async function updateChild(childId: string, updates: Partial<Child>) {
-  return safeWrite({ table: 'children', operation: 'update', payload: { id: childId, ...updates } });
+export async function updateChild(
+  childId: string,
+  groupId: string,
+  updates: Partial<Child>,
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const r = await apiFetch(`/api/children/${childId}`, {
+      method: 'PATCH',
+      body: {
+        groupId,
+        fullName: updates.full_name,
+        birthDate: updates.birth_date,
+        sex: updates.sex,
+        allergies: updates.allergies,
+        notes: updates.notes,
+        cpf: updates.cpf,
+        rg: updates.rg,
+      },
+    });
+    return { success: r.ok, error: r.error };
+  } catch {
+    return { success: false, error: 'Falha de conexão.' };
+  }
 }

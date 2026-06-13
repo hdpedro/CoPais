@@ -347,7 +347,7 @@ function SheetBody({ child, medicalInfo, groupId, onClose, onSaved }: Props) {
     setSaving(true);
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
-    const childResult = await updateChild(child.id, {
+    const childResult = await updateChild(child.id, groupId, {
       full_name: fullName.trim(),
       birth_date: birthDate,
       sex,
