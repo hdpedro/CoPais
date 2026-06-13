@@ -64,11 +64,6 @@ export type BriefingInput = {
   arrangement: "rotating" | "together" | "single" | "custom";
   hasCustody: boolean;
   hasRoutineSlots: boolean;
-  /** Há evento/atividade COM HORÁRIO hoje? Família intacta/solo sem rotina nem
-   *  guarda ainda merece o Arco do Dia se o dia tem algo a desenhar (fim de
-   *  semana com evento escolar → "o herói é bonito demais pra ficar escondido",
-   *  dono 13/jun). */
-  hasTodayEvents?: boolean;
   pendingSwaps: { id: string; requesterName: string }[];
   routineAwaitingTheirAck: boolean;
   routinePendingAck: { fromName: string; overrideIds: string[] } | null;
@@ -120,9 +115,9 @@ const TONE: Record<AttentionKind, BriefingTone> = {
  * a rotina vira o herói). Degrada pra "setup" quando não há nem guarda nem rotina.
  */
 export function selectHeroKind(
-  input: Pick<BriefingInput, "arrangement" | "hasCustody" | "hasRoutineSlots" | "hasTodayEvents">,
+  input: Pick<BriefingInput, "arrangement" | "hasCustody" | "hasRoutineSlots">,
 ): BriefingHeroKind {
-  const { arrangement, hasCustody, hasRoutineSlots, hasTodayEvents } = input;
+  const { arrangement, hasCustody, hasRoutineSlots } = input;
   if (arrangement === "rotating" || arrangement === "custom") {
     if (hasCustody) return "custody";
     return hasRoutineSlots ? "routine" : "setup";
@@ -130,10 +125,6 @@ export function selectHeroKind(
   // together / single — a rotina de leva/busca é o herói (guarda perde sentido)
   if (hasRoutineSlots) return "routine";
   if (hasCustody) return "custody";
-  // Dia em família: sem rotina nem guarda, mas há evento hoje → o Arco do Dia
-  // ainda lidera (o "routine" kind renderiza o card universal; a voz vira a de
-  // presença "{filhos} com vocês hoje", não a de leva/busca).
-  if (hasTodayEvents) return "routine";
   return "setup";
 }
 
