@@ -1,0 +1,79 @@
+{
+  "careRoutine": {
+    "pt": {
+      "heroCustodyWithYou": "{kids} com você",
+      "heroCustodyWithOther": "{kids} com {name}",
+      "heroCustodyUntil": "até {date}",
+      "heroCustodyHandoffToYou": "hoje vêm para você",
+      "heroCustodyHandoffToOther": "hoje vão para {name}",
+      "heroYouPickUp": "Você pega",
+      "heroRhythmLabel": "Ritmo da semana",
+      "editScheduleCta": "Editar escala",
+      "arcNow": "agora",
+      "arcMorning": "manhã",
+      "arcAfternoon": "tarde",
+      "arcEvening": "noite",
+      "nextMomentLabel": "Próximo momento"
+    },
+    "en": {
+      "heroCustodyWithYou": "{kids} with you",
+      "heroCustodyWithOther": "{kids} with {name}",
+      "heroCustodyUntil": "until {date}",
+      "heroCustodyHandoffToYou": "they come to you today",
+      "heroCustodyHandoffToOther": "they go to {name} today",
+      "heroYouPickUp": "You pick up",
+      "heroRhythmLabel": "Week rhythm",
+      "editScheduleCta": "Edit schedule",
+      "arcNow": "now",
+      "arcMorning": "morning",
+      "arcAfternoon": "afternoon",
+      "arcEvening": "evening",
+      "nextMomentLabel": "Next moment"
+    },
+    "es": {
+      "heroCustodyWithYou": "{kids} contigo",
+      "heroCustodyWithOther": "{kids} con {name}",
+      "heroCustodyUntil": "hasta {date}",
+      "heroCustodyHandoffToYou": "hoy vienen contigo",
+      "heroCustodyHandoffToOther": "hoy van con {name}",
+      "heroYouPickUp": "Tú recoges",
+      "heroRhythmLabel": "Ritmo de la semana",
+      "editScheduleCta": "Editar calendario",
+      "arcNow": "ahora",
+      "arcMorning": "mañana",
+      "arcAfternoon": "tarde",
+      "arcEvening": "noche",
+      "nextMomentLabel": "Próximo momento"
+    },
+    "fr": {
+      "heroCustodyWithYou": "{kids} avec toi",
+      "heroCustodyWithOther": "{kids} avec {name}",
+      "heroCustodyUntil": "jusqu'à {date}",
+      "heroCustodyHandoffToYou": "ils viennent chez toi aujourd'hui",
+      "heroCustodyHandoffToOther": "ils vont chez {name} aujourd'hui",
+      "heroYouPickUp": "Tu récupères",
+      "heroRhythmLabel": "Rythme de la semaine",
+      "editScheduleCta": "Modifier le planning",
+      "arcNow": "maintenant",
+      "arcMorning": "matin",
+      "arcAfternoon": "après-midi",
+      "arcEvening": "soir",
+      "nextMomentLabel": "Prochain moment"
+    },
+    "de": {
+      "heroCustodyWithYou": "{kids} bei dir",
+      "heroCustodyWithOther": "{kids} bei {name}",
+      "heroCustodyUntil": "bis {date}",
+      "heroCustodyHandoffToYou": "heute kommen sie zu dir",
+      "heroCustodyHandoffToOther": "heute gehen sie zu {name}",
+      "heroYouPickUp": "Du holst ab",
+      "heroRhythmLabel": "Wochenrhythmus",
+      "editScheduleCta": "Plan bearbeiten",
+      "arcNow": "jetzt",
+      "arcMorning": "Vormittag",
+      "arcAfternoon": "Nachmittag",
+      "arcEvening": "Abend",
+      "nextMomentLabel": "Nächster Moment"
+    }
+  }
+}
