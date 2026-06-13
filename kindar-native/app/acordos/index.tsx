@@ -205,7 +205,7 @@ export default function AcordosScreen() {
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
               {t('agreements.newAgreement')}
             </Text>
-            <ScrollView style={{ flex: 1 }} showsVerticalScrollIndicator={true}>
+            <ScrollView style={{ flexShrink: 1 }} showsVerticalScrollIndicator={true}>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('checkinForm.category')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                 {(Object.keys(CAT_META) as AgreementCategory[]).map(k => {

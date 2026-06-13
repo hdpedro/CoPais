@@ -266,7 +266,7 @@ export default function TemasSensiveisScreen() {
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
               {t('sensitiveTopics.newNote')}
             </Text>
-            <ScrollView>
+            <ScrollView style={{ flexShrink: 1 }}>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('sensitiveTopics.topic')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                 {(Object.keys(TOPIC_META) as SensitiveTopic[]).map(k => {

@@ -807,7 +807,7 @@ export default function EscolaScreen() {
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
               {t('school.editTitle', { name: editing?.childName ?? '' })}
             </Text>
-            <ScrollView>
+            <ScrollView style={{ flexShrink: 1 }}>
               <Label>{t('children.schoolName')}</Label>
               <Input value={schoolName} onChangeText={setSchoolName} placeholder={t('children.schoolNamePlaceholder')} />
 

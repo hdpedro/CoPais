@@ -1607,7 +1607,19 @@
     "sex": "Sexo",
     "boy": "Niño",
     "girl": "Niña",
-    "sexHint": "Usado para curvas de crecimiento OMS"
+    "sexHint": "Usado para curvas de crecimiento OMS",
+    "schoolName": "Escuela",
+    "schoolNamePlaceholder": "Nombre de la escuela",
+    "grade": "Curso",
+    "gradePlaceholder": "Ej.: 3.º curso",
+    "className": "Clase",
+    "classNamePlaceholder": "Ej.: Clase A",
+    "teacherName": "Docente",
+    "teacherNamePlaceholder": "Nombre del docente",
+    "coordinatorName": "Coordinador(a)",
+    "coordinatorNamePlaceholder": "Nombre del coordinador(a)",
+    "schoolAddressPlaceholder": "Dirección de la escuela",
+    "extracurricularPlaceholder": "Ej.: Fútbol, Inglés, Música"
   },
   "childDetail": {
     "allergies": "Alergias:",

@@ -156,7 +156,7 @@ export default function CheckinScreen() {
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.md }}>
               {t('checkin.newTitle')}
             </Text>
-            <ScrollView>
+            <ScrollView style={{ flexShrink: 1 }}>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('checkinForm.category')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                 {CHECKIN_CATEGORIES.map((c: any) => {

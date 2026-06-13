@@ -1607,7 +1607,19 @@
     "sex": "Sex",
     "boy": "Boy",
     "girl": "Girl",
-    "sexHint": "Used for WHO growth curves"
+    "sexHint": "Used for WHO growth curves",
+    "schoolName": "School",
+    "schoolNamePlaceholder": "School name",
+    "grade": "Grade",
+    "gradePlaceholder": "e.g. 3rd grade",
+    "className": "Class",
+    "classNamePlaceholder": "e.g. Class A",
+    "teacherName": "Teacher",
+    "teacherNamePlaceholder": "Teacher's name",
+    "coordinatorName": "Coordinator",
+    "coordinatorNamePlaceholder": "Coordinator's name",
+    "schoolAddressPlaceholder": "School address",
+    "extracurricularPlaceholder": "e.g. Soccer, English, Music"
   },
   "childDetail": {
     "allergies": "Allergies:",

@@ -286,7 +286,7 @@ export default function SintomasScreen() {
               {t('symptoms.composerTitle')}
             </Text>
 
-            <ScrollView>
+            <ScrollView style={{ flexShrink: 1 }}>
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('health.type')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>
                 {SYMPTOM_TYPES.map(st => {

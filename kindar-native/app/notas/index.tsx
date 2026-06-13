@@ -195,7 +195,7 @@ export default function NotasScreen() {
                 </TouchableOpacity>
               ) : null}
             </View>
-            <ScrollView>
+            <ScrollView style={{ flexShrink: 1 }}>
               {/* Category picker shown in both create and edit modes (PWA parity). */}
               <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.sm }}>{t('notes.category')}</Text>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm, marginBottom: spacing.lg }}>

@@ -293,7 +293,7 @@ export default function AtividadesScreen() {
                 </TouchableOpacity>
               ) : null}
             </View>
-            <ScrollView>
+            <ScrollView style={{ flexShrink: 1 }}>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4, fontWeight: font.weights.medium }}>{t('activities.fields.name')}</Text>
               <TextInput
                 value={name} onChangeText={setName}

@@ -170,7 +170,7 @@ export default function EventosScreen() {
                 </TouchableOpacity>
               ) : null}
             </View>
-            <ScrollView>
+            <ScrollView style={{ flexShrink: 1 }}>
               <Text style={{ fontSize: font.sizes.xs, color: colors.textSecondary, marginBottom: 4, fontWeight: font.weights.medium }}>{t('events.fieldTitle')}</Text>
               <TextInput
                 value={title} onChangeText={setTitle}
