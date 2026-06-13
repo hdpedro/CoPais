@@ -201,6 +201,102 @@ export async function addArgument(
 }
 
 /* ------------------------------------------------------------------ */
+/* Close decision (manual)                                             */
+/* ------------------------------------------------------------------ */
+
+export interface CloseDecisionInput {
+  decisionId: string;
+  userId: string;
+}
+
+/**
+ * Encerramento MANUAL de uma decisão (botão "Encerrar" — feature do app).
+ * Espelha a regra de `resolveDecisionIfReady`, ADICIONANDO o caminho
+ * `expirada` (encerrar antes do quorum):
+ *   - algum `discordo` → rejeitada
+ *   - todos votaram `concordo` → aprovada
+ *   - senão → expirada
+ *
+ * Canônico ÚNICO (consolidação 13/jun): antes o native re-implementava esta
+ * regra no client (`services/decisions.ts:closeDecision`) — 2ª cópia sujeita a
+ * drift, a mesma classe dos bugs `stance`/`direction`. Agora vive só aqui.
+ */
+export async function closeDecision(
+  supabase: SupabaseClient,
+  input: CloseDecisionInput,
+): Promise<ServiceResult<{ status: string }>> {
+  if (!input.decisionId?.trim()) {
+    return { ok: false, error: "ID da decisao obrigatorio.", status: 400 };
+  }
+
+  const { data: decision } = await supabase
+    .from("decisions")
+    .select("id, group_id, title, status, created_by")
+    .eq("id", input.decisionId)
+    .maybeSingle();
+  if (!decision) {
+    return { ok: false, error: "Decisao nao encontrada.", status: 404 };
+  }
+  if (decision.status !== "aberta") {
+    return { ok: false, error: "Esta decisao ja foi resolvida.", status: 400 };
+  }
+
+  const isMember = await verifyMembership(supabase, decision.group_id as string, input.userId);
+  if (!isMember) {
+    return { ok: false, error: "Sem permissao para este grupo.", status: 403 };
+  }
+
+  const { data: votes } = await supabase
+    .from("decision_votes")
+    .select("vote")
+    .eq("decision_id", input.decisionId);
+  const v = (votes || []) as { vote: string }[];
+  const hasDiscordo = v.some((x) => x.vote === "discordo");
+  const allConcordo = v.length > 0 && v.every((x) => x.vote === "concordo");
+  const finalStatus: "aprovada" | "rejeitada" | "expirada" = hasDiscordo
+    ? "rejeitada"
+    : allConcordo
+      ? "aprovada"
+      : "expirada";
+
+  const { error } = await supabase
+    .from("decisions")
+    .update({ status: finalStatus, resolved_at: new Date().toISOString() })
+    .eq("id", input.decisionId);
+  if (error) return { ok: false, error: error.message, status: 400 };
+
+  captureServerEvent(input.userId, "decision_closed", { status: finalStatus });
+
+  // Best-effort chat broadcast + push pro criador.
+  try {
+    const msg =
+      finalStatus === "aprovada"
+        ? `✅ Decisao aprovada: ${decision.title}`
+        : finalStatus === "rejeitada"
+          ? `❌ Decisao rejeitada: ${decision.title}`
+          : `⏳ Decisao encerrada: ${decision.title}`;
+    await postChatNotification(supabase, decision.group_id as string, input.userId, msg);
+  } catch {
+    // ignore
+  }
+  try {
+    if (decision.created_by !== input.userId) {
+      await createNotificationWithPush(
+        decision.created_by as string,
+        "decision_resolved",
+        "Decisao encerrada",
+        `Sua decisao "${decision.title}" foi ${finalStatus}`,
+        "/decisoes",
+      );
+    }
+  } catch {
+    // ignore
+  }
+
+  return { ok: true, data: { status: finalStatus } };
+}
+
+/* ------------------------------------------------------------------ */
 /* Internal: notification helpers                                      */
 /* ------------------------------------------------------------------ */
 

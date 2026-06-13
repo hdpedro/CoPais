@@ -118,6 +118,11 @@ export async function fetchDecisions(groupId: string, userId: string | null): Pr
   });
 }
 
+// Consolidação 13/jun: create/argument/close roteiam pela API consolidada
+// (services/decisions.ts) em vez de safeWrite/insert cru. O servidor faz o
+// membership gate, as notificações (push + chat) e — no close — a regra de
+// resolução ÚNICA (antes duplicada aqui, risco de drift). createDecision não
+// notifica mais localmente (servidor já faz via notifyDecisionCreated).
 export async function createDecision(params: {
   groupId: string;
   title: string;
@@ -125,28 +130,22 @@ export async function createDecision(params: {
   category?: DecisionCategory;
   deadline?: string;
   createdBy: string;
-}) {
-  const result = await safeWrite({
-    table: 'decisions',
-    operation: 'insert',
-    payload: {
-      group_id: params.groupId,
-      title: params.title.trim(),
-      description: params.description?.trim() || null,
-      category: params.category || 'outro',
-      status: 'aberta', // PWA uses pt-BR enum — was 'open'
-      deadline: params.deadline || null,
-      created_by: params.createdBy,
-    },
-  });
-  if (result.success && !result.queued) {
-    notifyAction('decision_created', params.groupId, {
-      title: params.title,
-      category: params.category || 'outro',
-      deadline: params.deadline || null,
+}): Promise<{ success: boolean; error?: string }> {
+  try {
+    const r = await apiFetch('/api/decisions', {
+      method: 'POST',
+      body: {
+        groupId: params.groupId,
+        title: params.title.trim(),
+        description: params.description?.trim() || null,
+        category: params.category || 'outro',
+        deadline: params.deadline || null,
+      },
     });
+    return { success: r.ok, error: r.error };
+  } catch {
+    return { success: false, error: 'Falha de conexão.' };
   }
-  return result;
 }
 
 /** Cast or update my vote. Upserts so repeated calls change the choice instead of erroring. */
@@ -208,20 +207,26 @@ export async function postArgument(params: {
   text: string;
   decisionTitle: string;
 }): Promise<{ success: boolean; error?: string }> {
-  const { error } = await supabase.from('decision_arguments').insert({
-    decision_id: params.decisionId,
-    user_id: params.userId,
-    argument_type: params.argumentType,
-    text: params.text.trim(),
-  });
-  if (error) return { success: false, error: error.message };
-
-  notifyAction('decision_argument_posted', params.groupId, {
-    decisionId: params.decisionId,
-    decisionTitle: params.decisionTitle,
-    argumentType: params.argumentType,
-  });
-  return { success: true };
+  try {
+    const r = await apiFetch('/api/decisions/arguments', {
+      method: 'POST',
+      body: {
+        decisionId: params.decisionId,
+        argumentType: params.argumentType,
+        text: params.text.trim(),
+      },
+    });
+    if (!r.ok) return { success: false, error: r.error };
+    // Servidor (addArgument) não notifica argumento → mantém o push local.
+    notifyAction('decision_argument_posted', params.groupId, {
+      decisionId: params.decisionId,
+      decisionTitle: params.decisionTitle,
+      argumentType: params.argumentType,
+    });
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Falha de conexão.' };
+  }
 }
 
 /**
@@ -236,30 +241,20 @@ export async function postArgument(params: {
  */
 export async function closeDecision(
   decisionId: string,
-  groupId: string,
-  title: string
+  _groupId: string,
+  _title: string,
 ): Promise<{ success: boolean; error?: string; finalStatus?: DecisionStatus }> {
-  const { data: votes } = await supabase
-    .from('decision_votes')
-    .select('vote')
-    .eq('decision_id', decisionId);
-
-  const v = (votes || []) as { vote: string }[];
-  const hasDiscordo = v.some((x) => x.vote === 'discordo');
-  const allConcordo = v.length > 0 && v.every((x) => x.vote === 'concordo');
-  const finalStatus: DecisionStatus = hasDiscordo
-    ? 'rejeitada'
-    : allConcordo
-      ? 'aprovada'
-      : 'expirada';
-
-  const { error } = await supabase
-    .from('decisions')
-    .update({ status: finalStatus, resolved_at: new Date().toISOString() })
-    .eq('id', decisionId);
-
-  if (error) return { success: false, error: error.message };
-
-  notifyAction('decision_closed', groupId, { decisionId, title, finalStatus });
-  return { success: true, finalStatus };
+  // Regra de resolução + notificações vivem no servidor (closeDecision do
+  // service) — não mais duplicadas aqui. _groupId/_title ficam na assinatura
+  // por compat de callers.
+  try {
+    const r = await apiFetch<{ success: boolean; status: string }>('/api/decisions', {
+      method: 'PATCH',
+      body: { decisionId },
+    });
+    if (!r.ok || !r.data) return { success: false, error: r.error };
+    return { success: true, finalStatus: r.data.status as DecisionStatus };
+  } catch {
+    return { success: false, error: 'Falha de conexão.' };
+  }
 }
