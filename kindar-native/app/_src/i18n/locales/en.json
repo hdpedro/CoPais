@@ -4621,7 +4621,20 @@
     "tapToToggle": "Tap to mark the days with drop-off/pick-up.",
     "weekEmptyTag": "(empty)",
     "briefingPushTitle": "🌅 Tomorrow",
-    "briefingGap": "Who picks up tomorrow?"
+    "briefingGap": "Who picks up tomorrow?",
+    "heroCustodyWithYou": "{kids} with you",
+    "heroCustodyWithOther": "{kids} with {name}",
+    "heroCustodyUntil": "until {date}",
+    "heroCustodyHandoffToYou": "they come to you today",
+    "heroCustodyHandoffToOther": "they go to {name} today",
+    "heroYouPickUp": "You pick up",
+    "heroRhythmLabel": "Week rhythm",
+    "editScheduleCta": "Edit schedule",
+    "arcNow": "now",
+    "arcMorning": "morning",
+    "arcAfternoon": "afternoon",
+    "arcEvening": "evening",
+    "nextMomentLabel": "Next moment"
   },
   "a11y": {
     "careRoutine": {

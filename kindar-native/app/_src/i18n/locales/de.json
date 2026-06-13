@@ -4621,7 +4621,20 @@
     "tapToToggle": "Tippe, um die Tage mit Bringen/Abholen zu markieren.",
     "weekEmptyTag": "(leer)",
     "briefingPushTitle": "🌅 Morgen",
-    "briefingGap": "Wer holt morgen ab?"
+    "briefingGap": "Wer holt morgen ab?",
+    "heroCustodyWithYou": "{kids} bei dir",
+    "heroCustodyWithOther": "{kids} bei {name}",
+    "heroCustodyUntil": "bis {date}",
+    "heroCustodyHandoffToYou": "heute kommen sie zu dir",
+    "heroCustodyHandoffToOther": "heute gehen sie zu {name}",
+    "heroYouPickUp": "Du holst ab",
+    "heroRhythmLabel": "Wochenrhythmus",
+    "editScheduleCta": "Plan bearbeiten",
+    "arcNow": "jetzt",
+    "arcMorning": "Vormittag",
+    "arcAfternoon": "Nachmittag",
+    "arcEvening": "Abend",
+    "nextMomentLabel": "Nächster Moment"
   },
   "a11y": {
     "careRoutine": {

@@ -4621,7 +4621,20 @@
     "tapToToggle": "Toque para marcar os dias com leva e busca.",
     "weekEmptyTag": "(vazia)",
     "briefingPushTitle": "🌅 Amanhã",
-    "briefingGap": "Quem busca amanhã?"
+    "briefingGap": "Quem busca amanhã?",
+    "heroCustodyWithYou": "{kids} com você",
+    "heroCustodyWithOther": "{kids} com {name}",
+    "heroCustodyUntil": "até {date}",
+    "heroCustodyHandoffToYou": "hoje vêm para você",
+    "heroCustodyHandoffToOther": "hoje vão para {name}",
+    "heroYouPickUp": "Você pega",
+    "heroRhythmLabel": "Ritmo da semana",
+    "editScheduleCta": "Editar escala",
+    "arcNow": "agora",
+    "arcMorning": "manhã",
+    "arcAfternoon": "tarde",
+    "arcEvening": "noite",
+    "nextMomentLabel": "Próximo momento"
   },
   "a11y": {
     "careRoutine": {

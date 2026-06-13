@@ -4621,7 +4621,20 @@
     "tapToToggle": "Toca para marcar los días con llevada/recogida.",
     "weekEmptyTag": "(vacía)",
     "briefingPushTitle": "🌅 Mañana",
-    "briefingGap": "¿Quién recoge mañana?"
+    "briefingGap": "¿Quién recoge mañana?",
+    "heroCustodyWithYou": "{kids} contigo",
+    "heroCustodyWithOther": "{kids} con {name}",
+    "heroCustodyUntil": "hasta {date}",
+    "heroCustodyHandoffToYou": "hoy vienen contigo",
+    "heroCustodyHandoffToOther": "hoy van con {name}",
+    "heroYouPickUp": "Tú recoges",
+    "heroRhythmLabel": "Ritmo de la semana",
+    "editScheduleCta": "Editar calendario",
+    "arcNow": "ahora",
+    "arcMorning": "mañana",
+    "arcAfternoon": "tarde",
+    "arcEvening": "noche",
+    "nextMomentLabel": "Próximo momento"
   },
   "a11y": {
     "careRoutine": {
