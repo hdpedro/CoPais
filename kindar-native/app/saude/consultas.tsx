@@ -292,7 +292,7 @@ export default function ConsultasScreen() {
           <TextInput value={title} onChangeText={setTitle} placeholder={t('appointments.typePlaceholder')} placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.sm }} />
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.sm }}>
-            <View style={{ flex: 1 }}><DatePickerField value={dateIso} onChange={setDateIso} placeholder={t('health.whatsapp.date')} /></View>
+            <View style={{ flex: 1 }}><DatePickerField value={dateIso} onChange={setDateIso} placeholder={t('health.whatsapp.date')} minimumDate={new Date()} /></View>
             <View style={{ flex: 1 }}><TimePickerField value={timeHHMM || null} onChange={setTimeHHMM} placeholder={t('appointments.timePlaceholder')} /></View>
           </View>
           {/* Professional picker (optional) */}

@@ -214,7 +214,7 @@ export default async function DashboardPage() {
       .then(r => r, () => ({ data: [] as never[] })),
     // Recent check-ins
     supabase.from("daily_checkins")
-      .select("id, category, title, notes, checkin_date, created_at, child_id, logged_by, children(full_name), profiles!daily_checkins_logged_by_fkey(full_name)")
+      .select("id, category, title, description, checkin_date, created_at, child_id, logged_by, children(full_name), profiles!daily_checkins_logged_by_fkey(full_name)")
       .eq("group_id", groupId).gte("checkin_date", formatDateKey(yesterday))
       .order("created_at", { ascending: false }).limit(4)
       .then(r => r, () => ({ data: [] as never[] })),
