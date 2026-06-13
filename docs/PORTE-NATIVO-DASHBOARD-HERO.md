@@ -1,8 +1,13 @@
 # Porte Nativo — Herói do Dashboard (Arco do Dia + Guarda universal + Dia em Família)
 
-Estado: **componentes prontos e type-corretos (native `tsc --noEmit` limpo)**. Falta a
-**fiação de dados** (`useDashboard` + `index.tsx`) + aplicar i18n + **validar em device**
-+ publicar OTA. Nada foi publicado (OTA empacota working tree e há sessão paralela ativa).
+Estado: **porte 100% escrito e type-correto** (`native tsc --noEmit` = 0 erros no projeto
+inteiro): componentes + **fiação de dados** (`useDashboard` + `index.tsx`, commit `3c1c231`).
+Falta: aplicar i18n + **validar em device** + publicar OTA. Nada foi publicado (OTA empacota
+working tree e há sessão paralela ativa). `index.tsx` tem `SHOW_LEGACY_HERO=false` → o
+DashboardHero novo está ativo; flip pra `true` volta ao hero inline antigo (rollback no device).
+
+> ✅ Faltas 2 (fiação useDashboard) e 3 (render index.tsx) abaixo **JÁ FEITAS** — mantidas como
+> referência do que foi cabeado. Restam só i18n (Falta 1), validação device (Falta 4) e OTA (Falta 5).
 
 ## O que JÁ está commitado (arquivos novos, type-correto no Expo)
 
