@@ -156,13 +156,16 @@ export default function DayArc({ heroTimeline, nowMin, locale }: DayArcProps) {
     return arcStations.find((s) => s.min > nowMin) ?? null;
   })();
 
-  const arcH = width > 0 ? (width * 112) / 600 : 0;
+  // viewBox com margem lateral (−10..610): react-native-svg CLIPA no limite (o
+  // PWA usa overflow:visible), então as casas/labels nas pontas (x≈10/590) e o
+  // "agora" cortavam. A margem dá folga sem mexer nas coordenadas do conteúdo.
+  const arcH = width > 0 ? (width * 116) / 620 : 0;
 
   return (
     <View style={{ marginTop: 16, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)' }}>
       <View onLayout={(e) => setWidth(e.nativeEvent.layout.width)} style={{ width: '100%' }}>
         {width > 0 && (
-          <Svg width={width} height={arcH} viewBox="0 0 600 112">
+          <Svg width={width} height={arcH} viewBox="-10 -2 620 116">
             <Defs>
               <RadialGradient id="arcSun" cx="38%" cy="32%" r="75%">
                 <Stop offset="0%" stopColor="#FFE9CF" />
@@ -173,14 +176,17 @@ export default function DayArc({ heroTimeline, nowMin, locale }: DayArcProps) {
                 <Stop offset="0%" stopColor="#564B3F" />
                 <Stop offset="100%" stopColor="#26211C" />
               </RadialGradient>
+              {/* react-native-svg IGNORA alpha em stopColor="rgba(...)" → o alpha
+                  TEM que vir em stopOpacity separado (senão o glow vira blob
+                  sólido — bug visto no device Angelino 13/jun). */}
               <LinearGradient id="arcTrailGrad" x1={AP0.x} y1="0" x2={arcX(nowF ?? 0)} y2="0" gradientUnits="userSpaceOnUse">
-                <Stop offset="0%" stopColor="rgba(201,165,115,0.30)" />
-                <Stop offset="70%" stopColor="#C9A573" />
-                <Stop offset="100%" stopColor="#F0B988" />
+                <Stop offset="0%" stopColor="#C9A573" stopOpacity={0.3} />
+                <Stop offset="70%" stopColor="#C9A573" stopOpacity={1} />
+                <Stop offset="100%" stopColor="#F0B988" stopOpacity={1} />
               </LinearGradient>
               <LinearGradient id="arcSkyGlow" x1="0" y1="0" x2="0" y2="1">
-                <Stop offset="0%" stopColor="rgba(231,174,128,0.16)" />
-                <Stop offset="100%" stopColor="rgba(231,174,128,0)" />
+                <Stop offset="0%" stopColor="#E7AE80" stopOpacity={0.16} />
+                <Stop offset="100%" stopColor="#E7AE80" stopOpacity={0} />
               </LinearGradient>
             </Defs>
 
@@ -234,10 +240,12 @@ export default function DayArc({ heroTimeline, nowMin, locale }: DayArcProps) {
             {nowF != null ? (
               <G onPress={() => router.push('/calendario' as never)}>
                 <Circle cx={arcX(nowF)} cy={arcY(nowF)} r={20} fill="transparent" />
-                <Circle cx={arcX(nowF)} cy={arcY(nowF)} r={15} fill="#E7AE80" opacity={0.14} />
-                <Circle cx={arcX(nowF)} cy={arcY(nowF)} r={9} fill="#E7AE80" opacity={0.28} />
+                {/* Glow graduado (3 halos no lugar do filtro de blur do PWA). */}
+                <Circle cx={arcX(nowF)} cy={arcY(nowF)} r={16} fill="#E7AE80" opacity={0.1} />
+                <Circle cx={arcX(nowF)} cy={arcY(nowF)} r={11} fill="#E7AE80" opacity={0.2} />
+                <Circle cx={arcX(nowF)} cy={arcY(nowF)} r={7.6} fill="#E7AE80" opacity={0.36} />
                 <Circle cx={arcX(nowF)} cy={arcY(nowF)} r={6.8} fill="url(#arcSun)" />
-                <Circle cx={arcX(nowF) - 2.1} cy={arcY(nowF) - 2.4} r={2} fill="#FFF3E2" opacity={0.85} />
+                <Circle cx={arcX(nowF) - 2.1} cy={arcY(nowF) - 2.4} r={2} fill="#FFF3E2" opacity={0.9} />
                 <SvgText
                   x={Math.min(556, Math.max(44, arcX(nowF)))}
                   y={Math.max(10, arcY(nowF) - (arcLabeled.some((s) => Math.abs(s.x - arcX(nowF!)) < 32) ? 31 : 19))}
