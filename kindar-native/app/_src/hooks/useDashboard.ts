@@ -289,7 +289,7 @@ export function useDashboard() {
       // 00112). Query separada EM PARALELO com a RPC (não serializa o caminho
       // crítico) + fallback 'rotating' (não-fatal: erro → trata como rotating,
       // comportamento idêntico ao de hoje).
-      const [rpcRes, arrRes] = await Promise.all([
+      const [rpcRes, arrRes, eventsRes] = await Promise.all([
         withTimeout(
           supabase.rpc('get_dashboard_payload', {
             p_group_id: groupId,
@@ -303,6 +303,16 @@ export function useDashboard() {
           'useDashboard:rpc',
         ),
         supabase.from('coparenting_groups').select('arrangement').eq('id', groupId).maybeSingle(),
+        // Events da tabela `events` ativos HOJE (com horário) pro Arco do Dia.
+        // A RPC só traz child_activities (occurrences); o arco do PWA inclui os
+        // dois. Bug device do dono 13/jun: evento escolar não aparecia no arco
+        // nativo. Query paralela, não-fatal (erro → arco sem events).
+        supabase
+          .from('events')
+          .select('id, title, event_time, location, child_id, event_date, end_date')
+          .eq('group_id', groupId)
+          .lte('event_date', today)
+          .or(`end_date.gte.${today},end_date.is.null`),
       ]);
       if (rpcRes.error) throw new Error(rpcRes.error.message || 'rpc failed');
       const payload = (rpcRes.data || {}) as any;
@@ -311,6 +321,10 @@ export function useDashboard() {
         | 'together'
         | 'single'
         | 'custom';
+      // Eventos de hoje COM horário, ativos na data (single-day OU multi-day).
+      const todayEventsForArc = (((eventsRes as any)?.data ?? []) as any[]).filter(
+        (e) => e.event_time && (e.end_date ? e.end_date >= today : e.event_date === today),
+      );
 
       // Re-shape payload pra bater com os formatos que o resto do hook espera
       // (mantém código de custody-resolve, healthSummaries, balance etc. intacto).
@@ -876,29 +890,45 @@ export function useDashboard() {
 
       // === Hero v2: jornada do arco + dia em família ===========================
       const todayActsList = mapOccurrences(todayOccurrences || [], true);
-      const hasTodayEvents = todayActsList.some((a) => !!a.timeStr);
+      // Estações do arco = occurrences (child_activities) + events (tabela
+      // events). O PWA inclui os dois; antes o nativo só tinha occurrences →
+      // evento escolar sumia do arco (bug device do dono 13/jun).
+      const arcActivities = [
+        ...todayActsList
+          .filter((a) => !!a.timeStr)
+          .map((a) => ({
+            name: a.name,
+            time: a.timeStr,
+            category: a.category,
+            activityId: a.id as string | null,
+            eventId: null as string | null,
+            location: a.location || null,
+            childId: a.childId,
+          })),
+        ...todayEventsForArc.map((e: any) => ({
+          name: (e.title as string) || '',
+          time: (e.event_time as string) || '',
+          category: 'evento',
+          activityId: null as string | null,
+          eventId: e.id as string | null,
+          location: (e.location as string) || null,
+          childId: (e.child_id as string) || null,
+        })),
+      ];
+      const hasTodayEvents = arcActivities.length > 0;
       const familyDayContext: HeroFamilyDayContext | null =
         arrangement === 'together' || arrangement === 'single'
           ? { mode: arrangement, kids: (children || []).map((c: any) => getDisplayName(c.full_name, true)).filter(Boolean) }
           : null;
       // Arco com guarda OU dia em família. As pernas de leva/busca (rotina)
       // entram no index.tsx (outro hook) — v1 do arco nativo mostra casas +
-      // atividades; beads de leva/busca = follow-up documentado.
+      // atividades + eventos; beads de leva/busca = follow-up documentado.
       const heroTimeline: JourneyItem[] =
         custodyChildren.length > 0 || familyDayContext
           ? buildChildJourney({
               dropoff: null,
               pickup: null,
-              activities: todayActsList
-                .filter((a) => !!a.timeStr)
-                .map((a) => ({
-                  name: a.name,
-                  time: a.timeStr,
-                  category: a.category,
-                  activityId: a.id,
-                  location: a.location || null,
-                  childId: a.childId,
-                })),
+              activities: arcActivities,
               homeMorning: heroHomeName,
               homeEvening: heroHomeEvening ?? heroHomeName,
             })
