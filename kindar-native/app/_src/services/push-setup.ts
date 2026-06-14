@@ -256,8 +256,14 @@ export async function registerForPushNotificationsAsync(
       if (attempt === 0) await new Promise(r => setTimeout(r, 2000));
     }
     if (lastErr) {
+      // Falha de REDE pura (fetch lançou, sem status HTTP) é transiente/esperada:
+      // o app abriu offline; o registro re-tenta no próximo foreground (idempotente).
+      // Não é erro de app → 'info' pra não poluir app_errors como 'error' (ruído
+      // do device 14/jun "Network request failed"). HTTP error real (com status)
+      // segue 'warning' (vale investigar o backend). analytics segue rastreando.
       reportError(lastErr, {
         filePath: 'services/push-setup',
+        severity: lastStatus == null ? 'info' : 'warning',
         metadata: {
           phase: 'register_apns_backend',
           platform: Platform.OS,
@@ -271,8 +277,12 @@ export async function registerForPushNotificationsAsync(
       analytics.track('push_token_register_succeeded', { platform: Platform.OS });
     }
   } catch (e) {
+    // Idem: falha de rede transiente (TypeError "Network request failed") não é
+    // erro de app — rebaixa pra 'info'. Outros throws seguem 'error'.
+    const isNetwork = e instanceof TypeError && /network request failed/i.test(String(e.message));
     reportError(e, {
       filePath: 'services/push-setup',
+      severity: isNetwork ? 'info' : 'error',
       metadata: { phase: 'register_apns_outer', platform: Platform.OS },
     });
   }
