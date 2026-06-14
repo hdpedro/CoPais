@@ -7,10 +7,12 @@ import { getPostHogClient } from "@/lib/posthog";
 export default function PostHogProvider({
   userId,
   userEmail,
+  isAndroidTester,
   children,
 }: {
   userId?: string;
   userEmail?: string;
+  isAndroidTester?: boolean;
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
@@ -25,10 +27,11 @@ export default function PostHogProvider({
     if (userId && !identifiedRef.current) {
       posthog.identify(userId, {
         email: userEmail,
+        is_android_tester: isAndroidTester ?? false,
       });
       identifiedRef.current = true;
     }
-  }, [userId, userEmail]);
+  }, [userId, userEmail, isAndroidTester]);
 
   // Track page views on route change
   useEffect(() => {

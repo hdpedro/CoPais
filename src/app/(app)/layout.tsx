@@ -71,7 +71,7 @@ export default async function AppLayout({
     return (
       <Suspense fallback={null}>
         <I18nProvider initialLocale={locale}>
-          <PostHogProvider userId={user.id} userEmail={user.email}>
+          <PostHogProvider userId={user.id} userEmail={user.email} isAndroidTester={profile?.is_android_tester}>
             <PaywallScreen groupId={activeGroupId} viewerName={fullName} />
           </PostHogProvider>
         </I18nProvider>
@@ -82,7 +82,7 @@ export default async function AppLayout({
   return (
     <Suspense fallback={null}>
       <I18nProvider initialLocale={locale}>
-        <PostHogProvider userId={user.id} userEmail={user.email}>
+        <PostHogProvider userId={user.id} userEmail={user.email} isAndroidTester={profile?.is_android_tester}>
           <SubscriptionProvider subscription={subscription}>
           <div className="min-h-screen bg-[#EEECEA]">
             <ResponsiveShell initial={initial} fullName={fullName} groups={groups} activeGroupId={activeGroupId} userId={user.id}>

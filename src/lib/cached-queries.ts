@@ -34,7 +34,7 @@ export const getCachedProfile = unstable_cache(
     const supabase = getAdminClient();
     const { data } = await supabase
       .from("profiles")
-      .select("id, full_name, display_name, email, phone, avatar_url, locale, onboarding_step")
+      .select("id, full_name, display_name, email, phone, avatar_url, locale, onboarding_step, is_android_tester")
       .eq("id", userId)
       .single();
     return data;
@@ -50,7 +50,7 @@ export function getCachedProfileByUser(userId: string) {
       const supabase = getAdminClient();
       const { data } = await supabase
         .from("profiles")
-        .select("id, full_name, display_name, email, phone, avatar_url, locale, onboarding_step")
+        .select("id, full_name, display_name, email, phone, avatar_url, locale, onboarding_step, is_android_tester")
         .eq("id", userId)
         .single();
       return data;
