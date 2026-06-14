@@ -475,6 +475,15 @@ export async function createMedication(formData: FormData) {
   const startDate = formData.get("startDate") as string;
   const endDate = formData.get("endDate") as string;
   const notes = sanitizeText(formData.get("notes") as string, 2000);
+  // Tipo de cuidado (medicamento/tratamento/procedimento) — discriminador
+  // care_type (migration 00119). Antes o form mandava `careType` mas o action
+  // ignorava: tratamento/procedimento voltavam como "💊 medicamento".
+  const careTypeRaw = formData.get("careType") as string;
+  const careType = (["medication", "treatment", "procedure"] as const).includes(
+    careTypeRaw as "medication" | "treatment" | "procedure",
+  )
+    ? careTypeRaw
+    : "medication";
 
   // Validate required NOT NULL fields
   if (!childId) redirect("/saude/medicamentos?error=" + encodeURIComponent("Selecione uma criança"));
@@ -497,6 +506,7 @@ export async function createMedication(formData: FormData) {
       frequency_hours: frequencyHours ? parseInt(frequencyHours, 10) : null,
       reason: reason || null,
       prescribed_by: prescribedBy || null,
+      care_type: careType,
       start_date: startDate,
       end_date: endDate || null,
       notes: notes || null,

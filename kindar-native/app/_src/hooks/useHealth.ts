@@ -17,7 +17,7 @@ const FETCH_TIMEOUT_MS = 15_000;
 
 // ── Types ──
 
-export type HealthEventType = 'illness' | 'medication' | 'appointment' | 'observation' | 'allergy' | 'dose';
+export type HealthEventType = 'illness' | 'medication' | 'treatment' | 'procedure' | 'appointment' | 'observation' | 'allergy' | 'dose';
 
 export type ChildStatus = 'healthy' | 'monitoring' | 'treatment';
 
@@ -76,6 +76,8 @@ export interface Medication {
   start_date: string;
   end_date: string | null;
   status: string;
+  /** 'medication' | 'treatment' | 'procedure' (migration 00119). */
+  care_type: string;
   notes: string | null;
   created_by: string;
   created_at: string;
@@ -179,7 +181,7 @@ export function useHealth(selectedChildId?: string) {
           .order('created_at', { ascending: false })
           .limit(50),
         supabase.from('active_medications')
-          .select('id, child_id, name, dosage, frequency, frequency_hours, reason, start_date, end_date, status, notes, created_by, created_at, children(full_name)')
+          .select('id, child_id, name, dosage, frequency, frequency_hours, reason, start_date, end_date, status, care_type, notes, created_by, created_at, children(full_name)')
           .eq('group_id', groupId)
           .order('created_at', { ascending: false })
           .limit(50),
@@ -282,7 +284,10 @@ export function useHealth(selectedChildId?: string) {
       mappedMeds.filter(m => filterChild(m.child_id)).forEach(m => {
         timeline.push({
           id: m.id,
-          type: 'medication',
+          // care_type discrimina medicamento/tratamento/procedimento (migration
+          // 00119) → ícone certo (💊/🩹/🩺) na timeline. Fallback p/ registros
+          // históricos (criados antes da coluna) = 'medication'.
+          type: (m.care_type as HealthEventType) || 'medication',
           title: m.name,
           subtitle: `${m.dosage} · ${m.frequency}`,
           date: m.created_at,

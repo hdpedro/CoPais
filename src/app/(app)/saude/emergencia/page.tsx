@@ -85,7 +85,8 @@ export default async function EmergencyPage({
       .from("active_medications")
       .select("id")
       .eq("child_id", selectedChildId)
-      .eq("status", "active"),
+      .eq("status", "active")
+      .eq("care_type", "medication"),
     serviceSupabase
       .from("group_members")
       .select("id")

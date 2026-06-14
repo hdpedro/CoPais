@@ -105,7 +105,7 @@ export default function MedicamentosScreen() {
     fetcher: async () => {
       const [{ data: m }, { data: c }] = await Promise.all([
         supabase.from('active_medications').select('id, name, dosage, frequency, status, start_date, end_date, reason, child_id, children(full_name)')
-          .eq('group_id', activeGroup!.groupId).order('created_at', { ascending: false }),
+          .eq('group_id', activeGroup!.groupId).eq('care_type', 'medication').order('created_at', { ascending: false }),
         supabase.from('children').select('id, full_name').eq('group_id', activeGroup!.groupId),
       ]);
       const medIds = (m || []).map((x: any) => x.id);

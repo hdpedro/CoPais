@@ -25,13 +25,15 @@ import { DatePickerField, TimePickerField, isoDateToDisplay } from 'src/componen
 import ChildPicker from 'src/components/ui/ChildPicker';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 
-type EventType = 'illness' | 'medication' | 'appointment' | 'observation';
+type EventType = 'illness' | 'medication' | 'treatment' | 'procedure' | 'appointment' | 'observation';
 
 // User-facing label/desc are resolved via t() inside the component (see
 // eventTypeLabel/eventTypeDesc) to avoid translating at module scope.
 const EVENT_TYPES: Array<{ type: EventType; icon: string }> = [
   { type: 'illness', icon: '🤒' },
   { type: 'medication', icon: '💊' },
+  { type: 'treatment', icon: '🩹' },
+  { type: 'procedure', icon: '🩺' },
   { type: 'appointment', icon: '🏥' },
   { type: 'observation', icon: '📝' },
 ];
@@ -57,6 +59,7 @@ export default function RegistrarScreen() {
   const [dosage, setDosage] = useState('');
   const [frequency, setFrequency] = useState('');
   const [location, setLocation] = useState('');
+  const [professional, setProfessional] = useState('');
   const [notes, setNotes] = useState('');
   // Appointment date+time — bug Angelino 2026-05-16 iOS: o wizard salvava
   // `appointment_date: new Date().toISOString()` (data/hora atual) em vez
@@ -103,13 +106,14 @@ export default function RegistrarScreen() {
           notes: notes || null, created_by: userId,
         },
       });
-    } else if (eventType === 'medication') {
+    } else if (eventType === 'medication' || eventType === 'treatment' || eventType === 'procedure') {
       result = await safeWrite({
         table: 'active_medications',
         operation: 'insert',
         payload: {
           group_id: groupId, child_id: selectedChildId, name: title,
           dosage: dosage || t('healthRegister.asPrescribed'), frequency: frequency || t('healthRegister.asPrescribed'),
+          care_type: eventType, // 'medication' | 'treatment' | 'procedure' — discriminador (migration 00119)
           start_date: today, status: 'active', notes: notes || null, created_by: userId,
         },
       });
@@ -119,6 +123,7 @@ export default function RegistrarScreen() {
       // createAppointment. SEM esse fix o calendário mostrava a consulta
       // no dia/hora em que ela foi REGISTRADA, não no dia em que acontece.
       const datetime = `${apptDate}T${apptTime}:00-03:00`;
+      const fullNotes = [professional, notes].filter(Boolean).join('\n') || null;
       result = await safeWrite({
         table: 'medical_appointments',
         operation: 'insert',
@@ -126,7 +131,7 @@ export default function RegistrarScreen() {
           group_id: groupId, child_id: selectedChildId, title,
           appointment_date: datetime,
           location: location || null, status: 'scheduled',
-          notes: notes || null, created_by: userId,
+          notes: fullNotes, created_by: userId,
         },
       });
     } else {
@@ -263,8 +268,10 @@ export default function RegistrarScreen() {
             <Text style={{ fontSize: font.sizes.lg, fontWeight: font.weights.bold, color: colors.text, marginBottom: spacing.xs }}>
               {eventType === 'illness' ? t('healthRegister.step2TitleIllness')
                 : eventType === 'medication' ? t('healthRegister.step2TitleMedication')
-                  : eventType === 'appointment' ? t('healthRegister.step2TitleAppointment')
-                    : t('healthRegister.step2TitleObservation')}
+                  : eventType === 'treatment' ? t('healthRegister.step2TitleTreatment')
+                    : eventType === 'procedure' ? t('healthRegister.step2TitleProcedure')
+                      : eventType === 'appointment' ? t('healthRegister.step2TitleAppointment')
+                        : t('healthRegister.step2TitleObservation')}
             </Text>
             <Text style={{ fontSize: font.sizes.sm, color: colors.textSecondary, marginBottom: spacing.xl }}>
               {t('healthRegister.step2Subtitle')}
@@ -272,15 +279,21 @@ export default function RegistrarScreen() {
 
             {/* Title (always) */}
             <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-              {eventType === 'medication' ? t('health.medicationName') : eventType === 'appointment' ? t('healthRegister.appointmentTitleLabel') : t('healthRegister.titleLabel')}
+              {eventType === 'medication' ? t('health.medicationName')
+                : eventType === 'treatment' ? t('healthRegister.treatmentNameLabel')
+                  : eventType === 'procedure' ? t('healthRegister.procedureNameLabel')
+                    : eventType === 'appointment' ? t('healthRegister.appointmentSpecialtyLabel')
+                      : t('healthRegister.titleLabel')}
             </Text>
             <TextInput
               value={title}
               onChangeText={setTitle}
               placeholder={eventType === 'illness' ? t('healthRegister.titlePlaceholderIllness')
                 : eventType === 'medication' ? t('healthRegister.titlePlaceholderMedication')
-                  : eventType === 'appointment' ? t('healthRegister.titlePlaceholderAppointment')
-                    : t('healthRegister.titlePlaceholderObservation')}
+                  : eventType === 'treatment' ? t('healthRegister.treatmentNamePlaceholder')
+                    : eventType === 'procedure' ? t('healthRegister.procedureNamePlaceholder')
+                      : eventType === 'appointment' ? t('healthRegister.appointmentSpecialtyPlaceholder')
+                        : t('healthRegister.titlePlaceholderObservation')}
               placeholderTextColor={colors.textDim}
               style={{
                 backgroundColor: colors.bgElevated, borderRadius: radius.md,
@@ -381,6 +394,80 @@ export default function RegistrarScreen() {
               </>
             ) : null}
 
+            {eventType === 'treatment' ? (
+              <>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
+                  {t('healthRegister.treatmentGuidanceLabel')}
+                </Text>
+                <TextInput
+                  value={dosage}
+                  onChangeText={setDosage}
+                  placeholder={t('healthRegister.treatmentGuidancePlaceholder')}
+                  placeholderTextColor={colors.textDim}
+                  style={{
+                    backgroundColor: colors.bgElevated, borderRadius: radius.md,
+                    borderWidth: 1, borderColor: colors.borderLight,
+                    paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+                    fontSize: font.sizes.md, color: colors.text,
+                    marginBottom: spacing.lg,
+                  }}
+                />
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
+                  {t('health.frequency')}
+                </Text>
+                <TextInput
+                  value={frequency}
+                  onChangeText={setFrequency}
+                  placeholder={t('healthRegister.frequencyPlaceholder')}
+                  placeholderTextColor={colors.textDim}
+                  style={{
+                    backgroundColor: colors.bgElevated, borderRadius: radius.md,
+                    borderWidth: 1, borderColor: colors.borderLight,
+                    paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+                    fontSize: font.sizes.md, color: colors.text,
+                    marginBottom: spacing.lg,
+                  }}
+                />
+              </>
+            ) : null}
+
+            {eventType === 'procedure' ? (
+              <>
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
+                  {t('healthRegister.procedureDetailsLabel')}
+                </Text>
+                <TextInput
+                  value={dosage}
+                  onChangeText={setDosage}
+                  placeholder={t('healthRegister.procedureDetailsPlaceholder')}
+                  placeholderTextColor={colors.textDim}
+                  style={{
+                    backgroundColor: colors.bgElevated, borderRadius: radius.md,
+                    borderWidth: 1, borderColor: colors.borderLight,
+                    paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+                    fontSize: font.sizes.md, color: colors.text,
+                    marginBottom: spacing.lg,
+                  }}
+                />
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
+                  {t('healthRegister.whenToRepeatLabel')}
+                </Text>
+                <TextInput
+                  value={frequency}
+                  onChangeText={setFrequency}
+                  placeholder={t('healthRegister.whenToRepeatPlaceholder')}
+                  placeholderTextColor={colors.textDim}
+                  style={{
+                    backgroundColor: colors.bgElevated, borderRadius: radius.md,
+                    borderWidth: 1, borderColor: colors.borderLight,
+                    paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+                    fontSize: font.sizes.md, color: colors.text,
+                    marginBottom: spacing.lg,
+                  }}
+                />
+              </>
+            ) : null}
+
             {eventType === 'appointment' ? (
               <>
                 {/* Data + Hora — campos obrigatórios para appointment.
@@ -404,6 +491,23 @@ export default function RegistrarScreen() {
                     />
                   </View>
                 </View>
+
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
+                  {t('healthRegister.appointmentProfessionalLabel')}
+                </Text>
+                <TextInput
+                  value={professional}
+                  onChangeText={setProfessional}
+                  placeholder={t('healthRegister.appointmentProfessionalPlaceholder')}
+                  placeholderTextColor={colors.textDim}
+                  style={{
+                    backgroundColor: colors.bgElevated, borderRadius: radius.md,
+                    borderWidth: 1, borderColor: colors.borderLight,
+                    paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
+                    fontSize: font.sizes.md, color: colors.text,
+                    marginBottom: spacing.lg,
+                  }}
+                />
 
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
                   {t('health.location')}
@@ -481,10 +585,15 @@ export default function RegistrarScreen() {
                 eventType === 'illness' && symptoms ? { label: t('healthRegister.symptomsSummary'), value: symptoms } : null,
                 eventType === 'medication' && dosage ? { label: t('health.dosage'), value: dosage } : null,
                 eventType === 'medication' && frequency ? { label: t('health.frequency'), value: frequency } : null,
+                eventType === 'treatment' && dosage ? { label: t('healthRegister.treatmentGuidanceLabel'), value: dosage } : null,
+                eventType === 'treatment' && frequency ? { label: t('health.frequency'), value: frequency } : null,
+                eventType === 'procedure' && dosage ? { label: t('healthRegister.procedureDetailsLabel'), value: dosage } : null,
+                eventType === 'procedure' && frequency ? { label: t('healthRegister.whenToRepeatLabel'), value: frequency } : null,
                 // Appointment summary: show the scheduled slot the user picked.
                 // Critical for catching mistakes BEFORE saving (e.g. defaulting
                 // to "amanhã 09:00" when intended next Friday 18:00).
                 eventType === 'appointment' ? { label: t('healthRegister.dateLabel'), value: t('healthRegister.dateTimeValue', { date: isoDateToDisplay(apptDate), time: apptTime || '—' }) } : null,
+                eventType === 'appointment' && professional ? { label: t('healthRegister.appointmentProfessionalLabel'), value: professional } : null,
                 eventType === 'appointment' && location ? { label: t('health.location'), value: location } : null,
                 notes ? { label: t('healthRegister.notesSummary'), value: notes } : null,
               ].filter(Boolean).map((row, i) => (

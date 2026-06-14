@@ -20,6 +20,8 @@ const STATUS_CONFIG: Record<string, { icon: string; color: string; bg: string }>
 const EVENT_ICONS: Record<string, { icon: string; color: string }> = {
   illness: { icon: '🤒', color: '#E53935' },
   medication: { icon: '💊', color: '#3b82f6' },
+  treatment: { icon: '🩹', color: '#5B9E85' },
+  procedure: { icon: '🩺', color: '#7C6FAE' },
   appointment: { icon: '🏥', color: '#5B9E85' },
   observation: { icon: '📝', color: '#E8A228' },
   allergy: { icon: '⚠️', color: '#D4735A' },

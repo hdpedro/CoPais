@@ -95,6 +95,7 @@ export default function EmergenciaScreen() {
           .select('id, name, dosage')
           .eq('child_id', selectedChildId!)
           .eq('status', 'active')
+          .eq('care_type', 'medication')
           .limit(20),
       ]);
       const medical = (medicalRes as any).data || null;

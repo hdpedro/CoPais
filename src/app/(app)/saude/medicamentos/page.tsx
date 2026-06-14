@@ -24,6 +24,7 @@ export default async function MedicamentosPage({
     .from("active_medications")
     .select("id, name, dosage, frequency, frequency_hours, reason, prescribed_by, start_date, end_date, status, notes, child_id, children(full_name)")
     .eq("group_id", groupId)
+    .eq("care_type", "medication") // tela de Medicamentos só lista meds (tratamento/procedimento têm care_type próprio, migration 00119)
     .order("created_at", { ascending: false });
 
   const activeMeds = medications?.filter((m) => m.status === "active") ?? [];

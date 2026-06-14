@@ -57,7 +57,9 @@ export default function DetalheScreen() {
           .select('*, children(full_name)')
           .eq('id', id).single();
         result = data;
-      } else if (type === 'medication') {
+      } else if (type === 'medication' || type === 'treatment' || type === 'procedure') {
+        // Tratamento/Procedimento vivem em active_medications (discriminados por
+        // care_type, migration 00119) — mesmo branch de leitura do medicamento.
         const { data } = await supabase.from('active_medications')
           .select('*, children(full_name)')
           .eq('id', id).single();
