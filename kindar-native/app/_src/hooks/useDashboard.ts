@@ -204,6 +204,8 @@ interface DashboardData {
   arrangement: 'rotating' | 'together' | 'single' | 'custom';
   /** Jornada do dia (casa + atividades) pro Arco do Dia. Vazio = sem arco. */
   heroTimeline: JourneyItem[];
+  /** Eventos de hoje por criança (com hora) — contas de evento no SplitDayArc. */
+  heroEventsByChild: Record<string, { min: number; category: string; label: string; time: string }[]>;
   /** Há atividade COM horário hoje (drives o arco no dia em família). */
   hasTodayEvents: boolean;
   /** Pais separados → Herói de Guarda universal (null caso contrário). */
@@ -916,6 +918,21 @@ export function useDashboard() {
         })),
       ];
       const hasTodayEvents = arcActivities.length > 0;
+      // Eventos de hoje agrupados por criança (com hora) — alimentam as contas
+      // de evento nos fios do SplitDayArc (dia de rotina dividida). Mantém o
+      // childId que o heroTimeline (buildChildJourney) descarta.
+      const heroEventsByChild: Record<string, { min: number; category: string; label: string; time: string }[]> = {};
+      for (const a of arcActivities) {
+        if (!a.childId || !a.time) continue;
+        const [eh, em] = String(a.time).split(':').map(Number);
+        if (Number.isNaN(eh)) continue;
+        (heroEventsByChild[a.childId] ||= []).push({
+          min: eh * 60 + (em || 0),
+          category: a.category,
+          label: a.name,
+          time: String(a.time).slice(0, 5),
+        });
+      }
       const familyDayContext: HeroFamilyDayContext | null =
         arrangement === 'together' || arrangement === 'single'
           ? { mode: arrangement, kids: (children || []).map((c: any) => getDisplayName(c.full_name, true)).filter(Boolean) }
@@ -978,6 +995,7 @@ export function useDashboard() {
         // Hero v2 (porte do dashboard novo).
         arrangement,
         heroTimeline,
+        heroEventsByChild,
         hasTodayEvents,
         custodyContext,
         familyDayContext,

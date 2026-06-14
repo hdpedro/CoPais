@@ -24,6 +24,7 @@ import { useI18n } from '../i18n';
 import type { JourneyItem } from '../lib/care-routine-journey';
 import type { RoutineHeroEntry } from '../lib/care-routine-resolve';
 import DayArc from './DayArc';
+import SplitDayArc, { type ArcChildEvent } from './SplitDayArc';
 
 export interface HeroCustodyContext {
   mode: 'single' | 'together' | 'split';
@@ -55,6 +56,8 @@ interface DashboardHeroProps {
   familyDayContext?: HeroFamilyDayContext | null;
   /** Entradas da rotina de leva/busca (modo routine). */
   routineEntries?: RoutineHeroEntry[];
+  /** Eventos de hoje por criança (contas no SplitDayArc). */
+  eventsByChild?: Record<string, ArcChildEvent[]>;
   hasRoutineSlots: boolean;
 }
 
@@ -73,6 +76,7 @@ export default function DashboardHero({
   custodyContext = null,
   familyDayContext = null,
   routineEntries = [],
+  eventsByChild = {},
   hasRoutineSlots,
 }: DashboardHeroProps) {
   const { t, locale } = useI18n();
@@ -174,8 +178,11 @@ export default function DashboardHero({
         )}
       </View>
 
-      {/* ARCO DO DIA — aparece quando há timeline OU é dia em família. */}
-      {heroTimeline.length > 0 || familyDayContext ? (
+      {/* ARCO DO DIA. Dia de ROTINA DIVIDIDA (filhos com responsáveis diferentes
+          — 2+ fios, sem guarda) → SplitDayArc "Dois Fios". Senão, o arco único. */}
+      {!custodyContext && routineEntries.length > 1 ? (
+        <SplitDayArc entries={routineEntries} eventsByChild={eventsByChild} nowMin={nowMin} locale={locale} />
+      ) : heroTimeline.length > 0 || familyDayContext ? (
         <DayArc heroTimeline={heroTimeline} nowMin={nowMin} locale={locale} />
       ) : null}
 

@@ -357,6 +357,7 @@ export default function DashboardScreen() {
               custodyContext={data.custodyContext ?? null}
               familyDayContext={data.custodyContext || hasRoutineSlots ? null : (data.familyDayContext ?? null)}
               routineEntries={routineEntries}
+              eventsByChild={data.heroEventsByChild ?? {}}
               hasRoutineSlots={hasRoutineSlots}
             />
           </Animated.View>
