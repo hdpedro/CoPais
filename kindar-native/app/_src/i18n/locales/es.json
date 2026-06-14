@@ -4383,7 +4383,14 @@
     "sentOn": "Enviado {date}",
     "acceptedSection": "Invitaciones aceptadas",
     "changeRole": "Cambiar rol",
-    "yourGroups": "Tus familias"
+    "yourGroups": "Tus familias",
+    "arrangementTitle": "Tipo de familia",
+    "arrangementRotating": "Separados — nos turnamos la custodia",
+    "arrangementTogether": "Vivimos juntos",
+    "arrangementSingle": "Soy madre/padre solo",
+    "arrangementHint": "Define el inicio de la app: custodia por turnos → de quién es el turno; juntos o solo → la rutina de llevar y recoger.",
+    "arrangementSaved": "¡Guardado!",
+    "arrangementError": "No se pudo guardar. Inténtalo de nuevo."
   },
   "intl": {
     "today": "Hoy",

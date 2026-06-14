@@ -4383,7 +4383,14 @@
     "sentOn": "Sent {date}",
     "acceptedSection": "Accepted invites",
     "changeRole": "Change role",
-    "yourGroups": "Your families"
+    "yourGroups": "Your families",
+    "arrangementTitle": "Family setup",
+    "arrangementRotating": "Separated — we rotate custody",
+    "arrangementTogether": "We live together",
+    "arrangementSingle": "I'm a solo parent",
+    "arrangementHint": "Sets the app's home: rotating custody → whose turn it is; living together or solo → the drop-off and pick-up routine.",
+    "arrangementSaved": "Saved!",
+    "arrangementError": "Couldn't save. Please try again."
   },
   "intl": {
     "today": "Today",

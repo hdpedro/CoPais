@@ -1,0 +1,49 @@
+{
+  "familiaScreen": {
+    "pt": {
+      "arrangementTitle": "Forma da família",
+      "arrangementRotating": "Separados — revezamos a guarda",
+      "arrangementTogether": "Moramos juntos",
+      "arrangementSingle": "Cuido sozinho(a)",
+      "arrangementHint": "Define o início do app: revezam guarda → de quem é a vez; moram juntos ou solo → a rotina de leva e busca.",
+      "arrangementSaved": "Pronto, atualizado!",
+      "arrangementError": "Não consegui salvar. Tente de novo."
+    },
+    "en": {
+      "arrangementTitle": "Family setup",
+      "arrangementRotating": "Separated — we rotate custody",
+      "arrangementTogether": "We live together",
+      "arrangementSingle": "I'm a solo parent",
+      "arrangementHint": "Sets the app's home: rotating custody → whose turn it is; living together or solo → the drop-off and pick-up routine.",
+      "arrangementSaved": "Saved!",
+      "arrangementError": "Couldn't save. Please try again."
+    },
+    "es": {
+      "arrangementTitle": "Tipo de familia",
+      "arrangementRotating": "Separados — nos turnamos la custodia",
+      "arrangementTogether": "Vivimos juntos",
+      "arrangementSingle": "Soy madre/padre solo",
+      "arrangementHint": "Define el inicio de la app: custodia por turnos → de quién es el turno; juntos o solo → la rutina de llevar y recoger.",
+      "arrangementSaved": "¡Guardado!",
+      "arrangementError": "No se pudo guardar. Inténtalo de nuevo."
+    },
+    "fr": {
+      "arrangementTitle": "Type de famille",
+      "arrangementRotating": "Séparés — nous alternons la garde",
+      "arrangementTogether": "Nous vivons ensemble",
+      "arrangementSingle": "Je suis parent solo",
+      "arrangementHint": "Définit l'accueil de l'app : garde alternée → à qui le tour ; ensemble ou seul → la routine de dépose et récupération.",
+      "arrangementSaved": "Enregistré !",
+      "arrangementError": "Impossible d'enregistrer. Réessayez."
+    },
+    "de": {
+      "arrangementTitle": "Familienform",
+      "arrangementRotating": "Getrennt — wir wechseln uns ab",
+      "arrangementTogether": "Wir wohnen zusammen",
+      "arrangementSingle": "Ich bin alleinerziehend",
+      "arrangementHint": "Legt den App-Start fest: Wechselmodell → wer dran ist; zusammen oder allein → die Bring- und Abholroutine.",
+      "arrangementSaved": "Gespeichert!",
+      "arrangementError": "Konnte nicht speichern. Bitte erneut versuchen."
+    }
+  }
+}

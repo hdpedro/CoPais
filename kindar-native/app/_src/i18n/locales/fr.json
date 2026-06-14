@@ -4383,7 +4383,14 @@
     "sentOn": "Envoyé le {date}",
     "acceptedSection": "Invitations acceptées",
     "changeRole": "Changer de rôle",
-    "yourGroups": "Vos familles"
+    "yourGroups": "Vos familles",
+    "arrangementTitle": "Type de famille",
+    "arrangementRotating": "Séparés — nous alternons la garde",
+    "arrangementTogether": "Nous vivons ensemble",
+    "arrangementSingle": "Je suis parent solo",
+    "arrangementHint": "Définit l'accueil de l'app : garde alternée → à qui le tour ; ensemble ou seul → la routine de dépose et récupération.",
+    "arrangementSaved": "Enregistré !",
+    "arrangementError": "Impossible d'enregistrer. Réessayez."
   },
   "intl": {
     "today": "Aujourd'hui",
