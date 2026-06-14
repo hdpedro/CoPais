@@ -33,6 +33,11 @@ export default function RelatosPendentesScreen() {
   const { activeGroup, userId } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
   const [reporting, setReporting] = useState<PendingActivityReport | null>(null);
+  // Remoção otimista (bug tester gustavoricardo 14/jun): mesmo com onSubmitted=load
+  // + realtime onChange=load, o item relatado às vezes não sumia (refetch flaky /
+  // cache / replicação). Esconder na hora do save garante o feedback, independente
+  // do refetch. `${activityId}|${occurrenceDate}` é a chave do anti-join.
+  const [reportedKeys, setReportedKeys] = useState<Set<string>>(new Set());
 
   const { data: pending, loading, refresh: load } = useCachedFetch<PendingActivityReport[]>({
     cacheKey: activeGroup ? `relatos_pendentes_${activeGroup.groupId}` : null,
@@ -40,6 +45,8 @@ export default function RelatosPendentesScreen() {
     empty: [],
     fetcher: () => fetchPendingReports(activeGroup!.groupId),
   });
+
+  const visiblePending = pending.filter((p) => !reportedKeys.has(`${p.activityId}|${p.occurrenceDate}`));
 
   // Quando um coparente relata (ou some uma ocorrência), a lista muda.
   useCollabRealtime({
@@ -85,7 +92,7 @@ export default function RelatosPendentesScreen() {
         </View>
       ) : null}
       <FlatList
-        data={loading && pending.length === 0 ? [] : pending}
+        data={loading && pending.length === 0 ? [] : visiblePending}
         keyExtractor={(item) => `${item.activityId}-${item.occurrenceDate}`}
         renderItem={renderItem}
         style={{ flex: 1 }}
@@ -118,7 +125,10 @@ export default function RelatosPendentesScreen() {
           childId={reporting.childId}
           reporterId={userId}
           occurrenceDate={reporting.occurrenceDate}
-          onSubmitted={load}
+          onSubmitted={(info) => {
+            setReportedKeys((prev) => new Set(prev).add(`${info.activityId}|${info.occurrenceDate}`));
+            load();
+          }}
         />
       ) : null}
     </View>

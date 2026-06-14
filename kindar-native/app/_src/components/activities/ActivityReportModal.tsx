@@ -35,7 +35,7 @@ interface Props {
   childId: string | null;
   reporterId: string;
   occurrenceDate: string; // YYYY-MM-DD
-  onSubmitted?: () => void;
+  onSubmitted?: (info: { activityId: string; occurrenceDate: string }) => void;
 }
 
 // Labels resolved at render via t() (i18n) — kept out of these module-scope
@@ -116,7 +116,7 @@ export default function ActivityReportModal({
       // do parent lançar.
       toast.show({ message: t('toasts.common.saved'), variant: 'success' });
       onClose();
-      onSubmitted?.();
+      onSubmitted?.({ activityId, occurrenceDate });
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       toast.show({ message: res.error || t('toasts.common.saveFailed'), variant: 'error' });

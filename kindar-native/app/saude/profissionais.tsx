@@ -25,7 +25,7 @@ import ModalBackdrop from 'src/components/ui/ModalBackdrop';
 import { useCollabRealtime } from 'src/hooks/useCollabRealtime';
 import { useI18n } from 'src/i18n';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
-import { formatCRM } from 'src/lib/format';
+import { formatCRM, maskCRM } from 'src/lib/format';
 
 interface Professional {
   id: string;
@@ -111,7 +111,7 @@ export default function ProfissionaisScreen() {
     // Strip leading "CRM"/"CRO" so the input shows just the number — UX
     // expects the field to mean "registration number", not the prefixed
     // form. Saving keeps whatever the user types (we re-strip on display).
-    setCrm(formatCRM(p.crm));
+    setCrm(maskCRM(formatCRM(p.crm)));
     setPhone(p.phone || '');
     setWhatsapp(p.whatsapp || '');
     setAddress(p.address || '');
@@ -255,7 +255,7 @@ export default function ProfissionaisScreen() {
           <View style={{ flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md }}>
             <View style={{ flex: 1 }}>
               <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('health.crmCro')}</Text>
-              <TextInput value={crm} onChangeText={setCrm} placeholder={t('professionals.crmPlaceholder')} placeholderTextColor={colors.textDim} style={fieldStyle()} keyboardType="default" />
+              <TextInput value={crm} onChangeText={(v) => setCrm(maskCRM(v))} placeholder={t('professionals.crmPlaceholder')} placeholderTextColor={colors.textDim} style={fieldStyle()} keyboardType="default" autoCapitalize="characters" maxLength={10} />
             </View>
             <View style={{ flex: 2 }}>
               <Text style={{ fontSize: font.sizes.sm, color: colors.text, marginBottom: spacing.xs }}>{t('health.phone')}</Text>
