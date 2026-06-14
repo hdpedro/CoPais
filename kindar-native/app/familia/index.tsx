@@ -63,14 +63,15 @@ export default function FamiliaScreen() {
     childAges: Record<string, number>;
     pendingInvites: Invitation[];
     acceptedInvites: Invitation[];
+    arrangement: 'rotating' | 'together' | 'single' | 'custom';
   }
-  const EMPTY_FAM: FamiliaCache = { members: [], children: [], childAges: {}, pendingInvites: [], acceptedInvites: [] };
+  const EMPTY_FAM: FamiliaCache = { members: [], children: [], childAges: {}, pendingInvites: [], acceptedInvites: [], arrangement: 'rotating' };
   const { data: fam, loading, refresh: load } = useCachedFetch<FamiliaCache>({
     cacheKey: activeGroup ? `familia_${activeGroup.groupId}` : null,
     tag: 'familia:load',
     empty: EMPTY_FAM,
     fetcher: async () => {
-      const [memRes, childRes, invites] = await Promise.all([
+      const [memRes, childRes, invites, grpRes] = await Promise.all([
         supabase
           .from('group_members')
           .select('user_id, role, profiles(full_name, email)')
@@ -81,6 +82,11 @@ export default function FamiliaScreen() {
           .eq('group_id', activeGroup!.groupId)
           .order('birth_date'),
         listInvitations(activeGroup!.groupId),
+        supabase
+          .from('coparenting_groups')
+          .select('arrangement')
+          .eq('id', activeGroup!.groupId)
+          .maybeSingle(),
       ]);
       const childList = (childRes.data || []) as ChildPreview[];
       const now = Date.now();
@@ -101,7 +107,11 @@ export default function FamiliaScreen() {
         children: childList,
         childAges: ages,
         pendingInvites: invites.filter(i => i.status === 'pending'),
-        acceptedInvites: invites.filter(i => i.status === 'accepted').slice(0, 5),
+        // Paridade com o PWA: a tela de família NÃO lista convites aceitos (eram
+        // confusos — mostravam mediador órfão, ex.: Angelino no grupo Pedro,
+        // device do dono 13/jun). Membros reais já aparecem na seção Membros.
+        acceptedInvites: [],
+        arrangement: (((grpRes as any)?.data?.arrangement) || 'rotating') as FamiliaCache['arrangement'],
       };
     },
   });
@@ -110,6 +120,33 @@ export default function FamiliaScreen() {
   const childAges = fam.childAges;
   const pendingInvites = fam.pendingInvites;
   const acceptedInvites = fam.acceptedInvites;
+  const arrangement = fam.arrangement;
+  const [savingArr, setSavingArr] = useState(false);
+
+  // Seletor "Forma da família" (paridade com o PWA familyPage). Escreve direto
+  // em coparenting_groups via RLS (admin) — espelha actions/group.ts:
+  // rotating/custom → custody_enabled true; together/single → false.
+  const ARRANGEMENT_OPTIONS = [
+    { value: 'rotating', labelKey: 'arrangementRotating', icon: 'swap-horizontal-outline' },
+    { value: 'together', labelKey: 'arrangementTogether', icon: 'home-outline' },
+    { value: 'single', labelKey: 'arrangementSingle', icon: 'person-outline' },
+  ] as const;
+  const handleSetArrangement = async (value: FamiliaCache['arrangement']) => {
+    if (value === arrangement || savingArr || !activeGroup) return;
+    setSavingArr(true);
+    Haptics.selectionAsync();
+    const { error } = await supabase
+      .from('coparenting_groups')
+      .update({ arrangement: value, custody_enabled: value === 'rotating' || value === 'custom' })
+      .eq('id', activeGroup.groupId);
+    setSavingArr(false);
+    if (error) {
+      toast.show({ message: t('familiaScreen.arrangementError'), variant: 'error' });
+    } else {
+      toast.show({ message: t('familiaScreen.arrangementSaved'), variant: 'success' });
+      load();
+    }
+  };
 
   const myRole = members.find(m => m.userId === userId)?.role;
   const amAdmin = myRole === 'admin';
@@ -393,6 +430,44 @@ export default function FamiliaScreen() {
           }}
           ListFooterComponent={
             <>
+              {/* Forma da família (arrangement) — paridade com o PWA. */}
+              <Text style={{ fontSize: font.sizes.xs, fontWeight: font.weights.semibold, color: colors.textMuted, textTransform: 'uppercase', letterSpacing: 1, marginTop: spacing.xl, marginBottom: spacing.sm }}>
+                {t('familiaScreen.arrangementTitle')}
+              </Text>
+              {ARRANGEMENT_OPTIONS.map(opt => {
+                const selected = arrangement === opt.value;
+                return (
+                  <TouchableOpacity
+                    key={opt.value}
+                    onPress={() => handleSetArrangement(opt.value)}
+                    disabled={savingArr}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected }}
+                    style={{
+                      backgroundColor: selected ? colors.secondaryLight : colors.bgElevated,
+                      borderRadius: radius.md,
+                      borderWidth: 1,
+                      borderColor: selected ? colors.secondary : 'transparent',
+                      padding: spacing.md,
+                      marginBottom: spacing.xs,
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: spacing.md,
+                      opacity: savingArr ? 0.6 : 1,
+                    }}
+                  >
+                    <Ionicons name={opt.icon} size={20} color={selected ? colors.secondary : colors.textMuted} />
+                    <Text style={{ flex: 1, fontSize: font.sizes.sm, color: colors.text, fontWeight: selected ? font.weights.semibold : '400' }}>
+                      {t('familiaScreen.' + opt.labelKey)}
+                    </Text>
+                    {selected ? <Ionicons name="checkmark" size={18} color={colors.secondary} /> : null}
+                  </TouchableOpacity>
+                );
+              })}
+              <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginTop: spacing.xs, marginBottom: spacing.sm, lineHeight: 16 }}>
+                {t('familiaScreen.arrangementHint')}
+              </Text>
+
               {/* Children section — same data as PWA FamiliaClient */}
               {children.length > 0 ? (
                 <>
