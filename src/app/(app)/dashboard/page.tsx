@@ -1509,6 +1509,22 @@ export default async function DashboardPage() {
   }
   heroTimeline.sort((a, b) => a.sortMin - b.sortMin);
 
+  // Eventos de hoje por criança (com hora) — contas de evento no SplitDayArc
+  // (dia de rotina dividida). Mantém o childId que o heroTimeline descarta.
+  const heroEventsByChild: Record<string, { min: number; category: string; label: string; time: string }[]> = {};
+  for (const a of [...todayActivities, ...pastTodayEvents]) {
+    const ts = a.time_start;
+    if (!a.childId || !ts) continue;
+    const [eh, em] = String(ts).split(":").map(Number);
+    if (Number.isNaN(eh)) continue;
+    (heroEventsByChild[a.childId] ||= []).push({
+      min: eh * 60 + (em || 0),
+      category: a.category,
+      label: a.name,
+      time: String(ts).slice(0, 5),
+    });
+  }
+
   const clientProps: DashboardClientProps = {
     custodyEnabled,
     groupId,
@@ -1539,6 +1555,7 @@ export default async function DashboardPage() {
     routineLogsToday,
     routineTomorrowSummary,
     heroTimeline,
+    heroEventsByChild,
     custodyContext: custodyContextProp,
     familyDayContext: familyDayContextProp,
     weekDays: weekDaysData,

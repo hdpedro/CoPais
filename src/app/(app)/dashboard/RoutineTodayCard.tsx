@@ -23,6 +23,7 @@ import { INTL_LOCALE_MAP } from "@/lib/locale-utils";
 import { createRoutineOverride, markRoutineOverrideRead, recordRoutineLog } from "@/actions/care-routine";
 import type { RoutineToday, RoutineHeroEntry } from "@/lib/care-routine-resolve";
 import type { JourneyItem } from "@/lib/care-routine-journey";
+import SplitDayArc, { type ArcChildEvent } from "./SplitDayArc";
 
 type Leg = "dropoff" | "pickup";
 
@@ -76,6 +77,8 @@ interface RoutineTodayCardProps {
   dayCalm: boolean;
   /** Jornada compacta do dia (casa → leva → atividades → busca) pro card dark. */
   heroTimeline: JourneyItem[];
+  /** Eventos de hoje por criança (contas no SplitDayArc do dia dividido). */
+  eventsByChild?: Record<string, ArcChildEvent[]>;
   /** SÓ pro playground /prototipo/heroi: congela o relógio num minuto do dia
    *  (simulação de cenários). Em produção fica undefined → relógio do device. */
   simulateNowMin?: number | null;
@@ -97,6 +100,7 @@ export default function RoutineTodayCard({
   tomorrowSummary,
   dayCalm,
   heroTimeline,
+  eventsByChild = {},
   simulateNowMin = null,
   custodyContext = null,
   familyDayContext = null,
@@ -559,6 +563,13 @@ export default function RoutineTodayCard({
         )}
       </div>
 
+      {/* ROTINA DIVIDIDA (mode='split': filhos com responsáveis diferentes) →
+          SplitDayArc "Dois Fios" (paridade com o native). Os outros modos seguem
+          no arco-sol único abaixo. */}
+      {routineToday.mode === "split" && (
+        <SplitDayArc entries={routineToday.entries} eventsByChild={eventsByChild} nowMin={nowMin} locale={locale} />
+      )}
+
       {/* ARCO DO DIA — trajetória de sol 06h→21h (mockup do dono): percorrido
           sólido em terracota, futuro tracejado, sol em "agora", estações
           agrupadas por horário (contador quando 2+ no mesmo minuto). */}
@@ -566,7 +577,7 @@ export default function RoutineTodayCard({
           marcados, as casas e o sol mantêm o dia vivo (feedback 10/jun). No dia
           em família 100% vazio (sem evento) o arco fica só com o sol na
           trajetória — "o herói é bonito demais pra ficar escondido" (13/jun). */}
-      {(heroTimeline.length > 0 || familyDayContext) && (
+      {routineToday.mode !== "split" && (heroTimeline.length > 0 || familyDayContext) && (
         <div className="mt-4 pt-3 border-t border-white/10">
           {/* SEM aria-hidden: há links reais dentro (auditoria #8/#18) —
               o decorativo (trilho/eixo) é que recebe aria-hidden. */}

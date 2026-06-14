@@ -299,6 +299,8 @@ export interface DashboardClientProps {
   // Briefing in-app "Amanhã" (Fase 2): resumo compacto da rotina de amanhã.
   routineTomorrowSummary: string | null;
   heroTimeline: JourneyItem[];
+  /** Eventos de hoje por criança (contas no SplitDayArc do dia dividido). */
+  heroEventsByChild: Record<string, { min: number; category: string; label: string; time: string }[]>;
   /** Pais separados: contexto do Herói de Guarda universal (null = rotina). */
   custodyContext: HeroCustodyContext | null;
   /** Família intacta/solo: voz de presença pro arco quando não há rotina. */
@@ -341,6 +343,7 @@ export default function DashboardClient(props: DashboardClientProps) {
     routineLogsToday,
     routineTomorrowSummary,
     heroTimeline,
+    heroEventsByChild,
     custodyContext,
     familyDayContext,
     briefingAttention,
@@ -551,6 +554,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           tomorrowSummary={routineTomorrowSummary}
           dayCalm={briefingAttention.length === 0}
           heroTimeline={heroTimeline}
+          eventsByChild={heroEventsByChild}
           custodyContext={custodyContext}
         />
       ) : (
@@ -594,6 +598,7 @@ export default function DashboardClient(props: DashboardClientProps) {
           tomorrowSummary={routineTomorrowSummary}
           dayCalm={briefingAttention.length === 0}
           heroTimeline={heroTimeline}
+          eventsByChild={heroEventsByChild}
           familyDayContext={!hasRoutineSlots ? familyDayContext : null}
         />
       )}
