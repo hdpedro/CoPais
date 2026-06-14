@@ -601,9 +601,10 @@ export default function CalendarScreen() {
               const activities = dayEvents.filter(e => e.type === 'activity');
               const socials = dayEvents.filter(e => e.type === 'event');
               const appointments = dayEvents.filter(e => e.type === 'appointment');
+              const birthdays = dayEvents.filter(e => e.type === 'birthday');
               const holiday = holidays[dateKey];
               // Up to 2 visible pills; rest → +N
-              const pills = [...appointments, ...activities, ...socials];
+              const pills = [...birthdays, ...appointments, ...activities, ...socials];
               const visible = pills.slice(0, 2);
               const extra = pills.length - visible.length;
 
@@ -943,7 +944,8 @@ export default function CalendarScreen() {
               {selectedEvents.map((e, i) => {
                 const isSchool = !!e.schoolLogId;
                 const isCustody = e.type === 'custody';
-                const isClickable = !isCustody; // custody usa as quick actions abaixo
+                // birthday tem id sintético (`birthday-...`) → não navega pra detalhe.
+                const isClickable = !isCustody && e.type !== 'birthday';
                 const renderBody = (pressed: boolean) => (
                   <View testID={`calendar-event-${e.id}`} style={{
                     flexDirection: 'row', alignItems: 'center', gap: spacing.md,
@@ -964,6 +966,7 @@ export default function CalendarScreen() {
                               : e.custodyType === 'swap' ? t('calendarTab.subtitleSwap')
                               : e.custodyType === 'holiday' ? t('calendarTab.subtitleHoliday')
                               : t('calendarTab.subtitleCustody'))
+                          : e.type === 'birthday' ? 'Aniversário'
                           : e.type === 'activity' ? t('calendar.activity')
                           : e.type === 'appointment' ? t('calendarTab.appointment')
                           : isSchool ? t('calendarTab.subtitleSchool')

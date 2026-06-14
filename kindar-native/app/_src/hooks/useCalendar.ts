@@ -15,6 +15,7 @@ import type { CustodyEventRaw } from '../lib/calendar-balance';
 import { withTimeout, TimeoutError } from '../lib/with-timeout';
 import { reportError } from '../lib/error-reporter';
 import { detectCustodyOverlap } from '../lib/calendar-overlap-detect';
+import { getBirthdayOccurrences } from '../lib/birthday-utils';
 import { track, EVENTS } from '../lib/analytics';
 import { cacheGet, cacheSet, isOnline } from '../services/offline';
 
@@ -33,7 +34,7 @@ interface CalendarCache {
 export interface CalendarEvent {
   id: string;
   date: string; // YYYY-MM-DD
-  type: 'custody' | 'activity' | 'event' | 'appointment';
+  type: 'custody' | 'activity' | 'event' | 'appointment' | 'birthday';
   title: string;
   color: string;
   responsibleId?: string;
@@ -116,6 +117,7 @@ export function useCalendar() {
         { data: occurrences },
         { data: socialEvents },
         { data: appointments },
+        { data: childrenData },
       ] = await withTimeout(Promise.all([
         supabase.from('group_members')
           .select('user_id, profiles(full_name, display_name, email)')
@@ -160,6 +162,11 @@ export function useCalendar() {
           .gte('appointment_date', startKey + 'T00:00:00')
           .lte('appointment_date', endKey + 'T23:59:59')
           .limit(200)
+          .then(r => r, () => ({ data: [] as never[] })),
+        // Crianças → aniversários derivados (paridade com PWA calendario/page.tsx:413).
+        supabase.from('children')
+          .select('id, full_name, birth_date')
+          .eq('group_id', groupId)
           .then(r => r, () => ({ data: [] as never[] })),
       ]), FETCH_TIMEOUT_MS, 'useCalendar:mainQueries');
 
@@ -300,6 +307,23 @@ export function useCalendar() {
           time,
         });
       });
+
+      // Aniversários — DERIVADOS de children.birth_date (paridade com o PWA:
+      // calendario/page.tsx:413). Sem tabela própria/migration: pills "dia todo"
+      // 🎂 em cada ocorrência na janela visível. Cobre crianças já cadastradas.
+      for (const c of (childrenData || []) as { id: string; full_name: string | null; birth_date: string | null }[]) {
+        if (!c.birth_date) continue;
+        const firstName = getDisplayName(c.full_name, true) || 'criança';
+        for (const dateKey of getBirthdayOccurrences(c.birth_date, startKey, endKey)) {
+          allEvents.push({
+            id: `birthday-${c.id}-${dateKey.slice(0, 4)}`,
+            date: dateKey,
+            type: 'birthday',
+            title: `🎂 Aniversário de ${firstName}`,
+            color: '#E8A228',
+          });
+        }
+      }
 
       setEvents(allEvents);
 
