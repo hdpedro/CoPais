@@ -4664,6 +4664,7 @@
     "routineAckTheirs": "{name} changed today's routine",
     "routineAckMine": "Waiting for the other parent to see your change",
     "pendingReport": "{count, plural, one {Did it happen? {child}'s {activity}} other {# activities awaiting your report}}",
+    "pendingReportFamily": "{count, plural, one {Did it happen? {activity}} other {# activities awaiting your report}}",
     "pendingExpense": "{count, plural, one {1 expense to approve} other {# expenses to approve}}",
     "pendingDecision": "{count, plural, one {1 decision to vote on} other {# decisions to vote on}}",
     "schoolNew": "{count, plural, one {1 school update} other {# school updates}}",

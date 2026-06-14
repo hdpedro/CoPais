@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl, Linking, Alert } from 'react-native';
 import { router } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -17,10 +17,8 @@ import { useAuth } from 'src/store/auth';
 import { useDashboard } from 'src/hooks/useDashboard';
 import { respondToSwap, cancelMySwap } from 'src/services/swaps';
 import { useI18n } from 'src/i18n';
-import { useIntl } from 'src/lib/intl';
 import { colors, spacing, radius, font, shadows } from 'src/design-system/tokens';
 import { ACTIVITY_CATEGORIES, QUICK_ACTIONS_CATALOG_NATIVE, DEFAULT_QUICK_ACTIONS_NATIVE } from 'src/lib/constants';
-import { formatBRL as formatBRLShared } from 'src/lib/currency';
 import ActivityReportModal from 'src/components/activities/ActivityReportModal';
 import ActivityDetailSheet from 'src/components/activities/ActivityDetailSheet';
 import QuickActionsModal from 'src/components/QuickActionsModal';
@@ -31,6 +29,8 @@ import { getBillingStatus } from 'src/services/billing';
 import TrialBanner from 'src/components/billing/TrialBanner';
 import RoutineTodayCard from 'src/components/RoutineTodayCard';
 import DashboardHero from 'src/components/DashboardHero';
+import BriefingAttention from 'src/components/BriefingAttention';
+import { composeAttention } from 'src/lib/briefing';
 import { useCareRoutineToday } from 'src/hooks/use-care-routine-today';
 
 // Cutover do Herói do Dashboard: false mantém o hero inline antigo (rollback no
@@ -46,55 +46,8 @@ const GREETING_I18N_KEYS = {
   evening: 'dashboard.goodEvening',
 } as const;
 
-// Mirror of PWA decisionCatIcons / decisionCatColors — keep in sync.
-const DECISION_CAT_ICONS: Record<string, string> = {
-  escola: '🎒', saude: '🏥', atividade: '⚽',
-  viagem: '✈️', financeiro: '💰', moradia: '🏠', outro: '📋',
-};
-const DECISION_CAT_COLORS: Record<string, string> = {
-  escola: '#3B82F6', saude: '#EF4444', atividade: '#22C55E',
-  viagem: '#8B5CF6', financeiro: '#F59E0B', moradia: '#5B9E85', outro: '#6B7280',
-};
-
 const MONTHS_PT_SHORT = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
-function formatDatePt(isoDate: string): string {
-  const [, m, d] = isoDate.split('-').map(Number);
-  return `${d} de ${MONTHS_PT_SHORT[(m || 1) - 1]}`;
-}
-function formatShortDate(isoDate: string): string {
-  const [, m, d] = isoDate.split('-').map(Number);
-  return `${d}/${m}`;
-}
-function formatBRL(v: number): string {
-  // Delegamos ao helper canônico em `src/lib/currency` pra ter grouping
-  // correto via Intl.NumberFormat ("R$ 1.234,56" em vez de "R$ 1234,56").
-  return formatBRLShared(v);
-}
-// Deadline label resolvido no RENDER (este helper é module-level e não tem
-// acesso a hooks). Retorna uma chave i18n + params; o componente chama t()/
-// intl pra renderizar no idioma ativo. `date` sinaliza o branch que mostra a
-// data formatada (locale-aware via intl.formatDate).
-type DeadlineInfo = {
-  labelKey?: string;
-  params?: Record<string, number>;
-  date?: string;
-  urgent: boolean;
-};
-function formatDeadline(deadline: string | null): DeadlineInfo | null {
-  if (!deadline) return null;
-  const now = Date.now();
-  const d = new Date(deadline + 'T23:59:59').getTime();
-  const daysUntil = Math.ceil((d - now) / 86400000);
-  if (daysUntil < 0) return { labelKey: 'decisions.deadlineExpired', urgent: true };
-  if (daysUntil === 0) return { labelKey: 'intl.today', urgent: true };
-  if (daysUntil <= 3) return {
-    labelKey: daysUntil === 1 ? 'decisions.deadlineInDaysOne' : 'decisions.deadlineInDays',
-    params: { count: daysUntil },
-    urgent: true,
-  };
-  return { date: deadline, urgent: false };
-}
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -110,19 +63,35 @@ export default function DashboardScreen() {
   const routinePayload = useCareRoutineToday();
   const hasRoutineSlots = !!routinePayload && routinePayload.today.mode !== 'none';
   const routineEntries = hasRoutineSlots ? routinePayload!.today.entries : [];
+
+  // "Sua Atenção" — régua UNIFICADA (espelho do PWA): relatos pendentes,
+  // despesas a aprovar, votos e novidades de escola/despesa/saúde num só lugar,
+  // logo abaixo do herói. Swaps (seção própria c/ aprovar/rejeitar inline) e
+  // vacina (tile próprio) ficam de fora — paridade com composeAttention do PWA,
+  // que zera ambos. `childName === 'Geral'` (atividade da família) → variação
+  // "pendingReportFamily" sem "de {child}".
+  const briefingAttention = useMemo(() => {
+    if (!data) return [];
+    return composeAttention({
+      pendingSwaps: [],
+      routineAwaitingTheirAck: false,
+      routinePendingAck: null,
+      pendingReports: data.pendingReports.map((pr) => ({
+        activityName: pr.activityName,
+        childName: pr.childName === 'Geral' ? '' : pr.childName,
+        daysAgo: pr.daysAgo,
+      })),
+      pendingExpenses: data.pendingExpensesList.map((e) => ({ id: e.id, description: e.description })),
+      pendingDecisions: data.pendingDecisionsList.map((d) => ({ id: d.id, title: d.title })),
+      schoolUnreadCount: data.schoolUnreadCount,
+      expensesUnreadCount: data.expensesUnreadCount,
+      saudeUnreadCount: data.saudeUnreadCount,
+      vaccinePendingCount: 0,
+      vaccineNextDue: null,
+    });
+  }, [data]);
   const t = useI18n(s => s.t);
-  const intl = useIntl();
   const toast = useToast();
-  // Resolve o DeadlineInfo (module-level) pro texto no idioma ativo.
-  // O branch `date` usa intl.formatDate (locale-aware "5 de jun" / "Jun 5")
-  // em vez do formatDatePt hardcoded em PT.
-  const deadlineLabel = useCallback((info: DeadlineInfo): string => {
-    if (info.date) {
-      try { return intl.formatDate(info.date, { day: 'numeric', month: 'short' }); }
-      catch { return formatDatePt(info.date); }
-    }
-    return info.labelKey ? t(info.labelKey, info.params) : '';
-  }, [t, intl]);
   // Degustação — paridade com o banner do dashboard PWA. getBillingStatus
   // NUNCA lança (retorna FREE_BILLING em erro) e tem cache 60s, então é seguro
   // no mount da home. Só seta um número quando o grupo está em trial ativo;
@@ -516,6 +485,16 @@ export default function DashboardScreen() {
             routineEntries). Chip antigo só atrás de SHOW_LEGACY_HERO. === */}
         {SHOW_LEGACY_HERO ? <RoutineTodayCard /> : null}
 
+        {/* === SUA ATENÇÃO (Briefing v2.0) — régua UNIFICADA logo abaixo do herói,
+             espelho do PWA. Absorve relatos pendentes, despesas a aprovar, votos e
+             novidades de escola/despesa/saúde (as seções soltas correspondentes
+             foram removidas daqui pra baixo). === */}
+        {briefingAttention.length > 0 ? (
+          <Animated.View entering={FadeInDown.delay(120).duration(400)}>
+            <BriefingAttention items={briefingAttention} />
+          </Animated.View>
+        ) : null}
+
         {/* === CHILD CARDS === */}
         {(data?.childCards?.length || 0) > 0 ? (
           <Animated.View entering={FadeInDown.delay(130).duration(400)}>
@@ -768,199 +747,6 @@ export default function DashboardScreen() {
           </Animated.View>
         ) : null}
 
-        {/* === PENDING DECISIONS (Votar buttons) === */}
-        {(data?.pendingDecisionsList.length || 0) > 0 ? (
-          <Animated.View entering={FadeInDown.delay(200).duration(400)}>
-            <View style={{ marginBottom: spacing.lg }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="checkmark-done-outline" size={12} color={colors.brand} />
-                  <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                    {t('dashboard.pendingDecisions')}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => router.push('/decisoes')}
-                  accessibilityRole="link"
-                  accessibilityLabel={t('dashboard.a11ySeeAllDecisions')}
-                >
-                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
-                </TouchableOpacity>
-              </View>
-              {data!.pendingDecisionsList.slice(0, 3).map(d => {
-                const icon = DECISION_CAT_ICONS[d.category] || '📋';
-                const color = DECISION_CAT_COLORS[d.category] || colors.brand;
-                const deadlineInfo = formatDeadline(d.deadline);
-                return (
-                  <TouchableOpacity
-                    key={d.id}
-                    activeOpacity={0.75}
-                    onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push(`/decisoes/${d.id}`); }}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${t('dashboard.a11yVoteOn', { title: d.title })}${deadlineInfo ? ` — ${deadlineLabel(deadlineInfo)}` : ''}`}
-                    style={{
-                      backgroundColor: 'rgba(232,162,40,0.08)',
-                      borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
-                      flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                    }}
-                  >
-                    <View style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: `${color}20`, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ fontSize: 14 }}>{icon}</Text>
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }} numberOfLines={1}>
-                        {d.title}
-                      </Text>
-                      {deadlineInfo ? (
-                        <Text style={{ fontSize: 11, color: deadlineInfo.urgent ? colors.error : colors.textSecondary, marginTop: 2 }}>
-                          {deadlineLabel(deadlineInfo)}
-                        </Text>
-                      ) : null}
-                    </View>
-                    <View
-                      style={{
-                        backgroundColor: colors.brand, paddingHorizontal: spacing.md, paddingVertical: 6,
-                        borderRadius: radius.full,
-                      }}
-                    >
-                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>{t('dashboard.voteNow')}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          </Animated.View>
-        ) : null}
-
-        {/* === SCHOOL UNREAD (Collab Foundation — Fase 1) ===
-             Single-line CTA when the other responsável criou registros
-             escolares que voce nao abriu ainda. Tap → /escola. */}
-        {(data?.schoolUnreadCount || 0) > 0 ? (
-          <Animated.View entering={FadeInDown.delay(215).duration(400)}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/escola'); }}
-              accessibilityRole="button"
-              accessibilityLabel={data!.schoolUnreadCount === 1
-                ? t('collab.dashboardSchoolUnreadOne')
-                : t('collab.dashboardSchoolUnreadOther', { count: data!.schoolUnreadCount })}
-              style={{
-                backgroundColor: 'rgba(192,112,85,0.08)',
-                borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
-                flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                borderWidth: 1, borderColor: 'rgba(192,112,85,0.3)',
-              }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(192,112,85,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 18 }}>🎒</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
-                  {data!.schoolUnreadCount === 1
-                    ? t('collab.dashboardSchoolUnreadOne')
-                    : t('collab.dashboardSchoolUnreadOther', { count: data!.schoolUnreadCount })}
-                </Text>
-                <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
-                  {t('collab.dashboardTapHint')}
-                </Text>
-              </View>
-              <View style={{
-                backgroundColor: colors.brand, paddingHorizontal: 8, paddingVertical: 2,
-                borderRadius: radius.full, minWidth: 22, alignItems: 'center',
-              }}>
-                <Text style={{ color: '#fff', fontSize: 11, fontWeight: font.weights.bold }}>
-                  {data!.schoolUnreadCount}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        ) : null}
-
-        {/* === EXPENSES UNREAD (Collab Foundation — Fase 1B) === */}
-        {(data?.expensesUnreadCount || 0) > 0 ? (
-          <Animated.View entering={FadeInDown.delay(218).duration(400)}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
-              accessibilityRole="button"
-              accessibilityLabel={data!.expensesUnreadCount === 1
-                ? t('collab.dashboardExpensesUnreadOne')
-                : t('collab.dashboardExpensesUnreadOther', { count: data!.expensesUnreadCount })}
-              style={{
-                backgroundColor: 'rgba(192,112,85,0.08)',
-                borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
-                flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                borderWidth: 1, borderColor: 'rgba(192,112,85,0.3)',
-              }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(192,112,85,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 18 }}>💰</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
-                  {data!.expensesUnreadCount === 1
-                    ? t('collab.dashboardExpensesUnreadOne')
-                    : t('collab.dashboardExpensesUnreadOther', { count: data!.expensesUnreadCount })}
-                </Text>
-                <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
-                  {t('collab.dashboardExpensesHint')}
-                </Text>
-              </View>
-              <View style={{
-                backgroundColor: colors.brand, paddingHorizontal: 8, paddingVertical: 2,
-                borderRadius: radius.full, minWidth: 22, alignItems: 'center',
-              }}>
-                <Text style={{ color: '#fff', fontSize: 11, fontWeight: font.weights.bold }}>
-                  {data!.expensesUnreadCount}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        ) : null}
-
-        {/* === SAÚDE UNREAD (Collab Foundation — Fase 3, migration 00080) ===
-             Tile consolidada (soma dos 5 record_types). Tap → /saude. */}
-        {(data?.saudeUnreadCount || 0) > 0 ? (
-          <Animated.View entering={FadeInDown.delay(219).duration(400)}>
-            <TouchableOpacity
-              activeOpacity={0.85}
-              onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/saude' as never); }}
-              accessibilityRole="button"
-              accessibilityLabel={data!.saudeUnreadCount === 1
-                ? t('collab.dashboardSaudeUnreadOne')
-                : t('collab.dashboardSaudeUnreadOther', { count: data!.saudeUnreadCount })}
-              style={{
-                backgroundColor: 'rgba(192,112,85,0.08)',
-                borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
-                flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                borderWidth: 1, borderColor: 'rgba(192,112,85,0.3)',
-              }}
-            >
-              <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(192,112,85,0.15)', alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ fontSize: 18 }}>🩺</Text>
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
-                  {data!.saudeUnreadCount === 1
-                    ? t('collab.dashboardSaudeUnreadOne')
-                    : t('collab.dashboardSaudeUnreadOther', { count: data!.saudeUnreadCount })}
-                </Text>
-                <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }}>
-                  {t('collab.dashboardSaudeHint')}
-                </Text>
-              </View>
-              <View style={{
-                backgroundColor: colors.brand, paddingHorizontal: 8, paddingVertical: 2,
-                borderRadius: radius.full, minWidth: 22, alignItems: 'center',
-              }}>
-                <Text style={{ color: '#fff', fontSize: 11, fontWeight: font.weights.bold }}>
-                  {data!.saudeUnreadCount}
-                </Text>
-              </View>
-            </TouchableOpacity>
-          </Animated.View>
-        ) : null}
-
         {/* === SAÚDE PREVENTIVA — Motor Vacinal (migration 00082) ===
              Tile calma estilo Apple Health quando há pendência REAL
              (overdue+due_soon). Tap → /saude/vacinas. */}
@@ -1003,73 +789,6 @@ export default function DashboardScreen() {
                 </Text>
               </View>
             </TouchableOpacity>
-          </Animated.View>
-        ) : null}
-
-        {/* === PENDING ACTIVITY REPORTS === */}
-        {(data?.pendingReports?.length || 0) > 0 ? (
-          <Animated.View entering={FadeInDown.delay(220).duration(400)}>
-            <View style={{ marginBottom: spacing.lg }}>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: spacing.sm }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Ionicons name="clipboard-outline" size={12} color={colors.brand} />
-                  <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                    {t('activityReport.pendingReports')}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  onPress={() => router.push('/atividades/pendentes')}
-                  accessibilityRole="link"
-                  accessibilityLabel={t('dashboard.a11ySeeAllPending')}
-                >
-                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('common.viewAll')}</Text>
-                </TouchableOpacity>
-              </View>
-              {data!.pendingReports.slice(0, 3).map(r => {
-                const openReport = () => {
-                  Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  setReportModal({
-                    open: true, activityId: r.activityId, activityName: r.activityName,
-                    childId: r.childId, occurrenceDate: r.occurrenceDate,
-                  });
-                };
-                return (
-                  <TouchableOpacity
-                    key={`${r.activityId}-${r.occurrenceDate}`}
-                    activeOpacity={0.75}
-                    onPress={openReport}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Relatar ${r.activityName} — ${r.childName}${r.daysAgo > 0 ? `, há ${r.daysAgo} dias` : ''}`}
-                    style={{
-                      backgroundColor: 'rgba(232,162,40,0.08)',
-                      borderRadius: radius.md, padding: spacing.md, marginBottom: 6,
-                      flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                    }}
-                  >
-                    <View style={{ width: 36, height: 36, borderRadius: 10, backgroundColor: 'rgba(232,162,40,0.2)', alignItems: 'center', justifyContent: 'center' }}>
-                      <Ionicons name="clipboard-outline" size={16} color="#E8A228" />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={{ fontSize: 13, fontWeight: font.weights.semibold, color: colors.text }}>
-                        {r.activityName}
-                      </Text>
-                      <Text style={{ fontSize: 11, color: colors.textSecondary }}>
-                        {r.childName} · {formatShortDate(r.occurrenceDate)}
-                        {r.daysAgo > 0 ? ` (há ${r.daysAgo}d)` : ''}
-                      </Text>
-                    </View>
-                    <View
-                      style={{
-                        backgroundColor: '#E8A228', paddingHorizontal: spacing.md, paddingVertical: 6,
-                        borderRadius: radius.full,
-                      }}
-                    >
-                      <Text style={{ color: '#fff', fontSize: 12, fontWeight: font.weights.semibold }}>{t('activityReport.reportNow')}</Text>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
           </Animated.View>
         ) : null}
 
@@ -1232,56 +951,6 @@ export default function DashboardScreen() {
                   </View>
                 );
               })}
-            </View>
-          </Animated.View>
-        ) : null}
-
-        {/* === PENDING EXPENSES (cards) === */}
-        {(data?.pendingExpensesList.length || 0) > 0 ? (
-          <Animated.View entering={FadeInDown.delay(260).duration(400)}>
-            <View style={{
-              backgroundColor: colors.bgElevated, borderRadius: radius.xl, padding: spacing.lg,
-              marginBottom: spacing.lg, ...shadows.sm,
-            }}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm }}>
-                <Text style={{ fontSize: 10, fontWeight: font.weights.bold, color: colors.brand, textTransform: 'uppercase', letterSpacing: 1.2 }}>
-                  🧾 Despesas pra aprovar
-                </Text>
-                <TouchableOpacity
-                  onPress={() => router.push('/despesas')}
-                  accessibilityRole="link"
-                  accessibilityLabel={t('dashboard.a11ySeeAllExpenses')}
-                >
-                  <Text style={{ fontSize: 10, color: colors.brand, fontWeight: font.weights.semibold }}>{t('dashboard.viewAllFeminine')}</Text>
-                </TouchableOpacity>
-              </View>
-              {data!.pendingExpensesList.slice(0, 3).map((e, i) => (
-                <TouchableOpacity
-                  key={e.id}
-                  onPress={() => { Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light); router.push('/despesas'); }}
-                  activeOpacity={0.7}
-                  accessibilityRole="button"
-                  accessibilityLabel={`Despesa pendente: ${e.description} — ${e.paidByName}, ${formatBRL(e.amount)}`}
-                  style={{
-                    flexDirection: 'row', alignItems: 'center', gap: spacing.md,
-                    paddingVertical: spacing.sm,
-                    borderTopWidth: i > 0 ? 0.5 : 0, borderTopColor: colors.borderLight,
-                  }}
-                >
-                  <View style={{ width: 32, height: 32, borderRadius: 16, backgroundColor: `${colors.accent}20`, alignItems: 'center', justifyContent: 'center' }}>
-                    <Text style={{ fontSize: 14 }}>💳</Text>
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={{ fontSize: 13, fontWeight: font.weights.medium, color: colors.text }} numberOfLines={1}>
-                      {e.description}
-                    </Text>
-                    <Text style={{ fontSize: 11, color: colors.textSecondary, marginTop: 2 }} numberOfLines={1}>
-                      {e.paidByName} · {formatBRL(e.amount)}
-                    </Text>
-                  </View>
-                  <Ionicons name="chevron-forward" size={14} color={colors.textDim} />
-                </TouchableOpacity>
-              ))}
             </View>
           </Animated.View>
         ) : null}
