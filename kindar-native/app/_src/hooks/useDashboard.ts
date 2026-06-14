@@ -963,7 +963,11 @@ export function useDashboard() {
         pendingDecisionsList,
         pendingExpensesList,
         childCards,
-        childHealthSummaries,
+        // Paridade com o PWA (dashboard/page.tsx:981+1579 `noteworthyHealth`): o
+        // bloco de Saúde só mostra crianças COM registro relevante (tratamento/
+        // monitoramento). Sem registro (status 'healthy'/'noRecords') é INIBIDO —
+        // antes o nativo mandava toda criança e o bloco aparecia sempre vazio.
+        childHealthSummaries: childHealthSummaries.filter(s => s.status !== 'healthy').slice(0, 3),
         hasAnyCriticalChild,
         pendingReports,
         schoolUnreadCount,

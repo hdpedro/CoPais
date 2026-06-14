@@ -70,6 +70,134 @@ function getNestedValue(obj: unknown, path: string): string | undefined {
   return typeof current === 'string' ? current : undefined;
 }
 
+/* ------------------------------------------------------------------ */
+/* ICU MessageFormat — plural/select (Regra Canônica 7)               */
+/*                                                                    */
+/* O `t()` nativo só fazia interpolação `{var}`/`{{var}}`. Strings com */
+/* `{count, plural, one {…} other {…}}` (padrão ICU, igual ao PWA)     */
+/* vazavam CRUAS pro user (bug do briefing "Sua Atenção", device do    */
+/* dono 14/jun). Este renderer resolve plural/select ANTES da          */
+/* interpolação simples. Blast radius contido: `hasICU()` só ativa     */
+/* quando a sintaxe está presente — strings sem ICU seguem o caminho   */
+/* antigo, byte-idêntico.                                              */
+/* ------------------------------------------------------------------ */
+
+/** Detecta `{arg, plural,` ou `{arg, select,` — gate p/ não tocar strings normais. */
+function hasICU(value: string): boolean {
+  return /\{\s*\w+\s*,\s*(plural|select)\s*,/.test(value);
+}
+
+/** Quebra o corpo de opções (`one {…} other {…}`) respeitando chaves aninhadas. */
+function parseICUOptions(body: string): Record<string, string> {
+  const options: Record<string, string> = {};
+  let i = 0;
+  while (i < body.length) {
+    while (i < body.length && /\s/.test(body[i])) i++; // skip ws
+    let keyword = '';
+    while (i < body.length && body[i] !== '{') {
+      keyword += body[i];
+      i++;
+    }
+    keyword = keyword.trim();
+    if (body[i] !== '{') break;
+    // lê o conteúdo da opção com brace-matching (pode ter {var} dentro)
+    let depth = 0;
+    let content = '';
+    for (; i < body.length; i++) {
+      const ch = body[i];
+      if (ch === '{') {
+        depth++;
+        if (depth === 1) continue; // não inclui a chave de abertura externa
+      } else if (ch === '}') {
+        depth--;
+        if (depth === 0) {
+          i++;
+          break;
+        }
+      }
+      content += ch;
+    }
+    if (keyword) options[keyword] = content;
+  }
+  return options;
+}
+
+/** Seleciona a opção certa por plural (CLDR via Intl, com `=N` exato) ou select. */
+function selectICUOption(
+  options: Record<string, string>,
+  kind: 'plural' | 'select',
+  argValue: string | number | undefined,
+  locale: string,
+): string {
+  if (kind === 'select') {
+    return options[String(argValue)] ?? options.other ?? '';
+  }
+  const n = Number(argValue);
+  if (options[`=${n}`] !== undefined) return options[`=${n}`];
+  let category = n === 1 ? 'one' : 'other';
+  try {
+    category = new Intl.PluralRules(locale).select(n);
+  } catch {
+    // Intl.PluralRules indisponível → fallback one/other (cobre pt/en/es).
+  }
+  return options[category] ?? options.other ?? options.one ?? '';
+}
+
+/** Resolve TODOS os blocos plural/select da string (loop com guarda anti-runaway). */
+function renderICU(input: string, params: Record<string, string | number>, locale: string): string {
+  const re = /\{\s*(\w+)\s*,\s*(plural|select)\s*,/;
+  let out = input;
+  let guard = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(out)) && guard++ < 50) {
+    const start = m.index;
+    const argName = m[1];
+    const kind = m[2] as 'plural' | 'select';
+    // acha a chave de fechamento do bloco (brace-matching a partir do `{`)
+    let depth = 0;
+    let end = -1;
+    for (let i = start; i < out.length; i++) {
+      if (out[i] === '{') depth++;
+      else if (out[i] === '}') {
+        depth--;
+        if (depth === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    if (end === -1) break; // malformado → não arrisca, sai
+    const body = out.slice(start + m[0].length, end);
+    const argValue = params[argName];
+    let chosen = selectICUOption(parseICUOptions(body), kind, argValue, locale);
+    if (kind === 'plural') {
+      chosen = chosen.replace(/#/g, argValue !== undefined ? String(argValue) : '');
+    }
+    out = out.slice(0, start) + chosen + out.slice(end + 1);
+  }
+  return out;
+}
+
+/**
+ * Pipeline puro de formatação (testável sem o store):
+ *   1. ICU plural/select (só quando presente — gate hasICU)
+ *   2. interpolação `{{var}}` (i18next legacy) e `{var}` (single brace)
+ *
+ * O dois passos de replace existem porque os JSON misturam estilos (bug Aline
+ * 2026-05-13 iOS: `{var}` aparecia literal). O user nunca deve ver `{...}` cru.
+ */
+export function formatMessage(
+  value: string,
+  params: Record<string, string | number> | undefined,
+  locale: string,
+): string {
+  if (!params) return value;
+  if (hasICU(value)) value = renderICU(value, params, locale);
+  return value
+    .replace(/\{\{(\w+)\}\}/g, (_, k) => (params[k] !== undefined ? String(params[k]) : `{{${k}}}`))
+    .replace(/\{(\w+)\}/g, (_, k) => (params[k] !== undefined ? String(params[k]) : `{${k}}`));
+}
+
 export const useI18n = create<I18nState>((set, get) => ({
   locale: 'pt',
   translations: pt as Translations,
@@ -126,28 +254,6 @@ export const useI18n = create<I18nState>((set, get) => ({
       if (__DEV__) console.warn(`[i18n] missing key: ${key}`);
       return key;
     }
-    if (!params) return value;
-    // Bug Aline 2026-05-13 (iOS): a regex original procurava SÓ `{{count}}`
-    // (double braces, sintaxe i18next), mas TODAS as locale files JSON têm
-    // uma mistura:
-    //   - Strings antigas / migradas do PWA usam `{{var}}` (i18next-style)
-    //   - Strings novas (adicionadas em sessões recentes) usam `{var}`
-    //     (single brace, ICU/MessageFormat-style)
-    // Resultado pré-fix: STRINGS com `{var}` apareciam literais (bug
-    // visível "21 registros... {count}"); strings com `{{var}}` funcionavam.
-    //
-    // Fix defensivo: passar pelas DUAS sintaxes na ordem
-    //   1. {{var}} primeiro (i18next legacy)
-    //   2. {var} depois (single brace moderna)
-    // Garante que o user nunca veja `{...}` literal independente do estilo
-    // da string. O drift guard em tests/unit/i18n-native-interpolation.test.ts
-    // alerta sobre estilos misturados pra migração gradual ser tracked.
-    return value
-      .replace(/\{\{(\w+)\}\}/g, (_, k) =>
-        params[k] !== undefined ? String(params[k]) : `{{${k}}}`,
-      )
-      .replace(/\{(\w+)\}/g, (_, k) =>
-        params[k] !== undefined ? String(params[k]) : `{${k}}`,
-      );
+    return formatMessage(value, params, get().locale);
   },
 }));
