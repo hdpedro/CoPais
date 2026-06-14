@@ -375,8 +375,12 @@ export default function DashboardScreen() {
 
         {/* === HERO (porte do dashboard novo): guarda universal / dia em família /
             rotina — UM card escuro com o Arco do Dia (é um OU outro). === */}
+        {/* Família não-separada (together/single) mostra o herói SEMPRE, mesmo num
+            dia sem evento (arco só com sol + voz de presença) — paridade com o PWA
+            "dia 100% vazio". Bug device do dono 13/jun: o gate antigo exigia evento
+            e a família together ficava sem herói nos dias calmos. */}
         {!SHOW_LEGACY_HERO && data &&
-        (data.custodyContext || (data.familyDayContext && (data.hasTodayEvents || hasRoutineSlots)) || (hasRoutineSlots && routineEntries.length > 0)) ? (
+        (data.custodyContext || data.familyDayContext || (hasRoutineSlots && routineEntries.length > 0)) ? (
           <Animated.View entering={FadeInDown.delay(100).duration(400)}>
             <DashboardHero
               heroTimeline={data.heroTimeline ?? []}
