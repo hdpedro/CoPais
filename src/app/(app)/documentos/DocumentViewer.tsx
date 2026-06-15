@@ -45,7 +45,12 @@ export default function DocumentViewer({
   doc: Document;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
+
+  // Locale-aware date (Regra Canônica 8) — antes era toLocaleDateString("pt-BR")
+  // hardcoded, que ignorava o idioma do usuário no rodapé do visualizador.
+  const dateLocale =
+    locale === "pt" ? "pt-BR" : locale === "en" ? "en-US" : locale === "es" ? "es-ES" : locale === "fr" ? "fr-FR" : "de-DE";
 
   const catLabels: Record<string, string> = {
     personal: t("docViewer.catPersonal"),
@@ -261,7 +266,7 @@ export default function DocumentViewer({
           <p className="text-xs text-gray-400">
             {doc.uploader_name && <span>{t("docViewer.uploadedBy")} {doc.uploader_name}</span>}
             {doc.uploader_name && " - "}
-            {new Date(doc.created_at).toLocaleDateString("pt-BR")}
+            {new Date(doc.created_at).toLocaleDateString(dateLocale)}
           </p>
         </div>
       </div>

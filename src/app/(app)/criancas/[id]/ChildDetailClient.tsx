@@ -134,6 +134,17 @@ const docTypeIcons: Record<string, string> = {
   other: "\u{1F4C1}",
 };
 
+// Rótulo localizado da categoria canônica (personal/health/education/legal/
+// other) — a lista mostrava o valor cru `doc.category` ("other"). Usa as
+// mesmas chaves do DocumentViewer pra consistência.
+const CATEGORY_LABEL_KEY: Record<string, string> = {
+  personal: "docViewer.catPersonal",
+  health: "docViewer.catHealth",
+  education: "docViewer.catEducation",
+  legal: "docViewer.catLegal",
+  other: "docViewer.catOther",
+};
+
 /* ───── Component ───── */
 
 export default function ChildDetailClient({
@@ -719,7 +730,7 @@ function TabDocumentos({
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-dark text-sm truncate">{doc.name}</p>
                     <p className="text-xs text-muted">
-                      {doc.category}
+                      {t(CATEGORY_LABEL_KEY[doc.category] || "docViewer.catOther")}
                       {doc.file_size ? ` - ${formatSize(doc.file_size)}` : ""}
                     </p>
                     <p className="text-xs text-muted">
