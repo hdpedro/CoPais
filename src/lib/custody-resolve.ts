@@ -262,3 +262,111 @@ export function computeCustodyStreak(
 
   return { streakDays, streakTotal, streakStartKey, streakEndKey };
 }
+
+export interface CustodyRhythmCell {
+  dateKey: string;
+  responsibleUserId: string | null;
+  isToday: boolean;
+}
+
+export interface CustodyRhythmRow {
+  /** Filho(s) com ritmo idêntico nesta janela (agrupados). */
+  childIds: string[];
+  cells: CustodyRhythmCell[];
+  todayResponsibleId: string | null;
+  streakDays: number;
+  streakTotal: number;
+  /** Dias do bloco atual à esquerda da janela (pro componente mostrar "+N"). */
+  truncatedBefore: number;
+}
+
+/**
+ * Ritmo da guarda ancorado no BLOCO (não na semana do calendário).
+ *
+ * # Por que existe
+ *
+ * Bug Barata 2026-06-15: a faixa "Seg→Dom" do herói de guarda é fixa na
+ * semana do calendário. Quando o bloco de guarda cruza a virada de semana
+ * (ex.: Amanda com qui 11 → seg 15), a faixa só mostra 1 dos 5 dias do
+ * bloco — os outros 4 caíram na semana anterior — enquanto o texto diz
+ * "5 de 5 consecutivos". As duas peças contam histórias diferentes e o
+ * usuário lê como "não faz o menor sentido".
+ *
+ * # O que faz
+ *
+ * Constrói uma janela ROLANTE ao redor de hoje (`lead` dias atrás + `trail`
+ * à frente), resolvendo o responsável por dia via `resolveCustodyOnDate`
+ * (swap > exception > regular). Como o bloco é medido empiricamente — não
+ * por fórmula de padrão — encaixa em QUALQUER arranjo: semana A/B (7/7),
+ * 2-2-3, 5-2, fim de semana alternado, custom, com swaps/férias no meio.
+ *
+ * # Guarda dividida (split "Dois Fios")
+ *
+ * Recebe N `childIds` e agrupa os que têm ritmo IDÊNTICO na janela numa
+ * única linha (assinatura = sequência de responsáveis). Filhos com ritmos
+ * diferentes viram linhas separadas — uma faixa por filho. Pro caso comum
+ * (todos no mesmo ritmo) retorna 1 linha. Passe só filhos COM guarda hoje.
+ */
+export function buildCustodyRhythm(
+  events: readonly CustodyEvent[],
+  childIds: readonly string[],
+  todayKey: string,
+  opts?: { lead?: number; trail?: number },
+): CustodyRhythmRow[] {
+  const lead = opts?.lead ?? 4;
+  const trail = opts?.trail ?? 2;
+  const windowStartKey = shiftDateKey(todayKey, -lead);
+
+  const perChild = childIds.map((childId) => {
+    const cells: CustodyRhythmCell[] = [];
+    for (let i = -lead; i <= trail; i++) {
+      const dateKey = shiftDateKey(todayKey, i);
+      const winner = resolveCustodyOnDate(events, childId, dateKey);
+      cells.push({
+        dateKey,
+        responsibleUserId: winner?.responsible_user_id ?? null,
+        isToday: i === 0,
+      });
+    }
+    const streak = computeCustodyStreak(events, childId, todayKey);
+    let truncatedBefore = 0;
+    if (streak && streak.streakStartKey < windowStartKey) {
+      const a = new Date(streak.streakStartKey + "T12:00:00").getTime();
+      const b = new Date(windowStartKey + "T12:00:00").getTime();
+      truncatedBefore = Math.round((b - a) / 86400000);
+    }
+    return {
+      childId,
+      cells,
+      todayResponsibleId: cells[lead]?.responsibleUserId ?? null,
+      streakDays: streak?.streakDays ?? 0,
+      streakTotal: streak?.streakTotal ?? 0,
+      truncatedBefore,
+      sig: cells.map((c) => c.responsibleUserId ?? "·").join("|"),
+    };
+  });
+
+  // Agrupa filhos com ritmo idêntico (mesma assinatura), preservando ordem.
+  const order: string[] = [];
+  const bySig = new Map<string, (typeof perChild)[number][]>();
+  for (const pc of perChild) {
+    const bucket = bySig.get(pc.sig);
+    if (bucket) bucket.push(pc);
+    else {
+      bySig.set(pc.sig, [pc]);
+      order.push(pc.sig);
+    }
+  }
+  return order.map((sig) => {
+    const group = bySig.get(sig)!;
+    const first = group[0];
+    return {
+      childIds: group.map((g) => g.childId),
+      cells: first.cells,
+      todayResponsibleId: first.todayResponsibleId,
+      streakDays: first.streakDays,
+      streakTotal: first.streakTotal,
+      truncatedBefore: first.truncatedBefore,
+    };
+  });
+}

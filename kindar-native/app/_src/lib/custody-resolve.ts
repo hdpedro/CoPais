@@ -174,3 +174,95 @@ export function computeCustodyStreak(
 
   return { streakDays, streakTotal, streakStartKey, streakEndKey };
 }
+
+export interface CustodyRhythmCell {
+  dateKey: string;
+  responsibleUserId: string | null;
+  isToday: boolean;
+}
+
+export interface CustodyRhythmRow {
+  /** Filho(s) com ritmo idêntico nesta janela (agrupados). */
+  childIds: string[];
+  cells: CustodyRhythmCell[];
+  todayResponsibleId: string | null;
+  streakDays: number;
+  streakTotal: number;
+  /** Dias do bloco atual à esquerda da janela (pro componente mostrar "+N"). */
+  truncatedBefore: number;
+}
+
+/**
+ * Ritmo da guarda ancorado no BLOCO (não na semana do calendário).
+ * Espelho EXATO de src/lib/custody-resolve.ts (PWA) — manter idêntico.
+ *
+ * Bug Barata 2026-06-15: a faixa fixa "Seg→Dom" não consegue mostrar um
+ * bloco de guarda que cruza a virada de semana (ex.: qui 11 → seg 15), então
+ * exibe 1 de 5 dias enquanto o texto diz "5 de 5 consecutivos". A janela
+ * rolante ancorada no bloco conserta — e, por medir o bloco empiricamente,
+ * encaixa em qualquer arranjo (7/7, 2-2-3, 5-2, fim de semana alternado,
+ * custom, com swap/férias). Split: agrupa filhos com ritmo idêntico; ritmos
+ * distintos viram linhas separadas (uma faixa por filho).
+ */
+export function buildCustodyRhythm(
+  events: readonly CustodyEvent[],
+  childIds: readonly string[],
+  todayKey: string,
+  opts?: { lead?: number; trail?: number },
+): CustodyRhythmRow[] {
+  const lead = opts?.lead ?? 4;
+  const trail = opts?.trail ?? 2;
+  const windowStartKey = shiftDateKey(todayKey, -lead);
+
+  const perChild = childIds.map((childId) => {
+    const cells: CustodyRhythmCell[] = [];
+    for (let i = -lead; i <= trail; i++) {
+      const dateKey = shiftDateKey(todayKey, i);
+      const winner = resolveCustodyOnDate(events, childId, dateKey);
+      cells.push({
+        dateKey,
+        responsibleUserId: winner?.responsible_user_id ?? null,
+        isToday: i === 0,
+      });
+    }
+    const streak = computeCustodyStreak(events, childId, todayKey);
+    let truncatedBefore = 0;
+    if (streak && streak.streakStartKey < windowStartKey) {
+      const a = new Date(streak.streakStartKey + 'T12:00:00').getTime();
+      const b = new Date(windowStartKey + 'T12:00:00').getTime();
+      truncatedBefore = Math.round((b - a) / 86400000);
+    }
+    return {
+      childId,
+      cells,
+      todayResponsibleId: cells[lead]?.responsibleUserId ?? null,
+      streakDays: streak?.streakDays ?? 0,
+      streakTotal: streak?.streakTotal ?? 0,
+      truncatedBefore,
+      sig: cells.map((c) => c.responsibleUserId ?? '·').join('|'),
+    };
+  });
+
+  const order: string[] = [];
+  const bySig = new Map<string, (typeof perChild)[number][]>();
+  for (const pc of perChild) {
+    const bucket = bySig.get(pc.sig);
+    if (bucket) bucket.push(pc);
+    else {
+      bySig.set(pc.sig, [pc]);
+      order.push(pc.sig);
+    }
+  }
+  return order.map((sig) => {
+    const group = bySig.get(sig)!;
+    const first = group[0];
+    return {
+      childIds: group.map((g) => g.childId),
+      cells: first.cells,
+      todayResponsibleId: first.todayResponsibleId,
+      streakDays: first.streakDays,
+      streakTotal: first.streakTotal,
+      truncatedBefore: first.truncatedBefore,
+    };
+  });
+}

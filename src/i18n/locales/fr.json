@@ -2974,6 +2974,7 @@
     "heroCustodyHandoffToOther": "ils vont chez {name} aujourd'hui",
     "heroYouPickUp": "Tu récupères",
     "heroRhythmLabel": "Rythme de la semaine",
+    "rhythmEarlierDays": "{count, plural, one {+# jour avant} other {+# jours avant}}",
     "editScheduleCta": "Modifier le planning",
     "heroFamilyTogether": "{kids} avec vous aujourd'hui",
     "heroFamilySingle": "{kids} avec toi aujourd'hui"

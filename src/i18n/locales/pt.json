@@ -2974,6 +2974,7 @@
     "heroCustodyHandoffToOther": "hoje vão para {name}",
     "heroYouPickUp": "Você pega",
     "heroRhythmLabel": "Ritmo da semana",
+    "rhythmEarlierDays": "{count, plural, one {+# dia antes} other {+# dias antes}}",
     "editScheduleCta": "Editar escala",
     "heroFamilyTogether": "{kids} com vocês hoje",
     "heroFamilySingle": "{kids} com você hoje"

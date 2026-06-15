@@ -4656,6 +4656,7 @@
     "heroCustodyHandoffToOther": "hoje vão para {name}",
     "heroYouPickUp": "Você pega",
     "heroRhythmLabel": "Ritmo da semana",
+    "rhythmEarlierDays": "{count, plural, one {+# dia antes} other {+# dias antes}}",
     "editScheduleCta": "Editar escala",
     "arcNow": "agora",
     "arcMorning": "manhã",

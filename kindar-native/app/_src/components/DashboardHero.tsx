@@ -18,6 +18,7 @@
  * adicionadas ao catálogo nativo — ver scripts/i18n/_keys-native-hero.json).
  */
 
+import { Fragment } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useI18n } from '../i18n';
@@ -36,7 +37,18 @@ export interface HeroCustodyContext {
   groups?: { name: string; isMe: boolean; colorHex: string; kids: string[] }[];
   streakDays: number;
   streakTotal: number;
-  week: { label: string; color: string | null; isToday: boolean }[];
+  /** @deprecated faixa fixa Seg→Dom — substituída por `rhythm` (ancorada no
+   *  bloco). Opcional só pra back-compat. */
+  week?: { label: string; color: string | null; isToday: boolean }[];
+  /** Ritmo da guarda ancorado no BLOCO (bug Barata 2026-06-15): janela rolante
+   *  ao redor de hoje; split = uma linha por filho/ritmo. */
+  rhythm?: {
+    childNames: string[];
+    truncatedBefore: number;
+    streakDays: number;
+    streakTotal: number;
+    days: { dateKey: string; colorHex: string | null; isMe: boolean; isToday: boolean }[];
+  }[];
   nextSwap: { dateLabel: string; dateKey: string; name: string; isMine: boolean } | null;
 }
 
@@ -82,6 +94,17 @@ export default function DashboardHero({
   const { t, locale } = useI18n();
   const router = useRouter();
   const kidsLabel = (names: string[]) => listFormat(names);
+
+  // Rótulos do ritmo (Regra Canônica 8 — locale-aware via Intl).
+  const fmtWeekday = (dateKey: string) => {
+    const d = new Date(dateKey + 'T12:00:00');
+    try {
+      return new Intl.DateTimeFormat(locale, { weekday: 'short' }).format(d).replace('.', '');
+    } catch {
+      return ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'][d.getDay()];
+    }
+  };
+  const dayNum = (dateKey: string) => Number(dateKey.slice(8, 10));
 
   const editLabel = custodyContext
     ? t('careRoutine.editScheduleCta')
@@ -186,36 +209,74 @@ export default function DashboardHero({
         <DayArc heroTimeline={heroTimeline} nowMin={nowMin} locale={locale} />
       ) : null}
 
-      {/* RITMO DA SEMANA (guarda) — semana colorida + contagem. */}
-      {custodyContext && custodyContext.week.length > 0 ? (
+      {/* RITMO DA GUARDA — faixa ANCORADA NO BLOCO (bug Barata 2026-06-15):
+          janela rolante ao redor de hoje em vez da semana fixa Seg→Dom, pra um
+          bloco que cruza a virada de semana não aparecer "1 de 5" enquanto o
+          texto diz "5 de 5". Guarda dividida ("Dois Fios") → uma linha por
+          filho. Mudança de cor entre dias = passagem (seta). */}
+      {custodyContext && custodyContext.rhythm && custodyContext.rhythm.length > 0 ? (
         <Pressable
           onPress={() => router.push('/calendario' as never)}
-          style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)', flexDirection: 'row', alignItems: 'center', gap: 12 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('careRoutine.heroRhythmLabel')}
+          style={{ marginTop: 14, paddingTop: 12, borderTopWidth: 1, borderTopColor: 'rgba(255,255,255,0.10)', gap: 10 }}
         >
-          <View style={{ flexDirection: 'row', gap: 4, flex: 1 }}>
-            {custodyContext.week.map((d, i) => (
-              <View
-                key={i}
-                style={{
-                  flex: 1,
-                  height: 20,
-                  borderRadius: 6,
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: d.color ? `${d.color}59` : 'rgba(255,255,255,0.06)',
-                  borderWidth: d.isToday ? 1 : 0,
-                  borderColor: TERRACOTA,
-                }}
-              >
-                <Text style={{ fontSize: 9, fontWeight: '600', color: d.color ? '#F4ECE1' : '#9A8A77' }}>{d.label}</Text>
+          {custodyContext.rhythm.map((row, ri) => {
+            const multi = custodyContext.rhythm!.length > 1;
+            return (
+              <View key={ri} style={{ gap: 6 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 14 }}>
+                  {multi ? (
+                    <Text style={{ fontSize: 11, fontWeight: '600', color: '#C9BCAA', flexShrink: 1 }} numberOfLines={1}>
+                      {kidsLabel(row.childNames)}
+                    </Text>
+                  ) : (
+                    <View />
+                  )}
+                  {row.streakTotal > 1 ? (
+                    <Text style={{ fontSize: 10.5, color: '#C9A98B' }}>
+                      {t('dashboard.consecutive', { current: row.streakDays, total: row.streakTotal })}
+                    </Text>
+                  ) : null}
+                </View>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                  {row.truncatedBefore > 0 ? (
+                    <Text
+                      style={{ fontSize: 10, color: '#8A7A6A', marginRight: 1 }}
+                      accessibilityLabel={t('careRoutine.rhythmEarlierDays', { count: row.truncatedBefore })}
+                    >
+                      +{row.truncatedBefore}
+                    </Text>
+                  ) : null}
+                  {row.days.map((d, i) => {
+                    const prev = i > 0 ? row.days[i - 1] : null;
+                    const boundary = prev != null && prev.colorHex !== d.colorHex;
+                    return (
+                      <Fragment key={d.dateKey}>
+                        {boundary ? <Text style={{ fontSize: 11, color: '#C9A98B', marginHorizontal: 1 }}>›</Text> : null}
+                        <View
+                          style={{
+                            flex: 1,
+                            borderRadius: 7,
+                            paddingVertical: 5,
+                            alignItems: 'center',
+                            backgroundColor: d.colorHex ? `${d.colorHex}59` : 'rgba(255,255,255,0.06)',
+                            borderWidth: d.isToday ? 1.5 : 0,
+                            borderColor: TERRACOTA,
+                          }}
+                        >
+                          <Text style={{ fontSize: 10, fontWeight: '600', color: d.colorHex ? '#F4ECE1' : '#9A8A77' }}>
+                            {fmtWeekday(d.dateKey)}
+                          </Text>
+                          <Text style={{ fontSize: 11, color: d.colorHex ? '#E9DECF' : '#776A5B' }}>{dayNum(d.dateKey)}</Text>
+                        </View>
+                      </Fragment>
+                    );
+                  })}
+                </View>
               </View>
-            ))}
-          </View>
-          {custodyContext.streakTotal > 1 ? (
-            <Text style={{ fontSize: 10.5, color: '#C9A98B' }}>
-              {t('dashboard.consecutive', { current: custodyContext.streakDays, total: custodyContext.streakTotal })}
-            </Text>
-          ) : null}
+            );
+          })}
         </Pressable>
       ) : null}
 

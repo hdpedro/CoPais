@@ -15,7 +15,7 @@
  * NÃO toca no Herói de Guarda — bloco aditivo.
  */
 
-import { useEffect, useState, useTransition } from "react";
+import { Fragment, useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
@@ -43,8 +43,19 @@ export interface HeroCustodyContext {
   groups?: { name: string; isMe: boolean; colorHex: string; kids: string[] }[];
   streakDays: number;
   streakTotal: number;
-  /** Ritmo da semana (restaura a Semana Colorida): 7 dias com cor da guarda. */
-  week: { label: string; color: string | null; isToday: boolean }[];
+  /** @deprecated Ritmo da semana fixo Seg→Dom — substituído por `rhythm`
+   *  (ancorado no bloco). Mantido opcional só pro protótipo /prototipo/heroi. */
+  week?: { label: string; color: string | null; isToday: boolean }[];
+  /** Ritmo da guarda ancorado no BLOCO (bug Barata 2026-06-15): janela rolante
+   *  ao redor de hoje, uma linha por ritmo (split = N linhas). Os "N de M"
+   *  ficam visíveis mesmo quando o bloco cruza a virada de semana. */
+  rhythm?: {
+    childNames: string[];
+    truncatedBefore: number;
+    streakDays: number;
+    streakTotal: number;
+    days: { dateKey: string; colorHex: string | null; isMe: boolean; isToday: boolean }[];
+  }[];
   nextSwap: { dateLabel: string; dateKey: string; name: string; isMine: boolean } | null;
 }
 
@@ -107,6 +118,16 @@ export default function RoutineTodayCard({
 }: RoutineTodayCardProps) {
   const { t, locale } = useI18n();
   const intlLocale = INTL_LOCALE_MAP[locale] ?? "pt-BR";
+  // Rótulos do ritmo de guarda (Regra Canônica 8 — locale-aware via Intl).
+  const fmtRhythmWeekday = (dateKey: string) => {
+    const d = new Date(dateKey + "T12:00:00");
+    try {
+      return new Intl.DateTimeFormat(intlLocale, { weekday: "short" }).format(d).replace(".", "");
+    } catch {
+      return ["dom", "seg", "ter", "qua", "qui", "sex", "sáb"][d.getDay()];
+    }
+  };
+  const rhythmDayNum = (dateKey: string) => Number(dateKey.slice(8, 10));
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState("");
@@ -804,37 +825,79 @@ export default function RoutineTodayCard({
         </div>
       )}
 
-      {/* RITMO DA SEMANA + contagem — restaura a Semana Colorida (decisão do
-          dono): 7 dias na cor da guarda, hoje com anel, "3 de 7 consecutivos".
-          Clicável → calendário (onde vivem weekends/saldo/escala). */}
-      {custodyContext && custodyContext.week.length > 0 && (
+      {/* RITMO DA GUARDA — faixa ANCORADA NO BLOCO (bug Barata 2026-06-15):
+          janela rolante ao redor de hoje em vez da semana fixa Seg→Dom, pra um
+          bloco que cruza a virada de semana não aparecer "1 de 5" enquanto o
+          texto diz "5 de 5". Guarda dividida ("Dois Fios") → uma linha por
+          filho. Mudança de cor entre dias = passagem (›). Clicável → calendário. */}
+      {custodyContext && custodyContext.rhythm && custodyContext.rhythm.length > 0 && (
         <Link
           href="/calendario"
           prefetch={false}
           aria-label={t("careRoutine.heroRhythmLabel")}
-          className="mt-3.5 pt-3 border-t border-white/10 flex items-center gap-3 group"
+          className="mt-3.5 pt-3 border-t border-white/10 flex flex-col gap-2.5 group"
         >
-          <span className="flex gap-1 flex-1 min-w-0">
-            {custodyContext.week.map((d, i) => (
-              <span
-                key={i}
-                className={`flex-1 h-5 rounded-md flex items-center justify-center text-[9px] font-semibold transition-opacity group-hover:opacity-85 ${
-                  d.isToday ? "ring-1 ring-[#E7AE80]" : ""
-                }`}
-                style={{
-                  backgroundColor: d.color ? `${d.color}59` : "rgba(255,255,255,0.06)",
-                  color: d.color ? "#F4ECE1" : "#9A8A77",
-                }}
-              >
-                {d.label}
-              </span>
-            ))}
-          </span>
-          {custodyContext.streakTotal > 1 && (
-            <span className="text-[10.5px] text-[#C9A98B] flex-shrink-0">
-              {t("dashboard.consecutive", { current: custodyContext.streakDays, total: custodyContext.streakTotal })}
-            </span>
-          )}
+          {custodyContext.rhythm.map((row, ri) => {
+            const multi = custodyContext.rhythm!.length > 1;
+            return (
+              <div key={ri} className="flex flex-col gap-1.5">
+                {(multi || row.streakTotal > 1) && (
+                  <div className="flex items-center justify-between min-h-[14px]">
+                    {multi ? (
+                      <span className="text-[11px] font-semibold text-[#C9BCAA] truncate">
+                        {row.childNames.join(" e ")}
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    {row.streakTotal > 1 && (
+                      <span className="text-[10.5px] text-[#C9A98B] flex-shrink-0">
+                        {t("dashboard.consecutive", { current: row.streakDays, total: row.streakTotal })}
+                      </span>
+                    )}
+                  </div>
+                )}
+                <span className="flex items-center gap-[3px]">
+                  {row.truncatedBefore > 0 && (
+                    <span
+                      className="text-[10px] text-[#8A7A6A] mr-0.5"
+                      aria-label={t("careRoutine.rhythmEarlierDays", { count: row.truncatedBefore })}
+                    >
+                      +{row.truncatedBefore}
+                    </span>
+                  )}
+                  {row.days.map((d, i) => {
+                    const prev = i > 0 ? row.days[i - 1] : null;
+                    const boundary = prev != null && prev.colorHex !== d.colorHex;
+                    return (
+                      <Fragment key={d.dateKey}>
+                        {boundary && <span className="text-[11px] text-[#C9A98B] mx-px">›</span>}
+                        <span
+                          className={`flex-1 rounded-md py-[5px] flex flex-col items-center transition-opacity group-hover:opacity-85 ${
+                            d.isToday ? "ring-[1.5px] ring-[#E7AE80]" : ""
+                          }`}
+                          style={{ backgroundColor: d.colorHex ? `${d.colorHex}59` : "rgba(255,255,255,0.06)" }}
+                        >
+                          <span
+                            className="text-[10px] font-semibold leading-none"
+                            style={{ color: d.colorHex ? "#F4ECE1" : "#9A8A77" }}
+                          >
+                            {fmtRhythmWeekday(d.dateKey)}
+                          </span>
+                          <span
+                            className="text-[11px] leading-tight mt-0.5"
+                            style={{ color: d.colorHex ? "#E9DECF" : "#776A5B" }}
+                          >
+                            {rhythmDayNum(d.dateKey)}
+                          </span>
+                        </span>
+                      </Fragment>
+                    );
+                  })}
+                </span>
+              </div>
+            );
+          })}
         </Link>
       )}
 

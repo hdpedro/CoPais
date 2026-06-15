@@ -17,6 +17,7 @@ import {
   resolveTodayCustody,
   findNextCustodyHandover,
   computeCustodyStreak,
+  buildCustodyRhythm,
   type CustodyEvent as CustodyEventInput,
 } from '../lib/custody-resolve';
 // Porte do dashboard novo (Arco do Dia + Guarda universal + Dia em Família).
@@ -561,29 +562,35 @@ export function useDashboard() {
               };
             })
           : undefined;
-        // Semana colorida (Seg..Dom): resolve a guarda por dia. NOTA: a janela
-        // de custody é hoje..+60d → dias ANTERIORES a hoje nesta semana podem
-        // ficar sem cor (gap conhecido; o streak "N de M" segue correto).
-        const weekLabels = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
-        const nowD = new Date(today + 'T12:00:00');
-        const mondayIdx = (nowD.getDay() + 6) % 7;
-        const monday = new Date(nowD);
-        monday.setDate(nowD.getDate() - mondayIdx);
-        const firstChildId = dedupedToday[0]?.child_id ?? null;
-        const week = weekLabels.map((label, i) => {
-          const d = new Date(monday);
-          d.setDate(monday.getDate() + i);
-          const winners = resolveTodayCustody(allCustodyForResolve, formatDateKey(d));
-          let color: string | null = null;
-          for (const w of winners.values()) {
-            if (firstChildId == null || (w as any).child_id === firstChildId) {
-              const m = memberList.find((mm: any) => mm.user_id === (w as any).responsible_user_id);
-              color = m?.color ?? null;
-              break;
-            }
+        // Ritmo da guarda ANCORADO NO BLOCO (bug Barata 2026-06-15): substitui
+        // a faixa fixa Seg→Dom, que não conseguia mostrar um bloco cruzando a
+        // virada de semana (1 de 5 visível enquanto o texto dizia "5 de 5").
+        // Janela rolante por filho; guarda dividida ("Dois Fios") → N linhas.
+        const custodyChildIds = [
+          ...new Set(dedupedToday.map((e: any) => e.child_id).filter(Boolean) as string[]),
+        ];
+        const childNameById = new Map<string, string>();
+        for (const e of dedupedToday as any[]) {
+          if (e.child_id && !childNameById.has(e.child_id)) {
+            childNameById.set(e.child_id, getDisplayName(e.children?.full_name));
           }
-          return { label, color, isToday: i === mondayIdx };
-        });
+        }
+        const colorOfUser = (uid: string | null): string | null => {
+          if (!uid) return null;
+          return memberList.find((mm: any) => mm.user_id === uid)?.color ?? null;
+        };
+        const rhythm = buildCustodyRhythm(allCustodyForResolve, custodyChildIds, today).map((r) => ({
+          childNames: r.childIds.map((id) => childNameById.get(id) ?? '').filter(Boolean),
+          truncatedBefore: r.truncatedBefore,
+          streakDays: r.streakDays,
+          streakTotal: r.streakTotal,
+          days: r.cells.map((c) => ({
+            dateKey: c.dateKey,
+            colorHex: colorOfUser(c.responsibleUserId),
+            isMe: c.responsibleUserId === userId,
+            isToday: c.isToday,
+          })),
+        }));
         custodyContext = {
           mode: isSplit ? 'split' : heroKids.length === 1 ? 'single' : 'together',
           withName: primaryChild.responsibleName,
@@ -594,7 +601,7 @@ export function useDashboard() {
           groups,
           streakDays,
           streakTotal,
-          week,
+          rhythm,
           nextSwap: handover
             ? { dateLabel: nextSwapLabel ?? '', dateKey: handover.dateKey, name: handoffName, isMine: handover.event.responsible_user_id === userId }
             : null,

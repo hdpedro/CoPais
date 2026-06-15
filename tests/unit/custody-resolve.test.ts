@@ -17,6 +17,7 @@ import {
   findNextCustodyHandover,
   resolveTodayCustody,
   computeCustodyStreak,
+  buildCustodyRhythm,
   type CustodyEvent,
 } from "@/lib/custody-resolve";
 
@@ -490,6 +491,115 @@ describe("custody-resolve — cenários adicionais (correção definitiva)", () 
     const h = findNextCustodyHandover(events, "c1", "2026-05-14", "barata");
     expect(h!.dateKey).toBe("2026-05-18");
     expect(h!.event.responsible_user_id).toBe("amanda");
+  });
+});
+
+describe("buildCustodyRhythm — faixa ancorada no bloco (bug Barata 2026-06-15)", () => {
+  const ids = (rows: ReturnType<typeof buildCustodyRhythm>) => rows.map((r) => r.childIds);
+  const resps = (cells: { responsibleUserId: string | null }[]) =>
+    cells.map((c) => c.responsibleUserId);
+
+  it("CENÁRIO BARATA: bloco qui 11→seg 15, hoje seg 15 (último dia) → 5 de 5 visível na janela", () => {
+    // Amanda tem Bernardo de qui 11 a seg 15 (5 dias), depois Henrique assume.
+    const events: CustodyEvent[] = [
+      ev({ id: "amanda", custody_type: "regular", start_date: "2026-06-11", end_date: "2026-06-15", responsible_user_id: "amanda" }),
+      ev({ id: "henr", custody_type: "regular", start_date: "2026-06-16", end_date: "2026-06-21", responsible_user_id: "henrique" }),
+    ];
+    const rows = buildCustodyRhythm(events, ["c1"], "2026-06-15");
+    expect(rows).toHaveLength(1);
+    const row = rows[0];
+    // Janela lead=4 trail=2 → qui 11 .. qua 17 (7 células).
+    expect(row.cells).toHaveLength(7);
+    expect(row.cells[0].dateKey).toBe("2026-06-11");
+    expect(row.cells[6].dateKey).toBe("2026-06-17");
+    // Os 5 dias da Amanda (qui-seg) seguidos da passagem pro Henrique (ter-qua).
+    expect(resps(row.cells)).toEqual([
+      "amanda", "amanda", "amanda", "amanda", "amanda", "henrique", "henrique",
+    ]);
+    // Hoje é a 5ª célula (seg 15), último dia → 5 de 5.
+    expect(row.cells[4].isToday).toBe(true);
+    expect(row.streakDays).toBe(5);
+    expect(row.streakTotal).toBe(5);
+    // Bloco começa exatamente na borda da janela → nada truncado.
+    expect(row.truncatedBefore).toBe(0);
+    expect(row.todayResponsibleId).toBe("amanda");
+  });
+
+  it("semana A/B (7/7): hoje no meio → janela mostra parte do bloco + truncado", () => {
+    // Bloco de 7 dias (qua 10 → ter 16) com Henrique; hoje sáb 13 (dia 4 de 7).
+    const events: CustodyEvent[] = [
+      ev({ id: "h", custody_type: "regular", start_date: "2026-06-10", end_date: "2026-06-16", responsible_user_id: "henrique" }),
+      ev({ id: "a", custody_type: "regular", start_date: "2026-06-17", end_date: "2026-06-23", responsible_user_id: "amanda" }),
+    ];
+    const rows = buildCustodyRhythm(events, ["c1"], "2026-06-13");
+    const row = rows[0];
+    expect(row.streakDays).toBe(4);
+    expect(row.streakTotal).toBe(7);
+    // Janela: ter 9 .. seg 15. Bloco começou qua 10 = windowStart+1 → nada
+    // truncado à esquerda (windowStart ter 9 < streakStart qua 10).
+    expect(row.truncatedBefore).toBe(0);
+    // ter 9 cai antes do bloco → responsável anterior (null, sem evento).
+    expect(row.cells[0].responsibleUserId).toBeNull();
+  });
+
+  it("bloco longo (fim de semana alternado, 12 dias): hoje no fim → truncatedBefore reporta o excedente", () => {
+    // Henrique cobre 12 dias seguidos (01→12 jun); hoje é o 12º (sex 12).
+    const events: CustodyEvent[] = [
+      ev({ id: "h", custody_type: "regular", start_date: "2026-06-01", end_date: "2026-06-12", responsible_user_id: "henrique" }),
+      ev({ id: "a", custody_type: "regular", start_date: "2026-06-13", end_date: "2026-06-14", responsible_user_id: "amanda" }),
+    ];
+    const rows = buildCustodyRhythm(events, ["c1"], "2026-06-12");
+    const row = rows[0];
+    expect(row.streakTotal).toBe(12);
+    // Janela começa seg 8 (today-4). Bloco começou 01 jun → 7 dias à esquerda.
+    expect(row.truncatedBefore).toBe(7);
+  });
+
+  it("SPLIT (Dois Fios): filhos com ritmos diferentes viram linhas separadas", () => {
+    // Bernardo com Amanda, Maria com Henrique — ritmos opostos.
+    const events: CustodyEvent[] = [
+      ev({ id: "b", child_id: "bernardo", custody_type: "regular", start_date: "2026-06-11", end_date: "2026-06-15", responsible_user_id: "amanda" }),
+      ev({ id: "m", child_id: "maria", custody_type: "regular", start_date: "2026-06-11", end_date: "2026-06-15", responsible_user_id: "henrique" }),
+    ];
+    const rows = buildCustodyRhythm(events, ["bernardo", "maria"], "2026-06-15");
+    expect(rows).toHaveLength(2);
+    expect(ids(rows)).toEqual([["bernardo"], ["maria"]]);
+    expect(rows[0].todayResponsibleId).toBe("amanda");
+    expect(rows[1].todayResponsibleId).toBe("henrique");
+  });
+
+  it("SPLIT: filhos com ritmo IDÊNTICO são agrupados numa única linha", () => {
+    // Bernardo e Maria ambos com Amanda, mesmo bloco → 1 linha com os 2.
+    const events: CustodyEvent[] = [
+      ev({ id: "b", child_id: "bernardo", custody_type: "regular", start_date: "2026-06-11", end_date: "2026-06-15", responsible_user_id: "amanda" }),
+      ev({ id: "m", child_id: "maria", custody_type: "regular", start_date: "2026-06-11", end_date: "2026-06-15", responsible_user_id: "amanda" }),
+    ];
+    const rows = buildCustodyRhythm(events, ["bernardo", "maria"], "2026-06-15");
+    expect(rows).toHaveLength(1);
+    expect(rows[0].childIds.sort()).toEqual(["bernardo", "maria"]);
+  });
+
+  it("swap no meio da janela aparece como mudança de responsável (ritmo reflete o plano real)", () => {
+    // Amanda cobre a semana, mas há swap pro Henrique no domingo 14.
+    const events: CustodyEvent[] = [
+      ev({ id: "reg", custody_type: "regular", start_date: "2026-06-10", end_date: "2026-06-20", responsible_user_id: "amanda" }),
+      ev({ id: "swp", custody_type: "swap", start_date: "2026-06-14", end_date: "2026-06-14", responsible_user_id: "henrique" }),
+    ];
+    const rows = buildCustodyRhythm(events, ["c1"], "2026-06-15");
+    const map = Object.fromEntries(rows[0].cells.map((c) => [c.dateKey, c.responsibleUserId]));
+    expect(map["2026-06-13"]).toBe("amanda");
+    expect(map["2026-06-14"]).toBe("henrique"); // swap pontual
+    expect(map["2026-06-15"]).toBe("amanda");
+  });
+
+  it("lead/trail customizáveis controlam o tamanho da janela", () => {
+    const events: CustodyEvent[] = [
+      ev({ id: "a", custody_type: "regular", start_date: "2026-06-01", end_date: "2026-06-30", responsible_user_id: "amanda" }),
+    ];
+    const rows = buildCustodyRhythm(events, ["c1"], "2026-06-15", { lead: 2, trail: 1 });
+    expect(rows[0].cells).toHaveLength(4);
+    expect(rows[0].cells[0].dateKey).toBe("2026-06-13");
+    expect(rows[0].cells[3].dateKey).toBe("2026-06-16");
   });
 });
 

@@ -9,6 +9,7 @@ import {
   resolveCustodyOnDate,
   findNextCustodyHandover,
   computeCustodyStreak,
+  buildCustodyRhythm,
   type CustodyEvent as CustodyEventRow,
 } from "@/lib/custody-resolve";
 import { getCachedProfileByUser, getCachedMembers, getCachedChildren } from "@/lib/cached-queries";
@@ -1148,13 +1149,36 @@ export default async function DashboardPage() {
   // dom."), ritmo da semana (RESTAURA a Semana Colorida), contagem 3 de 7,
   // próxima troca com "Você pega", handoff no dia de troca. Contrato de
   // não-regressão: preserva tudo do herói de guarda antigo.
+  // Ritmo da guarda ANCORADO NO BLOCO (bug Barata 2026-06-15): substitui a
+  // faixa fixa Seg→Dom, que não conseguia mostrar um bloco cruzando a virada
+  // de semana (1 de 5 visível enquanto o texto dizia "5 de 5"). Janela rolante
+  // por filho; guarda dividida ("Dois Fios") → uma linha por filho/ritmo.
+  const childFirstNameById = new Map<string, string>();
+  for (const c of (children || [])) {
+    const id = (c as { id: string }).id;
+    if (todayCustodyByChild[id]) {
+      childFirstNameById.set(id, (c as { full_name?: string | null }).full_name?.split(" ")[0] || "");
+    }
+  }
+  const custodyRhythm = buildCustodyRhythm(
+    safeAllCustody as CustodyEventRow[],
+    Object.keys(todayCustodyByChild),
+    today,
+  ).map((r) => ({
+    childNames: r.childIds.map((id) => childFirstNameById.get(id) ?? "").filter(Boolean),
+    truncatedBefore: r.truncatedBefore,
+    streakDays: r.streakDays,
+    streakTotal: r.streakTotal,
+    days: r.cells.map((c) => ({
+      dateKey: c.dateKey,
+      colorHex: c.responsibleUserId ? (parentColors[c.responsibleUserId]?.color ?? null) : null,
+      isMe: c.responsibleUserId === user.id,
+      isToday: c.isToday,
+    })),
+  }));
+
   const custodyContextProp: DashboardClientProps["custodyContext"] = (() => {
     if (!custodyHeroProp || !hasTodayCustody) return null;
-    const week = weekDaysData.map((d) => ({
-      label: d.label,
-      color: weekCustodyEntries.find((e) => e.dateKey === d.dateKey)?.color ?? null,
-      isToday: d.isToday,
-    }));
     const nextSwap = nextSwapEvent
       ? {
           dateLabel: formatSwapDate(nextSwapEvent.start_date),
@@ -1190,7 +1214,7 @@ export default async function DashboardPage() {
         })),
         streakDays,
         streakTotal,
-        week,
+        rhythm: custodyRhythm,
         nextSwap,
       };
     }
@@ -1203,7 +1227,7 @@ export default async function DashboardPage() {
       handoff,
       streakDays,
       streakTotal,
-      week,
+      rhythm: custodyRhythm,
       nextSwap,
     };
   })();
