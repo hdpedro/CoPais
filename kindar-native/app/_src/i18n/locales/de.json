@@ -2021,7 +2021,10 @@
     "unknownType": "Unbekannter Typ",
     "previewNotAvailable": "Vorschau für diesen Dateityp nicht verfügbar.",
     "downloadFile": "Datei herunterladen",
-    "uploadedBy": "Hochgeladen von"
+    "uploadedBy": "Hochgeladen von",
+    "open": "Öffnen",
+    "openFile": "Datei öffnen",
+    "tapToOpen": "Zum Ansehen auf Öffnen tippen"
   },
   "docList": {
     "noDocuments": "Noch keine Dokumente hochgeladen."
@@ -3622,7 +3625,7 @@
     "topicSafety": "Sicherheit"
   },
   "healthExport": {
-    "screenTitle": "Gesundheitsexport",
+    "screenTitle": "Gesundheitsverlauf",
     "shareA11yLabel": "Export teilen",
     "shareA11yHint": "Öffnet die App-Auswahl, um den Gesundheitsbericht zu senden",
     "shareSummary": "Zusammenfassung teilen",

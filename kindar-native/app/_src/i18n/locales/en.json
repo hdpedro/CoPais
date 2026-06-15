@@ -2021,7 +2021,10 @@
     "unknownType": "Unknown type",
     "previewNotAvailable": "Preview not available for this file type.",
     "downloadFile": "Download file",
-    "uploadedBy": "Uploaded by"
+    "uploadedBy": "Uploaded by",
+    "open": "Open",
+    "openFile": "Open file",
+    "tapToOpen": "Tap Open to view"
   },
   "docList": {
     "noDocuments": "No documents uploaded yet."
@@ -3622,7 +3625,7 @@
     "topicSafety": "Safety"
   },
   "healthExport": {
-    "screenTitle": "Health export",
+    "screenTitle": "Health history",
     "shareA11yLabel": "Share export",
     "shareA11yHint": "Opens the app picker to send the health report",
     "shareSummary": "Share summary",

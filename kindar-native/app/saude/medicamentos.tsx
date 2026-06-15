@@ -343,7 +343,7 @@ export default function MedicamentosScreen() {
             <TextInput value={frequency} onChangeText={setFrequency} placeholder={t('medications.frequencyPlaceholder')} placeholderTextColor={colors.textDim}
               style={{ flex: 1, backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text }} />
           </View>
-          <TextInput value={reason} onChangeText={setReason} placeholder={t('health.reasonOptional')} placeholderTextColor={colors.textDim}
+          <TextInput value={reason} onChangeText={setReason} placeholder={t('health.reasonPlaceholder')} placeholderTextColor={colors.textDim}
             style={{ backgroundColor: colors.bgSurface, borderRadius: radius.md, padding: spacing.md, fontSize: font.sizes.md, color: colors.text, marginBottom: spacing.md }} />
           <PrimaryButton
             label={editingId ? t('medications.saveChanges') : t('empty.medicamentos.actionLabel')}

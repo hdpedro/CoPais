@@ -2021,7 +2021,10 @@
     "unknownType": "Type inconnu",
     "previewNotAvailable": "Aperçu non disponible pour ce type de fichier.",
     "downloadFile": "Télécharger le fichier",
-    "uploadedBy": "Envoyé par"
+    "uploadedBy": "Envoyé par",
+    "open": "Ouvrir",
+    "openFile": "Ouvrir le fichier",
+    "tapToOpen": "Touchez Ouvrir pour afficher"
   },
   "docList": {
     "noDocuments": "Aucun document envoyé pour l'instant."
@@ -3622,7 +3625,7 @@
     "topicSafety": "Sécurité"
   },
   "healthExport": {
-    "screenTitle": "Export santé",
+    "screenTitle": "Historique de santé",
     "shareA11yLabel": "Partager l'export",
     "shareA11yHint": "Ouvre le sélecteur d'applications pour envoyer le rapport de santé",
     "shareSummary": "Partager le résumé",
