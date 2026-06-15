@@ -18,6 +18,7 @@ import { apiFetch } from 'src/lib/api-fetch';
 import { useAuth } from 'src/store/auth';
 import { listInvitations, cancelInvitation, type Invitation } from 'src/services/invitations';
 import { useCachedFetch } from 'src/lib/use-cached-fetch';
+import { cacheClear } from 'src/services/offline';
 import { reportError } from 'src/lib/error-reporter';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { useToast } from 'src/components/ui/ToastProvider';
@@ -145,6 +146,10 @@ export default function FamiliaScreen() {
     } else {
       toast.show({ message: t('familiaScreen.arrangementSaved'), variant: 'success' });
       load();
+      // Invalida o cache do dashboard: o herói + painel de rotina dependem do
+      // arrangement (rotating vs together/single). Sem isso, o dashboard servia
+      // o cache antigo e a mudança "não atualizava" até o cache expirar.
+      cacheClear(`dashboard_${activeGroup.groupId}`);
     }
   };
 

@@ -5,7 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  Linking,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
@@ -18,6 +17,7 @@ import {
 } from '../../services/children';
 import { deleteDocument, DOCUMENT_CATEGORIES } from '../../services/documents';
 import EmptyState from '../ui/EmptyState';
+import DocumentViewerModal from './DocumentViewerModal';
 import { useToast } from '../ui/ToastProvider';
 import { useI18n } from '../../i18n';
 import { useIntl } from '../../lib/intl';
@@ -55,15 +55,13 @@ export default function TabDocumentos({
   const intl = useIntl();
   const toast = useToast();
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [viewingDoc, setViewingDoc] = useState<ChildDocument | null>(null);
 
-  async function handleOpen(doc: ChildDocument) {
+  function handleOpen(doc: ChildDocument) {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    const { getSignedFileUrl } = await import('../../services/storage');
-    const signed = await getSignedFileUrl('documents', doc.file_url, 3600);
-    const target = signed || doc.file_url;
-    Linking.openURL(target).catch(() => {
-      toast.show({ message: t('toasts.common.fallbackError'), variant: 'error' });
-    });
+    // Abre o visualizador in-app (imagem inline / PDF/Word via in-app
+    // browser) em vez de jogar pro navegador externo via Linking.
+    setViewingDoc(doc);
   }
 
   function handleDelete(doc: ChildDocument) {
@@ -92,6 +90,7 @@ export default function TabDocumentos({
   }
 
   return (
+    <>
     <ScrollView
       contentContainerStyle={{ padding: spacing.lg, paddingBottom: spacing['3xl'] }}
       showsVerticalScrollIndicator={false}
@@ -242,5 +241,7 @@ export default function TabDocumentos({
         </Text>
       ) : null}
     </ScrollView>
+    <DocumentViewerModal doc={viewingDoc} onClose={() => setViewingDoc(null)} />
+    </>
   );
 }

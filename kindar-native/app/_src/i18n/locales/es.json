@@ -2021,7 +2021,10 @@
     "unknownType": "Tipo desconocido",
     "previewNotAvailable": "Vista previa no disponible para este tipo de archivo.",
     "downloadFile": "Descargar archivo",
-    "uploadedBy": "Subido por"
+    "uploadedBy": "Subido por",
+    "open": "Abrir",
+    "openFile": "Abrir archivo",
+    "tapToOpen": "Toca Abrir para ver"
   },
   "docList": {
     "noDocuments": "Ningún documento subido aún."
@@ -3622,7 +3625,7 @@
     "topicSafety": "Seguridad"
   },
   "healthExport": {
-    "screenTitle": "Exportar salud",
+    "screenTitle": "Historial de salud",
     "shareA11yLabel": "Compartir exportación",
     "shareA11yHint": "Abre el selector de apps para enviar el informe de salud",
     "shareSummary": "Compartir resumen",

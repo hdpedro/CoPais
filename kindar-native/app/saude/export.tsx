@@ -43,6 +43,19 @@ function formatDate(iso: string | null): string {
   return fmtDate(iso.slice(0, 10), toIntlLocale(useI18n.getState().locale));
 }
 
+// Severidade da alergia vem do enum DB em inglês (mild/moderate/severe).
+// Mapeia pro rótulo localizado — antes era renderizada crua ("severe").
+const SEVERITY_LABEL_KEY: Record<string, string> = {
+  mild: 'health.severityMild',
+  moderate: 'health.severityModerate',
+  severe: 'health.severityGrave',
+};
+function severityLabel(sev: string | null, t: (k: string) => string): string {
+  if (!sev) return '';
+  const key = SEVERITY_LABEL_KEY[sev];
+  return key ? t(key) : sev;
+}
+
 function calcAgeYears(birthDate: string): number {
   const bd = new Date(birthDate + 'T12:00:00');
   const now = new Date();
@@ -132,7 +145,7 @@ export default function ExportScreen() {
 
     if (data.allergies.length > 0) {
       lines.push(`*${t('healthExport.allergiesHeader', { count: data.allergies.length })}*`);
-      data.allergies.forEach(a => lines.push(`• ${a.name}${a.severity ? ` — ${a.severity}` : ''}`));
+      data.allergies.forEach(a => lines.push(`• ${a.name}${a.severity ? ` — ${severityLabel(a.severity, t)}` : ''}`));
       lines.push('');
     }
 
@@ -239,7 +252,7 @@ export default function ExportScreen() {
 
         <Section title={t('healthExport.allergiesSection', { count: data.allergies.length })}>
           {data.allergies.length === 0 ? <Empty>{t('health.emergency.allergiesNone')}</Empty> : data.allergies.map((a, i) => (
-            <Row key={i} label={a.name} value={a.severity || ''} />
+            <Row key={i} label={a.name} value={severityLabel(a.severity, t)} />
           ))}
         </Section>
 
