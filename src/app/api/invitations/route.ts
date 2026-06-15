@@ -14,6 +14,7 @@ import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { markQuestStep } from "@/actions/onboarding-quest";
 import { notifyCoparents } from "@/lib/services/notify-coparents";
+import { sendInvitationEmail } from "@/lib/emails/invitation";
 
 // Mantém paridade com `src/actions/invitation.ts:createInvitation` e com a UI
 // de convite (PWA `/onboarding/convite` + native `onboarding/convite.tsx`),
@@ -85,6 +86,21 @@ export async function POST(request: Request) {
   // route 500 -> o app mostrava (e crashava ao renderizar) um erro mesmo com o
   // convite JÁ criado. Envolve tudo num try/catch e sempre retorna success.
   try {
+    // Envia o e-mail de convite ao convidado (best-effort, primeiro no try pra
+    // não ser pulado se um side-effect posterior lançar). Antes o convidado não
+    // recebia nada — só o link compartilhável manual (bug Murilo 2026-06-15).
+    const [{ data: inviterProfile }, { data: group }] = await Promise.all([
+      admin.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+      admin.from("coparenting_groups").select("name").eq("id", groupId).maybeSingle(),
+    ]);
+    await sendInvitationEmail({
+      to: email,
+      inviterName: inviterProfile?.full_name ?? null,
+      groupName: group?.name ?? null,
+      role,
+      token: invitation.token,
+    });
+
     captureServerEvent(user.id, "invitation_sent", {
       group_id: groupId,
       role,

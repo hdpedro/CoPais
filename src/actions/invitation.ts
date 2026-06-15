@@ -6,6 +6,7 @@ import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { markQuestStep } from "@/actions/onboarding-quest";
 import { notifyCoparents } from "@/lib/services/notify-coparents";
+import { sendInvitationEmail } from "@/lib/emails/invitation";
 
 export async function createInvitation(formData: FormData) {
   const supabase = await createClient();
@@ -49,6 +50,20 @@ export async function createInvitation(formData: FormData) {
   if (error) {
     redirect(returnTo + "?error=" + encodeURIComponent(error.message));
   }
+
+  // E-mail de convite ao convidado (best-effort, nunca lança). Antes o
+  // convidado não recebia nada — só o link compartilhável (bug Murilo 15/06).
+  const [{ data: inviterProfile }, { data: group }] = await Promise.all([
+    supabase.from("profiles").select("full_name").eq("id", user.id).maybeSingle(),
+    supabase.from("coparenting_groups").select("name").eq("id", groupId).maybeSingle(),
+  ]);
+  await sendInvitationEmail({
+    to: email,
+    inviterName: inviterProfile?.full_name ?? null,
+    groupName: group?.name ?? null,
+    role,
+    token: invitation.token,
+  });
 
   captureServerEvent(user.id, "invitation_sent", {
     group_id: groupId,
