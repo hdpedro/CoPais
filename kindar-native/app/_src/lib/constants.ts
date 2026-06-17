@@ -78,6 +78,8 @@ export const CHECKIN_CATEGORIES = [
   { value: 'mood', icon: '😊' },
   { value: 'health', icon: '🏥' },
   { value: 'hygiene', icon: '🧼' },
+  { value: 'activity', icon: '⚽' },
+  { value: 'school', icon: '🎒' },
   { value: 'other', icon: '📝' },
 ] as const;
 

@@ -11,6 +11,7 @@ import {
 import * as Haptics from 'expo-haptics';
 import { supabase } from 'src/lib/supabase';
 import { safeWrite } from 'src/services/offline';
+import { reportError } from 'src/lib/error-reporter';
 import { notifyAction } from 'src/services/notify';
 import { useAuth } from 'src/store/auth';
 import { getDisplayName, CHECKIN_CATEGORIES } from 'src/lib/constants';
@@ -35,6 +36,7 @@ interface CheckinItem {
 const CAT_LABEL_KEYS: Record<string, string> = {
   screen_time: 'checkin.catScreenTime', food: 'checkin.catFood', sleep: 'checkin.catSleep',
   mood: 'checkin.catMood', health: 'checkin.catHealth', hygiene: 'checkin.catHygiene',
+  activity: 'checkin.catActivity', school: 'checkin.catSchool',
   other: 'checkin.catOther',
 };
 
@@ -108,7 +110,19 @@ export default function CheckinScreen() {
       await load();
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      toast.show({ message: t('toasts.common.saveFailed'), variant: 'error' });
+      // Surface a causa provável em vez do "Falha ao salvar" genérico. RLS/auth
+      // (ex: sessão expirada → auth.uid() null → escrita rejeitada) é o caso mais
+      // comum; nunca vaza o erro técnico cru (Regra Canônica 5). Loga o detalhe
+      // pra telemetria (antes invisível — nenhum report no app_errors).
+      const raw = result.error || '';
+      const isAuth = /row-level security|jwt|not authenticated|permission denied|session|sess/i.test(raw);
+      toast.show({
+        message: isAuth ? t('toasts.common.sessionExpired') : t('toasts.common.saveFailed'),
+        variant: 'error',
+      });
+      reportError(new Error(`checkin save failed: ${raw}`), {
+        metadata: { event: 'checkin_save_failed', table: 'daily_checkins' },
+      });
     }
   }
 
