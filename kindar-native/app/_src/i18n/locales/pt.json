@@ -1565,6 +1565,8 @@
     "catMood": "Humor",
     "catHealth": "Saúde",
     "catHygiene": "Higiene",
+    "catActivity": "Atividade",
+    "catSchool": "Escola",
     "catOther": "Outro"
   },
   "invite": {

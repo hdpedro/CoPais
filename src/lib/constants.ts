@@ -59,6 +59,7 @@ export const CHECKIN_CATEGORIES = [
   { value: "sleep", label: "Sono", icon: "😴" },
   { value: "mood", label: "Humor", icon: "😊" },
   { value: "health", label: "Saúde", icon: "🏥" },
+  { value: "hygiene", label: "Higiene", icon: "🧼" },
   { value: "activity", label: "Atividade", icon: "⚽" },
   { value: "school", label: "Escola", icon: "🎒" },
   { value: "other", label: "Outro", icon: "📝" },

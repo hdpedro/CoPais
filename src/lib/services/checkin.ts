@@ -14,6 +14,7 @@ const VALID_CATEGORIES = [
   "sleep",
   "mood",
   "health",
+  "hygiene",
   "activity",
   "school",
   "other",

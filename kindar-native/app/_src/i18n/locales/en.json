@@ -1565,6 +1565,8 @@
     "catMood": "Mood",
     "catHealth": "Health",
     "catHygiene": "Hygiene",
+    "catActivity": "Activity",
+    "catSchool": "School",
     "catOther": "Other"
   },
   "invite": {
