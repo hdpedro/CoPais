@@ -243,6 +243,15 @@ export default function ChatRoomScreen() {
         let msgsQuery = supabase
           .from('chat_messages')
           .select('id, text, sender_id, created_at, image_url, reply_to_id, read_by')
+          // CRÍTICO: escopar ao grupo atual. O PWA (api/chat/messages/route.ts)
+          // sempre fez `.eq('group_id', groupId)`; o native copiou só o `.or` do
+          // canal e ESQUECEU este filtro. Sem ele, um usuário membro de vários
+          // grupos via os broadcasts `channel_id IS NULL` (despesa/saúde/evento)
+          // de TODOS os seus grupos misturados no Geral de cada um — parecia
+          // "vazamento de outra família" (bug Gustavo 2026-06-15). RLS sempre
+          // protegeu contra ver grupos de terceiros; isto fecha a contaminação
+          // entre os grupos do próprio usuário.
+          .eq('group_id', activeGroup!.groupId)
           // Buscar as 100 mais NOVAS (DESC), igual ao PWA
           // `api/chat/messages/route.ts`. Antes era `ascending: true` (100 mais
           // ANTIGAS): num canal com >100 msgs, as mais recentes ficavam fora da
