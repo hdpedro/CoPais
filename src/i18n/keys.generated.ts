@@ -484,6 +484,7 @@ export type TranslationKey =
   | "careRoutine.reminderBodyAt"
   | "careRoutine.reminderDropoffTitle"
   | "careRoutine.reminderPickupTitle"
+  | "careRoutine.rhythmEarlierDays"
   | "careRoutine.save"
   | "careRoutine.saved"
   | "careRoutine.saving"
@@ -3247,6 +3248,7 @@ export const TRANSLATION_KEYS = [
   "careRoutine.reminderBodyAt",
   "careRoutine.reminderDropoffTitle",
   "careRoutine.reminderPickupTitle",
+  "careRoutine.rhythmEarlierDays",
   "careRoutine.save",
   "careRoutine.saved",
   "careRoutine.saving",
