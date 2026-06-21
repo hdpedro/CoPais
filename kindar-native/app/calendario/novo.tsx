@@ -38,7 +38,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from 'src/store/auth';
 import { supabase } from 'src/lib/supabase';
-import { createEvent } from 'src/services/events';
+import { createEvent, MULTI_DAY_EVENT_CAP } from 'src/services/events';
 import ScreenHeader from 'src/components/ui/ScreenHeader';
 import { DatePickerField, TimePickerField, dateToIso } from 'src/components/ui/DateTimeField';
 import { useI18n } from 'src/i18n';
@@ -209,6 +209,17 @@ export default function NovoEventoScreen() {
     ? RESPONSIBLE_COLORS[responsibleIndex % RESPONSIBLE_COLORS.length]
     : colors.textMuted;
 
+  // Evento de vários dias cria 1 linha por dia, até MULTI_DAY_EVENT_CAP. Se o
+  // range escolhido passa disso, avisamos em vez de truncar calado (decisão
+  // 2026-06-03, grupo Android). dayCount inclusivo, igual ao service.
+  const multiDayRange = (() => {
+    if (!multiDay || !startDateIso || !endDateIso || endDateIso < startDateIso) return 0;
+    const s = new Date(startDateIso + 'T12:00:00');
+    const e = new Date(endDateIso + 'T12:00:00');
+    return Math.round((e.getTime() - s.getTime()) / 86400000) + 1;
+  })();
+  const exceedsMultiDayCap = multiDayRange > MULTI_DAY_EVENT_CAP;
+
   const canSubmit = !!title.trim() && !!startDateIso && !saving;
 
   return (
@@ -299,6 +310,18 @@ export default function NovoEventoScreen() {
             />
           ) : null}
           {errors.date ? <FieldError>{errors.date}</FieldError> : null}
+          {exceedsMultiDayCap ? (
+            <View testID="event-multiday-cap-notice" style={{
+              backgroundColor: '#FFF7ED', borderColor: '#FED7AA', borderWidth: 1,
+              borderRadius: radius.md, padding: spacing.md, marginTop: spacing.xs,
+              flexDirection: 'row', alignItems: 'flex-start', gap: spacing.sm,
+            }}>
+              <Ionicons name="information-circle" size={18} color="#B45309" style={{ marginTop: 1 }} />
+              <Text style={{ color: '#92400E', fontSize: font.sizes.xs, flex: 1, lineHeight: 16 }}>
+                {t('newForm.multiDayCapNotice', { max: MULTI_DAY_EVENT_CAP })}
+              </Text>
+            </View>
+          ) : null}
         </View>
 
         {/* ── Times (when not all-day) ───────────────────────── */}
