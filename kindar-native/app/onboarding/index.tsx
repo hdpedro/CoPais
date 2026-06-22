@@ -85,6 +85,25 @@ export default function OnboardingScreen() {
     const controller = makeController();
     (async () => {
       try {
+        // Guard de paridade com a página PWA /onboarding: se o usuário já
+        // pertence a uma família, não mostra o wizard de criar — famílias
+        // adicionais são só por convite (decisão do dono 2026-06-22). Evita
+        // preencher o form à toa; o servidor já bloqueia a criação duplicada
+        // em POST /api/create-group, isto é só o polimento de UX no nativo.
+        const { data: existingMembership } = await supabase
+          .from('group_members')
+          .select('group_id')
+          .eq('user_id', userId)
+          .limit(1)
+          .maybeSingle();
+        if (existingMembership) {
+          if (!cancelled) {
+            await useAuth.getState().loadActiveGroup();
+            router.replace('/(tabs)');
+          }
+          return;
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
         if (!session) {
           if (!cancelled) dispatch({ type: 'GOTO_FAMILY' });
