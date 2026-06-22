@@ -19,6 +19,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { createNotificationWithPush } from "@/lib/push";
+import { computeDecisionOutcome } from "@/lib/services/decisions";
 
 const VALID_VOTES = ["concordo", "discordo", "abstencao"] as const;
 type VoteValue = (typeof VALID_VOTES)[number];
@@ -108,16 +109,9 @@ export async function POST(request: Request) {
       .eq("decision_id", decisionId),
   ]);
 
-  let newStatus: "aprovada" | "rejeitada" | null = null;
-  if (members && votes) {
-    const hasDiscordo = votes.some((v) => v.vote === "discordo");
-    const allVoted = members.every((m) =>
-      votes.some((v) => v.user_id === m.user_id),
-    );
-    const allConcordo = allVoted && votes.every((v) => v.vote === "concordo");
-    if (hasDiscordo) newStatus = "rejeitada";
-    else if (allConcordo) newStatus = "aprovada";
-  }
+  // Regra ÚNICA compartilhada com o service (auto-resolução + encerramento):
+  // só aprova quando TODOS os membros do grupo votaram concordo.
+  const newStatus = computeDecisionOutcome(members ?? [], votes ?? [], null);
 
   if (newStatus) {
     await admin

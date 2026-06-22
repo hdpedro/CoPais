@@ -99,6 +99,32 @@ export async function getQuestProgress(): Promise<QuestProgress> {
     .eq("user_id", user.id);
 
   const completed = new Set((data ?? []).map((r) => r.step as QuestStep));
+
+  // O convidado (2º responsável) NUNCA dispara markQuestStep("invite_co") —
+  // quem convida é o admin — e a tela /convite/enviar é admin-only. Resultado:
+  // o convidado ficava preso na etapa 3 do quest sem nunca poder concluí-la
+  // (bug reportado 2026-06-22). Para ele a etapa já está satisfeita: o
+  // co-responsável existe (é quem o convidou). Tratamos "convidar o
+  // co-responsável" como concluído sempre que o grupo do user já tem 2+
+  // membros. Vale também pro admin depois que o convite é aceito —
+  // idempotente e consistente. Calculado no read (sem migration/backfill):
+  // já cura quem está preso em produção no próximo load do dashboard.
+  if (!completed.has("invite_co")) {
+    const { data: myGroups } = await supabase
+      .from("group_members")
+      .select("group_id")
+      .eq("user_id", user.id);
+    const groupIds = (myGroups ?? []).map((g) => g.group_id as string);
+    if (groupIds.length > 0) {
+      const { count } = await supabase
+        .from("group_members")
+        .select("user_id", { count: "exact", head: true })
+        .in("group_id", groupIds)
+        .neq("user_id", user.id);
+      if ((count ?? 0) > 0) completed.add("invite_co");
+    }
+  }
+
   return {
     completed,
     totalSteps: QUEST_STEPS.length,

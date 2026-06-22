@@ -83,6 +83,14 @@ describe("group actions", () => {
       expect(result).toEqual({ error: "Sessao expirada. Faca login novamente." });
     });
 
+    it("já é membro de um grupo - não cria 2ª família (regra: só por convite)", async () => {
+      // Guard: usuário já pertence a um grupo → curto-circuito sem INSERT.
+      mockChain.maybeSingle.mockResolvedValueOnce({ data: { group_id: "g-existing" }, error: null });
+      const result = await createGroup(fd({ name: "Family 2", childName: "Alice", childBirthDate: "2020-01-15" }));
+      expect(result).toEqual({ success: true });
+      expect(mockChain.insert).not.toHaveBeenCalled();
+    });
+
     it("insert error - returns error message", async () => {
       mockChain._setRes({ error: { message: "DB error" } });
       const result = await createGroup(fd({ name: "Family", childName: "Alice", childBirthDate: "2020-01-15" }));
