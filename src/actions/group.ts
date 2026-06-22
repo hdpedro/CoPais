@@ -15,6 +15,18 @@ export async function createGroup(formData: FormData): Promise<{ error?: string;
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { error: "Sessao expirada. Faca login novamente." };
 
+  // Famílias adicionais são SÓ por convite (decisão do dono 2026-06-22): se o
+  // user já pertence a um grupo, não cria 2ª família — espelha a trava do ponto
+  // único de criação (POST /api/create-group). Esta action é legada (sem caller
+  // vivo), mas mantemos a regra aqui por defesa em profundidade.
+  const { data: existingMembership } = await supabase
+    .from("group_members")
+    .select("group_id")
+    .eq("user_id", user.id)
+    .limit(1)
+    .maybeSingle();
+  if (existingMembership) return { success: true };
+
   const name = formData.get("name") as string;
   const childName = formData.get("childName") as string;
   const childBirthDate = formData.get("childBirthDate") as string;

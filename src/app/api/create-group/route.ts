@@ -61,6 +61,26 @@ export async function POST(request: Request) {
   // already verified the user identity above.
   const admin = createAdminClient();
 
+  // Guard: famílias adicionais são SÓ por convite (decisão do dono 2026-06-22).
+  // Se o user já pertence a algum grupo, NÃO cria outro — evita família
+  // DUPLICADA quando o onboarding é reaberto (ex.: wizard nativo) ou o form é
+  // enviado 2× (double-submit). A página /onboarding já redireciona no web,
+  // mas este endpoint é o ponto ÚNICO de criação (PWA + Native), então a trava
+  // mora aqui pra cobrir todos os callers. Idempotente: devolve o grupo
+  // existente pro caller rotear pro app em vez de criar lixo.
+  const { data: existingMembership } = await admin
+    .from("group_members")
+    .select("group_id")
+    .eq("user_id", userId)
+    .limit(1)
+    .maybeSingle();
+  if (existingMembership) {
+    return NextResponse.json(
+      { success: true, groupId: existingMembership.group_id, childId: null, alreadyMember: true },
+      { status: 200 },
+    );
+  }
+
   // Generate UUIDs upfront so we don't need .select() after insert and the
   // wizard receives stable ids to drive subsequent edit/remove actions.
   const groupId = crypto.randomUUID();
