@@ -39,6 +39,58 @@ export interface AddArgumentInput {
   text: string;
 }
 
+/* ------------------------------------------------------------------ */
+/* Resolução: regra ÚNICA de status                                    */
+/* ------------------------------------------------------------------ */
+
+type DecisionMember = { user_id: string };
+type DecisionVoteRow = { user_id?: string; vote: string };
+
+/**
+ * Regra ÚNICA de resolução de uma decisão, a partir dos membros do grupo e dos
+ * votos lançados. É a fonte de verdade compartilhada por TODOS os caminhos de
+ * resolução: auto-resolução ao votar (`resolveDecisionIfReady`), encerramento
+ * manual (`closeDecision`) e a rota nativa (`api/decisions/vote`). Antes a
+ * regra estava TRIPLICADA — a mesma classe dos bugs `stance`/`direction`.
+ *
+ * `aprovada` exige que TODOS os membros do grupo tenham votado `concordo`.
+ * NUNCA aprova por maioria dos votos lançados — senão uma decisão de 2
+ * participantes era aprovada com 1 voto a favor enquanto o outro nem tinha
+ * votado (bug reportado 2026-06-22: status "APROVADA" com participação 1/2).
+ *
+ *   - algum `discordo`         → rejeitada   (um veto basta; não espera todos)
+ *   - todos votaram `concordo` → aprovada
+ *   - caso contrário           → `onIncomplete`:
+ *       • null       no fluxo automático (a decisão segue ABERTA)
+ *       • 'expirada' no encerramento manual (encerrou sem quórum)
+ */
+export function computeDecisionOutcome(
+  members: DecisionMember[],
+  votes: DecisionVoteRow[],
+  onIncomplete: "expirada",
+): "aprovada" | "rejeitada" | "expirada";
+export function computeDecisionOutcome(
+  members: DecisionMember[],
+  votes: DecisionVoteRow[],
+  onIncomplete: null,
+): "aprovada" | "rejeitada" | null;
+export function computeDecisionOutcome(
+  members: DecisionMember[],
+  votes: DecisionVoteRow[],
+  onIncomplete: null | "expirada",
+): "aprovada" | "rejeitada" | "expirada" | null {
+  const hasDiscordo = votes.some((v) => v.vote === "discordo");
+  if (hasDiscordo) return "rejeitada";
+
+  const allVoted =
+    members.length > 0 &&
+    members.every((m) => votes.some((v) => v.user_id === m.user_id));
+  const allConcordo = allVoted && votes.every((v) => v.vote === "concordo");
+  if (allConcordo) return "aprovada";
+
+  return onIncomplete;
+}
+
 async function verifyMembership(
   supabase: SupabaseClient,
   groupId: string,
@@ -246,18 +298,23 @@ export async function closeDecision(
     return { ok: false, error: "Sem permissao para este grupo.", status: 403 };
   }
 
-  const { data: votes } = await supabase
-    .from("decision_votes")
-    .select("vote")
-    .eq("decision_id", input.decisionId);
-  const v = (votes || []) as { vote: string }[];
-  const hasDiscordo = v.some((x) => x.vote === "discordo");
-  const allConcordo = v.length > 0 && v.every((x) => x.vote === "concordo");
-  const finalStatus: "aprovada" | "rejeitada" | "expirada" = hasDiscordo
-    ? "rejeitada"
-    : allConcordo
-      ? "aprovada"
-      : "expirada";
+  const [{ data: members }, { data: votes }] = await Promise.all([
+    supabase
+      .from("group_members")
+      .select("user_id")
+      .eq("group_id", decision.group_id as string),
+    supabase
+      .from("decision_votes")
+      .select("user_id, vote")
+      .eq("decision_id", input.decisionId),
+  ]);
+  // Encerramento manual: só aprova se TODOS os membros votaram concordo; senão
+  // 'expirada' (encerrou sem quórum). Antes aprovava com 1 voto a favor de 2.
+  const finalStatus = computeDecisionOutcome(
+    (members ?? []) as DecisionMember[],
+    (votes ?? []) as DecisionVoteRow[],
+    "expirada",
+  );
 
   const { error } = await supabase
     .from("decisions")
@@ -366,16 +423,11 @@ async function resolveDecisionIfReady(
 
   if (!members || !votes) return null;
 
-  const hasDiscordo = votes.some((v) => v.vote === "discordo");
-  const allVoted = members.every((m) =>
-    votes.some((v) => v.user_id === m.user_id),
+  const newStatus = computeDecisionOutcome(
+    members as DecisionMember[],
+    votes as DecisionVoteRow[],
+    null,
   );
-  const allConcordo = allVoted && votes.every((v) => v.vote === "concordo");
-
-  let newStatus: "aprovada" | "rejeitada" | null = null;
-  if (hasDiscordo) newStatus = "rejeitada";
-  else if (allConcordo) newStatus = "aprovada";
-
   if (!newStatus) return null;
 
   await supabase
