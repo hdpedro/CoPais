@@ -419,6 +419,7 @@ Notas privadas do usuario (nao compartilhadas).
 Decisoes em grupo com votacao.
 - `id`, `group_id`, `title`, `description`, `status`, `created_by`
 - Migration: `00020_decisions.sql`
+- **Resolucao (regra unica)**: `services/decisions.ts:computeDecisionOutcome` decide o `status` para os 3 surfaces — `aprovada` SO quando TODOS os membros do grupo votam `concordo`; um `discordo` veta (`rejeitada`); encerrar manualmente sem quorum -> `expirada`. Usada por `resolveDecisionIfReady` (auto ao votar), `closeDecision` (encerramento) e `api/decisions/vote`. Native so delega + le `status` (bug 2026-06-22: `closeDecision` aprovava por maioria dos votos lancados).
 
 #### 22. chat_channels
 Canais tematicos de chat.
@@ -687,7 +688,7 @@ Logs em `whatsapp_message_logs` (inbound + outbound). Historico recente filtrado
 | 50 | `coupons` | 00060 | Cupons de desconto (code UNIQUE, max_uses, uses, valid_until) |
 | 51 | `referral_clicks` | 00061 | Cliques em links de indicacao (referrer_user_id, clicked_at, ip_hash) |
 | 52 | `referral_rewards` | 00061 | Recompensas dadas apos conversao (referrer_user_id, referred_user_id, reward_amount, status) |
-| 53 | `onboarding_quests` | 00057 | Gamificacao: etapas individuais do onboarding marcadas como concluidas |
+| 53 | `onboarding_quests` | 00057 | Gamificacao: etapas individuais do onboarding marcadas como concluidas. Trigger `00125` marca `invite_co` quando o grupo chega a 2+ membros (paridade do quest PWA/iOS/Android — convidado nunca dispara `markQuestStep('invite_co')`) |
 | 54 | `early_bird_counter` | 00056 | Counter atomico (current_count, max_count) — limite global do desconto Early Bird |
 | 55 | `assistant_session_state` | 00072 | Estado persistente do Assistente IA in-app (memoria curta entre turns) |
 | 56 | `calendar_occurrences` | 00038, 00074 | Ocorrencias derivadas de `child_activities` — geradas via trigger AFTER INSERT/UPDATE (banco como fonte de verdade) |
