@@ -677,7 +677,7 @@ export default function KindarLandingV2() {
               {[
                 { chip: "30 segundos", title: "Crie sua conta", desc: "Google ou e-mail. Sem cartão, sem onboarding longo." },
                 { chip: "1 minuto", title: "Adicione a família", desc: "Convide o coparente, cadastre os filhos. Já abre uma agenda compartilhada." },
-                { chip: "Pronto", title: "Use onde quiser", desc: "PWA no navegador, app na App Store. Tudo sincronizado em tempo real." },
+                { chip: "Pronto", title: "Use onde quiser", desc: "PWA no navegador, apps na App Store e no Google Play. Tudo sincronizado em tempo real." },
               ].map((s, i) => (
                 <Reveal key={s.title} delay={i * 120}>
                   <div className="relative h-full p-7 rounded-3xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.06] transition-colors">
@@ -1267,8 +1267,9 @@ function AiIcon() {
   return (<svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M12 3l1.5 4 4 1.5-4 1.5L12 14l-1.5-4-4-1.5 4-1.5L12 3z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /><path d="M19 16l.7 1.8 1.8.7-1.8.7L19 21l-.7-1.8L16.5 18.5l1.8-.7L19 16z" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round" /></svg>);
 }
 
-/* ─── Baixe o app: App Store (ativo) + Google Play (em breve) ─── */
+/* ─── Baixe o app: App Store + Google Play (ambos ativos) ─── */
 const APPLE_APP_STORE_URL = "https://apps.apple.com/br/app/kindar/id6762701916";
+const GOOGLE_PLAY_URL = "https://play.google.com/store/apps/details?id=com.kindar.app";
 
 function AppleLogo() {
   return (
@@ -1309,25 +1310,23 @@ function AppBadges() {
             <span className="text-[17px] font-bold tracking-tight mt-0.5">App Store</span>
           </span>
         </a>
-        {/* Google Play — em breve */}
-        <span
-          role="img"
-          aria-label="Kindar — em breve no Google Play, aguardando aprovação da Google"
-          title="Em breve no Google Play — aguardando aprovação"
-          className="relative inline-flex h-[54px] items-center gap-3 px-5 rounded-2xl border border-[var(--proto-line-2)] bg-[var(--proto-card)] text-[var(--proto-ink)] cursor-default select-none"
+        {/* Google Play — ativo */}
+        <a
+          href={GOOGLE_PLAY_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Baixar Kindar no Google Play"
+          className="group inline-flex h-[54px] items-center gap-3 px-5 rounded-2xl bg-[var(--proto-ink)] text-[var(--proto-on-ink)] shadow-[0_12px_30px_-12px_rgba(14,12,10,0.5)] transition-transform duration-300 hover:-translate-y-0.5"
         >
-          <span className="absolute -top-2.5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[8.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-[var(--proto-terra)] text-white shadow">
-            Em breve
-          </span>
           <GooglePlayLogo />
           <span className="flex flex-col text-left leading-none">
-            <span className="text-[9.5px] font-medium uppercase tracking-wider text-[var(--proto-mute-2)]">Em breve no</span>
+            <span className="text-[9.5px] font-medium uppercase tracking-wider opacity-70">Disponível no</span>
             <span className="text-[17px] font-bold tracking-tight mt-0.5">Google Play</span>
           </span>
-        </span>
+        </a>
       </div>
       <p className="text-[12.5px] text-[var(--proto-mute-2)] text-center max-w-sm leading-relaxed">
-        iOS disponível na App Store. Android em breve — aguardando aprovação da Google.
+        Disponível na App Store e no Google Play. Ou use direto no navegador, em kindar.com.br.
       </p>
     </div>
   );
