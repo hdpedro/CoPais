@@ -16,7 +16,8 @@
 
 const APPLE_APP_STORE_URL =
   "https://apps.apple.com/br/app/kindar/id6762701916";
-const GOOGLE_PLAY_URL: string | null = null; // null = aguardando aprovação
+const GOOGLE_PLAY_URL: string | null =
+  "https://play.google.com/store/apps/details?id=com.kindar.app"; // ativo na Play Store
 
 const SIZE = {
   default: { h: "h-[44px]", px: "px-4", topGap: "gap-0", topText: "text-[10px]", bottomText: "text-[16px] leading-tight", iconSize: "w-6 h-6" },

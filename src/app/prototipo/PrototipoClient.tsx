@@ -1435,7 +1435,7 @@ const FAQ_ITEMS = [
   },
   {
     q: "Preciso instalar app? Funciona em tudo?",
-    a: "Funciona nos três: app iOS na App Store, Android em breve no Google Play, e versão web em kindar.com.br (que dá pra instalar como PWA). A assinatura vale em todos — pagou num, funciona nos outros — e tudo sincroniza automaticamente.",
+    a: "Funciona nos três: app iOS na App Store, Android no Google Play, e versão web em kindar.com.br (que dá pra instalar como PWA). A assinatura vale em todos — pagou num, funciona nos outros — e tudo sincroniza automaticamente.",
   },
   {
     q: "E se a outra pessoa não quiser usar?",
