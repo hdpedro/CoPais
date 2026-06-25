@@ -29,6 +29,7 @@ import { cacheGet, cacheSet, isOnline } from '../services/offline';
 import { subscribeToNotifications } from '../services/notifications';
 import { withTimeout, TimeoutError } from '../lib/with-timeout';
 import { reportError } from '../lib/error-reporter';
+import { transientSeverity } from '../lib/error-severity';
 
 // Hard ceiling pra todo o ciclo de fetch. Sem isso, uma query do Supabase
 // pendurada (TLS travado, token expirado, DNS lento) trava a tela em
@@ -1021,10 +1022,17 @@ export function useDashboard() {
       } catch { /* cache miss: deixa data=null */ }
       setError(e instanceof Error ? e.message : 'Erro ao carregar dados');
       // TimeoutError já foi reportado como 'info' pelo withTimeout (defesa em
-      // profundidade funcionando). Re-reportar como 'error' aqui duplica row
-      // no app_errors e acorda Discord à toa pra um cenário esperado.
+      // profundidade) — não re-reporta aqui pra não duplicar row no app_errors.
+      // Os demais erros passam por transientSeverity(): falha de rede pura
+      // (TypeError "Network request failed" — app offline/flaky) vira 'info' e
+      // NÃO acorda o Discord; erro real (RPC 4xx/5xx, throw de código) segue
+      // 'error'. Mesma classificação compartilhada do push-setup (evita
+      // duplicar a regex em cada hook de fetch).
       if (!(e instanceof TimeoutError)) {
-        reportError(e, { severity: 'error', filePath: 'useDashboard.loadData' }).catch(() => {});
+        reportError(e, {
+          severity: transientSeverity(e) ?? 'error',
+          filePath: 'useDashboard.loadData',
+        }).catch(() => {});
       }
     } finally {
       // SEMPRE liberar o spinner — esse e o invariante que precisa segurar

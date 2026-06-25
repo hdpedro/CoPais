@@ -31,7 +31,7 @@ const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
 //   warning  — degradação operacional não-bloqueante
 //   error    — operação falhou, user impactado
 //   critical — crash / data loss
-type Severity = 'info' | 'warning' | 'error' | 'critical';
+export type Severity = 'info' | 'warning' | 'error' | 'critical';
 
 interface ReportContext {
   filePath?: string;
