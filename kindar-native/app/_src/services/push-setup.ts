@@ -154,39 +154,61 @@ export async function registerForPushNotificationsAsync(
       token = fcm.data as string;
     }
   } catch (e) {
-    // Falha aqui = capability iOS faltando no provisioning profile, ou
-    // Google Services não configurado no Android. Sem visibilidade, esse
-    // erro mata push pra todos os users do device sem deixar rastro.
-    //
-    // Caso ESPERADO no Android: binários < vc37 saíram SEM google-services.json
-    // (o client fix entrou no vc37 — ver project_kindar_android_push_firebase).
-    // Neles o FCM SEMPRE lança "Default FirebaseApp is not initialized" — não é
-    // bug de código, é binário velho que só some com upgrade pro vc38. Reporta
-    // como 'info' (vai pro app_errors mas NÃO pinga o Discord — /api/log-error
-    // pula notifyDiscord pra info) pra não spammar o feed de erros a cada boot.
-    // Se acontecer num vc>=37 (que TEM google-services.json embutido), aí é real
-    // → mantém 'error' e aparece normalmente. buildVersion (versionCode do APK
-    // instalado, imune a OTA) vai no metadata pra correlacionar.
+    // Falha aqui = capability iOS faltando no provisioning profile, ou push não
+    // montado no Android. Sem visibilidade isso mata push pro device sem rastro.
+    // Mas a MAIORIA dos throws aqui NÃO é bug de código nosso e nada que o app
+    // faça resolve no momento — então classificamos pra não virar "erro vermelho"
+    // recorrente (memory: nunca alarme à toa). 'info' grava no app_errors mas NÃO
+    // pinga o Discord (/api/log-error pula notifyDiscord só pra 'info'); detecção
+    // fleet-wide é por query agregada, não por evento. buildVersion (versionCode
+    // do APK, imune a OTA) vai no metadata pra correlacionar.
     const msg = e instanceof Error ? e.message : String(e);
-    const isFirebaseNotInit = /FirebaseApp is not initialized/i.test(msg);
     const buildVersion = parseInt(String(Constants.nativeBuildVersion ?? ''), 10) || 0;
     const knownGoodBinary = buildVersion >= 37; // vc37+ embute google-services.json
-    const expectedOldBinary =
-      Platform.OS === 'android' && isFirebaseNotInit && !knownGoodBinary;
+
+    // (1) "FCM não montado neste binário" — Firebase não-init ou credencial/guia
+    // do Expo faltando. ESPERADO em binário < vc37 (saiu sem google-services.json
+    // — ver project_kindar_android_push_firebase) → 'info'. Num vc>=37 (que embute
+    // o arquivo) isso seria REGRESSÃO real → mantém 'error' e aparece no feed.
+    const isFirebaseNotInit = /FirebaseApp is not initialized/i.test(msg);
+    const isFcmCredential =
+      /fcm-credentials|MISSING_INSTANCEID_SERVICE|complete the guide/i.test(msg);
+    const expectedUnconfigured =
+      Platform.OS === 'android' && (isFirebaseNotInit || isFcmCredential) && !knownGoodBinary;
+
+    // (2) Condição do APARELHO/SERVIÇO, independente do binário — nenhuma versão
+    // do app emite token enquanto durar; some sozinha (user limpa o Google Play
+    // Services / rede / FCM volta). Sempre 'info'.
+    //   - TOO_MANY_REGISTRATIONS: o aparelho atingiu o teto de tokens FCM
+    //     (~100/device, típico de device de teste muito reinstalado). IOException
+    //     do getToken() do FCM. (bug Android 21/jun, 1 device.)
+    //   - SERVICE_NOT_AVAILABLE / TIMEOUT: FCM/rede fora no momento; re-tenta
+    //     sozinho no próximo foreground.
+    const isFcmDeviceLimit = /TOO_MANY_REGISTRATIONS/i.test(msg);
+    const isFcmTransient = /SERVICE_NOT_AVAILABLE|\bTIMEOUT\b/i.test(msg);
+    const deviceServiceCondition = isFcmDeviceLimit || isFcmTransient;
+
+    const nonActionable = expectedUnconfigured || deviceServiceCondition;
     reportError(e, {
       filePath: 'services/push-setup',
-      severity: expectedOldBinary ? 'info' : 'error',
+      severity: nonActionable ? 'info' : 'error',
       metadata: {
         phase: 'getDevicePushTokenAsync',
         platform: Platform.OS,
         buildVersion: buildVersion || null,
         firebaseNotInit: isFirebaseNotInit,
+        fcmCredential: isFcmCredential,
+        fcmDeviceLimit: isFcmDeviceLimit,
+        fcmTransient: isFcmTransient,
       },
     });
     analytics.track('push_token_obtain_failed', {
       platform: Platform.OS,
       build_version: buildVersion || null,
       firebase_not_init: isFirebaseNotInit,
+      fcm_credential: isFcmCredential,
+      fcm_device_limit: isFcmDeviceLimit,
+      fcm_transient: isFcmTransient,
     });
     return null;
   }
