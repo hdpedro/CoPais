@@ -30,7 +30,7 @@ interface Appt { id: string; title: string; appointment_date: string; location: 
 interface ConsultasCache {
   appts: Appt[];
   children: Array<{ id: string; full_name: string }>;
-  professionals: Array<{ id: string; name: string; specialty: string }>;
+  professionals: Array<{ id: string; name: string; specialty: string; address: string | null }>;
 }
 
 const EMPTY_CACHE: ConsultasCache = { appts: [], children: [], professionals: [] };
@@ -63,12 +63,12 @@ export default function ConsultasScreen() {
         supabase.from('medical_appointments').select('id, title, appointment_date, location, status, notes, child_id, children(full_name), medical_professionals(name)')
           .eq('group_id', activeGroup!.groupId).order('appointment_date', { ascending: false }).limit(50),
         supabase.from('children').select('id, full_name').eq('group_id', activeGroup!.groupId),
-        supabase.from('medical_professionals').select('id, name, specialty').eq('group_id', activeGroup!.groupId).order('name'),
+        supabase.from('medical_professionals').select('id, name, specialty, address').eq('group_id', activeGroup!.groupId).order('name'),
       ]);
       return {
         appts: (a || []).map((x: any) => ({ ...x, childName: getDisplayName(x.children?.full_name), profName: x.medical_professionals?.name || null })),
         children: c || [],
-        professionals: (p || []) as Array<{ id: string; name: string; specialty: string }>,
+        professionals: (p || []) as Array<{ id: string; name: string; specialty: string; address: string | null }>,
       };
     },
   });
@@ -88,6 +88,16 @@ export default function ConsultasScreen() {
     displayLabel: 'consulta',
     myUserId: userId,
   });
+
+  // Auto-preenche especialidade (título) e local ao escolher o profissional —
+  // fill-if-empty (nunca sobrescreve o que o usuário digitou). Paridade com o
+  // wizard registrar.tsx.
+  function handleSelectProfessional(p: { id: string; name: string; specialty: string; address: string | null } | null) {
+    setSelectedProfessional(p?.id ?? null);
+    if (!p) return;
+    if (!title.trim() && p.specialty) setTitle(p.specialty);
+    if (!location.trim() && p.address) setLocation(p.address);
+  }
 
   async function handleCreate() {
     if (!title.trim() || !selectedChild || !userId || !activeGroup) return;
@@ -304,7 +314,7 @@ export default function ConsultasScreen() {
               <ScrollView horizontal showsHorizontalScrollIndicator={false}>
                 <View style={{ flexDirection: 'row', gap: 6 }}>
                   <TouchableOpacity
-                    onPress={() => setSelectedProfessional(null)}
+                    onPress={() => handleSelectProfessional(null)}
                     accessibilityRole="radio"
                     accessibilityState={{ selected: selectedProfessional === null }}
                     accessibilityLabel={t('appointments.noProfessional')}
@@ -320,7 +330,7 @@ export default function ConsultasScreen() {
                   {professionals.map(p => (
                     <TouchableOpacity
                       key={p.id}
-                      onPress={() => setSelectedProfessional(p.id)}
+                      onPress={() => handleSelectProfessional(p)}
                       accessibilityRole="radio"
                       accessibilityState={{ selected: selectedProfessional === p.id }}
                       accessibilityLabel={p.name}

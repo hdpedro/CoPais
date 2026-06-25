@@ -8,7 +8,7 @@ import { useI18n } from "@/i18n/provider";
 interface AppointmentFormClientProps {
   groupId: string;
   children: { id: string; full_name: string }[];
-  professionals: { id: string; name: string; specialty: string | null; whatsapp: string | null }[];
+  professionals: { id: string; name: string; specialty: string | null; whatsapp: string | null; address: string | null }[];
   today: string;
   createAction: (formData: FormData) => Promise<void>;
   // Quando o user veio do CTA "Agendar pediatra" de uma pendência vacinal,
@@ -32,6 +32,18 @@ export default function AppointmentFormClient({
   const [appointmentType, setAppointmentType] = useState("rotina");
   const [showReturn, setShowReturn] = useState(false);
   const [isPending, startTransition] = useTransition();
+  // Título (Especialidade/motivo) e Local controlados para permitir o
+  // auto-preenchimento ao escolher um profissional — fill-if-empty, nunca
+  // sobrescreve o que o usuário já digitou. Paridade com o app nativo.
+  const [title, setTitle] = useState(prefilledTitle || "");
+  const [location, setLocation] = useState("");
+
+  function handleProfessionalChange(professionalId: string) {
+    const prof = professionals.find((p) => p.id === professionalId);
+    if (!prof) return;
+    if (!title.trim() && prof.specialty) setTitle(prof.specialty);
+    if (!location.trim() && prof.address) setLocation(prof.address);
+  }
 
   function handleSubmit(formData: FormData) {
     formData.set("appointmentType", appointmentType);
@@ -124,6 +136,7 @@ export default function AppointmentFormClient({
           <label className="block text-xs font-medium text-muted mb-1">{t("health.appointmentForm.professional")}</label>
           <select
             name="professionalId"
+            onChange={(e) => handleProfessionalChange(e.target.value)}
             className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
           >
             <option value="">{t("health.appointmentForm.selectOptional")}</option>
@@ -146,7 +159,8 @@ export default function AppointmentFormClient({
             type="text"
             name="title"
             required
-            defaultValue={prefilledTitle || undefined}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             placeholder={
               appointmentType === "rotina" ? t("health.appointmentForm.placeholderRoutine") :
               appointmentType === "emergencia" ? t("health.appointmentForm.placeholderEmergency") :
@@ -195,6 +209,8 @@ export default function AppointmentFormClient({
           <input
             type="text"
             name="location"
+            value={location}
+            onChange={(e) => setLocation(e.target.value)}
             placeholder={appointmentType === "emergencia" ? t("health.appointmentForm.locationPlaceholderEmergency") : t("health.appointmentForm.locationPlaceholder")}
             className="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-dark placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
           />

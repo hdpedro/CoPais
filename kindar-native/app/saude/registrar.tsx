@@ -17,6 +17,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useI18n } from 'src/i18n';
 import { useAuth } from 'src/store/auth';
 import { useHealth } from 'src/hooks/useHealth';
+import { supabase } from 'src/lib/supabase';
+import { useCachedFetch } from 'src/lib/use-cached-fetch';
 import { safeWrite } from 'src/services/offline';
 import { notifyAction } from 'src/services/notify';
 import { getBrazilToday } from 'src/lib/constants';
@@ -26,6 +28,14 @@ import ChildPicker from 'src/components/ui/ChildPicker';
 import PrimaryButton from 'src/components/ui/PrimaryButton';
 
 type EventType = 'illness' | 'medication' | 'treatment' | 'procedure' | 'appointment' | 'observation';
+
+/** Profissional cadastrado do grupo — alimenta o seletor da consulta. */
+interface AppointmentProfessional {
+  id: string;
+  name: string;
+  specialty: string | null;
+  address: string | null;
+}
 
 // User-facing label/desc are resolved via t() inside the component (see
 // eventTypeLabel/eventTypeDesc) to avoid translating at module scope.
@@ -44,6 +54,24 @@ export default function RegistrarScreen() {
   const { userId, activeGroup } = useAuth();
   const { data: healthData } = useHealth();
 
+  // Profissionais cadastrados do grupo — alimentam o seletor da consulta e o
+  // auto-preenchimento de especialidade/local. Mesmo padrão cache-first de
+  // consultas.tsx/profissionais.tsx; cache key próprio pra não conflitar com o
+  // shape completo (telefone/whatsapp/crm…) que a tela de profissionais grava.
+  const { data: professionals } = useCachedFetch<AppointmentProfessional[]>({
+    cacheKey: activeGroup ? `saude_prof_picker_${activeGroup.groupId}` : null,
+    tag: 'registrar:profissionais:load',
+    empty: [],
+    fetcher: async () => {
+      const { data } = await supabase
+        .from('medical_professionals')
+        .select('id, name, specialty, address')
+        .eq('group_id', activeGroup!.groupId)
+        .order('name');
+      return (data || []) as AppointmentProfessional[];
+    },
+  });
+
   const eventTypeLabel = (type: EventType) => t(`healthRegister.type_${type}`);
   const eventTypeDesc = (type: EventType) => t(`healthRegister.typeDesc_${type}`);
   const [step, setStep] = useState(1);
@@ -59,7 +87,7 @@ export default function RegistrarScreen() {
   const [dosage, setDosage] = useState('');
   const [frequency, setFrequency] = useState('');
   const [location, setLocation] = useState('');
-  const [professional, setProfessional] = useState('');
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
   // Appointment date+time — bug Angelino 2026-05-16 iOS: o wizard salvava
   // `appointment_date: new Date().toISOString()` (data/hora atual) em vez
@@ -82,6 +110,18 @@ export default function RegistrarScreen() {
   // Auto-select first child if only one
   if (children.length === 1 && !selectedChildId) {
     setSelectedChildId(children[0].id);
+  }
+
+  // Ao escolher um profissional cadastrado, vinculamos por professional_id
+  // (não jogamos o nome solto nas observações) e PREENCHEMOS o máximo da tela:
+  // especialidade e local. fill-if-empty — nunca sobrescreve o que o usuário
+  // já digitou.
+  function handleSelectProfessional(p: AppointmentProfessional | null) {
+    Haptics.selectionAsync();
+    setProfessionalId(p?.id ?? null);
+    if (!p) return;
+    if (!title.trim() && p.specialty) setTitle(p.specialty);
+    if (!location.trim() && p.address) setLocation(p.address);
   }
 
   async function handleSave() {
@@ -123,15 +163,18 @@ export default function RegistrarScreen() {
       // createAppointment. SEM esse fix o calendário mostrava a consulta
       // no dia/hora em que ela foi REGISTRADA, não no dia em que acontece.
       const datetime = `${apptDate}T${apptTime}:00-03:00`;
-      const fullNotes = [professional, notes].filter(Boolean).join('\n') || null;
       result = await safeWrite({
         table: 'medical_appointments',
         operation: 'insert',
         payload: {
           group_id: groupId, child_id: selectedChildId, title,
           appointment_date: datetime,
+          // Vínculo relacional com o profissional cadastrado (mirrors PWA
+          // createAppointment + consultas.tsx). Antes o nome ia solto nas
+          // observações, sem virar FK — o histórico/ficha não cruzava.
+          professional_id: professionalId || null,
           location: location || null, status: 'scheduled',
-          notes: fullNotes, created_by: userId,
+          notes: notes || null, created_by: userId,
         },
       });
     } else {
@@ -470,6 +513,55 @@ export default function RegistrarScreen() {
 
             {eventType === 'appointment' ? (
               <>
+                {/* Profissional — seletor dos profissionais cadastrados no grupo.
+                    Vincula por professional_id (mirrors consultas.tsx/PWA) e, ao
+                    escolher, preenche Especialidade + Local automaticamente. */}
+                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
+                  {t('healthRegister.appointmentProfessionalLabel')}
+                </Text>
+                {professionals.length > 0 ? (
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                    <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+                      <TouchableOpacity
+                        onPress={() => handleSelectProfessional(null)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: professionalId === null }}
+                        accessibilityLabel={t('appointments.noProfessional')}
+                        style={chipStyle(professionalId === null)}
+                      >
+                        <Text style={{ fontSize: font.sizes.sm, color: professionalId === null ? '#fff' : colors.text }}>
+                          {t('appointments.noProfessional')}
+                        </Text>
+                      </TouchableOpacity>
+                      {professionals.map(p => (
+                        <TouchableOpacity
+                          key={p.id}
+                          onPress={() => handleSelectProfessional(p)}
+                          accessibilityRole="radio"
+                          accessibilityState={{ selected: professionalId === p.id }}
+                          accessibilityLabel={p.specialty ? `${p.name} — ${p.specialty}` : p.name}
+                          style={chipStyle(professionalId === p.id)}
+                        >
+                          <Text numberOfLines={1} style={{ fontSize: font.sizes.sm, maxWidth: 180, color: professionalId === p.id ? '#fff' : colors.text }}>
+                            👨‍⚕️ {p.name}
+                          </Text>
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  </ScrollView>
+                ) : null}
+                <TouchableOpacity
+                  onPress={() => { Haptics.selectionAsync(); router.push('/saude/profissionais'); }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('health.appointmentForm.registerNewProfessional')}
+                  hitSlop={8}
+                  style={{ marginTop: spacing.sm, marginBottom: spacing.lg }}
+                >
+                  <Text style={{ fontSize: font.sizes.sm, color: colors.brand, fontWeight: font.weights.medium }}>
+                    {t('health.appointmentForm.registerNewProfessional')}
+                  </Text>
+                </TouchableOpacity>
+
                 {/* Data + Hora — campos obrigatórios para appointment.
                     DatePickerField/TimePickerField usam o picker nativo
                     iOS/Android e armazenam ISO/HH:MM strings. */}
@@ -491,23 +583,6 @@ export default function RegistrarScreen() {
                     />
                   </View>
                 </View>
-
-                <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
-                  {t('healthRegister.appointmentProfessionalLabel')}
-                </Text>
-                <TextInput
-                  value={professional}
-                  onChangeText={setProfessional}
-                  placeholder={t('healthRegister.appointmentProfessionalPlaceholder')}
-                  placeholderTextColor={colors.textDim}
-                  style={{
-                    backgroundColor: colors.bgElevated, borderRadius: radius.md,
-                    borderWidth: 1, borderColor: colors.borderLight,
-                    paddingVertical: spacing.md, paddingHorizontal: spacing.lg,
-                    fontSize: font.sizes.md, color: colors.text,
-                    marginBottom: spacing.lg,
-                  }}
-                />
 
                 <Text style={{ fontSize: font.sizes.sm, fontWeight: font.weights.medium, color: colors.authText, marginBottom: spacing.xs }}>
                   {t('health.location')}
@@ -593,7 +668,7 @@ export default function RegistrarScreen() {
                 // Critical for catching mistakes BEFORE saving (e.g. defaulting
                 // to "amanhã 09:00" when intended next Friday 18:00).
                 eventType === 'appointment' ? { label: t('healthRegister.dateLabel'), value: t('healthRegister.dateTimeValue', { date: isoDateToDisplay(apptDate), time: apptTime || '—' }) } : null,
-                eventType === 'appointment' && professional ? { label: t('healthRegister.appointmentProfessionalLabel'), value: professional } : null,
+                eventType === 'appointment' && professionalId ? { label: t('healthRegister.appointmentProfessionalLabel'), value: professionals.find(p => p.id === professionalId)?.name } : null,
                 eventType === 'appointment' && location ? { label: t('health.location'), value: location } : null,
                 notes ? { label: t('healthRegister.notesSummary'), value: notes } : null,
               ].filter(Boolean).map((row, i) => (
@@ -637,4 +712,16 @@ export default function RegistrarScreen() {
       </View>
     </KeyboardAvoidingView>
   );
+}
+
+/** Chip do seletor de profissional — preenchido (brand) quando selecionado. */
+function chipStyle(selected: boolean) {
+  return {
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: selected ? colors.brand : colors.borderLight,
+    backgroundColor: selected ? colors.brand : colors.bgElevated,
+  } as const;
 }
