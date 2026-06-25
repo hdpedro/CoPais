@@ -29,7 +29,7 @@ export default async function NewAppointmentPage({
 
   const { data: professionals } = await supabase
     .from("medical_professionals")
-    .select("id, name, specialty, whatsapp")
+    .select("id, name, specialty, whatsapp, address")
     .eq("group_id", groupId)
     .order("name", { ascending: true });
 
