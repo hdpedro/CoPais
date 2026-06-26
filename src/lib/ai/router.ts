@@ -4,14 +4,16 @@
 /*                                                                      */
 /*   Request → [OpenAI] → [Groq] → [Together] → [Gemini]             */
 /*                                                                      */
-/* Hardening: the cascade falls through on BOTH exceptions AND          */
-/* empty/unusable responses. A provider that "succeeds" at the API      */
-/* level but returns blank text (e.g. a vision model that can't read    */
-/* the image) no longer dead-ends the request — the next provider is    */
-/* tried. Only when every provider is exhausted do we throw. Tools      */
-/* routing keeps its old contract (any non-throwing response is         */
-/* accepted) so a legitimate empty tool-turn still degrades gracefully  */
-/* upstream instead of becoming a hard error.                           */
+/* Hardening (vision only): a provider that "succeeds" at the API level */
+/* but returns a BLANK OCR result no longer dead-ends the request. The  */
+/* vision models emit the sentinel "{}" (and "" for Gemini) when they   */
+/* can't read the image, so the cascade treats "", "{}" and "[]" as     */
+/* unusable and tries the next provider. If NO provider yields a usable */
+/* result, the LAST (blank) result is returned — never a new throw — so */
+/* every caller keeps degrading gracefully exactly as before. Text and  */
+/* tools routing are unchanged (first non-throwing response wins), so a  */
+/* legitimate empty turn there still degrades gracefully upstream and    */
+/* no extra latency is introduced.                                       */
 /* ------------------------------------------------------------------ */
 
 import { AIProvider } from "./providers/types";
@@ -62,14 +64,27 @@ function buildError(attempts: Attempt[]): Error {
   return new Error(`Todos os provedores falharam. ${summary}`);
 }
 
-const isNonEmptyText = (t: string): boolean =>
-  typeof t === "string" && t.trim().length > 0;
+/**
+ * A vision/OCR response is usable when it isn't blank and isn't the empty
+ * sentinel the providers emit when they can't read the image. Groq/OpenAI/
+ * Together default to "{}" on empty content; Gemini returns "". Treating
+ * "{}" and "[]" as unusable is what makes the prescription-OCR fallback
+ * actually trigger (the whole point of this change).
+ */
+export const isUsableVisionText = (t: string): boolean => {
+  const s = (t ?? "").trim();
+  return s.length > 0 && s !== "{}" && s !== "[]";
+};
+
+/** Tools/text: any non-throwing response is accepted (unchanged contract). */
+const acceptAny = (): boolean => true;
 
 /**
  * Try each provider in order; return the first whose result passes `isUsable`.
- * Falls through on exceptions AND on `isUsable === false` (empty/blank
- * responses), so a provider that returns blank no longer dead-ends the cascade.
- * Throws `buildError` only once every provider has been exhausted.
+ * Falls through on exceptions AND on `isUsable === false`. If NO provider
+ * yields a usable result but at least one returned (unusable), the LAST such
+ * result is returned — NOT a throw — so callers keep their existing graceful
+ * handling of blank output. Only when every provider THROWS do we throw.
  *
  * Exported so the routing contract can be unit-tested with fake providers.
  */
@@ -84,6 +99,7 @@ export async function runProviderChain<T>(
   }
 
   const attempts: Attempt[] = [];
+  let fallback: { result: T; provider: string } | null = null;
   console.log(`[ai-router:${kind}] Providers: ${providers.map((p) => p.name).join(", ")}`);
 
   for (const provider of providers) {
@@ -93,6 +109,7 @@ export async function runProviderChain<T>(
         console.log(`[ai-router:${kind}] ${provider.name} OK`);
         return { result, provider: provider.name, attempts };
       }
+      fallback = { result, provider: provider.name };
       attempts.push({ provider: provider.name, error: "empty/unusable response" });
       console.warn(`[ai-router:${kind}] ${provider.name} returned an unusable response — trying next`);
     } catch (err) {
@@ -102,6 +119,14 @@ export async function runProviderChain<T>(
     }
   }
 
+  // No usable result. If something came back (just blank), hand the last one
+  // to the caller so it degrades gracefully (no new throw). Only when every
+  // provider threw is there nothing to return.
+  if (fallback) {
+    console.warn(`[ai-router:${kind}] no usable response — returning last (${fallback.provider}); caller degrades gracefully`);
+    return { result: fallback.result, provider: fallback.provider, attempts };
+  }
+
   console.error(
     `[ai-router:${kind}] ALL_PROVIDERS_FAILED — ${attempts.map((a) => `${a.provider}: ${a.error}`).join(" | ")}`,
   );
@@ -109,7 +134,7 @@ export async function runProviderChain<T>(
 }
 
 /* ------------------------------------------------------------------ */
-/* Vision routing — falls through on blank OCR output                   */
+/* Vision routing — falls through on blank/"{}" OCR output              */
 /* ------------------------------------------------------------------ */
 
 export async function routeVisionRequest(
@@ -127,13 +152,13 @@ export async function routeVisionRequest(
     available,
     "vision",
     (p) => p.generateFromImage(imageBase64, mimeType, systemPrompt, userPrompt, options),
-    isNonEmptyText,
+    isUsableVisionText,
   );
   return { text: result, provider, attempts };
 }
 
 /* ------------------------------------------------------------------ */
-/* Text routing — falls through on blank text                           */
+/* Text routing — unchanged: first non-throwing response wins           */
 /* ------------------------------------------------------------------ */
 
 export async function routeTextRequest(
@@ -148,15 +173,13 @@ export async function routeTextRequest(
     available,
     "text",
     (p) => p.generateText(messages, options),
-    isNonEmptyText,
+    acceptAny,
   );
   return { text: result, provider, attempts };
 }
 
 /* ------------------------------------------------------------------ */
-/* Tools routing (function calling — Groq + Together only)              */
-/* Keeps the old contract: any non-throwing response is accepted, so a  */
-/* legitimate empty tool-turn degrades gracefully upstream.             */
+/* Tools routing — unchanged: any non-throwing response is accepted     */
 /* ------------------------------------------------------------------ */
 
 export async function routeToolsRequest(
@@ -172,7 +195,7 @@ export async function routeToolsRequest(
     available,
     "tools",
     (p) => p.generateWithTools(messages, tools, options),
-    () => true,
+    acceptAny,
   );
   return { response: result, provider, attempts };
 }
