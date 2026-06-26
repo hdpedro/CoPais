@@ -878,12 +878,30 @@ const FUZZY_TABLE: FuzzyEntry[] = [
   { action: "queryHistory",    keywords: ["historico", "ultimo", "rolou", "aconteceu", "timeline", "ultimos", "passad"], weight: 1.5 },
 ];
 
+/**
+ * Stopwords pt-BR — palavras de função sem carga de intenção. Filtradas
+ * ANTES do matching pra evitar falso-positivo via prefixo: "com" casava
+ * "comigo" (keyword de queryCustody) e qualquer frase com "com" disparava
+ * consulta de guarda (bug: "Fono é com o Moacyr na rua X" → "Nenhum
+ * registro de guarda encontrado"). Idem "pro"→"programa"/"proximo",
+ * "esta"→"estado". Nenhuma destas é keyword do FUZZY_TABLE, então remover
+ * é seguro; abreviações reais (fds, sab, vez) NÃO são stopwords.
+ */
+const FUZZY_STOPWORDS = new Set([
+  "com", "para", "pra", "pro", "pelo", "pela", "por", "sem", "ate",
+  "que", "uma", "uns", "umas", "dos", "das", "nos", "nas", "aos",
+  "ele", "ela", "eles", "elas", "isso", "este", "esta", "esse", "essa",
+  "isto", "aqui", "ali", "meu", "minha", "seu", "sua", "dele", "dela",
+]);
+
 export function fuzzyMatchIntent(
   text: string,
   ctx: QueryParseContext,
 ): QueryIntent | null {
   const n = norm(text);
-  const tokens = new Set(n.split(/\s+/).filter((t) => t.length >= 3));
+  const tokens = new Set(
+    n.split(/\s+/).filter((t) => t.length >= 3 && !FUZZY_STOPWORDS.has(t)),
+  );
   if (tokens.size === 0) return null;
 
   // Stemmed tokens — cobre "gastando"/"gastei"/"gasto" via "gast"

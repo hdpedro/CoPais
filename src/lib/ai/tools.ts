@@ -821,6 +821,78 @@ async function execCreateActivity(p: Record<string, unknown>, ctx: ToolContext):
   if (!name) return { success: false, message: "Nome da atividade e obrigatorio." };
 
   const days = parseDaysOfWeek(String(p.days_of_week || ""));
+  const timeStart = parseTime(p.time_start);
+  const timeEnd = parseTime(p.time_end);
+  const location = p.location ? String(p.location).slice(0, 200) : null;
+  const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
+
+  // DEDUP — o assistente (LLM) tende a re-chamar create_activity a cada
+  // mensagem em que o usuario ADICIONA detalhes da MESMA atividade
+  // ("Fono e com o Moacyr", "o endereco e tal", "o nome do fono e X").
+  // Sem isso, cada follow-up virava uma atividade nova (bug "triplicou":
+  // 3x Fono pro Gabriel as 10:30). Banco como source of truth: convergimos
+  // pra UMA atividade por (grupo, crianca, nome, horario) e mesclamos os
+  // campos novos. Mesmo principio idempotente das migrations 00074/00093.
+  let dedupQuery = ctx.supabase
+    .from("child_activities")
+    .select("id, name, location, time_start, time_end, days_of_week, category")
+    .eq("group_id", ctx.groupId)
+    .eq("is_active", true);
+  dedupQuery = child
+    ? dedupQuery.eq("child_id", child.id)
+    : dedupQuery.is("child_id", null);
+  const { data: existingRows } = await dedupQuery;
+
+  const nName = norm(name);
+  const existing = (existingRows || []).find((row) => {
+    if (norm(String(row.name || "")) !== nName) return false;
+    // Se ambos tem horario definido, precisam bater pra ser a mesma
+    // atividade. Fono 10:30 != Fono 14:00 (atividades distintas no dia).
+    if (
+      timeStart &&
+      row.time_start &&
+      String(row.time_start).slice(0, 5) !== timeStart
+    ) {
+      return false;
+    }
+    return true;
+  });
+
+  if (existing) {
+    // Mescla apenas o que e novo. Local sempre vence (usuario esta
+    // complementando); horario/dias/categoria so preenchem se faltavam.
+    const patch: Record<string, unknown> = {};
+    if (location && norm(String(existing.location || "")) !== norm(location)) {
+      patch.location = location;
+    }
+    if (timeStart && !existing.time_start) patch.time_start = timeStart;
+    if (timeEnd && !existing.time_end) patch.time_end = timeEnd;
+    const existingDays = Array.isArray(existing.days_of_week) ? existing.days_of_week : [];
+    if (days.length > 0 && existingDays.length === 0) {
+      patch.days_of_week = days;
+      patch.recurrence_type = "weekly";
+    }
+    if (p.category && (!existing.category || existing.category === "other")) {
+      patch.category = p.category;
+    }
+
+    if (Object.keys(patch).length === 0) {
+      return { success: true, message: `Essa atividade ja esta registrada: ${name}${childLabel}` };
+    }
+
+    const { error: updErr } = await ctx.supabase
+      .from("child_activities")
+      .update(patch)
+      .eq("id", existing.id);
+
+    if (updErr) {
+      console.error("[TOOL] create_activity UPDATE ERROR:", updErr.code, updErr.message, updErr.details);
+      return { success: false, message: `Erro: ${updErr.message}` };
+    }
+
+    console.log("[TOOL] create_activity DEDUP-UPDATE:", existing.id, JSON.stringify(patch));
+    return { success: true, message: `Atividade atualizada: ${name}${childLabel}` };
+  }
 
   const insert: Record<string, unknown> = {
     group_id: ctx.groupId,
@@ -833,11 +905,9 @@ async function execCreateActivity(p: Record<string, unknown>, ctx: ToolContext):
     created_by: ctx.userId,
   };
   if (days.length > 0) insert.days_of_week = days;
-  const timeStart = parseTime(p.time_start);
-  const timeEnd = parseTime(p.time_end);
   if (timeStart) insert.time_start = timeStart;
   if (timeEnd) insert.time_end = timeEnd;
-  if (p.location) insert.location = String(p.location).slice(0, 200);
+  if (location) insert.location = location;
 
   console.log("[TOOL] create_activity INSERT:", JSON.stringify(insert));
 
@@ -850,7 +920,6 @@ async function execCreateActivity(p: Record<string, unknown>, ctx: ToolContext):
 
   console.log("[TOOL] create_activity SUCCESS");
 
-  const childLabel = child ? ` (${child.name.split(" ")[0]})` : "";
   return { success: true, message: `Atividade registrada: ${name}${childLabel}` };
 }
 
