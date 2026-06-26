@@ -5,32 +5,19 @@
 
 import { SupabaseClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { parseIntent } from "@/lib/ai/local-parser";
-import {
-  parseQueryIntent,
-  fuzzyMatchIntent,
-  dispatchCustomAction,
-  parseMultiIntent,
-  detectChildAmbiguity,
-  loadSessionState,
-  saveSessionState,
-  applyFollowUp,
-} from "@/lib/ai/local-queries";
-import { hasNegation, detectOffTopic } from "@/lib/ai/local-helpers";
-import { AI_TOOLS, executeTool } from "@/lib/ai/tools";
-import { routeToolsRequest, routeTextRequest } from "@/lib/ai/router";
+import { executeTool } from "@/lib/ai/tools";
 import { logAIRequest } from "@/lib/ai/core/logger";
-import { AIChatMessage, AIToolDefinition } from "@/lib/ai/core/types";
+import { canUseAI } from "@/lib/ai/core/usage";
+import { AIChatMessage } from "@/lib/ai/core/types";
 import { AIRateLimiter } from "@/lib/ai/rate-limit";
 import { formatBRL } from "@/lib/format/currency";
 import {
   CONFIRM_WORDS,
   CANCEL_WORDS,
   buildAssistantContext,
-  buildSystemPrompt,
   mapLocalActionToTool,
-  sanitizeResponse,
 } from "@/lib/ai/assistant-shared";
+import { runAssistantTurn } from "@/lib/ai/assistant-core";
 
 import { resolveIdentity, setActiveGroup } from "./identity";
 import { decodeApproval, ApprovalPayload } from "./approvals";
@@ -55,8 +42,7 @@ import { formatForWhatsApp, splitMessage } from "./formatter";
 import { processReceiptImage, processPrescriptionImage } from "./media";
 import { transcribeAudio } from "./audio";
 import { WAExtractedMessage } from "./types";
-
-const MAX_TOOL_ROUNDS = 3;
+import { matchChildFromCaption } from "./caption-match";
 
 // Separate rate limiter for WhatsApp (30 msg/min per phone)
 const waRateLimiter = new AIRateLimiter(60_000, 30);
@@ -251,6 +237,40 @@ export async function processWhatsAppMessage(
     return;
   }
 
+  // Quest step: first AI-assistant interaction via WhatsApp. The PWA/Native
+  // path marks this in /api/ai/assistant, but markQuestStep() there reads the
+  // cookie session — which WhatsApp doesn't have. We write the same idempotent
+  // row directly with the phone-resolved userId (UNIQUE(user_id, step) makes
+  // repeats a no-op). Fire-and-forget so it never delays the reply.
+  supabase
+    .from("onboarding_quests")
+    .insert({ user_id: userId, step: "ai_agreement", metadata: { channel: "whatsapp" } })
+    .then(
+      () => {},
+      () => {}, // 23505 on repeat = already completed
+    );
+
+  // Daily usage cap — parity with /api/ai/assistant (route.ts:75-81). Dormant
+  // today (AI_BILLING_ENABLED=false → returns allowed with no DB hit), but wired
+  // so the WhatsApp channel can't bypass the cap the day billing turns on.
+  const usage = await canUseAI(userId, "assistant_chat");
+  if (!usage.allowed) {
+    await logAIRequest({
+      userId,
+      groupId,
+      provider: "none",
+      feature: "assistant_chat",
+      success: false,
+      responseTimeMs: Date.now() - start,
+      errorMessage: "daily_cap_reached",
+    });
+    await sendTextMessage(
+      phone,
+      "Você atingiu o limite diário do assistente. Tente novamente amanhã. 🙏",
+    );
+    return;
+  }
+
   // Check for "trocar grupo" / "mudar grupo" command
   const textLower = (message.text || "").toLowerCase().trim();
   if (/^(trocar|mudar|alternar)\s+(de\s+)?grupo$/i.test(textLower)) {
@@ -361,43 +381,67 @@ export async function processWhatsAppMessage(
     const intent = classifyImageIntent(message.caption);
 
     if (intent === "prescription") {
-      // Fetch first child for this group (simplification for WhatsApp)
+      // Receita é dado clínico — em família com 2+ filhos NUNCA assumir a
+      // primeira criança. Busca todas e exige o nome na legenda quando há
+      // ambiguidade (ex: "receita Bernardo"); senão pergunta.
       const { data: children } = await supabase
         .from("children")
         .select("id, full_name, birth_date")
-        .eq("group_id", groupId)
-        .limit(1);
+        .eq("group_id", groupId);
 
-      if (children && children.length > 0) {
-        const child = children[0];
-        await sendTextMessage(phone, `💊 Analisando receita de ${child.full_name?.split(" ")[0]}...`);
+      const kids = children || [];
 
-        const prescResult = await processPrescriptionImage(
-          message.mediaId,
-          message.mediaMimeType || "image/jpeg",
-          child.id,
-          child.full_name?.split(" ")[0] || "crianca",
-          child.birth_date || "",
-          groupId,
-          userId,
+      if (kids.length === 0) {
+        await sendTextMessage(
+          phone,
+          "Você ainda não tem crianças cadastradas no Kindar. Cadastre pelo app antes de enviar a receita. 🙏",
         );
-
-        if (prescResult) {
-          await sendTextMessage(phone, prescResult.summary);
-          await logMessage(supabase, phone, "outbound", "text", prescResult.summary, undefined, userId);
-          await logAIRequest({
-            userId, groupId,
-            provider: "vision",
-            feature: "prescription_ocr",
-            success: true,
-            responseTimeMs: Date.now() - start,
-          });
-          return;
-        }
-
-        await sendTextMessage(phone, "Nao consegui ler a receita. Tente com uma foto mais nitida ou envie pelo app.");
         return;
       }
+
+      let child = kids[0];
+      if (kids.length > 1) {
+        const matched = matchChildFromCaption(message.caption, kids);
+        if (!matched) {
+          const firstNames = kids
+            .map((k) => (k.full_name || "").split(" ")[0])
+            .filter(Boolean);
+          await sendTextMessage(
+            phone,
+            `Para qual criança é essa receita? Reenvie a foto com o nome na legenda, ex: *receita ${firstNames[0] || "Nome"}*.\n\nCrianças: ${firstNames.join(", ")}.`,
+          );
+          return;
+        }
+        child = matched;
+      }
+
+      await sendTextMessage(phone, `💊 Analisando receita de ${child.full_name?.split(" ")[0]}...`);
+
+      const prescResult = await processPrescriptionImage(
+        message.mediaId,
+        message.mediaMimeType || "image/jpeg",
+        child.id,
+        child.full_name?.split(" ")[0] || "crianca",
+        child.birth_date || "",
+        groupId,
+        userId,
+      );
+
+      if (prescResult) {
+        await sendTextMessage(phone, prescResult.summary);
+        await logMessage(supabase, phone, "outbound", "text", prescResult.summary, undefined, userId);
+        await logAIRequest({
+          userId, groupId,
+          provider: "vision",
+          feature: "prescription_ocr",
+          success: true,
+          responseTimeMs: Date.now() - start,
+        });
+        return;
+      }
+
+      await sendTextMessage(phone, "Nao consegui ler a receita. Tente com uma foto mais nitida ou envie pelo app.");
+      return;
     }
 
     if (intent === "vaccine" || intent === "attestation" || intent === "exam") {
@@ -476,199 +520,15 @@ export async function processWhatsAppMessage(
 
   // Build context
   const { contextStr, toolCtx, custodyEnabled } = await buildAssistantContext(supabase, userId, groupId);
-  const childNames = toolCtx.children.map((c) => c.name);
-  const memberNames = toolCtx.members.map((m) => m.name);
-
   /* ================================================================ */
-  /* Step 7a: Try local parser                                         */
+  /* Step 7: bare-noise filter, then the shared runAssistantTurn core   */
+  /* (local action+query, off-topic and LLM fallback all live there).  */
   /* ================================================================ */
 
-  const localIntent = parseIntent(userText, childNames, memberNames, "pt");
-  const waNegated = hasNegation(userText);
-
-  if (localIntent && localIntent.confidence >= 0.7 && !(localIntent.action.startsWith("create") && waNegated)) {
-    const isActionIntent = localIntent.action.startsWith("create");
-
-    if (isActionIntent) {
-      // Ask for confirmation via interactive buttons
-      await setPendingAction(
-        supabase,
-        session.id,
-        localIntent.action,
-        localIntent.params,
-        localIntent.confirmation,
-        userText
-      );
-
-      await sendConfirmation(phone, localIntent.confirmation);
-      await logMessage(supabase, phone, "outbound", "interactive", localIntent.confirmation, undefined, userId);
-
-      await logAIRequest({
-        userId,
-        groupId,
-        provider: "local",
-        feature: "assistant_chat",
-        success: true,
-        responseTimeMs: Date.now() - start,
-      });
-      return;
-    }
-
-    // Query intent — execute directly
-    const mapped = mapLocalActionToTool(localIntent, toolCtx);
-    if (mapped) {
-      const result = await executeTool(mapped.toolName, mapped.toolParams, toolCtx);
-
-      await logAIRequest({
-        userId,
-        groupId,
-        provider: "local",
-        feature: "assistant_tool",
-        success: result.success,
-        responseTimeMs: Date.now() - start,
-      });
-
-      await sendAndLog(supabase, phone, result.success ? `\u2705 ${result.message}` : `\u26A0\uFE0F ${result.message}`, userId);
-      return;
-    }
-  }
-
-  /* ================================================================ */
-  /* Step 7a-2: Local QUERIES + s\u00EDntese + drafts (sem LLM)             */
-  /* ================================================================ */
-
-  const queryParseCtx = {
-    children: toolCtx.children.map((c) => ({ id: c.id, name: c.name })),
-    members: toolCtx.members,
-    currentUserId: userId,
-  };
-
-  // Multi-intent: "quanto gastei e quem tá com o Bê?" — processa as duas
-  const waMultiIntents = parseMultiIntent(userText, queryParseCtx);
-  if (waMultiIntents.length >= 2) {
-    const results: string[] = [];
-    for (const intent of waMultiIntents) {
-      let result;
-      if (intent.action.startsWith("custom")) {
-        result = await dispatchCustomAction(intent, toolCtx);
-      } else {
-        const mapped = mapLocalActionToTool(
-          { action: intent.action, params: intent.params, confidence: intent.confidence },
-          toolCtx,
-        );
-        if (mapped) {
-          result = await executeTool(mapped.toolName, mapped.toolParams, toolCtx);
-        }
-      }
-      if (result?.success && result.message) results.push(result.message);
-    }
-    if (results.length >= 2) {
-      await logAIRequest({
-        userId,
-        groupId,
-        provider: "local-multi",
-        feature: "assistant_chat",
-        success: true,
-        responseTimeMs: Date.now() - start,
-      });
-      await sendAndLog(supabase, phone, results.join("\n\n---\n\n"), userId);
-      return;
-    }
-  }
-
-  // Follow-up via session state
-  const waSession = await loadSessionState(toolCtx);
-  const waFollowUp = applyFollowUp(userText, waSession, queryParseCtx);
-
-  let waQueryIntent = parseQueryIntent(userText, queryParseCtx);
-  let waProvider = "local-regex";
-  if (!waQueryIntent) {
-    waQueryIntent = fuzzyMatchIntent(userText, queryParseCtx);
-    if (waQueryIntent) waProvider = "local-fuzzy";
-  }
-  if (!waQueryIntent && waFollowUp) {
-    waQueryIntent = waFollowUp;
-    waProvider = "local-followup";
-  }
-
-  // Clarificação de criança ambígua
-  if (waQueryIntent && !waQueryIntent.params.child_name && !waQueryIntent.params.childName) {
-    const requiresChild = ["queryHealth", "queryStatus", "queryHistory", "customChildSummary"];
-    if (requiresChild.includes(waQueryIntent.action)) {
-      const ambig = detectChildAmbiguity(userText, toolCtx.children);
-      if (ambig.ambiguous && ambig.candidates.length >= 2) {
-        const names = ambig.candidates.map((c) => c.name.split(" ")[0]).join(" ou ");
-        await logAIRequest({
-          userId,
-          groupId,
-          provider: "local-clarify",
-          feature: "assistant_chat",
-          success: true,
-          responseTimeMs: Date.now() - start,
-        });
-        await sendAndLog(supabase, phone, `Você quer dizer **${names}**? Me confirma qual.`, userId);
-        return;
-      }
-    }
-  }
-
-  if (waQueryIntent && waQueryIntent.confidence >= 0.6) {
-    if (waQueryIntent.action.startsWith("custom")) {
-      const result = await dispatchCustomAction(waQueryIntent, toolCtx);
-      if (result) {
-        await logAIRequest({
-          userId,
-          groupId,
-          provider: waProvider,
-          feature: "assistant_chat",
-          success: result.success,
-          responseTimeMs: Date.now() - start,
-        });
-        if (result.success) {
-          await saveSessionState(toolCtx, waQueryIntent).catch(() => {/* best effort */});
-        }
-        await sendAndLog(supabase, phone, result.message, userId);
-        return;
-      }
-    }
-
-    const mappedQuery = mapLocalActionToTool(
-      { action: waQueryIntent.action, params: waQueryIntent.params, confidence: waQueryIntent.confidence },
-      toolCtx,
-    );
-    if (mappedQuery) {
-      const result = await executeTool(mappedQuery.toolName, mappedQuery.toolParams, toolCtx);
-      await logAIRequest({
-        userId,
-        groupId,
-        provider: waProvider,
-        feature: "assistant_tool",
-        success: result.success,
-        responseTimeMs: Date.now() - start,
-      });
-      if (result.success) {
-        await saveSessionState(toolCtx, waQueryIntent).catch(() => {/* best effort */});
-        await sendAndLog(supabase, phone, result.message, userId);
-        return;
-      }
-    }
-  }
-
-  /* ================================================================ */
-  /* Step 7a-noise: bare greetings without context                     */
-  /*                                                                    */
-  /* Quando o parser local nao casa, nao tem confirmacao pendente, e o */
-  /* texto e um cumprimento curto / bare ack ("oi", "ola", "teste",    */
-  /* "sim", "nao", "ok"), o bot LOGA mas NAO responde. Evita loops com */
-  /* auto-responders externos no lado do usuario e economiza LLM.      */
-  /* ================================================================ */
-
+  // Bare-greeting anti-loop (WhatsApp-specific). Bare tokens ("oi","ok","sim")
+  // never match the action/query parsers, so running this before the shared
+  // core is behavior-identical to its old mid-pipeline position.
   if (isBareNoise(userText)) {
-    // Anti-loop logic: if the bot replied to this phone in the last 10 min,
-    // we are likely in a ping-pong with an external auto-responder. Stay
-    // silent. Otherwise, treat as a real human greeting and respond with a
-    // short, non-conversational suggestion (avoids LLM chatty replies that
-    // would re-trigger the auto-responder loop).
     const NOISE_COOLDOWN_MS = 10 * 60 * 1000;
     const cooldownSince = new Date(Date.now() - NOISE_COOLDOWN_MS).toISOString();
     const { count: recentBotReplies } = await supabase
@@ -695,9 +555,6 @@ export async function processWhatsAppMessage(
       return;
     }
 
-    console.log(
-      `[WA-PROCESSOR] noise greet: short suggestion reply for "${userText.slice(0, 30)}"`,
-    );
     const childFirst = toolCtx.children[0]?.name?.split(" ")[0];
     const example = childFirst
       ? `*paguei 50 da escola do ${childFirst}*`
@@ -722,42 +579,11 @@ export async function processWhatsAppMessage(
     return;
   }
 
-  /* ================================================================ */
-  /* Step 7a-3: Off-topic — escopo Kindar = filhos + coparentalidade   */
-  /* ================================================================ */
-
-  const waOffTopic = detectOffTopic(userText);
-  if (waOffTopic.category) {
-    await logAIRequest({
-      userId,
-      groupId,
-      provider: `local-offtopic-${waOffTopic.category}`,
-      feature: "assistant_chat",
-      success: true,
-      responseTimeMs: Date.now() - start,
-    });
-    await sendAndLog(supabase, phone, waOffTopic.reply || "", userId);
-    return;
-  }
-
-  /* ================================================================ */
-  /* Step 7b: AI Router fallback                                       */
-  /* ================================================================ */
-
-  console.log(`[WA-PROCESSOR] AI Router fallback (${userText.length} chars)`);
-
-  const systemMsg: AIChatMessage = {
-    role: "system",
-    content: buildSystemPrompt(contextStr, custodyEnabled),
-  };
-
-  // Load recent conversation history from message logs.
-  // Window: last 30 minutes AND last 10 turns (whichever is shorter), and
-  // skip synthetic system messages (errors, "Acao cancelada" prompts) so
-  // the LLM context isn't polluted with noise.
+  // Shared orchestration. History for the LLM step keeps the same 30min/10-turn
+  // window + noise filter, reconstructed from logs (WhatsApp carries no client
+  // conversation state).
   const HISTORY_WINDOW_MS = 30 * 60 * 1000;
   const sinceISO = new Date(Date.now() - HISTORY_WINDOW_MS).toISOString();
-
   const { data: recentLogs } = await supabase
     .from("whatsapp_message_logs")
     .select("direction, content, message_type, created_at")
@@ -771,112 +597,40 @@ export async function processWhatsAppMessage(
     .reverse()
     .filter((l) => isHistoricallyMeaningful(l.content))
     .map((l) => ({
-      role: l.direction === "inbound" ? "user" as const : "assistant" as const,
+      role: l.direction === "inbound" ? ("user" as const) : ("assistant" as const),
       content: l.content || "",
     }));
-
-  const routerMessages: AIChatMessage[] = [
-    systemMsg,
-    ...historyMessages,
-    { role: "user", content: userText },
-  ];
-
-  const toolResultsSummary: string[] = [];
+  const history: AIChatMessage[] = [...historyMessages, { role: "user", content: userText }];
 
   try {
-    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      const { response, provider } = await routeToolsRequest(
-        routerMessages,
-        AI_TOOLS as unknown as AIToolDefinition[],
-        { temperature: 0.3, maxTokens: 1000, timeoutMs: 10000 }
+    const result = await runAssistantTurn({
+      userText,
+      history,
+      contextStr,
+      toolCtx,
+      custodyEnabled,
+      userId,
+      groupId,
+      startMs: start,
+    });
+
+    if (result.kind === "confirm") {
+      await setPendingAction(
+        supabase,
+        session.id,
+        result.action,
+        result.params,
+        result.confirmation,
+        result.originalText,
       );
-
-      if (!response.toolCalls || response.toolCalls.length === 0) {
-        const content = sanitizeResponse(response.content || "");
-        const finalText = content.length >= 5
-          ? content
-          : toolResultsSummary.length > 0
-            ? toolResultsSummary.join("\n")
-            : "Nao entendi. Pode reformular?";
-
-        await logAIRequest({
-          userId,
-          groupId,
-          provider,
-          feature: "assistant_chat",
-          success: true,
-          responseTimeMs: Date.now() - start,
-        });
-
-        await sendAndLog(supabase, phone, finalText, userId);
-        return;
-      }
-
-      // Execute tool calls
-      routerMessages.push({
-        role: "assistant",
-        content: response.content || "",
-        tool_calls: response.toolCalls,
-      });
-
-      for (const toolCall of response.toolCalls) {
-        let args: Record<string, unknown>;
-        try {
-          args = JSON.parse(toolCall.function.arguments);
-        } catch {
-          args = {};
-        }
-
-        console.log(`[WA-PROCESSOR] Tool: ${toolCall.function.name}`, args);
-        const result = await executeTool(toolCall.function.name, args, toolCtx);
-
-        if (result.message) {
-          toolResultsSummary.push(
-            result.success ? `\u2705 ${result.message}` : `\u26A0\uFE0F ${result.message}`
-          );
-        }
-
-        routerMessages.push({
-          role: "tool",
-          tool_call_id: toolCall.id,
-          content: JSON.stringify(result),
-        });
-      }
-    }
-
-    // Exhausted tool rounds — try final text response
-    try {
-      const { text: finalText, provider } = await routeTextRequest(
-        routerMessages,
-        { temperature: 0.4, maxTokens: 1000, timeoutMs: 10000 }
-      );
-
-      const finalContent = sanitizeResponse(finalText);
-      if (finalContent && finalContent.length >= 5) {
-        await logAIRequest({
-          userId,
-          groupId,
-          provider,
-          feature: "assistant_chat",
-          success: true,
-          responseTimeMs: Date.now() - start,
-        });
-        await sendAndLog(supabase, phone, finalContent, userId);
-        return;
-      }
-    } catch {
-      // Fall through
-    }
-
-    if (toolResultsSummary.length > 0) {
-      await sendAndLog(supabase, phone, toolResultsSummary.join("\n"), userId);
+      await sendConfirmation(phone, result.confirmation);
+      await logMessage(supabase, phone, "outbound", "interactive", result.confirmation, undefined, userId);
       return;
     }
 
-    await sendAndLog(supabase, phone, "Pronto! Acao realizada com sucesso. \u2705", userId);
+    await sendAndLog(supabase, phone, result.text, userId);
   } catch (error) {
     console.error("[WA-PROCESSOR] AI error:", error);
-
     await logAIRequest({
       userId,
       provider: "none",
@@ -885,10 +639,9 @@ export async function processWhatsAppMessage(
       responseTimeMs: Date.now() - start,
       errorMessage: error instanceof Error ? error.message : "Unknown error",
     });
-
     await sendTextMessage(
       phone,
-      "Desculpe, ocorreu um erro. Tente novamente ou use o app Kindar. \uD83D\uDE4F"
+      "Desculpe, ocorreu um erro. Tente novamente ou use o app Kindar. 🙏",
     );
   }
 }
