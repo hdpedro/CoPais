@@ -65,6 +65,25 @@ describe("fuzzyMatchIntent — fallback sem regex", () => {
     const r = fuzzyMatchIntent("aprovacao", ctx);
     expect(r?.action).toBe("queryPending");
   });
+
+  // Regressão (bug 2026-06-25, tela do David): "com" (stopword) prefixava
+  // a keyword "comigo" de queryCustody → qualquer frase com "com" disparava
+  // consulta de guarda ("Nenhum registro de guarda encontrado para essa
+  // data"). Stopwords não podem mais gerar match no fuzzy.
+  it("'Fono é com o Moacyr na rua Real Grandeza, 182' NÃO vira queryCustody", () => {
+    const r = fuzzyMatchIntent("Fono é com o Moacyr na rua Real Grandeza, 182", ctx);
+    expect(r).toBeNull();
+  });
+  it("stopword 'com' sozinha não dispara guarda", () => {
+    expect(fuzzyMatchIntent("o nome do fono é com Moacyr", ctx)).toBeNull();
+    expect(fuzzyMatchIntent("a aula é com a tia Ana", ctx)).toBeNull();
+  });
+  it("'comigo' completo ainda resolve guarda", () => {
+    const r =
+      parseQueryIntent("o Bernardo fica comigo amanhã?", ctx) ||
+      fuzzyMatchIntent("o Bernardo fica comigo amanhã?", ctx);
+    expect(r?.action).toBe("queryCustody");
+  });
 });
 
 describe("parsePeriod", () => {
