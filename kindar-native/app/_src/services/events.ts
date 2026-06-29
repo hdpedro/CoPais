@@ -4,7 +4,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import { supabase } from '../lib/supabase';
-import { safeWrite } from './offline';
+import { safeWrite, safeWriteMany } from './offline';
 import { notifyAction } from './notify';
 
 export interface SocialEvent {
@@ -19,6 +19,14 @@ export async function fetchEvents(groupId: string): Promise<SocialEvent[]> {
     .eq('group_id', groupId).order('event_date', { ascending: false }).limit(100);
   return (data || []).map((e: any) => ({ ...e, assignedName: e.profiles?.full_name?.split(' ')[0] || '' }));
 }
+
+/**
+ * Teto de dias pra evento "de vários dias" — cada dia vira UMA linha em
+ * `events`. Espelha o cap do PWA (src/actions/events.ts). A tela
+ * calendario/novo avisa quando o range escolhido passa disso, em vez de
+ * truncar calado. Bug 2026-06-03 (grupo Android).
+ */
+export const MULTI_DAY_EVENT_CAP = 60;
 
 export async function createEvent(params: {
   groupId: string;
@@ -45,7 +53,7 @@ export async function createEvent(params: {
   const hasEnd = params.endDate && params.endDate >= params.eventDate;
   const endDate = hasEnd ? new Date(params.endDate + 'T12:00:00') : startDate;
   const dayCount = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / 86400000) + 1);
-  const maxDays = Math.min(dayCount, 60);
+  const maxDays = Math.min(dayCount, MULTI_DAY_EVENT_CAP);
   const cleanTitle = params.title.trim();
   const description = params.description?.trim() || params.notes?.trim() || null;
   const location = params.location?.trim() || null;
@@ -75,9 +83,13 @@ export async function createEvent(params: {
     return result;
   }
 
-  // Multi-day: insert N rows, one per day. safeWrite operates on a single
-  // payload so we loop and short-circuit on the first failure (mirrors PWA
-  // behaviour, where a single insert error triggers a redirect).
+  // Multi-day: build ALL rows and insert them in ONE batch (espelha a action
+  // do PWA src/actions/events.ts:createEvent, que faz `insert(eventRows)`).
+  // O código antigo fazia N `await safeWrite()` sequenciais — até 60
+  // round-trips numa rede móvel ruim. Bastava UMA travar (fetch sem timeout)
+  // pro save inteiro pendurar e o botão "Salvar evento" ficar preso (branco),
+  // sem gravar nada. Bug 2026-06-03 (grupo Android). safeWriteMany faz 1
+  // request + withTimeout. Ver services/offline.ts.
   const fmt = (d: Date) => {
     const y = d.getFullYear();
     const m = String(d.getMonth() + 1).padStart(2, '0');
@@ -86,33 +98,30 @@ export async function createEvent(params: {
   };
 
   const endDateStr = fmt(endDate);
-  let lastResult: Awaited<ReturnType<typeof safeWrite>> | null = null;
+  const rows: Record<string, unknown>[] = [];
   for (let i = 0; i < maxDays; i++) {
     const d = new Date(startDate);
     d.setDate(d.getDate() + i);
-    lastResult = await safeWrite({
-      table: 'events', operation: 'insert',
-      payload: {
-        group_id: params.groupId,
-        title: `${cleanTitle} (${i + 1}/${maxDays})`,
-        description,
-        event_date: fmt(d),
-        end_date: endDateStr,
-        event_time: eventTime,
-        location,
-        all_day: allDay,
-        child_id: params.childId || null,
-        assigned_to: assignedTo,
-        created_by: params.createdBy,
-      },
+    rows.push({
+      group_id: params.groupId,
+      title: `${cleanTitle} (${i + 1}/${maxDays})`,
+      description,
+      event_date: fmt(d),
+      end_date: endDateStr,
+      event_time: eventTime,
+      location,
+      all_day: allDay,
+      child_id: params.childId || null,
+      assigned_to: assignedTo,
+      created_by: params.createdBy,
     });
-    if (!lastResult.success) return lastResult;
   }
 
-  if (lastResult?.success && !lastResult.queued) {
+  const result = await safeWriteMany({ table: 'events', rows });
+  if (result.success && !result.queued) {
     notifyAction('event_created', params.groupId, { title: cleanTitle });
   }
-  return lastResult ?? { success: false, error: 'Falha ao criar evento' };
+  return result;
 }
 
 export async function updateEvent(eventId: string, updates: {

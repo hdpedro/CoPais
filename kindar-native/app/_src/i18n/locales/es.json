@@ -2212,6 +2212,7 @@
     "aiResponse": "Procesado por IA"
   },
   "newForm": {
+    "multiDayCapNotice": "Los eventos de varios días crean como máximo {max} entradas. Como este período es más largo, solo se crearán los primeros {max} días.",
     "categoryTitle": "Tipo de compromiso",
     "catSport": "Deporte",
     "catHealth": "Salud",
