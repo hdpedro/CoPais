@@ -79,6 +79,37 @@ if (messageIdx === -1 || !args[messageIdx + 1]) {
 }
 const baseMessage = args[messageIdx + 1];
 
+// GUARD (incidente 2026-06-29): `eas update` inlina EXPO_PUBLIC_* SÓ de .env
+// local (NÃO do bloco build.<profile>.env do eas.json — isso só vale pro
+// `eas build`). Publicar sem .env => bundle com Supabase URL/key VAZIAS => app
+// nativo serve cache stale em todas as telas + herói some + re-login não cura.
+// Abortar AQUI é muito mais barato que descobrir no device. Ver memória
+// feedback_eas_update_env_injection.
+const ENV_FILE = resolve(__dirname, "..", ".env");
+let envContent;
+try {
+  envContent = readFileSync(ENV_FILE, "utf8");
+} catch {
+  console.error(
+    `\n❌ ABORTADO: ${ENV_FILE} não existe.\n` +
+      `   eas update inlina EXPO_PUBLIC_* só de .env local; sem ele o bundle sai com\n` +
+      `   Supabase URL/key VAZIAS (app stale, herói some). Gere o .env a partir de\n` +
+      `   eas.json:build.production.env antes de publicar.\n`,
+  );
+  process.exit(1);
+}
+if (
+  !/^EXPO_PUBLIC_SUPABASE_URL=\S/m.test(envContent) ||
+  !/^EXPO_PUBLIC_SUPABASE_ANON_KEY=\S/m.test(envContent)
+) {
+  console.error(
+    `\n❌ ABORTADO: ${ENV_FILE} existe mas EXPO_PUBLIC_SUPABASE_URL/ANON_KEY estão` +
+      ` ausentes/vazias.\n   Sem elas o cliente Supabase nasce quebrado no bundle.\n`,
+  );
+  process.exit(1);
+}
+console.log(`[guard] .env OK (Supabase URL/key presentes) — seguro publicar.`);
+
 // --platform (Regra 19): publica só num SO quando a mudança é de plataforma.
 // Sem a flag, o EAS publica pra iOS E Android (default "all" do eas update).
 const VALID_PLATFORMS = ["android", "ios", "all"];
