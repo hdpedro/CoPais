@@ -8,17 +8,16 @@
 /* snapshots e aplica a decisão via RPC atômica brain_intake_apply_undo. */
 /* ------------------------------------------------------------------ */
 
-import { activityPayloadHash } from "./materialize-payload";
-import type { ActivitySpec } from "./types";
-
-/** Artefato + estado vivo da entidade (snapshot injetado pelo serviço).
- *  `live` = a atividade reconstruída da linha de child_activities (com os
- *  mesmos campos/normalização do spec original); null se já não existe. */
+/** Artefato + hash ATUAL da entidade viva (snapshot injetado pelo serviço).
+ *  O serviço recomputa `currentHash` com a função certa (school_log ou
+ *  child_activity) a partir da linha viva, normalizada igual ao commit.
+ *  `currentHash === null` = a entidade já não existe (foi removida por outro
+ *  caminho). Desacoplado da função de hash → serve aos dois alvos. */
 export interface ArtifactSnapshot {
   artifactId: string;
   entityId: string;
   originalPayloadHash: string;
-  live: ActivitySpec | null;
+  currentHash: string | null;
 }
 
 export interface UndoDecision {
@@ -39,15 +38,10 @@ export function decideUndo(artifacts: ArtifactSnapshot[]): UndoDecision {
   const detachArtifactIds: string[] = [];
 
   for (const a of artifacts) {
-    if (a.live === null) {
-      // já removida por outro caminho → nada a deletar; registra o detach.
-      detachArtifactIds.push(a.artifactId);
-      continue;
-    }
-    if (activityPayloadHash(a.live) === a.originalPayloadHash) {
+    if (a.currentHash !== null && a.currentHash === a.originalPayloadHash) {
       deleteEntityIds.push(a.entityId); // intocada → seguro remover
     } else {
-      detachArtifactIds.push(a.artifactId); // editada depois → preserva
+      detachArtifactIds.push(a.artifactId); // editada depois / ausente → preserva
     }
   }
 

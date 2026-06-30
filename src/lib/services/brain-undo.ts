@@ -12,10 +12,8 @@ import type { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { decideUndo, type ArtifactSnapshot } from "@/lib/ai/brain/undo-decision";
-import {
-  reconstructSpecFromActivityRow,
-  type ChecklistItemRow,
-} from "@/lib/ai/brain/undo-reconstruct";
+import { reconstructHashInputFromSchoolLogRow } from "@/lib/ai/brain/undo-reconstruct";
+import { schoolLogPayloadHash } from "@/lib/ai/brain/materialize-payload";
 
 type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 const FILE = "src/lib/services/brain-undo.ts";
@@ -24,15 +22,17 @@ export type UndoResult =
   | { kind: "undone"; removed: number; detached: number; message: string }
   | { kind: "error"; message: string };
 
-interface ActivityRow {
+interface SchoolLogRow {
   id: string;
   child_id: string | null;
-  name: string;
-  category: string;
-  start_date: string;
-  time_start: string | null;
-  notes: string | null;
-  activity_checklist_items?: ChecklistItemRow[] | null;
+  log_type: string;
+  title: string;
+  subject: string | null;
+  description: string | null;
+  log_date: string;
+  priority: string;
+  /** Espelho 1:1 no calendário (events.school_log_id) — traz o event_time. */
+  events?: { event_time: string | null }[] | null;
 }
 
 export async function undoIntake(args: {
@@ -46,7 +46,7 @@ export async function undoIntake(args: {
       .from("brain_intake_artifacts")
       .select("id, entity_id, original_payload_hash")
       .eq("intake_id", intakeId)
-      .eq("entity_type", "child_activity")
+      .eq("entity_type", "school_log")
       .is("detached_at", null)
       .is("undone_at", null);
     if (artErr) {
@@ -57,32 +57,36 @@ export async function undoIntake(args: {
       return { kind: "undone", removed: 0, detached: 0, message: "Nada a desfazer." };
     }
 
-    // 2. Entidades vivas + checklist (nested).
+    // 2. school_logs vivos + event_time do espelho events (1:1).
     const entityIds = artifacts.map((a) => a.entity_id as string);
     const { data: rows } = await supabase
-      .from("child_activities")
-      .select("id, child_id, name, category, start_date, time_start, notes, activity_checklist_items(name, sort_order)")
+      .from("school_logs")
+      .select("id, child_id, log_type, title, subject, description, log_date, priority, events!school_log_id(event_time)")
       .in("id", entityIds);
-    const liveById = new Map<string, ActivityRow>();
-    for (const r of (rows ?? []) as ActivityRow[]) liveById.set(r.id, r);
+    const liveById = new Map<string, SchoolLogRow>();
+    for (const r of (rows ?? []) as SchoolLogRow[]) liveById.set(r.id, r);
 
-    // 3. Decisão pura (intocada → remove; editada/ausente → detach).
+    // 3. Decisão pura: recomputa o hash da linha viva (mesma normalização do
+    //    commit) e compara. Intocada → remove; editada/ausente → detach.
     const snapshots: ArtifactSnapshot[] = artifacts.map((a) => {
       const row = liveById.get(a.entity_id as string) ?? null;
       return {
         artifactId: a.id as string,
         entityId: a.entity_id as string,
         originalPayloadHash: (a.original_payload_hash as string) ?? "",
-        live: row
-          ? reconstructSpecFromActivityRow({
-              child_id: row.child_id,
-              name: row.name,
-              category: row.category,
-              start_date: row.start_date,
-              time_start: row.time_start,
-              notes: row.notes,
-              checklist: row.activity_checklist_items ?? [],
-            })
+        currentHash: row
+          ? schoolLogPayloadHash(
+              reconstructHashInputFromSchoolLogRow({
+                child_id: row.child_id,
+                log_type: row.log_type,
+                title: row.title,
+                subject: row.subject,
+                description: row.description,
+                log_date: row.log_date,
+                priority: row.priority,
+                event_time: row.events?.[0]?.event_time ?? null,
+              }),
+            )
           : null,
       };
     });
