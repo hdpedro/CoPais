@@ -3027,7 +3027,9 @@
       "title": "School calendar",
       "cta": "Upload calendar photo",
       "hint": "Take or pick a clear photo of the exam calendar.",
-      "fileLabel": "Tap to take or choose a photo"
+      "fileLabel": "Tap to take or choose a photo",
+      "takePhoto": "Take photo",
+      "chooseGallery": "Choose from gallery"
     },
     "processing": "Analyzing the photo…",
     "preview": {
@@ -3040,7 +3042,8 @@
       "reviewField": "Check this field",
       "selectChild": "Which child is this for?",
       "empty": "Nothing to create.",
-      "forChild": "For {child}"
+      "forChild": "For {child}",
+      "dateRange": "from {start} to {end}"
     },
     "impact": {
       "sameDay": "{child} has {count} exams on {date}.",

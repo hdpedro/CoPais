@@ -157,6 +157,18 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
   const activities = preview?.plan.activities ?? [];
   const keptCount = kept.filter(Boolean).length;
 
+  // Resumo "de DD a DD" pra Zona 1 (visão geral escaneável, não a lista da Zona 3).
+  const activityDates = activities.map((a) => a.startDate).filter(Boolean).sort();
+  const dateRangeText =
+    activityDates.length === 0
+      ? ""
+      : activityDates[0] === activityDates[activityDates.length - 1]
+        ? fmtDate(activityDates[0])
+        : t("brain.preview.dateRange", {
+            start: fmtDate(activityDates[0]),
+            end: fmtDate(activityDates[activityDates.length - 1]),
+          });
+
   return (
     <section aria-label={t("brain.upload.title")} className="mx-auto max-w-2xl p-4">
       <h1 className="text-xl font-semibold mb-4">{t("brain.upload.title")}</h1>
@@ -180,16 +192,28 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
             </label>
           )}
           <div>
-            <label className="inline-flex cursor-pointer items-center rounded border border-blue-600 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">
-              {t("brain.upload.fileLabel")}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/jpeg,image/png,image/webp"
-                className="sr-only"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              />
-            </label>
+            <div className="flex flex-wrap gap-2">
+              <label className="inline-flex cursor-pointer items-center rounded border border-blue-600 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                {t("brain.upload.takePhoto")}
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  capture="environment"
+                  className="sr-only"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+              <label className="inline-flex cursor-pointer items-center rounded border border-blue-600 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">
+                {t("brain.upload.chooseGallery")}
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  className="sr-only"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+              </label>
+            </div>
             {file && <p className="mt-1 text-xs text-gray-600">{file.name}</p>}
           </div>
           <button
@@ -241,6 +265,7 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
             {childId && (
               <p className="text-sm text-gray-700">{t("brain.preview.forChild", { child: childName(childId) })}</p>
             )}
+            {dateRangeText && <p className="text-sm text-gray-600">{dateRangeText}</p>}
           </section>
 
           {/* Zona 2 — o que muda */}
@@ -266,7 +291,9 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
             <ul className="space-y-2">
               {activities.map((a, i) => {
                 const low = (a.lowConfidenceFields?.length ?? 0) > 0;
-                const notes = a.notes ? (a.notes.length > 140 ? a.notes.slice(0, 139) + "…" : a.notes) : "";
+                // 280 cabe o conteúdo + "Onde estudar:" num calendário típico
+                // sem cortar a fonte de estudo; doc patológico ainda é truncado.
+                const notes = a.notes ? (a.notes.length > 280 ? a.notes.slice(0, 279) + "…" : a.notes) : "";
                 return (
                   <li key={i} className="flex items-start gap-2 rounded border p-2">
                     <input

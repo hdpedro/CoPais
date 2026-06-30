@@ -3027,7 +3027,9 @@
       "title": "Calendrier scolaire",
       "cta": "Envoyer la photo du calendrier",
       "hint": "Prenez ou choisissez une photo nette du calendrier des examens.",
-      "fileLabel": "Touchez pour prendre ou choisir une photo"
+      "fileLabel": "Touchez pour prendre ou choisir une photo",
+      "takePhoto": "Prendre une photo",
+      "chooseGallery": "Choisir dans la galerie"
     },
     "processing": "Analyse de la photo…",
     "preview": {
@@ -3040,7 +3042,8 @@
       "reviewField": "Vérifiez ce champ",
       "selectChild": "Pour quel enfant ?",
       "empty": "Rien à créer.",
-      "forChild": "Pour {child}"
+      "forChild": "Pour {child}",
+      "dateRange": "du {start} au {end}"
     },
     "impact": {
       "sameDay": "{child} a {count} épreuves le {date}.",

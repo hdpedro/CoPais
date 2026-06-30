@@ -3027,7 +3027,9 @@
       "title": "Schulkalender",
       "cta": "Kalenderfoto hochladen",
       "hint": "Mach oder wähle ein scharfes Foto des Prüfungskalenders.",
-      "fileLabel": "Zum Aufnehmen oder Auswählen tippen"
+      "fileLabel": "Zum Aufnehmen oder Auswählen tippen",
+      "takePhoto": "Foto aufnehmen",
+      "chooseGallery": "Aus Galerie wählen"
     },
     "processing": "Foto wird analysiert…",
     "preview": {
@@ -3040,7 +3042,8 @@
       "reviewField": "Dieses Feld prüfen",
       "selectChild": "Für welches Kind?",
       "empty": "Nichts zu erstellen.",
-      "forChild": "Für {child}"
+      "forChild": "Für {child}",
+      "dateRange": "von {start} bis {end}"
     },
     "impact": {
       "sameDay": "{child} hat {count} Prüfungen am {date}.",
