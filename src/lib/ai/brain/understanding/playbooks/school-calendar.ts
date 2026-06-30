@@ -37,6 +37,7 @@ export interface NormalizedExam {
   isoDate: string | null; // YYYY-MM-DD ou null se não resolvível
   type: ExamType;
   content: string | null;
+  studySource: string | null; // "Onde estudar" (apostila/livro) — vai pro notes
   materials: string[];
   time: string | null; // HH:MM
   dateConfidence: FieldConfidence;
@@ -46,7 +47,12 @@ export interface NormalizedExam {
 export interface SchoolCalendarData {
   schoolYear: number;
   childHint: string | null;
+  /** Rótulo da avaliação (ex: "AV2") — entra no título de cada prova. */
+  assessmentLabel: string | null;
   exams: NormalizedExam[];
+  /** Linhas reconhecidas como prova mas DESCARTADAS por não terem matéria
+   *  (ex: "Segunda chamada"). Só telemetria — não cria atividade. */
+  skipped: number;
 }
 
 const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -179,11 +185,11 @@ function composeNameConfidence(llmEstimate: number, subject: string | null): Fie
   ]);
 }
 
-/** Título legível a partir do tipo + matéria ("Prova de Matemática"). */
-function buildTitle(type: ExamType, subject: string): string {
-  if (type === "outro") return subject;
-  const label = type.charAt(0).toUpperCase() + type.slice(1);
-  return `${label} de ${subject}`;
+/** Título legível: tipo + matéria ("Prova de Matemática"), com o rótulo da
+ *  avaliação anexado quando houver ("Prova de Matemática — AV2"). */
+function buildTitle(type: ExamType, subject: string, assessmentLabel: string | null): string {
+  const base = type === "outro" ? subject : `${type.charAt(0).toUpperCase() + type.slice(1)} de ${subject}`;
+  return assessmentLabel ? `${base} — ${assessmentLabel}` : base;
 }
 
 export const schoolCalendarPlaybook: Playbook<SchoolCalendarData> = {
@@ -201,13 +207,18 @@ export const schoolCalendarPlaybook: Playbook<SchoolCalendarData> = {
 
     const schoolYear = asNumberInRange(p.school_year, 2000, 2100) ?? ctx.schoolYearAnchor;
     const childHint = asString(p.child_name_hint);
+    const assessmentLabel = cap(asString(p.assessment_label), 40);
 
     const exams: NormalizedExam[] = [];
+    let skipped = 0;
     for (const rawExam of p.exams) {
       if (!rawExam || typeof rawExam !== "object") continue;
       const e = rawExam as Record<string, unknown>;
       const subject = cap(asString(e.subject), 120);
-      if (subject === null) continue; // matéria é o mínimo identificável
+      if (subject === null) {
+        skipped += 1; // ex: linha "Segunda chamada" sem matéria — só telemetria.
+        continue; // matéria é o mínimo identificável
+      }
 
       const type = asExamType(e.type);
       const isoDate = resolveExamDate(asString(e.date), schoolYear);
@@ -230,6 +241,7 @@ export const schoolCalendarPlaybook: Playbook<SchoolCalendarData> = {
         isoDate,
         type,
         content: cap(asString(e.content), 2000),
+        studySource: cap(asString(e.study_source), 500),
         materials: asMaterials(e.materials),
         time,
         dateConfidence,
@@ -238,7 +250,7 @@ export const schoolCalendarPlaybook: Playbook<SchoolCalendarData> = {
     }
 
     if (exams.length === 0) return null;
-    return { schoolYear, childHint, exams };
+    return { schoolYear, childHint, assessmentLabel, exams, skipped };
   },
 
   plan(data: SchoolCalendarData, ctx: PlaybookContext): MaterializationPlan {
@@ -253,13 +265,18 @@ export const schoolCalendarPlaybook: Playbook<SchoolCalendarData> = {
         if (e.nameConfidence.level !== "high") lowConfidenceFields.push("subject");
         if (ctx.resolvedChildId === null) lowConfidenceFields.push("childId");
 
+        // "Onde estudar" entra no notes rotulado (child_activities não tem
+        // coluna própria) — sem misturar com os capítulos (content).
+        const studyLine = e.studySource ? `Onde estudar: ${e.studySource}` : null;
+        const notesParts = [e.content, studyLine].filter((s): s is string => s !== null);
+
         const spec: ActivitySpec = {
           childId: ctx.resolvedChildId,
-          name: buildTitle(e.type, e.subject),
+          name: buildTitle(e.type, e.subject, data.assessmentLabel),
           category: "school",
           startDate: e.isoDate as string,
           timeStart: e.time,
-          notes: e.content,
+          notes: notesParts.length > 0 ? notesParts.join("\n\n") : null,
           checklist: e.materials.length > 0 ? e.materials : undefined,
           subject: e.subject,
           activityType: e.type,

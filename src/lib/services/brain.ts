@@ -184,6 +184,17 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
       };
     }
 
+    // Telemetria: linhas reconhecidas como prova mas descartadas por não terem
+    // matéria (ex: "Segunda chamada"). Mede a frequência antes de investir em UI.
+    const skippedLines = (data as { skipped?: number }).skipped ?? 0;
+    if (skippedLines > 0) {
+      captureServerEvent(ctx.userId, "brain_intake_lines_skipped", {
+        intake_id: intakeId,
+        skipped_count: skippedLines,
+        doc_type: docType,
+      });
+    }
+
     // 4. Plano + dedup intra-plano + impacto escopado + prioridade.
     const planned = playbook.plan(data, sctx);
     const { unique, dropped } = dedupeWithinPlan(planned.activities ?? []);
