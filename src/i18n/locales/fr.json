@@ -3026,7 +3026,8 @@
     "upload": {
       "title": "Calendrier scolaire",
       "cta": "Envoyer la photo du calendrier",
-      "hint": "Prenez ou choisissez une photo nette du calendrier des examens."
+      "hint": "Prenez ou choisissez une photo nette du calendrier des examens.",
+      "fileLabel": "Touchez pour prendre ou choisir une photo"
     },
     "processing": "Analyse de la photo…",
     "preview": {
@@ -3038,11 +3039,13 @@
       "remove": "Retirer",
       "reviewField": "Vérifiez ce champ",
       "selectChild": "Pour quel enfant ?",
-      "empty": "Rien à créer."
+      "empty": "Rien à créer.",
+      "forChild": "Pour {child}"
     },
     "impact": {
       "sameDay": "{child} a {count} épreuves le {date}.",
-      "tightSequence": "{child} a des épreuves des jours consécutifs ({date1} et {date2}) — vérifiez le temps de préparation."
+      "tightSequence": "{child} a des épreuves des jours consécutifs ({date1} et {date2}) — vérifiez le temps de préparation.",
+      "tightSequenceRun": "{child} a des épreuves {count} jours de suite ({date1} au {date2}) — vérifiez le temps de préparation."
     },
     "result": {
       "undo": "Annuler"
@@ -3052,6 +3055,7 @@
     "alreadyProcessing": "Cet élément est déjà en cours de traitement.",
     "error": {
       "generic": "Je n'ai pas pu traiter cela maintenant. Réessayez dans un instant."
-    }
+    },
+    "processingHint": "Cela peut prendre quelques secondes."
   }
 }

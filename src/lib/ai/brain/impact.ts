@@ -105,23 +105,30 @@ export function analyzeImpact(
       }
     }
 
-    // ── tight_sequence: dias consecutivos, ao menos um tocado pelo plano ──
+    // ── tight_sequence: AGREGA corridas de dias consecutivos num ÚNICO aviso.
+    //    Uma semana de provas (08→09→10→…) vira "provas em N dias seguidos
+    //    (DD a DD)", não N avisos pareados. Sem isso o preview vira parede de
+    //    alarmes âmbar — fere a hierarquia visual e o tom calmo (Regra 6). ──
     const planDates = new Set(occs.filter((o) => o.fromPlan).map((o) => o.date));
     const distinctDates = Array.from(new Set(occs.map((o) => o.date))).sort();
-    for (let i = 0; i + 1 < distinctDates.length; i++) {
-      const d1 = distinctDates[i];
-      const d2 = distinctDates[i + 1];
-      if (dayDiff(d1, d2) !== 1) continue;
-      // Só interessa se o plano introduziu pelo menos uma ponta do par.
-      if (!planDates.has(d1) && !planDates.has(d2)) continue;
-      findings.push({
-        kind: "tight_sequence",
-        severity: SEVERITY.tight_sequence,
-        date: d1,
-        childId,
-        titleKey: "brain.impact.tightSequence",
-        titleVars: { childId, date1: d1, date2: d2 },
-      });
+    let i = 0;
+    while (i < distinctDates.length) {
+      let j = i;
+      while (j + 1 < distinctDates.length && dayDiff(distinctDates[j], distinctDates[j + 1]) === 1) j++;
+      const runLen = j - i + 1;
+      // Vira aviso só se a corrida tem ≥2 dias E o plano tocou ao menos um deles
+      // (não relatamos sequências 100% pré-existentes que o usuário não criou).
+      if (runLen >= 2 && distinctDates.slice(i, j + 1).some((d) => planDates.has(d))) {
+        findings.push({
+          kind: "tight_sequence",
+          severity: SEVERITY.tight_sequence,
+          date: distinctDates[i],
+          childId,
+          titleKey: "brain.impact.tightSequenceRun",
+          titleVars: { childId, date1: distinctDates[i], date2: distinctDates[j], count: runLen },
+        });
+      }
+      i = j + 1;
     }
   }
 

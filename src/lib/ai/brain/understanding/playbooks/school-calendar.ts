@@ -59,7 +59,8 @@ function asString(v: unknown): string | null {
  *  assistente (execCreateActivity corta nome em 200). */
 function cap(s: string | null, max: number): string | null {
   if (s === null) return null;
-  return s.length > max ? s.slice(0, max) : s;
+  // Trunca COM marcador "…" (corte mudo confunde); total continua ≤ max.
+  return s.length > max ? s.slice(0, max - 1) + "…" : s;
 }
 
 function asNumberInRange(v: unknown, lo: number, hi: number): number | null {

@@ -3026,7 +3026,8 @@
     "upload": {
       "title": "School calendar",
       "cta": "Upload calendar photo",
-      "hint": "Take or pick a clear photo of the exam calendar."
+      "hint": "Take or pick a clear photo of the exam calendar.",
+      "fileLabel": "Tap to take or choose a photo"
     },
     "processing": "Analyzing the photo…",
     "preview": {
@@ -3038,11 +3039,13 @@
       "remove": "Remove",
       "reviewField": "Check this field",
       "selectChild": "Which child is this for?",
-      "empty": "Nothing to create."
+      "empty": "Nothing to create.",
+      "forChild": "For {child}"
     },
     "impact": {
       "sameDay": "{child} has {count} exams on {date}.",
-      "tightSequence": "{child} has exams on consecutive days ({date1} and {date2}) — check the prep time."
+      "tightSequence": "{child} has exams on consecutive days ({date1} and {date2}) — check the prep time.",
+      "tightSequenceRun": "{child} has exams on {count} days in a row ({date1} to {date2}) — check the prep time."
     },
     "result": {
       "undo": "Undo"
@@ -3052,6 +3055,7 @@
     "alreadyProcessing": "This item is already being processed.",
     "error": {
       "generic": "I couldn't process that right now. Try again in a moment."
-    }
+    },
+    "processingHint": "This may take a few seconds."
   }
 }

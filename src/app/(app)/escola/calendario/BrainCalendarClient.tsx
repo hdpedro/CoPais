@@ -49,7 +49,8 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
   const fmtDate = (iso?: string): string => {
     if (!iso) return "";
     const d = new Date(`${iso}T12:00:00`);
-    return d.toLocaleDateString(locale, { day: "2-digit", month: "2-digit" });
+    // dia-da-semana torna o aviso "dias seguidos" acionável (seg, ter…).
+    return d.toLocaleDateString(locale, { weekday: "short", day: "2-digit", month: "2-digit" });
   };
 
   const impactText = (f: ImpactFinding): string => {
@@ -178,12 +179,19 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
               </select>
             </label>
           )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/jpeg,image/png,image/webp"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-          />
+          <div>
+            <label className="inline-flex cursor-pointer items-center rounded border border-blue-600 px-4 py-2 text-sm font-medium text-blue-700 hover:bg-blue-50">
+              {t("brain.upload.fileLabel")}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                className="sr-only"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+            {file && <p className="mt-1 text-xs text-gray-600">{file.name}</p>}
+          </div>
           <button
             type="button"
             disabled={!file}
@@ -211,7 +219,18 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
         </div>
       )}
 
-      {step === "processing" && <p aria-live="polite">{t("brain.processing")}</p>}
+      {step === "processing" && (
+        <div className="flex items-center gap-3" aria-live="polite">
+          <span
+            className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"
+            aria-hidden="true"
+          />
+          <div>
+            <p className="text-sm font-medium">{t("brain.processing")}</p>
+            <p className="text-xs text-gray-500">{t("brain.processingHint")}</p>
+          </div>
+        </div>
+      )}
 
       {step === "preview" && preview && (
         <div className="space-y-6">
@@ -219,6 +238,9 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
           <section aria-label={t("brain.preview.foundItems")}>
             <h2 className="font-semibold">{t("brain.preview.foundItems")}</h2>
             <p className="text-sm text-gray-600">{t("brain.preview.foundCount", { count: activities.length })}</p>
+            {childId && (
+              <p className="text-sm text-gray-700">{t("brain.preview.forChild", { child: childName(childId) })}</p>
+            )}
           </section>
 
           {/* Zona 2 — o que muda */}
@@ -227,7 +249,10 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
               <h2 className="font-semibold">{t("brain.preview.impacts")}</h2>
               <ul className="space-y-1">
                 {preview.impacts.map((f, i) => (
-                  <li key={`${f.kind}-${i}`} role="status" aria-live="polite" className="text-sm text-amber-800">
+                  <li
+                    key={`${f.kind}-${i}`}
+                    className={`text-sm ${f.severity === "attention" ? "text-amber-800" : "text-gray-600"}`}
+                  >
                     {impactText(f)}
                   </li>
                 ))}
@@ -241,18 +266,32 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
             <ul className="space-y-2">
               {activities.map((a, i) => {
                 const low = (a.lowConfidenceFields?.length ?? 0) > 0;
+                const notes = a.notes ? (a.notes.length > 140 ? a.notes.slice(0, 139) + "…" : a.notes) : "";
                 return (
                   <li key={i} className="flex items-start gap-2 rounded border p-2">
                     <input
                       type="checkbox"
                       checked={kept[i] ?? false}
                       onChange={() => setKept((prev) => prev.map((k, j) => (j === i ? !k : k)))}
-                      aria-label={a.name}
+                      aria-label={`${a.name}, ${fmtDate(a.startDate)}`}
                     />
                     <div className="flex-1">
                       <div className="text-sm font-medium">{a.name}</div>
-                      <div className="text-xs text-gray-600">{fmtDate(a.startDate)}</div>
-                      {low && <div className="text-xs text-amber-700">{t("brain.preview.reviewField")}</div>}
+                      <div className="text-xs text-gray-600">
+                        {fmtDate(a.startDate)}
+                        {a.timeStart ? ` · ${a.timeStart}` : ""}
+                      </div>
+                      {notes && <div className="mt-1 text-xs text-gray-700">{notes}</div>}
+                      {a.checklist && a.checklist.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {a.checklist.map((c, k) => (
+                            <span key={k} className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-700">
+                              {c}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      {low && <div className="mt-1 text-xs text-amber-700">{t("brain.preview.reviewField")}</div>}
                     </div>
                   </li>
                 );
