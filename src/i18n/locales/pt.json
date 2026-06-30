@@ -2181,7 +2181,11 @@
     },
     "delete": "Excluir notificação",
     "clearAll": "Limpar todas",
-    "clearAllConfirm": "Apagar todas as notificações?"
+    "clearAllConfirm": "Apagar todas as notificações?",
+    "brain": {
+      "schoolCalendarTitle": "Calendário escolar adicionado",
+      "schoolCalendarBody": "{count, plural, one {# atividade adicionada} other {# atividades adicionadas}} ao calendário."
+    }
   },
   "push": {
     "chat": {
@@ -3009,5 +3013,45 @@
     "recentHeading": "Últimos dias",
     "reportedBadge": "Relatado",
     "noOccurrences": "Sem ocorrências nos próximos dias."
+  },
+  "brain": {
+    "sharing": {
+      "uploadTitle": "Antes de enviar",
+      "uploadWarning": "Vamos analisar esta foto para ajudar a organizar a rotina da sua família. As informações identificadas podem ficar visíveis aos responsáveis deste grupo. Envie apenas conteúdos que você possa compartilhar. Você revisa tudo antes de confirmar qualquer criação.",
+      "acknowledge": "Entendi e quero continuar"
+    },
+    "confirm": {
+      "savedNotice": "Tudo certo! O Kindar vai avisar os responsáveis envolvidos."
+    },
+    "upload": {
+      "title": "Calendário escolar",
+      "cta": "Enviar foto do calendário",
+      "hint": "Tire ou escolha uma foto nítida do calendário de provas."
+    },
+    "processing": "Analisando a foto…",
+    "preview": {
+      "foundItems": "O que encontrei",
+      "impacts": "O que muda",
+      "willCreate": "O que vou criar",
+      "foundCount": "{count, plural, one {# prova encontrada} other {# provas encontradas}}",
+      "confirm": "Confirmar e criar",
+      "remove": "Remover",
+      "reviewField": "Confira este campo",
+      "selectChild": "De qual criança é?",
+      "empty": "Nada para criar."
+    },
+    "impact": {
+      "sameDay": "{child} tem {count} provas em {date}.",
+      "tightSequence": "{child} tem provas em dias seguidos ({date1} e {date2}) — confira o tempo de preparo."
+    },
+    "result": {
+      "undo": "Desfazer"
+    },
+    "unknownDocument": "Não tenho certeza do que é. Quer que eu procure datas de provas?",
+    "stalePlan": "A rotina mudou desde que preparei este plano. Quer revisar?",
+    "alreadyProcessing": "Este item já está sendo processado.",
+    "error": {
+      "generic": "Não consegui processar agora. Tente de novo em instantes."
+    }
   }
 }

@@ -2181,7 +2181,11 @@
     },
     "delete": "Supprimer la notification",
     "clearAll": "Tout effacer",
-    "clearAllConfirm": "Supprimer toutes les notifications ?"
+    "clearAllConfirm": "Supprimer toutes les notifications ?",
+    "brain": {
+      "schoolCalendarTitle": "Calendrier scolaire ajouté",
+      "schoolCalendarBody": "{count, plural, one {# activité ajoutée} other {# activités ajoutées}} au calendrier."
+    }
   },
   "push": {
     "chat": {
@@ -3009,5 +3013,45 @@
     "recentHeading": "Derniers jours",
     "reportedBadge": "Raconté",
     "noOccurrences": "Aucune occurrence dans les prochains jours."
+  },
+  "brain": {
+    "sharing": {
+      "uploadTitle": "Avant d'envoyer",
+      "uploadWarning": "Nous analyserons cette photo pour aider à organiser la routine de votre famille. Les informations identifiées peuvent devenir visibles pour les responsables de ce groupe. N'envoyez que des contenus que vous pouvez partager. Vous vérifiez tout avant de confirmer.",
+      "acknowledge": "J'ai compris, continuer"
+    },
+    "confirm": {
+      "savedNotice": "C'est fait ! Kindar préviendra les responsables concernés."
+    },
+    "upload": {
+      "title": "Calendrier scolaire",
+      "cta": "Envoyer la photo du calendrier",
+      "hint": "Prenez ou choisissez une photo nette du calendrier des examens."
+    },
+    "processing": "Analyse de la photo…",
+    "preview": {
+      "foundItems": "Ce que j'ai trouvé",
+      "impacts": "Ce qui change",
+      "willCreate": "Ce que je vais créer",
+      "foundCount": "{count, plural, one {# épreuve trouvée} other {# épreuves trouvées}}",
+      "confirm": "Confirmer et créer",
+      "remove": "Retirer",
+      "reviewField": "Vérifiez ce champ",
+      "selectChild": "Pour quel enfant ?",
+      "empty": "Rien à créer."
+    },
+    "impact": {
+      "sameDay": "{child} a {count} épreuves le {date}.",
+      "tightSequence": "{child} a des épreuves des jours consécutifs ({date1} et {date2}) — vérifiez le temps de préparation."
+    },
+    "result": {
+      "undo": "Annuler"
+    },
+    "unknownDocument": "Je ne suis pas sûr de ce que c'est. Voulez-vous que je cherche des dates d'épreuves ?",
+    "stalePlan": "La routine a changé depuis que j'ai préparé ce plan. Voulez-vous vérifier ?",
+    "alreadyProcessing": "Cet élément est déjà en cours de traitement.",
+    "error": {
+      "generic": "Je n'ai pas pu traiter cela maintenant. Réessayez dans un instant."
+    }
   }
 }

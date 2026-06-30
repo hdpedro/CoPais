@@ -255,6 +255,30 @@ export type TranslationKey =
   | "balanceOps.viewHistory"
   | "balanceOps.waive"
   | "balanceOps.youOwe"
+  | "brain.alreadyProcessing"
+  | "brain.confirm.savedNotice"
+  | "brain.error.generic"
+  | "brain.impact.sameDay"
+  | "brain.impact.tightSequence"
+  | "brain.preview.confirm"
+  | "brain.preview.empty"
+  | "brain.preview.foundCount"
+  | "brain.preview.foundItems"
+  | "brain.preview.impacts"
+  | "brain.preview.remove"
+  | "brain.preview.reviewField"
+  | "brain.preview.selectChild"
+  | "brain.preview.willCreate"
+  | "brain.processing"
+  | "brain.result.undo"
+  | "brain.sharing.acknowledge"
+  | "brain.sharing.uploadTitle"
+  | "brain.sharing.uploadWarning"
+  | "brain.stalePlan"
+  | "brain.unknownDocument"
+  | "brain.upload.cta"
+  | "brain.upload.hint"
+  | "brain.upload.title"
   | "briefing.attentionTitle"
   | "briefing.calmSubtitle"
   | "briefing.calmTitle"
@@ -2216,6 +2240,8 @@ export type TranslationKey =
   | "notifPrefs.testFailed"
   | "notifPrefs.testSent"
   | "notifPrefs.title"
+  | "notifications.brain.schoolCalendarBody"
+  | "notifications.brain.schoolCalendarTitle"
   | "notifications.chatMessage"
   | "notifications.clearAll"
   | "notifications.clearAllConfirm"
@@ -3019,6 +3045,30 @@ export const TRANSLATION_KEYS = [
   "balanceOps.viewHistory",
   "balanceOps.waive",
   "balanceOps.youOwe",
+  "brain.alreadyProcessing",
+  "brain.confirm.savedNotice",
+  "brain.error.generic",
+  "brain.impact.sameDay",
+  "brain.impact.tightSequence",
+  "brain.preview.confirm",
+  "brain.preview.empty",
+  "brain.preview.foundCount",
+  "brain.preview.foundItems",
+  "brain.preview.impacts",
+  "brain.preview.remove",
+  "brain.preview.reviewField",
+  "brain.preview.selectChild",
+  "brain.preview.willCreate",
+  "brain.processing",
+  "brain.result.undo",
+  "brain.sharing.acknowledge",
+  "brain.sharing.uploadTitle",
+  "brain.sharing.uploadWarning",
+  "brain.stalePlan",
+  "brain.unknownDocument",
+  "brain.upload.cta",
+  "brain.upload.hint",
+  "brain.upload.title",
   "briefing.attentionTitle",
   "briefing.calmSubtitle",
   "briefing.calmTitle",
@@ -4980,6 +5030,8 @@ export const TRANSLATION_KEYS = [
   "notifPrefs.testFailed",
   "notifPrefs.testSent",
   "notifPrefs.title",
+  "notifications.brain.schoolCalendarBody",
+  "notifications.brain.schoolCalendarTitle",
   "notifications.chatMessage",
   "notifications.clearAll",
   "notifications.clearAllConfirm",

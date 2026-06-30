@@ -2181,7 +2181,11 @@
     },
     "delete": "Delete notification",
     "clearAll": "Clear all",
-    "clearAllConfirm": "Delete all notifications?"
+    "clearAllConfirm": "Delete all notifications?",
+    "brain": {
+      "schoolCalendarTitle": "School calendar added",
+      "schoolCalendarBody": "{count, plural, one {# activity added} other {# activities added}} to the calendar."
+    }
   },
   "push": {
     "chat": {
@@ -3009,5 +3013,45 @@
     "recentHeading": "Recent days",
     "reportedBadge": "Reported",
     "noOccurrences": "No occurrences in the next few days."
+  },
+  "brain": {
+    "sharing": {
+      "uploadTitle": "Before you upload",
+      "uploadWarning": "We'll analyze this photo to help organize your family's routine. The information identified may become visible to the guardians in this group. Only upload content you're able to share. You review everything before confirming anything.",
+      "acknowledge": "I understand, continue"
+    },
+    "confirm": {
+      "savedNotice": "All set! Kindar will let the involved guardians know."
+    },
+    "upload": {
+      "title": "School calendar",
+      "cta": "Upload calendar photo",
+      "hint": "Take or pick a clear photo of the exam calendar."
+    },
+    "processing": "Analyzing the photo…",
+    "preview": {
+      "foundItems": "What I found",
+      "impacts": "What changes",
+      "willCreate": "What I'll create",
+      "foundCount": "{count, plural, one {# exam found} other {# exams found}}",
+      "confirm": "Confirm and create",
+      "remove": "Remove",
+      "reviewField": "Check this field",
+      "selectChild": "Which child is this for?",
+      "empty": "Nothing to create."
+    },
+    "impact": {
+      "sameDay": "{child} has {count} exams on {date}.",
+      "tightSequence": "{child} has exams on consecutive days ({date1} and {date2}) — check the prep time."
+    },
+    "result": {
+      "undo": "Undo"
+    },
+    "unknownDocument": "I'm not sure what this is. Want me to look for exam dates?",
+    "stalePlan": "The routine changed since I prepared this plan. Want to review?",
+    "alreadyProcessing": "This item is already being processed.",
+    "error": {
+      "generic": "I couldn't process that right now. Try again in a moment."
+    }
   }
 }

@@ -8,6 +8,12 @@
     },
     "src/app/api/push/register-apns/route.ts": {
       "maxDuration": 20
+    },
+    "src/app/api/cron/brain-outbox-worker/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/purge-expired-intakes/route.ts": {
+      "maxDuration": 120
     }
   },
   "crons": [
@@ -70,6 +76,14 @@
     {
       "path": "/api/cron/vaccine-campaign",
       "schedule": "0 13 1 * *"
+    },
+    {
+      "path": "/api/cron/brain-outbox-worker",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron/purge-expired-intakes",
+      "schedule": "0 4 * * *"
     }
   ]
 }
