@@ -27,11 +27,11 @@ export default async function Page() {
 
   const { data: childRows } = await supabase
     .from("children")
-    .select("id, name")
+    .select("id, full_name")
     .eq("group_id", group.groupId);
   const children = (childRows ?? []).map((c) => ({
     id: c.id as string,
-    name: (c.name as string) ?? "",
+    name: (c.full_name as string) ?? "",
   }));
 
   return <BrainCalendarClient groupChildren={children} />;
