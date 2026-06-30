@@ -86,6 +86,38 @@ describe("analyzeImpact — tight_sequence", () => {
     expect(seq[0].titleVars).toMatchObject({ date1: "2026-08-12", date2: "2026-08-13" });
   });
 
+  it("corrida de 3+ dias consecutivos vira UM aviso agregado (não N pareados)", () => {
+    const findings = analyzeImpact(
+      plan([
+        activity({ name: "A", startDate: "2026-08-12" }),
+        activity({ name: "B", startDate: "2026-08-13" }),
+        activity({ name: "C", startDate: "2026-08-14" }),
+      ]),
+      [],
+    );
+    const seq = findings.filter((f) => f.kind === "tight_sequence");
+    expect(seq).toHaveLength(1);
+    expect(seq[0].titleKey).toBe("brain.impact.tightSequenceRun");
+    expect(seq[0].titleVars).toMatchObject({ date1: "2026-08-12", date2: "2026-08-14", count: 3 });
+  });
+
+  it("duas corridas separadas por intervalo → dois avisos (um por corrida)", () => {
+    // Espelha um calendário de provas real (08–10, intervalo, 13–16).
+    const findings = analyzeImpact(
+      plan([
+        activity({ name: "A", startDate: "2026-08-12" }),
+        activity({ name: "B", startDate: "2026-08-13" }),
+        activity({ name: "C", startDate: "2026-08-17" }),
+        activity({ name: "D", startDate: "2026-08-18" }),
+        activity({ name: "E", startDate: "2026-08-19" }),
+      ]),
+      [],
+    );
+    const seq = findings.filter((f) => f.kind === "tight_sequence");
+    expect(seq).toHaveLength(2);
+    expect(seq.map((f) => f.titleVars?.count).sort()).toEqual([2, 3]);
+  });
+
   it("dias separados por >1 dia não disparam", () => {
     const findings = analyzeImpact(
       plan([

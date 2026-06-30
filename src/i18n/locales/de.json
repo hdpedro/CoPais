@@ -3026,7 +3026,8 @@
     "upload": {
       "title": "Schulkalender",
       "cta": "Kalenderfoto hochladen",
-      "hint": "Mach oder wähle ein scharfes Foto des Prüfungskalenders."
+      "hint": "Mach oder wähle ein scharfes Foto des Prüfungskalenders.",
+      "fileLabel": "Zum Aufnehmen oder Auswählen tippen"
     },
     "processing": "Foto wird analysiert…",
     "preview": {
@@ -3038,11 +3039,13 @@
       "remove": "Entfernen",
       "reviewField": "Dieses Feld prüfen",
       "selectChild": "Für welches Kind?",
-      "empty": "Nichts zu erstellen."
+      "empty": "Nichts zu erstellen.",
+      "forChild": "Für {child}"
     },
     "impact": {
       "sameDay": "{child} hat {count} Prüfungen am {date}.",
-      "tightSequence": "{child} hat an aufeinanderfolgenden Tagen Prüfungen ({date1} und {date2}) — prüfe die Vorbereitungszeit."
+      "tightSequence": "{child} hat an aufeinanderfolgenden Tagen Prüfungen ({date1} und {date2}) — prüfe die Vorbereitungszeit.",
+      "tightSequenceRun": "{child} hat an {count} Tagen hintereinander Prüfungen ({date1} bis {date2}) — Vorbereitungszeit prüfen."
     },
     "result": {
       "undo": "Rückgängig"
@@ -3052,6 +3055,7 @@
     "alreadyProcessing": "Dieses Element wird bereits verarbeitet.",
     "error": {
       "generic": "Ich konnte das gerade nicht verarbeiten. Versuche es gleich noch einmal."
-    }
+    },
+    "processingHint": "Das kann ein paar Sekunden dauern."
   }
 }

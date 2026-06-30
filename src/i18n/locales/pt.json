@@ -3026,7 +3026,8 @@
     "upload": {
       "title": "Calendário escolar",
       "cta": "Enviar foto do calendário",
-      "hint": "Tire ou escolha uma foto nítida do calendário de provas."
+      "hint": "Tire ou escolha uma foto nítida do calendário de provas.",
+      "fileLabel": "Toque para tirar ou escolher uma foto"
     },
     "processing": "Analisando a foto…",
     "preview": {
@@ -3038,11 +3039,13 @@
       "remove": "Remover",
       "reviewField": "Confira este campo",
       "selectChild": "De qual criança é?",
-      "empty": "Nada para criar."
+      "empty": "Nada para criar.",
+      "forChild": "Para {child}"
     },
     "impact": {
       "sameDay": "{child} tem {count} provas em {date}.",
-      "tightSequence": "{child} tem provas em dias seguidos ({date1} e {date2}) — confira o tempo de preparo."
+      "tightSequence": "{child} tem provas em dias seguidos ({date1} e {date2}) — confira o tempo de preparo.",
+      "tightSequenceRun": "{child} tem provas em {count} dias seguidos ({date1} a {date2}) — confira o tempo de preparo."
     },
     "result": {
       "undo": "Desfazer"
@@ -3052,6 +3055,7 @@
     "alreadyProcessing": "Este item já está sendo processado.",
     "error": {
       "generic": "Não consegui processar agora. Tente de novo em instantes."
-    }
+    },
+    "processingHint": "Isso pode levar alguns segundos."
   }
 }
