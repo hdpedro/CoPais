@@ -71,11 +71,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // 6. Resolve a criança: child_id explícito (se do grupo) ou única do grupo.
     const { data: childRows } = await supabase
       .from("children")
-      .select("id, name, birth_date")
+      .select("id, full_name, birth_date")
       .eq("group_id", group.groupId);
     const children: BrainChild[] = (childRows ?? []).map((c) => ({
       id: c.id as string,
-      name: (c.name as string) ?? "",
+      name: (c.full_name as string) ?? "",
       birthDate: (c.birth_date as string | null) ?? undefined,
     }));
     if (children.length === 0) {
