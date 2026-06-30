@@ -262,6 +262,7 @@ export type TranslationKey =
   | "brain.impact.tightSequence"
   | "brain.impact.tightSequenceRun"
   | "brain.preview.confirm"
+  | "brain.preview.dateRange"
   | "brain.preview.empty"
   | "brain.preview.forChild"
   | "brain.preview.foundCount"
@@ -279,9 +280,11 @@ export type TranslationKey =
   | "brain.sharing.uploadWarning"
   | "brain.stalePlan"
   | "brain.unknownDocument"
+  | "brain.upload.chooseGallery"
   | "brain.upload.cta"
   | "brain.upload.fileLabel"
   | "brain.upload.hint"
+  | "brain.upload.takePhoto"
   | "brain.upload.title"
   | "briefing.attentionTitle"
   | "briefing.calmSubtitle"
@@ -3056,6 +3059,7 @@ export const TRANSLATION_KEYS = [
   "brain.impact.tightSequence",
   "brain.impact.tightSequenceRun",
   "brain.preview.confirm",
+  "brain.preview.dateRange",
   "brain.preview.empty",
   "brain.preview.forChild",
   "brain.preview.foundCount",
@@ -3073,9 +3077,11 @@ export const TRANSLATION_KEYS = [
   "brain.sharing.uploadWarning",
   "brain.stalePlan",
   "brain.unknownDocument",
+  "brain.upload.chooseGallery",
   "brain.upload.cta",
   "brain.upload.fileLabel",
   "brain.upload.hint",
+  "brain.upload.takePhoto",
   "brain.upload.title",
   "briefing.attentionTitle",
   "briefing.calmSubtitle",
