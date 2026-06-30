@@ -16,7 +16,7 @@
 /* por sanitizeRawTextForLog).                                           */
 /* ------------------------------------------------------------------ */
 
-import { randomUUID } from "crypto";
+import { randomUUID, createHash } from "crypto";
 import type { createClient } from "@/lib/supabase/server";
 import { compressImageForVision } from "@/lib/ai/image-utils";
 import { routeVisionRequest } from "@/lib/ai/router";
@@ -31,9 +31,12 @@ import { buildActivityPayloads, buildOutboxPayloads, selectActivitiesByIndex } f
 import { sanitizeForLogPreview } from "@/lib/ai/brain/sanitize-log";
 import { captureServerEvent } from "@/lib/posthog-server";
 import type {
+  BrainChild,
   DocType,
+  IntakeChannel,
   IntakePreview,
   IntakeResult,
+  IntakeSource,
   MaterializationPlan,
   PlaybookContext,
 } from "@/lib/ai/brain/types";
@@ -41,6 +44,16 @@ import type {
 const FILE = "src/lib/services/brain.ts";
 const CONFIRMATION_TTL_MS = 24 * 60 * 60 * 1000; // 24h
 const DEFAULT_TIMEZONE = "America/Sao_Paulo";
+const EXT: Record<string, string> = { "image/jpeg": "jpg", "image/png": "png", "image/webp": "webp" };
+
+/** Data de HOJE no timezone do grupo (YYYY-MM-DD). */
+function todayInTz(tz: string): string {
+  try {
+    return new Date().toLocaleDateString("en-CA", { timeZone: tz });
+  } catch {
+    return new Date().toLocaleDateString("en-CA", { timeZone: DEFAULT_TIMEZONE });
+  }
+}
 
 /** Garante um IANA válido (o reminderRule depende disso; IANA inválida
  *  quebraria o agendador silenciosamente). Fallback ao timezone canônico. */
@@ -92,6 +105,95 @@ async function loadExistingOccurrences(
     date: row.occurrence_date as string,
     title: "",
   }));
+}
+
+export interface CreateAndAnalyzeArgs {
+  supabase: SupabaseServer;
+  groupId: string;
+  userId: string;
+  /** Canal de origem (pwa | native | whatsapp) — diferencia só a ORIGEM; o
+   *  cérebro (análise/plano/impacto) é o mesmo entre os canais. */
+  channel: IntakeChannel;
+  source?: IntakeSource;
+  buffer: Buffer;
+  /** MIME REAL já validado por magic bytes pelo caller (jpeg/png/webp). */
+  mime: string;
+  /** Crianças do grupo (o caller resolve — deve ser não-vazio). */
+  children: BrainChild[];
+  requestedChildId: string | null;
+}
+
+/**
+ * Orquestração COMPARTILHADA de intake (PWA, WhatsApp, …): resolve criança +
+ * timezone, cria o brain_intake, sobe o original ao bucket e analisa. O caller
+ * faz só o que é específico do canal (auth, gate de flag, consentimento,
+ * validação de MIME, mensagens de erro). Mantém o cérebro único — a foto cai
+ * no MESMO pipeline venha do app ou do WhatsApp.
+ */
+export async function createAndAnalyzeIntake(args: CreateAndAnalyzeArgs): Promise<IntakeResult> {
+  const { supabase, groupId, userId, channel, buffer, mime, children, requestedChildId } = args;
+  const source = args.source ?? "document";
+  try {
+    const resolvedChildId =
+      requestedChildId && children.some((c) => c.id === requestedChildId)
+        ? requestedChildId
+        : children.length === 1
+          ? children[0].id
+          : null; // >1 sem escolha → analyzeIntakeImage devolve needs_child_selection
+
+    const { data: groupRow } = await supabase
+      .from("coparenting_groups")
+      .select("timezone")
+      .eq("id", groupId)
+      .single();
+    const timezone = safeTimezone((groupRow?.timezone as string | undefined) || DEFAULT_TIMEZONE);
+    const today = todayInTz(timezone);
+
+    const { data: intake, error: insErr } = await supabase
+      .from("brain_intakes")
+      .insert({
+        group_id: groupId,
+        child_id: resolvedChildId,
+        created_by: userId,
+        source,
+        channel,
+        status: "uploaded",
+        source_sha256: createHash("sha256").update(buffer).digest("hex"),
+      })
+      .select("id")
+      .single();
+    if (insErr || !intake) {
+      await reportServerError(insErr, { filePath: FILE, metadata: { step: "create_intake", groupId } });
+      return { kind: "error", message: "Falha ao iniciar o processamento." };
+    }
+    const intakeId = intake.id as string;
+    captureServerEvent(userId, "brain_intake_uploaded", { intake_id: intakeId, channel, mime });
+
+    // Sobe o original pro bucket privado (group_id como 1ª pasta = RLS).
+    const path = `${groupId}/brain-intakes/${intakeId}/source.${EXT[mime] ?? "jpg"}`;
+    const { error: upErr } = await supabase.storage.from("documents").upload(path, buffer, {
+      contentType: mime,
+      upsert: true,
+    });
+    if (!upErr) {
+      await supabase.from("brain_intakes").update({ source_media_path: path }).eq("id", intakeId);
+    } // upload falho é non-fatal: a análise usa o buffer em memória.
+
+    const ctx: PlaybookContext = {
+      groupId,
+      userId,
+      channel,
+      today,
+      timezone,
+      children,
+      resolvedChildId,
+      schoolYearAnchor: Number(today.slice(0, 4)),
+    };
+    return await analyzeIntakeImage({ supabase, intakeId, imageBuffer: buffer, ctx });
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "create_and_analyze", groupId } });
+    return { kind: "error", message: "Não consegui processar agora. Tente de novo em instantes." };
+  }
 }
 
 export interface AnalyzeIntakeArgs {
