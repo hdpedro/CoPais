@@ -121,12 +121,27 @@ export function resolveExamDate(raw: string | null, schoolYear: number): string 
   let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?=\D|$)/);
   if (m) return buildIso(Number(m[1]), Number(m[2]), Number(m[3]));
 
-  // 2. DD/MM[/AA|AAAA] com separador "/" "." ou "-" (tolera sufixo).
+  // 2. Duas partes numéricas com separador "/" "." ou "-" (ano opcional, 2 ou
+  //    4 dígitos), tolerando sufixo. Desambigua dia/mês: o componente > 12 só
+  //    pode ser o DIA; se ambos <= 12 (ambíguo), assume DIA/MÊS (convenção BR,
+  //    alinhada ao prompt). Cobre tanto "12/08" quanto "08-13" (MM-DD do LLM).
   m = s.match(/^(\d{1,2})[/.\-](\d{1,2})(?:[/.\-](\d{2}|\d{4}))?(?=\D|$)/);
   if (m) {
-    const day = Number(m[1]);
-    const month = Number(m[2]);
+    const a = Number(m[1]);
+    const b = Number(m[2]);
     const year = m[3] ? (m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3])) : schoolYear;
+    let day: number;
+    let month: number;
+    if (a > 12 && b <= 12) {
+      day = a;
+      month = b;
+    } else if (b > 12 && a <= 12) {
+      day = b;
+      month = a;
+    } else {
+      day = a; // ambíguo (ambos <= 12) → dia primeiro (BR)
+      month = b;
+    }
     return buildIso(year, month, day);
   }
 

@@ -60,6 +60,18 @@ describe("resolveExamDate", () => {
   it("ano de 2 dígitos vira 20xx", () => {
     expect(resolveExamDate("12/08/26", 2026)).toBe("2026-08-12");
   });
+  it("desambigua dia/mês pelo componente > 12 (cobre MM-DD do LLM)", () => {
+    // "08-13": 13 só pode ser dia → 13 de agosto (não mês 13, inválido).
+    expect(resolveExamDate("08-13", 2026)).toBe("2026-08-13");
+    expect(resolveExamDate("08-19", 2026)).toBe("2026-08-19");
+    expect(resolveExamDate("08-26", 2026)).toBe("2026-08-26");
+    // primeiro > 12 → dia primeiro (DD/MM clássico).
+    expect(resolveExamDate("31/12", 2026)).toBe("2026-12-31");
+    // segundo > 12 → o segundo é o dia (MM/DD).
+    expect(resolveExamDate("12/31", 2026)).toBe("2026-12-31");
+    // ambíguo (ambos <= 12) → dia primeiro (BR), preserva comportamento.
+    expect(resolveExamDate("12/08", 2026)).toBe("2026-08-12");
+  });
   it("ISO sem zero à esquerda e com sufixo de hora", () => {
     expect(resolveExamDate("2026-8-12", 2026)).toBe("2026-08-12");
     expect(resolveExamDate("2026-08-12T08:00:00", 2026)).toBe("2026-08-12");
