@@ -51,8 +51,33 @@ describe("resolveExamDate", () => {
   it("DD/MM/YYYY usa o ano explícito", () => {
     expect(resolveExamDate("12/08/2027", 2026)).toBe("2027-08-12");
   });
+  it("separadores '.' e '-' resolvem como BR", () => {
+    expect(resolveExamDate("12.08", 2026)).toBe("2026-08-12");
+    expect(resolveExamDate("12-08", 2026)).toBe("2026-08-12");
+    expect(resolveExamDate("12.08.2026", 2026)).toBe("2026-08-12");
+    expect(resolveExamDate("12-08-2027", 2026)).toBe("2027-08-12");
+  });
+  it("ano de 2 dígitos vira 20xx", () => {
+    expect(resolveExamDate("12/08/26", 2026)).toBe("2026-08-12");
+  });
+  it("ISO sem zero à esquerda e com sufixo de hora", () => {
+    expect(resolveExamDate("2026-8-12", 2026)).toBe("2026-08-12");
+    expect(resolveExamDate("2026-08-12T08:00:00", 2026)).toBe("2026-08-12");
+  });
+  it("sufixo após a data (dia da semana) é tolerado", () => {
+    expect(resolveExamDate("12/08 (qua)", 2026)).toBe("2026-08-12");
+    expect(resolveExamDate("12/08 - terça", 2026)).toBe("2026-08-12");
+  });
+  it("mês textual pt-BR resolve (extenso e abreviado)", () => {
+    expect(resolveExamDate("12 de agosto", 2026)).toBe("2026-08-12");
+    expect(resolveExamDate("12 de agosto de 2027", 2026)).toBe("2027-08-12");
+    expect(resolveExamDate("12 ago", 2026)).toBe("2026-08-12");
+    expect(resolveExamDate("5 de março", 2026)).toBe("2026-03-05");
+  });
   it("lixo → null (nunca chuta)", () => {
     expect(resolveExamDate("amanhã", 2026)).toBeNull();
+    expect(resolveExamDate("semana que vem", 2026)).toBeNull();
+    expect(resolveExamDate("12 de xpto", 2026)).toBeNull();
     expect(resolveExamDate(null, 2026)).toBeNull();
   });
 });

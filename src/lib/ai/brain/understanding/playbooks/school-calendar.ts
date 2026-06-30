@@ -81,24 +81,63 @@ function asMaterials(v: unknown): string[] {
     .slice(0, 20);
 }
 
+/** Meses pt-BR (abreviado + extenso) → número. Tolera "março"/"marco". */
+const PT_MONTHS: Record<string, number> = {
+  jan: 1, janeiro: 1,
+  fev: 2, fevereiro: 2,
+  mar: 3, marco: 3, "março": 3,
+  abr: 4, abril: 4,
+  mai: 5, maio: 5,
+  jun: 6, junho: 6,
+  jul: 7, julho: 7,
+  ago: 8, agosto: 8,
+  set: 9, setembro: 9,
+  out: 10, outubro: 10,
+  nov: 11, novembro: 11,
+  dez: 12, dezembro: 12,
+};
+
+/** Monta ISO a partir de y/m/d e só devolve se for data real. */
+function buildIso(year: number, month: number, day: number): string | null {
+  if (![year, month, day].every((n) => Number.isInteger(n))) return null;
+  const candidate = `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  return isParseableIsoDate(candidate) ? candidate : null;
+}
+
 /**
- * Resolve uma data de exame em ISO. Aceita "YYYY-MM-DD" (validada) ou
- * "DD/MM" e "DD/MM/YYYY" (resolve o ano contra o ano letivo). Devolve null
- * se não for resolvível em data real — nunca chuta.
+ * Resolve uma data de exame em ISO. Robusto aos formatos que LLMs emitem na
+ * prática: ISO ("2026-08-12", também sem zero ou com sufixo de hora), data
+ * BR com separador "/" "." ou "-" e ano de 2 ou 4 dígitos ("12/08",
+ * "12-08-26", "12.08.2026"), tolerando sufixo ("12/08 (qua)"), e mês textual
+ * pt-BR ("12 de agosto", "12 ago"). Sem ano → resolve contra o ano letivo.
+ * Devolve null se não for resolvível em data real — NUNCA chuta.
  */
 export function resolveExamDate(raw: string | null, schoolYear: number): string | null {
   if (!raw) return null;
-  const iso = raw.trim();
-  if (/^\d{4}-\d{2}-\d{2}$/.test(iso)) {
-    return isParseableIsoDate(iso) ? iso : null;
+  const s = raw.trim().toLowerCase();
+  if (s === "") return null;
+
+  // 1. ISO no início (tolera dígito sem zero e sufixo, ex. "2026-8-12T08:00").
+  let m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?=\D|$)/);
+  if (m) return buildIso(Number(m[1]), Number(m[2]), Number(m[3]));
+
+  // 2. DD/MM[/AA|AAAA] com separador "/" "." ou "-" (tolera sufixo).
+  m = s.match(/^(\d{1,2})[/.\-](\d{1,2})(?:[/.\-](\d{2}|\d{4}))?(?=\D|$)/);
+  if (m) {
+    const day = Number(m[1]);
+    const month = Number(m[2]);
+    const year = m[3] ? (m[3].length === 2 ? 2000 + Number(m[3]) : Number(m[3])) : schoolYear;
+    return buildIso(year, month, day);
   }
-  const m = iso.match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{4}))?$/);
-  if (!m) return null;
-  const day = m[1].padStart(2, "0");
-  const month = m[2].padStart(2, "0");
-  const year = m[3] ? m[3] : String(schoolYear);
-  const candidate = `${year}-${month}-${day}`;
-  return isParseableIsoDate(candidate) ? candidate : null;
+
+  // 3. Mês textual pt-BR: "12 de agosto", "12 agosto", "12 ago [de 2026]".
+  m = s.match(/^(\d{1,2})\s*(?:de\s+)?([a-zà-ÿ]+)\.?(?:\s+de\s+(\d{4}))?/);
+  if (m && PT_MONTHS[m[2]] !== undefined) {
+    const year = m[3] ? Number(m[3]) : schoolYear;
+    return buildIso(year, PT_MONTHS[m[2]], Number(m[1]));
+  }
+
+  return null;
 }
 
 /** Compõe a confiança da DATA: LLM + parseável (hard) + ano coerente
