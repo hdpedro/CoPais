@@ -3027,7 +3027,9 @@
       "title": "Calendario escolar",
       "cta": "Enviar foto del calendario",
       "hint": "Toma o elige una foto nítida del calendario de pruebas.",
-      "fileLabel": "Toca para tomar o elegir una foto"
+      "fileLabel": "Toca para tomar o elegir una foto",
+      "takePhoto": "Tomar foto",
+      "chooseGallery": "Elegir de la galería"
     },
     "processing": "Analizando la foto…",
     "preview": {
@@ -3040,7 +3042,8 @@
       "reviewField": "Revisa este campo",
       "selectChild": "¿De qué niño es?",
       "empty": "Nada para crear.",
-      "forChild": "Para {child}"
+      "forChild": "Para {child}",
+      "dateRange": "de {start} a {end}"
     },
     "impact": {
       "sameDay": "{child} tiene {count} pruebas el {date}.",
