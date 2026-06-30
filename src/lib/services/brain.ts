@@ -160,25 +160,6 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
       return { kind: "error", message: "Não consegui interpretar a foto. Tente uma imagem mais nítida." };
     }
 
-    // [DIAG-TEMP A0] formato CRU das datas devolvidas pelo modelo (sem PII:
-    // só data/hora/confiança) — calibra resolveExamDate. Remover após A0.
-    try {
-      const rawExams = (raw as { exams?: unknown })?.exams;
-      if (Array.isArray(rawExams)) {
-        console.log(
-          "[brain:diag] raw exam dates",
-          JSON.stringify(
-            rawExams.map((x) => {
-              const e = (x ?? {}) as Record<string, unknown>;
-              return { date: e.date, time: e.time, dc: e.date_confidence };
-            }),
-          ),
-        );
-      }
-    } catch {
-      /* diag non-fatal */
-    }
-
     const data = playbook.parse(raw, sctx);
     if (!data) {
       // Não reconheceu como calendário escolar. Estado terminal NÃO-alarmante

@@ -31,6 +31,7 @@ export interface OutboxWorkerResult {
   delivered: number;
   failed: number;
   dead: number;
+  cancelled: number;
 }
 
 /** Entrega um item. Lança em qualquer falha (o caller faz retry/DLQ). */
@@ -60,7 +61,7 @@ async function deliver(row: OutboxRow): Promise<void> {
  */
 export async function runOutboxWorker(limit = 20): Promise<OutboxWorkerResult> {
   const admin = createAdminClient();
-  const result: OutboxWorkerResult = { claimed: 0, delivered: 0, failed: 0, dead: 0 };
+  const result: OutboxWorkerResult = { claimed: 0, delivered: 0, failed: 0, dead: 0, cancelled: 0 };
 
   const { data: rows, error } = await admin.rpc("brain_outbox_claim_batch", { p_limit: limit });
   if (error) {
@@ -72,6 +73,26 @@ export async function runOutboxWorker(limit = 20): Promise<OutboxWorkerResult> {
 
   for (const row of batch) {
     try {
+      // Guarda (defesa em profundidade): não entrega coordenação de um intake
+      // que não está mais 'executed' — ex.: desfeito entre o claim e a entrega.
+      // O undo já marca o outbox 'cancelled' (00129); isto cobre a corrida em
+      // que esta linha foi reivindicada um instante ANTES do undo.
+      const intakeId = (row.payload as { intake_id?: string } | null)?.intake_id;
+      if (intakeId) {
+        const { data: intake } = await admin
+          .from("brain_intakes")
+          .select("status")
+          .eq("id", intakeId)
+          .single();
+        if (intake && intake.status !== "executed") {
+          await admin
+            .from("brain_outbox")
+            .update({ status: "cancelled", last_error: `intake_${intake.status}` })
+            .eq("id", row.id);
+          result.cancelled += 1;
+          continue;
+        }
+      }
       await deliver(row);
       await admin
         .from("brain_outbox")
