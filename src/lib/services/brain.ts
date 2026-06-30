@@ -133,11 +133,16 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
     const sctx: PlaybookContext = { ...ctx, timezone: safeTimezone(ctx.timezone) };
 
     const { base64, mimeType } = await compressImageForVision(imageBuffer);
+    // Injeta o ano letivo de referência: o modelo resolve a data em ISO mesmo
+    // quando o ano não aparece na imagem (evita data sem ano / formato ambíguo).
+    const userPrompt =
+      `${playbook.extractionPrompt.user}\n\n` +
+      `Ano letivo de referência (use se o ano não aparecer na imagem): ${sctx.schoolYearAnchor}.`;
     const vision = await routeVisionRequest(
       base64,
       mimeType,
       playbook.extractionPrompt.system,
-      playbook.extractionPrompt.user,
+      userPrompt,
       { temperature: 0.1, maxTokens: 4000 },
     );
 
