@@ -9,6 +9,7 @@
 /* ------------------------------------------------------------------ */
 
 import type { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { decideUndo, type ArtifactSnapshot } from "@/lib/ai/brain/undo-decision";
 import {
@@ -108,10 +109,16 @@ export async function undoIntake(args: {
       .single();
     const path = intake?.source_media_path as string | null;
     if (path) {
-      const { error: rmErr } = await supabase.storage.from("documents").remove([path]);
+      // Via service_role: a RLS DELETE do bucket é owner-only, então um undo
+      // por COPARENTE (não-owner) não apagaria a mídia pelo client. O
+      // apply_undo já validou is_group_member; o path vem da própria linha do
+      // intake (não é input do usuário). Mesmo motivo p/ o null + audit
+      // (creator-update RLS bloquearia o coparente).
+      const admin = createAdminClient();
+      const { error: rmErr } = await admin.storage.from("documents").remove([path]);
       if (!rmErr) {
-        await supabase.from("brain_intakes").update({ source_media_path: null }).eq("id", intakeId);
-        await supabase.from("brain_intake_audit").insert({
+        await admin.from("brain_intakes").update({ source_media_path: null }).eq("id", intakeId);
+        await admin.from("brain_intake_audit").insert({
           intake_id: intakeId,
           group_id: intake?.group_id,
           action: "media_purged",

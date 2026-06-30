@@ -138,9 +138,16 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
     try {
       const res = await fetch(`/api/brain/intakes/${preview.intakeId}`, { method: "DELETE" });
       const data = (await res.json()) as ApiResult;
+      // Reseta pro início (não trava no 'done') + mostra o que foi desfeito.
+      setPreview(null);
+      setKept([]);
+      setFile(null);
+      if (fileRef.current) fileRef.current.value = "";
       setMessage(data.message || "");
+      setStep("upload");
     } catch {
       setMessage(t("brain.error.generic"));
+      setStep("error");
     } finally {
       setBusy(false);
     }
@@ -190,7 +197,7 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
       )}
 
       {step === "consent" && (
-        <div role="dialog" aria-label={t("brain.sharing.uploadTitle")} className="space-y-4 rounded border p-4">
+        <div role="dialog" aria-modal="true" aria-label={t("brain.sharing.uploadTitle")} className="space-y-4 rounded border p-4">
           <h2 className="font-semibold">{t("brain.sharing.uploadTitle")}</h2>
           <p className="text-sm text-gray-700">{t("brain.sharing.uploadWarning")}</p>
           <div className="flex gap-2">

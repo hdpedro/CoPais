@@ -13,6 +13,10 @@ export const maxDuration = 120;
 export async function GET(request: NextRequest): Promise<NextResponse> {
   const authHeader = request.headers.get("authorization");
   const cronSecret = process.env.CRON_SECRET;
+  // Fail-closed em produção (sem secret → 503, não rota aberta).
+  if (process.env.NODE_ENV === "production" && !cronSecret) {
+    return NextResponse.json({ error: "Cron mal configurado." }, { status: 503 });
+  }
   if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
     return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
   }
