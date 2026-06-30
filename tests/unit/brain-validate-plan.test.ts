@@ -72,8 +72,10 @@ describe("validatePlanForExecution — limites e revalidação antes do commit",
     expect(r.errors.some((e) => e.field === "childId" && e.reason === "invalid_uuid")).toBe(true);
   });
 
-  it("childId null é aceito (criança não resolvida)", () => {
-    expect(validatePlanForExecution(plan([spec({ childId: null as unknown as string })]), TODAY).ok).toBe(true);
+  it("childId null é REJEITADO (school_logs.child_id é NOT NULL; prova sem criança não tem dono)", () => {
+    const r = validatePlanForExecution(plan([spec({ childId: null as unknown as string })]), TODAY);
+    expect(r.ok).toBe(false);
+    expect(r.errors.some((e) => e.field === "childId" && e.reason === "missing")).toBe(true);
   });
 
   it("timeStart malformado falha; HH:MM válido passa", () => {

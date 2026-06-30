@@ -33,10 +33,12 @@ import {
   type SchoolPriority,
   getKind,
   isValidSubtype,
+  calendarTitleFor,
+  eventDescriptionFor,
 } from "./school-shared";
 
 export type { SchoolSubtype, SchoolKind, SchoolPriority } from "./school-shared";
-export { EVENT_SUBTYPES, NOTE_SUBTYPES, getKind, isValidSubtype } from "./school-shared";
+export { EVENT_SUBTYPES, NOTE_SUBTYPES, getKind, isValidSubtype, calendarTitleFor, eventDescriptionFor } from "./school-shared";
 
 // notifyCollabCreate is server-only (uses next/headers, Node crypto).
 // Imported statically here — fine because school.ts is itself server-only
@@ -81,39 +83,9 @@ export type ServiceResult<T> = { success: true; data: T } | { success: false; er
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const HHMM = /^\d{2}:\d{2}$/;
 
-/**
- * Build the calendar title for a school event. Examples:
- *   exam    + "Trigonometria"     → "📚 Prova · Matemática"  (when subject)
- *   meeting + "Reunião de pais"   → "👥 Reunião escolar"
- *   event   + "Festa junina"      → "🎉 Festa junina"
- */
-function calendarTitleFor(args: { subtype: SchoolSubtype; title: string; subject?: string | null }): string {
-  const labelByType: Record<SchoolSubtype, string> = {
-    exam: "📚 Prova",
-    meeting: "👥 Reunião escolar",
-    event: "🎉 Evento escolar",
-    homework: "📝 Tarefa escolar",
-    absence: "🚫 Falta escolar",
-    // notes don't reach this function (kind=note skips calendar)
-    grade: "📊 Nota",
-    behavior: "📋 Comportamento",
-    achievement: "🏆 Conquista",
-    concern: "⚠️ Atenção",
-    other: "📌 Registro escolar",
-  };
-  const prefix = labelByType[args.subtype];
-  if (args.subtype === "exam" && args.subject) {
-    return `${prefix} · ${args.subject}`;
-  }
-  // For non-exam events, use the user title verbatim (it carries the meaning).
-  return `${prefix}: ${args.title}`;
-}
-
-function eventDescriptionFor(args: { description?: string | null; subtype: SchoolSubtype; score?: string | null }): string | null {
-  const parts = [args.description?.trim()].filter(Boolean) as string[];
-  if (args.subtype === "exam" && args.score) parts.push(`Nota: ${args.score}`);
-  return parts.length > 0 ? parts.join("\n") : null;
-}
+// calendarTitleFor / eventDescriptionFor: puras, movidas pro school-shared.ts
+// (também usadas pela materialização do Brain — pré-computam o título antes da
+// RPC). Re-exportadas acima.
 
 // ── Public API ───────────────────────────────────────────────────────────
 
