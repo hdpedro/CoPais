@@ -187,3 +187,58 @@ describe("schoolCalendarPlaybook.plan", () => {
     expect(plan.activities![0].lowConfidenceFields).toContain("childId");
   });
 });
+
+describe("schoolCalendarPlaybook — campos novos (study_source / AV2 / skipped)", () => {
+  it("study_source vira 'Onde estudar:' no notes, separado do conteúdo", () => {
+    const data = schoolCalendarPlaybook.parse(
+      payload({ exams: [exam({ content: "Cap. 7", study_source: "Apostila SAS cap. 7" })] }),
+      ctx(),
+    )!;
+    expect(data.exams[0].studySource).toBe("Apostila SAS cap. 7");
+    const plan = schoolCalendarPlaybook.plan(data, ctx());
+    expect(plan.activities![0].notes).toBe("Cap. 7\n\nOnde estudar: Apostila SAS cap. 7");
+  });
+
+  it("sem content mas com study_source → notes só com 'Onde estudar:'", () => {
+    const data = schoolCalendarPlaybook.parse(
+      payload({ exams: [exam({ content: null, study_source: "Livro 2 SAS" })] }),
+      ctx(),
+    )!;
+    expect(plan_notes(data)).toBe("Onde estudar: Livro 2 SAS");
+  });
+
+  it("sem content nem study_source → notes null", () => {
+    const data = schoolCalendarPlaybook.parse(
+      payload({ exams: [exam({ content: null, study_source: null })] }),
+      ctx(),
+    )!;
+    expect(plan_notes(data)).toBeNull();
+  });
+
+  it("assessment_label vira sufixo do título ('Prova de Matemática — AV2')", () => {
+    const data = schoolCalendarPlaybook.parse(payload({ assessment_label: "AV2" }), ctx())!;
+    expect(data.assessmentLabel).toBe("AV2");
+    const plan = schoolCalendarPlaybook.plan(data, ctx());
+    expect(plan.activities![0].name).toBe("Prova de Matemática — AV2");
+  });
+
+  it("sem assessment_label → título permanece sem sufixo", () => {
+    const data = schoolCalendarPlaybook.parse(payload(), ctx())!;
+    expect(data.assessmentLabel).toBeNull();
+    expect(schoolCalendarPlaybook.plan(data, ctx()).activities![0].name).toBe("Prova de Matemática");
+  });
+
+  it("conta linhas descartadas por falta de matéria (skipped), sem virar atividade", () => {
+    const data = schoolCalendarPlaybook.parse(
+      payload({ exams: [exam(), { date: "2026-08-20", time: "09:00" }] }),
+      ctx(),
+    )!;
+    expect(data.exams).toHaveLength(1);
+    expect(data.skipped).toBe(1);
+  });
+});
+
+function plan_notes(data: ReturnType<typeof schoolCalendarPlaybook.parse>) {
+  const plan = schoolCalendarPlaybook.plan(data!, ctx());
+  return plan.activities![0].notes;
+}
