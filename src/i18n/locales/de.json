@@ -2181,7 +2181,11 @@
     },
     "delete": "Benachrichtigung löschen",
     "clearAll": "Alle löschen",
-    "clearAllConfirm": "Alle Benachrichtigungen löschen?"
+    "clearAllConfirm": "Alle Benachrichtigungen löschen?",
+    "brain": {
+      "schoolCalendarTitle": "Schulkalender hinzugefügt",
+      "schoolCalendarBody": "{count, plural, one {# Aktivität hinzugefügt} other {# Aktivitäten hinzugefügt}} zum Kalender."
+    }
   },
   "push": {
     "chat": {
@@ -3009,5 +3013,45 @@
     "recentHeading": "Letzte Tage",
     "reportedBadge": "Berichtet",
     "noOccurrences": "Keine Termine in den nächsten Tagen."
+  },
+  "brain": {
+    "sharing": {
+      "uploadTitle": "Vor dem Hochladen",
+      "uploadWarning": "Wir analysieren dieses Foto, um den Familienalltag zu organisieren. Die erkannten Informationen können für die Verantwortlichen dieser Gruppe sichtbar werden. Lade nur Inhalte hoch, die du teilen darfst. Du prüfst alles, bevor etwas bestätigt wird.",
+      "acknowledge": "Verstanden, weiter"
+    },
+    "confirm": {
+      "savedNotice": "Fertig! Kindar benachrichtigt die beteiligten Verantwortlichen."
+    },
+    "upload": {
+      "title": "Schulkalender",
+      "cta": "Kalenderfoto hochladen",
+      "hint": "Mach oder wähle ein scharfes Foto des Prüfungskalenders."
+    },
+    "processing": "Foto wird analysiert…",
+    "preview": {
+      "foundItems": "Was ich gefunden habe",
+      "impacts": "Was sich ändert",
+      "willCreate": "Was ich erstellen werde",
+      "foundCount": "{count, plural, one {# Prüfung gefunden} other {# Prüfungen gefunden}}",
+      "confirm": "Bestätigen und erstellen",
+      "remove": "Entfernen",
+      "reviewField": "Dieses Feld prüfen",
+      "selectChild": "Für welches Kind?",
+      "empty": "Nichts zu erstellen."
+    },
+    "impact": {
+      "sameDay": "{child} hat {count} Prüfungen am {date}.",
+      "tightSequence": "{child} hat an aufeinanderfolgenden Tagen Prüfungen ({date1} und {date2}) — prüfe die Vorbereitungszeit."
+    },
+    "result": {
+      "undo": "Rückgängig"
+    },
+    "unknownDocument": "Ich bin nicht sicher, was das ist. Soll ich nach Prüfungsterminen suchen?",
+    "stalePlan": "Der Ablauf hat sich geändert, seit ich diesen Plan erstellt habe. Überprüfen?",
+    "alreadyProcessing": "Dieses Element wird bereits verarbeitet.",
+    "error": {
+      "generic": "Ich konnte das gerade nicht verarbeiten. Versuche es gleich noch einmal."
+    }
   }
 }

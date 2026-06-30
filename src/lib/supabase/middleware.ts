@@ -216,6 +216,12 @@ export async function updateSession(request: NextRequest) {
     // r.data null ("Falha ao..."). Mesmo landmine de /api/expenses (Alexandre
     // 2026-06-03) e /api/notifications/prefs (Henrique 2026-05-26).
     "/api/care-routine",
+    // /api/brain/* — Kindar Brain (Family Inbox). Upload multipart + confirm
+    // autenticam via resolveAuthenticatedUser (Bearer/cookie) no próprio
+    // handler. Sem este prefix o middleware bouncava o POST pra
+    // /session-recovery → HTML 200 → JSON.parse falha → null. Mesmo landmine
+    // de /api/expenses e /api/care-routine. Adicionado ANTES da 1ª rota.
+    "/api/brain",
   ];
   const isPublicRoute = publicRoutes.some((route) =>
     request.nextUrl.pathname.startsWith(route)

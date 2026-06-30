@@ -2181,7 +2181,11 @@
     },
     "delete": "Eliminar notificación",
     "clearAll": "Borrar todas",
-    "clearAllConfirm": "¿Eliminar todas las notificaciones?"
+    "clearAllConfirm": "¿Eliminar todas las notificaciones?",
+    "brain": {
+      "schoolCalendarTitle": "Calendario escolar agregado",
+      "schoolCalendarBody": "{count, plural, one {# actividad agregada} other {# actividades agregadas}} al calendario."
+    }
   },
   "push": {
     "chat": {
@@ -3009,5 +3013,45 @@
     "recentHeading": "Últimos días",
     "reportedBadge": "Relatado",
     "noOccurrences": "Sin ocurrencias en los próximos días."
+  },
+  "brain": {
+    "sharing": {
+      "uploadTitle": "Antes de enviar",
+      "uploadWarning": "Analizaremos esta foto para ayudar a organizar la rutina de tu familia. La información identificada puede quedar visible para los responsables de este grupo. Envía solo contenidos que puedas compartir. Revisas todo antes de confirmar cualquier creación.",
+      "acknowledge": "Entendí, continuar"
+    },
+    "confirm": {
+      "savedNotice": "¡Listo! Kindar avisará a los responsables involucrados."
+    },
+    "upload": {
+      "title": "Calendario escolar",
+      "cta": "Enviar foto del calendario",
+      "hint": "Toma o elige una foto nítida del calendario de pruebas."
+    },
+    "processing": "Analizando la foto…",
+    "preview": {
+      "foundItems": "Lo que encontré",
+      "impacts": "Lo que cambia",
+      "willCreate": "Lo que voy a crear",
+      "foundCount": "{count, plural, one {# prueba encontrada} other {# pruebas encontradas}}",
+      "confirm": "Confirmar y crear",
+      "remove": "Quitar",
+      "reviewField": "Revisa este campo",
+      "selectChild": "¿De qué niño es?",
+      "empty": "Nada para crear."
+    },
+    "impact": {
+      "sameDay": "{child} tiene {count} pruebas el {date}.",
+      "tightSequence": "{child} tiene pruebas en días seguidos ({date1} y {date2}) — revisa el tiempo de preparación."
+    },
+    "result": {
+      "undo": "Deshacer"
+    },
+    "unknownDocument": "No estoy seguro de qué es. ¿Quieres que busque fechas de pruebas?",
+    "stalePlan": "La rutina cambió desde que preparé este plan. ¿Quieres revisar?",
+    "alreadyProcessing": "Este elemento ya se está procesando.",
+    "error": {
+      "generic": "No pude procesar ahora. Inténtalo de nuevo en un momento."
+    }
   }
 }
