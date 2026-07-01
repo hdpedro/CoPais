@@ -169,6 +169,9 @@ export interface Playbook<P = unknown> {
   playbookVersion: number;
   policyVersion: number;
   extractionPrompt: { system: string; user: string };
+  /** Extração a partir de TEXTO (assistente/áudio transcrito) — mesmo schema
+   *  da visão, o `parse` é o mesmo. Ausente = playbook só aceita imagem. */
+  textExtractionPrompt?: { system: string; user: string };
   /** Valida/normaliza o payload do classificador. null se irrecuperável. */
   parse(payload: unknown, ctx: PlaybookContext): P | null;
   /** Descreve os registros a criar (declarativo, sem I/O). */

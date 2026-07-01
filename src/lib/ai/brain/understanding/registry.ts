@@ -8,14 +8,16 @@
 /* ------------------------------------------------------------------ */
 
 import type { DocType, Playbook } from "../types";
-import { SCHOOL_CALENDAR_EXTRACTION } from "../../prompts/brain";
+import { SCHOOL_CALENDAR_EXTRACTION, SCHOOL_CALENDAR_TEXT_EXTRACTION } from "../../prompts/brain";
 import { schoolCalendarPlaybook } from "./playbooks/school-calendar";
 
-// O playbook é puro; o prompt de extração vive em prompts/brain.ts e é
-// injetado aqui (mantém o playbook sem string de prompt embutida).
+// O playbook é puro; os prompts de extração vivem em prompts/brain.ts e são
+// injetados aqui (mantém o playbook sem string de prompt embutida). O de TEXTO
+// habilita o mesmo playbook a ler uma descrição digitada/falada de provas.
 const schoolCalendar: Playbook = {
   ...schoolCalendarPlaybook,
   extractionPrompt: SCHOOL_CALENDAR_EXTRACTION,
+  textExtractionPrompt: SCHOOL_CALENDAR_TEXT_EXTRACTION,
 } as Playbook;
 
 const REGISTRY: Partial<Record<DocType, Playbook>> = {
