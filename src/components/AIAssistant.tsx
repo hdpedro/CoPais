@@ -69,6 +69,23 @@ function uid(): string {
   return `msg_${Date.now()}_${++_id}`;
 }
 
+/**
+ * Gate CONSERVADOR: a mensagem PARECE uma descrição de provas pra capturar?
+ * (palavra de prova + sinal de data, sem ser pergunta). Só um filtro barato pra
+ * NÃO chamar o Brain em toda conversa — a extração por IA é a decisão final e,
+ * se não achar provas, o widget cai no chat normal. Puro/testável.
+ */
+export function looksLikeExamText(text: string): boolean {
+  const s = (text || "").toLowerCase().trim();
+  if (s.length < 6 || s.length > 600) return false;
+  // Pergunta ("quando é a prova?", "tem prova amanhã?") NÃO é captura.
+  if (/[?]\s*$/.test(s)) return false;
+  if (/^\s*(quando|qual|que dia|onde|como|por que|porque|quem|será que)\b/.test(s)) return false;
+  const examWord = /\b(prova|provas|trabalho|trabalhos|avalia\w+|av\d|simulado|entrega|recupera\w+)\b/.test(s);
+  const dateSignal = /\b\d{1,2}\/\d{1,2}\b|\bdia\s+\d{1,2}\b|\b(jan|fev|mar[çc]|abr|mai|jun|jul|ago|set|out|nov|dez)/.test(s);
+  return examWord && dateSignal;
+}
+
 /* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
@@ -88,10 +105,11 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
   const [pendingIntake, setPendingIntake] = useState<
     { id: string; planHash: string; confirmationToken: string; count: number } | null
   >(null);
-  // Foto de calendário sem criança resolvida → botões inline (paridade WhatsApp:
-  // pergunta conversacional, sem reenviar nem trocar de tela).
+  // Provas (foto OU texto) sem criança resolvida → botões inline. O `resubmit`
+  // reenvia a MESMA entrada (a foto ou o texto) com o child_id escolhido —
+  // unifica imagem e texto sem duplicar UI (paridade WhatsApp: conversacional).
   const [childPick, setChildPick] = useState<
-    { file: File; options: { id: string; name: string }[] } | null
+    { options: { id: string; name: string }[]; resubmit: (childId: string, userLabel: string) => void } | null
   >(null);
   // Provas recém-criadas → oferece Desfazer inline (paridade com o WhatsApp,
   // que manda o botão "Desfazer" logo após confirmar).
@@ -103,6 +121,9 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
   const imageInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const finalTranscriptRef = useRef("");
+  // Ref pra o runner de captura de provas por texto (evita ciclo no reenvio
+  // por criança, que chama o próprio runner com o child_id resolvido).
+  const examCaptureRef = useRef<((text: string, childId?: string) => Promise<boolean>) | null>(null);
 
   /* Portal mount — must run after hydration to access `document` (SSR safe).
      Synchronous setState inside the effect is intentional: the value comes
@@ -188,6 +209,46 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     return `${period}! 👋 Sou o Kindar, seu assistente. Posso criar despesas, consultar agenda, verificar saúde e muito mais. Como posso ajudar?`;
   }
 
+  /* ---- Captura de provas por TEXTO (assistente = mesmo cérebro do WhatsApp/foto) ---- */
+  const runExamCapture = useCallback(async (text: string, childId?: string): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/ai/assistant/exam-text", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text, child_id: childId }),
+      });
+      const data = await res.json().catch(() => ({ found: false }));
+      // Não era captura de provas (fora do beta, texto genérico, erro) → chat normal.
+      if (data?.found === false) return false;
+      setMessages((prev) => [
+        ...prev,
+        { id: uid(), role: "assistant", content: data.content || "Não consegui processar.", timestamp: new Date() },
+      ]);
+      if (Array.isArray(data.childSelection?.options) && data.childSelection.options.length > 0) {
+        setPendingIntake(null);
+        setUndoableIntake(null);
+        setChildPick({
+          options: data.childSelection.options,
+          // Reenvia o MESMO texto com o child_id escolhido (sem reescrever).
+          resubmit: (cid, label) => {
+            setChildPick(null);
+            setMessages((prev) => [...prev, { id: uid(), role: "user", content: label, timestamp: new Date() }]);
+            setIsLoading(true);
+            void examCaptureRef.current?.(text, cid).finally(() => setIsLoading(false));
+          },
+        });
+      } else if (data.intake?.id) {
+        setPendingIntake(data.intake);
+      }
+      return true;
+    } catch {
+      return false; // erro de rede → cai no chat, não bloqueia o usuário
+    }
+  }, []);
+  useEffect(() => {
+    examCaptureRef.current = runExamCapture;
+  }, [runExamCapture]);
+
   /* ---- Send message ---- */
   const sendMessage = useCallback(
     async (text: string) => {
@@ -205,6 +266,14 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
       setIsLoading(true);
 
       try {
+        // Captura de provas por texto (gate conservador) ANTES do chat geral —
+        // paridade com a foto. Se não for captura, `runExamCapture` devolve false
+        // e seguimos pro assistente normal.
+        if (looksLikeExamText(userMsg.content)) {
+          const handled = await runExamCapture(userMsg.content);
+          if (handled) return;
+        }
+
         // Build messages for API (only role + content)
         const apiMessages = [...messages, userMsg].map((m) => ({
           role: m.role,
@@ -258,7 +327,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         setIsLoading(false);
       }
     },
-    [messages, groupId, isLoading]
+    [messages, groupId, isLoading, runExamCapture]
   );
 
   /* ---- Enviar imagem (Fase 2: o assistente VÊ a foto e roteia) ---- */
@@ -284,7 +353,10 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
           { id: uid(), role: "assistant", content: data.content || "Não consegui processar.", timestamp: new Date() },
         ]);
         if (Array.isArray(data.childSelection?.options) && data.childSelection.options.length > 0) {
-          setChildPick({ file, options: data.childSelection.options });
+          setChildPick({
+            options: data.childSelection.options,
+            resubmit: (childId, userLabel) => void sendImage(file, { childId, userLabel }),
+          });
         } else if (data.intake?.id) {
           setPendingIntake(data.intake);
         }
@@ -305,9 +377,9 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     (opt: { id: string; name: string }) => {
       const cp = childPick;
       if (!cp || isLoading) return;
-      void sendImage(cp.file, { childId: opt.id, userLabel: opt.name });
+      cp.resubmit(opt.id, opt.name);
     },
-    [childPick, isLoading, sendImage]
+    [childPick, isLoading]
   );
 
   /* ---- Confirmar/cancelar as provas do calendário reconhecido ---- */
