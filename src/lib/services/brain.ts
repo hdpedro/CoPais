@@ -27,7 +27,7 @@ import { prioritize } from "@/lib/ai/brain/prioritize";
 import { dedupeWithinPlan } from "@/lib/ai/brain/dedupe";
 import { computePlanHash } from "@/lib/ai/brain/plan-hash";
 import { validatePlanForExecution } from "@/lib/ai/brain/validate-plan";
-import { buildActivityPayloads, buildOutboxPayloads, selectActivitiesByIndex } from "@/lib/ai/brain/materialize-payload";
+import { buildSchoolLogPayloads, buildOutboxPayloads, selectActivitiesByIndex } from "@/lib/ai/brain/materialize-payload";
 import { sanitizeForLogPreview } from "@/lib/ai/brain/sanitize-log";
 import { captureServerEvent } from "@/lib/posthog-server";
 import type {
@@ -93,16 +93,20 @@ async function loadExistingOccurrences(
   window: { from: string; to: string } | null,
 ): Promise<ExistingOccurrence[]> {
   if (!childId || !window) return [];
+  // Provas já existentes da criança na janela (impacto same_day/dias-seguidos é
+  // PROVA × PROVA agora — não conta natação/consulta como antes). school_logs é
+  // a fonte das provas (o Brain materializa nela).
   const { data, error } = await supabase
-    .from("calendar_occurrences")
-    .select("occurrence_date, child_id")
+    .from("school_logs")
+    .select("log_date, child_id")
     .eq("child_id", childId)
-    .gte("occurrence_date", window.from)
-    .lte("occurrence_date", window.to);
+    .in("log_type", ["exam", "homework"])
+    .gte("log_date", window.from)
+    .lte("log_date", window.to);
   if (error || !data) return [];
   return data.map((row) => ({
     childId: row.child_id as string | null,
-    date: row.occurrence_date as string,
+    date: row.log_date as string,
     title: "",
   }));
 }
@@ -461,7 +465,7 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
       .map((m) => m.user_id as string)
       .filter((id) => id !== user.id);
 
-    const activities = buildActivityPayloads(plan);
+    const activities = buildSchoolLogPayloads(plan);
     const outbox = buildOutboxPayloads({
       intakeId,
       recipientIds,

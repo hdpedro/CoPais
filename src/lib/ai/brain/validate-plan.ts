@@ -63,7 +63,12 @@ export function validatePlanForExecution(
     } else if (!isWithinHorizon(a.startDate, today)) {
       errors.push({ index: i, field: "startDate", reason: "out_of_horizon" });
     }
-    if (a.childId != null && !UUID_RE.test(a.childId)) {
+    // childId obrigatório: school_logs.child_id é NOT NULL (e a prova SEM
+    // criança não tem dono). O preview já bloqueia (needs_child_selection);
+    // este é o backstop antes da RPC.
+    if (a.childId == null) {
+      errors.push({ index: i, field: "childId", reason: "missing" });
+    } else if (!UUID_RE.test(a.childId)) {
       errors.push({ index: i, field: "childId", reason: "invalid_uuid" });
     }
     if (a.timeStart != null && a.timeStart !== "" && !TIME_RE.test(a.timeStart)) {
