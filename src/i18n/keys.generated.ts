@@ -2247,6 +2247,8 @@ export type TranslationKey =
   | "notifPrefs.testFailed"
   | "notifPrefs.testSent"
   | "notifPrefs.title"
+  | "notifications.brain.examReminderBody"
+  | "notifications.brain.examReminderTitle"
   | "notifications.brain.schoolCalendarBody"
   | "notifications.brain.schoolCalendarTitle"
   | "notifications.chatMessage"
@@ -5044,6 +5046,8 @@ export const TRANSLATION_KEYS = [
   "notifPrefs.testFailed",
   "notifPrefs.testSent",
   "notifPrefs.title",
+  "notifications.brain.examReminderBody",
+  "notifications.brain.examReminderTitle",
   "notifications.brain.schoolCalendarBody",
   "notifications.brain.schoolCalendarTitle",
   "notifications.chatMessage",
