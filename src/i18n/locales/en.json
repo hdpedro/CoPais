@@ -3052,7 +3052,8 @@
       "editSubject": "Subject",
       "editDate": "Date",
       "editTime": "Time",
-      "editContent": "Content"
+      "editContent": "Content",
+      "alreadyPresent": "{count, plural, one {# exam from this photo was already in Kindar — showing only the new ones.} other {# exams from this photo were already in Kindar — showing only the new ones.}}"
     },
     "impact": {
       "sameDay": "{child} has {count} exams on {date}.",
@@ -3069,6 +3070,9 @@
     "error": {
       "generic": "I couldn't process that right now. Try again in a moment."
     },
-    "processingHint": "This may take a few seconds."
+    "processingHint": "This may take a few seconds.",
+    "duplicate": {
+      "all": "These exams are already in Kindar. 🙂 Nothing to add."
+    }
   }
 }

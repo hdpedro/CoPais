@@ -3052,7 +3052,8 @@
       "editSubject": "Fach",
       "editDate": "Datum",
       "editTime": "Uhrzeit",
-      "editContent": "Inhalt"
+      "editContent": "Inhalt",
+      "alreadyPresent": "{count, plural, one {# Prüfung von diesem Foto war schon in Kindar — nur die neuen werden angezeigt.} other {# Prüfungen von diesem Foto waren schon in Kindar — nur die neuen werden angezeigt.}}"
     },
     "impact": {
       "sameDay": "{child} hat {count} Prüfungen am {date}.",
@@ -3069,6 +3070,9 @@
     "error": {
       "generic": "Ich konnte das gerade nicht verarbeiten. Versuche es gleich noch einmal."
     },
-    "processingHint": "Das kann ein paar Sekunden dauern."
+    "processingHint": "Das kann ein paar Sekunden dauern.",
+    "duplicate": {
+      "all": "Diese Prüfungen sind schon in Kindar. 🙂 Nichts hinzuzufügen."
+    }
   }
 }

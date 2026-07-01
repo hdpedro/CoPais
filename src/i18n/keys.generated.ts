@@ -257,10 +257,12 @@ export type TranslationKey =
   | "balanceOps.youOwe"
   | "brain.alreadyProcessing"
   | "brain.confirm.savedNotice"
+  | "brain.duplicate.all"
   | "brain.error.generic"
   | "brain.impact.sameDay"
   | "brain.impact.tightSequence"
   | "brain.impact.tightSequenceRun"
+  | "brain.preview.alreadyPresent"
   | "brain.preview.confirm"
   | "brain.preview.dateRange"
   | "brain.preview.edit"
@@ -3064,10 +3066,12 @@ export const TRANSLATION_KEYS = [
   "balanceOps.youOwe",
   "brain.alreadyProcessing",
   "brain.confirm.savedNotice",
+  "brain.duplicate.all",
   "brain.error.generic",
   "brain.impact.sameDay",
   "brain.impact.tightSequence",
   "brain.impact.tightSequenceRun",
+  "brain.preview.alreadyPresent",
   "brain.preview.confirm",
   "brain.preview.dateRange",
   "brain.preview.edit",

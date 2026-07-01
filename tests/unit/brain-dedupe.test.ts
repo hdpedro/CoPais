@@ -5,8 +5,11 @@ import {
   fingerprintActivitySpec,
   dedupeWithinPlan,
   flagDuplicateCandidates,
+  partitionAgainstExisting,
+  existingMatchKey,
   outboxDedupeKey,
   type ExistingActivity,
+  type ExistingExam,
 } from "@/lib/ai/brain/dedupe";
 import type { ActivitySpec } from "@/lib/ai/brain/types";
 
@@ -143,6 +146,79 @@ describe("flagDuplicateCandidates — advisory (sugere comparar, não bloqueia)"
     const { create, candidates } = flagDuplicateCandidates([spec()], []);
     expect(create).toHaveLength(1);
     expect(candidates).toHaveLength(0);
+  });
+});
+
+describe("partitionAgainstExisting — reenvio do MESMO calendário não recria", () => {
+  const existing: ExistingExam[] = [
+    { childId: CHILD_A, date: "2026-07-08", title: "Prova de Produção Textual — AV2" },
+    { childId: CHILD_A, date: "2026-07-09", title: "Prova de Ciências — AV2" },
+  ];
+
+  it("todas já existem → fresh vazio, todas viram duplicates", () => {
+    const { fresh, duplicates } = partitionAgainstExisting(
+      [
+        spec({ startDate: "2026-07-08", name: "Prova de Produção Textual — AV2" }),
+        spec({ startDate: "2026-07-09", name: "Prova de Ciências — AV2" }),
+      ],
+      existing,
+    );
+    expect(fresh).toHaveLength(0);
+    expect(duplicates).toHaveLength(2);
+  });
+
+  it("reenvio parcial → separa novas das já-existentes", () => {
+    const { fresh, duplicates } = partitionAgainstExisting(
+      [
+        spec({ startDate: "2026-07-08", name: "Prova de Produção Textual — AV2" }), // existe
+        spec({ startDate: "2026-07-10", name: "Prova de História — AV2" }), // nova
+      ],
+      existing,
+    );
+    expect(fresh).toHaveLength(1);
+    expect(fresh[0].startDate).toBe("2026-07-10");
+    expect(duplicates).toHaveLength(1);
+  });
+
+  it("acento/caixa/espaço no título não impedem o match (mesma prova)", () => {
+    const { fresh, duplicates } = partitionAgainstExisting(
+      [spec({ startDate: "2026-07-08", name: "prova de PRODUÇÃO   textual — av2" })],
+      existing,
+    );
+    expect(duplicates).toHaveLength(1);
+    expect(fresh).toHaveLength(0);
+  });
+
+  it("mesma data, TÍTULO diferente → é nova (não colide)", () => {
+    const { fresh, duplicates } = partitionAgainstExisting(
+      [spec({ startDate: "2026-07-08", name: "Prova de Redação — AV2" })],
+      existing,
+    );
+    expect(fresh).toHaveLength(1);
+    expect(duplicates).toHaveLength(0);
+  });
+
+  it("criança diferente na mesma data/título → é nova", () => {
+    const { fresh } = partitionAgainstExisting(
+      [spec({ childId: CHILD_B, startDate: "2026-07-08", name: "Prova de Produção Textual — AV2" })],
+      existing,
+    );
+    expect(fresh).toHaveLength(1);
+  });
+
+  it("sem histórico → tudo é fresh", () => {
+    const { fresh, duplicates } = partitionAgainstExisting([spec()], []);
+    expect(fresh).toHaveLength(1);
+    expect(duplicates).toHaveLength(0);
+  });
+
+  it("existingMatchKey normaliza título e separa por aluno+data", () => {
+    expect(existingMatchKey(CHILD_A, "2026-07-08", "Prova de  MATEMÁTICA")).toBe(
+      existingMatchKey(CHILD_A, "2026-07-08", "prova de matematica"),
+    );
+    expect(existingMatchKey(CHILD_A, "2026-07-08", "X")).not.toBe(
+      existingMatchKey(CHILD_A, "2026-07-09", "X"),
+    );
   });
 });
 

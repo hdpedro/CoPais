@@ -3052,7 +3052,8 @@
       "editSubject": "Matéria",
       "editDate": "Data",
       "editTime": "Horário",
-      "editContent": "Conteúdo"
+      "editContent": "Conteúdo",
+      "alreadyPresent": "{count, plural, one {# prova dessa foto já estava no Kindar — mostro só as novas.} other {# provas dessa foto já estavam no Kindar — mostro só as novas.}}"
     },
     "impact": {
       "sameDay": "{child} tem {count} provas em {date}.",
@@ -3069,6 +3070,9 @@
     "error": {
       "generic": "Não consegui processar agora. Tente de novo em instantes."
     },
-    "processingHint": "Isso pode levar alguns segundos."
+    "processingHint": "Isso pode levar alguns segundos.",
+    "duplicate": {
+      "all": "Essas provas já estão no Kindar. 🙂 Nada a adicionar."
+    }
   }
 }

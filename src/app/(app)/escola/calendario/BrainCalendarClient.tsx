@@ -109,6 +109,10 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
       } else if (data.kind === "needs_child_selection") {
         setMessage(t("brain.preview.selectChild"));
         setStep("upload"); // volta pra escolher a criança
+      } else if (data.kind === "duplicate") {
+        // Reenvio do MESMO calendário → nada a criar. Aviso CALMO (não é erro).
+        setMessage(t("brain.duplicate.all"));
+        setStep("upload");
       } else if (data.kind === "unknown_document") {
         setMessage(t("brain.unknownDocument"));
         setStep("error");
@@ -326,6 +330,9 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
               <p className="text-sm text-gray-700">{t("brain.preview.forChild", { child: childName(childId) })}</p>
             )}
             {dateRangeText && <p className="text-sm text-gray-600">{dateRangeText}</p>}
+            {(preview.alreadyPresent ?? 0) > 0 && (
+              <p className="text-sm text-gray-500">{t("brain.preview.alreadyPresent", { count: preview.alreadyPresent ?? 0 })}</p>
+            )}
           </section>
 
           {/* Zona 2 — o que muda */}

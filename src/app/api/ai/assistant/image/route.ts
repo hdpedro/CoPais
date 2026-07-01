@@ -105,9 +105,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const acts = result.preview.plan.activities ?? [];
         const childName = children.find((c) => c.id === (acts[0]?.childId ?? null))?.name || "seu filho(a)";
         const n = acts.length;
+        const already = result.preview.alreadyPresent ?? 0;
+        const alreadyNote =
+          already > 0
+            ? ` (${already === 1 ? "1 já estava" : `${already} já estavam`} no Kindar, mostro só ${n === 1 ? "a nova" : "as novas"})`
+            : "";
         return NextResponse.json(
           {
-            content: `📚 É um calendário escolar! Encontrei ${n === 1 ? "1 prova" : `${n} provas`} para ${childName}. Quer que eu adicione? Você pode revisar tudo em Escola › Calendário.`,
+            content: `📚 É um calendário escolar! Encontrei ${n === 1 ? "1 prova" : `${n} provas`} para ${childName}${alreadyNote}. Quer que eu adicione? Você pode revisar tudo em Escola › Calendário.`,
             intake: {
               id: result.preview.intakeId,
               planHash: result.preview.planHash,
@@ -118,6 +123,10 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           },
           { status: 200 },
         );
+      }
+      if (result.kind === "duplicate") {
+        // Reenvio do MESMO calendário: nada a adicionar (cérebro único).
+        return NextResponse.json({ content: result.message, link: "/escola/calendario" }, { status: 200 });
       }
       if (result.kind === "needs_child_selection") {
         // Paridade com o WhatsApp: pergunta CONVERSACIONAL (botões), sem pedir
