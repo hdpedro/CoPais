@@ -282,6 +282,7 @@ export type TranslationKey =
   | "brain.processing"
   | "brain.processingHint"
   | "brain.result.undo"
+  | "brain.result.viewInCalendar"
   | "brain.sharing.acknowledge"
   | "brain.sharing.uploadTitle"
   | "brain.sharing.uploadWarning"
@@ -3088,6 +3089,7 @@ export const TRANSLATION_KEYS = [
   "brain.processing",
   "brain.processingHint",
   "brain.result.undo",
+  "brain.result.viewInCalendar",
   "brain.sharing.acknowledge",
   "brain.sharing.uploadTitle",
   "brain.sharing.uploadWarning",

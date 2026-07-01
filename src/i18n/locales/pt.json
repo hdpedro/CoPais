@@ -3060,7 +3060,8 @@
       "tightSequenceRun": "{child} tem provas em {count} dias seguidos ({date1} a {date2}) — confira o tempo de preparo."
     },
     "result": {
-      "undo": "Desfazer"
+      "undo": "Desfazer",
+      "viewInCalendar": "Ver no calendário"
     },
     "unknownDocument": "Não tenho certeza do que é. Quer que eu procure datas de provas?",
     "stalePlan": "A rotina mudou desde que preparei este plano. Quer revisar?",

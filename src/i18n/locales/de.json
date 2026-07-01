@@ -3060,7 +3060,8 @@
       "tightSequenceRun": "{child} hat an {count} Tagen hintereinander Prüfungen ({date1} bis {date2}) — Vorbereitungszeit prüfen."
     },
     "result": {
-      "undo": "Rückgängig"
+      "undo": "Rückgängig",
+      "viewInCalendar": "Im Kalender ansehen"
     },
     "unknownDocument": "Ich bin nicht sicher, was das ist. Soll ich nach Prüfungsterminen suchen?",
     "stalePlan": "Der Ablauf hat sich geändert, seit ich diesen Plan erstellt habe. Überprüfen?",
