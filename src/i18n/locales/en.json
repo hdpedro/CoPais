@@ -2184,7 +2184,9 @@
     "clearAllConfirm": "Delete all notifications?",
     "brain": {
       "schoolCalendarTitle": "School calendar added",
-      "schoolCalendarBody": "{count, plural, one {# activity added} other {# activities added}} to the calendar."
+      "schoolCalendarBody": "{count, plural, one {# activity added} other {# activities added}} to the calendar.",
+      "examReminderTitle": "🎒 Exam tomorrow",
+      "examReminderBody": "Tomorrow: {exam}. How about reviewing today?"
     }
   },
   "push": {

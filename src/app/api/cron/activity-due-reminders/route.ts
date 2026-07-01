@@ -5,6 +5,7 @@ import {
 } from "@/lib/services/activity-reminders";
 import { runCareRoutineReminders, runCareRoutineFollowUps } from "@/lib/services/care-routine-reminders";
 import { runCareRoutineBriefing } from "@/lib/services/care-routine-briefing";
+import { runSchoolExamReminders } from "@/lib/services/school-reminders";
 
 /**
  * Cron a cada 15min (Vercel schedule). Dispara push de lembrete pré-evento
@@ -25,13 +26,15 @@ export async function GET(request: NextRequest) {
   try {
     // Pré-evento ("tem natação") + pós-evento ("aconteceu? Sim/Não/Adiar")
     // no mesmo slot de 15min. São disjuntos no tempo (antes vs depois do fim).
-    const [reminders, followups, careRoutine, careRoutineFollowups, careRoutineBriefing] = await Promise.all([
-      runActivityDueReminders(),
-      runActivityFollowUps(),
-      runCareRoutineReminders(),
-      runCareRoutineFollowUps(),
-      runCareRoutineBriefing(),
-    ]);
+    const [reminders, followups, careRoutine, careRoutineFollowups, careRoutineBriefing, schoolExams] =
+      await Promise.all([
+        runActivityDueReminders(),
+        runActivityFollowUps(),
+        runCareRoutineReminders(),
+        runCareRoutineFollowUps(),
+        runCareRoutineBriefing(),
+        runSchoolExamReminders(),
+      ]);
     return NextResponse.json({
       ok: true,
       reminders,
@@ -39,6 +42,7 @@ export async function GET(request: NextRequest) {
       careRoutine,
       careRoutineFollowups,
       careRoutineBriefing,
+      schoolExams,
       timestamp: new Date().toISOString(),
     });
   } catch (error) {

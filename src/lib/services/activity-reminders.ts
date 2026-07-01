@@ -41,8 +41,8 @@ import type { Locale } from "@/i18n";
  * Slot do cron: roda a cada 15min, janela ±8/7min cobre jitter Vercel.
  * Total = 15min — não tem buracos, não tem sobreposição (8+7=15).
  */
-const SLOT_WINDOW_BEFORE_MIN = 8;
-const SLOT_WINDOW_AFTER_MIN = 7;
+export const SLOT_WINDOW_BEFORE_MIN = 8;
+export const SLOT_WINDOW_AFTER_MIN = 7;
 
 /**
  * Default lead time quando child_activities.reminder_lead_minutes IS NULL.
@@ -72,7 +72,7 @@ const DEFAULT_LEAD_MINUTES = 60;
  *   -2 = "véspera às 20:00 hora local (BRT)"
  */
 const SENTINEL_MORNING_OF = -1;
-const SENTINEL_EVENING_BEFORE = -2;
+export const SENTINEL_EVENING_BEFORE = -2;
 
 /**
  * Lead default por categoria da atividade. Aplicado apenas quando a row
@@ -210,7 +210,7 @@ function eventDateBrazil(occurrenceDate: string, timeStart: string | null): Date
  *  - lead === SENTINEL_EVENING_BEFORE (-2) : 20:00 BRT do dia anterior
  * Retorna null se a config requer time_start e este está ausente.
  */
-function computeTriggerAt(
+export function computeTriggerAt(
   occurrenceDate: string,
   timeStart: string | null,
   leadMinutes: number,
