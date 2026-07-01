@@ -220,6 +220,9 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
     // 1. Trava de concorrência: uploaded/analyzed/failed → analyzing.
     const { data: started } = await supabase.rpc("brain_intake_begin_analysis", {
       p_intake_id: intakeId,
+      // Ator explícito (WhatsApp usa client service_role → auth.uid() NULL).
+      // PWA/Native: auth.uid() vence; este é ignorado. Ver migration 00133.
+      p_actor_user_id: ctx.userId,
     });
     if (!started || !(started as { id?: string }).id) {
       return { kind: "already_processing", intakeId };
