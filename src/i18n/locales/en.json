@@ -3060,7 +3060,8 @@
       "tightSequenceRun": "{child} has exams on {count} days in a row ({date1} to {date2}) — check the prep time."
     },
     "result": {
-      "undo": "Undo"
+      "undo": "Undo",
+      "viewInCalendar": "View in calendar"
     },
     "unknownDocument": "I'm not sure what this is. Want me to look for exam dates?",
     "stalePlan": "The routine changed since I prepared this plan. Want to review?",

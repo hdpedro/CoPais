@@ -51,6 +51,7 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
   const [kept, setKept] = useState<boolean[]>([]);
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [editing, setEditing] = useState<number | null>(null);
+  const [createdDay, setCreatedDay] = useState<string | null>(null);
   const [message, setMessage] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
@@ -163,6 +164,12 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
       });
       const data = (await res.json()) as ApiResult;
       if (data.kind === "executed") {
+        // Data da 1ª prova criada (edições aplicadas) → deep-link pro mês certo.
+        const createdDates = drafts
+          .map((d, i) => (kept[i] ? d.startDate || orig[i]?.startDate || "" : ""))
+          .filter((x) => /^\d{4}-\d{2}-\d{2}$/.test(x))
+          .sort();
+        setCreatedDay(createdDates[0] ?? null);
         setMessage(t("brain.confirm.savedNotice"));
         setStep("done");
       } else if (data.kind === "stale_plan") {
@@ -194,6 +201,7 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
       setKept([]);
       setDrafts([]);
       setEditing(null);
+      setCreatedDay(null);
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
       setMessage(data.message || "");
@@ -459,9 +467,19 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
       {step === "done" && (
         <div className="space-y-4">
           <p className="text-green-800">{message || t("brain.confirm.savedNotice")}</p>
-          <button type="button" onClick={doUndo} disabled={busy} className="rounded border px-4 py-2">
-            {t("brain.result.undo")}
-          </button>
+          <div className="flex flex-wrap gap-2">
+            {createdDay && (
+              <a
+                href={`/calendario?day=${createdDay}`}
+                className="rounded bg-blue-600 px-4 py-2 text-sm font-medium text-white"
+              >
+                {t("brain.result.viewInCalendar")}
+              </a>
+            )}
+            <button type="button" onClick={doUndo} disabled={busy} className="rounded border px-4 py-2">
+              {t("brain.result.undo")}
+            </button>
+          </div>
         </div>
       )}
 

@@ -137,6 +137,23 @@ describe("BrainCalendarClient — fluxo funcional", () => {
     ]);
   });
 
+  it("done → 'Ver no calendário' aponta pro mês da 1ª prova", async () => {
+    server.use(
+      http.post("*/api/brain/intakes/:id/confirm", () =>
+        HttpResponse.json({ kind: "executed", intakeId: PREVIEW.intakeId, createdCount: 2 }),
+      ),
+    );
+    const { container } = renderUI();
+    pickFile(container);
+    fireEvent.click(screen.getByText("Enviar foto do calendário"));
+    fireEvent.click(screen.getByText("Entendi e quero continuar"));
+    await waitFor(() => expect(screen.getByText("Confirmar e criar")).toBeInTheDocument());
+    fireEvent.click(screen.getByText("Confirmar e criar"));
+    const link = await screen.findByText("Ver no calendário");
+    // menor data entre as provas (2026-08-12) → deep-link abre o mês certo + a day sheet
+    expect(link.closest("a")).toHaveAttribute("href", "/calendario?day=2026-08-12");
+  });
+
   it("desfazer reseta pro upload (não trava no 'done')", async () => {
     server.use(
       http.post("*/api/brain/intakes/:id/confirm", () =>
