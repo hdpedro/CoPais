@@ -18,9 +18,10 @@ import { routeVisionRequest } from "./router";
 export type DocumentType =
   | "receipt" // recibo/nota/comprovante de despesa
   | "prescription" // receita médica
+  | "medical_summary" // resumo/relatório de consulta ou pedido de exame
   | "vaccine_proof" // carteira/comprovante de vacina
   | "attestation" // atestado
-  | "exam" // exame/laudo médico
+  | "exam" // exame/laudo médico (RESULTADO)
   | "school_calendar" // calendário/cronograma de provas da escola
   | "unknown";
 
@@ -32,6 +33,7 @@ export interface DocumentClassification {
 const VALID_TYPES: readonly string[] = [
   "receipt",
   "prescription",
+  "medical_summary",
   "vaccine_proof",
   "attestation",
   "exam",
@@ -44,10 +46,11 @@ const SYSTEM_PROMPT = `Você classifica o TIPO de um documento fotografado por u
 
 Tipos possíveis:
 - "receipt": recibo, nota fiscal, boleto ou comprovante de despesa/pagamento.
-- "prescription": receita médica (medicamentos prescritos).
+- "prescription": receita médica (lista de MEDICAMENTOS prescritos com dose/posologia).
+- "medical_summary": resumo/relatório de uma CONSULTA médica (o que o médico avaliou, orientou, diagnóstico, retorno) OU um pedido/solicitação de exame. É o documento da consulta em si — diferente de "prescription" (só a lista de remédios) e de "exam" (o RESULTADO de um exame já feito).
 - "vaccine_proof": carteira ou comprovante de vacinação.
 - "attestation": atestado médico.
-- "exam": exame ou laudo médico (resultado, imagem).
+- "exam": RESULTADO ou laudo de um exame já realizado.
 - "school_calendar": calendário/cronograma escolar com DATAS de provas/avaliações/trabalhos.
 - "unknown": nada acima ou não dá pra ler.
 
