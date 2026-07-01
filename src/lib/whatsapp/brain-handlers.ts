@@ -37,6 +37,7 @@ import {
   renderUndone,
   classifyBrainReply,
   isUndoReply,
+  isDeclineUndoReply,
   isCalendarYes,
   matchChildName,
 } from "./brain-flow";
@@ -270,8 +271,15 @@ export async function handleBrainReply(
       );
       return true;
     }
-    // Não é undo → deixa o assistente responder, MANTENDO o estado (o "Desfazer"
-    // continua disponível até o timeout de 30min). Sem clear = sem lockout.
+    // Recusou o desfazer ("não", "tá bom", "obrigado"…) → fecha com um aceno
+    // caloroso em vez de cair no assistente (que respondia com a saudação/menu).
+    // MANTÉM o estado: o "Desfazer" segue valendo até o timeout se mudar de ideia.
+    if (isDeclineUndoReply(text)) {
+      await sendTextMessage(phone, "Perfeito, tá tudo certo então! 🙂 As provas seguem no calendário escolar.");
+      return true;
+    }
+    // Nem undo nem recusa (ex: "qual o saldo?") → deixa o assistente responder,
+    // MANTENDO o estado (o "Desfazer" continua disponível). Sem clear = sem lockout.
     return false;
   }
 
@@ -354,10 +362,11 @@ async function confirmBrain(
     await sendButtonMessage(phone, "Precisa reverter?", [{ id: "brain_undo", title: "Desfazer" }]);
     // Coordenação: avisa os coparentes (menos quem confirmou). Fire-and-forget.
     const n = r.createdCount === 1 ? "1 prova" : `${r.createdCount} provas`;
+    const adj = r.createdCount === 1 ? "adicionada" : "adicionadas";
     await notifyGroupViaWhatsApp(
       groupId,
       userId,
-      `📚 *${brain.child_name}*: ${n} adicionada(s) ao calendário escolar do Kindar.`,
+      `📚 *${brain.child_name}*: ${n} ${adj} ao calendário escolar do Kindar.`,
       "event",
     );
     return true;
