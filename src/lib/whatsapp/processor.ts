@@ -180,6 +180,18 @@ export async function processWhatsAppMessage(
     }
   }
 
+  // Documento (PDF, DOCX\u2026): ainda n\u00E3o lemos o arquivo \u2014 mas guiamos pro que
+  // FUNCIONA (foto/print, ou descri\u00E7\u00E3o por texto/\u00E1udio), em vez do gen\u00E9rico
+  // "N\u00E3o entendi" que ca\u00EDa no Step 7. Paridade com o assistente do app (que
+  // pede uma FOTO quando recebe PDF).
+  if (message.type === "document") {
+    await sendTextMessage(
+      phone,
+      "Ainda n\u00E3o consigo abrir PDF ou documento por aqui \uD83D\uDE4F. Tira um *print* ou uma *foto* da p\u00E1gina do calend\u00E1rio e me manda \u2014 ou me conta as provas por texto/\u00E1udio (ex: \"Martim tem prova de hist\u00F3ria dia 13\") \u2014 que eu organizo pra voc\u00EA!",
+    );
+    return;
+  }
+
   if (message.type === "video" || message.type === "sticker" || message.type === "contacts") {
     if (message.type !== "sticker") {
       await sendTextMessage(phone, "Desculpe, esse tipo de mensagem ainda nao e suportado. Por favor, envie texto ou fotos. \uD83D\uDE4F");
