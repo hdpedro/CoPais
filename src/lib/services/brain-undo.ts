@@ -45,6 +45,13 @@ export async function undoIntake(args: {
 }): Promise<UndoResult> {
   const { supabase, intakeId } = args;
   try {
+    // Dispatch por docType: SAÚDE tem entity types próprios (medical_appointment/
+    // active_medication/illness_episode) + RPC própria (apply_undo_health).
+    const { data: dt } = await supabase.from("brain_intakes").select("doc_type").eq("id", intakeId).single();
+    if ((dt?.doc_type as string | undefined) === "health_visit") {
+      return await undoHealthVisit(args);
+    }
+
     // 1. Artefatos ainda ativos (não detached/undone) deste intake.
     const { data: artifacts, error: artErr } = await supabase
       .from("brain_intake_artifacts")
@@ -147,6 +154,87 @@ export async function undoIntake(args: {
     return { kind: "undone", removed, detached, message };
   } catch (err) {
     await reportServerError(err, { filePath: FILE, metadata: { step: "undo", intakeId } });
+    return { kind: "error", message: "Não consegui desfazer agora. Tente de novo." };
+  }
+}
+
+/** Purga a mídia (foto/áudio) do bucket após o undo — via service_role (a RLS
+ *  DELETE é owner-only; um undo por coparente não apagaria pelo client). O path
+ *  vem da própria linha do intake (não é input do usuário). Non-fatal. */
+async function purgeIntakeMedia(supabase: SupabaseServer, intakeId: string): Promise<void> {
+  const { data: intake } = await supabase
+    .from("brain_intakes")
+    .select("group_id, source_media_path")
+    .eq("id", intakeId)
+    .single();
+  const path = intake?.source_media_path as string | null;
+  if (!path) return;
+  const admin = createAdminClient();
+  const { error: rmErr } = await admin.storage.from("documents").remove([path]);
+  if (rmErr) return;
+  await admin.from("brain_intakes").update({ source_media_path: null }).eq("id", intakeId);
+  await admin.from("brain_intake_audit").insert({
+    intake_id: intakeId,
+    group_id: intake?.group_id,
+    action: "media_purged",
+    detail: { via: "undo" },
+  });
+}
+
+/**
+ * Undo de uma CONSULTA (docType health_visit): deleta os registros de saúde
+ * criados por este intake (medical_appointments/active_medications/illness_
+ * episodes) via RPC atômica apply_undo_health.
+ *
+ * A0 = delete-all (a janela do "Desfazer" é imediata, nada foi editado). O
+ * detach-on-edit (preservar registro alterado depois, como no escolar) é refino
+ * posterior — exigiria hash round-trip por tipo, e o appointment_date TIMESTAMPTZ
+ * (compõe data+hora) não distingue hora-nula de meio-dia no round-trip.
+ */
+async function undoHealthVisit(args: {
+  supabase: SupabaseServer;
+  intakeId: string;
+  actorUserId?: string;
+}): Promise<UndoResult> {
+  const { supabase, intakeId } = args;
+  try {
+    const { data: artifacts, error: artErr } = await supabase
+      .from("brain_intake_artifacts")
+      .select("id, entity_id")
+      .eq("intake_id", intakeId)
+      .in("entity_type", ["medical_appointment", "active_medication", "illness_episode"])
+      .is("detached_at", null)
+      .is("undone_at", null);
+    if (artErr) {
+      await reportServerError(artErr, { filePath: FILE, metadata: { step: "load_health_artifacts", intakeId } });
+      return { kind: "error", message: "Falha ao carregar o que foi criado." };
+    }
+    if (!artifacts || artifacts.length === 0) {
+      return { kind: "undone", removed: 0, detached: 0, message: "Nada a desfazer." };
+    }
+
+    const deleteEntityIds = artifacts.map((a) => a.entity_id as string);
+    const { data: applied, error: rpcErr } = await supabase.rpc("brain_intake_apply_undo_health", {
+      p_intake_id: intakeId,
+      p_delete_entity_ids: deleteEntityIds,
+      p_detach_artifact_ids: [],
+      p_actor_user_id: args.actorUserId ?? null,
+    });
+    if (rpcErr || (applied as { outcome?: string } | null)?.outcome !== "undone") {
+      await reportServerError(rpcErr ?? new Error("undo_not_applied"), { filePath: FILE, metadata: { step: "apply_undo_health", intakeId } });
+      return { kind: "error", message: "Falha ao desfazer." };
+    }
+    const removed = (applied as { removed: number }).removed;
+    const detached = (applied as { detached: number }).detached;
+
+    await purgeIntakeMedia(supabase, intakeId);
+
+    const uid = args.actorUserId ?? (await supabase.auth.getUser()).data.user?.id;
+    if (uid) captureServerEvent(uid, "brain_intake_undone", { intake_id: intakeId, doc_type: "health_visit", removed, detached });
+
+    return { kind: "undone", removed, detached, message: `${removed} registro(s) da consulta removido(s).` };
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "undo_health", intakeId } });
     return { kind: "error", message: "Não consegui desfazer agora. Tente de novo." };
   }
 }

@@ -79,7 +79,7 @@ describe("confirmIntake — dispatch por docType", () => {
 
     // A RPC certa foi chamada, com os arrays corretos.
     expect(supabase.rpc).toHaveBeenCalledTimes(1);
-    const [fn, params] = supabase.rpc.mock.calls[0] as [string, Record<string, unknown>];
+    const [fn, params] = supabase.rpc.mock.calls[0] as unknown as [string, Record<string, unknown>];
     expect(fn).toBe("brain_intake_execute_health_plan");
     const appts = params.p_appointments as Array<{ status: string; appointment_type: string }>;
     expect(appts).toHaveLength(2); // consulta(completed) + retorno(scheduled)
