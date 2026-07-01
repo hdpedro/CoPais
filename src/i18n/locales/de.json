@@ -3045,7 +3045,14 @@
       "selectChild": "Für welches Kind?",
       "empty": "Nichts zu erstellen.",
       "forChild": "Für {child}",
-      "dateRange": "von {start} bis {end}"
+      "dateRange": "von {start} bis {end}",
+      "edit": "Bearbeiten",
+      "editDone": "Fertig",
+      "editTitle": "Titel",
+      "editSubject": "Fach",
+      "editDate": "Datum",
+      "editTime": "Uhrzeit",
+      "editContent": "Inhalt"
     },
     "impact": {
       "sameDay": "{child} hat {count} Prüfungen am {date}.",

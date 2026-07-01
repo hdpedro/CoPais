@@ -126,6 +126,49 @@ export function buildSchoolLogPayloads(plan: MaterializationPlan): SchoolLogPayl
   return (plan.activities ?? []).map(toSchoolLogPayload);
 }
 
+/** Edição por item no preview (por índice na lista ORIGINAL do plano salvo).
+ *  Só os campos que o usuário pode corrigir. `subject`/`timeStart`/`notes`
+ *  aceitam null (limpar). */
+export interface ActivityEdit {
+  index: number;
+  name?: string;
+  subject?: string | null;
+  startDate?: string; // "YYYY-MM-DD"
+  timeStart?: string | null; // "HH:MM" ou null
+  notes?: string | null;
+}
+
+const EDIT_CAP = { name: 200, subject: 120, notes: 2000 } as const;
+const cap = (s: string, max: number) => (s.length > max ? s.slice(0, max) : s);
+
+/**
+ * Aplica edições do usuário sobre as atividades do plano salvo, por índice
+ * ORIGINAL (mesma base do keepIndices — por isso aplicar ANTES de selecionar).
+ * PURA: capa/trima valores, ignora índices inválidos, valida forma de data/hora
+ * (data/horizonte final é revalidado por validatePlanForExecution). Campo com
+ * string vazia após trim é tratado como "não mexeu" (name) ou "limpar"
+ * (subject/notes via null explícito). Preserva ordem e não muta a entrada.
+ */
+export function applyActivityEdits(activities: ActivitySpec[], edits?: ActivityEdit[]): ActivitySpec[] {
+  if (!edits || edits.length === 0) return activities;
+  const byIndex = new Map<number, ActivityEdit>();
+  for (const e of edits) {
+    if (Number.isInteger(e.index) && e.index >= 0 && e.index < activities.length) byIndex.set(e.index, e);
+  }
+  if (byIndex.size === 0) return activities;
+  return activities.map((a, i) => {
+    const e = byIndex.get(i);
+    if (!e) return a;
+    const next: ActivitySpec = { ...a };
+    if (typeof e.name === "string" && e.name.trim() !== "") next.name = cap(e.name.trim(), EDIT_CAP.name);
+    if (e.subject !== undefined) next.subject = e.subject && e.subject.trim() !== "" ? cap(e.subject.trim(), EDIT_CAP.subject) : null;
+    if (typeof e.startDate === "string" && /^\d{4}-\d{2}-\d{2}$/.test(e.startDate)) next.startDate = e.startDate;
+    if (e.timeStart !== undefined) next.timeStart = typeof e.timeStart === "string" && /^\d{2}:\d{2}$/.test(e.timeStart) ? e.timeStart : null;
+    if (e.notes !== undefined) next.notes = e.notes && e.notes.trim() !== "" ? cap(e.notes.trim(), EDIT_CAP.notes) : null;
+    return next;
+  });
+}
+
 /**
  * Seleção por índice (deseleção no preview). Mantém as atividades cujos
  * índices estão em `keepIndices`. Robusto: índices repetidos NÃO duplicam

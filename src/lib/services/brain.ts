@@ -27,7 +27,7 @@ import { prioritize } from "@/lib/ai/brain/prioritize";
 import { dedupeWithinPlan } from "@/lib/ai/brain/dedupe";
 import { computePlanHash } from "@/lib/ai/brain/plan-hash";
 import { validatePlanForExecution } from "@/lib/ai/brain/validate-plan";
-import { buildSchoolLogPayloads, buildOutboxPayloads, selectActivitiesByIndex } from "@/lib/ai/brain/materialize-payload";
+import { buildSchoolLogPayloads, buildOutboxPayloads, selectActivitiesByIndex, applyActivityEdits, type ActivityEdit } from "@/lib/ai/brain/materialize-payload";
 import { sanitizeForLogPreview } from "@/lib/ai/brain/sanitize-log";
 import { captureServerEvent } from "@/lib/posthog-server";
 import type {
@@ -403,6 +403,10 @@ export interface ConfirmIntakeArgs {
    *  preview). Ausente = todas. O plan_hash guarda o contexto do plano
    *  salvo; a seleção é um subconjunto do que o usuário viu. */
   keepIndices?: number[];
+  /** Edições por item no preview (título/matéria/data/hora/conteúdo), por
+   *  índice na lista ORIGINAL do plano salvo. Aplicadas ANTES da seleção; o
+   *  plan_hash ainda valida que o intake não foi reanalisado no servidor. */
+  edits?: ActivityEdit[];
   /** Ator EXPLÍCITO (canais sem JWT, ex: WhatsApp com client service_role).
    *  Ausente (PWA/Native) → cai no auth.uid() do client do usuário. A RPC
    *  usa coalesce(auth.uid(), este) — auth.uid() sempre vence quando existe,
@@ -441,10 +445,12 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
     if (!savedPlan || !savedPlan.activities || savedPlan.activities.length === 0) {
       return { kind: "error", message: "Não há nada para confirmar neste item." };
     }
-    // Deseleção por item: materializa só o subconjunto mantido pelo usuário.
+    // Edição + deseleção por item (ambas por índice ORIGINAL): aplica as
+    // edições do usuário e materializa só o subconjunto mantido.
+    const editedActivities = applyActivityEdits(savedPlan.activities, args.edits);
     const plan: MaterializationPlan = {
       ...savedPlan,
-      activities: selectActivitiesByIndex(savedPlan.activities, args.keepIndices),
+      activities: selectActivitiesByIndex(editedActivities, args.keepIndices),
     };
     if (!plan.activities || plan.activities.length === 0) {
       return { kind: "error", message: "Selecione ao menos uma atividade para criar." };

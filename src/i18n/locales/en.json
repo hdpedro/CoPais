@@ -3045,7 +3045,14 @@
       "selectChild": "Which child is this for?",
       "empty": "Nothing to create.",
       "forChild": "For {child}",
-      "dateRange": "from {start} to {end}"
+      "dateRange": "from {start} to {end}",
+      "edit": "Edit",
+      "editDone": "Done",
+      "editTitle": "Title",
+      "editSubject": "Subject",
+      "editDate": "Date",
+      "editTime": "Time",
+      "editContent": "Content"
     },
     "impact": {
       "sameDay": "{child} has {count} exams on {date}.",

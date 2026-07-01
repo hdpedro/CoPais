@@ -107,6 +107,36 @@ describe("BrainCalendarClient — fluxo funcional", () => {
     });
   });
 
+  it("editar um item → confirm envia edits com o campo alterado", async () => {
+    let sentBody: { edits?: Array<{ index: number; name?: string }> } | null = null;
+    server.use(
+      http.post("*/api/brain/intakes/:id/confirm", async ({ request }) => {
+        sentBody = (await request.json()) as typeof sentBody;
+        return HttpResponse.json({ kind: "executed", intakeId: PREVIEW.intakeId, createdCount: 2 });
+      }),
+    );
+    const { container } = renderUI();
+    pickFile(container);
+    fireEvent.click(screen.getByText("Enviar foto do calendário"));
+    fireEvent.click(screen.getByText("Entendi e quero continuar"));
+    await waitFor(() => expect(screen.getByText("O que vou criar")).toBeInTheDocument());
+
+    // abre edição do 1º item e muda o título
+    fireEvent.click(screen.getAllByText("Editar")[0]);
+    const titleInput = screen.getByDisplayValue("Prova de Matemática");
+    fireEvent.change(titleInput, { target: { value: "Prova AV2 Matemática" } });
+    fireEvent.click(screen.getByText("Pronto"));
+    // novo título aparece na visão read-only
+    await waitFor(() => expect(screen.getByText("Prova AV2 Matemática")).toBeInTheDocument());
+
+    fireEvent.click(screen.getByText("Confirmar e criar"));
+    await waitFor(() => expect(screen.getByText(/O Kindar vai avisar/)).toBeInTheDocument());
+
+    expect(sentBody!.edits).toEqual([
+      expect.objectContaining({ index: 0, name: "Prova AV2 Matemática" }),
+    ]);
+  });
+
   it("desfazer reseta pro upload (não trava no 'done')", async () => {
     server.use(
       http.post("*/api/brain/intakes/:id/confirm", () =>

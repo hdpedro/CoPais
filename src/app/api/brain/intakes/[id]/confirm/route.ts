@@ -30,7 +30,7 @@ export async function POST(
 
     const { id: intakeId } = await context.params;
     const body = (await request.json().catch(() => null)) as
-      | { planHash?: string; confirmationToken?: string; keepIndices?: number[] }
+      | { planHash?: string; confirmationToken?: string; keepIndices?: number[]; edits?: unknown }
       | null;
     if (!body?.planHash || !body?.confirmationToken) {
       return NextResponse.json({ error: "planHash e confirmationToken são obrigatórios." }, { status: 400 });
@@ -39,6 +39,20 @@ export async function POST(
       Array.isArray(body.keepIndices) && body.keepIndices.every((n) => Number.isInteger(n) && n >= 0)
         ? body.keepIndices
         : undefined;
+    // Guard leve de forma; applyActivityEdits capa/valida os VALORES no serviço.
+    const edits = Array.isArray(body.edits)
+      ? body.edits.filter(
+          (e): e is Record<string, unknown> =>
+            !!e && typeof e === "object" && Number.isInteger((e as { index?: unknown }).index),
+        ).map((e) => ({
+          index: (e as { index: number }).index,
+          name: typeof e.name === "string" ? e.name : undefined,
+          subject: e.subject === null || typeof e.subject === "string" ? (e.subject as string | null) : undefined,
+          startDate: typeof e.startDate === "string" ? e.startDate : undefined,
+          timeStart: e.timeStart === null || typeof e.timeStart === "string" ? (e.timeStart as string | null) : undefined,
+          notes: e.notes === null || typeof e.notes === "string" ? (e.notes as string | null) : undefined,
+        }))
+      : undefined;
 
     const supabase = await createClient();
     const result = await confirmIntake({
@@ -47,6 +61,7 @@ export async function POST(
       planHash: body.planHash,
       confirmationToken: body.confirmationToken,
       keepIndices,
+      edits,
     });
 
     const status =

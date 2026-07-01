@@ -263,6 +263,13 @@ export type TranslationKey =
   | "brain.impact.tightSequenceRun"
   | "brain.preview.confirm"
   | "brain.preview.dateRange"
+  | "brain.preview.edit"
+  | "brain.preview.editContent"
+  | "brain.preview.editDate"
+  | "brain.preview.editDone"
+  | "brain.preview.editSubject"
+  | "brain.preview.editTime"
+  | "brain.preview.editTitle"
   | "brain.preview.empty"
   | "brain.preview.forChild"
   | "brain.preview.foundCount"
@@ -3062,6 +3069,13 @@ export const TRANSLATION_KEYS = [
   "brain.impact.tightSequenceRun",
   "brain.preview.confirm",
   "brain.preview.dateRange",
+  "brain.preview.edit",
+  "brain.preview.editContent",
+  "brain.preview.editDate",
+  "brain.preview.editDone",
+  "brain.preview.editSubject",
+  "brain.preview.editTime",
+  "brain.preview.editTitle",
   "brain.preview.empty",
   "brain.preview.forChild",
   "brain.preview.foundCount",

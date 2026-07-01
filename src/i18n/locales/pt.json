@@ -3045,7 +3045,14 @@
       "selectChild": "De qual criança é?",
       "empty": "Nada para criar.",
       "forChild": "Para {child}",
-      "dateRange": "de {start} a {end}"
+      "dateRange": "de {start} a {end}",
+      "edit": "Editar",
+      "editDone": "Pronto",
+      "editTitle": "Título",
+      "editSubject": "Matéria",
+      "editDate": "Data",
+      "editTime": "Horário",
+      "editContent": "Conteúdo"
     },
     "impact": {
       "sameDay": "{child} tem {count} provas em {date}.",
