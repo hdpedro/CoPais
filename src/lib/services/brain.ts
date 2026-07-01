@@ -403,20 +403,25 @@ export interface ConfirmIntakeArgs {
    *  preview). Ausente = todas. O plan_hash guarda o contexto do plano
    *  salvo; a seleção é um subconjunto do que o usuário viu. */
   keepIndices?: number[];
+  /** Ator EXPLÍCITO (canais sem JWT, ex: WhatsApp com client service_role).
+   *  Ausente (PWA/Native) → cai no auth.uid() do client do usuário. A RPC
+   *  usa coalesce(auth.uid(), este) — auth.uid() sempre vence quando existe,
+   *  então este só é confiado sob service_role. Ver migration 00132. */
+  actorUserId?: string;
 }
 
 /**
  * Confirma e materializa o plano. Revalida limites no app, monta os
  * payloads e chama a RPC atômica execute_plan (claim + materializa +
  * outbox + proveniência + executed numa transação). O confirmador sai do
- * auth.uid() do client do usuário.
+ * ator explícito (WhatsApp) ou do auth.uid() do client do usuário (PWA).
  */
 export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResult> {
   const { supabase, intakeId, planHash, confirmationToken } = args;
 
   try {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return { kind: "error", message: "Sessão expirada. Entre de novo." };
+    const actorId = args.actorUserId ?? (await supabase.auth.getUser()).data.user?.id;
+    if (!actorId) return { kind: "error", message: "Sessão expirada. Entre de novo." };
 
     // 1. Carrega o intake (RLS já restringe ao grupo do usuário).
     const { data: intake, error: loadErr } = await supabase
@@ -463,7 +468,7 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
       .eq("group_id", intake.group_id);
     const recipientIds = (members ?? [])
       .map((m) => m.user_id as string)
-      .filter((id) => id !== user.id);
+      .filter((id) => id !== actorId);
 
     const activities = buildSchoolLogPayloads(plan);
     const outbox = buildOutboxPayloads({
@@ -481,6 +486,7 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
       p_token: confirmationToken,
       p_activities: activities,
       p_outbox: outbox,
+      p_actor_user_id: args.actorUserId ?? null,
     });
     if (rpcErr) {
       await reportServerError(rpcErr, { filePath: FILE, metadata: { step: "execute_plan", intakeId } });
@@ -490,8 +496,8 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
     const outcome = (result as { outcome?: string; created_count?: number } | null)?.outcome;
     if (outcome === "executed") {
       const createdCount = (result as { created_count: number }).created_count;
-      captureServerEvent(user.id, "brain_intake_confirmed", { intake_id: intakeId });
-      captureServerEvent(user.id, "brain_intake_executed", { intake_id: intakeId, artifact_count: createdCount });
+      captureServerEvent(actorId, "brain_intake_confirmed", { intake_id: intakeId });
+      captureServerEvent(actorId, "brain_intake_executed", { intake_id: intakeId, artifact_count: createdCount });
       return { kind: "executed", intakeId, createdCount };
     }
 

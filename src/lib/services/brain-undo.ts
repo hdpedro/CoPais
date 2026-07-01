@@ -38,6 +38,9 @@ interface SchoolLogRow {
 export async function undoIntake(args: {
   supabase: SupabaseServer;
   intakeId: string;
+  /** Ator EXPLÍCITO (WhatsApp/service_role sem JWT). Ausente (PWA/Native) →
+   *  auth.uid(). A RPC usa coalesce(auth.uid(), este). Ver migration 00132. */
+  actorUserId?: string;
 }): Promise<UndoResult> {
   const { supabase, intakeId } = args;
   try {
@@ -97,6 +100,7 @@ export async function undoIntake(args: {
       p_intake_id: intakeId,
       p_delete_entity_ids: decision.deleteEntityIds,
       p_detach_artifact_ids: decision.detachArtifactIds,
+      p_actor_user_id: args.actorUserId ?? null,
     });
     if (rpcErr || (applied as { outcome?: string } | null)?.outcome !== "undone") {
       await reportServerError(rpcErr ?? new Error("undo_not_applied"), { filePath: FILE, metadata: { step: "apply_undo", intakeId } });
