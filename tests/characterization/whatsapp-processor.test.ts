@@ -24,6 +24,7 @@ const { mockExecuteTool, mockRouteTools, mockBuildContext, c, s } = vi.hoisted((
     hasPendingConfirmation: vi.fn(() => false),
     hasBrainIntake: vi.fn(() => false),
     hasBrainFallbackPhoto: vi.fn(() => false),
+    hasBrainChildSelection: vi.fn(() => false),
     setPendingAction: vi.fn(async () => {}),
     clearPendingAction: vi.fn(async () => {}),
     setSessionGroup: vi.fn(async () => {}),

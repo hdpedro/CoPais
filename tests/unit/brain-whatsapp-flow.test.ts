@@ -5,6 +5,7 @@ import {
   classifyBrainReply,
   isUndoReply,
   isCalendarYes,
+  matchChildName,
   renderPreview,
   renderExecuted,
   renderUndone,
@@ -83,6 +84,24 @@ describe("isUndoReply — ancorado (não desfaz por engano)", () => {
     for (const s of ["vou apagar a foto depois", "qual o saldo?", "", "reverter o pagamento da escola amanhã"]) {
       expect(isUndoReply(s)).toBe(false);
     }
+  });
+});
+
+describe("matchChildName — resolve a criança pela resposta", () => {
+  const opts = [
+    { id: "o1", name: "Otto" },
+    { id: "m1", name: "Martim Silva" },
+  ];
+  it("nome exato / frase com o nome / sem acento", () => {
+    expect(matchChildName("Otto", opts)).toBe("o1");
+    expect(matchChildName("martim", opts)).toBe("m1");
+    expect(matchChildName("é o Martim", opts)).toBe("m1");
+    expect(matchChildName("MÁRTIM", [{ id: "m1", name: "Mártim" }])).toBe("m1");
+  });
+  it("não casa nome de fora / vazio / letra solta", () => {
+    expect(matchChildName("Bernardo", opts)).toBeNull();
+    expect(matchChildName("", opts)).toBeNull();
+    expect(matchChildName("m", opts)).toBeNull();
   });
 });
 

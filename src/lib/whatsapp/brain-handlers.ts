@@ -24,7 +24,13 @@ import type { BrainChild } from "@/lib/ai/brain/types";
 import { downloadMedia, sendTextMessage, sendButtonMessage } from "./client";
 import { matchChildFromCaption } from "./caption-match";
 import { notifyGroupViaWhatsApp } from "./notify";
-import { setBrainIntake, setBrainFallbackPhoto, clearPendingAction, type WASession } from "./session";
+import {
+  setBrainIntake,
+  setBrainFallbackPhoto,
+  setBrainChildSelection,
+  clearPendingAction,
+  type WASession,
+} from "./session";
 import {
   renderPreview,
   renderExecuted,
@@ -32,6 +38,7 @@ import {
   classifyBrainReply,
   isUndoReply,
   isCalendarYes,
+  matchChildName,
 } from "./brain-flow";
 import type { WAExtractedMessage } from "./types";
 
@@ -79,6 +86,9 @@ export async function analyzeCalendarPhoto(
    *  processor cair no fluxo de recibo — em vez de dizer "não parece calendário"
    *  e encerrar (evita o dead-end do recibo). */
   fromClassifier = false,
+  /** Criança resolvida (usuário respondeu "de qual criança?") — sobrepõe a
+   *  detecção por legenda, reanalisando a MESMA foto sem reenviar. */
+  forcedChildId?: string | null,
 ): Promise<boolean> {
   try {
     // Se acabou de criar um lote (executed) e não desfez, avisa que ele já
@@ -134,9 +144,9 @@ export async function analyzeCalendarPhoto(
       name: (k.full_name || "").split(" ")[0] || "criança",
     }));
 
-    // >1 criança: tenta o nome na legenda; senão deixa o cérebro pedir a escolha.
+    // Criança: forçada (usuário respondeu a seleção) > nome na legenda > única.
     const matched = captionKids.length > 1 ? matchChildFromCaption(caption ?? undefined, captionKids) : captionKids[0];
-    const requestedChildId = matched?.id ?? null;
+    const requestedChildId = forcedChildId ?? matched?.id ?? null;
 
     const result = await createAndAnalyzeIntake({
       supabase,
@@ -182,11 +192,22 @@ export async function analyzeCalendarPhoto(
         return true;
       }
       case "needs_child_selection": {
-        const names = result.options.map((o) => o.name).join(", ");
-        await sendTextMessage(
-          phone,
-          `De qual criança é esse calendário? Reenvie a foto com o nome na legenda (ex: *calendário Otto*).\n\nCrianças: ${names}.`,
-        );
+        // Guarda a foto (media_id) + opções → o usuário só RESPONDE o nome (ou
+        // toca no botão), sem reenviar a imagem.
+        const options = result.options.map((o) => ({ id: o.id, name: o.name }));
+        await setBrainChildSelection(supabase, session.id, { media_id: mediaId, options });
+        if (options.length >= 2 && options.length <= 3) {
+          await sendButtonMessage(
+            phone,
+            "De qual criança é esse calendário? É só tocar no nome 🙂",
+            options.map((o) => ({ id: `brain_child:${o.id}`, title: o.name.slice(0, 20) })),
+          );
+        } else {
+          await sendTextMessage(
+            phone,
+            `De qual criança é esse calendário? Responda o nome: ${options.map((o) => o.name).join(", ")}.`,
+          );
+        }
         return true;
       }
       case "unknown_document":
@@ -404,4 +425,43 @@ export async function handleReceiptFallbackReply(
   // Não é "sim" → encerra o fallback e deixa o assistente responder a msg nova.
   await clearPendingAction(supabase, session.id);
   return false;
+}
+
+/**
+ * Resposta a "de qual criança é o calendário?" — botão ou nome digitado.
+ * Resolve a criança e REANALISA a MESMA foto (media_id guardado) sem reenviar.
+ * Nome não reconhecido → repete a pergunta (sem encerrar).
+ */
+export async function handleChildSelectionReply(
+  supabase: SupabaseClient,
+  phone: string,
+  userId: string,
+  groupId: string,
+  message: WAExtractedMessage,
+  session: WASession,
+): Promise<boolean> {
+  const sel = session.state.brain_child_selection;
+  if (!sel) return false;
+  const btn = message.buttonReplyId;
+  const text = (message.text || "").trim();
+
+  let childId: string | null = null;
+  if (btn && btn.startsWith("brain_child:")) {
+    const id = btn.slice("brain_child:".length);
+    childId = sel.options.some((o) => o.id === id) ? id : null;
+  } else if (text) {
+    childId = matchChildName(text, sel.options);
+  }
+
+  if (!childId) {
+    await sendTextMessage(
+      phone,
+      `Não reconheci 🤔. De qual criança é? Responda o nome: ${sel.options.map((o) => o.name).join(", ")}.`,
+    );
+    return true;
+  }
+
+  // Reanalisa a foto guardada com a criança resolvida (sem reenviar).
+  await clearPendingAction(supabase, session.id);
+  return analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
 }

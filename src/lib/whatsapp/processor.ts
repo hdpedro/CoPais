@@ -27,6 +27,7 @@ import {
   hasPendingConfirmation,
   hasBrainIntake,
   hasBrainFallbackPhoto,
+  hasBrainChildSelection,
   setPendingAction,
   clearPendingAction,
   setSessionGroup,
@@ -38,6 +39,7 @@ import {
   handleCalendarImage,
   analyzeCalendarPhoto,
   handleBrainReply,
+  handleChildSelectionReply,
   offerBrainAfterReceiptFail,
   handleReceiptFallbackReply,
 } from "./brain-handlers";
@@ -363,6 +365,26 @@ export async function processWhatsAppMessage(
 
   if (hasBrainFallbackPhoto(session) && message.text) {
     const handled = await handleReceiptFallbackReply(supabase, phone, userId, groupId, message, session);
+    if (handled) {
+      await logAIRequest({
+        userId,
+        groupId,
+        provider: "vision",
+        feature: "assistant_chat",
+        success: true,
+        responseTimeMs: Date.now() - start,
+      });
+      return;
+    }
+  }
+
+  /* ================================================================ */
+  /* Step 4.8: Seleção de criança do calendário — o usuário responde o  */
+  /* nome (ou toca no botão) e a MESMA foto é reanalisada, sem reenviar. */
+  /* ================================================================ */
+
+  if (hasBrainChildSelection(session) && (message.text || message.buttonReplyId)) {
+    const handled = await handleChildSelectionReply(supabase, phone, userId, groupId, message, session);
     if (handled) {
       await logAIRequest({
         userId,
