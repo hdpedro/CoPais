@@ -270,171 +270,23 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
       { temperature: 0.1, maxTokens: 4000 },
     );
 
-    // 3. Parse + validação estrita do schema (fora do schema é descartado).
-    let raw: unknown;
-    try {
-      raw = parseVisionJson(vision.text);
-    } catch {
-      await markFailed(supabase, intakeId, "vision_parse_error");
-      captureServerEvent(ctx.userId, "brain_intake_extraction_failed", {
-        intake_id: intakeId,
-        error_type: "vision_parse_error",
-        provider: vision.provider,
-      });
-      return { kind: "error", message: "Não consegui interpretar a foto. Tente uma imagem mais nítida." };
-    }
-
-    const data = playbook.parse(raw, sctx);
-    if (!data) {
-      // Não reconheceu como calendário escolar. Estado terminal NÃO-alarmante
-      // (sem plan/token → nunca confirmável) mas RE-PROCESSÁVEL: begin_analysis
-      // aceita 'failed' → permite reclassificar com hint depois. doc_type
-      // distingue de falha real (doc_type null) nas métricas. (Status dedicado
-      // 'needs_clarification' fica pro refino pós-A0.)
-      await supabase
-        .from("brain_intakes")
-        .update({ status: "failed", error: "unknown_document", doc_type: "unknown_document", analysis_provider: vision.provider, analyzed_at: new Date().toISOString() })
-        .eq("id", intakeId);
-      captureServerEvent(ctx.userId, "brain_intake_extraction_failed", {
-        intake_id: intakeId,
-        doc_type: "unknown_document",
-        error_type: "unrecognized",
-        provider: vision.provider,
-      });
-      return {
-        kind: "unknown_document",
-        intakeId,
-        message: "Não tenho certeza do que é. Quer que eu procure datas de provas?",
-      };
-    }
-
-    // Telemetria: linhas reconhecidas como prova mas descartadas por não terem
-    // matéria (ex: "Segunda chamada"). Mede a frequência antes de investir em UI.
-    const skippedLines = (data as { skipped?: number }).skipped ?? 0;
-    if (skippedLines > 0) {
-      captureServerEvent(ctx.userId, "brain_intake_lines_skipped", {
-        intake_id: intakeId,
-        skipped_count: skippedLines,
-        doc_type: docType,
-      });
-    }
-
-    // 4. Plano + dedup intra-plano + dedup contra histórico + impacto + prioridade.
-    const planned = playbook.plan(data, sctx);
-    const { unique, dropped } = dedupeWithinPlan(planned.activities ?? []);
-    if (dropped.length > 0) {
-      captureServerEvent(ctx.userId, "brain_intake_duplicate_detected", {
-        intake_id: intakeId,
-        dropped_count: dropped.length,
-      });
-    }
-
-    // Histórico da criança na janela: base do impacto E da dedup de reenvio.
-    const window = planDateWindow({ ...planned, activities: unique });
-    const existing = await loadExistingOccurrences(supabase, sctx.resolvedChildId, window);
-
-    // Duplicata contra o histórico: a família reenviou o MESMO calendário. Não
-    // recria — e não conta o duplicado como "N provas no mesmo dia" (o antigo
-    // sintoma "3 provas em 08/07"). Compara por aluno+data+título.
-    const { fresh, duplicates } = partitionAgainstExisting(unique, existing);
-    if (fresh.length === 0 && duplicates.length > 0) {
-      await supabase
-        .from("brain_intakes")
-        .update({
-          status: "failed",
-          error: "duplicate",
-          doc_type: docType,
-          analysis_provider: vision.provider,
-          analyzed_at: new Date().toISOString(),
-        })
-        .eq("id", intakeId)
-        .eq("status", "analyzing");
-      captureServerEvent(ctx.userId, "brain_intake_duplicate_all", {
-        intake_id: intakeId,
-        count: duplicates.length,
-      });
-      const one = duplicates.length === 1;
-      return {
-        kind: "duplicate",
-        intakeId,
-        priorIntakeId: intakeId,
-        message: one
-          ? "Essa prova já está no Kindar 🙂. Nada a adicionar."
-          : "Essas provas já estão no Kindar 🙂. Nada a adicionar.",
-      };
-    }
-    if (duplicates.length > 0) {
-      captureServerEvent(ctx.userId, "brain_intake_duplicate_partial", {
-        intake_id: intakeId,
-        already: duplicates.length,
-        fresh: fresh.length,
-      });
-    }
-
-    // Só as provas NOVAS entram no plano/hash/impacto (o resto já existe).
-    const plan: MaterializationPlan = { ...planned, activities: fresh };
-    const impacts = analyzeImpact(plan, existing);
-    const priority = prioritize(plan, sctx.today);
-
-    // 5. plan_hash canônico (inclui playbook+policy version) + token + expiração.
-    const planHash = computePlanHash({
-      plan,
-      playbookVersion: playbook.playbookVersion,
-      policyVersion: playbook.policyVersion,
-    });
-    const confirmationToken = randomUUID();
-    const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
-
-    // 6. Salva o preview. `extracted` guarda o dado ESTRUTURADO (não o OCR cru).
-    const { error: saveErr } = await supabase
-      .from("brain_intakes")
-      .update({
-        status: "awaiting_confirmation",
-        doc_type: docType,
-        extracted: data,
-        impacts,
-        plan,
-        plan_hash: planHash,
-        plan_version: 1,
-        playbook_version: playbook.playbookVersion,
-        policy_version: playbook.policyVersion,
-        analysis_provider: vision.provider,
-        confirmation_token: confirmationToken,
-        confirmation_expires_at: expiresAt,
-        analyzed_at: new Date().toISOString(),
-      })
-      .eq("id", intakeId)
-      .eq("status", "analyzing");
-    if (saveErr) {
-      await reportServerError(saveErr, { filePath: FILE, metadata: { step: "save_analysis", intakeId } });
-      return { kind: "error", message: "Falha ao salvar a análise." };
-    }
-
-    const activityCount = plan.activities?.length ?? 0;
-    const needsReview = (plan.activities ?? []).some((a) => (a.lowConfidenceFields?.length ?? 0) > 0);
-    captureServerEvent(ctx.userId, "brain_intake_analyzed", {
-      intake_id: intakeId,
-      doc_type: docType,
-      child_count: ctx.children.length,
-      artifact_count: activityCount,
-      confidence_level: needsReview ? "needs_review" : "high",
-      provider: vision.provider,
-      latency_ms: Date.now() - t0,
-    });
-    captureServerEvent(ctx.userId, "brain_intake_preview_shown", { intake_id: intakeId, doc_type: docType });
-
-    const preview: IntakePreview = {
+    // Estágios 3-6 (parse → plano → dedup intra + histórico → duplicata →
+    // impacto → salva preview) são COMPARTILHADOS com o path de texto/áudio
+    // (finalizeAnalysis). `playbook.parse` é input-agnóstico. O path de foto só
+    // difere na mensagem de parse-error (fala em "imagem"). Ver task_5bae6eab.
+    return await finalizeAnalysis({
+      supabase,
       intakeId,
+      rawText: vision.text,
+      provider: vision.provider,
+      playbook,
       docType,
-      confirmation: plan.confirmation,
-      plan,
-      impacts,
-      priority,
-      planHash,
-      confirmationToken,
-      alreadyPresent: duplicates.length > 0 ? duplicates.length : undefined,
-    };
-    return { kind: "preview", preview };
+      sctx,
+      userId: ctx.userId,
+      childCount: ctx.children.length,
+      t0,
+      parseErrorMessage: "Não consegui interpretar a foto. Tente uma imagem mais nítida.",
+    });
   } catch (err) {
     // Log SEM PII (a saída da visão pode conter nomes/dados sensíveis).
     await reportServerError(err, {
@@ -464,6 +316,9 @@ async function finalizeAnalysis(p: {
   userId: string;
   childCount: number;
   t0: number;
+  /** Mensagem de erro quando o parse falha — o path de FOTO usa uma variante
+   *  que fala em "imagem mais nítida". Default = variante de texto/áudio. */
+  parseErrorMessage?: string;
 }): Promise<IntakeResult> {
   const { supabase, intakeId, rawText, provider, playbook, docType, sctx, userId, childCount, t0 } = p;
 
@@ -474,7 +329,10 @@ async function finalizeAnalysis(p: {
   } catch {
     await markFailed(supabase, intakeId, "vision_parse_error");
     captureServerEvent(userId, "brain_intake_extraction_failed", { intake_id: intakeId, error_type: "vision_parse_error", provider });
-    return { kind: "error", message: "Não consegui interpretar agora. Tente reformular ou mandar uma foto mais nítida." };
+    return {
+      kind: "error",
+      message: p.parseErrorMessage ?? "Não consegui interpretar agora. Tente reformular ou mandar uma foto mais nítida.",
+    };
   }
 
   const data = playbook.parse(raw, sctx);
