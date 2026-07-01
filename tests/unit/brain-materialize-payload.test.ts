@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   buildOutboxPayloads,
   selectActivitiesByIndex,
+  applyActivityEdits,
 } from "@/lib/ai/brain/materialize-payload";
 import type { ActivitySpec } from "@/lib/ai/brain/types";
 
@@ -16,6 +17,59 @@ function spec(over: Partial<ActivitySpec> = {}): ActivitySpec {
     ...over,
   };
 }
+
+describe("applyActivityEdits — edição por item no preview", () => {
+  const acts: ActivitySpec[] = [
+    spec({ name: "Prova de Matemática", subject: "Matemática", startDate: "2026-08-12", timeStart: "08:00", notes: "Cap. 7" }),
+    spec({ name: "Prova de História", subject: "História", startDate: "2026-08-13" }),
+  ];
+
+  it("sem edições → mesma lista (identidade)", () => {
+    expect(applyActivityEdits(acts, undefined)).toBe(acts);
+    expect(applyActivityEdits(acts, [])).toBe(acts);
+  });
+
+  it("edita título/matéria/data/hora/conteúdo de um item por índice", () => {
+    const r = applyActivityEdits(acts, [
+      { index: 0, name: "Prova AV2 Mat", subject: "Matemática Aplicada", startDate: "2026-08-14", timeStart: "09:30", notes: "Cap. 7 e 8" },
+    ]);
+    expect(r[0]).toMatchObject({
+      name: "Prova AV2 Mat",
+      subject: "Matemática Aplicada",
+      startDate: "2026-08-14",
+      timeStart: "09:30",
+      notes: "Cap. 7 e 8",
+    });
+    expect(r[1]).toEqual(acts[1]); // outro item intocado
+  });
+
+  it("índice inválido é ignorado; não muta a entrada", () => {
+    const r = applyActivityEdits(acts, [{ index: 9, name: "X" }, { index: -1, name: "Y" }]);
+    expect(r[0]).toEqual(acts[0]);
+    expect(acts[0].name).toBe("Prova de Matemática"); // input intacto
+  });
+
+  it("subject/notes null limpam; name vazio NÃO mexe", () => {
+    const r = applyActivityEdits(acts, [{ index: 0, subject: null, notes: null, name: "   " }]);
+    expect(r[0].subject).toBeNull();
+    expect(r[0].notes).toBeNull();
+    expect(r[0].name).toBe("Prova de Matemática"); // trim vazio = não mexeu
+  });
+
+  it("data/hora inválidas: data ignorada, hora vira null", () => {
+    const r = applyActivityEdits(acts, [{ index: 0, startDate: "14/08/2026", timeStart: "9h" }]);
+    expect(r[0].startDate).toBe("2026-08-12"); // formato inválido → mantém
+    expect(r[0].timeStart).toBeNull(); // hora inválida → null
+  });
+
+  it("capa strings longas (name 200 / subject 120 / notes 2000)", () => {
+    const long = "a".repeat(3000);
+    const r = applyActivityEdits(acts, [{ index: 0, name: long, subject: long, notes: long }]);
+    expect(r[0].name!.length).toBe(200);
+    expect(r[0].subject!.length).toBe(120);
+    expect(r[0].notes!.length).toBe(2000);
+  });
+});
 
 describe("selectActivitiesByIndex — deseleção no preview (casos do dono)", () => {
   const acts: ActivitySpec[] = [
