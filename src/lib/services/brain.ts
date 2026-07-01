@@ -26,6 +26,7 @@ import { getPlaybook } from "@/lib/ai/brain/understanding/registry";
 import { analyzeImpact, type ExistingOccurrence } from "@/lib/ai/brain/impact";
 import { prioritize } from "@/lib/ai/brain/prioritize";
 import { dedupeWithinPlan, partitionAgainstExisting } from "@/lib/ai/brain/dedupe";
+import { resolveChildIdFromText } from "@/lib/ai/brain/child-match";
 import { computePlanHash } from "@/lib/ai/brain/plan-hash";
 import { validatePlanForExecution } from "@/lib/ai/brain/validate-plan";
 import { buildSchoolLogPayloads, buildOutboxPayloads, selectActivitiesByIndex, applyActivityEdits, type ActivityEdit } from "@/lib/ai/brain/materialize-payload";
@@ -657,7 +658,9 @@ export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Prom
         ? requestedChildId
         : children.length === 1
           ? children[0].id
-          : null;
+          : // Nome citado no próprio texto ("Otto tem prova…") resolve sem
+            // perguntar — só se exatamente 1 criança bate (senão null → pergunta).
+            resolveChildIdFromText(text, children);
 
     const { data: groupRow } = await supabase.from("coparenting_groups").select("timezone").eq("id", groupId).single();
     const timezone = safeTimezone((groupRow?.timezone as string | undefined) || DEFAULT_TIMEZONE);
