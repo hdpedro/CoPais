@@ -2,7 +2,8 @@
  * (vs. conversa/pergunta). Puro. A extração por IA é a decisão final — este é
  * só o filtro barato pra não chamar o Brain em toda mensagem. */
 import { describe, it, expect } from "vitest";
-import { looksLikeExamText, matchOneChildOption } from "@/components/AIAssistant";
+import { looksLikeExamText } from "@/lib/ai/brain/exam-text-gate";
+import { matchOneChildOption } from "@/components/AIAssistant";
 
 describe("looksLikeExamText — captura de provas por texto (conservador)", () => {
   it("reconhece descrições de provas (palavra de prova + sinal de data)", () => {

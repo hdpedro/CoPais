@@ -40,6 +40,7 @@ import {
   analyzeCalendarPhoto,
   handleBrainReply,
   handleChildSelectionReply,
+  handleExamText,
   offerBrainAfterReceiptFail,
   handleReceiptFallbackReply,
 } from "./brain-handlers";
@@ -163,6 +164,7 @@ export async function processWhatsAppMessage(
   /* Step 1: Handle unsupported message types                          */
   /* ================================================================ */
 
+  let fromAudio = false;
   if (message.type === "audio" && message.mediaId) {
     await sendTextMessage(phone, "\uD83C\uDFA7 Ouvindo seu audio...");
     const transcription = await transcribeAudio(message.mediaId, message.mediaMimeType);
@@ -170,6 +172,7 @@ export async function processWhatsAppMessage(
       // Replace message text with transcription and continue processing
       message.text = transcription;
       message.type = "text";
+      fromAudio = true;
       // Fall through to text processing below
     } else {
       await sendTextMessage(phone, "Nao consegui entender o audio. Pode digitar a mensagem? \uD83D\uDE4F");
@@ -449,6 +452,29 @@ export async function processWhatsAppMessage(
 
     // User sent something else while confirmation is pending — clear and process as new
     await clearPendingAction(supabase, session.id);
+  }
+
+  /* ================================================================ */
+  /* Step 5.5: Kindar Brain — captura de provas por TEXTO/ÁUDIO         */
+  /* Paridade com o assistente do app: "Otto tem prova de matemática    */
+  /* dia 10/09" (digitado OU ditado — o áudio já chegou transcrito)      */
+  /* vira prévia confirmável. Gate conservador; se não for captura de    */
+  /* provas, `handleExamText` devolve false e cai no assistente (Step 7).*/
+  /* ================================================================ */
+
+  if (message.type === "text" && message.text) {
+    const handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio);
+    if (handled) {
+      await logAIRequest({
+        userId,
+        groupId,
+        provider: "local",
+        feature: "assistant_chat",
+        success: true,
+        responseTimeMs: Date.now() - start,
+      });
+      return;
+    }
   }
 
   /* ================================================================ */
