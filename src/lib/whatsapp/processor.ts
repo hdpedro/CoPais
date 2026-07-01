@@ -35,10 +35,12 @@ import {
   setGroupSelectionState,
   setReceiptStep,
 } from "./session";
-import { isCalendarIntent } from "./brain-flow";
+import { isCalendarIntent, isConsultIntent } from "./brain-flow";
 import {
   handleCalendarImage,
   analyzeCalendarPhoto,
+  handleConsultaImage,
+  analyzeConsultaPhoto,
   handleBrainReply,
   handleChildSelectionReply,
   handleExamText,
@@ -54,7 +56,7 @@ import {
   downloadMedia,
 } from "./client";
 import { classifyDocumentByVision } from "@/lib/ai/document-classifier";
-import { isBrainEnabledForGroup } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled } from "@/lib/services/brain-flag";
 import { formatForWhatsApp, splitMessage } from "./formatter";
 import { processReceiptImage, processPrescriptionImage } from "./media";
 import { transcribeAudio } from "./audio";
@@ -519,6 +521,24 @@ export async function processWhatsAppMessage(
       }
     }
 
+    // Consulta médica por LEGENDA (/consulta, "consulta médica"…). Gate próprio
+    // de saúde (OFF por padrão) → skip = comportamento byte-idêntico. Checado
+    // DEPOIS do calendário (não sequestra) e antes do recibo.
+    if (isHealthVisitEnabled() && isConsultIntent(message.caption)) {
+      const handled = await handleConsultaImage(supabase, phone, userId, groupId, message, session);
+      if (handled) {
+        await logAIRequest({
+          userId,
+          groupId,
+          provider: "vision",
+          feature: "assistant_chat",
+          success: true,
+          responseTimeMs: Date.now() - start,
+        });
+        return;
+      }
+    }
+
     const intent = classifyImageIntent(message.caption);
 
     // Brain INTELIGENTE: imagem SEM legenda clara (cairia no recibo) → o modelo
@@ -548,6 +568,23 @@ export async function processWhatsAppMessage(
               return;
             }
             // Cérebro rejeitou → não era calendário → cai no recibo (com buffer).
+          } else if (
+            isHealthVisitEnabled() &&
+            (cls.type === "medical_summary" || cls.type === "prescription") &&
+            cls.confidence >= 0.7
+          ) {
+            // Consulta/receita SEM legenda (gate OFF por padrão → nunca entra aqui).
+            const handled = await analyzeConsultaPhoto(
+              supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, sharedBuffer, true,
+            );
+            if (handled) {
+              await logAIRequest({
+                userId, groupId, provider: "vision", feature: "assistant_chat",
+                success: true, responseTimeMs: Date.now() - start,
+              });
+              return;
+            }
+            // Cérebro rejeitou → cai no recibo (com buffer).
           }
         }
       } catch (e) {

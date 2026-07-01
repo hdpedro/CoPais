@@ -220,6 +220,120 @@ export async function analyzeCalendarPhoto(
 }
 
 /**
+ * Foto de CONSULTA (resumo/receita/pedido de exame) → análise. Espelho de
+ * analyzeCalendarPhoto pro Playbook de Saúde (o escolar fica INTOCADO = zero
+ * risco). Gate próprio (isHealthVisitEnabled, OFF) checado pelo caller. Usa
+ * createAndAnalyzeIntake docType='health_visit' → sendBrainPreview (ramifica).
+ */
+export async function analyzeConsultaPhoto(
+  supabase: SupabaseClient,
+  phone: string,
+  userId: string,
+  groupId: string,
+  mediaId: string,
+  caption: string | null,
+  session: WASession,
+  preBuffer?: Buffer,
+  fromClassifier = false,
+  forcedChildId?: string | null,
+): Promise<boolean> {
+  try {
+    if (!fromClassifier) {
+      await sendTextMessage(
+        phone,
+        "🩺 Vou ler essa consulta pra organizar no histórico de Saúde — fica visível aos responsáveis do grupo. Analisando…",
+      );
+    }
+    const buffer = preBuffer ?? (await downloadMedia(mediaId));
+    const val = validateImageUpload(buffer);
+    if (!val.ok || !val.type) {
+      await sendTextMessage(phone, "Não consegui ler essa imagem. Tente uma foto nítida (JPG ou PNG). 🙏");
+      return true;
+    }
+    const { data: rows } = await supabase
+      .from("children")
+      .select("id, full_name, birth_date")
+      .eq("group_id", groupId);
+    const captionKids = (rows ?? []).map((r) => ({
+      id: r.id as string,
+      full_name: (r.full_name as string) ?? null,
+      birth_date: (r.birth_date as string) ?? null,
+    }));
+    if (captionKids.length === 0) {
+      await sendTextMessage(phone, "Você ainda não tem crianças cadastradas. Cadastre pelo app antes de enviar a consulta. 🙏");
+      return true;
+    }
+    const children: BrainChild[] = captionKids.map((k) => ({ id: k.id, name: (k.full_name || "").split(" ")[0] || "criança" }));
+    const matched = captionKids.length > 1 ? matchChildFromCaption(caption ?? undefined, captionKids) : captionKids[0];
+    const requestedChildId = forcedChildId ?? matched?.id ?? null;
+
+    const result = await createAndAnalyzeIntake({
+      supabase,
+      groupId,
+      userId,
+      channel: "whatsapp",
+      source: "document",
+      buffer,
+      mime: val.type,
+      children,
+      requestedChildId,
+      docType: "health_visit",
+    });
+
+    switch (result.kind) {
+      case "preview": {
+        if (fromClassifier) {
+          await sendTextMessage(phone, "🩺 É uma consulta médica! Os dados ficam visíveis aos responsáveis do grupo.");
+        }
+        await sendBrainPreview(supabase, phone, session, result.preview, children);
+        return true;
+      }
+      case "needs_child_selection":
+        await sendBrainChildQuestion(
+          supabase,
+          phone,
+          session,
+          result.options.map((o) => ({ id: o.id, name: o.name })),
+          { media_id: mediaId, doc_type: "health_visit" },
+        );
+        return true;
+      case "unknown_document":
+        if (fromClassifier) return false; // cai no recibo (sem dead-end)
+        await sendTextMessage(phone, "Isso não parece uma consulta médica. Se for, tente uma foto mais nítida. 🙂");
+        return true;
+      case "duplicate":
+        await sendTextMessage(phone, result.message);
+        return true;
+      default:
+        if (fromClassifier) return false;
+        await sendTextMessage(phone, "Não consegui processar agora. Tente de novo em instantes. 🙏");
+        return true;
+    }
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "analyzeConsultaPhoto", groupId } });
+    if (fromClassifier) return false;
+    await sendTextMessage(phone, "Não consegui processar a consulta agora. Reenvie a foto em instantes. 🙏");
+    return true;
+  }
+}
+
+/** Foto de consulta roteada por LEGENDA (isConsultIntent). Gate próprio de saúde
+ *  + beta; se off, retorna false e o processor segue o roteamento normal. */
+export async function handleConsultaImage(
+  supabase: SupabaseClient,
+  phone: string,
+  userId: string,
+  groupId: string,
+  message: WAExtractedMessage,
+  session: WASession,
+): Promise<boolean> {
+  if (!message.mediaId) return false;
+  if (!isHealthVisitEnabled()) return false;
+  if (!(await isBrainEnabledForGroup(supabase, groupId))) return false;
+  return analyzeConsultaPhoto(supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session);
+}
+
+/**
  * Resposta do usuário durante um fluxo do Brain (preview → confirmar/escolher/
  * cancelar; executed → desfazer). Retorna `true` se tratou; `false` para o
  * processor seguir processando a mensagem normalmente — o que EVITA sequestrar
@@ -481,7 +595,9 @@ export async function handleChildSelectionReply(
     return handleExamText(supabase, phone, userId, groupId, sel.text, session, !!sel.from_audio, childId, sel.doc_type);
   }
   if (sel.media_id) {
-    return analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
+    return sel.doc_type === "health_visit"
+      ? analyzeConsultaPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId)
+      : analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
   }
   return false;
 }
