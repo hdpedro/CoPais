@@ -21,6 +21,32 @@ function fmtBr(iso: string | undefined | null): string {
 }
 
 /**
+ * Resumo de UMA linha do conteúdo da prova pro preview do WhatsApp (que não tem
+ * card). O `notes` do playbook vem como `<conteúdo>\n\nOnde estudar: <fonte>` e
+ * pode ser longo — no WhatsApp isso quebrava em várias linhas e o corte cego
+ * caía no meio da palavra ("Onde e…"). Aqui: fica só o bloco PRIMÁRIO (o
+ * conteúdo; "Onde estudar" é secundário e aparece inteiro no app/aba Escola),
+ * colapsa espaços/quebras e trunca na FRONTEIRA DE PALAVRA. Puro/testável.
+ */
+export function clampNote(raw: string | undefined | null, max = 70): string {
+  if (!raw) return "";
+  // Só o 1º bloco (antes da 1ª linha em branco = antes do "Onde estudar").
+  const primary = (raw.split(/\n\s*\n/)[0] || "").replace(/\s+/g, " ").trim();
+  if (!primary) return "";
+  // Borda: prova SEM conteúdo mas COM fonte → o playbook monta a nota já
+  // começando por "Onde estudar" (sem paragrafo anterior). Como "Onde estudar" é
+  // secundário (vive no app/aba Escola), no WhatsApp não mostramos snippet.
+  if (/^onde\s+estudar/i.test(primary)) return "";
+  if (primary.length <= max) return primary;
+  const cut = primary.slice(0, max);
+  const sp = cut.lastIndexOf(" ");
+  // Corta na última palavra inteira (a menos que isso jogue fora quase tudo);
+  // remove pontuação/separador pendurado antes das reticências.
+  const body = (sp > max * 0.6 ? cut.slice(0, sp) : cut).replace(/[\s,.;:·—-]+$/, "");
+  return `${body}…`;
+}
+
+/**
  * Detecta a intenção de "calendário escolar" pela legenda da foto/arquivo.
  * Slash-commands e palavras naturais; conservador (sem legenda → false, pra
  * não sequestrar o fluxo de recibo/receita por engano).
@@ -66,7 +92,8 @@ export function renderPreview(
   const acts = preview.plan.activities ?? [];
   const lines = acts.map((a, i) => {
     const when = [fmtBr(a.startDate), a.timeStart || null].filter(Boolean).join(" ");
-    const note = a.notes ? ` · ${a.notes.length > 80 ? a.notes.slice(0, 79) + "…" : a.notes}` : "";
+    const short = clampNote(a.notes);
+    const note = short ? ` · ${short}` : "";
     return `${i + 1}. *${a.name}* — ${when}${note}`;
   });
 
@@ -220,6 +247,17 @@ export function classifyBrainReply(
 /** A resposta (fase executed) é um pedido de desfazer? Puro/ancorado. */
 export function isUndoReply(reply: string): boolean {
   return UNDO_ONLY.test((reply || "").trim());
+}
+
+/** RECUSA do desfazer (fase executed): o usuário respondeu "Precisa reverter?"
+ *  dizendo que está tudo certo ("não", "tá bom", "pode deixar", "obrigado"…).
+ *  Ancorado (mensagem INTEIRA é uma recusa/fechamento) pra não capturar uma
+ *  pergunta qualquer ("não sei o saldo") — essa cai no assistente. Checado
+ *  DEPOIS do undo, então frases com "desfazer" já foram tratadas. Puro. */
+const DECLINE_UNDO =
+  /^(n[aã]o|nao|nops?|nn|deixa|deixa assim|t[aá] bom|t[aá] certo|tudo certo|tudo bem|pode deixar|n[aã]o precisa|n[aã]o precisa desfazer|sem desfazer|n[aã]o quero desfazer|obrigad[oa]|valeu|perfeito|[óo]timo|t[aá] [óo]timo|beleza|blz|ok|okay|show|isso mesmo|combinado|tranquilo|ta tranquilo)[\s,.!👍🙂✅😊]*$/i;
+export function isDeclineUndoReply(reply: string): boolean {
+  return DECLINE_UNDO.test((reply || "").trim());
 }
 
 /** Casa a resposta do usuário a uma criança pelo PRIMEIRO nome (sem acento/caso).

@@ -4,8 +4,10 @@ import {
   parseKeepIndices,
   classifyBrainReply,
   isUndoReply,
+  isDeclineUndoReply,
   isCalendarYes,
   matchChildName,
+  clampNote,
   renderPreview,
   renderExecuted,
   renderUndone,
@@ -84,6 +86,26 @@ describe("isUndoReply — ancorado (não desfaz por engano)", () => {
     for (const s of ["vou apagar a foto depois", "qual o saldo?", "", "reverter o pagamento da escola amanhã"]) {
       expect(isUndoReply(s)).toBe(false);
     }
+  });
+});
+
+describe("isDeclineUndoReply — recusa do desfazer (não cai na saudação)", () => {
+  it("reconhece o 'não' e fechamentos calorosos", () => {
+    for (const s of ["Nao", "não", "nao", "tá bom", "tudo certo", "pode deixar", "não precisa", "obrigado", "valeu", "perfeito", "beleza", "blz", "ok", "isso mesmo", "perfeito 🙂", "não!"]) {
+      expect(isDeclineUndoReply(s)).toBe(true);
+    }
+  });
+  it("NÃO captura pergunta/asserção qualquer (cai no assistente)", () => {
+    for (const s of ["não sei o saldo", "qual o saldo?", "não, agenda o pediatra dia 20", "", "quanto gastei?"]) {
+      expect(isDeclineUndoReply(s)).toBe(false);
+    }
+  });
+  it("undo e recusa são coisas distintas (undo é checado primeiro no handler)", () => {
+    // "não quero desfazer" é RECUSA, não undo (isUndoReply não reconhece 'não').
+    expect(isUndoReply("não quero desfazer")).toBe(false);
+    expect(isDeclineUndoReply("não quero desfazer")).toBe(true);
+    // "desfazer" puro é undo, não recusa.
+    expect(isDeclineUndoReply("desfazer")).toBe(false);
   });
 });
 
@@ -175,6 +197,51 @@ const PREVIEW: IntakePreview = {
     ],
   },
 };
+
+describe("clampNote — resumo de 1 linha do conteúdo (sem 'Onde e…' quebrado)", () => {
+  it("nota curta é mantida inteira", () => {
+    expect(clampNote("Cap. 7")).toBe("Cap. 7");
+    expect(clampNote("Capítulo 5: O espaço rural.")).toBe("Capítulo 5: O espaço rural.");
+  });
+  it("vazio/undefined → ''", () => {
+    expect(clampNote("")).toBe("");
+    expect(clampNote(undefined)).toBe("");
+    expect(clampNote(null)).toBe("");
+  });
+  it("descarta o bloco 'Onde estudar' (secundário; vive no app), sem quebra de linha", () => {
+    const r = clampNote("Capítulo 5: O espaço rural.\n\nOnde estudar: Livro 2 SAS e pasta.");
+    expect(r).toBe("Capítulo 5: O espaço rural.");
+    expect(r).not.toContain("Onde");
+    expect(r).not.toContain("\n");
+  });
+  it("REGRESSÃO (achado da revisão): nota que COMEÇA com 'Onde estudar' (prova sem conteúdo) → ''", () => {
+    // O playbook monta a nota so com a fonte quando nao ha conteudo. Sem paragrafo
+    // anterior, o split nao separa — precisa do filtro de prefixo.
+    expect(clampNote("Onde estudar: Apostila SAS (capítulo 7) e NPL.")).toBe("");
+    expect(clampNote("onde estudar: livro 2")).toBe("");
+  });
+  it("REGRESSÃO: a nota real do dono NÃO produz 'Onde e…' nem quebra de linha", () => {
+    const real =
+      "Interpretação de texto: Carta pessoal. Produção textual: Carta pessoal.\n\nOnde estudar: Apostila SAS (capítulo 7) e NPL.";
+    const r = clampNote(real);
+    expect(r).not.toContain("Onde");
+    expect(r).not.toContain("\n");
+    expect(r).not.toMatch(/\s…$/); // nunca "espaço + reticências"
+  });
+  it("bloco longo trunca na FRONTEIRA DE PALAVRA (nunca no meio) + termina em …", () => {
+    const long = "Capítulo 6: O que é um animal? Capítulo 7: Como vivem os animais. Capítulo 8: O ciclo de vida dos animais.";
+    const r = clampNote(long);
+    expect(r.endsWith("…")).toBe(true);
+    expect(r.length).toBeLessThanOrEqual(71); // 70 + o caractere '…'
+    expect(r).not.toContain("  "); // sem espaço duplo
+    expect(r).not.toMatch(/[\s,.;:·—-]…$/); // sem pontuação/sep pendurado antes de …
+    // o corte não parte uma palavra: o trecho antes de … bate com o início do texto
+    expect(long.startsWith(r.slice(0, -1))).toBe(true);
+  });
+  it("colapsa espaços e quebras internas do bloco primário", () => {
+    expect(clampNote("A  B\nC")).toBe("A B C");
+  });
+});
 
 describe("renderPreview", () => {
   const t = (k: string, v?: Record<string, unknown>) => `${k}|${v?.child}|${v?.count}|${v?.date1}-${v?.date2}`;
