@@ -28,6 +28,7 @@ import {
   hasBrainIntake,
   hasBrainFallbackPhoto,
   hasBrainChildSelection,
+  hasReceiptStep,
   setPendingAction,
   clearPendingAction,
   setSessionGroup,
@@ -315,7 +316,7 @@ export async function processWhatsAppMessage(
   /* List replies routed by current session step.                      */
   /* ================================================================ */
 
-  if (session.state.receipt_step && message.listReplyId) {
+  if (hasReceiptStep(session) && message.listReplyId) {
     const handled = await handleReceiptStepReply(
       supabase,
       session.id,

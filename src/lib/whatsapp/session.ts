@@ -260,3 +260,18 @@ export async function setReceiptStep(
     .update({ state })
     .eq("id", sessionId);
 }
+
+/**
+ * Há um fluxo de recibo (categoria/criança) aguardando resposta e NÃO expirado?
+ *
+ * Diferente dos fluxos do Brain, a checagem de `receipt_step` no processor era
+ * crua (sem timeout) — um `receipt_step` abandonado ficava honrado
+ * indefinidamente, então um toque numa LISTA antiga (rcat:/rchild:) dias depois
+ * caía num rascunho de recibo velho. Este guard espelha `hasBrainIntake`
+ * (mesma janela de 30min via `pending_at`). task_7c05baad.
+ */
+export function hasReceiptStep(session: WASession): boolean {
+  if (!session.state.receipt_step || !session.state.pending_at) return false;
+  const elapsed = Date.now() - new Date(session.state.pending_at).getTime();
+  return elapsed < BRAIN_INTAKE_TIMEOUT_MS;
+}
