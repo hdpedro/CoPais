@@ -93,6 +93,9 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
   const [childPick, setChildPick] = useState<
     { file: File; options: { id: string; name: string }[] } | null
   >(null);
+  // Provas recém-criadas → oferece Desfazer inline (paridade com o WhatsApp,
+  // que manda o botão "Desfazer" logo após confirmar).
+  const [undoableIntake, setUndoableIntake] = useState<{ id: string; count: number } | null>(null);
 
   /* Refs */
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -264,6 +267,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
       if (isLoading) return;
       setPendingIntake(null);
       setChildPick(null);
+      setUndoableIntake(null);
       setMessages((prev) => [
         ...prev,
         { id: uid(), role: "user", content: opts?.userLabel ?? "📷 Enviei uma foto", timestamp: new Date() },
@@ -311,6 +315,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     const pi = pendingIntake;
     if (!pi || isLoading) return;
     setPendingIntake(null);
+    setUndoableIntake(null);
     setIsLoading(true);
     try {
       const res = await fetch(`/api/brain/intakes/${pi.id}/confirm`, {
@@ -320,13 +325,15 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
       });
       const data = await res.json().catch(() => null);
       const ok = data?.kind === "executed";
+      // Sucesso → guarda p/ oferecer Desfazer inline (paridade WhatsApp).
+      if (ok) setUndoableIntake({ id: pi.id, count: pi.count });
       setMessages((prev) => [
         ...prev,
         {
           id: uid(),
           role: "assistant",
           content: ok
-            ? `✅ Pronto! Adicionei ${pi.count === 1 ? "1 prova" : `${pi.count} provas`} no calendário escolar.`
+            ? `✅ Pronto! Adicionei ${pi.count === 1 ? "1 prova" : `${pi.count} provas`} no calendário escolar. Se precisar, é só tocar em Desfazer.`
             : "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏",
           timestamp: new Date(),
         },
@@ -345,6 +352,38 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     setPendingIntake(null);
     setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: "Ok, não adicionei nada. 🙂", timestamp: new Date() }]);
   }, []);
+
+  /* ---- Desfazer as provas recém-criadas (paridade WhatsApp) ---- */
+  const undoConfirmedIntake = useCallback(async () => {
+    const ui = undoableIntake;
+    if (!ui || isLoading) return;
+    setUndoableIntake(null);
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/brain/intakes/${ui.id}`, { method: "DELETE" });
+      const data = await res.json().catch(() => null);
+      const done = data?.kind === "undone";
+      const removed = typeof data?.removed === "number" ? data.removed : ui.count;
+      const detached = typeof data?.detached === "number" ? data.detached : 0;
+      let content: string;
+      if (done && removed > 0) {
+        content = `Desfeito — removi ${removed === 1 ? "1 prova" : `${removed} provas`}.`;
+        if (detached > 0) content += ` (${detached === 1 ? "1 prova foi alterada" : `${detached} provas foram alteradas`} depois e continua${detached === 1 ? "" : "m"} no calendário.)`;
+      } else if (done) {
+        content = "Já estava desfeito — não havia nada a remover.";
+      } else {
+        content = "Não consegui desfazer agora. Você pode reverter em Escola › Calendário. 🙏";
+      }
+      setMessages((prev) => [...prev, { id: uid(), role: "assistant", content, timestamp: new Date() }]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { id: uid(), role: "assistant", content: "Não consegui desfazer agora. Tente pela tela Escola › Calendário. 🙏", timestamp: new Date() },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [undoableIntake, isLoading]);
 
   /* ---- Handle submit ---- */
   const handleSubmit = useCallback(() => {
@@ -672,6 +711,18 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
                     className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-[12px] font-medium hover:bg-gray-200 transition-colors"
                   >
                     Cancelar
+                  </button>
+                </div>
+              )}
+
+              {/* Desfazer as provas recém-criadas (paridade WhatsApp: botão logo após confirmar) */}
+              {undoableIntake && !isLoading && (
+                <div className="shrink-0 px-3 pb-1 pt-1 flex flex-wrap gap-1.5">
+                  <button
+                    onClick={undoConfirmedIntake}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-[12px] font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    ↩️ Desfazer
                   </button>
                 </div>
               )}
