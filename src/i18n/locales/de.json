@@ -2184,7 +2184,9 @@
     "clearAllConfirm": "Alle Benachrichtigungen löschen?",
     "brain": {
       "schoolCalendarTitle": "Schulkalender hinzugefügt",
-      "schoolCalendarBody": "{count, plural, one {# Aktivität hinzugefügt} other {# Aktivitäten hinzugefügt}} zum Kalender."
+      "schoolCalendarBody": "{count, plural, one {# Aktivität hinzugefügt} other {# Aktivitäten hinzugefügt}} zum Kalender.",
+      "examReminderTitle": "🎒 Prüfung morgen",
+      "examReminderBody": "Morgen: {exam}. Wie wäre es, heute zu lernen?"
     }
   },
   "push": {

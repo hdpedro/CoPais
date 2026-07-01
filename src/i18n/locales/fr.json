@@ -2184,7 +2184,9 @@
     "clearAllConfirm": "Supprimer toutes les notifications ?",
     "brain": {
       "schoolCalendarTitle": "Calendrier scolaire ajouté",
-      "schoolCalendarBody": "{count, plural, one {# activité ajoutée} other {# activités ajoutées}} au calendrier."
+      "schoolCalendarBody": "{count, plural, one {# activité ajoutée} other {# activités ajoutées}} au calendrier.",
+      "examReminderTitle": "🎒 Épreuve demain",
+      "examReminderBody": "Demain : {exam}. Et si on révisait aujourd'hui ?"
     }
   },
   "push": {
