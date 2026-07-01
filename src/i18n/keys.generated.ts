@@ -2259,6 +2259,8 @@ export type TranslationKey =
   | "notifPrefs.title"
   | "notifications.brain.examReminderBody"
   | "notifications.brain.examReminderTitle"
+  | "notifications.brain.healthVisitBody"
+  | "notifications.brain.healthVisitTitle"
   | "notifications.brain.schoolCalendarBody"
   | "notifications.brain.schoolCalendarTitle"
   | "notifications.chatMessage"
@@ -5068,6 +5070,8 @@ export const TRANSLATION_KEYS = [
   "notifPrefs.title",
   "notifications.brain.examReminderBody",
   "notifications.brain.examReminderTitle",
+  "notifications.brain.healthVisitBody",
+  "notifications.brain.healthVisitTitle",
   "notifications.brain.schoolCalendarBody",
   "notifications.brain.schoolCalendarTitle",
   "notifications.chatMessage",

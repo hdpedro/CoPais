@@ -34,24 +34,49 @@ export interface OutboxWorkerResult {
   cancelled: number;
 }
 
-/** Entrega um item. Lança em qualquer falha (o caller faz retry/DLQ). */
-async function deliver(row: OutboxRow): Promise<void> {
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+/** Primeiro nome da criança (pro resumo de coordenação). Fallback calmo. */
+async function childFirstName(admin: AdminClient, childId: string | undefined): Promise<string> {
+  if (!childId) return "seu filho(a)";
+  const { data } = await admin.from("children").select("full_name").eq("id", childId).single();
+  const full = (data as { full_name?: string } | null)?.full_name ?? "";
+  return full.split(" ")[0] || "seu filho(a)";
+}
+
+/** Entrega um item. Lança em qualquer falha (o caller faz retry/DLQ). Localiza
+ *  POR DESTINATÁRIO e ramifica pelo `kind` do payload (escolar vs saúde). */
+async function deliver(admin: AdminClient, row: OutboxRow): Promise<void> {
   if (row.event_type !== "collab_notify") {
     throw new Error(`unknown event_type: ${row.event_type}`);
   }
   const p = row.payload ?? {};
   const recipientId = p.recipient_id as string | undefined;
   if (!recipientId) throw new Error("missing recipient_id");
-  const count = Number(p.created_count) || 1;
 
   const localeMap = await getUsersLocale([recipientId]);
   const t = await getServerT(localeMap.get(recipientId));
-  const title = t("notifications.brain.schoolCalendarTitle");
-  const body = t("notifications.brain.schoolCalendarBody", { count });
-  await createNotificationWithPush(recipientId, "brain_school_calendar", title, body, "/escola");
+
+  if (p.kind === "health_visit") {
+    // Resumo pro coparente: título com o nome da criança, corpo com a contagem
+    // de medicações. O DIAGNÓSTICO fica FORA do push (privacidade na tela de
+    // bloqueio) — o detalhe completo está no app (/saude). Transportador.
+    const childName = await childFirstName(admin, p.child_id as string | undefined);
+    const medCount = Number(p.medication_count) || 0;
+    const title = t("notifications.brain.healthVisitTitle", { child: childName });
+    const body = t("notifications.brain.healthVisitBody", { count: medCount });
+    await createNotificationWithPush(recipientId, "brain_health_visit", title, body, "/saude");
+  } else {
+    const count = Number(p.created_count) || 1;
+    const title = t("notifications.brain.schoolCalendarTitle");
+    const body = t("notifications.brain.schoolCalendarBody", { count });
+    await createNotificationWithPush(recipientId, "brain_school_calendar", title, body, "/escola");
+  }
+
   captureServerEvent(recipientId, "brain_outbox_delivered", {
     intake_id: (p.intake_id as string | undefined) ?? null,
     event_type: row.event_type,
+    kind: (p.kind as string | undefined) ?? "school_calendar",
   });
 }
 
@@ -93,7 +118,7 @@ export async function runOutboxWorker(limit = 20): Promise<OutboxWorkerResult> {
           continue;
         }
       }
-      await deliver(row);
+      await deliver(admin, row);
       await admin
         .from("brain_outbox")
         .update({ status: "delivered", delivered_at: new Date().toISOString() })

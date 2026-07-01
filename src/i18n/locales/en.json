@@ -2186,7 +2186,9 @@
       "schoolCalendarTitle": "School calendar added",
       "schoolCalendarBody": "{count, plural, one {# activity added} other {# activities added}} to the calendar.",
       "examReminderTitle": "🎒 Exam tomorrow",
-      "examReminderBody": "Tomorrow: {exam}. How about reviewing today?"
+      "examReminderBody": "Tomorrow: {exam}. How about reviewing today?",
+      "healthVisitTitle": "🩺 {child}'s appointment",
+      "healthVisitBody": "{count, plural, =0 {Added the appointment to the Health history} one {Added the appointment and # medication} other {Added the appointment and # medications}}. Tap to view."
     }
   },
   "push": {
