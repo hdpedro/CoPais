@@ -12,7 +12,7 @@
 import type { ImpactFinding, IntakePreview } from "@/lib/ai/brain/types";
 
 /** Função de tradução (mesma forma do getServerT/useI18n: key + vars). */
-export type TFn = (key: string, vars?: Record<string, unknown>) => string;
+export type TFn = (key: string, vars?: Record<string, string | number>) => string;
 
 /** "YYYY-MM-DD" → "DD/MM" (texto curto pro WhatsApp). */
 function fmtBr(iso: string | undefined | null): string {
@@ -37,11 +37,11 @@ export function isCalendarIntent(caption: string | undefined): boolean {
 }
 
 /** Vars de impacto resolvendo o id da criança pro nome (igual ao PWA). */
-function impactVars(f: ImpactFinding, childName: string): Record<string, unknown> {
+function impactVars(f: ImpactFinding, childName: string): Record<string, string | number> {
   const v = (f.titleVars ?? {}) as Record<string, unknown>;
   return {
     child: childName,
-    count: v.count as number,
+    count: Number(v.count ?? 0),
     date: fmtBr(v.date as string),
     date1: fmtBr(v.date1 as string),
     date2: fmtBr(v.date2 as string),
@@ -53,7 +53,12 @@ function impactVars(f: ImpactFinding, childName: string): Record<string, unknown
  * [· hora] [· conteúdo curto]) + impactos resumidos + chamada à ação. O número
  * de cada item é a base do "tirar 2 e 4". Mantém tom calmo (sem alarme).
  */
-export function renderPreview(preview: IntakePreview, childName: string, t: TFn): string {
+export function renderPreview(
+  preview: IntakePreview,
+  childName: string,
+  t: TFn,
+  opts?: { withCta?: boolean },
+): string {
   const acts = preview.plan.activities ?? [];
   const lines = acts.map((a, i) => {
     const when = [fmtBr(a.startDate), a.timeStart || null].filter(Boolean).join(" ");
@@ -73,7 +78,12 @@ export function renderPreview(preview: IntakePreview, childName: string, t: TFn)
     msg += `\n\n${impacts.join("\n")}`;
   }
 
-  msg += `\n\nConfirmo todas? Responda *Confirmar*, *Escolher* (pra tirar alguma) ou *Cancelar*.`;
+  // CTA de texto: incluído por padrão (canal sem botões). No WhatsApp com
+  // botões interativos, o caller passa withCta:false e a chamada à ação vira o
+  // corpo da mensagem de botões — evita CTA duplicado.
+  if (opts?.withCta !== false) {
+    msg += `\n\nConfirmo todas? Responda *Confirmar*, *Escolher* (pra tirar alguma) ou *Cancelar*.`;
+  }
   return msg;
 }
 
