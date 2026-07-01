@@ -3052,7 +3052,8 @@
       "editSubject": "Matière",
       "editDate": "Date",
       "editTime": "Heure",
-      "editContent": "Contenu"
+      "editContent": "Contenu",
+      "alreadyPresent": "{count, plural, one {# épreuve de cette photo était déjà dans Kindar — j'affiche seulement les nouvelles.} other {# épreuves de cette photo étaient déjà dans Kindar — j'affiche seulement les nouvelles.}}"
     },
     "impact": {
       "sameDay": "{child} a {count} épreuves le {date}.",
@@ -3069,6 +3070,9 @@
     "error": {
       "generic": "Je n'ai pas pu traiter cela maintenant. Réessayez dans un instant."
     },
-    "processingHint": "Cela peut prendre quelques secondes."
+    "processingHint": "Cela peut prendre quelques secondes.",
+    "duplicate": {
+      "all": "Ces épreuves sont déjà dans Kindar. 🙂 Rien à ajouter."
+    }
   }
 }

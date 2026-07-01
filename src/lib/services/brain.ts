@@ -24,7 +24,7 @@ import { reportServerError } from "@/lib/error-tracking/report-server";
 import { getPlaybook } from "@/lib/ai/brain/understanding/registry";
 import { analyzeImpact, type ExistingOccurrence } from "@/lib/ai/brain/impact";
 import { prioritize } from "@/lib/ai/brain/prioritize";
-import { dedupeWithinPlan } from "@/lib/ai/brain/dedupe";
+import { dedupeWithinPlan, partitionAgainstExisting } from "@/lib/ai/brain/dedupe";
 import { computePlanHash } from "@/lib/ai/brain/plan-hash";
 import { validatePlanForExecution } from "@/lib/ai/brain/validate-plan";
 import { buildSchoolLogPayloads, buildOutboxPayloads, selectActivitiesByIndex, applyActivityEdits, type ActivityEdit } from "@/lib/ai/brain/materialize-payload";
@@ -98,7 +98,7 @@ async function loadExistingOccurrences(
   // a fonte das provas (o Brain materializa nela).
   const { data, error } = await supabase
     .from("school_logs")
-    .select("log_date, child_id")
+    .select("log_date, child_id, title")
     .eq("child_id", childId)
     .in("log_type", ["exam", "homework"])
     .gte("log_date", window.from)
@@ -107,7 +107,9 @@ async function loadExistingOccurrences(
   return data.map((row) => ({
     childId: row.child_id as string | null,
     date: row.log_date as string,
-    title: "",
+    // Título REAL agora (antes era ""): habilita a dedup de reenvio do mesmo
+    // calendário (aluno+data+título) além do impacto same_day.
+    title: (row.title as string | null) ?? "",
   }));
 }
 
@@ -304,10 +306,9 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
       });
     }
 
-    // 4. Plano + dedup intra-plano + impacto escopado + prioridade.
+    // 4. Plano + dedup intra-plano + dedup contra histórico + impacto + prioridade.
     const planned = playbook.plan(data, sctx);
     const { unique, dropped } = dedupeWithinPlan(planned.activities ?? []);
-    const plan: MaterializationPlan = { ...planned, activities: unique };
     if (dropped.length > 0) {
       captureServerEvent(ctx.userId, "brain_intake_duplicate_detected", {
         intake_id: intakeId,
@@ -315,8 +316,50 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
       });
     }
 
-    const window = planDateWindow(plan);
+    // Histórico da criança na janela: base do impacto E da dedup de reenvio.
+    const window = planDateWindow({ ...planned, activities: unique });
     const existing = await loadExistingOccurrences(supabase, sctx.resolvedChildId, window);
+
+    // Duplicata contra o histórico: a família reenviou o MESMO calendário. Não
+    // recria — e não conta o duplicado como "N provas no mesmo dia" (o antigo
+    // sintoma "3 provas em 08/07"). Compara por aluno+data+título.
+    const { fresh, duplicates } = partitionAgainstExisting(unique, existing);
+    if (fresh.length === 0 && duplicates.length > 0) {
+      await supabase
+        .from("brain_intakes")
+        .update({
+          status: "failed",
+          error: "duplicate",
+          doc_type: docType,
+          analysis_provider: vision.provider,
+          analyzed_at: new Date().toISOString(),
+        })
+        .eq("id", intakeId)
+        .eq("status", "analyzing");
+      captureServerEvent(ctx.userId, "brain_intake_duplicate_all", {
+        intake_id: intakeId,
+        count: duplicates.length,
+      });
+      const one = duplicates.length === 1;
+      return {
+        kind: "duplicate",
+        intakeId,
+        priorIntakeId: intakeId,
+        message: one
+          ? "Essa prova já está no Kindar 🙂. Nada a adicionar."
+          : "Essas provas já estão no Kindar 🙂. Nada a adicionar.",
+      };
+    }
+    if (duplicates.length > 0) {
+      captureServerEvent(ctx.userId, "brain_intake_duplicate_partial", {
+        intake_id: intakeId,
+        already: duplicates.length,
+        fresh: fresh.length,
+      });
+    }
+
+    // Só as provas NOVAS entram no plano/hash/impacto (o resto já existe).
+    const plan: MaterializationPlan = { ...planned, activities: fresh };
     const impacts = analyzeImpact(plan, existing);
     const priority = prioritize(plan, sctx.today);
 
@@ -376,6 +419,7 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
       priority,
       planHash,
       confirmationToken,
+      alreadyPresent: duplicates.length > 0 ? duplicates.length : undefined,
     };
     return { kind: "preview", preview };
   } catch (err) {

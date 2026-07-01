@@ -104,6 +104,13 @@ export function renderPreview(
 
   let msg = `${header}\n${lines.join("\n")}`;
 
+  // Reenvio parcial: parte das provas já estava no Kindar (não repetimos).
+  const already = preview.alreadyPresent ?? 0;
+  if (already > 0) {
+    msg +=
+      `\n\n_(${already === 1 ? "1 prova dessa foto já estava" : `${already} provas dessa foto já estavam`} no Kindar — mostro só ${acts.length === 1 ? "a nova" : "as novas"}.)_`;
+  }
+
   if (preview.impacts.length > 0) {
     const impacts = preview.impacts.map((f) => `• ${t(f.titleKey, impactVars(f, childName))}`);
     msg += `\n\n${impacts.join("\n")}`;

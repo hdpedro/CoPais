@@ -188,6 +188,10 @@ export interface IntakePreview {
   confirmationToken: string;
   needsChildSelection?: boolean;
   childOptions?: BrainChild[];
+  /** Quantas provas do documento JÁ estavam no Kindar e foram omitidas do
+   *  plano (reenvio parcial do mesmo calendário). >0 → o canal avisa
+   *  "X já estavam lá; adiciono só as novas". */
+  alreadyPresent?: number;
 }
 
 export type IntakeResult =
