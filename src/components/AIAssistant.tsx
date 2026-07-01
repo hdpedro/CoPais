@@ -84,10 +84,15 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
+  // Calendário reconhecido numa foto anexada → aguardando o usuário confirmar.
+  const [pendingIntake, setPendingIntake] = useState<
+    { id: string; planHash: string; confirmationToken: string; count: number } | null
+  >(null);
 
   /* Refs */
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
   const finalTranscriptRef = useRef("");
 
@@ -247,6 +252,75 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     },
     [messages, groupId, isLoading]
   );
+
+  /* ---- Enviar imagem (Fase 2: o assistente VÊ a foto e roteia) ---- */
+  const sendImage = useCallback(
+    async (file: File) => {
+      if (isLoading) return;
+      setPendingIntake(null);
+      setMessages((prev) => [...prev, { id: uid(), role: "user", content: "📷 Enviei uma foto", timestamp: new Date() }]);
+      setIsLoading(true);
+      try {
+        const fd = new FormData();
+        fd.append("file", file);
+        const res = await fetch("/api/ai/assistant/image", { method: "POST", body: fd });
+        const data = await res.json().catch(() => ({ content: "Desculpe, ocorreu um erro. 🙏" }));
+        setMessages((prev) => [
+          ...prev,
+          { id: uid(), role: "assistant", content: data.content || "Não consegui processar.", timestamp: new Date() },
+        ]);
+        if (data.intake?.id) setPendingIntake(data.intake);
+      } catch {
+        setMessages((prev) => [
+          ...prev,
+          { id: uid(), role: "assistant", content: "Não consegui processar a imagem agora. Tente de novo. 🙏", timestamp: new Date() },
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [isLoading]
+  );
+
+  /* ---- Confirmar/cancelar as provas do calendário reconhecido ---- */
+  const confirmPendingIntake = useCallback(async () => {
+    const pi = pendingIntake;
+    if (!pi || isLoading) return;
+    setPendingIntake(null);
+    setIsLoading(true);
+    try {
+      const res = await fetch(`/api/brain/intakes/${pi.id}/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planHash: pi.planHash, confirmationToken: pi.confirmationToken }),
+      });
+      const data = await res.json().catch(() => null);
+      const ok = data?.kind === "executed";
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: uid(),
+          role: "assistant",
+          content: ok
+            ? `✅ Pronto! Adicionei ${pi.count === 1 ? "1 prova" : `${pi.count} provas`} no calendário escolar.`
+            : "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏",
+          timestamp: new Date(),
+        },
+      ]);
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        { id: uid(), role: "assistant", content: "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏", timestamp: new Date() },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [pendingIntake, isLoading]);
+
+  const cancelPendingIntake = useCallback(() => {
+    setPendingIntake(null);
+    setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: "Ok, não adicionei nada. 🙂", timestamp: new Date() }]);
+  }, []);
 
   /* ---- Handle submit ---- */
   const handleSubmit = useCallback(() => {
@@ -560,9 +634,50 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
                 </div>
               )}
 
+              {/* Confirmar/cancelar as provas de um calendário reconhecido numa foto */}
+              {pendingIntake && !isLoading && (
+                <div className="shrink-0 px-3 pb-1 pt-1 flex flex-wrap gap-1.5">
+                  <button
+                    onClick={confirmPendingIntake}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-green-600 text-white text-[12px] font-medium hover:bg-green-700 transition-colors"
+                  >
+                    ✅ Confirmar e adicionar
+                  </button>
+                  <button
+                    onClick={cancelPendingIntake}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-gray-100 text-gray-600 text-[12px] font-medium hover:bg-gray-200 transition-colors"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              )}
+
               {/* ---- Input Bar ---- */}
               <div className="shrink-0 px-3 py-2.5 border-t border-gray-100 bg-white rounded-b-2xl safe-area-bottom">
                 <div className="flex items-center gap-1.5">
+                  {/* Attach photo (Fase 2 — assistente vê a imagem) */}
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const f = e.target.files?.[0];
+                      if (f) sendImage(f);
+                      if (imageInputRef.current) imageInputRef.current.value = "";
+                    }}
+                  />
+                  <button
+                    onClick={() => imageInputRef.current?.click()}
+                    disabled={isLoading}
+                    aria-label="Anexar foto"
+                    className="shrink-0 p-2.5 rounded-full text-gray-400 hover:bg-gray-100 hover:text-[#7C6FAE] disabled:opacity-40 transition-all"
+                  >
+                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48" />
+                    </svg>
+                  </button>
+
                   {/* Mic button */}
                   {hasSpeechRecognition && (
                     <button
