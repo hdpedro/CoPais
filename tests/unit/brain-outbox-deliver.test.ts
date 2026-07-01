@@ -30,7 +30,7 @@ function makeAdmin(rows: unknown[], childName = "Otto Silva", intakeStatus = "ex
 
 let adminInstance: ReturnType<typeof makeAdmin>;
 vi.mock("@/lib/supabase/admin", () => ({ createAdminClient: () => adminInstance }));
-vi.mock("@/lib/push", () => ({ createNotificationWithPush: (...a: unknown[]) => push(...a) }));
+vi.mock("@/lib/push", () => ({ createNotificationWithPush: push }));
 vi.mock("@/i18n/server", () => ({ getServerT: async () => (key: string, params?: Record<string, unknown>) => (params ? `${key}::${JSON.stringify(params)}` : key) }));
 vi.mock("@/lib/locale-utils", () => ({ getUsersLocale: async () => new Map() }));
 vi.mock("@/lib/error-tracking/report-server", () => ({ reportServerError: vi.fn(async () => {}) }));
@@ -48,7 +48,7 @@ describe("runOutboxWorker.deliver — ramificação por kind", () => {
     const r = await runOutboxWorker(10);
     expect(r.delivered).toBe(1);
     expect(push).toHaveBeenCalledTimes(1);
-    const [uid, type, title, body, link] = push.mock.calls[0] as [string, string, string, string, string];
+    const [uid, type, title, body, link] = push.mock.calls[0] as unknown as [string, string, string, string, string];
     expect(uid).toBe("u2");
     expect(type).toBe("brain_health_visit");
     expect(link).toBe("/saude");
@@ -62,7 +62,7 @@ describe("runOutboxWorker.deliver — ramificação por kind", () => {
       { id: "o2", event_type: "collab_notify", attempts: 0, payload: { recipient_id: "u3", intake_id: "i2", created_count: 3 } },
     ]);
     await runOutboxWorker(10);
-    const [uid, type, , , link] = push.mock.calls[0] as [string, string, string, string, string];
+    const [uid, type, , , link] = push.mock.calls[0] as unknown as [string, string, string, string, string];
     expect(uid).toBe("u3");
     expect(type).toBe("brain_school_calendar");
     expect(link).toBe("/escola");
