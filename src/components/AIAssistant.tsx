@@ -88,6 +88,11 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
   const [pendingIntake, setPendingIntake] = useState<
     { id: string; planHash: string; confirmationToken: string; count: number } | null
   >(null);
+  // Foto de calendário sem criança resolvida → botões inline (paridade WhatsApp:
+  // pergunta conversacional, sem reenviar nem trocar de tela).
+  const [childPick, setChildPick] = useState<
+    { file: File; options: { id: string; name: string }[] } | null
+  >(null);
 
   /* Refs */
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -255,21 +260,30 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
 
   /* ---- Enviar imagem (Fase 2: o assistente VÊ a foto e roteia) ---- */
   const sendImage = useCallback(
-    async (file: File) => {
+    async (file: File, opts?: { childId?: string; userLabel?: string }) => {
       if (isLoading) return;
       setPendingIntake(null);
-      setMessages((prev) => [...prev, { id: uid(), role: "user", content: "📷 Enviei uma foto", timestamp: new Date() }]);
+      setChildPick(null);
+      setMessages((prev) => [
+        ...prev,
+        { id: uid(), role: "user", content: opts?.userLabel ?? "📷 Enviei uma foto", timestamp: new Date() },
+      ]);
       setIsLoading(true);
       try {
         const fd = new FormData();
         fd.append("file", file);
+        if (opts?.childId) fd.append("child_id", opts.childId);
         const res = await fetch("/api/ai/assistant/image", { method: "POST", body: fd });
         const data = await res.json().catch(() => ({ content: "Desculpe, ocorreu um erro. 🙏" }));
         setMessages((prev) => [
           ...prev,
           { id: uid(), role: "assistant", content: data.content || "Não consegui processar.", timestamp: new Date() },
         ]);
-        if (data.intake?.id) setPendingIntake(data.intake);
+        if (Array.isArray(data.childSelection?.options) && data.childSelection.options.length > 0) {
+          setChildPick({ file, options: data.childSelection.options });
+        } else if (data.intake?.id) {
+          setPendingIntake(data.intake);
+        }
       } catch {
         setMessages((prev) => [
           ...prev,
@@ -280,6 +294,16 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
       }
     },
     [isLoading]
+  );
+
+  /* ---- Escolher de qual criança é o calendário (botão inline) ---- */
+  const pickChild = useCallback(
+    (opt: { id: string; name: string }) => {
+      const cp = childPick;
+      if (!cp || isLoading) return;
+      void sendImage(cp.file, { childId: opt.id, userLabel: opt.name });
+    },
+    [childPick, isLoading, sendImage]
   );
 
   /* ---- Confirmar/cancelar as provas do calendário reconhecido ---- */
@@ -649,6 +673,21 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
                   >
                     Cancelar
                   </button>
+                </div>
+              )}
+
+              {/* De qual criança é o calendário? Botões inline (paridade WhatsApp) */}
+              {childPick && !isLoading && (
+                <div className="shrink-0 px-3 pb-1 pt-1 flex flex-wrap gap-1.5">
+                  {childPick.options.map((opt) => (
+                    <button
+                      key={opt.id}
+                      onClick={() => pickChild(opt)}
+                      className="inline-flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#7C6FAE] text-white text-[12px] font-medium hover:bg-[#6b5f9a] transition-colors"
+                    >
+                      {opt.name}
+                    </button>
+                  ))}
                 </div>
               )}
 

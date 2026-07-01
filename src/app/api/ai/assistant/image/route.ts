@@ -52,6 +52,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const form = (await request.formData()) as unknown as globalThis.FormData;
     const file = form.get("file") as File | null;
     if (!file) return NextResponse.json({ error: "Arquivo ausente." }, { status: 400 });
+    // 2º passo: o usuário já escolheu a criança (botão) → reprocessa a MESMA
+    // foto atribuindo a ela (paridade com o WhatsApp — sem reenviar/trocar tela).
+    const requestedChildId = (form.get("child_id") as string | null) || null;
 
     const buffer = Buffer.from(await file.arrayBuffer());
     const guard = validateImageUpload(buffer);
@@ -63,13 +66,12 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
           : "Por enquanto eu leio FOTOS (JPEG, PNG ou WebP). Se for um PDF, tire um print ou foto da página e me mande. 🙏";
       return NextResponse.json({ content: msg }, { status: 200 });
     }
+    const mime = guard.type;
 
-    // Classificação por VISÃO — a MESMA do WhatsApp (cérebro único).
-    const cls = await classifyDocumentByVision(buffer, undefined);
-
-    // Calendário escolar → processa pelo Brain (gated no beta), devolve preview.
-    if (cls.type === "school_calendar" && cls.confidence >= 0.6) {
-      if (!(await isBrainEnabledForGroup(supabase, group.groupId))) {
+    /** Processa a foto como calendário escolar (gated no beta) e devolve o
+     *  preview inline — ou os botões de criança quando não dá pra atribuir. */
+    async function handleCalendar(): Promise<NextResponse> {
+      if (!(await isBrainEnabledForGroup(supabase, group!.groupId))) {
         return NextResponse.json(
           { content: "📚 Parece um calendário escolar! O recurso de leitura de calendário ainda está chegando pra você." },
           { status: 200 },
@@ -78,7 +80,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const { data: childRows } = await supabase
         .from("children")
         .select("id, full_name, birth_date")
-        .eq("group_id", group.groupId);
+        .eq("group_id", group!.groupId);
       const children: BrainChild[] = (childRows ?? []).map((c) => ({
         id: c.id as string,
         name: (c.full_name as string) ?? "",
@@ -90,13 +92,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
 
       const result = await createAndAnalyzeIntake({
         supabase,
-        groupId: group.groupId,
-        userId: auth.id,
+        groupId: group!.groupId,
+        userId: auth!.id,
         channel: "pwa",
         buffer,
-        mime: guard.type,
+        mime,
         children,
-        requestedChildId: (form.get("child_id") as string | null) || null,
+        requestedChildId,
       });
 
       if (result.kind === "preview") {
@@ -118,8 +120,16 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         );
       }
       if (result.kind === "needs_child_selection") {
+        // Paridade com o WhatsApp: pergunta CONVERSACIONAL (botões), sem pedir
+        // pra reenviar ou trocar de tela. O widget re-posta a mesma foto com
+        // child_id ao tocar num nome.
         return NextResponse.json(
-          { content: "📚 É um calendário escolar! Abra Escola › Calendário pra escolher de qual criança é e confirmar.", link: "/escola/calendario" },
+          {
+            content: "📚 É um calendário escolar! De qual criança é? É só tocar no nome:",
+            childSelection: {
+              options: (result.options ?? children).map((c) => ({ id: c.id, name: c.name })),
+            },
+          },
           { status: 200 },
         );
       }
@@ -128,6 +138,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
       return NextResponse.json({ content: "Não consegui processar o calendário agora. Tente de novo em instantes. 🙏" }, { status: 200 });
     }
+
+    // 2º passo (criança escolhida): já sabemos que é calendário — pula a
+    // reclassificação por visão (economiza uma chamada) e reprocessa direto.
+    if (requestedChildId) return await handleCalendar();
+
+    // 1º passo: classificação por VISÃO — a MESMA do WhatsApp (cérebro único).
+    const cls = await classifyDocumentByVision(buffer, undefined);
+    if (cls.type === "school_calendar" && cls.confidence >= 0.6) return await handleCalendar();
 
     // Outros tipos → mensagem + link pra tela certa.
     return NextResponse.json(routeMessage(cls.type), { status: 200 });
