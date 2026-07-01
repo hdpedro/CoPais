@@ -199,7 +199,10 @@ export interface IntakePreview {
 
 export type IntakeResult =
   | { kind: "preview"; preview: IntakePreview }
-  | { kind: "needs_child_selection"; intakeId: string; options: BrainChild[] }
+  // intakeId é opcional: quando a ambiguidade é detectada ANTES de criar o
+  // intake (createAndAnalyze*), não há id ainda — nenhum caller consome o id
+  // (todos usam só `options`). Ver evita órfão preso em `analyzing`/`uploaded`.
+  | { kind: "needs_child_selection"; intakeId?: string; options: BrainChild[] }
   | { kind: "unknown_document"; intakeId: string; message: string }
   | { kind: "executed"; intakeId: string; createdCount: number }
   | { kind: "already_processing"; intakeId: string }

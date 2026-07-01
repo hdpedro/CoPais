@@ -17,7 +17,7 @@ vi.mock("@/lib/ai/router", () => ({
 vi.mock("@/lib/error-tracking/report-server", () => ({ reportServerError: vi.fn(async () => {}) }));
 vi.mock("@/lib/posthog-server", () => ({ captureServerEvent: (...a: unknown[]) => capture(...a) }));
 
-import { analyzeIntakeText } from "@/lib/services/brain";
+import { analyzeIntakeText, createAndAnalyzeText } from "@/lib/services/brain";
 import type { PlaybookContext } from "@/lib/ai/brain/types";
 
 const CHILD = "11111111-1111-1111-1111-111111111111";
@@ -119,5 +119,63 @@ describe("analyzeIntakeText — mesmo cérebro, origem TEXTO", () => {
     const userMsg = msgs.find((m) => m.role === "user")?.content ?? "";
     expect(userMsg).toContain("MINHA_DESCRICAO_DE_PROVAS");
     expect(userMsg).toContain("2026-07-01"); // referência de hoje p/ datas relativas
+  });
+});
+
+describe("createAndAnalyzeText — ambiguidade barra ANTES de criar o intake (task_7d0ff951)", () => {
+  /** Supabase que registra insert/rpc pra provar que NADA foi criado. */
+  function trackingSupabase() {
+    const insert = vi.fn(() => chainWith());
+    const rpc = vi.fn(async () => ({ data: null, error: null }));
+    function chainWith(): Record<string, unknown> {
+      const chain: Record<string, unknown> = {};
+      for (const m of ["select", "update", "eq", "in", "gte", "lte", "order", "limit"]) chain[m] = () => chain;
+      chain.insert = insert;
+      chain.single = async () => ({ data: null, error: null });
+      chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null });
+      return chain;
+    }
+    return { supabase: { rpc, from: () => chainWith() }, insert, rpc };
+  }
+
+  it("2 crianças, nome não citado → needs_child_selection, sem intake e sem begin_analysis", async () => {
+    const { supabase, insert, rpc } = trackingSupabase();
+    const r = await createAndAnalyzeText({
+      supabase: supabase as unknown as Parameters<typeof createAndAnalyzeText>[0]["supabase"],
+      groupId: "g1",
+      userId: "u1",
+      channel: "pwa",
+      text: "tem prova de matemática dia 10",
+      children: [
+        { id: "a", name: "Otto" },
+        { id: "b", name: "Martim" },
+      ],
+      requestedChildId: null,
+    });
+    expect(r.kind).toBe("needs_child_selection");
+    if (r.kind === "needs_child_selection") expect(r.options.length).toBe(2);
+    expect(insert).not.toHaveBeenCalled();
+    expect(rpc).not.toHaveBeenCalled();
+    expect(mockRouteText).not.toHaveBeenCalled();
+  });
+
+  it("nome citado no texto resolve a criança → NÃO pergunta (cria intake e analisa)", async () => {
+    mockRouteText.mockResolvedValue({ text: examJson([], "unknown"), provider: "openai" });
+    const { supabase, insert } = trackingSupabase();
+    const r = await createAndAnalyzeText({
+      supabase: supabase as unknown as Parameters<typeof createAndAnalyzeText>[0]["supabase"],
+      groupId: "g1",
+      userId: "u1",
+      channel: "pwa",
+      text: "Otto tem prova de matemática dia 10",
+      children: [
+        { id: "a", name: "Otto" },
+        { id: "b", name: "Martim" },
+      ],
+      requestedChildId: null,
+    });
+    // Otto citado → resolvido → segue o fluxo (cria intake, chama o extractor).
+    expect(r.kind).not.toBe("needs_child_selection");
+    expect(insert).toHaveBeenCalled();
   });
 });
