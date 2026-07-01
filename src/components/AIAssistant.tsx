@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/i18n/provider";
-import { looksLikeExamText } from "@/lib/ai/brain/exam-text-gate";
+import { looksLikeExamText, looksLikeConsultText } from "@/lib/ai/brain/exam-text-gate";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -126,7 +126,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
   const finalTranscriptRef = useRef("");
   // Ref pra o runner de captura de provas por texto (evita ciclo no reenvio
   // por criança, que chama o próprio runner com o child_id resolvido).
-  const examCaptureRef = useRef<((text: string, childId?: string) => Promise<boolean>) | null>(null);
+  const examCaptureRef = useRef<((text: string, childId?: string, endpoint?: string) => Promise<boolean>) | null>(null);
 
   /* Portal mount — must run after hydration to access `document` (SSR safe).
      Synchronous setState inside the effect is intentional: the value comes
@@ -212,42 +212,47 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     return `${period}! 👋 Sou o Kindar, seu assistente. Posso criar despesas, consultar agenda, verificar saúde e muito mais. Como posso ajudar?`;
   }
 
-  /* ---- Captura de provas por TEXTO (assistente = mesmo cérebro do WhatsApp/foto) ---- */
-  const runExamCapture = useCallback(async (text: string, childId?: string): Promise<boolean> => {
-    try {
-      const res = await fetch("/api/ai/assistant/exam-text", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text, child_id: childId }),
-      });
-      const data = await res.json().catch(() => ({ found: false }));
-      // Não era captura de provas (fora do beta, texto genérico, erro) → chat normal.
-      if (data?.found === false) return false;
-      setMessages((prev) => [
-        ...prev,
-        { id: uid(), role: "assistant", content: data.content || "Não consegui processar.", timestamp: new Date() },
-      ]);
-      if (Array.isArray(data.childSelection?.options) && data.childSelection.options.length > 0) {
-        setPendingIntake(null);
-        setUndoableIntake(null);
-        setChildPick({
-          options: data.childSelection.options,
-          // Reenvia o MESMO texto com o child_id escolhido (sem reescrever).
-          resubmit: (cid, label) => {
-            setChildPick(null);
-            setMessages((prev) => [...prev, { id: uid(), role: "user", content: label, timestamp: new Date() }]);
-            setIsLoading(true);
-            void examCaptureRef.current?.(text, cid).finally(() => setIsLoading(false));
-          },
+  /* ---- Captura por TEXTO (assistente = mesmo cérebro do WhatsApp/foto) ----
+   *  `endpoint` = provas (exam-text) OU consulta médica (consult-text). O
+   *  servidor gateia (consulta OFF por padrão → {found:false} → cai no chat). */
+  const runExamCapture = useCallback(
+    async (text: string, childId?: string, endpoint = "/api/ai/assistant/exam-text"): Promise<boolean> => {
+      try {
+        const res = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, child_id: childId }),
         });
-      } else if (data.intake?.id) {
-        setPendingIntake(data.intake);
+        const data = await res.json().catch(() => ({ found: false }));
+        // Não era captura (fora do beta, texto genérico, erro) → chat normal.
+        if (data?.found === false) return false;
+        setMessages((prev) => [
+          ...prev,
+          { id: uid(), role: "assistant", content: data.content || "Não consegui processar.", timestamp: new Date() },
+        ]);
+        if (Array.isArray(data.childSelection?.options) && data.childSelection.options.length > 0) {
+          setPendingIntake(null);
+          setUndoableIntake(null);
+          setChildPick({
+            options: data.childSelection.options,
+            // Reenvia o MESMO texto (mesmo endpoint) com o child_id escolhido.
+            resubmit: (cid, label) => {
+              setChildPick(null);
+              setMessages((prev) => [...prev, { id: uid(), role: "user", content: label, timestamp: new Date() }]);
+              setIsLoading(true);
+              void examCaptureRef.current?.(text, cid, endpoint).finally(() => setIsLoading(false));
+            },
+          });
+        } else if (data.intake?.id) {
+          setPendingIntake(data.intake);
+        }
+        return true;
+      } catch {
+        return false; // erro de rede → cai no chat, não bloqueia o usuário
       }
-      return true;
-    } catch {
-      return false; // erro de rede → cai no chat, não bloqueia o usuário
-    }
-  }, []);
+    },
+    [],
+  );
   useEffect(() => {
     examCaptureRef.current = runExamCapture;
   }, [runExamCapture]);
@@ -288,6 +293,12 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         // e seguimos pro assistente normal.
         if (looksLikeExamText(userMsg.content)) {
           const handled = await runExamCapture(userMsg.content);
+          if (handled) return;
+        }
+        // Consulta médica por texto (gate próprio; servidor gateia por flag OFF →
+        // {found:false} → cai no chat). Depois das provas, não sequestra o escolar.
+        else if (looksLikeConsultText(userMsg.content)) {
+          const handled = await runExamCapture(userMsg.content, undefined, "/api/ai/assistant/consult-text");
           if (handled) return;
         }
 
@@ -349,7 +360,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
 
   /* ---- Enviar imagem (Fase 2: o assistente VÊ a foto e roteia) ---- */
   const sendImage = useCallback(
-    async (file: File, opts?: { childId?: string; userLabel?: string }) => {
+    async (file: File, opts?: { childId?: string; userLabel?: string; doc?: string }) => {
       if (isLoading) return;
       setPendingIntake(null);
       setChildPick(null);
@@ -363,6 +374,9 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         const fd = new FormData();
         fd.append("file", file);
         if (opts?.childId) fd.append("child_id", opts.childId);
+        // `doc='health'` faz o backend reprocessar a foto como consulta (o
+        // /api/ai/assistant/image dispatcha por esse campo). Vem do childSelection.
+        if (opts?.doc) fd.append("doc", opts.doc);
         const res = await fetch("/api/ai/assistant/image", { method: "POST", body: fd });
         const data = await res.json().catch(() => ({ content: "Desculpe, ocorreu um erro. 🙏" }));
         setMessages((prev) => [
@@ -370,9 +384,10 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
           { id: uid(), role: "assistant", content: data.content || "Não consegui processar.", timestamp: new Date() },
         ]);
         if (Array.isArray(data.childSelection?.options) && data.childSelection.options.length > 0) {
+          const doc = typeof data.childSelection.doc === "string" ? data.childSelection.doc : undefined;
           setChildPick({
             options: data.childSelection.options,
-            resubmit: (childId, userLabel) => void sendImage(file, { childId, userLabel }),
+            resubmit: (childId, userLabel) => void sendImage(file, { childId, userLabel, doc }),
           });
         } else if (data.intake?.id) {
           setPendingIntake(data.intake);
