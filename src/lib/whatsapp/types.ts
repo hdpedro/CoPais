@@ -258,6 +258,8 @@ export interface WASessionState {
     media_id?: string;
     text?: string;
     from_audio?: boolean;
+    /** Playbook da origem (pra reprocessar como saúde vs escolar no resubmit). */
+    doc_type?: "school_calendar" | "health_visit";
     options: Array<{ id: string; name: string }>;
   };
 }

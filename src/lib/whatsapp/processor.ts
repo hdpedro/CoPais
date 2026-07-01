@@ -476,7 +476,13 @@ export async function processWhatsAppMessage(
   /* ================================================================ */
 
   if (message.type === "text" && message.text) {
-    const handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio);
+    // Escolar primeiro (byte-idêntico). Se não for captura de provas, tenta
+    // CONSULTA (gated OFF por padrão → no-op imediato; os gates são regex baratos
+    // e handleExamText só chama o LLM quando o gate passa).
+    let handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio);
+    if (!handled) {
+      handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio, undefined, "health_visit");
+    }
     if (handled) {
       await logAIRequest({
         userId,

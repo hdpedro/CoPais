@@ -14,14 +14,14 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAndAnalyzeIntake, createAndAnalyzeText, confirmIntake } from "@/lib/services/brain";
-import { looksLikeExamText } from "@/lib/ai/brain/exam-text-gate";
+import { looksLikeExamText, looksLikeConsultText } from "@/lib/ai/brain/exam-text-gate";
 import { undoIntake } from "@/lib/services/brain-undo";
-import { isBrainEnabledForGroup } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled } from "@/lib/services/brain-flag";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { getServerT } from "@/i18n/server";
-import type { BrainChild, IntakePreview } from "@/lib/ai/brain/types";
+import type { BrainChild, DocType, IntakePreview } from "@/lib/ai/brain/types";
 import { downloadMedia, sendTextMessage, sendButtonMessage } from "./client";
 import { matchChildFromCaption } from "./caption-match";
 import { notifyGroupViaWhatsApp } from "./notify";
@@ -478,7 +478,7 @@ export async function handleChildSelectionReply(
   // reenviar. Texto (assistente/áudio) reusa handleExamText; foto, analyzeCalendarPhoto.
   await clearPendingAction(supabase, session.id);
   if (sel.text) {
-    return handleExamText(supabase, phone, userId, groupId, sel.text, session, !!sel.from_audio, childId);
+    return handleExamText(supabase, phone, userId, groupId, sel.text, session, !!sel.from_audio, childId, sel.doc_type);
   }
   if (sel.media_id) {
     return analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
@@ -538,9 +538,16 @@ async function sendBrainChildQuestion(
   phone: string,
   session: WASession,
   options: Array<{ id: string; name: string }>,
-  source: { media_id?: string; text?: string; from_audio?: boolean },
+  source: { media_id?: string; text?: string; from_audio?: boolean; doc_type?: DocType },
 ): Promise<void> {
-  await setBrainChildSelection(supabase, session.id, { ...source, options });
+  await setBrainChildSelection(supabase, session.id, {
+    media_id: source.media_id,
+    text: source.text,
+    from_audio: source.from_audio,
+    // Só saúde precisa do marcador (ausente = escolar). Estreita o DocType.
+    doc_type: source.doc_type === "health_visit" ? "health_visit" : undefined,
+    options,
+  });
   if (options.length >= 2 && options.length <= 3) {
     await sendButtonMessage(
       phone,
@@ -571,8 +578,16 @@ export async function handleExamText(
   session: WASession,
   fromAudio: boolean,
   forcedChildId?: string | null,
+  docType?: DocType,
 ): Promise<boolean> {
-  if (!looksLikeExamText(text)) return false;
+  const isHealth = docType === "health_visit";
+  // Gate por playbook: consulta usa looksLikeConsultText + o interruptor próprio
+  // de saúde (OFF por padrão → nunca dispara); provas seguem o gate escolar.
+  if (isHealth) {
+    if (!isHealthVisitEnabled() || !looksLikeConsultText(text)) return false;
+  } else if (!looksLikeExamText(text)) {
+    return false;
+  }
   if (!(await isBrainEnabledForGroup(supabase, groupId))) return false;
   try {
     const { data: rows } = await supabase
@@ -594,6 +609,7 @@ export async function handleExamText(
       text,
       children,
       requestedChildId: forcedChildId ?? null,
+      docType,
     });
 
     switch (result.kind) {
@@ -606,7 +622,7 @@ export async function handleExamText(
           phone,
           session,
           result.options.map((o) => ({ id: o.id, name: o.name })),
-          { text, from_audio: fromAudio },
+          { text, from_audio: fromAudio, doc_type: docType },
         );
         return true;
       case "duplicate":
