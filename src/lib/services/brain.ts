@@ -19,7 +19,8 @@
 import { randomUUID, createHash } from "crypto";
 import type { createClient } from "@/lib/supabase/server";
 import { compressImageForVision } from "@/lib/ai/image-utils";
-import { routeVisionRequest } from "@/lib/ai/router";
+import { routeVisionRequest, routeTextRequest } from "@/lib/ai/router";
+import type { AIChatMessage } from "@/lib/ai/core/types";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { getPlaybook } from "@/lib/ai/brain/understanding/registry";
 import { analyzeImpact, type ExistingOccurrence } from "@/lib/ai/brain/impact";
@@ -429,6 +430,272 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
       metadata: { step: "analyze", intakeId, note: sanitizeForLogPreview(String(err)) },
     });
     await markFailed(supabase, intakeId, "analyze_exception");
+    return { kind: "error", message: "Não consegui processar agora. Tente de novo em instantes." };
+  }
+}
+
+/**
+ * Estágio 3-6 COMPARTILHADO (parse → plano → dedup intra + histórico →
+ * impacto → salva preview), a partir da SAÍDA BRUTA do LLM (venha da visão ou
+ * do texto). `playbook.parse` é input-agnóstico, então imagem e texto caem
+ * aqui. TODO(DRY): fazer `analyzeIntakeImage` também chamar isto (hoje mantém
+ * a versão inline pra não mexer no caminho LIVE; ver [[project_kindar_family_inbox_build]]).
+ */
+async function finalizeAnalysis(p: {
+  supabase: SupabaseServer;
+  intakeId: string;
+  rawText: string;
+  provider: string;
+  playbook: NonNullable<ReturnType<typeof getPlaybook>>;
+  docType: DocType;
+  sctx: PlaybookContext;
+  userId: string;
+  childCount: number;
+  t0: number;
+}): Promise<IntakeResult> {
+  const { supabase, intakeId, rawText, provider, playbook, docType, sctx, userId, childCount, t0 } = p;
+
+  // 3. Parse + validação estrita do schema (fora do schema é descartado).
+  let raw: unknown;
+  try {
+    raw = parseVisionJson(rawText);
+  } catch {
+    await markFailed(supabase, intakeId, "vision_parse_error");
+    captureServerEvent(userId, "brain_intake_extraction_failed", { intake_id: intakeId, error_type: "vision_parse_error", provider });
+    return { kind: "error", message: "Não consegui interpretar agora. Tente reformular ou mandar uma foto mais nítida." };
+  }
+
+  const data = playbook.parse(raw, sctx);
+  if (!data) {
+    await supabase
+      .from("brain_intakes")
+      .update({ status: "failed", error: "unknown_document", doc_type: "unknown_document", analysis_provider: provider, analyzed_at: new Date().toISOString() })
+      .eq("id", intakeId);
+    captureServerEvent(userId, "brain_intake_extraction_failed", { intake_id: intakeId, doc_type: "unknown_document", error_type: "unrecognized", provider });
+    return { kind: "unknown_document", intakeId, message: "Não tenho certeza do que é. Quer que eu procure datas de provas?" };
+  }
+
+  const skippedLines = (data as { skipped?: number }).skipped ?? 0;
+  if (skippedLines > 0) {
+    captureServerEvent(userId, "brain_intake_lines_skipped", { intake_id: intakeId, skipped_count: skippedLines, doc_type: docType });
+  }
+
+  // 4. Plano + dedup intra-plano + dedup contra histórico + impacto + prioridade.
+  const planned = playbook.plan(data, sctx);
+  const { unique, dropped } = dedupeWithinPlan(planned.activities ?? []);
+  if (dropped.length > 0) {
+    captureServerEvent(userId, "brain_intake_duplicate_detected", { intake_id: intakeId, dropped_count: dropped.length });
+  }
+
+  const window = planDateWindow({ ...planned, activities: unique });
+  const existing = await loadExistingOccurrences(supabase, sctx.resolvedChildId, window);
+
+  const { fresh, duplicates } = partitionAgainstExisting(unique, existing);
+  if (fresh.length === 0 && duplicates.length > 0) {
+    await supabase
+      .from("brain_intakes")
+      .update({ status: "failed", error: "duplicate", doc_type: docType, analysis_provider: provider, analyzed_at: new Date().toISOString() })
+      .eq("id", intakeId)
+      .eq("status", "analyzing");
+    captureServerEvent(userId, "brain_intake_duplicate_all", { intake_id: intakeId, count: duplicates.length });
+    const one = duplicates.length === 1;
+    return {
+      kind: "duplicate",
+      intakeId,
+      priorIntakeId: intakeId,
+      message: one ? "Essa prova já está no Kindar 🙂. Nada a adicionar." : "Essas provas já estão no Kindar 🙂. Nada a adicionar.",
+    };
+  }
+  if (duplicates.length > 0) {
+    captureServerEvent(userId, "brain_intake_duplicate_partial", { intake_id: intakeId, already: duplicates.length, fresh: fresh.length });
+  }
+
+  const plan: MaterializationPlan = { ...planned, activities: fresh };
+  const impacts = analyzeImpact(plan, existing);
+  const priority = prioritize(plan, sctx.today);
+
+  const planHash = computePlanHash({ plan, playbookVersion: playbook.playbookVersion, policyVersion: playbook.policyVersion });
+  const confirmationToken = randomUUID();
+  const expiresAt = new Date(Date.now() + CONFIRMATION_TTL_MS).toISOString();
+
+  const { error: saveErr } = await supabase
+    .from("brain_intakes")
+    .update({
+      status: "awaiting_confirmation",
+      doc_type: docType,
+      extracted: data,
+      impacts,
+      plan,
+      plan_hash: planHash,
+      plan_version: 1,
+      playbook_version: playbook.playbookVersion,
+      policy_version: playbook.policyVersion,
+      analysis_provider: provider,
+      confirmation_token: confirmationToken,
+      confirmation_expires_at: expiresAt,
+      analyzed_at: new Date().toISOString(),
+    })
+    .eq("id", intakeId)
+    .eq("status", "analyzing");
+  if (saveErr) {
+    await reportServerError(saveErr, { filePath: FILE, metadata: { step: "save_analysis", intakeId } });
+    return { kind: "error", message: "Falha ao salvar a análise." };
+  }
+
+  const activityCount = plan.activities?.length ?? 0;
+  const needsReview = (plan.activities ?? []).some((a) => (a.lowConfidenceFields?.length ?? 0) > 0);
+  captureServerEvent(userId, "brain_intake_analyzed", {
+    intake_id: intakeId,
+    doc_type: docType,
+    child_count: childCount,
+    artifact_count: activityCount,
+    confidence_level: needsReview ? "needs_review" : "high",
+    provider,
+    latency_ms: Date.now() - t0,
+  });
+  captureServerEvent(userId, "brain_intake_preview_shown", { intake_id: intakeId, doc_type: docType });
+
+  const preview: IntakePreview = {
+    intakeId,
+    docType,
+    confirmation: plan.confirmation,
+    plan,
+    impacts,
+    priority,
+    planHash,
+    confirmationToken,
+    alreadyPresent: duplicates.length > 0 ? duplicates.length : undefined,
+  };
+  return { kind: "preview", preview };
+}
+
+export interface AnalyzeIntakeTextArgs {
+  supabase: SupabaseServer;
+  intakeId: string;
+  /** Texto do responsável (digitado ou transcrição de áudio). */
+  text: string;
+  ctx: PlaybookContext;
+}
+
+/**
+ * Analisa um intake de TEXTO (assistente/áudio): begin_analysis → extração por
+ * texto (mesmo schema da visão) → finalizeAnalysis (fluxo compartilhado).
+ * Mesmo cérebro do documento — só a origem da saída bruta muda.
+ */
+export async function analyzeIntakeText(args: AnalyzeIntakeTextArgs): Promise<IntakeResult> {
+  const { supabase, intakeId, text, ctx } = args;
+  const t0 = Date.now();
+  try {
+    const { data: started } = await supabase.rpc("brain_intake_begin_analysis", {
+      p_intake_id: intakeId,
+      p_actor_user_id: ctx.userId,
+    });
+    if (!started || !(started as { id?: string }).id) return { kind: "already_processing", intakeId };
+
+    if (ctx.resolvedChildId === null && ctx.children.length > 1) {
+      return { kind: "needs_child_selection", intakeId, options: ctx.children };
+    }
+
+    const docType: DocType = "school_calendar";
+    const playbook = getPlaybook(docType);
+    if (!playbook?.textExtractionPrompt) return { kind: "error", message: "Playbook indisponível." };
+    const sctx: PlaybookContext = { ...ctx, timezone: safeTimezone(ctx.timezone) };
+
+    // O texto do usuário entra como CONTEÚDO (dado não confiável) — o prompt de
+    // sistema já barra prompt-injection; datas relativas resolvem contra hoje.
+    const userPrompt =
+      `${playbook.textExtractionPrompt.user}\n${text}\n\n` +
+      `(Referência: hoje é ${sctx.today}; ano letivo ${sctx.schoolYearAnchor}. Resolva datas relativas ou sem ano contra isso.)`;
+    const messages: AIChatMessage[] = [
+      { role: "system", content: playbook.textExtractionPrompt.system },
+      { role: "user", content: userPrompt },
+    ];
+    const result = await routeTextRequest(messages, { temperature: 0.1, maxTokens: 2000 });
+
+    return await finalizeAnalysis({
+      supabase,
+      intakeId,
+      rawText: result.text,
+      provider: result.provider,
+      playbook,
+      docType,
+      sctx,
+      userId: ctx.userId,
+      childCount: ctx.children.length,
+      t0,
+    });
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "analyze_text", intakeId, note: sanitizeForLogPreview(String(err)) } });
+    await markFailed(supabase, intakeId, "analyze_exception");
+    return { kind: "error", message: "Não consegui processar agora. Tente de novo em instantes." };
+  }
+}
+
+export interface CreateAndAnalyzeTextArgs {
+  supabase: SupabaseServer;
+  groupId: string;
+  userId: string;
+  channel: IntakeChannel;
+  /** "message" (digitado) | "audio" (transcrito). Default "message". */
+  source?: Extract<IntakeSource, "message" | "audio">;
+  text: string;
+  children: BrainChild[];
+  requestedChildId: string | null;
+}
+
+/**
+ * Orquestração COMPARTILHADA de intake por TEXTO (assistente, WhatsApp áudio…):
+ * resolve criança + timezone, cria o brain_intake (source 'message'/'audio',
+ * sem mídia) e analisa. Espelha `createAndAnalyzeIntake` sem o upload de buffer.
+ */
+export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Promise<IntakeResult> {
+  const { supabase, groupId, userId, channel, text, children, requestedChildId } = args;
+  const source = args.source ?? "message";
+  try {
+    const resolvedChildId =
+      requestedChildId && children.some((c) => c.id === requestedChildId)
+        ? requestedChildId
+        : children.length === 1
+          ? children[0].id
+          : null;
+
+    const { data: groupRow } = await supabase.from("coparenting_groups").select("timezone").eq("id", groupId).single();
+    const timezone = safeTimezone((groupRow?.timezone as string | undefined) || DEFAULT_TIMEZONE);
+    const today = todayInTz(timezone);
+
+    const { data: intake, error: insErr } = await supabase
+      .from("brain_intakes")
+      .insert({
+        group_id: groupId,
+        child_id: resolvedChildId,
+        created_by: userId,
+        source,
+        channel,
+        status: "uploaded",
+        source_sha256: createHash("sha256").update(text).digest("hex"),
+      })
+      .select("id")
+      .single();
+    if (insErr || !intake) {
+      await reportServerError(insErr, { filePath: FILE, metadata: { step: "create_intake_text", groupId } });
+      return { kind: "error", message: "Falha ao iniciar o processamento." };
+    }
+    const intakeId = intake.id as string;
+    captureServerEvent(userId, "brain_intake_uploaded", { intake_id: intakeId, channel, mime: "text/plain" });
+
+    const ctx: PlaybookContext = {
+      groupId,
+      userId,
+      channel,
+      today,
+      timezone,
+      children,
+      resolvedChildId,
+      schoolYearAnchor: Number(today.slice(0, 4)),
+    };
+    return await analyzeIntakeText({ supabase, intakeId, text, ctx });
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "create_and_analyze_text", groupId } });
     return { kind: "error", message: "Não consegui processar agora. Tente de novo em instantes." };
   }
 }
