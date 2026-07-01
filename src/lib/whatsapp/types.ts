@@ -240,6 +240,9 @@ export interface WASessionState {
     created_count?: number;
     /** Usuário tocou "Escolher" → esperamos números na próxima mensagem. */
     awaiting_selection?: boolean;
+    /** Playbook do intake. Ausente/'school_calendar' = escolar (render/copy de
+     *  provas, byte-idêntico); 'health_visit' = consulta (render/copy de saúde). */
+    doc_type?: "school_calendar" | "health_visit";
   };
   /** Fallback recibo→calendário: OCR de recibo falhou; guardamos o media_id
    *  pra reprocessar como calendário se o usuário responder "calendário/sim".

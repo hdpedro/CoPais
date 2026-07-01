@@ -36,6 +36,9 @@ import {
   renderPreview,
   renderExecuted,
   renderUndone,
+  renderHealthPreview,
+  renderHealthExecuted,
+  renderHealthUndone,
   classifyBrainReply,
   isUndoReply,
   isDeclineUndoReply,
@@ -241,10 +244,14 @@ export async function handleBrainReply(
     if (btn === "brain_undo" || isUndoReply(text)) {
       const r = await undoIntake({ supabase, intakeId: brain.intake_id, actorUserId: userId });
       await clearPendingAction(supabase, session.id);
-      await sendTextMessage(
-        phone,
-        r.kind === "undone" ? renderUndone(r.removed, r.detached) : "Não consegui desfazer agora. Tente pelo app. 🙏",
-      );
+      const isHealth = brain.doc_type === "health_visit";
+      const undoneMsg =
+        r.kind === "undone"
+          ? isHealth
+            ? renderHealthUndone(r.removed)
+            : renderUndone(r.removed, r.detached)
+          : "Não consegui desfazer agora. Tente pelo app. 🙏";
+      await sendTextMessage(phone, undoneMsg);
       return true;
     }
     // Recusou o desfazer ("não", "tá bom", "obrigado"…) → fecha com um aceno
@@ -340,17 +347,29 @@ async function confirmBrain(
 
   if (r.kind === "executed") {
     await setBrainIntake(supabase, session.id, { ...brain, phase: "executed", created_count: r.createdCount, awaiting_selection: false });
-    await sendTextMessage(phone, renderExecuted(r.createdCount));
+    const isHealth = brain.doc_type === "health_visit";
+    await sendTextMessage(phone, isHealth ? renderHealthExecuted() : renderExecuted(r.createdCount));
     await sendButtonMessage(phone, "Precisa reverter?", [{ id: "brain_undo", title: "Desfazer" }]);
-    // Coordenação: avisa os coparentes (menos quem confirmou). Fire-and-forget.
-    const n = r.createdCount === 1 ? "1 prova" : `${r.createdCount} provas`;
-    const adj = r.createdCount === 1 ? "adicionada" : "adicionadas";
-    await notifyGroupViaWhatsApp(
-      groupId,
-      userId,
-      `📚 *${brain.child_name}*: ${n} ${adj} ao calendário escolar do Kindar.`,
-      "event",
-    );
+    // Coordenação WhatsApp: avisa os coparentes (menos quem confirmou). Além
+    // disso o outbox entrega a coordenação push (3d). Fire-and-forget. 'event'
+    // = a pref event_reminders governa (não há kind de saúde dedicado).
+    if (isHealth) {
+      await notifyGroupViaWhatsApp(
+        groupId,
+        userId,
+        `🩺 *${brain.child_name}*: consulta registrada no histórico de Saúde do Kindar.`,
+        "event",
+      );
+    } else {
+      const n = r.createdCount === 1 ? "1 prova" : `${r.createdCount} provas`;
+      const adj = r.createdCount === 1 ? "adicionada" : "adicionadas";
+      await notifyGroupViaWhatsApp(
+        groupId,
+        userId,
+        `📚 *${brain.child_name}*: ${n} ${adj} ao calendário escolar do Kindar.`,
+        "event",
+      );
+    }
     return true;
   }
 
@@ -361,7 +380,10 @@ async function confirmBrain(
   }
   if (r.kind === "already_processing") {
     await clearPendingAction(supabase, session.id);
-    await sendTextMessage(phone, "Essas provas já estão sendo adicionadas. 🙂");
+    await sendTextMessage(
+      phone,
+      brain.doc_type === "health_visit" ? "Essa consulta já está sendo registrada. 🙂" : "Essas provas já estão sendo adicionadas. 🙂",
+    );
     return true;
   }
   await sendTextMessage(phone, r.kind === "error" ? r.message : "Não consegui confirmar agora. Tente de novo. 🙏");
@@ -477,22 +499,35 @@ async function sendBrainPreview(
   preview: IntakePreview,
   children: BrainChild[],
 ): Promise<void> {
+  const isHealth = preview.plan.docType === "health_visit";
   const acts = preview.plan.activities ?? [];
-  const childName = children.find((c) => c.id === (acts[0]?.childId ?? null))?.name ?? "seu filho(a)";
+  const childName = isHealth
+    ? children.find((c) => c.id === (preview.plan.health?.appointment.childId ?? null))?.name ?? "seu filho(a)"
+    : children.find((c) => c.id === (acts[0]?.childId ?? null))?.name ?? "seu filho(a)";
   const t = await getServerT("pt");
-  await sendTextMessage(phone, renderPreview(preview, childName, t, { withCta: false }));
-  await sendButtonMessage(phone, "Posso adicionar essas provas ao Kindar?", [
-    { id: "brain_confirm", title: "Confirmar" },
-    { id: "brain_choose", title: "Escolher" },
-    { id: "brain_cancel", title: "Cancelar" },
-  ]);
+  if (isHealth) {
+    // Consulta: sem deseleção numerada (A0 confirma a cena inteira) → só 2 botões.
+    await sendTextMessage(phone, renderHealthPreview(preview, childName, { withCta: false }));
+    await sendButtonMessage(phone, "Posso registrar essa consulta no Kindar?", [
+      { id: "brain_confirm", title: "Confirmar" },
+      { id: "brain_cancel", title: "Cancelar" },
+    ]);
+  } else {
+    await sendTextMessage(phone, renderPreview(preview, childName, t, { withCta: false }));
+    await sendButtonMessage(phone, "Posso adicionar essas provas ao Kindar?", [
+      { id: "brain_confirm", title: "Confirmar" },
+      { id: "brain_choose", title: "Escolher" },
+      { id: "brain_cancel", title: "Cancelar" },
+    ]);
+  }
   await setBrainIntake(supabase, session.id, {
     intake_id: preview.intakeId,
     plan_hash: preview.planHash,
     confirmation_token: preview.confirmationToken,
     child_name: childName,
-    total: acts.length,
+    total: isHealth ? preview.plan.health?.medications?.length ?? 0 : acts.length,
     phase: "preview",
+    doc_type: isHealth ? "health_visit" : undefined,
   });
 }
 
