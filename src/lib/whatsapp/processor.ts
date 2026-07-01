@@ -26,6 +26,7 @@ import {
   loadSession,
   hasPendingConfirmation,
   hasBrainIntake,
+  hasBrainFallbackPhoto,
   setPendingAction,
   clearPendingAction,
   setSessionGroup,
@@ -33,14 +34,23 @@ import {
   setReceiptStep,
 } from "./session";
 import { isCalendarIntent } from "./brain-flow";
-import { handleCalendarImage, handleBrainReply } from "./brain-handlers";
+import {
+  handleCalendarImage,
+  analyzeCalendarPhoto,
+  handleBrainReply,
+  offerBrainAfterReceiptFail,
+  handleReceiptFallbackReply,
+} from "./brain-handlers";
 import { createExpense as createExpenseService } from "@/lib/services/expenses";
 import {
   sendTextMessage,
   sendConfirmation,
   sendListMessage,
   markAsRead,
+  downloadMedia,
 } from "./client";
+import { classifyDocumentByVision } from "@/lib/ai/document-classifier";
+import { isBrainEnabledForGroup } from "@/lib/services/brain-flag";
 import { formatForWhatsApp, splitMessage } from "./formatter";
 import { processReceiptImage, processPrescriptionImage } from "./media";
 import { transcribeAudio } from "./audio";
@@ -346,6 +356,27 @@ export async function processWhatsAppMessage(
   }
 
   /* ================================================================ */
+  /* Step 4.7: Fallback recibo→calendário — o OCR de recibo falhou numa   */
+  /* imagem SEM legenda; se o usuário responder "calendário/sim",         */
+  /* reprocessamos a foto guardada pelo Brain (sem reenviar).             */
+  /* ================================================================ */
+
+  if (hasBrainFallbackPhoto(session) && message.text) {
+    const handled = await handleReceiptFallbackReply(supabase, phone, userId, groupId, message, session);
+    if (handled) {
+      await logAIRequest({
+        userId,
+        groupId,
+        provider: "vision",
+        feature: "assistant_chat",
+        success: true,
+        responseTimeMs: Date.now() - start,
+      });
+      return;
+    }
+  }
+
+  /* ================================================================ */
   /* Step 5: Handle pending confirmation                               */
   /* ================================================================ */
 
@@ -422,6 +453,42 @@ export async function processWhatsAppMessage(
     }
 
     const intent = classifyImageIntent(message.caption);
+
+    // Brain INTELIGENTE: imagem SEM legenda clara (cairia no recibo) → o modelo
+    // VÊ a imagem e decide. Reusa o buffer no fluxo de recibo (sem re-download)
+    // e manda 1 ack genérico (sem beco de silêncio). Só desvia pro Brain quando
+    // reconhece calendário com ALTA confiança E o cérebro confirma; qualquer
+    // outra coisa (inclusive recibo mal-classificado) cai no recibo — SEM
+    // REGRESSÃO. Gated no beta; classificador nunca lança.
+    let sharedBuffer: Buffer | undefined;
+    let ackedAnalyzing = false;
+    if (intent === "receipt" && !(message.caption && message.caption.trim())) {
+      try {
+        if (await isBrainEnabledForGroup(supabase, groupId)) {
+          await sendTextMessage(phone, "Analisando a imagem... 🔍");
+          ackedAnalyzing = true;
+          sharedBuffer = await downloadMedia(message.mediaId);
+          const cls = await classifyDocumentByVision(sharedBuffer, undefined);
+          if (cls.type === "school_calendar" && cls.confidence >= 0.7) {
+            const handled = await analyzeCalendarPhoto(
+              supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, sharedBuffer, true,
+            );
+            if (handled) {
+              await logAIRequest({
+                userId, groupId, provider: "vision", feature: "assistant_chat",
+                success: true, responseTimeMs: Date.now() - start,
+              });
+              return;
+            }
+            // Cérebro rejeitou → não era calendário → cai no recibo (com buffer).
+          }
+        }
+      } catch (e) {
+        // Falha de download/classificação NÃO pode quebrar o fluxo de recibo:
+        // loga e segue pro roteamento normal abaixo (com o buffer se houver).
+        console.error("[WA vision-classify] falhou; seguindo pro recibo:", e);
+      }
+    }
 
     if (intent === "prescription") {
       // Receita é dado clínico — em família com 2+ filhos NUNCA assumir a
@@ -502,12 +569,16 @@ export async function processWhatsAppMessage(
       return;
     }
 
-    await sendTextMessage(phone, "Analisando a imagem... \uD83D\uDD0D");
+    // Ack s\u00F3 se o classificador n\u00E3o mandou o dele (evita "Analisando" dobrado).
+    if (!ackedAnalyzing) {
+      await sendTextMessage(phone, "Analisando a imagem... \uD83D\uDD0D");
+    }
 
     const receipt = await processReceiptImage(
       message.mediaId,
       message.mediaMimeType || "image/jpeg",
-      message.caption
+      message.caption,
+      sharedBuffer, // reusa o buffer do classificador (sem re-download)
     );
 
     if (receipt) {
@@ -547,7 +618,13 @@ export async function processWhatsAppMessage(
       return;
     }
 
-    await sendTextMessage(phone, "Nao consegui ler o recibo. Pode descrever a despesa por texto? Ex: *gastei 50 com remedio*");
+    // Imagem que não leu como recibo: em grupo beta, pode ser um calendário
+    // escolar enviado SEM legenda — oferece o Brain como fallback (sem hijack:
+    // só entra depois do OCR de recibo falhar).
+    const offered = await offerBrainAfterReceiptFail(supabase, phone, groupId, message.mediaId, session);
+    if (!offered) {
+      await sendTextMessage(phone, "Nao consegui ler o recibo. Pode descrever a despesa por texto? Ex: *gastei 50 com remedio*");
+    }
     return;
   }
 

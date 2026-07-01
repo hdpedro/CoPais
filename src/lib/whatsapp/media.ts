@@ -29,11 +29,14 @@ export interface ExtractedReceipt {
 export async function processReceiptImage(
   mediaId: string,
   mediaMimeType: string,
-  caption?: string
+  caption?: string,
+  /** Buffer já baixado (ex: o classificador por visão já baixou a mídia) —
+   *  evita re-download da Meta. Ausente → baixa por mediaId. */
+  preBuffer?: Buffer,
 ): Promise<ExtractedReceipt | null> {
   try {
-    // Download image from Meta
-    const imageBuffer = await downloadMedia(mediaId);
+    // Download image from Meta (ou reusa o buffer já baixado)
+    const imageBuffer = preBuffer ?? (await downloadMedia(mediaId));
 
     // Compress for vision API
     const compressed = await compressImageForVision(imageBuffer);
