@@ -20,6 +20,17 @@ export function isBrainMasterEnabled(): boolean {
 }
 
 /**
+ * Playbook de SAÚDE habilitado? Interruptor PRÓPRIO (env FEATURE_BRAIN_HEALTH_
+ * VISIT), separado do escolar — o roteamento por docType='health_visit' ignora
+ * ENABLED_DOC_TYPES, então precisa deste gate. OFF por padrão (fail-closed):
+ * fica desligado até a migration 00134 estar em prod + o dono autorizar. Os
+ * canais gateiam: isHealthVisitEnabled() && isBrainEnabledForGroup(grupo).
+ */
+export function isHealthVisitEnabled(): boolean {
+  return process.env.FEATURE_BRAIN_HEALTH_VISIT === "true";
+}
+
+/**
  * Brain habilitado para o grupo? master env `&&` grupo.brain_beta_enabled.
  * Fail-closed: qualquer erro/ausência → false (não vaza acesso).
  */
