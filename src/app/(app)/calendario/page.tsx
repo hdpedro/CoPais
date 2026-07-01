@@ -80,7 +80,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       .then(r => r, () => ({ data: [] as never[] })),
     supabase
       .from("events")
-      .select("id, title, description, event_date, event_time, location, child_id, status, all_day, end_date, assigned_to, created_by, children(full_name)")
+      .select("id, title, description, event_date, event_time, location, child_id, status, all_day, end_date, assigned_to, created_by, school_log_id, children(full_name)")
       .eq("group_id", groupId)
       .neq("status", "cancelled")
       .gte("event_date", rangeStart)
@@ -320,6 +320,10 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   // No more runtime recurrence expansion — dates come straight from the DB
   type ActivityEntry = { id: string; name: string; category: string; time_start: string | null; time_end?: string | null; location: string | null; childName: string; checklistCount: number; description?: string | null; all_day?: boolean; assigned_to_name?: string | null; report?: { status: string; notes: string | null; child_mood: string | null; responsible_override?: string | null; responsible_override_id?: string | null } | null; recurrence_type?: string; teacher_name?: string | null; class_name?: string | null; room?: string | null; responsible_id?: string | null; responsible_name?: string | null; checklistItems?: { id: string; name: string; completed: boolean }[]; source?: "activity" | "event" | "appointment" | "birthday" };
   const activityDateMap: Record<string, ActivityEntry[]> = {};
+  // Ids de eventos espelhados de school_logs (provas/reunião/nota da aba Escola).
+  // Em dia cheio, o grid mostra só 2 pills + "+N"; provas escolares NÃO devem
+  // ficar escondidas — ordenamos os eventos de escola primeiro na célula do dia.
+  const schoolLogEventIds = new Set<string>();
   if (rawActivities) {
     for (const occ of rawActivities) {
       const dateKey = occ.occurrence_date;
@@ -373,6 +377,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       if (!activityDateMap[dateKey]) activityDateMap[dateKey] = [];
       const childName = (evt.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "Todos";
       const assignedName = evt.assigned_to ? memberNames[evt.assigned_to] || null : null;
+      if ((evt as { school_log_id?: string | null }).school_log_id) schoolLogEventIds.add(evt.id);
       activityDateMap[dateKey].push({
         id: evt.id,
         name: evt.title,
@@ -434,6 +439,14 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
         });
       }
     }
+  }
+
+  // Prova/evento de escola primeiro em cada dia (Array.sort é estável no JS
+  // moderno → mantém a ordem relativa do resto). Só afeta dias cheios: garante
+  // que a prova apareça entre os 2 pills visíveis em vez de sumir no "+N".
+  const isSchoolEvent = (e: ActivityEntry) => e.source === "event" && schoolLogEventIds.has(e.id);
+  for (const dayKey of Object.keys(activityDateMap)) {
+    activityDateMap[dayKey].sort((a, b) => Number(isSchoolEvent(b)) - Number(isSchoolEvent(a)));
   }
 
   return (
