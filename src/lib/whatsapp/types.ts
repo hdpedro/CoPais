@@ -247,6 +247,13 @@ export interface WASessionState {
   brain_fallback_photo?: {
     media_id: string;
   };
+  /** Seleção de criança: o Brain reconheceu o calendário mas o grupo tem >1
+   *  criança e a legenda não disse qual. Guardamos o media_id (pra reanalisar
+   *  SEM reenviar a foto) + as opções; a resposta do usuário resolve a criança. */
+  brain_child_selection?: {
+    media_id: string;
+    options: Array<{ id: string; name: string }>;
+  };
 }
 
 /** Phone link record from whatsapp_phone_links */

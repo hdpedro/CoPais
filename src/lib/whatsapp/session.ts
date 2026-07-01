@@ -180,6 +180,27 @@ export function hasBrainFallbackPhoto(session: WASession): boolean {
   return elapsed < BRAIN_INTAKE_TIMEOUT_MS;
 }
 
+/** Guarda o media_id + opções pra resolver a criança do calendário SEM reenviar
+ *  a foto. SUBSTITUI o state (igual aos outros). */
+export async function setBrainChildSelection(
+  supabase: SupabaseClient,
+  sessionId: string,
+  sel: NonNullable<WASessionState["brain_child_selection"]>,
+): Promise<void> {
+  const state: WASessionState = {
+    brain_child_selection: sel,
+    pending_at: new Date().toISOString(),
+  };
+  await supabase.from("whatsapp_sessions").update({ state }).eq("id", sessionId);
+}
+
+/** Há um calendário aguardando o usuário dizer de qual criança é? */
+export function hasBrainChildSelection(session: WASession): boolean {
+  if (!session.state.brain_child_selection || !session.state.pending_at) return false;
+  const elapsed = Date.now() - new Date(session.state.pending_at).getTime();
+  return elapsed < BRAIN_INTAKE_TIMEOUT_MS;
+}
+
 /**
  * Set the group for a session.
  */

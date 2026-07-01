@@ -222,6 +222,24 @@ export function isUndoReply(reply: string): boolean {
   return UNDO_ONLY.test((reply || "").trim());
 }
 
+/** Casa a resposta do usuário a uma criança pelo PRIMEIRO nome (sem acento/caso).
+ *  Aceita o nome exato ou uma frase que o contenha ("quero o Martim"). Retorna o
+ *  id ou null. Puro. */
+export function matchChildName(
+  reply: string,
+  options: Array<{ id: string; name: string }>,
+): string | null {
+  const norm = (s: string) =>
+    (s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").trim();
+  const r = norm(reply);
+  if (!r) return null;
+  for (const o of options) {
+    const first = norm((o.name || "").split(" ")[0] || "");
+    if (first && (r === first || new RegExp(`\\b${first}\\b`).test(r))) return o.id;
+  }
+  return null;
+}
+
 /** Confirma "é calendário" (fallback quando o recibo falhou). Ancorado — só
  *  palavras de sim/calendário, pra não capturar uma mensagem qualquer. */
 // Sem "escola"/"escolar"/"pode" soltos (a oferta pede "responda *calendário*";
