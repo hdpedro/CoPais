@@ -131,6 +131,9 @@ export interface CreateAndAnalyzeArgs {
   /** Crianças do grupo (o caller resolve — deve ser não-vazio). */
   children: BrainChild[];
   requestedChildId: string | null;
+  /** Playbook a usar. Default 'school_calendar'. O classificador passa
+   *  'health_visit' quando a foto é de consulta médica. */
+  docType?: DocType;
 }
 
 /**
@@ -207,7 +210,7 @@ export async function createAndAnalyzeIntake(args: CreateAndAnalyzeArgs): Promis
       resolvedChildId,
       schoolYearAnchor: Number(today.slice(0, 4)),
     };
-    return await analyzeIntakeImage({ supabase, intakeId, imageBuffer: buffer, ctx });
+    return await analyzeIntakeImage({ supabase, intakeId, imageBuffer: buffer, ctx, docType: args.docType });
   } catch (err) {
     await reportServerError(err, { filePath: FILE, metadata: { step: "create_and_analyze", groupId } });
     return { kind: "error", message: "Não consegui processar agora. Tente de novo em instantes." };
@@ -219,6 +222,19 @@ export interface AnalyzeIntakeArgs {
   intakeId: string;
   imageBuffer: Buffer;
   ctx: PlaybookContext;
+  /** Playbook a usar. Default 'school_calendar' (path escolar byte-idêntico).
+   *  O classificador passa 'health_visit' p/ consulta médica. */
+  docType?: DocType;
+}
+
+/** Sufixo de referência injetado no prompt de VISÃO por docType. Escolar: ano
+ *  letivo (resolve data sem ano). Saúde: hoje (resolve retorno relativo). O
+ *  escolar é byte-idêntico ao que era inline. */
+function visionReferenceSuffix(docType: DocType, sctx: PlaybookContext): string {
+  if (docType === "health_visit") {
+    return `\n\n(Referência: hoje é ${sctx.today}. Resolva datas relativas — retorno "em 1 mês", "em 15 dias" — contra a data da consulta ou, na falta, contra hoje; devolva em ISO "AAAA-MM-DD".)`;
+  }
+  return `\n\nAno letivo de referência (use se o ano não aparecer na imagem): ${sctx.schoolYearAnchor}.`;
 }
 
 /**
@@ -250,8 +266,9 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
       return { kind: "already_processing", intakeId };
     }
 
-    // 2. Visão (impura) → saída bruta. school_calendar é o único playbook A0.
-    const docType: DocType = "school_calendar";
+    // 2. Visão (impura) → saída bruta. docType default = school_calendar → o
+    //    caminho escolar é byte-idêntico; saúde/outros vêm do classificador (arg).
+    const docType: DocType = args.docType ?? "school_calendar";
     const playbook = getPlaybook(docType);
     if (!playbook) return { kind: "error", message: "Playbook indisponível." };
 
@@ -259,11 +276,9 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
     const sctx: PlaybookContext = { ...ctx, timezone: safeTimezone(ctx.timezone) };
 
     const { base64, mimeType } = await compressImageForVision(imageBuffer);
-    // Injeta o ano letivo de referência: o modelo resolve a data em ISO mesmo
-    // quando o ano não aparece na imagem (evita data sem ano / formato ambíguo).
-    const userPrompt =
-      `${playbook.extractionPrompt.user}\n\n` +
-      `Ano letivo de referência (use se o ano não aparecer na imagem): ${sctx.schoolYearAnchor}.`;
+    // Referência injetada na instrução por docType (escolar=ano letivo p/ data
+    // sem ano; saúde=hoje p/ retorno relativo). Sem isso o modelo erra a data.
+    const userPrompt = `${playbook.extractionPrompt.user}${visionReferenceSuffix(docType, sctx)}`;
     const vision = await routeVisionRequest(
       base64,
       mimeType,
@@ -447,6 +462,16 @@ export interface AnalyzeIntakeTextArgs {
   /** Texto do responsável (digitado ou transcrição de áudio). */
   text: string;
   ctx: PlaybookContext;
+  /** Playbook a usar. Default 'school_calendar' (path escolar byte-idêntico). */
+  docType?: DocType;
+}
+
+/** Sufixo de referência do prompt de TEXTO por docType. Escolar byte-idêntico. */
+function textReferenceSuffix(docType: DocType, sctx: PlaybookContext): string {
+  if (docType === "health_visit") {
+    return `(Referência: hoje é ${sctx.today}. Resolva datas relativas — retorno "em 1 mês" etc. — contra a data da consulta ou hoje, em ISO "AAAA-MM-DD".)`;
+  }
+  return `(Referência: hoje é ${sctx.today}; ano letivo ${sctx.schoolYearAnchor}. Resolva datas relativas ou sem ano contra isso.)`;
 }
 
 /**
@@ -470,7 +495,7 @@ export async function analyzeIntakeText(args: AnalyzeIntakeTextArgs): Promise<In
     });
     if (!started || !(started as { id?: string }).id) return { kind: "already_processing", intakeId };
 
-    const docType: DocType = "school_calendar";
+    const docType: DocType = args.docType ?? "school_calendar";
     const playbook = getPlaybook(docType);
     if (!playbook?.textExtractionPrompt) return { kind: "error", message: "Playbook indisponível." };
     const sctx: PlaybookContext = { ...ctx, timezone: safeTimezone(ctx.timezone) };
@@ -478,8 +503,7 @@ export async function analyzeIntakeText(args: AnalyzeIntakeTextArgs): Promise<In
     // O texto do usuário entra como CONTEÚDO (dado não confiável) — o prompt de
     // sistema já barra prompt-injection; datas relativas resolvem contra hoje.
     const userPrompt =
-      `${playbook.textExtractionPrompt.user}\n${text}\n\n` +
-      `(Referência: hoje é ${sctx.today}; ano letivo ${sctx.schoolYearAnchor}. Resolva datas relativas ou sem ano contra isso.)`;
+      `${playbook.textExtractionPrompt.user}\n${text}\n\n` + textReferenceSuffix(docType, sctx);
     const messages: AIChatMessage[] = [
       { role: "system", content: playbook.textExtractionPrompt.system },
       { role: "user", content: userPrompt },
@@ -515,6 +539,8 @@ export interface CreateAndAnalyzeTextArgs {
   text: string;
   children: BrainChild[];
   requestedChildId: string | null;
+  /** Playbook a usar. Default 'school_calendar'. 'health_visit' p/ consulta. */
+  docType?: DocType;
 }
 
 /**
@@ -575,7 +601,7 @@ export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Prom
       resolvedChildId,
       schoolYearAnchor: Number(today.slice(0, 4)),
     };
-    return await analyzeIntakeText({ supabase, intakeId, text, ctx });
+    return await analyzeIntakeText({ supabase, intakeId, text, ctx, docType: args.docType });
   } catch (err) {
     await reportServerError(err, { filePath: FILE, metadata: { step: "create_and_analyze_text", groupId } });
     return { kind: "error", message: "Não consegui processar agora. Tente de novo em instantes." };
