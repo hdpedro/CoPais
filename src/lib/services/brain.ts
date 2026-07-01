@@ -147,7 +147,15 @@ export async function createAndAnalyzeIntake(args: CreateAndAnalyzeArgs): Promis
         ? requestedChildId
         : children.length === 1
           ? children[0].id
-          : null; // >1 sem escolha → analyzeIntakeImage devolve needs_child_selection
+          : null;
+
+    // Criança ambígua (>1 sem escolha): pergunta ANTES de criar o intake ou
+    // subir a mídia. Assim o pick re-submete e cria UM só intake — nada de
+    // órfão preso em `analyzing` nem intake duplicado por escolha. Ver
+    // task_7d0ff951; nenhum caller usa o intakeId deste resultado.
+    if (resolvedChildId === null && children.length > 1) {
+      return { kind: "needs_child_selection", options: children };
+    }
 
     const { data: groupRow } = await supabase
       .from("coparenting_groups")
@@ -221,6 +229,14 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
   const t0 = Date.now();
 
   try {
+    // Criança ambígua bloqueia ANTES do begin_analysis — senão o intake fica
+    // preso em `analyzing` (órfão, begin_analysis não reabre 'analyzing'). Em
+    // prod createAndAnalyze* já barra antes de criar o intake; este guard é
+    // defensivo p/ chamada direta. Ver task_7d0ff951.
+    if (ctx.resolvedChildId === null && ctx.children.length > 1) {
+      return { kind: "needs_child_selection", intakeId, options: ctx.children };
+    }
+
     // 1. Trava de concorrência: uploaded/analyzed/failed → analyzing.
     const { data: started } = await supabase.rpc("brain_intake_begin_analysis", {
       p_intake_id: intakeId,
@@ -230,11 +246,6 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
     });
     if (!started || !(started as { id?: string }).id) {
       return { kind: "already_processing", intakeId };
-    }
-
-    // Criança ambígua bloqueia antes de planejar (não cria sozinho).
-    if (ctx.resolvedChildId === null && ctx.children.length > 1) {
-      return { kind: "needs_child_selection", intakeId, options: ctx.children };
     }
 
     // 2. Visão (impura) → saída bruta. school_calendar é o único playbook A0.
@@ -587,15 +598,17 @@ export async function analyzeIntakeText(args: AnalyzeIntakeTextArgs): Promise<In
   const { supabase, intakeId, text, ctx } = args;
   const t0 = Date.now();
   try {
+    // Ambígua ANTES do begin_analysis (evita órfão em 'analyzing'). Ver
+    // task_7d0ff951; createAndAnalyzeText já barra antes de criar o intake.
+    if (ctx.resolvedChildId === null && ctx.children.length > 1) {
+      return { kind: "needs_child_selection", intakeId, options: ctx.children };
+    }
+
     const { data: started } = await supabase.rpc("brain_intake_begin_analysis", {
       p_intake_id: intakeId,
       p_actor_user_id: ctx.userId,
     });
     if (!started || !(started as { id?: string }).id) return { kind: "already_processing", intakeId };
-
-    if (ctx.resolvedChildId === null && ctx.children.length > 1) {
-      return { kind: "needs_child_selection", intakeId, options: ctx.children };
-    }
 
     const docType: DocType = "school_calendar";
     const playbook = getPlaybook(docType);
@@ -661,6 +674,12 @@ export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Prom
           : // Nome citado no próprio texto ("Otto tem prova…") resolve sem
             // perguntar — só se exatamente 1 criança bate (senão null → pergunta).
             resolveChildIdFromText(text, children);
+
+    // Ambígua: pergunta ANTES de criar o intake (sem órfão / sem duplicado).
+    // Ver task_7d0ff951; espelha createAndAnalyzeIntake.
+    if (resolvedChildId === null && children.length > 1) {
+      return { kind: "needs_child_selection", options: children };
+    }
 
     const { data: groupRow } = await supabase.from("coparenting_groups").select("timezone").eq("id", groupId).single();
     const timezone = safeTimezone((groupRow?.timezone as string | undefined) || DEFAULT_TIMEZONE);
