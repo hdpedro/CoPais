@@ -19,17 +19,29 @@
 -- verificado). O caminho PWA/Native fica BYTE-IDÊNTICO (param default NULL →
 -- auth.uid() → mesma checagem is_group_member).
 --
--- Como adicionar parâmetro muda a assinatura (CREATE OR REPLACE criaria
--- overload ambíguo), é preciso DROP + CREATE. DROP remove os grants — então
--- re-estabelecemos EXATAMENTE os grants atuais (authenticated + service_role;
--- sem anon/public). apply_migration é transacional: sem janela sem função.
+-- Adicionar parâmetro muda a assinatura → DROP + CREATE. IDEMPOTENTE em
+-- qualquer estado: dropamos TANTO a assinatura antiga (3/5/3 args) QUANTO a nova
+-- (4/6/4 args) antes de recriar, então re-rodar num DB já migrado não colide.
+-- DROP remove grants → re-estabelecemos EXATAMENTE o estado alvo
+-- (authenticated + service_role nos 3 RPCs; só service_role no helper interno;
+-- sem anon/public em nenhum). apply_migration é transacional: sem janela.
 -- ============================================================
 
--- Overload INTERNO: checagem de membership por ator EXPLÍCITO (o 1-arg
--- is_group_member(uuid) usa auth.uid() e continua intacto para as RLS).
--- Só usado dentro dos RPCs definer (owner=postgres) → não precisa grant a
--- authenticated; concedido só a service_role por robustez. anon/public fora.
-CREATE OR REPLACE FUNCTION public.is_group_member(p_group_id uuid, p_user_id uuid)
+-- Drop idempotente (assinatura ANTIGA + NOVA). Corpos plpgsql não são
+-- dependência rígida → ordem de drop é livre. NÃO tocamos is_group_member(uuid)
+-- 1-arg (usado nas RLS em todo o schema).
+DROP FUNCTION IF EXISTS public.brain_intake_execute_plan(uuid, text, uuid, jsonb, jsonb);
+DROP FUNCTION IF EXISTS public.brain_intake_execute_plan(uuid, text, uuid, jsonb, jsonb, uuid);
+DROP FUNCTION IF EXISTS public.brain_intake_claim_execution(uuid, text, uuid);
+DROP FUNCTION IF EXISTS public.brain_intake_claim_execution(uuid, text, uuid, uuid);
+DROP FUNCTION IF EXISTS public.brain_intake_apply_undo(uuid, uuid[], uuid[]);
+DROP FUNCTION IF EXISTS public.brain_intake_apply_undo(uuid, uuid[], uuid[], uuid);
+DROP FUNCTION IF EXISTS public.is_group_member(uuid, uuid);
+
+-- Overload INTERNO: membership por ator EXPLÍCITO. Só chamado dentro dos RPCs
+-- definer (owner=postgres) → não precisa grant a authenticated; conceder a
+-- authenticated permitiria probe de membership de terceiros. Só service_role.
+CREATE FUNCTION public.is_group_member(p_group_id uuid, p_user_id uuid)
  RETURNS boolean
  LANGUAGE sql
  STABLE SECURITY DEFINER
@@ -40,13 +52,6 @@ AS $function$
      WHERE group_id = p_group_id AND user_id = p_user_id
   );
 $function$;
-REVOKE ALL ON FUNCTION public.is_group_member(uuid, uuid) FROM PUBLIC, anon;
-GRANT EXECUTE ON FUNCTION public.is_group_member(uuid, uuid) TO service_role;
-
--- Corpos plpgsql não são dependência rígida (drop em qualquer ordem).
-DROP FUNCTION IF EXISTS public.brain_intake_execute_plan(uuid, text, uuid, jsonb, jsonb);
-DROP FUNCTION IF EXISTS public.brain_intake_claim_execution(uuid, text, uuid);
-DROP FUNCTION IF EXISTS public.brain_intake_apply_undo(uuid, uuid[], uuid[]);
 
 -- claim: ator explícito + membership por ator. r.id NULL (ator nulo/não-membro)
 -- → o chamador trata como not_claimed.
@@ -210,8 +215,12 @@ BEGIN
 END;
 $function$;
 
--- Re-estabelece EXATAMENTE os grants pré-drop (authenticated + service_role;
--- sem anon/public — confirmado no pg_proc.proacl antes da migração).
+-- Grants EXATOS do estado alvo. REVOKE inclui authenticated no helper interno
+-- (idempotente: força só service_role mesmo que um estado anterior o tenha
+-- concedido). Os 3 RPCs: authenticated (PWA/Native) + service_role (WhatsApp).
+REVOKE ALL ON FUNCTION public.is_group_member(uuid, uuid) FROM PUBLIC, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.is_group_member(uuid, uuid) TO service_role;
+
 REVOKE ALL ON FUNCTION public.brain_intake_claim_execution(uuid, text, uuid, uuid) FROM PUBLIC, anon;
 GRANT EXECUTE ON FUNCTION public.brain_intake_claim_execution(uuid, text, uuid, uuid) TO authenticated, service_role;
 
