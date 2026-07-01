@@ -36,6 +36,7 @@ import {
 import { isCalendarIntent } from "./brain-flow";
 import {
   handleCalendarImage,
+  analyzeCalendarPhoto,
   handleBrainReply,
   offerBrainAfterReceiptFail,
   handleReceiptFallbackReply,
@@ -46,7 +47,10 @@ import {
   sendConfirmation,
   sendListMessage,
   markAsRead,
+  downloadMedia,
 } from "./client";
+import { classifyDocumentByVision } from "@/lib/ai/document-classifier";
+import { isBrainEnabledForGroup } from "@/lib/services/brain-flag";
 import { formatForWhatsApp, splitMessage } from "./formatter";
 import { processReceiptImage, processPrescriptionImage } from "./media";
 import { transcribeAudio } from "./audio";
@@ -449,6 +453,36 @@ export async function processWhatsAppMessage(
     }
 
     const intent = classifyImageIntent(message.caption);
+
+    // Brain INTELIGENTE: imagem SEM legenda que dê intenção clara (cairia no
+    // recibo por padrão) → o modelo VÊ a imagem e decide o tipo. Hoje só
+    // sobrescreve quando reconhece um CALENDÁRIO escolar com confiança (o Brain
+    // é o fluxo novo); qualquer outra coisa segue pro recibo — comportamento
+    // atual preservado (SEM REGRESSÃO). Gated no beta; classificador nunca lança.
+    if (intent === "receipt" && !(message.caption && message.caption.trim())) {
+      try {
+        if (await isBrainEnabledForGroup(supabase, groupId)) {
+          const buffer = await downloadMedia(message.mediaId);
+          const cls = await classifyDocumentByVision(buffer, message.caption ?? undefined);
+          if (cls.type === "school_calendar" && cls.confidence >= 0.6) {
+            const handled = await analyzeCalendarPhoto(
+              supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, buffer,
+            );
+            if (handled) {
+              await logAIRequest({
+                userId, groupId, provider: "vision", feature: "assistant_chat",
+                success: true, responseTimeMs: Date.now() - start,
+              });
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        // Falha de download/classificação NÃO pode quebrar o fluxo de recibo:
+        // loga e segue pro roteamento normal abaixo.
+        console.error("[WA vision-classify] falhou; seguindo pro recibo:", e);
+      }
+    }
 
     if (intent === "prescription") {
       // Receita é dado clínico — em família com 2+ filhos NUNCA assumir a

@@ -70,6 +70,9 @@ export async function analyzeCalendarPhoto(
   mediaId: string,
   caption: string | null,
   session: WASession,
+  /** Buffer já baixado (ex: o classificador por visão já baixou) — evita
+   *  re-download. Ausente → baixa por mediaId. */
+  preBuffer?: Buffer,
 ): Promise<boolean> {
   try {
     // Se acabou de criar um lote (executed) e não desfez, avisa que ele já
@@ -90,7 +93,7 @@ export async function analyzeCalendarPhoto(
       "📚 Vou ler esse calendário pra identificar as provas — elas ficam visíveis aos responsáveis do grupo. Analisando…",
     );
 
-    const buffer = await downloadMedia(mediaId);
+    const buffer = preBuffer ?? (await downloadMedia(mediaId));
     const val = validateImageUpload(buffer);
     if (!val.ok || !val.type) {
       await sendTextMessage(

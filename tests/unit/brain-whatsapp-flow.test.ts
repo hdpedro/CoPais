@@ -88,12 +88,12 @@ describe("isUndoReply — ancorado (não desfaz por engano)", () => {
 
 describe("isCalendarYes — fallback recibo→calendário", () => {
   it("reconhece 'é calendário'", () => {
-    for (const s of ["calendário", "provas", "sim", "é", "escola", "isso", "sim é calendário"]) {
+    for (const s of ["calendário", "provas", "sim", "é", "isso", "sim é calendário"]) {
       expect(isCalendarYes(s)).toBe(true);
     }
   });
-  it("NÃO captura mensagem qualquer / negativa", () => {
-    for (const s of ["não", "é um recibo", "gastei 50 no mercado", "", "qual o saldo?"]) {
+  it("NÃO captura mensagem qualquer / negativa / token solto ambíguo", () => {
+    for (const s of ["não", "é um recibo", "gastei 50 no mercado", "", "qual o saldo?", "escola", "pode"]) {
       expect(isCalendarYes(s)).toBe(false);
     }
   });
