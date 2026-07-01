@@ -1,12 +1,9 @@
 import { describe, it, expect } from "vitest";
 import {
-  activityPayloadHash,
-  toActivityPayload,
-  buildActivityPayloads,
   buildOutboxPayloads,
   selectActivitiesByIndex,
 } from "@/lib/ai/brain/materialize-payload";
-import type { ActivitySpec, MaterializationPlan } from "@/lib/ai/brain/types";
+import type { ActivitySpec } from "@/lib/ai/brain/types";
 
 const CHILD_A = "11111111-1111-1111-1111-111111111111";
 
@@ -19,71 +16,6 @@ function spec(over: Partial<ActivitySpec> = {}): ActivitySpec {
     ...over,
   };
 }
-
-describe("activityPayloadHash — canônico e estável (base do undo seguro)", () => {
-  it("determinístico: mesma spec → mesmo hash", () => {
-    expect(activityPayloadHash(spec())).toBe(activityPayloadHash(spec()));
-    expect(activityPayloadHash(spec())).toMatch(/^[0-9a-f]{64}$/);
-  });
-
-  it("muda quando um campo materializado muda (detecta edição posterior)", () => {
-    expect(activityPayloadHash(spec({ startDate: "2026-08-12" }))).not.toBe(
-      activityPayloadHash(spec({ startDate: "2026-08-13" })),
-    );
-    expect(activityPayloadHash(spec({ notes: "a" }))).not.toBe(
-      activityPayloadHash(spec({ notes: "b" })),
-    );
-  });
-
-  it("notes undefined e null produzem o mesmo hash (normalização)", () => {
-    expect(activityPayloadHash(spec({ notes: undefined }))).toBe(
-      activityPayloadHash(spec({ notes: null })),
-    );
-  });
-});
-
-describe("toActivityPayload — snake_case pro RPC", () => {
-  it("mapeia campos e default de routing", () => {
-    const p = toActivityPayload(
-      spec({ timeStart: "08:00", notes: "cap 3", reminderRouting: undefined }),
-    );
-    expect(p.child_id).toBe(CHILD_A);
-    expect(p.name).toBe("Prova de Matemática");
-    expect(p.start_date).toBe("2026-08-12");
-    expect(p.time_start).toBe("08:00");
-    expect(p.reminder_routing).toBe("auto");
-    expect(p.payload_hash).toMatch(/^[0-9a-f]{64}$/);
-  });
-
-  it("omite checklist quando vazio; inclui quando presente", () => {
-    expect(toActivityPayload(spec()).checklist).toBeUndefined();
-    expect(toActivityPayload(spec({ checklist: [] })).checklist).toBeUndefined();
-    expect(toActivityPayload(spec({ checklist: ["Régua"] })).checklist).toEqual(["Régua"]);
-  });
-
-  it("reminder_rule passa adiante quando presente; OMITIDO quando ausente (evita jsonb 'null')", () => {
-    const rule = { type: "previous_day_at_time", time: "20:00", timezone: "America/Sao_Paulo" } as const;
-    expect(toActivityPayload(spec({ reminderRule: rule })).reminder_rule).toEqual(rule);
-    const p = toActivityPayload(spec());
-    expect(p.reminder_rule).toBeUndefined();
-    expect("reminder_rule" in p).toBe(false);
-  });
-});
-
-describe("buildActivityPayloads", () => {
-  it("mapeia todas as atividades do plano", () => {
-    const plan: MaterializationPlan = {
-      docType: "school_calendar",
-      confirmation: "single",
-      activities: [spec(), spec({ name: "Prova de História", subject: "História" })],
-    };
-    expect(buildActivityPayloads(plan)).toHaveLength(2);
-  });
-
-  it("plano sem atividades → array vazio", () => {
-    expect(buildActivityPayloads({ docType: "school_calendar", confirmation: "single" })).toEqual([]);
-  });
-});
 
 describe("selectActivitiesByIndex — deseleção no preview (casos do dono)", () => {
   const acts: ActivitySpec[] = [

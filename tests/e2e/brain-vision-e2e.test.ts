@@ -23,7 +23,7 @@ import { routeVisionRequest } from "@/lib/ai/router";
 import { SCHOOL_CALENDAR_EXTRACTION } from "@/lib/ai/prompts/brain";
 import { schoolCalendarPlaybook } from "@/lib/ai/brain/understanding/playbooks/school-calendar";
 import { validatePlanForExecution } from "@/lib/ai/brain/validate-plan";
-import { buildActivityPayloads, buildOutboxPayloads } from "@/lib/ai/brain/materialize-payload";
+import { buildSchoolLogPayloads, buildOutboxPayloads } from "@/lib/ai/brain/materialize-payload";
 import type { PlaybookContext } from "@/lib/ai/brain/types";
 
 const CHILD = "11111111-1111-1111-1111-111111111111";
@@ -75,22 +75,22 @@ describe.skipIf(!enabled)("E2E: visão real → plano (gpt-4o)", () => {
     const validation = validatePlanForExecution(plan, ctx.today);
     expect(validation.ok, JSON.stringify(validation.errors)).toBe(true);
 
-    const acts = buildActivityPayloads(plan);
-    expect(acts.every((a) => /^\d{4}-\d{2}-\d{2}$/.test(a.start_date))).toBe(true);
-    expect(acts.every((a) => typeof a.payload_hash === "string" && a.payload_hash.length === 64)).toBe(true);
+    const logs = buildSchoolLogPayloads(plan);
+    expect(logs.every((l) => /^\d{4}-\d{2}-\d{2}$/.test(l.log_date))).toBe(true);
+    expect(logs.every((l) => typeof l.payload_hash === "string" && l.payload_hash.length === 64)).toBe(true);
 
     const outbox = buildOutboxPayloads({
       intakeId: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
       recipientIds: ["22222222-2222-2222-2222-222222222222"],
       docType: plan.docType,
       childId: CHILD,
-      createdCount: acts.length,
+      createdCount: logs.length,
     });
     expect(outbox).toHaveLength(1);
 
     console.log(
-      `[E2E] provider=${vision.provider} atividades=${acts.length} →`,
-      acts.map((a) => `${a.name}@${a.start_date}`).join(" | "),
+      `[E2E] provider=${vision.provider} provas=${logs.length} →`,
+      logs.map((l) => `${l.title}@${l.log_date}`).join(" | "),
     );
   }, 90_000);
 });
