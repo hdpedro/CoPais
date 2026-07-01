@@ -73,6 +73,12 @@ export async function analyzeCalendarPhoto(
   /** Buffer já baixado (ex: o classificador por visão já baixou) — evita
    *  re-download. Ausente → baixa por mediaId. */
   preBuffer?: Buffer,
+  /** Chamado a partir da classificação por visão (não da legenda explícita).
+   *  Nesse caso NÃO afirma "é um calendário" de cara (o classificador pode ter
+   *  errado) e, se o cérebro rejeitar (unknown/erro), retorna FALSE pro
+   *  processor cair no fluxo de recibo — em vez de dizer "não parece calendário"
+   *  e encerrar (evita o dead-end do recibo). */
+  fromClassifier = false,
 ): Promise<boolean> {
   try {
     // Se acabou de criar um lote (executed) e não desfez, avisa que ele já
@@ -87,11 +93,15 @@ export async function analyzeCalendarPhoto(
     }
 
     // Disclosure (paridade com o aviso de compartilhamento do PWA): a imagem é
-    // lida por IA e as provas ficam visíveis ao grupo.
-    await sendTextMessage(
-      phone,
-      "📚 Vou ler esse calendário pra identificar as provas — elas ficam visíveis aos responsáveis do grupo. Analisando…",
-    );
+    // lida por IA e as provas ficam visíveis ao grupo. No caminho do
+    // classificador o ack genérico ("Analisando a imagem 🔍") já foi enviado e
+    // ainda não afirmamos que É calendário — então pulamos aqui.
+    if (!fromClassifier) {
+      await sendTextMessage(
+        phone,
+        "📚 Vou ler esse calendário pra identificar as provas — elas ficam visíveis aos responsáveis do grupo. Analisando…",
+      );
+    }
 
     const buffer = preBuffer ?? (await downloadMedia(mediaId));
     const val = validateImageUpload(buffer);
@@ -146,6 +156,14 @@ export async function analyzeCalendarPhoto(
         const resolvedChildId = acts[0]?.childId ?? requestedChildId;
         const childName = children.find((c) => c.id === resolvedChildId)?.name ?? "seu filho(a)";
         const t = await getServerT("pt");
+        // Caminho do classificador: agora CONFIRMAMOS que é calendário → dá a
+        // disclosure de compartilhamento (que foi pulada no início).
+        if (fromClassifier) {
+          await sendTextMessage(
+            phone,
+            "📚 É um calendário escolar! As provas ficam visíveis aos responsáveis do grupo.",
+          );
+        }
         const previewText = renderPreview(result.preview, childName, t, { withCta: false });
         await sendTextMessage(phone, previewText);
         await sendButtonMessage(phone, "Posso adicionar essas provas ao Kindar?", [
@@ -172,6 +190,11 @@ export async function analyzeCalendarPhoto(
         return true;
       }
       case "unknown_document":
+        // Classificador achou que era calendário, mas o cérebro rejeitou →
+        // NÃO era. Devolve false pro processor tentar como RECIBO (sem
+        // dead-end). No caminho por legenda, o usuário disse que era calendário
+        // → mensagem calma.
+        if (fromClassifier) return false;
         await sendTextMessage(
           phone,
           "Isso não parece um calendário de provas. Se for, tente uma foto mais nítida. 🙂",
@@ -181,13 +204,15 @@ export async function analyzeCalendarPhoto(
         await sendTextMessage(phone, result.message);
         return true;
       default:
+        if (fromClassifier) return false; // deixa cair no recibo
         await sendTextMessage(phone, "Não consegui processar agora. Tente de novo em instantes. 🙏");
         return true;
     }
   } catch (err) {
     // downloadMedia (URL da Meta expirada/401), rede, etc. — nunca deixar o
     // usuário no "Analisando…" sem resposta.
-    await reportServerError(err, { filePath: FILE, metadata: { step: "handleCalendarImage", groupId } });
+    await reportServerError(err, { filePath: FILE, metadata: { step: "analyzeCalendarPhoto", groupId } });
+    if (fromClassifier) return false; // classificador: cai no recibo em vez de travar
     await sendTextMessage(phone, "Não consegui processar o calendário agora. Reenvie a foto em instantes. 🙏");
     return true;
   }

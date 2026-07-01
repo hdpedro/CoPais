@@ -454,19 +454,24 @@ export async function processWhatsAppMessage(
 
     const intent = classifyImageIntent(message.caption);
 
-    // Brain INTELIGENTE: imagem SEM legenda que dê intenção clara (cairia no
-    // recibo por padrão) → o modelo VÊ a imagem e decide o tipo. Hoje só
-    // sobrescreve quando reconhece um CALENDÁRIO escolar com confiança (o Brain
-    // é o fluxo novo); qualquer outra coisa segue pro recibo — comportamento
-    // atual preservado (SEM REGRESSÃO). Gated no beta; classificador nunca lança.
+    // Brain INTELIGENTE: imagem SEM legenda clara (cairia no recibo) → o modelo
+    // VÊ a imagem e decide. Reusa o buffer no fluxo de recibo (sem re-download)
+    // e manda 1 ack genérico (sem beco de silêncio). Só desvia pro Brain quando
+    // reconhece calendário com ALTA confiança E o cérebro confirma; qualquer
+    // outra coisa (inclusive recibo mal-classificado) cai no recibo — SEM
+    // REGRESSÃO. Gated no beta; classificador nunca lança.
+    let sharedBuffer: Buffer | undefined;
+    let ackedAnalyzing = false;
     if (intent === "receipt" && !(message.caption && message.caption.trim())) {
       try {
         if (await isBrainEnabledForGroup(supabase, groupId)) {
-          const buffer = await downloadMedia(message.mediaId);
-          const cls = await classifyDocumentByVision(buffer, message.caption ?? undefined);
-          if (cls.type === "school_calendar" && cls.confidence >= 0.6) {
+          await sendTextMessage(phone, "Analisando a imagem... 🔍");
+          ackedAnalyzing = true;
+          sharedBuffer = await downloadMedia(message.mediaId);
+          const cls = await classifyDocumentByVision(sharedBuffer, undefined);
+          if (cls.type === "school_calendar" && cls.confidence >= 0.7) {
             const handled = await analyzeCalendarPhoto(
-              supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, buffer,
+              supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, sharedBuffer, true,
             );
             if (handled) {
               await logAIRequest({
@@ -475,11 +480,12 @@ export async function processWhatsAppMessage(
               });
               return;
             }
+            // Cérebro rejeitou → não era calendário → cai no recibo (com buffer).
           }
         }
       } catch (e) {
         // Falha de download/classificação NÃO pode quebrar o fluxo de recibo:
-        // loga e segue pro roteamento normal abaixo.
+        // loga e segue pro roteamento normal abaixo (com o buffer se houver).
         console.error("[WA vision-classify] falhou; seguindo pro recibo:", e);
       }
     }
@@ -563,12 +569,16 @@ export async function processWhatsAppMessage(
       return;
     }
 
-    await sendTextMessage(phone, "Analisando a imagem... \uD83D\uDD0D");
+    // Ack s\u00F3 se o classificador n\u00E3o mandou o dele (evita "Analisando" dobrado).
+    if (!ackedAnalyzing) {
+      await sendTextMessage(phone, "Analisando a imagem... \uD83D\uDD0D");
+    }
 
     const receipt = await processReceiptImage(
       message.mediaId,
       message.mediaMimeType || "image/jpeg",
-      message.caption
+      message.caption,
+      sharedBuffer, // reusa o buffer do classificador (sem re-download)
     );
 
     if (receipt) {
