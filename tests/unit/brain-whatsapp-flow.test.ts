@@ -100,6 +100,19 @@ describe("isDeclineUndoReply — recusa do desfazer (não cai na saudação)", (
       expect(isDeclineUndoReply(s)).toBe(false);
     }
   });
+  it("REGRESSÃO (feedback do dono): 'não + qualificador' NUNCA é recusa de undo", () => {
+    // "não" só é recusa quando é a mensagem INTEIRA; com qualquer complemento é
+    // outra intenção e deve cair no assistente. (Além disso só roda na fase
+    // executed — nunca global.)
+    for (const s of [
+      "Não é o Martim, é o Otto",
+      "não quero criar essa prova",
+      "não é essa data",
+      "não quero enviar para o outro responsável",
+    ]) {
+      expect(isDeclineUndoReply(s)).toBe(false);
+    }
+  });
   it("undo e recusa são coisas distintas (undo é checado primeiro no handler)", () => {
     // "não quero desfazer" é RECUSA, não undo (isUndoReply não reconhece 'não').
     expect(isUndoReply("não quero desfazer")).toBe(false);
