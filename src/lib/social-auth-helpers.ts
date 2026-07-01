@@ -77,6 +77,42 @@ export async function verifyGoogleIdToken(
   return { email, sub, fullName: name, provider: "google" };
 }
 
+type ExistingUser = { id: string; user_metadata?: Record<string, unknown> };
+
+/**
+ * Find a Supabase auth user by email. Supabase exposes no email-filter admin
+ * endpoint, so we paginate through every page until we match (or run out).
+ *
+ * A previous single-page scan (`listUsers({ page: 1, perPage: 200 })`) silently
+ * dropped any account past the first page. Once prod crossed 200 users, the
+ * oldest accounts (which sort last in the newest-first listing) stopped being
+ * found — the lookup fell through to createUser and failed with
+ * "already been registered", locking those users out of social login.
+ */
+async function findUserByEmail(
+  admin: ReturnType<typeof createAdminClient>,
+  email: string,
+): Promise<ExistingUser | null> {
+  const target = email.toLowerCase();
+  const perPage = 200;
+  for (let page = 1; page <= 100; page++) {
+    // 100 pages * 200 = 20k-user safety cap, well above current scale.
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage });
+    if (error) {
+      console.warn("[social-auth] listUsers failed:", error);
+      return null;
+    }
+    const users = data?.users || [];
+    for (const u of users) {
+      if ((u.email || "").toLowerCase() === target) {
+        return { id: u.id, user_metadata: u.user_metadata };
+      }
+    }
+    if (users.length < perPage) break; // reached the last page
+  }
+  return null;
+}
+
 /**
  * Find an existing Supabase user by email, or create one.
  * Idempotent: a returning user keeps their id + metadata, with new
@@ -87,21 +123,7 @@ export async function upsertSupabaseUser(
 ): Promise<{ userId: string; isNew: boolean }> {
   const admin = createAdminClient();
 
-  // Find by email — listUsers is paginated; we filter client-side because
-  // there's no 'filter by email' endpoint. For the volume Kindar runs at
-  // (<10k users), one page is plenty. For higher scale we'd index instead.
-  let existing: { id: string; user_metadata?: Record<string, unknown> } | null = null;
-  try {
-    const { data } = await admin.auth.admin.listUsers({ page: 1, perPage: 200 });
-    for (const u of data?.users || []) {
-      if ((u.email || "").toLowerCase() === identity.email.toLowerCase()) {
-        existing = { id: u.id, user_metadata: u.user_metadata };
-        break;
-      }
-    }
-  } catch (err) {
-    console.warn("[social-auth] listUsers failed:", err);
-  }
+  const existing = await findUserByEmail(admin, identity.email);
 
   const subKey = identity.provider === "apple" ? "apple_sub" : "google_sub";
   const meta = {
@@ -124,6 +146,15 @@ export async function upsertSupabaseUser(
     user_metadata: meta,
   });
   if (error || !created?.user) {
+    // Recovery: the email may already exist (a race, or a scan that missed it).
+    // Re-scan and merge rather than failing an otherwise-valid login.
+    const retry = await findUserByEmail(admin, identity.email);
+    if (retry) {
+      await admin.auth.admin.updateUserById(retry.id, {
+        user_metadata: { ...(retry.user_metadata || {}), ...meta },
+      });
+      return { userId: retry.id, isNew: false };
+    }
     throw new Error(`supabase_create_user_failed: ${error?.message || "unknown"}`);
   }
   return { userId: created.user.id, isNew: true };
