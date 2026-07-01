@@ -9,7 +9,8 @@
 import { describe, it, expect } from "vitest";
 import type { HealthVisitPlan, MaterializationPlan } from "@/lib/ai/brain/types";
 import {
-  buildAppointmentPayload,
+  buildConsultationPayload,
+  buildAppointmentPayloads,
   buildMedicationPayloads,
   buildEpisodePayloads,
   buildHealthPayloads,
@@ -68,13 +69,21 @@ function plan(h: HealthVisitPlan): MaterializationPlan {
 }
 
 describe("materialize-health — payloads da RPC", () => {
-  it("consulta completa → appointment/medications/episodes com campos corretos", () => {
+  it("consulta completa → consulta(completed) + retorno(scheduled) + medications + episodes", () => {
     const all = buildHealthPayloads(plan(healthPlan()))!;
-    expect(all.appointment.child_id).toBe(CHILD);
-    expect(all.appointment.appointment_type).toBe("rotina");
-    expect(all.appointment.status).toBe("completed");
-    expect(all.appointment.notes).toBe("Profissional: Dra. Ana");
-    expect(all.appointment.return_date).toBe("2026-08-05");
+    // [0] = consulta (completed, não aparece no calendário); [1] = retorno (scheduled, aparece)
+    expect(all.appointments).toHaveLength(2);
+    const consulta = all.appointments[0];
+    expect(consulta.child_id).toBe(CHILD);
+    expect(consulta.appointment_type).toBe("rotina");
+    expect(consulta.status).toBe("completed");
+    expect(consulta.notes).toBe("Profissional: Dra. Ana");
+    expect(consulta.return_date).toBe("2026-08-05");
+    const retorno = all.appointments[1];
+    expect(retorno.appointment_type).toBe("retorno");
+    expect(retorno.status).toBe("scheduled"); // é o que a grade do calendário mostra
+    expect(retorno.appointment_date).toBe("2026-08-05");
+    expect(retorno.title).toBe("Retorno — Pediatria");
     expect(all.medications).toHaveLength(1);
     expect(all.medications[0].dosage).toBe("500 mg");
     expect(all.medications[0].end_date).toBe("2026-07-08");
@@ -99,10 +108,12 @@ describe("materialize-health — payloads da RPC", () => {
     expect(buildEpisodePayloads(healthPlan({ episode: null }))).toEqual([]);
   });
 
-  it("sem retorno → return_date/notes null no appointment", () => {
-    const appt = buildAppointmentPayload(healthPlan({ followUp: null }));
-    expect(appt.return_date).toBeNull();
-    expect(appt.return_notes).toBeNull();
+  it("sem retorno → só a consulta (1 appointment), return_date/notes null", () => {
+    const appts = buildAppointmentPayloads(healthPlan({ followUp: null }));
+    expect(appts).toHaveLength(1);
+    expect(appts[0].status).toBe("completed");
+    expect(appts[0].return_date).toBeNull();
+    expect(buildConsultationPayload(healthPlan({ followUp: null })).return_notes).toBeNull();
   });
 
   it("hash do appointment é ESTÁVEL (mesma entrada = mesmo hash) e SENSÍVEL (muda com o campo)", () => {

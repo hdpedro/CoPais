@@ -165,26 +165,20 @@ export function episodePayloadHash(input: {
 
 /* ---- Builders (plano → payloads) ---- */
 
-/** Consulta já ACONTECEU → status 'completed'. Profissional citado (A0 não cria
- *  medical_professionals) entra em notes. */
-export function buildAppointmentPayload(plan: HealthVisitPlan): AppointmentPayload {
+/** A CONSULTA (passada) → status 'completed' (fica no histórico de Saúde, NÃO
+ *  aparece na grade do /calendario, que só mostra scheduled). Profissional
+ *  citado (A0 não cria medical_professionals) entra em notes. return_date/notes
+ *  documentam o retorno na própria consulta. */
+export function buildConsultationPayload(plan: HealthVisitPlan): AppointmentPayload {
   const a = plan.appointment;
   const notes = a.professionalName ? `Profissional: ${a.professionalName}` : null;
   const returnDate = plan.followUp?.date ?? null;
   const returnNotes = plan.followUp?.notes ?? null;
   const status = "completed";
   const payload_hash = appointmentPayloadHash({
-    childId: a.childId,
-    title: a.title,
-    appointmentType: a.appointmentType,
-    date: a.date,
-    time: a.timeStart ?? null,
-    location: a.location ?? null,
-    summary: a.summary ?? null,
-    notes,
-    returnDate,
-    returnNotes,
-    status,
+    childId: a.childId, title: a.title, appointmentType: a.appointmentType, date: a.date,
+    time: a.timeStart ?? null, location: a.location ?? null, summary: a.summary ?? null,
+    notes, returnDate, returnNotes, status,
   });
   return {
     child_id: a.childId as string,
@@ -201,6 +195,43 @@ export function buildAppointmentPayload(plan: HealthVisitPlan): AppointmentPaylo
     priority: BRAIN_HEALTH_PRIORITY,
     payload_hash,
   };
+}
+
+/** O RETORNO (futuro) → um 2º medical_appointment status 'scheduled' (type
+ *  'retorno', date = return_date). É o que APARECE no calendário (a grade lê
+ *  medical_appointments scheduled). null quando não há retorno. */
+export function buildRetornoPayload(plan: HealthVisitPlan): AppointmentPayload | null {
+  if (!plan.followUp) return null;
+  const a = plan.appointment;
+  const title = a.specialty ? `Retorno — ${a.specialty}` : "Retorno";
+  const summary = plan.followUp.notes ?? null;
+  const status = "scheduled";
+  const payload_hash = appointmentPayloadHash({
+    childId: a.childId, title, appointmentType: "retorno", date: plan.followUp.date,
+    time: null, location: a.location ?? null, summary, notes: null, returnDate: null, returnNotes: null, status,
+  });
+  return {
+    child_id: a.childId as string,
+    title,
+    appointment_type: "retorno",
+    appointment_date: plan.followUp.date,
+    appointment_time: null,
+    location: a.location ?? null,
+    summary,
+    notes: null,
+    return_date: null,
+    return_notes: null,
+    status,
+    priority: BRAIN_HEALTH_PRIORITY,
+    payload_hash,
+  };
+}
+
+/** Consulta + (retorno se houver). A RPC faz loop sobre este array. */
+export function buildAppointmentPayloads(plan: HealthVisitPlan): AppointmentPayload[] {
+  const consultation = buildConsultationPayload(plan);
+  const retorno = buildRetornoPayload(plan);
+  return retorno ? [consultation, retorno] : [consultation];
 }
 
 /** Medicações → payloads. Dose/frequência null → "Conforme prescrição". */
@@ -309,15 +340,16 @@ export function buildHealthOutboxPayloads(args: {
   return out;
 }
 
-/** Conveniência: todos os payloads do plano de uma vez. */
+/** Conveniência: todos os payloads do plano de uma vez. `appointments` = a
+ *  consulta (completed) + o retorno (scheduled) se houver. */
 export function buildHealthPayloads(plan: MaterializationPlan): {
-  appointment: AppointmentPayload;
+  appointments: AppointmentPayload[];
   medications: MedicationPayload[];
   episodes: EpisodePayload[];
 } | null {
   if (!plan.health) return null;
   return {
-    appointment: buildAppointmentPayload(plan.health),
+    appointments: buildAppointmentPayloads(plan.health),
     medications: buildMedicationPayloads(plan.health),
     episodes: buildEpisodePayloads(plan.health),
   };
