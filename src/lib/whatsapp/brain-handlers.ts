@@ -275,7 +275,13 @@ export async function handleBrainReply(
     // caloroso em vez de cair no assistente (que respondia com a saudação/menu).
     // MANTÉM o estado: o "Desfazer" segue valendo até o timeout se mudar de ideia.
     if (isDeclineUndoReply(text)) {
-      await sendTextMessage(phone, "Perfeito, tá tudo certo então! 🙂 As provas seguem no calendário escolar.");
+      // Fecha o ciclo com calor E deixa EXPLÍCITO que a reversão continua na
+      // mesa (feedback do dono: o usuário pode achar que encerrou e não notar a
+      // janela segura). O estado segue vivo até o timeout, então a promessa vale.
+      await sendTextMessage(
+        phone,
+        "Perfeito, tá tudo certo então! 🙂 Se mudar de ideia, é só responder *Desfazer* que eu reverto.",
+      );
       return true;
     }
     // Nem undo nem recusa (ex: "qual o saldo?") → deixa o assistente responder,
