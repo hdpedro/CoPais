@@ -3045,7 +3045,14 @@
       "selectChild": "Pour quel enfant ?",
       "empty": "Rien à créer.",
       "forChild": "Pour {child}",
-      "dateRange": "du {start} au {end}"
+      "dateRange": "du {start} au {end}",
+      "edit": "Modifier",
+      "editDone": "OK",
+      "editTitle": "Titre",
+      "editSubject": "Matière",
+      "editDate": "Date",
+      "editTime": "Heure",
+      "editContent": "Contenu"
     },
     "impact": {
       "sameDay": "{child} a {count} épreuves le {date}.",

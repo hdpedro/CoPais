@@ -22,6 +22,15 @@ interface Props {
 
 type Step = "upload" | "consent" | "processing" | "preview" | "done" | "error";
 
+/** Valores editáveis por item no preview (strings; "" = vazio/limpar). */
+interface Draft {
+  name: string;
+  subject: string;
+  startDate: string;
+  timeStart: string;
+  notes: string;
+}
+
 interface ApiResult {
   kind: string;
   preview?: IntakePreview;
@@ -40,8 +49,22 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
   const [childId, setChildId] = useState<string | null>(groupChildren.length === 1 ? groupChildren[0].id : null);
   const [preview, setPreview] = useState<IntakePreview | null>(null);
   const [kept, setKept] = useState<boolean[]>([]);
+  const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [editing, setEditing] = useState<number | null>(null);
   const [message, setMessage] = useState<string>("");
   const [busy, setBusy] = useState(false);
+
+  const updateDraft = (i: number, field: keyof Draft, value: string) =>
+    setDrafts((prev) => prev.map((d, j) => (j === i ? { ...d, [field]: value } : d)));
+
+  const draftsFrom = (acts: { name?: string; subject?: string | null; startDate?: string; timeStart?: string | null; notes?: string | null }[]): Draft[] =>
+    acts.map((a) => ({
+      name: a.name ?? "",
+      subject: a.subject ?? "",
+      startDate: a.startDate ?? "",
+      timeStart: a.timeStart ?? "",
+      notes: a.notes ?? "",
+    }));
 
   const childName = (id: string | null): string =>
     groupChildren.find((c) => c.id === id)?.name ?? "";
@@ -76,8 +99,11 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
       const res = await fetch("/api/brain/intakes", { method: "POST", body: fd });
       const data = (await res.json()) as ApiResult;
       if (data.kind === "preview" && data.preview) {
+        const acts = data.preview.plan.activities ?? [];
         setPreview(data.preview);
-        setKept((data.preview.plan.activities ?? []).map(() => true));
+        setKept(acts.map(() => true));
+        setDrafts(draftsFrom(acts));
+        setEditing(null);
         setStep("preview");
       } else if (data.kind === "needs_child_selection") {
         setMessage(t("brain.preview.selectChild"));
@@ -102,6 +128,29 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
     setBusy(true);
     try {
       const keepIndices = kept.map((k, i) => (k ? i : -1)).filter((i) => i >= 0);
+      // Edições por item: só as que de fato mudaram vs. o plano original.
+      const orig = preview.plan.activities ?? [];
+      const edits = drafts
+        .map((d, i) => {
+          const a = orig[i];
+          if (!a) return null;
+          const changed =
+            d.name.trim() !== (a.name ?? "") ||
+            d.subject.trim() !== (a.subject ?? "") ||
+            d.startDate !== (a.startDate ?? "") ||
+            d.timeStart !== (a.timeStart ?? "") ||
+            d.notes.trim() !== (a.notes ?? "");
+          if (!changed) return null;
+          return {
+            index: i,
+            name: d.name,
+            subject: d.subject.trim() === "" ? null : d.subject,
+            startDate: d.startDate,
+            timeStart: d.timeStart.trim() === "" ? null : d.timeStart,
+            notes: d.notes.trim() === "" ? null : d.notes,
+          };
+        })
+        .filter((e): e is NonNullable<typeof e> => e !== null);
       const res = await fetch(`/api/brain/intakes/${preview.intakeId}/confirm`, {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -109,6 +158,7 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
           planHash: preview.planHash,
           confirmationToken: preview.confirmationToken,
           keepIndices,
+          ...(edits.length > 0 ? { edits } : {}),
         }),
       });
       const data = (await res.json()) as ApiResult;
@@ -142,6 +192,8 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
       // Reseta pro início (não trava no 'done') + mostra o que foi desfeito.
       setPreview(null);
       setKept([]);
+      setDrafts([]);
+      setEditing(null);
       setFile(null);
       if (fileRef.current) fileRef.current.value = "";
       setMessage(data.message || "");
@@ -290,36 +342,103 @@ export default function BrainCalendarClient({ groupChildren }: Props) {
             <h2 className="font-semibold">{t("brain.preview.willCreate")}</h2>
             <ul className="space-y-2">
               {activities.map((a, i) => {
+                const d = drafts[i] ?? { name: a.name, subject: a.subject ?? "", startDate: a.startDate, timeStart: a.timeStart ?? "", notes: a.notes ?? "" };
                 const low = (a.lowConfidenceFields?.length ?? 0) > 0;
                 // 280 cabe o conteúdo + "Onde estudar:" num calendário típico
                 // sem cortar a fonte de estudo; doc patológico ainda é truncado.
-                const notes = a.notes ? (a.notes.length > 280 ? a.notes.slice(0, 279) + "…" : a.notes) : "";
+                const shownNotes = d.notes ? (d.notes.length > 280 ? d.notes.slice(0, 279) + "…" : d.notes) : "";
+                const isEditing = editing === i;
                 return (
                   <li key={i} className="flex items-start gap-2 rounded border p-2">
                     <input
                       type="checkbox"
                       checked={kept[i] ?? false}
                       onChange={() => setKept((prev) => prev.map((k, j) => (j === i ? !k : k)))}
-                      aria-label={`${a.name}, ${fmtDate(a.startDate)}`}
+                      aria-label={`${d.name}, ${fmtDate(d.startDate)}`}
                     />
-                    <div className="flex-1">
-                      <div className="text-sm font-medium">{a.name}</div>
-                      <div className="text-xs text-gray-600">
-                        {fmtDate(a.startDate)}
-                        {a.timeStart ? ` · ${a.timeStart}` : ""}
-                      </div>
-                      {notes && <div className="mt-1 text-xs text-gray-700">{notes}</div>}
-                      {a.checklist && a.checklist.length > 0 && (
-                        <div className="mt-1 flex flex-wrap gap-1">
-                          {a.checklist.map((c, k) => (
-                            <span key={k} className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-700">
-                              {c}
-                            </span>
-                          ))}
+                    {isEditing ? (
+                      <div className="flex-1 space-y-2">
+                        <label className="block text-xs text-gray-600">
+                          {t("brain.preview.editTitle")}
+                          <input
+                            className="mt-0.5 block w-full rounded border p-1.5 text-sm"
+                            value={d.name}
+                            onChange={(e) => updateDraft(i, "name", e.target.value)}
+                          />
+                        </label>
+                        <label className="block text-xs text-gray-600">
+                          {t("brain.preview.editSubject")}
+                          <input
+                            className="mt-0.5 block w-full rounded border p-1.5 text-sm"
+                            value={d.subject}
+                            onChange={(e) => updateDraft(i, "subject", e.target.value)}
+                          />
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          <label className="block text-xs text-gray-600">
+                            {t("brain.preview.editDate")}
+                            <input
+                              type="date"
+                              className="mt-0.5 block rounded border p-1.5 text-sm"
+                              value={d.startDate}
+                              onChange={(e) => updateDraft(i, "startDate", e.target.value)}
+                            />
+                          </label>
+                          <label className="block text-xs text-gray-600">
+                            {t("brain.preview.editTime")}
+                            <input
+                              type="time"
+                              className="mt-0.5 block rounded border p-1.5 text-sm"
+                              value={d.timeStart}
+                              onChange={(e) => updateDraft(i, "timeStart", e.target.value)}
+                            />
+                          </label>
                         </div>
-                      )}
-                      {low && <div className="mt-1 text-xs text-amber-700">{t("brain.preview.reviewField")}</div>}
-                    </div>
+                        <label className="block text-xs text-gray-600">
+                          {t("brain.preview.editContent")}
+                          <textarea
+                            className="mt-0.5 block w-full rounded border p-1.5 text-sm"
+                            rows={2}
+                            value={d.notes}
+                            onChange={(e) => updateDraft(i, "notes", e.target.value)}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setEditing(null)}
+                          className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white"
+                        >
+                          {t("brain.preview.editDone")}
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex-1">
+                        <div className="text-sm font-medium">{d.name}</div>
+                        <div className="text-xs text-gray-600">
+                          {fmtDate(d.startDate)}
+                          {d.timeStart ? ` · ${d.timeStart}` : ""}
+                          {d.subject ? ` · ${d.subject}` : ""}
+                        </div>
+                        {shownNotes && <div className="mt-1 text-xs text-gray-700">{shownNotes}</div>}
+                        {a.checklist && a.checklist.length > 0 && (
+                          <div className="mt-1 flex flex-wrap gap-1">
+                            {a.checklist.map((c, k) => (
+                              <span key={k} className="rounded bg-gray-100 px-1.5 py-0.5 text-[11px] text-gray-700">
+                                {c}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {low && <div className="mt-1 text-xs text-amber-700">{t("brain.preview.reviewField")}</div>}
+                        <button
+                          type="button"
+                          onClick={() => setEditing(i)}
+                          className="mt-1 text-xs font-medium text-blue-700 underline"
+                        >
+                          {t("brain.preview.edit")}
+                        </button>
+                      </div>
+                    )}
                   </li>
                 );
               })}
