@@ -14,6 +14,7 @@ import { reportServerError } from "@/lib/error-tracking/report-server";
 import { decideUndo, type ArtifactSnapshot } from "@/lib/ai/brain/undo-decision";
 import { reconstructHashInputFromSchoolLogRow } from "@/lib/ai/brain/undo-reconstruct";
 import { schoolLogPayloadHash } from "@/lib/ai/brain/materialize-payload";
+import { captureServerEvent } from "@/lib/posthog-server";
 
 type SupabaseServer = Awaited<ReturnType<typeof createClient>>;
 const FILE = "src/lib/services/brain-undo.ts";
@@ -134,6 +135,10 @@ export async function undoIntake(args: {
         });
       }
     }
+
+    // Telemetria de undo (cobre PWA e WhatsApp; até agora invisível).
+    const uid = args.actorUserId ?? (await supabase.auth.getUser()).data.user?.id;
+    if (uid) captureServerEvent(uid, "brain_intake_undone", { intake_id: intakeId, removed, detached });
 
     const message =
       detached > 0

@@ -2,6 +2,8 @@ import { describe, it, expect } from "vitest";
 import {
   isCalendarIntent,
   parseKeepIndices,
+  classifyBrainReply,
+  isUndoReply,
   renderPreview,
   renderExecuted,
   renderUndone,
@@ -26,6 +28,60 @@ describe("isCalendarIntent", () => {
     expect(isCalendarIntent("receita")).toBe(false);
     expect(isCalendarIntent("recibo da farmácia")).toBe(false);
     expect(isCalendarIntent("foto do boleto")).toBe(false);
+  });
+  it("'escola' NUA (sem barra) NÃO dispara — recibo de mensalidade escolar", () => {
+    // Regressão: legenda comum de boleto/recibo escolar não pode ir pro Brain.
+    expect(isCalendarIntent("escola do João R$ 850")).toBe(false);
+    expect(isCalendarIntent("escola")).toBe(false);
+    expect(isCalendarIntent("mensalidade escola")).toBe(false);
+    // Mas o slash-command explícito continua valendo.
+    expect(isCalendarIntent("/escola")).toBe(true);
+  });
+});
+
+describe("classifyBrainReply — segurança (nunca confirma por engano)", () => {
+  it("confirmação SÓ quando a mensagem é de confirmação", () => {
+    expect(classifyBrainReply("confirmar", 7, false)).toEqual({ action: "confirm" });
+    expect(classifyBrainReply("sim", 7, false)).toEqual({ action: "confirm" });
+    expect(classifyBrainReply("pode", 7, false)).toEqual({ action: "confirm" });
+    expect(classifyBrainReply("todas", 7, false)).toEqual({ action: "confirm" });
+  });
+  it("MENSAGEM QUALQUER com 'pode/sim' NÃO confirma (bug crítico da revisão)", () => {
+    // "pode ser dia 20?" tem 'pode' e um número fora do range — jamais confirmar.
+    expect(classifyBrainReply("pode ser dia 20?", 7, false)).toEqual({ action: "unknown" });
+    expect(classifyBrainReply("qual o saldo?", 7, false)).toEqual({ action: "unknown" });
+    expect(classifyBrainReply("agendar pediatra dia 20", 7, false)).toEqual({ action: "unknown" });
+  });
+  it("cancelamento", () => {
+    expect(classifyBrainReply("cancelar", 7, false)).toEqual({ action: "cancel" });
+    expect(classifyBrainReply("não", 7, false)).toEqual({ action: "cancel" });
+  });
+  it("deseleção por número", () => {
+    expect(classifyBrainReply("tirar 2 e 4", 5, false)).toEqual({ action: "deselect", keepIndices: [0, 2, 4] });
+    expect(classifyBrainReply("manter 1 e 3", 5, false)).toEqual({ action: "deselect", keepIndices: [0, 2] });
+  });
+  it("manter todas via número → confirm; tirar todas → empty_selection", () => {
+    expect(classifyBrainReply("manter 1 2 3 4 5", 5, false)).toEqual({ action: "confirm" });
+    expect(classifyBrainReply("tirar 1 2 3 4 5", 5, false)).toEqual({ action: "empty_selection" });
+  });
+  it("números inválidos: só vira bad_numbers quando há intenção de escolher", () => {
+    expect(classifyBrainReply("tirar 10", 5, false)).toEqual({ action: "bad_numbers" }); // verbo + nº fora
+    expect(classifyBrainReply("5 e 7", 3, true)).toEqual({ action: "bad_numbers" }); // pediu seleção
+    // sem pedir seleção e sem verbo, número solto fora do range → cai no assistente
+    expect(classifyBrainReply("5 e 7", 3, false)).toEqual({ action: "unknown" });
+  });
+});
+
+describe("isUndoReply — ancorado (não desfaz por engano)", () => {
+  it("reconhece pedidos de desfazer", () => {
+    for (const s of ["desfazer", "reverter", "cancela", "desfazer tudo", "cancela isso", "apaga tudo"]) {
+      expect(isUndoReply(s)).toBe(true);
+    }
+  });
+  it("NÃO desfaz mensagem qualquer que apenas menciona um verbo", () => {
+    for (const s of ["vou apagar a foto depois", "qual o saldo?", "", "reverter o pagamento da escola amanhã"]) {
+      expect(isUndoReply(s)).toBe(false);
+    }
   });
 });
 
@@ -112,6 +168,13 @@ describe("renderPreview", () => {
     expect(msg).toContain("Encontrei 1 prova para Joao:");
     expect(msg).toContain("1. *Prova de Ciências* — 01/09");
   });
+
+  it("withCta:false OMITE o CTA de texto (WhatsApp usa botões)", () => {
+    const msg = renderPreview(PREVIEW, "Eduarda", t, { withCta: false });
+    expect(msg).toContain("Encontrei 2 provas para Eduarda:");
+    expect(msg).not.toContain("*Confirmar*");
+    expect(msg).not.toContain("Responda");
+  });
 });
 
 describe("renderExecuted / renderUndone", () => {
@@ -121,5 +184,16 @@ describe("renderExecuted / renderUndone", () => {
     expect(renderExecuted(2)).toContain("Desfazer");
     expect(renderUndone(3)).toContain("3 provas");
     expect(renderUndone(1)).toContain("1 prova");
+  });
+  it("menciona itens 'detached' (alterados depois e mantidos)", () => {
+    const msg = renderUndone(2, 1);
+    expect(msg).toContain("removi 2 provas");
+    expect(msg).toContain("1 prova foi alterada");
+    expect(msg).toContain("continua no calendário");
+  });
+  it("removed=0 → 'nada a remover' (evita 'removi 0 provas')", () => {
+    const msg = renderUndone(0, 0);
+    expect(msg).not.toContain("removi 0");
+    expect(msg).toContain("nada a remover");
   });
 });

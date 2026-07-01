@@ -226,6 +226,21 @@ export interface WASessionState {
     category?: string;
     child_id?: string | null;
   };
+  /** Kindar Brain (foto de calendário escolar) — fluxo conversacional.
+   *  `phase="preview"` aguarda Confirmar/Escolher/Cancelar; `phase="executed"`
+   *  aguarda Desfazer. O ator (confirm/undo) sai do user_id da sessão (o
+   *  processor usa client service_role; a RPC recebe p_actor_user_id). */
+  brain_intake?: {
+    intake_id: string;
+    plan_hash: string;
+    confirmation_token: string;
+    child_name: string;
+    total: number;
+    phase: "preview" | "executed";
+    created_count?: number;
+    /** Usuário tocou "Escolher" → esperamos números na próxima mensagem. */
+    awaiting_selection?: boolean;
+  };
 }
 
 /** Phone link record from whatsapp_phone_links */

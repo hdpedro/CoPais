@@ -25,12 +25,15 @@ import { respondToSwapRequest } from "@/lib/services/swap";
 import {
   loadSession,
   hasPendingConfirmation,
+  hasBrainIntake,
   setPendingAction,
   clearPendingAction,
   setSessionGroup,
   setGroupSelectionState,
   setReceiptStep,
 } from "./session";
+import { isCalendarIntent } from "./brain-flow";
+import { handleCalendarImage, handleBrainReply } from "./brain-handlers";
 import { createExpense as createExpenseService } from "@/lib/services/expenses";
 import {
   sendTextMessage,
@@ -321,6 +324,28 @@ export async function processWhatsAppMessage(
   }
 
   /* ================================================================ */
+  /* Step 4.6: Kindar Brain — resposta ao preview (confirmar/escolher/  */
+  /* cancelar/desfazer). Precede a confirmação genérica: um "confirmar" */
+  /* durante o fluxo do Brain é do Brain, não do assistente.            */
+  /* ================================================================ */
+
+  if (hasBrainIntake(session) && (message.text || message.buttonReplyId)) {
+    const handled = await handleBrainReply(supabase, phone, userId, groupId, message, session);
+    if (handled) {
+      await logAIRequest({
+        userId,
+        groupId,
+        provider: "local",
+        feature: "assistant_tool",
+        success: true,
+        responseTimeMs: Date.now() - start,
+      });
+      return;
+    }
+    // Não tratado (ex: fase executed + mensagem não relacionada) → segue o fluxo.
+  }
+
+  /* ================================================================ */
   /* Step 5: Handle pending confirmation                               */
   /* ================================================================ */
 
@@ -378,6 +403,24 @@ export async function processWhatsAppMessage(
   /* ================================================================ */
 
   if (message.type === "image" && message.mediaId) {
+    // Kindar Brain: calendário escolar (legenda /calendario·/provas·/escola·av2…).
+    // Gate por grupo dentro do handler; se beta off, retorna false e segue o
+    // roteamento normal de imagem abaixo.
+    if (isCalendarIntent(message.caption)) {
+      const handled = await handleCalendarImage(supabase, phone, userId, groupId, message, session);
+      if (handled) {
+        await logAIRequest({
+          userId,
+          groupId,
+          provider: "vision",
+          feature: "assistant_chat",
+          success: true,
+          responseTimeMs: Date.now() - start,
+        });
+        return;
+      }
+    }
+
     const intent = classifyImageIntent(message.caption);
 
     if (intent === "prescription") {

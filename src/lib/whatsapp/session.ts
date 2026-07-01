@@ -17,6 +17,11 @@ export interface WASession {
 }
 
 const CONFIRMATION_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+// Fluxo do Brain (foto → revisar → confirmar/desfazer) é mais demorado que uma
+// confirmação simples; janela maior. A RPC ainda valida confirmation_expires_at
+// do lado do servidor — este timeout só evita que um brain_intake velho
+// sequestre mensagens normais indefinidamente.
+const BRAIN_INTAKE_TIMEOUT_MS = 30 * 60 * 1000; // 30 minutes
 
 /**
  * Load or create a session for a phone number.
@@ -124,6 +129,32 @@ export async function clearPendingAction(
     .from("whatsapp_sessions")
     .update({ state: {} })
     .eq("id", sessionId);
+}
+
+/**
+ * Persiste o estado do fluxo do Brain (calendário escolar). Igual ao
+ * receipt flow, SUBSTITUI o state inteiro — um fluxo por vez. `pending_at`
+ * dá o timeout via hasBrainIntake.
+ */
+export async function setBrainIntake(
+  supabase: SupabaseClient,
+  sessionId: string,
+  brain: NonNullable<WASessionState["brain_intake"]>,
+): Promise<void> {
+  const state: WASessionState = {
+    brain_intake: brain,
+    pending_at: new Date().toISOString(),
+  };
+  await supabase.from("whatsapp_sessions").update({ state }).eq("id", sessionId);
+}
+
+/**
+ * Há um fluxo do Brain aguardando resposta (e não expirou)?
+ */
+export function hasBrainIntake(session: WASession): boolean {
+  if (!session.state.brain_intake || !session.state.pending_at) return false;
+  const elapsed = Date.now() - new Date(session.state.pending_at).getTime();
+  return elapsed < BRAIN_INTAKE_TIMEOUT_MS;
 }
 
 /**
