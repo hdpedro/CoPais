@@ -86,6 +86,25 @@ export function looksLikeExamText(text: string): boolean {
   return examWord && dateSignal;
 }
 
+/**
+ * Resposta DIGITADA a "de qual criança?": casa o texto a UMA opção pelo primeiro
+ * nome (palavra inteira, sem acento/caixa). Só resolve se exatamente uma bate
+ * (senão null — não chuta). Paridade com o WhatsApp (que aceita nome digitado).
+ */
+export function matchOneChildOption(
+  text: string,
+  options: { id: string; name: string }[],
+): { id: string; name: string } | null {
+  const norm = (x: string) => (x || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+  const t = norm(text);
+  if (!t.trim()) return null;
+  const hits = options.filter((o) => {
+    const first = norm((o.name || "").split(" ")[0]);
+    return first.length >= 2 && new RegExp(`(^|[^a-z0-9])${first}([^a-z0-9]|$)`).test(t);
+  });
+  return hits.length === 1 ? hits[0] : null;
+}
+
 /* ------------------------------------------------------------------ */
 /* Component                                                           */
 /* ------------------------------------------------------------------ */
@@ -253,11 +272,25 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
   const sendMessage = useCallback(
     async (text: string) => {
       if (!text.trim() || isLoading) return;
+      const trimmed = text.trim();
+
+      // Se há uma pergunta de criança PENDENTE e o usuário DIGITOU o nome (em vez
+      // de tocar no botão) → resolve a pendência com esse nome, reusando o
+      // `resubmit` (reanalisa a MESMA foto/texto com a criança). Paridade com o
+      // WhatsApp, que aceita o nome digitado. Mostra o texto do usuário como resposta.
+      if (childPick) {
+        const opt = matchOneChildOption(trimmed, childPick.options);
+        if (opt) {
+          setInputText("");
+          childPick.resubmit(opt.id, trimmed);
+          return;
+        }
+      }
 
       const userMsg: ChatMessage = {
         id: uid(),
         role: "user",
-        content: text.trim(),
+        content: trimmed,
         timestamp: new Date(),
       };
 
@@ -327,7 +360,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         setIsLoading(false);
       }
     },
-    [messages, groupId, isLoading, runExamCapture]
+    [messages, groupId, isLoading, runExamCapture, childPick]
   );
 
   /* ---- Enviar imagem (Fase 2: o assistente VÊ a foto e roteia) ---- */

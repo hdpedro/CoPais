@@ -2,7 +2,7 @@
  * (vs. conversa/pergunta). Puro. A extração por IA é a decisão final — este é
  * só o filtro barato pra não chamar o Brain em toda mensagem. */
 import { describe, it, expect } from "vitest";
-import { looksLikeExamText } from "@/components/AIAssistant";
+import { looksLikeExamText, matchOneChildOption } from "@/components/AIAssistant";
 
 describe("looksLikeExamText — captura de provas por texto (conservador)", () => {
   it("reconhece descrições de provas (palavra de prova + sinal de data)", () => {
@@ -42,5 +42,27 @@ describe("looksLikeExamText — captura de provas por texto (conservador)", () =
   it("limites de tamanho (nada absurdo)", () => {
     expect(looksLikeExamText("")).toBe(false);
     expect(looksLikeExamText("prova 10/09 " + "x".repeat(700))).toBe(false);
+  });
+});
+
+describe("matchOneChildOption — resposta DIGITADA a 'de qual criança?'", () => {
+  const opts = [{ id: "otto", name: "Otto" }, { id: "martim", name: "Martim Silva" }];
+
+  it("nome digitado (sozinho OU numa frase) resolve a criança", () => {
+    expect(matchOneChildOption("Otto", opts)?.id).toBe("otto");
+    expect(matchOneChildOption("é o Martim", opts)?.id).toBe("martim");
+    // O caso do dono: digitou a criança + descreveu as provas → resolve.
+    expect(matchOneChildOption("Otto tem prova de matemática dia 10/09", opts)?.id).toBe("otto");
+  });
+
+  it("acento/caixa não atrapalham", () => {
+    expect(matchOneChildOption("prova da MÁRTIM", [{ id: "m", name: "Mártim" }])?.id).toBe("m");
+  });
+
+  it("nenhum nome / dois nomes / palavra dentro de outra → null (pergunta segue)", () => {
+    expect(matchOneChildOption("não sei", opts)).toBeNull();
+    expect(matchOneChildOption("Otto e Martim", opts)).toBeNull();
+    expect(matchOneChildOption("a banana", [{ id: "a", name: "Ana" }])).toBeNull();
+    expect(matchOneChildOption("", opts)).toBeNull();
   });
 });
