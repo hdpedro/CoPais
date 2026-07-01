@@ -13,14 +13,15 @@
 
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { createAndAnalyzeIntake, confirmIntake } from "@/lib/services/brain";
+import { createAndAnalyzeIntake, createAndAnalyzeText, confirmIntake } from "@/lib/services/brain";
+import { looksLikeExamText } from "@/lib/ai/brain/exam-text-gate";
 import { undoIntake } from "@/lib/services/brain-undo";
 import { isBrainEnabledForGroup } from "@/lib/services/brain-flag";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { getServerT } from "@/i18n/server";
-import type { BrainChild } from "@/lib/ai/brain/types";
+import type { BrainChild, IntakePreview } from "@/lib/ai/brain/types";
 import { downloadMedia, sendTextMessage, sendButtonMessage } from "./client";
 import { matchChildFromCaption } from "./caption-match";
 import { notifyGroupViaWhatsApp } from "./notify";
@@ -163,10 +164,6 @@ export async function analyzeCalendarPhoto(
 
     switch (result.kind) {
       case "preview": {
-        const acts = result.preview.plan.activities ?? [];
-        const resolvedChildId = acts[0]?.childId ?? requestedChildId;
-        const childName = children.find((c) => c.id === resolvedChildId)?.name ?? "seu filho(a)";
-        const t = await getServerT("pt");
         // Caminho do classificador: agora CONFIRMAMOS que é calendário → dá a
         // disclosure de compartilhamento (que foi pulada no início).
         if (fromClassifier) {
@@ -175,40 +172,19 @@ export async function analyzeCalendarPhoto(
             "📚 É um calendário escolar! As provas ficam visíveis aos responsáveis do grupo.",
           );
         }
-        const previewText = renderPreview(result.preview, childName, t, { withCta: false });
-        await sendTextMessage(phone, previewText);
-        await sendButtonMessage(phone, "Posso adicionar essas provas ao Kindar?", [
-          { id: "brain_confirm", title: "Confirmar" },
-          { id: "brain_choose", title: "Escolher" },
-          { id: "brain_cancel", title: "Cancelar" },
-        ]);
-        await setBrainIntake(supabase, session.id, {
-          intake_id: result.preview.intakeId,
-          plan_hash: result.preview.planHash,
-          confirmation_token: result.preview.confirmationToken,
-          child_name: childName,
-          total: acts.length,
-          phase: "preview",
-        });
+        await sendBrainPreview(supabase, phone, session, result.preview, children);
         return true;
       }
       case "needs_child_selection": {
-        // Guarda a foto (media_id) + opções → o usuário só RESPONDE o nome (ou
-        // toca no botão), sem reenviar a imagem.
-        const options = result.options.map((o) => ({ id: o.id, name: o.name }));
-        await setBrainChildSelection(supabase, session.id, { media_id: mediaId, options });
-        if (options.length >= 2 && options.length <= 3) {
-          await sendButtonMessage(
-            phone,
-            "De qual criança é esse calendário? É só tocar no nome 🙂",
-            options.map((o) => ({ id: `brain_child:${o.id}`, title: o.name.slice(0, 20) })),
-          );
-        } else {
-          await sendTextMessage(
-            phone,
-            `De qual criança é esse calendário? Responda o nome: ${options.map((o) => o.name).join(", ")}.`,
-          );
-        }
+        // Guarda a foto (media_id) → o usuário só RESPONDE o nome (ou toca no
+        // botão), sem reenviar a imagem.
+        await sendBrainChildQuestion(
+          supabase,
+          phone,
+          session,
+          result.options.map((o) => ({ id: o.id, name: o.name })),
+          { media_id: mediaId },
+        );
         return true;
       }
       case "unknown_document":
@@ -476,7 +452,138 @@ export async function handleChildSelectionReply(
     return true;
   }
 
-  // Reanalisa a foto guardada com a criança resolvida (sem reenviar).
+  // Reprocessa a MESMA origem (texto OU foto) com a criança resolvida, sem
+  // reenviar. Texto (assistente/áudio) reusa handleExamText; foto, analyzeCalendarPhoto.
   await clearPendingAction(supabase, session.id);
-  return analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
+  if (sel.text) {
+    return handleExamText(supabase, phone, userId, groupId, sel.text, session, !!sel.from_audio, childId);
+  }
+  if (sel.media_id) {
+    return analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
+  }
+  return false;
+}
+
+/* ------------------------------------------------------------------ */
+/* Preview + pergunta de criança COMPARTILHADOS (foto e texto)          */
+/* ------------------------------------------------------------------ */
+
+/** Renderiza a prévia numerada + botões (Confirmar/Escolher/Cancelar) e arma o
+ *  estado do intake. Mesmo cérebro, mesmo preview — venha de foto ou texto. */
+async function sendBrainPreview(
+  supabase: SupabaseClient,
+  phone: string,
+  session: WASession,
+  preview: IntakePreview,
+  children: BrainChild[],
+): Promise<void> {
+  const acts = preview.plan.activities ?? [];
+  const childName = children.find((c) => c.id === (acts[0]?.childId ?? null))?.name ?? "seu filho(a)";
+  const t = await getServerT("pt");
+  await sendTextMessage(phone, renderPreview(preview, childName, t, { withCta: false }));
+  await sendButtonMessage(phone, "Posso adicionar essas provas ao Kindar?", [
+    { id: "brain_confirm", title: "Confirmar" },
+    { id: "brain_choose", title: "Escolher" },
+    { id: "brain_cancel", title: "Cancelar" },
+  ]);
+  await setBrainIntake(supabase, session.id, {
+    intake_id: preview.intakeId,
+    plan_hash: preview.planHash,
+    confirmation_token: preview.confirmationToken,
+    child_name: childName,
+    total: acts.length,
+    phase: "preview",
+  });
+}
+
+/** Pergunta "de qual criança?" guardando a ORIGEM (foto media_id OU texto) pra
+ *  reprocessar sem reenviar quando o usuário responder o nome/botão. */
+async function sendBrainChildQuestion(
+  supabase: SupabaseClient,
+  phone: string,
+  session: WASession,
+  options: Array<{ id: string; name: string }>,
+  source: { media_id?: string; text?: string; from_audio?: boolean },
+): Promise<void> {
+  await setBrainChildSelection(supabase, session.id, { ...source, options });
+  if (options.length >= 2 && options.length <= 3) {
+    await sendButtonMessage(
+      phone,
+      "De qual criança são essas provas? É só tocar no nome 🙂",
+      options.map((o) => ({ id: `brain_child:${o.id}`, title: o.name.slice(0, 20) })),
+    );
+  } else {
+    await sendTextMessage(
+      phone,
+      `De qual criança são essas provas? Responda o nome: ${options.map((o) => o.name).join(", ")}.`,
+    );
+  }
+}
+
+/**
+ * Captura de provas por TEXTO/ÁUDIO no WhatsApp (paridade com o assistente do
+ * app). O usuário descreve as provas ("Otto tem prova de matemática dia 10/09");
+ * o áudio já chega transcrito. Gate conservador → se não parece captura, ou fora
+ * do beta, ou a IA não reconhece provas → devolve FALSE e o processor segue pro
+ * assistente (nunca sequestra a conversa). Mesmo cérebro (createAndAnalyzeText).
+ */
+export async function handleExamText(
+  supabase: SupabaseClient,
+  phone: string,
+  userId: string,
+  groupId: string,
+  text: string,
+  session: WASession,
+  fromAudio: boolean,
+  forcedChildId?: string | null,
+): Promise<boolean> {
+  if (!looksLikeExamText(text)) return false;
+  if (!(await isBrainEnabledForGroup(supabase, groupId))) return false;
+  try {
+    const { data: rows } = await supabase
+      .from("children")
+      .select("id, full_name")
+      .eq("group_id", groupId);
+    const children: BrainChild[] = (rows ?? []).map((r) => ({
+      id: r.id as string,
+      name: ((r.full_name as string) || "").split(" ")[0] || "criança",
+    }));
+    if (children.length === 0) return false;
+
+    const result = await createAndAnalyzeText({
+      supabase,
+      groupId,
+      userId,
+      channel: "whatsapp",
+      source: fromAudio ? "audio" : "message",
+      text,
+      children,
+      requestedChildId: forcedChildId ?? null,
+    });
+
+    switch (result.kind) {
+      case "preview":
+        await sendBrainPreview(supabase, phone, session, result.preview, children);
+        return true;
+      case "needs_child_selection":
+        await sendBrainChildQuestion(
+          supabase,
+          phone,
+          session,
+          result.options.map((o) => ({ id: o.id, name: o.name })),
+          { text, from_audio: fromAudio },
+        );
+        return true;
+      case "duplicate":
+        await sendTextMessage(phone, result.message);
+        return true;
+      default:
+        // unknown_document / error / already_processing → não era captura de
+        // provas: deixa o assistente responder.
+        return false;
+    }
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "handleExamText", groupId } });
+    return false; // erro → cai no assistente
+  }
 }

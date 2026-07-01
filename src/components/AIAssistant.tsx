@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/i18n/provider";
+import { looksLikeExamText } from "@/lib/ai/brain/exam-text-gate";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -67,23 +68,6 @@ const QUICK_SUGGESTIONS = [
 let _id = 0;
 function uid(): string {
   return `msg_${Date.now()}_${++_id}`;
-}
-
-/**
- * Gate CONSERVADOR: a mensagem PARECE uma descrição de provas pra capturar?
- * (palavra de prova + sinal de data, sem ser pergunta). Só um filtro barato pra
- * NÃO chamar o Brain em toda conversa — a extração por IA é a decisão final e,
- * se não achar provas, o widget cai no chat normal. Puro/testável.
- */
-export function looksLikeExamText(text: string): boolean {
-  const s = (text || "").toLowerCase().trim();
-  if (s.length < 6 || s.length > 600) return false;
-  // Pergunta ("quando é a prova?", "tem prova amanhã?") NÃO é captura.
-  if (/[?]\s*$/.test(s)) return false;
-  if (/^\s*(quando|qual|que dia|onde|como|por que|porque|quem|será que)\b/.test(s)) return false;
-  const examWord = /\b(prova|provas|trabalho|trabalhos|avalia\w+|av\d|simulado|entrega|recupera\w+)\b/.test(s);
-  const dateSignal = /\b\d{1,2}\/\d{1,2}\b|\bdia\s+\d{1,2}\b|\b(jan|fev|mar[çc]|abr|mai|jun|jul|ago|set|out|nov|dez)/.test(s);
-  return examWord && dateSignal;
 }
 
 /**

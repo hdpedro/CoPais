@@ -247,11 +247,14 @@ export interface WASessionState {
   brain_fallback_photo?: {
     media_id: string;
   };
-  /** Seleção de criança: o Brain reconheceu o calendário mas o grupo tem >1
-   *  criança e a legenda não disse qual. Guardamos o media_id (pra reanalisar
-   *  SEM reenviar a foto) + as opções; a resposta do usuário resolve a criança. */
+  /** Seleção de criança: o Brain reconheceu provas mas o grupo tem >1 criança e
+   *  não deu pra dizer qual. Guardamos a ORIGEM pra reprocessar sem reenviar —
+   *  `media_id` (foto) OU `text` (descrição digitada/ditada) — + as opções; a
+   *  resposta do usuário (nome ou botão) resolve a criança. */
   brain_child_selection?: {
-    media_id: string;
+    media_id?: string;
+    text?: string;
+    from_audio?: boolean;
     options: Array<{ id: string; name: string }>;
   };
 }
