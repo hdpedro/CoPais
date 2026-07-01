@@ -26,6 +26,7 @@ import {
   loadSession,
   hasPendingConfirmation,
   hasBrainIntake,
+  hasBrainFallbackPhoto,
   setPendingAction,
   clearPendingAction,
   setSessionGroup,
@@ -33,7 +34,12 @@ import {
   setReceiptStep,
 } from "./session";
 import { isCalendarIntent } from "./brain-flow";
-import { handleCalendarImage, handleBrainReply } from "./brain-handlers";
+import {
+  handleCalendarImage,
+  handleBrainReply,
+  offerBrainAfterReceiptFail,
+  handleReceiptFallbackReply,
+} from "./brain-handlers";
 import { createExpense as createExpenseService } from "@/lib/services/expenses";
 import {
   sendTextMessage,
@@ -346,6 +352,27 @@ export async function processWhatsAppMessage(
   }
 
   /* ================================================================ */
+  /* Step 4.7: Fallback recibo→calendário — o OCR de recibo falhou numa   */
+  /* imagem SEM legenda; se o usuário responder "calendário/sim",         */
+  /* reprocessamos a foto guardada pelo Brain (sem reenviar).             */
+  /* ================================================================ */
+
+  if (hasBrainFallbackPhoto(session) && message.text) {
+    const handled = await handleReceiptFallbackReply(supabase, phone, userId, groupId, message, session);
+    if (handled) {
+      await logAIRequest({
+        userId,
+        groupId,
+        provider: "vision",
+        feature: "assistant_chat",
+        success: true,
+        responseTimeMs: Date.now() - start,
+      });
+      return;
+    }
+  }
+
+  /* ================================================================ */
   /* Step 5: Handle pending confirmation                               */
   /* ================================================================ */
 
@@ -547,7 +574,13 @@ export async function processWhatsAppMessage(
       return;
     }
 
-    await sendTextMessage(phone, "Nao consegui ler o recibo. Pode descrever a despesa por texto? Ex: *gastei 50 com remedio*");
+    // Imagem que não leu como recibo: em grupo beta, pode ser um calendário
+    // escolar enviado SEM legenda — oferece o Brain como fallback (sem hijack:
+    // só entra depois do OCR de recibo falhar).
+    const offered = await offerBrainAfterReceiptFail(supabase, phone, groupId, message.mediaId, session);
+    if (!offered) {
+      await sendTextMessage(phone, "Nao consegui ler o recibo. Pode descrever a despesa por texto? Ex: *gastei 50 com remedio*");
+    }
     return;
   }
 

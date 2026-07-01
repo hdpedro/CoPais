@@ -241,6 +241,12 @@ export interface WASessionState {
     /** Usuário tocou "Escolher" → esperamos números na próxima mensagem. */
     awaiting_selection?: boolean;
   };
+  /** Fallback recibo→calendário: OCR de recibo falhou; guardamos o media_id
+   *  pra reprocessar como calendário se o usuário responder "calendário/sim".
+   *  Cobre o caso comum de foto de calendário enviada SEM legenda. */
+  brain_fallback_photo?: {
+    media_id: string;
+  };
 }
 
 /** Phone link record from whatsapp_phone_links */

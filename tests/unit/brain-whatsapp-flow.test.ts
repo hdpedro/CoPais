@@ -4,6 +4,7 @@ import {
   parseKeepIndices,
   classifyBrainReply,
   isUndoReply,
+  isCalendarYes,
   renderPreview,
   renderExecuted,
   renderUndone,
@@ -81,6 +82,19 @@ describe("isUndoReply — ancorado (não desfaz por engano)", () => {
   it("NÃO desfaz mensagem qualquer que apenas menciona um verbo", () => {
     for (const s of ["vou apagar a foto depois", "qual o saldo?", "", "reverter o pagamento da escola amanhã"]) {
       expect(isUndoReply(s)).toBe(false);
+    }
+  });
+});
+
+describe("isCalendarYes — fallback recibo→calendário", () => {
+  it("reconhece 'é calendário'", () => {
+    for (const s of ["calendário", "provas", "sim", "é", "escola", "isso", "sim é calendário"]) {
+      expect(isCalendarYes(s)).toBe(true);
+    }
+  });
+  it("NÃO captura mensagem qualquer / negativa", () => {
+    for (const s of ["não", "é um recibo", "gastei 50 no mercado", "", "qual o saldo?"]) {
+      expect(isCalendarYes(s)).toBe(false);
     }
   });
 });

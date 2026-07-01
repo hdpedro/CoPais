@@ -221,3 +221,11 @@ export function classifyBrainReply(
 export function isUndoReply(reply: string): boolean {
   return UNDO_ONLY.test((reply || "").trim());
 }
+
+/** Confirma "é calendário" (fallback quando o recibo falhou). Ancorado — só
+ *  palavras de sim/calendário, pra não capturar uma mensagem qualquer. */
+const CALENDAR_YES =
+  /^((calend[aá]rio|provas?|prova|escola|escolar|sim|isso|[eé]|eh|pode|ok|isso mesmo|[ée] sim)[\s,.!]*)+$/i;
+export function isCalendarYes(reply: string): boolean {
+  return CALENDAR_YES.test((reply || "").trim());
+}

@@ -158,6 +158,29 @@ export function hasBrainIntake(session: WASession): boolean {
 }
 
 /**
+ * Guarda o media_id de uma imagem cujo OCR de recibo falhou, pra reprocessar
+ * como calendário se o usuário confirmar. SUBSTITUI o state (igual aos outros).
+ */
+export async function setBrainFallbackPhoto(
+  supabase: SupabaseClient,
+  sessionId: string,
+  photo: NonNullable<WASessionState["brain_fallback_photo"]>,
+): Promise<void> {
+  const state: WASessionState = {
+    brain_fallback_photo: photo,
+    pending_at: new Date().toISOString(),
+  };
+  await supabase.from("whatsapp_sessions").update({ state }).eq("id", sessionId);
+}
+
+/** Há uma imagem aguardando "é calendário?" (fallback de recibo), não expirada? */
+export function hasBrainFallbackPhoto(session: WASession): boolean {
+  if (!session.state.brain_fallback_photo || !session.state.pending_at) return false;
+  const elapsed = Date.now() - new Date(session.state.pending_at).getTime();
+  return elapsed < BRAIN_INTAKE_TIMEOUT_MS;
+}
+
+/**
  * Set the group for a session.
  */
 export async function setSessionGroup(
