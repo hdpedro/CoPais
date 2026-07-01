@@ -2,7 +2,7 @@
  * (vs. conversa/pergunta). Puro. A extração por IA é a decisão final — este é
  * só o filtro barato pra não chamar o Brain em toda mensagem. */
 import { describe, it, expect } from "vitest";
-import { looksLikeExamText } from "@/lib/ai/brain/exam-text-gate";
+import { looksLikeExamText, looksLikeConsultText } from "@/lib/ai/brain/exam-text-gate";
 import { matchOneChildOption } from "@/components/AIAssistant";
 
 describe("looksLikeExamText — captura de provas por texto (conservador)", () => {
@@ -43,6 +43,46 @@ describe("looksLikeExamText — captura de provas por texto (conservador)", () =
   it("limites de tamanho (nada absurdo)", () => {
     expect(looksLikeExamText("")).toBe(false);
     expect(looksLikeExamText("prova 10/09 " + "x".repeat(700))).toBe(false);
+  });
+});
+
+describe("looksLikeConsultText — captura de consulta por texto (conservador)", () => {
+  it("reconhece descrições de consulta (âncora médica + dose/freq/data/2ª palavra)", () => {
+    for (const s of [
+      "consulta do Otto foi boa, a médica disse que é alergia leve, amoxicilina 500 a cada 8h por 7 dias, retorno em 1 mês",
+      "levei o Martim no pediatra, passou remédio e marcou retorno dia 05/08",
+      "consulta hoje, diagnóstico de otite, antibiótico por 10 dias",
+      "receita: dipirona 500mg de 6 em 6 horas",
+    ]) {
+      expect(looksLikeConsultText(s)).toBe(true);
+    }
+  });
+
+  it("NÃO captura perguntas nem texto sem âncora médica", () => {
+    for (const s of [
+      "quando é a consulta do Otto?",
+      "pode marcar o pediatra?",
+      "oi, tudo bem?",
+      "gastei 50 na farmácia", // farmácia não é âncora; sem contexto de consulta
+      "vamos ao parque amanhã",
+    ]) {
+      expect(looksLikeConsultText(s)).toBe(false);
+    }
+  });
+
+  it("NÃO dispara em texto de PROVA escolar (sem conflito com o gate de provas)", () => {
+    for (const s of [
+      "Otto tem prova de matemática dia 10/09 e ciências dia 14/09",
+      "provas AV2: matemática 12/08, história 14/08",
+      "trabalho de ciências dia 20 de agosto",
+    ]) {
+      expect(looksLikeConsultText(s)).toBe(false);
+    }
+  });
+
+  it("limites de tamanho", () => {
+    expect(looksLikeConsultText("")).toBe(false);
+    expect(looksLikeConsultText("consulta dose 500mg " + "x".repeat(900))).toBe(false);
   });
 });
 

@@ -18,7 +18,7 @@ export type IntakeSource = "document" | "audio" | "message" | "command";
 
 /** Tipo de documento resolvido pelo classificador. `unknown_document`
  *  dispara a pergunta de esclarecimento (nunca vira recibo por default). */
-export type DocType = "school_calendar" | "routine_setup" | "unknown_document";
+export type DocType = "school_calendar" | "health_visit" | "routine_setup" | "unknown_document";
 
 /** Estados do intake — espelha o CHECK da migration 00126. */
 export type IntakeStatus =
@@ -148,12 +148,92 @@ export interface NoteSpec {
   body: string;
 }
 
+/* ---- Saúde (playbook health_visit) ---------------------------------------
+ * TRANSPORTADOR, nunca assistente: dose/frequência SÓ quando explícitas na
+ * receita/fala do médico; senão null → materializa "Conforme prescrição" +
+ * lowConfidenceFields. Orientação/diagnóstico = citação literal. Datas relativas
+ * já resolvidas p/ absolutas (ISO) pelo parse. Ver brain-health-playbook-design. */
+
+/** A consulta em si → medical_appointments. */
+export interface AppointmentSpec {
+  childId: string | null;
+  /** Título curto ("Consulta — Pediatria" / "Consulta de rotina"). */
+  title: string;
+  appointmentType: "rotina" | "emergencia" | "retorno" | "exame";
+  date: string; // YYYY-MM-DD (data da consulta)
+  timeStart?: string | null; // "HH:MM" se dito
+  /** Nome do profissional (citação; A0 não força profissional cadastrado). */
+  professionalName?: string | null;
+  specialty?: string | null;
+  location?: string | null;
+  /** Resumo = CITAÇÃO do que o médico disse (avaliação/orientação). Nunca
+   *  interpretação clínica do Kindar. */
+  summary?: string | null;
+  lowConfidenceFields?: string[];
+}
+
+/** Diagnóstico/avaliação → illness_episodes (opcional; só se houve avaliação). */
+export interface EpisodeSpec {
+  childId: string | null;
+  title: string; // ex "Alergia leve"
+  diagnosis?: string | null; // citação
+  symptoms?: string[];
+  severity?: "leve" | "moderado" | "grave" | null;
+  startDate: string; // YYYY-MM-DD
+}
+
+/** Medicação citada → active_medications. Dose/frequência null quando o médico
+ *  não deu explícito (materializa "Conforme prescrição"). */
+export interface MedicationSpec {
+  childId: string | null;
+  name: string;
+  dosage: string | null; // "500 mg" | null
+  frequency: string | null; // "a cada 8h" | null (CITAÇÃO, não cálculo)
+  /** Intervalo em horas SE a frequência for numérica clara (8/12/24). Só INFORMA
+   *  o registro — NÃO agenda lembrete de dose (transportador). */
+  frequencyHours?: number | null;
+  careType: "medication" | "treatment" | "procedure";
+  /** Duração citada em dias (p/ computar endDate). null se não dita. */
+  durationDays?: number | null;
+  startDate: string; // YYYY-MM-DD (default = data da consulta)
+  endDate?: string | null; // YYYY-MM-DD (start + duração) se duração explícita
+  prescribedBy?: string | null; // médico (citação)
+  reason?: string | null; // "para otite" — citação
+  lowConfidenceFields?: string[];
+}
+
+/** Retorno → medical_appointments.return_date + evento no calendário. */
+export interface FollowUpSpec {
+  date: string; // YYYY-MM-DD (relativo já resolvido contra a data da consulta)
+  notes?: string | null; // citação ("retorno em 1 mês")
+}
+
+/** Exame solicitado. A0 não tem tabela dedicada de exames → vira citação no
+ *  resumo da consulta; a tabela própria é fase futura. */
+export interface ExamRequestSpec {
+  name: string; // "hemograma"
+  notes?: string | null;
+}
+
+/** Plano de uma consulta: uma consulta, um episódio opcional, N medicações,
+ *  retorno opcional, exames citados. Toda a cena de UMA criança. */
+export interface HealthVisitPlan {
+  appointment: AppointmentSpec;
+  episode?: EpisodeSpec | null;
+  medications?: MedicationSpec[];
+  followUp?: FollowUpSpec | null;
+  examRequests?: ExamRequestSpec[];
+}
+
 /** Plano declarativo: o playbook descreve, o service materializa. */
 export interface MaterializationPlan {
   docType: DocType;
   confirmation: ConfirmationMode;
   activities?: ActivitySpec[];
   notes?: NoteSpec[];
+  /** Plano de saúde (docType 'health_visit'). Dispatch por docType decide qual
+   *  materializar; não colide com activities (escolar). */
+  health?: HealthVisitPlan;
   /** record_type pro fan-out de coordenação (Foundation Collab). */
   collabRecordType?: string;
 }

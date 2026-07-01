@@ -147,6 +147,62 @@ export function renderUndone(removed: number, detached = 0): string {
   return `Desfeito — removi ${n}. Pode mandar a foto de novo quando quiser.`;
 }
 
+/* ------------------------------------------------------------------ */
+/* SAÚDE (health_visit) no WhatsApp — helpers PUROS (pt-BR por design)   */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Intenção de CONSULTA pela legenda da foto/arquivo. Análogo conservador do
+ * isCalendarIntent, SEM sobreposição (não pega "escola/calendário/provas").
+ * "receita" nua NÃO conta (ambígua com recibo) — exige "receita médica" ou
+ * slash/consulta explícita. Sem legenda → false.
+ */
+export function isConsultIntent(caption: string | undefined): boolean {
+  const c = (caption || "").toLowerCase().trim();
+  if (!c) return false;
+  if (/^\/(consulta|receita|sa[uú]de)\b/.test(c)) return true;
+  if (/^\/?(consulta|pediatra|dentista)\b/.test(c)) return true;
+  return /consulta\s+(m[ée]dica|do|da|de|no|foi)|receita\s+m[ée]dica|resumo\s+da\s+consulta|pedido\s+de\s+exame|retorno\s+(m[ée]dico|do\s+m[ée]dico)/.test(
+    c,
+  );
+}
+
+/** Renderiza o preview de CONSULTA em texto (o WhatsApp não tem card). Mostra a
+ *  consulta, a avaliação (citação), as medicações (dose/frequência ditas) e o
+ *  retorno. É pro SUBMITTER revisar (dado dele) — o coparente recebe o resumo
+ *  moderado via outbox. A0 confirma a cena inteira (sem deseleção numerada). */
+export function renderHealthPreview(
+  preview: IntakePreview,
+  childName: string,
+  opts?: { withCta?: boolean },
+): string {
+  const h = preview.plan.health;
+  if (!h) return "";
+  const lines: string[] = [`• ${h.appointment.title}${h.appointment.date ? ` — ${fmtBr(h.appointment.date)}` : ""}`];
+  if (h.episode?.diagnosis) lines.push(`• Avaliação: ${h.episode.diagnosis}`);
+  for (const m of h.medications ?? []) {
+    const dose = [m.dosage, m.frequency].filter(Boolean).join(" · ") || "conforme prescrição";
+    lines.push(`• 💊 ${m.name} — ${dose}`);
+  }
+  if (h.followUp?.date) lines.push(`• 🔁 Retorno: ${fmtBr(h.followUp.date)}`);
+  let msg = `🩺 Organizei a consulta de ${childName}:\n${lines.join("\n")}`;
+  if (opts?.withCta !== false) {
+    msg += `\n\nRegistro no histórico de Saúde? Responda *Confirmar* ou *Cancelar*.`;
+  }
+  return msg;
+}
+
+/** Sucesso da consulta (espelha o app). */
+export function renderHealthExecuted(): string {
+  return `Pronto! Registrei a consulta no histórico de Saúde e vou avisar o outro responsável. 🩺\n\nSe quiser, responda *Desfazer* pra reverter.`;
+}
+
+/** Undo da consulta (calmo, factual). `removed === 0` = nada a desfazer. */
+export function renderHealthUndone(removed: number): string {
+  if (removed === 0) return `Já estava desfeito — não havia nada a remover.`;
+  return `Desfeito — removi o registro da consulta do histórico de Saúde. Pode mandar de novo quando quiser.`;
+}
+
 const ALL = /\b(confirmar|confirma|todas|todos|tudo|sim|pode|criar)\b/;
 const REMOVE = /\b(tirar|tira|remover|remove|excluir|exclui|menos|sem|n[aã]o)\b/;
 const KEEP = /\b(manter|mant[eé]m|s[oó]|somente|apenas|deixar|deixa)\b/;

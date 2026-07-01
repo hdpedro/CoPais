@@ -30,6 +30,8 @@ import { resolveChildIdFromText } from "@/lib/ai/brain/child-match";
 import { computePlanHash } from "@/lib/ai/brain/plan-hash";
 import { validatePlanForExecution } from "@/lib/ai/brain/validate-plan";
 import { buildSchoolLogPayloads, buildOutboxPayloads, selectActivitiesByIndex, applyActivityEdits, type ActivityEdit } from "@/lib/ai/brain/materialize-payload";
+import { buildHealthPayloads, buildHealthOutboxPayloads } from "@/lib/ai/brain/materialize-health-payload";
+import { validateHealthPlanForExecution } from "@/lib/ai/brain/validate-health-plan";
 import { sanitizeForLogPreview } from "@/lib/ai/brain/sanitize-log";
 import { captureServerEvent } from "@/lib/posthog-server";
 import type {
@@ -129,6 +131,9 @@ export interface CreateAndAnalyzeArgs {
   /** Crianças do grupo (o caller resolve — deve ser não-vazio). */
   children: BrainChild[];
   requestedChildId: string | null;
+  /** Playbook a usar. Default 'school_calendar'. O classificador passa
+   *  'health_visit' quando a foto é de consulta médica. */
+  docType?: DocType;
 }
 
 /**
@@ -205,7 +210,7 @@ export async function createAndAnalyzeIntake(args: CreateAndAnalyzeArgs): Promis
       resolvedChildId,
       schoolYearAnchor: Number(today.slice(0, 4)),
     };
-    return await analyzeIntakeImage({ supabase, intakeId, imageBuffer: buffer, ctx });
+    return await analyzeIntakeImage({ supabase, intakeId, imageBuffer: buffer, ctx, docType: args.docType });
   } catch (err) {
     await reportServerError(err, { filePath: FILE, metadata: { step: "create_and_analyze", groupId } });
     return { kind: "error", message: "Não consegui processar agora. Tente de novo em instantes." };
@@ -217,6 +222,19 @@ export interface AnalyzeIntakeArgs {
   intakeId: string;
   imageBuffer: Buffer;
   ctx: PlaybookContext;
+  /** Playbook a usar. Default 'school_calendar' (path escolar byte-idêntico).
+   *  O classificador passa 'health_visit' p/ consulta médica. */
+  docType?: DocType;
+}
+
+/** Sufixo de referência injetado no prompt de VISÃO por docType. Escolar: ano
+ *  letivo (resolve data sem ano). Saúde: hoje (resolve retorno relativo). O
+ *  escolar é byte-idêntico ao que era inline. */
+function visionReferenceSuffix(docType: DocType, sctx: PlaybookContext): string {
+  if (docType === "health_visit") {
+    return `\n\n(Referência: hoje é ${sctx.today}. Resolva datas relativas — retorno "em 1 mês", "em 15 dias" — contra a data da consulta ou, na falta, contra hoje; devolva em ISO "AAAA-MM-DD".)`;
+  }
+  return `\n\nAno letivo de referência (use se o ano não aparecer na imagem): ${sctx.schoolYearAnchor}.`;
 }
 
 /**
@@ -248,8 +266,9 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
       return { kind: "already_processing", intakeId };
     }
 
-    // 2. Visão (impura) → saída bruta. school_calendar é o único playbook A0.
-    const docType: DocType = "school_calendar";
+    // 2. Visão (impura) → saída bruta. docType default = school_calendar → o
+    //    caminho escolar é byte-idêntico; saúde/outros vêm do classificador (arg).
+    const docType: DocType = args.docType ?? "school_calendar";
     const playbook = getPlaybook(docType);
     if (!playbook) return { kind: "error", message: "Playbook indisponível." };
 
@@ -257,11 +276,9 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
     const sctx: PlaybookContext = { ...ctx, timezone: safeTimezone(ctx.timezone) };
 
     const { base64, mimeType } = await compressImageForVision(imageBuffer);
-    // Injeta o ano letivo de referência: o modelo resolve a data em ISO mesmo
-    // quando o ano não aparece na imagem (evita data sem ano / formato ambíguo).
-    const userPrompt =
-      `${playbook.extractionPrompt.user}\n\n` +
-      `Ano letivo de referência (use se o ano não aparecer na imagem): ${sctx.schoolYearAnchor}.`;
+    // Referência injetada na instrução por docType (escolar=ano letivo p/ data
+    // sem ano; saúde=hoje p/ retorno relativo). Sem isso o modelo erra a data.
+    const userPrompt = `${playbook.extractionPrompt.user}${visionReferenceSuffix(docType, sctx)}`;
     const vision = await routeVisionRequest(
       base64,
       mimeType,
@@ -445,6 +462,16 @@ export interface AnalyzeIntakeTextArgs {
   /** Texto do responsável (digitado ou transcrição de áudio). */
   text: string;
   ctx: PlaybookContext;
+  /** Playbook a usar. Default 'school_calendar' (path escolar byte-idêntico). */
+  docType?: DocType;
+}
+
+/** Sufixo de referência do prompt de TEXTO por docType. Escolar byte-idêntico. */
+function textReferenceSuffix(docType: DocType, sctx: PlaybookContext): string {
+  if (docType === "health_visit") {
+    return `(Referência: hoje é ${sctx.today}. Resolva datas relativas — retorno "em 1 mês" etc. — contra a data da consulta ou hoje, em ISO "AAAA-MM-DD".)`;
+  }
+  return `(Referência: hoje é ${sctx.today}; ano letivo ${sctx.schoolYearAnchor}. Resolva datas relativas ou sem ano contra isso.)`;
 }
 
 /**
@@ -468,7 +495,7 @@ export async function analyzeIntakeText(args: AnalyzeIntakeTextArgs): Promise<In
     });
     if (!started || !(started as { id?: string }).id) return { kind: "already_processing", intakeId };
 
-    const docType: DocType = "school_calendar";
+    const docType: DocType = args.docType ?? "school_calendar";
     const playbook = getPlaybook(docType);
     if (!playbook?.textExtractionPrompt) return { kind: "error", message: "Playbook indisponível." };
     const sctx: PlaybookContext = { ...ctx, timezone: safeTimezone(ctx.timezone) };
@@ -476,8 +503,7 @@ export async function analyzeIntakeText(args: AnalyzeIntakeTextArgs): Promise<In
     // O texto do usuário entra como CONTEÚDO (dado não confiável) — o prompt de
     // sistema já barra prompt-injection; datas relativas resolvem contra hoje.
     const userPrompt =
-      `${playbook.textExtractionPrompt.user}\n${text}\n\n` +
-      `(Referência: hoje é ${sctx.today}; ano letivo ${sctx.schoolYearAnchor}. Resolva datas relativas ou sem ano contra isso.)`;
+      `${playbook.textExtractionPrompt.user}\n${text}\n\n` + textReferenceSuffix(docType, sctx);
     const messages: AIChatMessage[] = [
       { role: "system", content: playbook.textExtractionPrompt.system },
       { role: "user", content: userPrompt },
@@ -513,6 +539,8 @@ export interface CreateAndAnalyzeTextArgs {
   text: string;
   children: BrainChild[];
   requestedChildId: string | null;
+  /** Playbook a usar. Default 'school_calendar'. 'health_visit' p/ consulta. */
+  docType?: DocType;
 }
 
 /**
@@ -573,7 +601,7 @@ export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Prom
       resolvedChildId,
       schoolYearAnchor: Number(today.slice(0, 4)),
     };
-    return await analyzeIntakeText({ supabase, intakeId, text, ctx });
+    return await analyzeIntakeText({ supabase, intakeId, text, ctx, docType: args.docType });
   } catch (err) {
     await reportServerError(err, { filePath: FILE, metadata: { step: "create_and_analyze_text", groupId } });
     return { kind: "error", message: "Não consegui processar agora. Tente de novo em instantes." };
@@ -609,6 +637,89 @@ export interface ConfirmIntakeArgs {
 }
 
 /**
+ * Confirma e materializa uma CONSULTA (docType health_visit): valida o plano de
+ * saúde, monta os payloads (consulta completed + retorno scheduled + episódio +
+ * medicações) e chama a RPC atômica execute_health_plan. A0 confirma a cena
+ * inteira (sem deseleção por item — refino posterior). Ator explícito p/ WhatsApp.
+ */
+async function confirmHealthVisit(args: {
+  supabase: SupabaseServer;
+  intakeId: string;
+  planHash: string;
+  confirmationToken: string;
+  savedPlan: MaterializationPlan;
+  actorId: string;
+  actorUserId?: string;
+  recipientIds: string[];
+  today: string;
+}): Promise<IntakeResult> {
+  const { supabase, intakeId, planHash, confirmationToken, savedPlan, actorId, recipientIds, today } = args;
+  if (!savedPlan.health) {
+    return { kind: "error", message: "Não há nada para confirmar neste item." };
+  }
+
+  // Revalida no app ANTES da RPC (UUID/ISO/horizonte/enums; dose NÃO é exigida
+  // — transportador). É o guard que a RPC assume (casts crus + plan_hash).
+  const validation = validateHealthPlanForExecution(savedPlan, today);
+  if (!validation.ok) {
+    await reportServerError(new Error("health_plan_validation_failed"), {
+      filePath: FILE,
+      metadata: { step: "confirm_health_validate", intakeId, errors: validation.errors },
+    });
+    return { kind: "error", message: "A consulta tem itens inválidos. Revise antes de confirmar." };
+  }
+
+  const payloads = buildHealthPayloads(savedPlan)!;
+  const outbox = buildHealthOutboxPayloads({
+    intakeId,
+    recipientIds,
+    childId: savedPlan.health.appointment.childId,
+    appointmentTitle: savedPlan.health.appointment.title,
+    medicationCount: payloads.medications.length,
+    hasFollowUp: savedPlan.health.followUp != null,
+  });
+
+  const { data: result, error: rpcErr } = await supabase.rpc("brain_intake_execute_health_plan", {
+    p_intake_id: intakeId,
+    p_plan_hash: planHash,
+    p_token: confirmationToken,
+    p_appointments: payloads.appointments,
+    p_medications: payloads.medications,
+    p_episodes: payloads.episodes,
+    p_outbox: outbox,
+    p_actor_user_id: args.actorUserId ?? null,
+  });
+  if (rpcErr) {
+    await reportServerError(rpcErr, { filePath: FILE, metadata: { step: "execute_health_plan", intakeId } });
+    return { kind: "error", message: "Falha ao confirmar. Tente de novo." };
+  }
+
+  const outcome = (result as { outcome?: string; created_count?: number } | null)?.outcome;
+  if (outcome === "executed") {
+    const createdCount = (result as { created_count: number }).created_count;
+    captureServerEvent(actorId, "brain_intake_confirmed", { intake_id: intakeId, doc_type: "health_visit" });
+    captureServerEvent(actorId, "brain_intake_executed", { intake_id: intakeId, doc_type: "health_visit", artifact_count: createdCount });
+    return { kind: "executed", intakeId, createdCount };
+  }
+
+  // not_claimed → relê o estado atual pra classificar (igual ao escolar).
+  const { data: fresh } = await supabase
+    .from("brain_intakes")
+    .select("status, confirmation_expires_at")
+    .eq("id", intakeId)
+    .single();
+  const freshStatus = fresh?.status as string | undefined;
+  if (freshStatus === "executed" || freshStatus === "executing") {
+    return { kind: "already_processing", intakeId };
+  }
+  const freshExpiry = fresh?.confirmation_expires_at as string | null | undefined;
+  if (freshExpiry && new Date(freshExpiry) <= new Date()) {
+    return { kind: "stale_plan", intakeId, message: "A confirmação expirou. Quer revisar o plano de novo?" };
+  }
+  return { kind: "stale_plan", intakeId, message: "A rotina mudou desde que preparei este plano. Quer revisar?" };
+}
+
+/**
  * Confirma e materializa o plano. Revalida limites no app, monta os
  * payloads e chama a RPC atômica execute_plan (claim + materializa +
  * outbox + proveniência + executed numa transação). O confirmador sai do
@@ -635,8 +746,31 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
     }
 
     const savedPlan = intake.plan as MaterializationPlan | null;
-    // Sem plano (ex: unknown_document) → nada a confirmar (mensagem calma).
-    if (!savedPlan || !savedPlan.activities || savedPlan.activities.length === 0) {
+    if (!savedPlan) {
+      return { kind: "error", message: "Não há nada para confirmar neste item." };
+    }
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Destinatários da coordenação = membros do grupo, menos o confirmador.
+    const { data: members } = await supabase
+      .from("group_members")
+      .select("user_id")
+      .eq("group_id", intake.group_id);
+    const recipientIds = (members ?? [])
+      .map((m) => m.user_id as string)
+      .filter((id) => id !== actorId);
+
+    // Dispatch por docType: SAÚDE materializa em medical_appointments/active_
+    // medications/illness_episodes via RPC própria (não school_logs).
+    if (savedPlan.docType === "health_visit") {
+      return await confirmHealthVisit({
+        supabase, intakeId, planHash, confirmationToken, savedPlan,
+        actorId, actorUserId: args.actorUserId, recipientIds, today,
+      });
+    }
+
+    // --- ESCOLAR (school_calendar): activities → school_logs ---
+    if (!savedPlan.activities || savedPlan.activities.length === 0) {
       return { kind: "error", message: "Não há nada para confirmar neste item." };
     }
     // Edição + deseleção por item (ambas por índice ORIGINAL): aplica as
@@ -649,7 +783,6 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
     if (!plan.activities || plan.activities.length === 0) {
       return { kind: "error", message: "Selecione ao menos uma atividade para criar." };
     }
-    const today = new Date().toISOString().slice(0, 10);
 
     // 3. Revalida limites no app ANTES da RPC (data/nome/qtd/horizonte/UUID).
     const validation = validatePlanForExecution(plan, today);
@@ -660,15 +793,6 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
       });
       return { kind: "error", message: "O plano tem itens inválidos. Revise antes de confirmar." };
     }
-
-    // 4. Destinatários da coordenação = membros do grupo, menos o confirmador.
-    const { data: members } = await supabase
-      .from("group_members")
-      .select("user_id")
-      .eq("group_id", intake.group_id);
-    const recipientIds = (members ?? [])
-      .map((m) => m.user_id as string)
-      .filter((id) => id !== actorId);
 
     const activities = buildSchoolLogPayloads(plan);
     const outbox = buildOutboxPayloads({

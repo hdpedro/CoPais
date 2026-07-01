@@ -14,14 +14,14 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAndAnalyzeIntake, createAndAnalyzeText, confirmIntake } from "@/lib/services/brain";
-import { looksLikeExamText } from "@/lib/ai/brain/exam-text-gate";
+import { looksLikeExamText, looksLikeConsultText } from "@/lib/ai/brain/exam-text-gate";
 import { undoIntake } from "@/lib/services/brain-undo";
-import { isBrainEnabledForGroup } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled } from "@/lib/services/brain-flag";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { getServerT } from "@/i18n/server";
-import type { BrainChild, IntakePreview } from "@/lib/ai/brain/types";
+import type { BrainChild, DocType, IntakePreview } from "@/lib/ai/brain/types";
 import { downloadMedia, sendTextMessage, sendButtonMessage } from "./client";
 import { matchChildFromCaption } from "./caption-match";
 import { notifyGroupViaWhatsApp } from "./notify";
@@ -36,6 +36,9 @@ import {
   renderPreview,
   renderExecuted,
   renderUndone,
+  renderHealthPreview,
+  renderHealthExecuted,
+  renderHealthUndone,
   classifyBrainReply,
   isUndoReply,
   isDeclineUndoReply,
@@ -217,6 +220,120 @@ export async function analyzeCalendarPhoto(
 }
 
 /**
+ * Foto de CONSULTA (resumo/receita/pedido de exame) → análise. Espelho de
+ * analyzeCalendarPhoto pro Playbook de Saúde (o escolar fica INTOCADO = zero
+ * risco). Gate próprio (isHealthVisitEnabled, OFF) checado pelo caller. Usa
+ * createAndAnalyzeIntake docType='health_visit' → sendBrainPreview (ramifica).
+ */
+export async function analyzeConsultaPhoto(
+  supabase: SupabaseClient,
+  phone: string,
+  userId: string,
+  groupId: string,
+  mediaId: string,
+  caption: string | null,
+  session: WASession,
+  preBuffer?: Buffer,
+  fromClassifier = false,
+  forcedChildId?: string | null,
+): Promise<boolean> {
+  try {
+    if (!fromClassifier) {
+      await sendTextMessage(
+        phone,
+        "🩺 Vou ler essa consulta pra organizar no histórico de Saúde — fica visível aos responsáveis do grupo. Analisando…",
+      );
+    }
+    const buffer = preBuffer ?? (await downloadMedia(mediaId));
+    const val = validateImageUpload(buffer);
+    if (!val.ok || !val.type) {
+      await sendTextMessage(phone, "Não consegui ler essa imagem. Tente uma foto nítida (JPG ou PNG). 🙏");
+      return true;
+    }
+    const { data: rows } = await supabase
+      .from("children")
+      .select("id, full_name, birth_date")
+      .eq("group_id", groupId);
+    const captionKids = (rows ?? []).map((r) => ({
+      id: r.id as string,
+      full_name: (r.full_name as string) ?? null,
+      birth_date: (r.birth_date as string) ?? null,
+    }));
+    if (captionKids.length === 0) {
+      await sendTextMessage(phone, "Você ainda não tem crianças cadastradas. Cadastre pelo app antes de enviar a consulta. 🙏");
+      return true;
+    }
+    const children: BrainChild[] = captionKids.map((k) => ({ id: k.id, name: (k.full_name || "").split(" ")[0] || "criança" }));
+    const matched = captionKids.length > 1 ? matchChildFromCaption(caption ?? undefined, captionKids) : captionKids[0];
+    const requestedChildId = forcedChildId ?? matched?.id ?? null;
+
+    const result = await createAndAnalyzeIntake({
+      supabase,
+      groupId,
+      userId,
+      channel: "whatsapp",
+      source: "document",
+      buffer,
+      mime: val.type,
+      children,
+      requestedChildId,
+      docType: "health_visit",
+    });
+
+    switch (result.kind) {
+      case "preview": {
+        if (fromClassifier) {
+          await sendTextMessage(phone, "🩺 É uma consulta médica! Os dados ficam visíveis aos responsáveis do grupo.");
+        }
+        await sendBrainPreview(supabase, phone, session, result.preview, children);
+        return true;
+      }
+      case "needs_child_selection":
+        await sendBrainChildQuestion(
+          supabase,
+          phone,
+          session,
+          result.options.map((o) => ({ id: o.id, name: o.name })),
+          { media_id: mediaId, doc_type: "health_visit" },
+        );
+        return true;
+      case "unknown_document":
+        if (fromClassifier) return false; // cai no recibo (sem dead-end)
+        await sendTextMessage(phone, "Isso não parece uma consulta médica. Se for, tente uma foto mais nítida. 🙂");
+        return true;
+      case "duplicate":
+        await sendTextMessage(phone, result.message);
+        return true;
+      default:
+        if (fromClassifier) return false;
+        await sendTextMessage(phone, "Não consegui processar agora. Tente de novo em instantes. 🙏");
+        return true;
+    }
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "analyzeConsultaPhoto", groupId } });
+    if (fromClassifier) return false;
+    await sendTextMessage(phone, "Não consegui processar a consulta agora. Reenvie a foto em instantes. 🙏");
+    return true;
+  }
+}
+
+/** Foto de consulta roteada por LEGENDA (isConsultIntent). Gate próprio de saúde
+ *  + beta; se off, retorna false e o processor segue o roteamento normal. */
+export async function handleConsultaImage(
+  supabase: SupabaseClient,
+  phone: string,
+  userId: string,
+  groupId: string,
+  message: WAExtractedMessage,
+  session: WASession,
+): Promise<boolean> {
+  if (!message.mediaId) return false;
+  if (!isHealthVisitEnabled()) return false;
+  if (!(await isBrainEnabledForGroup(supabase, groupId))) return false;
+  return analyzeConsultaPhoto(supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session);
+}
+
+/**
  * Resposta do usuário durante um fluxo do Brain (preview → confirmar/escolher/
  * cancelar; executed → desfazer). Retorna `true` se tratou; `false` para o
  * processor seguir processando a mensagem normalmente — o que EVITA sequestrar
@@ -241,10 +358,14 @@ export async function handleBrainReply(
     if (btn === "brain_undo" || isUndoReply(text)) {
       const r = await undoIntake({ supabase, intakeId: brain.intake_id, actorUserId: userId });
       await clearPendingAction(supabase, session.id);
-      await sendTextMessage(
-        phone,
-        r.kind === "undone" ? renderUndone(r.removed, r.detached) : "Não consegui desfazer agora. Tente pelo app. 🙏",
-      );
+      const isHealth = brain.doc_type === "health_visit";
+      const undoneMsg =
+        r.kind === "undone"
+          ? isHealth
+            ? renderHealthUndone(r.removed)
+            : renderUndone(r.removed, r.detached)
+          : "Não consegui desfazer agora. Tente pelo app. 🙏";
+      await sendTextMessage(phone, undoneMsg);
       return true;
     }
     // Recusou o desfazer ("não", "tá bom", "obrigado"…) → fecha com um aceno
@@ -340,17 +461,29 @@ async function confirmBrain(
 
   if (r.kind === "executed") {
     await setBrainIntake(supabase, session.id, { ...brain, phase: "executed", created_count: r.createdCount, awaiting_selection: false });
-    await sendTextMessage(phone, renderExecuted(r.createdCount));
+    const isHealth = brain.doc_type === "health_visit";
+    await sendTextMessage(phone, isHealth ? renderHealthExecuted() : renderExecuted(r.createdCount));
     await sendButtonMessage(phone, "Precisa reverter?", [{ id: "brain_undo", title: "Desfazer" }]);
-    // Coordenação: avisa os coparentes (menos quem confirmou). Fire-and-forget.
-    const n = r.createdCount === 1 ? "1 prova" : `${r.createdCount} provas`;
-    const adj = r.createdCount === 1 ? "adicionada" : "adicionadas";
-    await notifyGroupViaWhatsApp(
-      groupId,
-      userId,
-      `📚 *${brain.child_name}*: ${n} ${adj} ao calendário escolar do Kindar.`,
-      "event",
-    );
+    // Coordenação WhatsApp: avisa os coparentes (menos quem confirmou). Além
+    // disso o outbox entrega a coordenação push (3d). Fire-and-forget. 'event'
+    // = a pref event_reminders governa (não há kind de saúde dedicado).
+    if (isHealth) {
+      await notifyGroupViaWhatsApp(
+        groupId,
+        userId,
+        `🩺 *${brain.child_name}*: consulta registrada no histórico de Saúde do Kindar.`,
+        "event",
+      );
+    } else {
+      const n = r.createdCount === 1 ? "1 prova" : `${r.createdCount} provas`;
+      const adj = r.createdCount === 1 ? "adicionada" : "adicionadas";
+      await notifyGroupViaWhatsApp(
+        groupId,
+        userId,
+        `📚 *${brain.child_name}*: ${n} ${adj} ao calendário escolar do Kindar.`,
+        "event",
+      );
+    }
     return true;
   }
 
@@ -361,7 +494,10 @@ async function confirmBrain(
   }
   if (r.kind === "already_processing") {
     await clearPendingAction(supabase, session.id);
-    await sendTextMessage(phone, "Essas provas já estão sendo adicionadas. 🙂");
+    await sendTextMessage(
+      phone,
+      brain.doc_type === "health_visit" ? "Essa consulta já está sendo registrada. 🙂" : "Essas provas já estão sendo adicionadas. 🙂",
+    );
     return true;
   }
   await sendTextMessage(phone, r.kind === "error" ? r.message : "Não consegui confirmar agora. Tente de novo. 🙏");
@@ -456,10 +592,12 @@ export async function handleChildSelectionReply(
   // reenviar. Texto (assistente/áudio) reusa handleExamText; foto, analyzeCalendarPhoto.
   await clearPendingAction(supabase, session.id);
   if (sel.text) {
-    return handleExamText(supabase, phone, userId, groupId, sel.text, session, !!sel.from_audio, childId);
+    return handleExamText(supabase, phone, userId, groupId, sel.text, session, !!sel.from_audio, childId, sel.doc_type);
   }
   if (sel.media_id) {
-    return analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
+    return sel.doc_type === "health_visit"
+      ? analyzeConsultaPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId)
+      : analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
   }
   return false;
 }
@@ -477,22 +615,35 @@ async function sendBrainPreview(
   preview: IntakePreview,
   children: BrainChild[],
 ): Promise<void> {
+  const isHealth = preview.plan.docType === "health_visit";
   const acts = preview.plan.activities ?? [];
-  const childName = children.find((c) => c.id === (acts[0]?.childId ?? null))?.name ?? "seu filho(a)";
+  const childName = isHealth
+    ? children.find((c) => c.id === (preview.plan.health?.appointment.childId ?? null))?.name ?? "seu filho(a)"
+    : children.find((c) => c.id === (acts[0]?.childId ?? null))?.name ?? "seu filho(a)";
   const t = await getServerT("pt");
-  await sendTextMessage(phone, renderPreview(preview, childName, t, { withCta: false }));
-  await sendButtonMessage(phone, "Posso adicionar essas provas ao Kindar?", [
-    { id: "brain_confirm", title: "Confirmar" },
-    { id: "brain_choose", title: "Escolher" },
-    { id: "brain_cancel", title: "Cancelar" },
-  ]);
+  if (isHealth) {
+    // Consulta: sem deseleção numerada (A0 confirma a cena inteira) → só 2 botões.
+    await sendTextMessage(phone, renderHealthPreview(preview, childName, { withCta: false }));
+    await sendButtonMessage(phone, "Posso registrar essa consulta no Kindar?", [
+      { id: "brain_confirm", title: "Confirmar" },
+      { id: "brain_cancel", title: "Cancelar" },
+    ]);
+  } else {
+    await sendTextMessage(phone, renderPreview(preview, childName, t, { withCta: false }));
+    await sendButtonMessage(phone, "Posso adicionar essas provas ao Kindar?", [
+      { id: "brain_confirm", title: "Confirmar" },
+      { id: "brain_choose", title: "Escolher" },
+      { id: "brain_cancel", title: "Cancelar" },
+    ]);
+  }
   await setBrainIntake(supabase, session.id, {
     intake_id: preview.intakeId,
     plan_hash: preview.planHash,
     confirmation_token: preview.confirmationToken,
     child_name: childName,
-    total: acts.length,
+    total: isHealth ? preview.plan.health?.medications?.length ?? 0 : acts.length,
     phase: "preview",
+    doc_type: isHealth ? "health_visit" : undefined,
   });
 }
 
@@ -503,9 +654,16 @@ async function sendBrainChildQuestion(
   phone: string,
   session: WASession,
   options: Array<{ id: string; name: string }>,
-  source: { media_id?: string; text?: string; from_audio?: boolean },
+  source: { media_id?: string; text?: string; from_audio?: boolean; doc_type?: DocType },
 ): Promise<void> {
-  await setBrainChildSelection(supabase, session.id, { ...source, options });
+  await setBrainChildSelection(supabase, session.id, {
+    media_id: source.media_id,
+    text: source.text,
+    from_audio: source.from_audio,
+    // Só saúde precisa do marcador (ausente = escolar). Estreita o DocType.
+    doc_type: source.doc_type === "health_visit" ? "health_visit" : undefined,
+    options,
+  });
   if (options.length >= 2 && options.length <= 3) {
     await sendButtonMessage(
       phone,
@@ -536,8 +694,16 @@ export async function handleExamText(
   session: WASession,
   fromAudio: boolean,
   forcedChildId?: string | null,
+  docType?: DocType,
 ): Promise<boolean> {
-  if (!looksLikeExamText(text)) return false;
+  const isHealth = docType === "health_visit";
+  // Gate por playbook: consulta usa looksLikeConsultText + o interruptor próprio
+  // de saúde (OFF por padrão → nunca dispara); provas seguem o gate escolar.
+  if (isHealth) {
+    if (!isHealthVisitEnabled() || !looksLikeConsultText(text)) return false;
+  } else if (!looksLikeExamText(text)) {
+    return false;
+  }
   if (!(await isBrainEnabledForGroup(supabase, groupId))) return false;
   try {
     const { data: rows } = await supabase
@@ -559,6 +725,7 @@ export async function handleExamText(
       text,
       children,
       requestedChildId: forcedChildId ?? null,
+      docType,
     });
 
     switch (result.kind) {
@@ -571,7 +738,7 @@ export async function handleExamText(
           phone,
           session,
           result.options.map((o) => ({ id: o.id, name: o.name })),
-          { text, from_audio: fromAudio },
+          { text, from_audio: fromAudio, doc_type: docType },
         );
         return true;
       case "duplicate":

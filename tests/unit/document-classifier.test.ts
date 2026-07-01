@@ -30,6 +30,12 @@ describe("parseClassification — tolerante e seguro", () => {
   it("tipo inválido → unknown", () => {
     expect(parseClassification('{"type":"foo","confidence":0.9}').type).toBe("unknown");
   });
+  it("medical_summary é reconhecido (resumo de consulta / pedido de exame)", () => {
+    expect(parseClassification('{"type":"medical_summary","confidence":0.88}')).toEqual({
+      type: "medical_summary",
+      confidence: 0.88,
+    });
+  });
   it("confidence ausente → 0.5 se tipo conhecido; clamp em [0,1]", () => {
     expect(parseClassification('{"type":"receipt"}').confidence).toBe(0.5);
     expect(parseClassification('{"type":"receipt","confidence":1.5}').confidence).toBe(1);

@@ -11,8 +11,12 @@ import {
   renderPreview,
   renderExecuted,
   renderUndone,
+  isConsultIntent,
+  renderHealthPreview,
+  renderHealthExecuted,
+  renderHealthUndone,
 } from "@/lib/whatsapp/brain-flow";
-import type { ActivitySpec, IntakePreview } from "@/lib/ai/brain/types";
+import type { ActivitySpec, HealthVisitPlan, IntakePreview } from "@/lib/ai/brain/types";
 
 describe("isCalendarIntent", () => {
   it("reconhece slash/keyword de calendário", () => {
@@ -308,5 +312,58 @@ describe("renderExecuted / renderUndone", () => {
     const msg = renderUndone(0, 0);
     expect(msg).not.toContain("removi 0");
     expect(msg).toContain("nada a remover");
+  });
+});
+
+/* ---- SAÚDE (health_visit) no WhatsApp ---- */
+
+const CHILD = "11111111-1111-1111-1111-111111111111";
+function healthPreview(over: Partial<HealthVisitPlan> = {}): IntakePreview {
+  const health: HealthVisitPlan = {
+    appointment: { childId: CHILD, title: "Consulta — Pediatria", appointmentType: "rotina", date: "2026-07-01", summary: "Alergia leve" },
+    episode: { childId: CHILD, title: "Alergia leve", diagnosis: "Alergia leve", startDate: "2026-07-01", severity: "leve" },
+    medications: [{ childId: CHILD, name: "Amoxicilina", dosage: "500 mg", frequency: "a cada 8h", frequencyHours: 8, careType: "medication", startDate: "2026-07-01" }],
+    followUp: { date: "2026-08-05", notes: "retorno em 1 mês" },
+    examRequests: [],
+    ...over,
+  };
+  return { intakeId: "i1", docType: "health_visit", confirmation: "single", plan: { docType: "health_visit", confirmation: "single", health }, impacts: [], priority: { level: "important", delivery: "digest" }, planHash: "h", confirmationToken: "t" };
+}
+
+describe("isConsultIntent", () => {
+  it("reconhece slash/keyword de consulta; NÃO pega escola/recibo", () => {
+    for (const c of ["/consulta", "consulta médica do Otto", "receita médica", "resumo da consulta", "/saude", "pedido de exame"]) {
+      expect(isConsultIntent(c)).toBe(true);
+    }
+    for (const c of ["/escola", "calendário de provas", "escola do João R$ 850", "receita de bolo", "", "oi"]) {
+      expect(isConsultIntent(c)).toBe(false);
+    }
+  });
+});
+
+describe("renderHealthPreview / executed / undone", () => {
+  it("preview mostra consulta + avaliação + medicação(dose) + retorno + CTA", () => {
+    const msg = renderHealthPreview(healthPreview(), "Otto");
+    expect(msg).toContain("Otto");
+    expect(msg).toContain("Consulta — Pediatria");
+    expect(msg).toContain("Alergia leve");
+    expect(msg).toContain("Amoxicilina — 500 mg · a cada 8h");
+    expect(msg).toContain("05/08"); // retorno DD/MM
+    expect(msg).toContain("Confirmar");
+  });
+  it("dose nula → 'conforme prescrição' (nunca inventa)", () => {
+    const msg = renderHealthPreview(
+      healthPreview({ medications: [{ childId: CHILD, name: "Xarope", dosage: null, frequency: null, frequencyHours: null, careType: "medication", startDate: "2026-07-01" }] }),
+      "Lia",
+    );
+    expect(msg).toContain("Xarope — conforme prescrição");
+  });
+  it("withCta:false omite a chamada à ação (pra mensagem de botões)", () => {
+    expect(renderHealthPreview(healthPreview(), "Otto", { withCta: false })).not.toContain("Confirmar");
+  });
+  it("executed e undone têm copy de saúde", () => {
+    expect(renderHealthExecuted()).toContain("histórico de Saúde");
+    expect(renderHealthUndone(1)).toContain("removi o registro da consulta");
+    expect(renderHealthUndone(0)).toContain("nada a remover");
   });
 });
