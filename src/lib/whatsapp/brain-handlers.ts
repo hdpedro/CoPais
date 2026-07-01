@@ -17,23 +17,31 @@ import { createAndAnalyzeIntake, confirmIntake } from "@/lib/services/brain";
 import { undoIntake } from "@/lib/services/brain-undo";
 import { isBrainEnabledForGroup } from "@/lib/services/brain-flag";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
+import { reportServerError } from "@/lib/error-tracking/report-server";
+import { captureServerEvent } from "@/lib/posthog-server";
 import { getServerT } from "@/i18n/server";
 import type { BrainChild } from "@/lib/ai/brain/types";
 import { downloadMedia, sendTextMessage, sendButtonMessage } from "./client";
 import { matchChildFromCaption } from "./caption-match";
 import { notifyGroupViaWhatsApp } from "./notify";
 import { setBrainIntake, clearPendingAction, type WASession } from "./session";
-import { renderPreview, renderExecuted, renderUndone, parseKeepIndices } from "./brain-flow";
+import {
+  renderPreview,
+  renderExecuted,
+  renderUndone,
+  classifyBrainReply,
+  isUndoReply,
+} from "./brain-flow";
 import type { WAExtractedMessage } from "./types";
 
-const CANCEL_RE = /\b(cancelar|cancela|deixa|esquece|para|nao|não)\b/i;
-const UNDO_RE = /\b(desfazer|desfaz|desfa[cç]a|reverter|apagar|remover)\b/i;
+const FILE = "src/lib/whatsapp/brain-handlers.ts";
 
 /**
  * Foto de calendário escolar → intake → preview conversacional. Retorna
  * `true` se tratou a mensagem; `false` (beta off) para o processor seguir com
  * o roteamento normal de imagem (recibo etc.), preservando o comportamento
- * atual pra quem não está no beta.
+ * atual pra quem não está no beta. Todo throw é contido: o usuário SEMPRE
+ * recebe um fechamento (nunca fica no "Analisando…" sem resposta).
  */
 export async function handleCalendarImage(
   supabase: SupabaseClient,
@@ -46,106 +54,131 @@ export async function handleCalendarImage(
   if (!message.mediaId) return false;
   if (!(await isBrainEnabledForGroup(supabase, groupId))) return false; // não-beta → fluxo normal
 
-  await sendTextMessage(phone, "📚 Analisando o calendário escolar…");
-
-  const buffer = await downloadMedia(message.mediaId);
-  const val = validateImageUpload(buffer);
-  if (!val.ok || !val.type) {
-    await sendTextMessage(
-      phone,
-      "Não consegui ler essa imagem. Tente uma foto nítida do calendário (JPG ou PNG). 🙏",
-    );
-    return true;
-  }
-
-  const { data: rows } = await supabase
-    .from("children")
-    .select("id, full_name, birth_date")
-    .eq("group_id", groupId);
-  const captionKids = (rows ?? []).map((r) => ({
-    id: r.id as string,
-    full_name: (r.full_name as string) ?? null,
-    birth_date: (r.birth_date as string) ?? null,
-  }));
-  if (captionKids.length === 0) {
-    await sendTextMessage(
-      phone,
-      "Você ainda não tem crianças cadastradas no Kindar. Cadastre pelo app antes de enviar o calendário. 🙏",
-    );
-    return true;
-  }
-  const children: BrainChild[] = captionKids.map((k) => ({
-    id: k.id,
-    name: (k.full_name || "").split(" ")[0] || "criança",
-  }));
-
-  // >1 criança: tenta o nome na legenda; senão deixa o cérebro pedir a escolha.
-  const matched = captionKids.length > 1 ? matchChildFromCaption(message.caption, captionKids) : captionKids[0];
-  const requestedChildId = matched?.id ?? null;
-
-  const result = await createAndAnalyzeIntake({
-    supabase,
-    groupId,
-    userId,
-    channel: "whatsapp",
-    source: "document",
-    buffer,
-    mime: val.type,
-    children,
-    requestedChildId,
-  });
-
-  switch (result.kind) {
-    case "preview": {
-      const acts = result.preview.plan.activities ?? [];
-      const resolvedChildId = acts[0]?.childId ?? requestedChildId;
-      const childName = children.find((c) => c.id === resolvedChildId)?.name ?? "seu filho(a)";
-      const t = await getServerT("pt");
-      const previewText = renderPreview(result.preview, childName, t, { withCta: false });
-      await sendTextMessage(phone, previewText);
-      await sendButtonMessage(phone, "Posso adicionar essas provas ao Kindar?", [
-        { id: "brain_confirm", title: "Confirmar" },
-        { id: "brain_choose", title: "Escolher" },
-        { id: "brain_cancel", title: "Cancelar" },
-      ]);
-      await setBrainIntake(supabase, session.id, {
-        intake_id: result.preview.intakeId,
-        plan_hash: result.preview.planHash,
-        confirmation_token: result.preview.confirmationToken,
-        child_name: childName,
-        total: acts.length,
-        phase: "preview",
-      });
-      return true;
-    }
-    case "needs_child_selection": {
-      const names = result.options.map((o) => o.name).join(", ");
+  try {
+    // Se acabou de criar um lote (executed) e não desfez, avisa que ele já
+    // está salvo — a nova foto vai substituir o estado e o Desfazer daquele
+    // lote passa a ser só pelo app (evita a promessa "responda Desfazer" quebrar
+    // em silêncio).
+    if (session.state.brain_intake?.phase === "executed") {
       await sendTextMessage(
         phone,
-        `De qual criança é esse calendário? Reenvie a foto com o nome na legenda (ex: *calendário Otto*).\n\nCrianças: ${names}.`,
+        "As provas anteriores já estão salvas ✅ (se precisar reverter aquele lote, use o app). Analisando o novo calendário…",
+      );
+    }
+
+    // Disclosure (paridade com o aviso de compartilhamento do PWA): a imagem é
+    // lida por IA e as provas ficam visíveis ao grupo.
+    await sendTextMessage(
+      phone,
+      "📚 Vou ler esse calendário pra identificar as provas — elas ficam visíveis aos responsáveis do grupo. Analisando…",
+    );
+
+    const buffer = await downloadMedia(message.mediaId);
+    const val = validateImageUpload(buffer);
+    if (!val.ok || !val.type) {
+      await sendTextMessage(
+        phone,
+        "Não consegui ler essa imagem. Tente uma foto nítida do calendário (JPG ou PNG). 🙏",
       );
       return true;
     }
-    case "unknown_document":
+
+    const { data: rows } = await supabase
+      .from("children")
+      .select("id, full_name, birth_date")
+      .eq("group_id", groupId);
+    const captionKids = (rows ?? []).map((r) => ({
+      id: r.id as string,
+      full_name: (r.full_name as string) ?? null,
+      birth_date: (r.birth_date as string) ?? null,
+    }));
+    if (captionKids.length === 0) {
       await sendTextMessage(
         phone,
-        "Isso não parece um calendário de provas. Se for, tente uma foto mais nítida. 🙂",
+        "Você ainda não tem crianças cadastradas no Kindar. Cadastre pelo app antes de enviar o calendário. 🙏",
       );
       return true;
-    case "duplicate":
-      await sendTextMessage(phone, result.message);
-      return true;
-    default:
-      await sendTextMessage(phone, "Não consegui processar agora. Tente de novo em instantes. 🙏");
-      return true;
+    }
+    const children: BrainChild[] = captionKids.map((k) => ({
+      id: k.id,
+      name: (k.full_name || "").split(" ")[0] || "criança",
+    }));
+
+    // >1 criança: tenta o nome na legenda; senão deixa o cérebro pedir a escolha.
+    const matched = captionKids.length > 1 ? matchChildFromCaption(message.caption, captionKids) : captionKids[0];
+    const requestedChildId = matched?.id ?? null;
+
+    const result = await createAndAnalyzeIntake({
+      supabase,
+      groupId,
+      userId,
+      channel: "whatsapp",
+      source: "document",
+      buffer,
+      mime: val.type,
+      children,
+      requestedChildId,
+    });
+
+    switch (result.kind) {
+      case "preview": {
+        const acts = result.preview.plan.activities ?? [];
+        const resolvedChildId = acts[0]?.childId ?? requestedChildId;
+        const childName = children.find((c) => c.id === resolvedChildId)?.name ?? "seu filho(a)";
+        const t = await getServerT("pt");
+        const previewText = renderPreview(result.preview, childName, t, { withCta: false });
+        await sendTextMessage(phone, previewText);
+        await sendButtonMessage(phone, "Posso adicionar essas provas ao Kindar?", [
+          { id: "brain_confirm", title: "Confirmar" },
+          { id: "brain_choose", title: "Escolher" },
+          { id: "brain_cancel", title: "Cancelar" },
+        ]);
+        await setBrainIntake(supabase, session.id, {
+          intake_id: result.preview.intakeId,
+          plan_hash: result.preview.planHash,
+          confirmation_token: result.preview.confirmationToken,
+          child_name: childName,
+          total: acts.length,
+          phase: "preview",
+        });
+        return true;
+      }
+      case "needs_child_selection": {
+        const names = result.options.map((o) => o.name).join(", ");
+        await sendTextMessage(
+          phone,
+          `De qual criança é esse calendário? Reenvie a foto com o nome na legenda (ex: *calendário Otto*).\n\nCrianças: ${names}.`,
+        );
+        return true;
+      }
+      case "unknown_document":
+        await sendTextMessage(
+          phone,
+          "Isso não parece um calendário de provas. Se for, tente uma foto mais nítida. 🙂",
+        );
+        return true;
+      case "duplicate":
+        await sendTextMessage(phone, result.message);
+        return true;
+      default:
+        await sendTextMessage(phone, "Não consegui processar agora. Tente de novo em instantes. 🙏");
+        return true;
+    }
+  } catch (err) {
+    // downloadMedia (URL da Meta expirada/401), rede, etc. — nunca deixar o
+    // usuário no "Analisando…" sem resposta.
+    await reportServerError(err, { filePath: FILE, metadata: { step: "handleCalendarImage", groupId } });
+    await sendTextMessage(phone, "Não consegui processar o calendário agora. Reenvie a foto em instantes. 🙏");
+    return true;
   }
 }
 
 /**
  * Resposta do usuário durante um fluxo do Brain (preview → confirmar/escolher/
  * cancelar; executed → desfazer). Retorna `true` se tratou; `false` para o
- * processor seguir processando a mensagem normalmente (ex: já executado e o
- * usuário mandou outra coisa).
+ * processor seguir processando a mensagem normalmente — o que EVITA sequestrar
+ * o assistente: uma mensagem qualquer ("qual o saldo?") durante um preview
+ * pendente cai no assistente, e o preview continua vivo até o timeout.
  */
 export async function handleBrainReply(
   supabase: SupabaseClient,
@@ -160,56 +193,74 @@ export async function handleBrainReply(
   const text = (message.text || "").trim();
   const btn = message.buttonReplyId;
 
-  /* ---- fase executed: só aguarda "Desfazer" ---- */
+  /* ---- fase executed: só "Desfazer" (botão ou verbo ancorado) ---- */
   if (brain.phase === "executed") {
-    if (btn === "brain_undo" || UNDO_RE.test(text)) {
+    if (btn === "brain_undo" || isUndoReply(text)) {
       const r = await undoIntake({ supabase, intakeId: brain.intake_id, actorUserId: userId });
       await clearPendingAction(supabase, session.id);
-      await sendTextMessage(phone, r.kind === "undone" ? renderUndone(r.removed) : "Não consegui desfazer agora. Tente pelo app. 🙏");
+      await sendTextMessage(
+        phone,
+        r.kind === "undone" ? renderUndone(r.removed, r.detached) : "Não consegui desfazer agora. Tente pelo app. 🙏",
+      );
       return true;
     }
-    // Outra coisa qualquer → encerra o fluxo e deixa processar como mensagem nova.
-    await clearPendingAction(supabase, session.id);
+    // Não é undo → deixa o assistente responder, MANTENDO o estado (o "Desfazer"
+    // continua disponível até o timeout de 30min). Sem clear = sem lockout.
     return false;
   }
 
   /* ---- fase preview ---- */
-  if (btn === "brain_cancel" || (!btn && CANCEL_RE.test(text) && !/\d/.test(text))) {
+  if (btn === "brain_cancel") {
     await clearPendingAction(supabase, session.id);
+    captureServerEvent(userId, "brain_intake_cancelled", { intake_id: brain.intake_id, via: "button" });
     await sendTextMessage(phone, "Ok, não adicionei nada. Pode reenviar a foto quando quiser. 🙂");
     return true;
   }
-
   if (btn === "brain_choose") {
-    // Reabre a janela e pede os números; a próxima mensagem cai no parseKeepIndices.
-    await setBrainIntake(supabase, session.id, brain);
+    await setBrainIntake(supabase, session.id, { ...brain, awaiting_selection: true });
     await sendTextMessage(
       phone,
       `Quais provas você quer adicionar? Responda os números — ex: *tirar 2 e 4* (remove essas) ou *manter 1 e 3* (só essas). Ou *Confirmar* pra todas.`,
     );
     return true;
   }
-
   if (btn === "brain_confirm") {
     return await confirmBrain(supabase, phone, userId, groupId, session, brain, undefined);
   }
 
-  // Texto: pode ser "confirmar/todas" (→ todas) ou deseleção ("tirar 2 e 4").
-  const keep = parseKeepIndices(text, brain.total);
-  if (keep === null) {
-    await sendTextMessage(
-      phone,
-      `Não entendi. Responda *Confirmar* pra adicionar todas, diga quais tirar (ex: *tirar 2 e 4*), ou *Cancelar*.`,
-    );
-    return true;
+  // Texto: classifica com segurança (NUNCA confirma por engano).
+  const intent = classifyBrainReply(text, brain.total, brain.awaiting_selection === true);
+  switch (intent.action) {
+    case "confirm":
+      return await confirmBrain(supabase, phone, userId, groupId, session, brain, undefined);
+    case "cancel":
+      await clearPendingAction(supabase, session.id);
+      captureServerEvent(userId, "brain_intake_cancelled", { intake_id: brain.intake_id, via: "text" });
+      await sendTextMessage(phone, "Ok, não adicionei nada. Pode reenviar a foto quando quiser. 🙂");
+      return true;
+    case "deselect":
+      captureServerEvent(userId, "brain_intake_deselected", {
+        intake_id: brain.intake_id,
+        kept: intent.keepIndices.length,
+        total: brain.total,
+      });
+      return await confirmBrain(supabase, phone, userId, groupId, session, brain, intent.keepIndices);
+    case "empty_selection":
+      await sendTextMessage(
+        phone,
+        "Assim não sobra nenhuma prova pra adicionar. Escolha ao menos uma, ou responda *Cancelar*.",
+      );
+      return true;
+    case "bad_numbers":
+      await sendTextMessage(
+        phone,
+        `Não entendi os números. Eles vão de 1 a ${brain.total}. Ex: *tirar 2 e 4*, *manter 1 e 3*, ou *Confirmar* pra todas.`,
+      );
+      return true;
+    default:
+      // Não é resposta ao Brain → assistente responde; preview segue vivo.
+      return false;
   }
-  // parseKeepIndices devolve todos os índices quando é "confirmar/todas".
-  const keepIndices = keep.length === brain.total ? undefined : keep;
-  if (keepIndices !== undefined && keepIndices.length === 0) {
-    await sendTextMessage(phone, "Assim não sobra nenhuma prova pra adicionar. Escolha ao menos uma, ou *Cancelar*.");
-    return true;
-  }
-  return await confirmBrain(supabase, phone, userId, groupId, session, brain, keepIndices);
 }
 
 /** Confirma o intake (subconjunto opcional), avisa o grupo e arma o Desfazer. */
@@ -232,7 +283,7 @@ async function confirmBrain(
   });
 
   if (r.kind === "executed") {
-    await setBrainIntake(supabase, session.id, { ...brain, phase: "executed", created_count: r.createdCount });
+    await setBrainIntake(supabase, session.id, { ...brain, phase: "executed", created_count: r.createdCount, awaiting_selection: false });
     await sendTextMessage(phone, renderExecuted(r.createdCount));
     await sendButtonMessage(phone, "Precisa reverter?", [{ id: "brain_undo", title: "Desfazer" }]);
     // Coordenação: avisa os coparentes (menos quem confirmou). Fire-and-forget.

@@ -22,6 +22,11 @@ export default defineConfig({
   resolve: {
     alias: {
       "@": path.resolve(__dirname, "./src"),
+      // "server-only" lança fora de RSC; nos testes vira um módulo vazio para
+      // que módulos server-side (brain-handlers, activity-reminders, …) e as
+      // suítes que os importam transitivamente (characterization do processor)
+      // carreguem sem throw.
+      "server-only": path.resolve(__dirname, "./tests/stubs/server-only.ts"),
     },
   },
   // Os testes de paridade native importam kindar-native/app/_src/lib/*.ts. Sem

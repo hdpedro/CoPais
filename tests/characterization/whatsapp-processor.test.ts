@@ -22,11 +22,13 @@ const { mockExecuteTool, mockRouteTools, mockBuildContext, c, s } = vi.hoisted((
   s: {
     loadSession: vi.fn(async () => ({ id: "s1", state: {} })),
     hasPendingConfirmation: vi.fn(() => false),
+    hasBrainIntake: vi.fn(() => false),
     setPendingAction: vi.fn(async () => {}),
     clearPendingAction: vi.fn(async () => {}),
     setSessionGroup: vi.fn(async () => {}),
     setGroupSelectionState: vi.fn(async () => {}),
     setReceiptStep: vi.fn(async () => {}),
+    setBrainIntake: vi.fn(async () => {}),
   },
 }));
 

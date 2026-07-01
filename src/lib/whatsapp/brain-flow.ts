@@ -28,8 +28,12 @@ function fmtBr(iso: string | undefined | null): string {
 export function isCalendarIntent(caption: string | undefined): boolean {
   const c = (caption || "").toLowerCase().trim();
   if (!c) return false;
-  // Slash/keyword explícita no início.
-  if (/^\/?(escola|calend[aá]rio|provas?|av\d)\b/.test(c)) return true;
+  // "/escola" como SLASH-command explícito conta (intenção clara). Mas "escola"
+  // NUA (sem barra) NÃO — legenda de recibo de mensalidade ("escola do João
+  // R$ 850") é comum e deve ir pro OCR de despesa, não pro Brain.
+  if (/^\/escola\b/.test(c)) return true;
+  // Palavras fortes de calendário/prova, com ou sem barra.
+  if (/^\/?(calend[aá]rio|provas?|av\d)\b/.test(c)) return true;
   // Natural.
   return /calend[aá]rio\s+(de\s+|das\s+)?(provas?|escolar|avalia)|cronograma\s+(de\s+)?provas?|datas?\s+(de\s+|das\s+)?provas?|calend[aá]rio\s+de\s+av/.test(
     c,
@@ -93,9 +97,19 @@ export function renderExecuted(createdCount: number): string {
   return `Pronto! Criei ${n} e vou avisar os responsáveis do grupo. 🗓️\n\nSe quiser, responda *Desfazer* pra reverter.`;
 }
 
-/** Mensagem de undo (calma, factual). */
-export function renderUndone(removed: number): string {
+/** Mensagem de undo (calma, factual). Espelha o serviço: quando `detached > 0`,
+ *  uma prova foi ALTERADA depois (por outro responsável) e PERMANECE — não
+ *  esconder isso (evita parecer perda de dado). `removed === 0` = nada a
+ *  desfazer (ex: toque duplo). */
+export function renderUndone(removed: number, detached = 0): string {
+  if (removed === 0 && detached === 0) {
+    return `Já estava desfeito — não havia nada a remover.`;
+  }
   const n = removed === 1 ? "1 prova" : `${removed} provas`;
+  if (detached > 0) {
+    const d = detached === 1 ? "1 prova foi alterada" : `${detached} provas foram alteradas`;
+    return `Desfeito — removi ${n}. ${d} depois e continua${detached === 1 ? "" : "m"} no calendário.`;
+  }
   return `Desfeito — removi ${n}. Pode mandar a foto de novo quando quiser.`;
 }
 
@@ -137,4 +151,73 @@ export function parseKeepIndices(reply: string, total: number): number[] | null 
   }
   // "manter/só" OU só os números → manter exatamente esses.
   return nums;
+}
+
+/* ------------------------------------------------------------------ */
+/* Classificação da resposta ao preview (fase preview) — PURA          */
+/*                                                                     */
+/* CRÍTICO: distinguir uma resposta AO BRAIN de uma mensagem qualquer, */
+/* sem NUNCA confirmar por engano. Confirmação por palavra exige que a */
+/* mensagem SEJA só palavras de confirmação (ancorada) — "pode ser dia */
+/* 20?" NÃO confirma. Deseleção exige número no intervalo OU verbo de   */
+/* tirar/manter. O que não for reconhecido vira `unknown` → o caller    */
+/* deixa o assistente responder (não sequestra o processador).         */
+/* ------------------------------------------------------------------ */
+
+/** Só-confirmação: a mensagem inteira é composta de palavras de "sim". */
+const CONFIRM_ONLY =
+  /^((sim|ok|okay|pode|confirmar?|confirmo|confirmado|todas|todos|tudo|criar|isso|certo|manda|bora|beleza|blz|vai|pode ser|por favor|pf)[\s,.!]*)+$/i;
+/** Só-cancelamento. */
+const CANCEL_ONLY =
+  /^((cancelar?|cancela|n[aã]o|nao|deixa|esquece|esque[cç]a|para|parar|nada|nenhuma|melhor n[aã]o)[\s,.!]*)+$/i;
+/** Undo (fase executed): a mensagem inteira é composta de palavras de desfazer
+ *  + fillers. Ancorada pra NÃO desfazer por engano (undo remove provas). */
+const UNDO_ONLY =
+  /^((desfazer|desfa[cç]a|desfaz|reverter|revert[aeê]|cancelar?|cancela|apagar?|apaga|voltar?|volta atr[aá]s|tudo|isso|essas?|as provas?|a prova|aquilo|de novo|por favor|pf)[\s,.!]*)+$/i;
+
+export type BrainReplyIntent =
+  | { action: "confirm" }
+  | { action: "cancel" }
+  | { action: "deselect"; keepIndices: number[] }
+  | { action: "empty_selection" } // deseleção que não sobra nenhuma
+  | { action: "bad_numbers" } // intenção de escolher, mas números inválidos
+  | { action: "unknown" }; // não é resposta ao Brain → deixa cair no assistente
+
+/**
+ * Classifica a resposta de texto na fase preview. `awaitingSelection` = o
+ * usuário acabou de tocar "Escolher" (esperamos números). Puro/testável.
+ */
+export function classifyBrainReply(
+  reply: string,
+  total: number,
+  awaitingSelection: boolean,
+): BrainReplyIntent {
+  const r = (reply || "").trim();
+  if (!r || total <= 0) return { action: "unknown" };
+  if (CANCEL_ONLY.test(r)) return { action: "cancel" };
+
+  const inRange = Array.from(new Set((r.match(/\d+/g) ?? []).map(Number))).filter(
+    (n) => n >= 1 && n <= total,
+  );
+  const wantsSubset = REMOVE.test(r.toLowerCase()) || KEEP.test(r.toLowerCase());
+
+  if (inRange.length > 0 || wantsSubset) {
+    const keep = parseKeepIndices(r, total);
+    if (keep === null) return { action: "bad_numbers" };
+    if (keep.length === 0) return { action: "empty_selection" };
+    if (keep.length >= total) return { action: "confirm" }; // manteve todas
+    return { action: "deselect", keepIndices: keep };
+  }
+
+  // Dígito fora do intervalo só é tratado como resposta (número errado) quando
+  // acabamos de pedir a seleção; senão é mensagem qualquer ("pode ser dia 20?").
+  if (awaitingSelection && /\d/.test(r)) return { action: "bad_numbers" };
+
+  if (CONFIRM_ONLY.test(r)) return { action: "confirm" };
+  return { action: "unknown" };
+}
+
+/** A resposta (fase executed) é um pedido de desfazer? Puro/ancorado. */
+export function isUndoReply(reply: string): boolean {
+  return UNDO_ONLY.test((reply || "").trim());
 }

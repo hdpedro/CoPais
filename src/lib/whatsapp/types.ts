@@ -238,6 +238,8 @@ export interface WASessionState {
     total: number;
     phase: "preview" | "executed";
     created_count?: number;
+    /** Usuário tocou "Escolher" → esperamos números na próxima mensagem. */
+    awaiting_selection?: boolean;
   };
 }
 
