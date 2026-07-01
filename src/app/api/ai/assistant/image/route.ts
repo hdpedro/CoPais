@@ -15,10 +15,11 @@ import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { reportServerError } from "@/lib/error-tracking/report-server";
-import { isBrainEnabledForGroup } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled } from "@/lib/services/brain-flag";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
 import { classifyDocumentByVision } from "@/lib/ai/document-classifier";
 import { createAndAnalyzeIntake } from "@/lib/services/brain";
+import { buildHealthPreviewMessage } from "@/lib/ai/brain/health-preview";
 import type { BrainChild } from "@/lib/ai/brain/types";
 
 const FILE = "src/app/api/ai/assistant/image/route.ts";
@@ -148,13 +149,97 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ content: "Não consegui processar o calendário agora. Tente de novo em instantes. 🙏" }, { status: 200 });
     }
 
-    // 2º passo (criança escolhida): já sabemos que é calendário — pula a
-    // reclassificação por visão (economiza uma chamada) e reprocessa direto.
-    if (requestedChildId) return await handleCalendar();
+    /** Processa a foto como CONSULTA médica (gate próprio da saúde + beta) e
+     *  devolve o preview inline — ou os botões de criança. Espelha handleCalendar.
+     *  O confirm/undo do widget é docType-agnóstico (confirmIntake dispatcha). */
+    async function handleHealthVisit(): Promise<NextResponse> {
+      if (!isHealthVisitEnabled() || !(await isBrainEnabledForGroup(supabase, group!.groupId))) {
+        return NextResponse.json(
+          { content: "🩺 Parece uma consulta médica! A leitura de consultas ainda está chegando pra você." },
+          { status: 200 },
+        );
+      }
+      const { data: childRows } = await supabase
+        .from("children")
+        .select("id, full_name, birth_date")
+        .eq("group_id", group!.groupId);
+      const children: BrainChild[] = (childRows ?? []).map((c) => ({
+        id: c.id as string,
+        name: (c.full_name as string) ?? "",
+        birthDate: (c.birth_date as string | null) ?? undefined,
+      }));
+      if (children.length === 0) {
+        return NextResponse.json({ content: "🩺 É uma consulta! Cadastre uma criança no grupo antes de registrar." }, { status: 200 });
+      }
+
+      const result = await createAndAnalyzeIntake({
+        supabase,
+        groupId: group!.groupId,
+        userId: auth!.id,
+        channel: "pwa",
+        buffer,
+        mime,
+        children,
+        requestedChildId,
+        docType: "health_visit",
+      });
+
+      if (result.kind === "preview") {
+        const health = result.preview.plan.health;
+        const childId = health?.appointment.childId ?? null;
+        const childName = children.find((c) => c.id === childId)?.name || "seu filho(a)";
+        return NextResponse.json(
+          {
+            content: health ? buildHealthPreviewMessage(health, childName) : "🩺 Organizei a consulta. Quer que eu registre?",
+            intake: {
+              id: result.preview.intakeId,
+              planHash: result.preview.planHash,
+              confirmationToken: result.preview.confirmationToken,
+              count: health?.medications?.length ?? 0,
+            },
+            link: "/saude",
+          },
+          { status: 200 },
+        );
+      }
+      if (result.kind === "duplicate") {
+        return NextResponse.json({ content: result.message, link: "/saude" }, { status: 200 });
+      }
+      if (result.kind === "needs_child_selection") {
+        // `doc: "health"` faz o widget reenviar a foto marcada como saúde (o
+        // resubmit dispatcha handleHealthVisit em vez de handleCalendar).
+        return NextResponse.json(
+          {
+            content: "🩺 É uma consulta médica! De qual criança é? É só tocar no nome:",
+            childSelection: { doc: "health", options: (result.options ?? children).map((c) => ({ id: c.id, name: c.name })) },
+          },
+          { status: 200 },
+        );
+      }
+      if (result.kind === "unknown_document") {
+        return NextResponse.json({ content: "Achei que fosse uma consulta, mas não consegui ler os detalhes. Tente uma foto mais nítida. 🙂" }, { status: 200 });
+      }
+      return NextResponse.json({ content: "Não consegui processar a consulta agora. Tente de novo em instantes. 🙏" }, { status: 200 });
+    }
+
+    // 2º passo (criança escolhida): dispatcha pelo tipo que o widget devolveu.
+    // Sem `doc` → calendário (byte-idêntico); `doc=health` → consulta.
+    if (requestedChildId) {
+      return (form.get("doc") as string | null) === "health" ? await handleHealthVisit() : await handleCalendar();
+    }
 
     // 1º passo: classificação por VISÃO — a MESMA do WhatsApp (cérebro único).
     const cls = await classifyDocumentByVision(buffer, undefined);
     if (cls.type === "school_calendar" && cls.confidence >= 0.6) return await handleCalendar();
+    // Consulta médica / receita → playbook de saúde (gate próprio OFF por padrão:
+    // com o gate OFF cai no routeMessage abaixo = comportamento ATUAL).
+    if (
+      isHealthVisitEnabled() &&
+      (cls.type === "medical_summary" || cls.type === "prescription") &&
+      cls.confidence >= 0.6
+    ) {
+      return await handleHealthVisit();
+    }
 
     // Outros tipos → mensagem + link pra tela certa.
     return NextResponse.json(routeMessage(cls.type), { status: 200 });
