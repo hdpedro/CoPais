@@ -93,3 +93,23 @@ export function looksLikeExpenseText(text: string): boolean {
   const amountSignal = /\b\d{1,6}([.,]\d{1,2})?\b|\br\$\s*\d/.test(s);
   return amountSignal;
 }
+
+/**
+ * Um texto livre DESCREVE um convite/evento de família? Gate CONSERVADOR
+ * (5º da fila: depois de provas, consulta, guarda e despesa). Âncora de
+ * ocasião (aniversário/festa/convite/reunião/apresentação/campeonato/
+ * formatura) + sinal de data, sem ser pergunta. A extração por IA é a
+ * decisão final. PURO (regex).
+ */
+export function looksLikeInviteText(text: string): boolean {
+  const s = (text || "").toLowerCase().trim();
+  if (s.length < 8 || s.length > 800) return false;
+  if (/[?]\s*$/.test(s)) return false;
+  if (/^\s*(quando|qual|que dia|onde|como|por que|porque|quem|será que|pode|posso)\b/.test(s)) return false;
+  const occasionAnchor =
+    /\b(convite|convidamos|convidou|anivers[áa]rio|festinha|festa d[eo]|apresenta[çc][ãa]o|campeonato|formatura|reuni[ãa]o de pais|festa junina)\b/.test(s);
+  if (!occasionAnchor) return false;
+  const dateSignal =
+    /\b\d{1,2}\/\d{1,2}\b|\bdia\s+\d{1,2}\b|semana que vem|pr[óo]xim[oa]|amanh[ãa]|\b(segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(-feira)?\b|\b(jan|fev|mar[çc]|abr|mai|jun|jul|ago|set|out|nov|dez)/.test(s);
+  return dateSignal;
+}

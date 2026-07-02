@@ -18,7 +18,7 @@ export type IntakeSource = "document" | "audio" | "message" | "command";
 
 /** Tipo de documento resolvido pelo classificador. `unknown_document`
  *  dispara a pergunta de esclarecimento (nunca vira recibo por default). */
-export type DocType = "school_calendar" | "health_visit" | "custody_routine" | "expense" | "routine_setup" | "unknown_document";
+export type DocType = "school_calendar" | "health_visit" | "custody_routine" | "expense" | "event_invite" | "routine_setup" | "unknown_document";
 
 /** Estados do intake — espelha o CHECK da migration 00126. */
 export type IntakeStatus =
@@ -340,6 +340,23 @@ export interface ExpensePlan {
   items: ExpenseItem[];
 }
 
+/* ---- Playbook de CONVITES (event_invite — aniversário/reunião/festa) ---- */
+
+/** Um convite = UM evento (multi-dia via endDate). O parse compõe a
+ *  descrição final (tema/traje/levar + linha de RSVP) — transportador. */
+export interface EventInvitePlan {
+  title: string;
+  description: string | null;
+  eventDate: string; // YYYY-MM-DD
+  endDate: string | null; // multi-dia (campeonato sáb+dom)
+  timeStart: string | null; // HH:MM
+  timeEnd: string | null;
+  location: string | null;
+  childId: string | null; // convidado (pergunta de criança se ambíguo)
+  allDay: boolean;
+  rsvpDeadline: string | null; // prazo de confirmar presença (YYYY-MM-DD)
+}
+
 /** Plano declarativo: o playbook descreve, o service materializa. */
 export interface MaterializationPlan {
   docType: DocType;
@@ -353,6 +370,8 @@ export interface MaterializationPlan {
   custody?: CustodyRoutinePlan;
   /** Plano de despesas (docType 'expense'). */
   expense?: ExpensePlan;
+  /** Plano de convite (docType 'event_invite'). */
+  invite?: EventInvitePlan;
   /** record_type pro fan-out de coordenação (Foundation Collab). */
   collabRecordType?: string;
 }

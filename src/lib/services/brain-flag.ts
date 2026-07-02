@@ -50,6 +50,14 @@ export function isExpenseEnabled(): boolean {
 }
 
 /**
+ * Playbook de CONVITES (event_invite) habilitado? Mesmo molde: env própria,
+ * OFF por padrão (fail-closed) até a migration 00142 + wiring + OK do dono.
+ */
+export function isEventInviteEnabled(): boolean {
+  return process.env.FEATURE_BRAIN_EVENT_INVITE === "true";
+}
+
+/**
  * Brain habilitado para o grupo? master env `&&` grupo.brain_beta_enabled.
  * Fail-closed: qualquer erro/ausência → false (não vaza acesso).
  */
