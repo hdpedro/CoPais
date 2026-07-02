@@ -2193,7 +2193,9 @@
       "custodyRoutineTitle": "Custodia y rutina actualizadas",
       "custodyRoutineBody": "{applied, plural, =0 {Sin cambios aplicados} one {1 cambio aplicado} other {# cambios aplicados}}{proposed, plural, =0 {} one { · 1 propuesta pendiente de respuesta} other { · # propuestas pendientes de respuesta}}. Toca para ver.",
       "expenseTitle": "Gasto registrado 💳",
-      "expenseBody": "{count, plural, one {1 gasto} other {# gastos}} — total R$ {total}. Toca para revisar y aprobar."
+      "expenseBody": "{count, plural, one {1 gasto} other {# gastos}} — total R$ {total}. Toca para revisar y aprobar.",
+      "inviteTitle": "Invitación en el calendario 🎉",
+      "inviteBody": "{event} — {date}. Toca para ver los detalles."
     }
   },
   "push": {

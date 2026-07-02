@@ -2193,7 +2193,9 @@
       "custodyRoutineTitle": "Betreuung & Routine aktualisiert",
       "custodyRoutineBody": "{applied, plural, =0 {Keine Änderungen übernommen} one {1 Änderung übernommen} other {# Änderungen übernommen}}{proposed, plural, =0 {} one { · 1 Vorschlag wartet auf Antwort} other { · # Vorschläge warten auf Antwort}}. Zum Ansehen tippen.",
       "expenseTitle": "Ausgabe erfasst 💳",
-      "expenseBody": "{count, plural, one {1 Ausgabe} other {# Ausgaben}} — gesamt R$ {total}. Zum Prüfen und Freigeben tippen."
+      "expenseBody": "{count, plural, one {1 Ausgabe} other {# Ausgaben}} — gesamt R$ {total}. Zum Prüfen und Freigeben tippen.",
+      "inviteTitle": "Einladung im Kalender 🎉",
+      "inviteBody": "{event} — {date}. Zum Ansehen tippen."
     }
   },
   "push": {

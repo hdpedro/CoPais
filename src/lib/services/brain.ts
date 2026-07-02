@@ -36,6 +36,8 @@ import { buildCustodyPayloads, buildCustodyOutboxPayloads } from "@/lib/ai/brain
 import { validateCustodyPlanForExecution } from "@/lib/ai/brain/validate-custody-plan";
 import { buildExpensePayloads, buildExpenseOutboxPayloads } from "@/lib/ai/brain/materialize-expense-payload";
 import { validateExpensePlanForExecution } from "@/lib/ai/brain/validate-expense-plan";
+import { buildInvitePayloads, buildInviteOutboxPayloads } from "@/lib/ai/brain/materialize-invite-payload";
+import { validateInvitePlanForExecution } from "@/lib/ai/brain/validate-invite-plan";
 import {
   healthPlanProbe,
   healthAppointmentKey,
@@ -1152,6 +1154,83 @@ async function confirmExpense(args: {
   return { kind: "stale_plan", intakeId, message: "Algo mudou desde que preparei este plano. Quer revisar?" };
 }
 
+/** CONVITES (C2): INSERT na tabela events existente via RPC atômica —
+ *  espelho do form Novo Evento (multi-dia = 1 linha/dia; sem responsável
+ *  fixo). created_by = confirmador. */
+async function confirmEventInvite(args: {
+  supabase: SupabaseServer;
+  intakeId: string;
+  planHash: string;
+  confirmationToken: string;
+  savedPlan: MaterializationPlan;
+  actorId: string;
+  actorUserId?: string;
+  recipientIds: string[];
+}): Promise<IntakeResult> {
+  const { supabase, intakeId, planHash, confirmationToken, savedPlan, actorId, recipientIds } = args;
+  if (!savedPlan.invite) {
+    return { kind: "error", message: "Não há nada para confirmar neste item." };
+  }
+
+  const validation = validateInvitePlanForExecution(savedPlan.invite);
+  if (!validation.ok) {
+    await reportServerError(new Error("invite_plan_validation_failed"), {
+      filePath: FILE,
+      metadata: { step: "confirm_invite_validate", intakeId, reason: validation.reason },
+    });
+    return { kind: "error", message: "O plano tem itens inválidos. Revise antes de confirmar." };
+  }
+
+  const payloads = buildInvitePayloads(savedPlan.invite);
+  const outbox = buildInviteOutboxPayloads({
+    intakeId,
+    recipientIds,
+    title: savedPlan.invite.title,
+    eventDate: savedPlan.invite.eventDate,
+    childId: savedPlan.invite.childId,
+  });
+
+  const { data: result, error: rpcErr } = await supabase.rpc("brain_intake_execute_invite_plan", {
+    p_intake_id: intakeId,
+    p_plan_hash: planHash,
+    p_token: confirmationToken,
+    p_events: payloads,
+    p_outbox: outbox,
+    p_actor_user_id: args.actorUserId ?? null,
+  });
+  if (rpcErr) {
+    await reportServerError(rpcErr, { filePath: FILE, metadata: { step: "execute_invite_plan", intakeId } });
+    return { kind: "error", message: "Falha ao confirmar. Tente de novo." };
+  }
+
+  const outcome = (result as { outcome?: string; created_count?: number } | null)?.outcome;
+  if (outcome === "executed") {
+    const createdCount = (result as { created_count: number }).created_count;
+    captureServerEvent(actorId, "brain_intake_confirmed", { intake_id: intakeId, doc_type: "event_invite" });
+    captureServerEvent(actorId, "brain_intake_executed", {
+      intake_id: intakeId,
+      doc_type: "event_invite",
+      artifact_count: createdCount,
+    });
+    return { kind: "executed", intakeId, createdCount };
+  }
+
+  const { data: fresh } = await supabase
+    .from("brain_intakes")
+    .select("status, confirmation_expires_at")
+    .eq("id", intakeId)
+    .single();
+  const freshStatus = fresh?.status as string | undefined;
+  if (freshStatus === "executed" || freshStatus === "executing") {
+    return { kind: "already_processing", intakeId };
+  }
+  const freshExpiry = fresh?.confirmation_expires_at as string | null | undefined;
+  if (freshExpiry && new Date(freshExpiry) <= new Date()) {
+    return { kind: "stale_plan", intakeId, message: "A confirmação expirou. Quer revisar o plano de novo?" };
+  }
+  return { kind: "stale_plan", intakeId, message: "Algo mudou desde que preparei este plano. Quer revisar?" };
+}
+
 /**
  * Confirma e materializa o plano. Revalida limites no app, monta os
  * payloads e chama a RPC atômica execute_plan (claim + materializa +
@@ -1215,6 +1294,14 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
     // módulo segue normal); coordenação via outbox.
     if (savedPlan.docType === "expense") {
       return await confirmExpense({
+        supabase, intakeId, planHash, confirmationToken, savedPlan,
+        actorId, actorUserId: args.actorUserId, recipientIds,
+      });
+    }
+
+    // CONVITES (C2): INSERT em events (espelho do form Novo Evento).
+    if (savedPlan.docType === "event_invite") {
+      return await confirmEventInvite({
         supabase, intakeId, planHash, confirmationToken, savedPlan,
         actorId, actorUserId: args.actorUserId, recipientIds,
       });

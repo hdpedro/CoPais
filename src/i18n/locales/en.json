@@ -2193,7 +2193,9 @@
       "custodyRoutineTitle": "Custody & routine updated",
       "custodyRoutineBody": "{applied, plural, =0 {No changes applied} one {1 change applied} other {# changes applied}}{proposed, plural, =0 {} one { · 1 proposal awaiting reply} other { · # proposals awaiting reply}}. Tap to view.",
       "expenseTitle": "Expense recorded 💳",
-      "expenseBody": "{count, plural, one {1 expense} other {# expenses}} — total R$ {total}. Tap to review and approve."
+      "expenseBody": "{count, plural, one {1 expense} other {# expenses}} — total R$ {total}. Tap to review and approve.",
+      "inviteTitle": "Invitation on the calendar 🎉",
+      "inviteBody": "{event} — {date}. Tap to see the details."
     }
   },
   "push": {
