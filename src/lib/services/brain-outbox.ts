@@ -130,6 +130,14 @@ async function deliver(admin: AdminClient, row: OutboxRow): Promise<void> {
       // fail-open: a coordenação nunca deixa de sair por causa do contexto
     }
     await createNotificationWithPush(recipientId, "brain_custody_routine", title, body, "/calendario");
+  } else if (p.kind === "expense") {
+    // Coordenação de DESPESA: quantas e o total — o detalhe (e a APROVAÇÃO,
+    // que segue o fluxo normal do módulo) fica no app (/despesas).
+    const count = Number(p.count) || 1;
+    const total = Number(p.total_amount) || 0;
+    const title = t("notifications.brain.expenseTitle");
+    const body = t("notifications.brain.expenseBody", { count, total: total.toFixed(2).replace(".", ",") });
+    await createNotificationWithPush(recipientId, "brain_expense", title, body, "/despesas");
   } else {
     const count = Number(p.created_count) || 1;
     const title = t("notifications.brain.schoolCalendarTitle");

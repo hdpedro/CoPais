@@ -56,6 +56,11 @@ export async function undoIntake(args: {
     if ((dt?.doc_type as string | undefined) === "custody_routine") {
       return await undoCustodyRoutine(args);
     }
+    // DESPESAS (Fase 2): pendente deleta; aprovada/rejeitada = o coparente já
+    // agiu → fica (kept), mesma regra da troca aprovada.
+    if ((dt?.doc_type as string | undefined) === "expense") {
+      return await undoExpense(args);
+    }
 
     // 1. Artefatos ainda ativos (não detached/undone) deste intake.
     const { data: artifacts, error: artErr } = await supabase
@@ -229,6 +234,41 @@ async function undoCustodyRoutine(args: {
     return { kind: "undone", removed, detached: kept, message: `${removed} item(ns) de guarda/rotina desfeito(s).` };
   } catch (err) {
     await reportServerError(err, { filePath: FILE, metadata: { step: "undo_custody", intakeId } });
+    return { kind: "error", message: "Não consegui desfazer agora. Tente de novo." };
+  }
+}
+
+/** Undo de DESPESAS: a RPC lê a própria proveniência; só 'pending' some —
+ *  aprovada/rejeitada é decisão bilateral feita (fica, conta em kept). */
+async function undoExpense(args: {
+  supabase: SupabaseServer;
+  intakeId: string;
+  actorUserId?: string;
+}): Promise<UndoResult> {
+  const { supabase, intakeId } = args;
+  try {
+    const { data: applied, error: rpcErr } = await supabase.rpc("brain_intake_apply_undo_expense", {
+      p_intake_id: intakeId,
+      p_actor_user_id: args.actorUserId ?? null,
+    });
+    if (rpcErr || (applied as { outcome?: string } | null)?.outcome !== "undone") {
+      await reportServerError(rpcErr ?? new Error("undo_not_applied"), {
+        filePath: FILE,
+        metadata: { step: "apply_undo_expense", intakeId },
+      });
+      return { kind: "error", message: "Falha ao desfazer." };
+    }
+    const removed = (applied as { removed: number }).removed;
+    const kept = (applied as { kept_agreements?: number }).kept_agreements ?? 0;
+
+    await purgeIntakeMedia(supabase, intakeId);
+
+    const uid = args.actorUserId ?? (await supabase.auth.getUser()).data.user?.id;
+    if (uid) captureServerEvent(uid, "brain_intake_undone", { intake_id: intakeId, doc_type: "expense", removed, kept });
+
+    return { kind: "undone", removed, detached: kept, message: `${removed} despesa(s) desfeita(s).` };
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "undo_expense", intakeId } });
     return { kind: "error", message: "Não consegui desfazer agora. Tente de novo." };
   }
 }
