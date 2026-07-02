@@ -22,6 +22,10 @@ import {
   SENTINEL_EVENING_BEFORE,
   computeTriggerAt,
 } from "./activity-reminders";
+import { pickExamReminderTargets, eveOf } from "@/lib/school-reminder-routing";
+import type { CustodyEvent } from "@/lib/custody-resolve";
+import type { RoutineOverride, RoutineSlot } from "@/lib/care-routine-resolve";
+import type { GroupArrangement } from "@/lib/responsible-resolve";
 
 interface SendResult {
   sent: number;
@@ -32,8 +36,80 @@ interface SendResult {
 interface DueExam {
   school_log_id: string;
   group_id: string;
+  child_id: string | null;
   title: string; // título do evento no calendário (ex: "📚 Prova · Matemática")
   event_date: string; // YYYY-MM-DD
+}
+
+/** Snapshot de guarda/rotina de um grupo pro roteamento do lembrete (R2). */
+interface GroupRoutingSnapshot {
+  arrangement: GroupArrangement;
+  custodyEvents: CustodyEvent[];
+  slots: RoutineSlot[];
+  overrides: RoutineOverride[];
+}
+
+const ARRANGEMENTS: readonly GroupArrangement[] = ["rotating", "together", "single", "custom"];
+
+/**
+ * Carrega o snapshot de guarda/rotina dos grupos com prova no slot. Qualquer
+ * falha aqui NÃO derruba o lembrete: devolve snapshot vazio → o roteamento
+ * cai no fanout atual (fail-open).
+ */
+async function loadRoutingSnapshots(
+  admin: ReturnType<typeof createAdminClient>,
+  groupIds: string[],
+  dueDates: string[],
+): Promise<Map<string, GroupRoutingSnapshot>> {
+  const snapshots = new Map<string, GroupRoutingSnapshot>();
+  for (const g of groupIds) {
+    snapshots.set(g, { arrangement: "rotating", custodyEvents: [], slots: [], overrides: [] });
+  }
+  if (groupIds.length === 0 || dueDates.length === 0) return snapshots;
+  try {
+    const minDate = eveOf([...dueDates].sort()[0]);
+    const maxDate = [...dueDates].sort().at(-1) as string;
+
+    const [groupsRes, custodyRes, slotsRes, overridesRes] = await Promise.all([
+      admin.from("coparenting_groups").select("id, arrangement").in("id", groupIds),
+      admin
+        .from("custody_events")
+        .select("id, group_id, child_id, start_date, end_date, responsible_user_id, custody_type, created_at")
+        .in("group_id", groupIds)
+        .lte("start_date", maxDate)
+        .gte("end_date", minDate),
+      admin
+        .from("care_routine_slots")
+        .select("id, group_id, child_id, weekday, leg, pattern_type, responsible_id, time_of_day, label, week_parity")
+        .in("group_id", groupIds)
+        .eq("is_active", true),
+      admin
+        .from("care_routine_overrides")
+        .select("id, group_id, child_id, occurrence_date, leg, responsible_id")
+        .in("group_id", groupIds)
+        .gte("occurrence_date", minDate)
+        .lte("occurrence_date", maxDate),
+    ]);
+
+    for (const g of (groupsRes.data ?? []) as Array<{ id: string; arrangement: string | null }>) {
+      const snap = snapshots.get(g.id);
+      if (snap && g.arrangement && (ARRANGEMENTS as readonly string[]).includes(g.arrangement)) {
+        snap.arrangement = g.arrangement as GroupArrangement;
+      }
+    }
+    for (const e of (custodyRes.data ?? []) as Array<CustodyEvent & { group_id: string }>) {
+      snapshots.get(e.group_id)?.custodyEvents.push(e);
+    }
+    for (const s of (slotsRes.data ?? []) as Array<RoutineSlot & { group_id: string }>) {
+      snapshots.get(s.group_id)?.slots.push(s);
+    }
+    for (const o of (overridesRes.data ?? []) as Array<RoutineOverride & { group_id: string }>) {
+      snapshots.get(o.group_id)?.overrides.push(o);
+    }
+  } catch (e) {
+    console.error("[CRON school-exam-reminders] routing snapshot failed (fail-open p/ fanout):", e);
+  }
+  return snapshots;
 }
 
 /** Instante do lembrete véspera-20h BRT p/ uma prova na data `eventDate`. Puro. */
@@ -67,7 +143,7 @@ export async function runSchoolExamReminders(now: Date = new Date()): Promise<Se
 
   const { data: rows, error } = await admin
     .from("events")
-    .select("id, group_id, title, event_date, school_log_id")
+    .select("id, group_id, child_id, title, event_date, school_log_id")
     .not("school_log_id", "is", null)
     .gte("event_date", yesterday)
     .lte("event_date", tomorrow);
@@ -79,15 +155,27 @@ export async function runSchoolExamReminders(now: Date = new Date()): Promise<Se
 
   // Filtra pelas cujo lembrete véspera-20h cai no slot atual (±8/7min).
   const due: DueExam[] = [];
-  for (const r of rows as Array<{ group_id: string; title: string; event_date: string; school_log_id: string | null }>) {
+  for (const r of rows as Array<{
+    group_id: string;
+    child_id: string | null;
+    title: string;
+    event_date: string;
+    school_log_id: string | null;
+  }>) {
     if (!r.school_log_id) continue;
     if (isSchoolExamDue(r.event_date, now)) {
-      due.push({ school_log_id: r.school_log_id, group_id: r.group_id, title: r.title, event_date: r.event_date });
+      due.push({
+        school_log_id: r.school_log_id,
+        group_id: r.group_id,
+        child_id: r.child_id,
+        title: r.title,
+        event_date: r.event_date,
+      });
     }
   }
   if (due.length === 0) return { sent: 0, skipped: 0, errors: 0 };
 
-  // Destinatários = membros admin/member do grupo (prova é da família toda).
+  // Membros elegíveis (admin/member) — o universo E o fallback do roteamento.
   const groupIds = Array.from(new Set(due.map((d) => d.group_id)));
   const { data: members } = await admin
     .from("group_members")
@@ -101,8 +189,32 @@ export async function runSchoolExamReminders(now: Date = new Date()): Promise<Se
     membersByGroup.set(m.group_id, arr);
   }
 
+  // R2 (épica Guarda & Rotina): o lembrete vai pra PESSOA CERTA DO DIA —
+  // união {responsável da véspera} ∪ {responsável do dia da prova}, via
+  // resolvedor único ciente do arranjo. Sem escala/rotina → fanout atual.
+  const snapshots = await loadRoutingSnapshots(
+    admin,
+    groupIds,
+    due.map((d) => d.event_date),
+  );
+
   const pairs: Array<{ d: DueExam; userId: string }> = [];
-  for (const d of due) for (const userId of membersByGroup.get(d.group_id) ?? []) pairs.push({ d, userId });
+  for (const d of due) {
+    const memberIds = membersByGroup.get(d.group_id) ?? [];
+    const snap = snapshots.get(d.group_id);
+    const targets = snap
+      ? pickExamReminderTargets({
+          arrangement: snap.arrangement,
+          custodyEvents: snap.custodyEvents,
+          slots: snap.slots,
+          overrides: snap.overrides,
+          childId: d.child_id,
+          examDate: d.event_date,
+          memberIds,
+        })
+      : memberIds;
+    for (const userId of targets) pairs.push({ d, userId });
+  }
   if (pairs.length === 0) return { sent: 0, skipped: 0, errors: 0 };
 
   // Idempotência: 1 query pros já enviados (school_log, event_date, user).
