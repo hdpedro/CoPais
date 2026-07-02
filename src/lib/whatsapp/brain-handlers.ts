@@ -733,17 +733,20 @@ export async function handleExamText(
   fromAudio: boolean,
   forcedChildId?: string | null,
   docType?: DocType,
+  /** true = a PORTA ÚNICA (classifyNarrative) já classificou — pula o gate
+   *  regex (os interruptores de flag CONTINUAM valendo). */
+  skipGate?: boolean,
 ): Promise<boolean> {
   const isHealth = docType === "health_visit";
   const isCustody = docType === "custody_routine";
   // Gate por playbook: consulta usa looksLikeConsultText + o interruptor próprio
   // de saúde; guarda usa looksLikeCustodyText + o seu (ambos OFF por padrão →
-  // nunca disparam); provas seguem o gate escolar.
+  // nunca disparam); provas seguem o gate escolar. skipGate pula SÓ o regex.
   if (isHealth) {
-    if (!isHealthVisitEnabled() || !looksLikeConsultText(text)) return false;
+    if (!isHealthVisitEnabled() || (!skipGate && !looksLikeConsultText(text))) return false;
   } else if (isCustody) {
-    if (!isCustodyRoutineEnabled() || !looksLikeCustodyText(text)) return false;
-  } else if (!looksLikeExamText(text)) {
+    if (!isCustodyRoutineEnabled() || (!skipGate && !looksLikeCustodyText(text))) return false;
+  } else if (!skipGate && !looksLikeExamText(text)) {
     return false;
   }
   if (!(await isBrainEnabledForGroup(supabase, groupId))) return false;

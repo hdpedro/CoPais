@@ -55,8 +55,8 @@ import {
   markAsRead,
   downloadMedia,
 } from "./client";
-import { classifyDocumentByVision } from "@/lib/ai/document-classifier";
-import { isBrainEnabledForGroup, isHealthVisitEnabled } from "@/lib/services/brain-flag";
+import { classifyDocumentByVision, classifyNarrative, type NarrativeIntentType } from "@/lib/ai/document-classifier";
+import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled } from "@/lib/services/brain-flag";
 import { formatForWhatsApp, splitMessage } from "./formatter";
 import { processReceiptImage, processPrescriptionImage } from "./media";
 import { transcribeAudio } from "./audio";
@@ -65,6 +65,68 @@ import { matchChildFromCaption } from "./caption-match";
 
 // Separate rate limiter for WhatsApp (30 msg/min per phone)
 const waRateLimiter = new AIRateLimiter(60_000, 30);
+
+/** Playbook de narrativa habilitado pra este tipo? (escolar sempre no beta;
+ *  saúde/guarda pelos interruptores próprios). */
+function narrativeTypeEnabled(t: NarrativeIntentType): boolean {
+  if (t === "school_calendar") return true;
+  if (t === "health_visit") return isHealthVisitEnabled();
+  if (t === "custody_routine") return isCustodyRoutineEnabled();
+  return false;
+}
+
+/**
+ * PORTA ÚNICA (decisão do dono 02/jul): quando os gates regex baratos não
+ * mordem, UMA chamada LLM barata decide o playbook da narrativa ("semana que
+ * vem ele fica comigo…") e reprocessa com skipGate. Conservador: mensagem
+ * curta/pergunta → assistente; dominante 'none' ou confiança < 0.6 → idem;
+ * segunda intenção forte → dica pra mandar a parte de novo (multi-intent v1).
+ * Nunca lança — qualquer falha devolve false (assistente responde).
+ */
+async function routeNarrativeFallback(
+  supabase: Parameters<typeof handleExamText>[0],
+  phone: string,
+  userId: string,
+  groupId: string,
+  text: string,
+  session: Parameters<typeof handleExamText>[5],
+  fromAudio: boolean,
+): Promise<boolean> {
+  try {
+    const s = (text || "").trim();
+    if (s.length < 15 || /[?]\s*$/.test(s)) return false;
+    if (!(await isBrainEnabledForGroup(supabase, groupId))) return false;
+
+    const cls = await classifyNarrative(s);
+    const [first, second] = cls.intents;
+    if (!first || first.type === "none" || first.confidence < 0.6 || !narrativeTypeEnabled(first.type)) {
+      return false;
+    }
+
+    const handled = await handleExamText(
+      supabase, phone, userId, groupId, s, session, fromAudio, undefined, first.type, true,
+    );
+    if (
+      handled &&
+      second &&
+      second.type !== "none" &&
+      second.type !== first.type &&
+      second.confidence >= 0.6 &&
+      narrativeTypeEnabled(second.type)
+    ) {
+      const label =
+        second.type === "health_visit"
+          ? "uma consulta médica"
+          : second.type === "custody_routine"
+            ? "uma combinação de guarda/rotina"
+            : "provas da escola";
+      await sendTextMessage(phone, `Também entendi ${label} nessa mensagem — me manda essa parte de novo que eu registro. 🙂`);
+    }
+    return handled;
+  } catch {
+    return false; // porta única nunca derruba a conversa
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Log message to whatsapp_message_logs                                */
@@ -488,6 +550,12 @@ export async function processWhatsAppMessage(
     }
     if (!handled) {
       handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio, undefined, "custody_routine");
+    }
+    // PORTA ÚNICA (decisão do dono): os gates regex não morderam, mas a frase
+    // pode ser captura em tom natural ("semana que vem ele fica comigo…").
+    // 1 chamada LLM barata decide o playbook; none/confiança baixa → assistente.
+    if (!handled) {
+      handled = await routeNarrativeFallback(supabase, phone, userId, groupId, message.text, session, fromAudio);
     }
     if (handled) {
       await logAIRequest({

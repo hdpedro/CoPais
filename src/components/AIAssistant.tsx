@@ -258,6 +258,34 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     examCaptureRef.current = runExamCapture;
   }, [runExamCapture]);
 
+  /** PORTA ÚNICA: o servidor decide o playbook quando os gates regex não
+   *  mordem; devolve false pra cair no chat. `secondHint` = a mensagem tinha
+   *  DOIS assuntos ("saí da consulta E semana que vem fica comigo"). */
+  const routeNarrative = useCallback(async (text: string): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/ai/assistant/narrative-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json().catch(() => ({ found: false }));
+      if (data?.found !== true || typeof data.docType !== "string") return false;
+      const endpoint =
+        data.docType === "health_visit"
+          ? "/api/ai/assistant/consult-text"
+          : data.docType === "custody_routine"
+            ? "/api/ai/assistant/custody-text"
+            : "/api/ai/assistant/exam-text";
+      const handled = await (examCaptureRef.current?.(text, undefined, endpoint) ?? Promise.resolve(false));
+      if (handled && typeof data.secondHint === "string" && data.secondHint) {
+        setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: data.secondHint, timestamp: new Date() }]);
+      }
+      return handled;
+    } catch {
+      return false; // porta única nunca bloqueia o chat
+    }
+  }, []);
+
   /* ---- Send message ---- */
   const sendMessage = useCallback(
     async (text: string) => {
@@ -307,6 +335,13 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         else if (looksLikeCustodyText(userMsg.content)) {
           const handled = await runExamCapture(userMsg.content, undefined, "/api/ai/assistant/custody-text");
           if (handled) return;
+        }
+        // PORTA ÚNICA: nenhum gate regex mordeu, mas pode ser captura em tom
+        // natural. O servidor classifica (1 chamada barata; fora do beta/flag
+        // OFF → {found:false}) e o widget chama o endpoint do playbook certo.
+        else {
+          const routed = await routeNarrative(userMsg.content);
+          if (routed) return;
         }
 
         // Build messages for API (only role + content)
@@ -362,7 +397,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         setIsLoading(false);
       }
     },
-    [messages, groupId, isLoading, runExamCapture, childPick]
+    [messages, groupId, isLoading, runExamCapture, childPick, routeNarrative]
   );
 
   /* ---- Enviar imagem (Fase 2: o assistente VÊ a foto e roteia) ---- */
