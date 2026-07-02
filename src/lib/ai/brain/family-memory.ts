@@ -128,6 +128,17 @@ export function analyzeRetroImpact(
   return findings;
 }
 
+/**
+ * M2: o retorno que ESTA consulta veio cumprir (followup_candidate com
+ * fonte). O confirm usa pra fechar o laço via brain_health_fulfill_return.
+ */
+export function pickFollowupReturnId(impacts: ImpactFinding[] | null | undefined): string | null {
+  const f = (impacts ?? []).find(
+    (i) => i.kind === "followup_candidate" && typeof i.relatedRecordId === "string" && i.relatedRecordId.length > 0,
+  );
+  return f?.relatedRecordId ?? null;
+}
+
 /* ---- Renderização (compartilhada: rotas do app + WhatsApp) ---- */
 
 const MEMORY_KINDS = new Set<string>([

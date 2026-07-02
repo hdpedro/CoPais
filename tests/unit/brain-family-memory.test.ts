@@ -4,7 +4,7 @@
 /* ------------------------------------------------------------------ */
 
 import { describe, it, expect } from "vitest";
-import { analyzeRetroImpact, renderMemoryLines, type FamilyMemorySnapshot, EMPTY_MEMORY } from "@/lib/ai/brain/family-memory";
+import { analyzeRetroImpact, renderMemoryLines, pickFollowupReturnId, type FamilyMemorySnapshot, EMPTY_MEMORY } from "@/lib/ai/brain/family-memory";
 import type { ImpactFinding, MaterializationPlan } from "@/lib/ai/brain/types";
 
 const OTTO = "11111111-1111-4111-8111-111111111111";
@@ -112,5 +112,24 @@ describe("renderMemoryLines", () => {
   });
   it("sem findings de memória → vazio (canais não mudam nada)", () => {
     expect(renderMemoryLines([], "Otto", t)).toHaveLength(0);
+  });
+});
+
+describe("pickFollowupReturnId (M2)", () => {
+  it("acha o followup_candidate com fonte", () => {
+    const impacts = [
+      { kind: "last_visit_context", severity: "info", date: "2026-07-02", childId: null, titleKey: "x" },
+      { kind: "followup_candidate", severity: "info", date: "2026-07-02", childId: null, titleKey: "y", relatedRecordId: "ret-1" },
+    ] as import("@/lib/ai/brain/types").ImpactFinding[];
+    expect(pickFollowupReturnId(impacts)).toBe("ret-1");
+  });
+  it("sem candidato (ou sem fonte) → null", () => {
+    expect(pickFollowupReturnId([])).toBeNull();
+    expect(pickFollowupReturnId(undefined)).toBeNull();
+    expect(
+      pickFollowupReturnId([
+        { kind: "followup_candidate", severity: "info", date: "2026-07-02", childId: null, titleKey: "y" },
+      ] as import("@/lib/ai/brain/types").ImpactFinding[]),
+    ).toBeNull();
   });
 });
