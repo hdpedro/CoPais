@@ -221,13 +221,17 @@ export function buildSwapRequestPayloads(plan: CustodyRoutinePlan): SwapRequestP
   return out;
 }
 
-/* ---- proposta de mudança PERMANENTE (slot) — SÓ outbox, sem tabela ---- */
+/* ---- proposta de mudança PERMANENTE (slot) — OK-do-outro (N4) ----
+ * A partir da 00138 a RPC INSERE em care_routine_slot_proposals; o slot
+ * semanal em si só muda quando o OUTRO responsável aceitar. */
 
 export interface SlotChangeProposalPayload {
   child_ids: string[];
   weekday: number;
   leg: "dropoff" | "pickup";
   responsible_id: string;
+  /** Rótulo humano ("Fernanda") pro card da proposta — a RPC persiste. */
+  responsible_label: string;
   time: string | null;
   payload_hash: string;
 }
@@ -261,6 +265,7 @@ export function buildSlotChangeProposals(plan: CustodyRoutinePlan): SlotChangePr
       weekday: it.weekday,
       leg: it.leg,
       responsible_id: responsibleId,
+      responsible_label: it.responsible.label,
       time: it.time,
       payload_hash: slotChangeProposalHash({
         childIds: it.childIds,
