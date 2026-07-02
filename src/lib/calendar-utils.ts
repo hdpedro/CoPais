@@ -45,6 +45,22 @@ export function getBrazilNow(): Date {
   return new Date(brazilStr);
 }
 
+/** Data (YYYY-MM-DD) de um TIMESTAMPTZ no fuso do Brasil. O banco devolve UTC
+ *  ("2026-08-05T15:00:00+00:00" = 12:00 BRT); split de string colocaria uma
+ *  consulta de 21h30 BRT no DIA SEGUINTE da grade. Sempre converter. */
+export function timestamptzToBrazilDateKey(iso: string): string {
+  return new Date(iso).toLocaleDateString("sv-SE", { timeZone: "America/Sao_Paulo" });
+}
+
+/** Hora (HH:MM) de um TIMESTAMPTZ no fuso do Brasil (par do dateKey acima). */
+export function timestamptzToBrazilTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 /** Format date as YYYY-MM-DD */
 export function formatDateKey(date: Date): string {
   const y = date.getFullYear();

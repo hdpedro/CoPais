@@ -10,6 +10,8 @@ import {
   computeSwapBalance,
   getEffectiveBalance,
   getBrazilToday,
+  timestamptzToBrazilDateKey,
+  timestamptzToBrazilTime,
   type BalanceOperation,
   type ParentColorMap,
   type CustodyEvent,
@@ -394,14 +396,16 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     }
   }
 
-  // Medical appointments — show as health pills on calendar
+  // Medical appointments — show as health pills on calendar.
+  // appointment_date é TIMESTAMPTZ (o banco devolve UTC): converter pra BRT,
+  // senão a hora aparece errada e consulta de noite cai no dia seguinte.
   if (appointments) {
     for (const apt of appointments) {
-      const dateKey = apt.appointment_date?.split("T")[0];
+      const dateKey = apt.appointment_date ? timestamptzToBrazilDateKey(apt.appointment_date) : undefined;
       if (!dateKey) continue;
       if (!activityDateMap[dateKey]) activityDateMap[dateKey] = [];
       const childName = (apt.children as unknown as { full_name: string | null } | null)?.full_name?.split(" ")[0] || "";
-      const time = apt.appointment_date?.split("T")[1]?.slice(0, 5) || null;
+      const time = apt.appointment_date ? timestamptzToBrazilTime(apt.appointment_date) : null;
       activityDateMap[dateKey].push({
         id: apt.id,
         name: apt.title || "Consulta",
