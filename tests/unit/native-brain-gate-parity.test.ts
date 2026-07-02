@@ -10,12 +10,14 @@ import {
   looksLikeExamText as pwaExam,
   looksLikeConsultText as pwaConsult,
   looksLikeCustodyText as pwaCustody,
+  looksLikeExpenseText as pwaExpense,
 } from "@/lib/ai/brain/exam-text-gate";
 import { matchOneChildOption as pwaMatch } from "@/components/AIAssistant";
 import {
   looksLikeExamText as natExam,
   looksLikeConsultText as natConsult,
   looksLikeCustodyText as natCustody,
+  looksLikeExpenseText as natExpense,
   matchOneChildOption as natMatch,
 } from "../../kindar-native/app/_src/lib/brain-capture";
 
@@ -37,6 +39,11 @@ const BATTERY = [
   "Quem busca o Otto amanhã?",
   "a guarda tá tranquila ultimamente",
   "Semana que vem o Otto vai dormir na minha casa na quinta", // porta única (gate NÃO morde)
+  // despesas (Fase 2)
+  "paguei 250 na consulta do Otto",
+  "gastei 89,90 no tênis do Martim ontem",
+  "R$ 45 de uber pra escola",
+  "paguei a consulta do Otto", // sem valor — gate não morde
   // ruído
   "oi, tudo bem?",
   "quanto gastei esse mês?",
@@ -47,6 +54,7 @@ describe("paridade PWA ↔ native — gates do Brain", () => {
     expect(natExam(s)).toBe(pwaExam(s));
     expect(natConsult(s)).toBe(pwaConsult(s));
     expect(natCustody(s)).toBe(pwaCustody(s));
+    expect(natExpense(s)).toBe(pwaExpense(s));
   });
 });
 

@@ -676,6 +676,10 @@ function textReferenceSuffix(docType: DocType, sctx: PlaybookContext): string {
     const memberLine = memberNames.length > 0 ? ` Membros do grupo: ${memberNames.join(", ")}.` : "";
     return `(Referência: hoje é ${sctx.today}, ${weekday}. Resolva "semana que vem", "quinta" etc. contra isso, em ISO "AAAA-MM-DD".${memberLine} Crianças: ${sctx.children.map((c) => c.name).join(", ")}.)`;
   }
+  if (docType === "expense") {
+    const weekday = WEEKDAYS_PT[new Date(sctx.today + "T12:00:00").getDay()];
+    return `(Referência: hoje é ${sctx.today}, ${weekday}. Resolva "ontem", "sábado passado" etc. contra isso, em ISO "AAAA-MM-DD". Crianças: ${sctx.children.map((c) => c.name).join(", ")}.)`;
+  }
   return `(Referência: hoje é ${sctx.today}; ano letivo ${sctx.schoolYearAnchor}. Resolva datas relativas ou sem ano contra isso.)`;
 }
 
@@ -690,9 +694,14 @@ export async function analyzeIntakeText(args: AnalyzeIntakeTextArgs): Promise<In
   try {
     // Ambígua ANTES do begin_analysis (evita órfão em 'analyzing'). Ver
     // task_7d0ff951; createAndAnalyzeText já barra antes de criar o intake.
-    // GUARDA & ROTINA é do grupo (itens resolvem crianças internamente) —
-    // a pergunta de criança não se aplica.
-    if (args.docType !== "custody_routine" && ctx.resolvedChildId === null && ctx.children.length > 1) {
+    // GUARDA & ROTINA é do grupo e DESPESA tem criança opcional por item
+    // (itens resolvem internamente) — a pergunta de criança não se aplica.
+    if (
+      args.docType !== "custody_routine" &&
+      args.docType !== "expense" &&
+      ctx.resolvedChildId === null &&
+      ctx.children.length > 1
+    ) {
       return { kind: "needs_child_selection", intakeId, options: ctx.children };
     }
 
@@ -778,10 +787,13 @@ export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Prom
 
     // GUARDA & ROTINA é do GRUPO, não de uma criança: os itens resolvem as
     // crianças internamente ("o Otto fica comigo… e quinta a avó busca os
-    // dois") — a pergunta "de qual criança é?" não se aplica.
+    // dois") — a pergunta "de qual criança é?" não se aplica. DESPESA idem:
+    // criança é OPCIONAL por item (null = família) — perguntar bloquearia
+    // "paguei 300 no mercado", que não é de criança nenhuma.
+    const skipsChildQuestion = args.docType === "custody_routine" || args.docType === "expense";
     const isCustody = args.docType === "custody_routine";
 
-    const resolvedChildId = isCustody
+    const resolvedChildId = skipsChildQuestion
       ? null
       : requestedChildId && children.some((c) => c.id === requestedChildId)
         ? requestedChildId
@@ -793,7 +805,7 @@ export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Prom
 
     // Ambígua: pergunta ANTES de criar o intake (sem órfão / sem duplicado).
     // Ver task_7d0ff951; espelha createAndAnalyzeIntake.
-    if (!isCustody && resolvedChildId === null && children.length > 1) {
+    if (!skipsChildQuestion && resolvedChildId === null && children.length > 1) {
       return { kind: "needs_child_selection", options: children };
     }
 

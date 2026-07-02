@@ -66,3 +66,28 @@ describe("validateExpensePlanForExecution — defensiva pré-RPC", () => {
     expect(validateExpensePlanForExecution(many)).toEqual({ ok: false, reason: "too_many_items" });
   });
 });
+
+import { buildExpensePreviewMessage } from "@/lib/ai/brain/expense-preview";
+
+describe("buildExpensePreviewMessage — prévia humana (E3)", () => {
+  const nameOf = (id: string) => (id === "11111111-1111-4111-8111-111111111111" ? "Otto" : "");
+
+  it("linhas + total + verdade do split + CTA", () => {
+    const msg = buildExpensePreviewMessage(PLAN, nameOf);
+    expect(msg).toContain("💳 Entendi essas despesas:");
+    expect(msg).toContain("• Consulta pediatra — R$ 250,00 · Otto · 01/07");
+    expect(msg).toContain("• Remédio — R$ 89,90 · 02/07");
+    expect(msg).toContain("Total: R$ 339,90");
+    expect(msg).toContain("divisão padrão do grupo");
+    expect(msg).toContain("Posso registrar?");
+  });
+
+  it("payer_only declara o limite; 1 item singulariza; withCta:false sem pergunta", () => {
+    const one = { items: [{ ...PLAN.items[0], splitHint: "payer_only" as const }] };
+    const msg = buildExpensePreviewMessage(one, nameOf, { withCta: false });
+    expect(msg).toContain("essa despesa");
+    expect(msg).not.toContain("Total:");
+    expect(msg).toContain("pagou sozinho");
+    expect(msg).not.toContain("Posso registrar?");
+  });
+});
