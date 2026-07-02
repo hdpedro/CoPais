@@ -153,3 +153,36 @@ export async function markRoutineOverrideRead(overrideId: string): Promise<{ suc
   revalidatePath("/calendario/rotina");
   return { success: true };
 }
+
+/* ------------------------------------------------------------------ */
+/* N4: responder proposta PERMANENTE de rotina (OK-do-outro)           */
+/* ------------------------------------------------------------------ */
+
+export async function respondToSlotProposal(formData: FormData) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { error: "Não autenticado." };
+
+  const proposalId = (formData.get("proposalId") as string) || "";
+  const decision = (formData.get("decision") as string) || "";
+  if (decision !== "accepted" && decision !== "declined") {
+    return { error: "Decisão inválida." };
+  }
+
+  const { respondToSlotProposal: respond } = await import(
+    "@/lib/services/care-routine-proposals"
+  );
+  const result = await respond(supabase, {
+    proposalId,
+    responderId: user.id,
+    decision,
+  });
+  if (!result.ok) return { error: result.error };
+
+  revalidatePath("/calendario");
+  revalidatePath("/calendario/rotina");
+  revalidatePath("/dashboard");
+  return { success: true, outcome: result.data.outcome };
+}

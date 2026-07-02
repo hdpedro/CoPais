@@ -18,6 +18,8 @@ import {
 } from "@/lib/calendar-utils";
 // getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
 import { EXPLICIT_CUSTODY } from "@/lib/responsible-resolve";
+import { listPendingSlotProposals, describeSlotProposal } from "@/lib/services/care-routine-proposals";
+import SlotProposalList from "./SlotProposalList";
 import { getBirthdayOccurrences, computeAgeOnDate } from "@/lib/birthday-utils";
 import { detectCustodyOverlap } from "@/lib/calendar-overlap-detect";
 import { captureServerEvent } from "@/lib/posthog-server";
@@ -458,10 +460,24 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     activityDateMap[dayKey].sort((a, b) => Number(isSchoolEvent(b)) - Number(isSchoolEvent(a)));
   }
 
+  // N4: propostas PERMANENTES de rotina aguardando o OK do outro (nascem do
+  // Brain). Pré-migration 00138 a tabela não existe → service devolve [].
+  const slotProposals = await listPendingSlotProposals(supabase, groupId);
+
   return (
     <div className="space-y-4 pb-20">
       {/* Header */}
       <CalendarHeader isReadonly={currentUserRole === "readonly"} />
+
+      {/* Proposta de mudança fixa de rotina (OK-do-outro) */}
+      <SlotProposalList
+        proposals={slotProposals.map((p) => ({
+          id: p.id,
+          description: describeSlotProposal(p),
+          proposerName: p.proposer_name,
+          proposedByMe: p.proposed_by === user.id,
+        }))}
+      />
 
       {/* Client wrapper for interactive parts */}
       <CalendarClient
