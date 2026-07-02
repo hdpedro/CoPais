@@ -1,0 +1,37 @@
+{
+  "calendarTab.registerHealthA11y": {
+    "pt": "Registrar saúde",
+    "en": "Log health",
+    "es": "Registrar salud",
+    "fr": "Enregistrer la santé",
+    "de": "Gesundheit erfassen"
+  },
+  "school.deleteDocTitle": {
+    "pt": "Excluir documento?",
+    "en": "Delete document?",
+    "es": "¿Eliminar documento?",
+    "fr": "Supprimer le document ?",
+    "de": "Dokument löschen?"
+  },
+  "a11y.activities.cardHint": {
+    "pt": "Toque para editar, toque longo para remover",
+    "en": "Tap to edit, long-press to remove",
+    "es": "Toca para editar, mantén pulsado para eliminar",
+    "fr": "Touchez pour modifier, appui long pour supprimer",
+    "de": "Zum Bearbeiten tippen, zum Entfernen gedrückt halten"
+  },
+  "account.termsOfUse": {
+    "pt": "Termos de Uso",
+    "en": "Terms of Use",
+    "es": "Términos de Uso",
+    "fr": "Conditions d'utilisation",
+    "de": "Nutzungsbedingungen"
+  },
+  "account.privacyPolicy": {
+    "pt": "Política de Privacidade",
+    "en": "Privacy Policy",
+    "es": "Política de Privacidad",
+    "fr": "Politique de confidentialité",
+    "de": "Datenschutzrichtlinie"
+  }
+}
