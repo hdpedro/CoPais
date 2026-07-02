@@ -523,7 +523,8 @@
     },
     "removeResponsible": "Quitar responsable",
     "removeResponsibleAllHint": "Quita el responsable fijo de todas las ocurrencias",
-    "responsibleRemoved": "Responsable eliminado"
+    "responsibleRemoved": "Responsable eliminado",
+    "custodyExceptionWith": "📌 Acordado — se queda con"
   },
   "chat": {
     "title": "Chat",

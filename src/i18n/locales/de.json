@@ -523,7 +523,8 @@
     },
     "removeResponsible": "Verantwortliche Person entfernen",
     "removeResponsibleAllHint": "Entfernt die feste Zuständigkeit aus allen Terminen",
-    "responsibleRemoved": "Verantwortliche Person entfernt"
+    "responsibleRemoved": "Verantwortliche Person entfernt",
+    "custodyExceptionWith": "📌 Vereinbart — bei"
   },
   "chat": {
     "title": "Chat",

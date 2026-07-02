@@ -516,7 +516,8 @@ export default memo(function DayDetailSheet({
                 </div>
                 <div>
                   {/* Migration 00082: vacation/swap/holiday têm labels específicas pra
-                      diferenciar visualmente de "responsável regular". */}
+                      diferenciar visualmente de "responsável regular". Exception
+                      (00137, Kindar Brain) = combinado pontual. */}
                   <p className="text-sm text-muted">
                     {dayInfo.custodyType === "vacation"
                       ? "✈️ Em férias com"
@@ -524,7 +525,9 @@ export default memo(function DayDetailSheet({
                         ? "🔄 Troca aprovada — com"
                         : dayInfo.custodyType === "holiday"
                           ? "🎉 Feriado — com"
-                          : t("calendar.responsible")}
+                          : dayInfo.custodyType === "exception"
+                            ? t("calendar.custodyExceptionWith")
+                            : t("calendar.responsible")}
                   </p>
                   <p className="font-semibold text-dark">{dayInfo.userName}</p>
                   {dayInfo.userId === currentUserId && (

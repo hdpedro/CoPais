@@ -17,6 +17,7 @@ import {
   type CustodyEvent,
 } from "@/lib/calendar-utils";
 // getOccurrences removed — occurrences are pre-computed in calendar_occurrences table
+import { EXPLICIT_CUSTODY } from "@/lib/responsible-resolve";
 import { getBirthdayOccurrences, computeAgeOnDate } from "@/lib/birthday-utils";
 import { detectCustodyOverlap } from "@/lib/calendar-overlap-detect";
 import { captureServerEvent } from "@/lib/posthog-server";
@@ -62,16 +63,20 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
     { data: birthdayChildren },
   ] = await Promise.all([
     getCachedMembers(groupId),
-    custodyEnabled
-      ? supabase
-          .from("custody_events")
-          .select("id, start_date, end_date, responsible_user_id, child_id, custody_type, notes, group_id, created_by, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
-          .eq("group_id", groupId)
-          .gte("end_date", rangeStart)
-          .lte("start_date", rangeEnd)
-          .order("start_date")
-          .then(r => r, () => ({ data: [] as never[] }))
-      : Promise.resolve({ data: [] as never[] }),
+    // Guarda DESLIGADA (ex.: pais que moram juntos) não some com o que foi
+    // combinado EXPLICITAMENTE (exceção/férias/troca — ex.: registrado pelo
+    // Kindar Brain): o dia pontual aparece no calendário sem reativar a
+    // escala inteira. Ligada: tudo, como sempre.
+    (() => {
+      let q = supabase
+        .from("custody_events")
+        .select("id, start_date, end_date, responsible_user_id, child_id, custody_type, notes, group_id, created_by, children(full_name), profiles!custody_events_responsible_user_id_fkey(full_name)")
+        .eq("group_id", groupId)
+        .gte("end_date", rangeStart)
+        .lte("start_date", rangeEnd);
+      if (!custodyEnabled) q = q.in("custody_type", [...EXPLICIT_CUSTODY]);
+      return q.order("start_date").then(r => r, () => ({ data: [] as never[] }));
+    })(),
     supabase
       .from("calendar_occurrences")
       .select("occurrence_date, activity_id, child_activities!inner(id, name, category, recurrence_type, time_start, time_end, location, notes, child_id, teacher_name, class_name, room, responsible_id, children(full_name), activity_checklist_items(id, name, sort_order))")

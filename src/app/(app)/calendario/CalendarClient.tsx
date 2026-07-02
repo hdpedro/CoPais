@@ -155,8 +155,9 @@ export default memo(function CalendarClient({
     return { isOpen: false, dateKey: "", dayInfo: null };
   });
 
-  // Parents who have custody days assigned
-  const isParentWithCustody = Object.values(custodyMap).some(
+  // Parents who have custody days assigned. Com a guarda desligada o mapa só
+  // tem dias EXPLÍCITOS (exceção/férias/troca) — não habilita o quick-swap.
+  const isParentWithCustody = custodyEnabled && Object.values(custodyMap).some(
     (d) => d.userId === currentUserId
   );
 
@@ -180,10 +181,10 @@ export default memo(function CalendarClient({
   }, [activities]);
 
   const hasCustodyData = custodyEnabled && Object.keys(custodyMap).length > 0;
-  // Defesa em profundidade: mostra o CTA sempre que nao houver eventos de
-  // guarda visiveis, independente do valor de custody_enabled. O ScheduleBuilder
-  // flipa a flag para true ao salvar a escala.
-  const showSetupCard = Object.keys(custodyMap).length === 0;
+  // Defesa em profundidade: mostra o CTA sempre que a escala nao estiver
+  // configurada (guarda desligada — mesmo com dias explicitos visiveis) ou
+  // quando nao houver eventos visiveis. O ScheduleBuilder flipa a flag ao salvar.
+  const showSetupCard = !custodyEnabled || Object.keys(custodyMap).length === 0;
 
   return (
     <>
@@ -201,8 +202,8 @@ export default memo(function CalendarClient({
       <CalendarGrid
         initialYear={initialYear}
         initialMonth={initialMonth}
-        custodyMap={custodyEnabled ? custodyMap : {}}
-        parentColors={custodyEnabled ? parentColors : {}}
+        custodyMap={custodyMap}
+        parentColors={parentColors}
         currentUserId={currentUserId}
         groupId={groupId}
         onDayClick={handleDayClick}

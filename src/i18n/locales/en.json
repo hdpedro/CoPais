@@ -523,7 +523,8 @@
     },
     "removeResponsible": "Remove responsible person",
     "removeResponsibleAllHint": "Removes the assigned person from all occurrences",
-    "responsibleRemoved": "Responsible person removed"
+    "responsibleRemoved": "Responsible person removed",
+    "custodyExceptionWith": "📌 As agreed — with"
   },
   "chat": {
     "title": "Chat",
