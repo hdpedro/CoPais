@@ -104,9 +104,10 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
   const [isListening, setIsListening] = useState(false);
   const [transcript, setTranscript] = useState("");
   const [portalContainer, setPortalContainer] = useState<HTMLElement | null>(null);
-  // Calendário reconhecido numa foto anexada → aguardando o usuário confirmar.
+  // Intake reconhecido (calendário escolar OU consulta, `doc="health"`) →
+  // aguardando o usuário confirmar. O `doc` decide a copy (provas × consulta).
   const [pendingIntake, setPendingIntake] = useState<
-    { id: string; planHash: string; confirmationToken: string; count: number } | null
+    { id: string; planHash: string; confirmationToken: string; count: number; doc?: string } | null
   >(null);
   // Provas (foto OU texto) sem criança resolvida → botões inline. O `resubmit`
   // reenvia a MESMA entrada (a foto ou o texto) com o child_id escolhido —
@@ -116,7 +117,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
   >(null);
   // Provas recém-criadas → oferece Desfazer inline (paridade com o WhatsApp,
   // que manda o botão "Desfazer" logo após confirmar).
-  const [undoableIntake, setUndoableIntake] = useState<{ id: string; count: number } | null>(null);
+  const [undoableIntake, setUndoableIntake] = useState<{ id: string; count: number; doc?: string } | null>(null);
 
   /* Refs */
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -414,10 +415,12 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     [childPick, isLoading]
   );
 
-  /* ---- Confirmar/cancelar as provas do calendário reconhecido ---- */
+  /* ---- Confirmar/cancelar o intake reconhecido (provas OU consulta) ---- */
   const confirmPendingIntake = useCallback(async () => {
     const pi = pendingIntake;
     if (!pi || isLoading) return;
+    // Consulta médica (Playbook de Saúde) → copy de Saúde; escolar inalterado.
+    const isHealth = pi.doc === "health";
     setPendingIntake(null);
     setUndoableIntake(null);
     setIsLoading(true);
@@ -430,22 +433,33 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
       const data = await res.json().catch(() => null);
       const ok = data?.kind === "executed";
       // Sucesso → guarda p/ oferecer Desfazer inline (paridade WhatsApp).
-      if (ok) setUndoableIntake({ id: pi.id, count: pi.count });
+      if (ok) setUndoableIntake({ id: pi.id, count: pi.count, doc: pi.doc });
       setMessages((prev) => [
         ...prev,
         {
           id: uid(),
           role: "assistant",
           content: ok
-            ? `✅ Pronto! Adicionei ${pi.count === 1 ? "1 prova" : `${pi.count} provas`} no calendário escolar. Se precisar, é só tocar em Desfazer.`
-            : "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏",
+            ? isHealth
+              ? "✅ Pronto! Registrei a consulta em Saúde. Se precisar, é só tocar em Desfazer."
+              : `✅ Pronto! Adicionei ${pi.count === 1 ? "1 prova" : `${pi.count} provas`} no calendário escolar. Se precisar, é só tocar em Desfazer.`
+            : isHealth
+              ? "Não consegui registrar agora. Tente pela tela Saúde. 🙏"
+              : "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏",
           timestamp: new Date(),
         },
       ]);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { id: uid(), role: "assistant", content: "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏", timestamp: new Date() },
+        {
+          id: uid(),
+          role: "assistant",
+          content: isHealth
+            ? "Não consegui registrar agora. Tente pela tela Saúde. 🙏"
+            : "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏",
+          timestamp: new Date(),
+        },
       ]);
     } finally {
       setIsLoading(false);
@@ -457,10 +471,11 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: "Ok, não adicionei nada. 🙂", timestamp: new Date() }]);
   }, []);
 
-  /* ---- Desfazer as provas recém-criadas (paridade WhatsApp) ---- */
+  /* ---- Desfazer o intake recém-criado (provas OU consulta; paridade WhatsApp) ---- */
   const undoConfirmedIntake = useCallback(async () => {
     const ui = undoableIntake;
     if (!ui || isLoading) return;
+    const isHealth = ui.doc === "health";
     setUndoableIntake(null);
     setIsLoading(true);
     try {
@@ -471,18 +486,33 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
       const detached = typeof data?.detached === "number" ? data.detached : 0;
       let content: string;
       if (done && removed > 0) {
-        content = `Desfeito — removi ${removed === 1 ? "1 prova" : `${removed} provas`}.`;
-        if (detached > 0) content += ` (${detached === 1 ? "1 prova foi alterada" : `${detached} provas foram alteradas`} depois e continua${detached === 1 ? "" : "m"} no calendário.)`;
+        if (isHealth) {
+          // Saúde: são REGISTROS (consulta/retorno/episódio/medicação), não provas.
+          content = `Desfeito — removi ${removed === 1 ? "1 registro" : `${removed} registros`} da consulta.`;
+          if (detached > 0) content += ` (${detached === 1 ? "1 registro foi alterado" : `${detached} registros foram alterados`} depois e continua${detached === 1 ? "" : "m"} em Saúde.)`;
+        } else {
+          content = `Desfeito — removi ${removed === 1 ? "1 prova" : `${removed} provas`}.`;
+          if (detached > 0) content += ` (${detached === 1 ? "1 prova foi alterada" : `${detached} provas foram alteradas`} depois e continua${detached === 1 ? "" : "m"} no calendário.)`;
+        }
       } else if (done) {
         content = "Já estava desfeito — não havia nada a remover.";
       } else {
-        content = "Não consegui desfazer agora. Você pode reverter em Escola › Calendário. 🙏";
+        content = isHealth
+          ? "Não consegui desfazer agora. Você pode reverter em Saúde. 🙏"
+          : "Não consegui desfazer agora. Você pode reverter em Escola › Calendário. 🙏";
       }
       setMessages((prev) => [...prev, { id: uid(), role: "assistant", content, timestamp: new Date() }]);
     } catch {
       setMessages((prev) => [
         ...prev,
-        { id: uid(), role: "assistant", content: "Não consegui desfazer agora. Tente pela tela Escola › Calendário. 🙏", timestamp: new Date() },
+        {
+          id: uid(),
+          role: "assistant",
+          content: isHealth
+            ? "Não consegui desfazer agora. Tente pela tela Saúde. 🙏"
+            : "Não consegui desfazer agora. Tente pela tela Escola › Calendário. 🙏",
+          timestamp: new Date(),
+        },
       ]);
     } finally {
       setIsLoading(false);

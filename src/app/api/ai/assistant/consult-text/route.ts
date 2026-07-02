@@ -79,6 +79,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
             planHash: result.preview.planHash,
             confirmationToken: result.preview.confirmationToken,
             count: health?.medications?.length ?? 0,
+            // O widget usa `doc` pra falar de CONSULTA (não "provas") no confirmar/desfazer.
+            doc: "health",
           },
           link: "/saude",
         },
