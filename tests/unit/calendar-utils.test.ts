@@ -1,5 +1,30 @@
 import { describe, it, expect } from "vitest";
-import { buildCustodyMap, computeSwapBalance, type CustodyEvent } from "@/lib/calendar-utils";
+import {
+  buildCustodyMap,
+  computeSwapBalance,
+  timestamptzToBrazilDateKey,
+  timestamptzToBrazilTime,
+  type CustodyEvent,
+} from "@/lib/calendar-utils";
+
+describe("timestamptzToBrazil* — consulta médica no dia/hora certos (bug 15:00 vs 12:00)", () => {
+  it("UTC do banco → data e hora em BRT (retorno criado pelo Brain ao meio-dia)", () => {
+    // 2026-08-05 15:00Z = 12:00 em America/Sao_Paulo (UTC-3)
+    expect(timestamptzToBrazilDateKey("2026-08-05T15:00:00+00:00")).toBe("2026-08-05");
+    expect(timestamptzToBrazilTime("2026-08-05T15:00:00+00:00")).toBe("12:00");
+  });
+
+  it("consulta de noite NÃO cai no dia seguinte (virada UTC)", () => {
+    // 21:30 BRT do dia 5 = 00:30Z do dia 6 — split de string mostraria dia 6.
+    expect(timestamptzToBrazilDateKey("2026-08-06T00:30:00+00:00")).toBe("2026-08-05");
+    expect(timestamptzToBrazilTime("2026-08-06T00:30:00+00:00")).toBe("21:30");
+  });
+
+  it("entrada com offset -03:00 (formato do write do módulo) é estável", () => {
+    expect(timestamptzToBrazilDateKey("2026-08-05T12:00:00-03:00")).toBe("2026-08-05");
+    expect(timestamptzToBrazilTime("2026-08-05T12:00:00-03:00")).toBe("12:00");
+  });
+});
 
 const COLORS = {
   "user-a": { name: "Angelino", color: "#5B9E85" },
