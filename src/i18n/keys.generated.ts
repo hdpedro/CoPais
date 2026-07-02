@@ -331,6 +331,7 @@ export type TranslationKey =
   | "calendar.chooseDay"
   | "calendar.className"
   | "calendar.custodyChangeTomorrow"
+  | "calendar.custodyExceptionWith"
   | "calendar.custodySchedule"
   | "calendar.day"
   | "calendar.dayAlreadyYours"
@@ -2257,10 +2258,16 @@ export type TranslationKey =
   | "notifPrefs.testFailed"
   | "notifPrefs.testSent"
   | "notifPrefs.title"
+  | "notifications.brain.custodyRoutineBody"
+  | "notifications.brain.custodyRoutineTitle"
   | "notifications.brain.examReminderBody"
   | "notifications.brain.examReminderTitle"
+  | "notifications.brain.expenseBody"
+  | "notifications.brain.expenseTitle"
   | "notifications.brain.healthVisitBody"
   | "notifications.brain.healthVisitTitle"
+  | "notifications.brain.inviteBody"
+  | "notifications.brain.inviteTitle"
   | "notifications.brain.schoolCalendarBody"
   | "notifications.brain.schoolCalendarTitle"
   | "notifications.chatMessage"
@@ -3142,6 +3149,7 @@ export const TRANSLATION_KEYS = [
   "calendar.chooseDay",
   "calendar.className",
   "calendar.custodyChangeTomorrow",
+  "calendar.custodyExceptionWith",
   "calendar.custodySchedule",
   "calendar.day",
   "calendar.dayAlreadyYours",
@@ -5068,10 +5076,16 @@ export const TRANSLATION_KEYS = [
   "notifPrefs.testFailed",
   "notifPrefs.testSent",
   "notifPrefs.title",
+  "notifications.brain.custodyRoutineBody",
+  "notifications.brain.custodyRoutineTitle",
   "notifications.brain.examReminderBody",
   "notifications.brain.examReminderTitle",
+  "notifications.brain.expenseBody",
+  "notifications.brain.expenseTitle",
   "notifications.brain.healthVisitBody",
   "notifications.brain.healthVisitTitle",
+  "notifications.brain.inviteBody",
+  "notifications.brain.inviteTitle",
   "notifications.brain.schoolCalendarBody",
   "notifications.brain.schoolCalendarTitle",
   "notifications.chatMessage",

@@ -341,6 +341,102 @@ export async function handleConsultaImage(
 }
 
 /**
+ * Foto de CONVITE (aniversário, reunião de pais, apresentação, campeonato…) →
+ * análise. Espelho de analyzeConsultaPhoto pro playbook de Convites (C3).
+ * Entrada é o classificador de visão (sem rota por legenda). Gate próprio
+ * (isEventInviteEnabled, OFF) checado pelo caller. Usa createAndAnalyzeIntake
+ * docType='event_invite' → sendBrainPreview (ramifica pro cartão 🎉).
+ */
+export async function analyzeInvitePhoto(
+  supabase: SupabaseClient,
+  phone: string,
+  userId: string,
+  groupId: string,
+  mediaId: string,
+  caption: string | null,
+  session: WASession,
+  preBuffer?: Buffer,
+  fromClassifier = false,
+  forcedChildId?: string | null,
+): Promise<boolean> {
+  try {
+    if (!fromClassifier) {
+      await sendTextMessage(phone, "🎉 Vou ler esse convite pra organizar no calendário da família. Analisando…");
+    }
+    const buffer = preBuffer ?? (await downloadMedia(mediaId));
+    const val = validateImageUpload(buffer);
+    if (!val.ok || !val.type) {
+      await sendTextMessage(phone, "Não consegui ler essa imagem. Tente uma foto nítida (JPG ou PNG). 🙏");
+      return true;
+    }
+    const { data: rows } = await supabase
+      .from("children")
+      .select("id, full_name, birth_date")
+      .eq("group_id", groupId);
+    const captionKids = (rows ?? []).map((r) => ({
+      id: r.id as string,
+      full_name: (r.full_name as string) ?? null,
+      birth_date: (r.birth_date as string) ?? null,
+    }));
+    if (captionKids.length === 0) {
+      await sendTextMessage(phone, "Você ainda não tem crianças cadastradas. Cadastre pelo app antes de enviar o convite. 🙏");
+      return true;
+    }
+    const children: BrainChild[] = captionKids.map((k) => ({ id: k.id, name: (k.full_name || "").split(" ")[0] || "criança" }));
+    const matched = captionKids.length > 1 ? matchChildFromCaption(caption ?? undefined, captionKids) : captionKids[0];
+    const requestedChildId = forcedChildId ?? matched?.id ?? null;
+
+    const result = await createAndAnalyzeIntake({
+      supabase,
+      groupId,
+      userId,
+      channel: "whatsapp",
+      source: "document",
+      buffer,
+      mime: val.type,
+      children,
+      requestedChildId,
+      docType: "event_invite",
+    });
+
+    switch (result.kind) {
+      case "preview": {
+        if (fromClassifier) {
+          await sendTextMessage(phone, "🎉 É um convite! Vou organizar pra adicionar ao calendário da família.");
+        }
+        await sendBrainPreview(supabase, phone, session, result.preview, children);
+        return true;
+      }
+      case "needs_child_selection":
+        await sendBrainChildQuestion(
+          supabase,
+          phone,
+          session,
+          result.options.map((o) => ({ id: o.id, name: o.name })),
+          { media_id: mediaId, doc_type: "event_invite" },
+        );
+        return true;
+      case "unknown_document":
+        if (fromClassifier) return false; // cai no recibo (sem dead-end)
+        await sendTextMessage(phone, "Isso não parece um convite. Se for, tente uma foto mais nítida. 🙂");
+        return true;
+      case "duplicate":
+        await sendTextMessage(phone, result.message);
+        return true;
+      default:
+        if (fromClassifier) return false;
+        await sendTextMessage(phone, "Não consegui processar agora. Tente de novo em instantes. 🙏");
+        return true;
+    }
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "analyzeInvitePhoto", groupId } });
+    if (fromClassifier) return false;
+    await sendTextMessage(phone, "Não consegui processar o convite agora. Reenvie a foto em instantes. 🙏");
+    return true;
+  }
+}
+
+/**
  * Resposta do usuário durante um fluxo do Brain (preview → confirmar/escolher/
  * cancelar; executed → desfazer). Retorna `true` se tratou; `false` para o
  * processor seguir processando a mensagem normalmente — o que EVITA sequestrar
@@ -659,7 +755,9 @@ export async function handleChildSelectionReply(
   if (sel.media_id) {
     return sel.doc_type === "health_visit"
       ? analyzeConsultaPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId)
-      : analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
+      : sel.doc_type === "event_invite"
+        ? analyzeInvitePhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId)
+        : analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
   }
   return false;
 }
@@ -758,8 +856,9 @@ async function sendBrainChildQuestion(
     media_id: source.media_id,
     text: source.text,
     from_audio: source.from_audio,
-    // Só saúde precisa do marcador (ausente = escolar). Estreita o DocType.
-    doc_type: source.doc_type === "health_visit" ? "health_visit" : undefined,
+    // Marcador de playbook (ausente = escolar). Estreita o DocType: guarda e
+    // despesa pulam a pergunta de criança; saúde e convite passam por aqui.
+    doc_type: source.doc_type === "health_visit" ? "health_visit" : source.doc_type === "event_invite" ? "event_invite" : undefined,
     options,
   });
   if (options.length >= 2 && options.length <= 3) {

@@ -41,6 +41,7 @@ import {
   analyzeCalendarPhoto,
   handleConsultaImage,
   analyzeConsultaPhoto,
+  analyzeInvitePhoto,
   handleBrainReply,
   handleChildSelectionReply,
   handleExamText,
@@ -655,6 +656,19 @@ export async function processWhatsAppMessage(
           ) {
             // Consulta/receita SEM legenda (gate OFF por padrão → nunca entra aqui).
             const handled = await analyzeConsultaPhoto(
+              supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, sharedBuffer, true,
+            );
+            if (handled) {
+              await logAIRequest({
+                userId, groupId, provider: "vision", feature: "assistant_chat",
+                success: true, responseTimeMs: Date.now() - start,
+              });
+              return;
+            }
+            // Cérebro rejeitou → cai no recibo (com buffer).
+          } else if (isEventInviteEnabled() && cls.type === "event_invite" && cls.confidence >= 0.7) {
+            // Convite SEM legenda (gate OFF por padrão → nunca entra aqui).
+            const handled = await analyzeInvitePhoto(
               supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, sharedBuffer, true,
             );
             if (handled) {
