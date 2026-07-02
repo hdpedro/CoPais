@@ -50,4 +50,10 @@ describe("renderPdfFirstPageToPng", () => {
     const broken = Buffer.from("%PDF-1.4\nlixo total sem estrutura");
     expect(await renderPdfFirstPageToPng(broken)).toBeNull();
   });
+  it("página em branco → null (Falha #5: visão inventava convite inteiro)", async () => {
+    const doc = await PDFDocument.create();
+    doc.addPage([595, 842]);
+    const blank = Buffer.from(await doc.save());
+    expect(await renderPdfFirstPageToPng(blank)).toBeNull();
+  });
 });

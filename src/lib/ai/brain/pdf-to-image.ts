@@ -21,8 +21,8 @@ export function isPdfBuffer(buffer: Buffer): boolean {
 /**
  * Renderiza a 1ª página como PNG (escala 2 ≈ 150 dpi — de sobra pra visão;
  * compressImageForVision reduz depois). Import dinâmico: quem não manda PDF
- * não paga o pdfjs no cold start. Null = não-PDF, grande demais ou
- * corrompido — o caller decide a copy (o guard de imagem segue o fluxo).
+ * não paga o pdfjs no cold start. Null = não-PDF, grande demais, corrompido
+ * OU página em branco — o caller decide a copy.
  */
 export async function renderPdfFirstPageToPng(buffer: Buffer): Promise<Buffer | null> {
   if (!isPdfBuffer(buffer) || buffer.length > MAX_PDF_BYTES) return null;
@@ -34,8 +34,27 @@ export async function renderPdfFirstPageToPng(buffer: Buffer): Promise<Buffer | 
       canvasImport: () => import("@napi-rs/canvas"),
       scale: 2,
     });
-    return Buffer.from(png);
+    const out = Buffer.from(png);
+    if (await isNearBlankPng(out)) return null;
+    return out;
   } catch {
     return null;
+  }
+}
+
+/**
+ * Página (quase) em branco → null ANTES da visão. Achado do E2E live
+ * (Falha #5 dos Convites): PDF que rasteriza em branco fazia o modelo
+ * INVENTAR um convite plausível inteiro ("Aniversário do João…") em vez
+ * de devolver unknown. Determinístico > instrução: desvio-padrão ~0 nos
+ * canais = não há nada legível na página.
+ */
+async function isNearBlankPng(png: Buffer): Promise<boolean> {
+  try {
+    const sharp = (await import("sharp")).default;
+    const { channels } = await sharp(png).stats();
+    return channels.every((c) => c.stdev < 2);
+  } catch {
+    return false; // stats falhou → segue o fluxo normal (visão decide)
   }
 }
