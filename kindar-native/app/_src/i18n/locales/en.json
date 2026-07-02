@@ -3352,7 +3352,8 @@
     "fieldScore": "Grade",
     "fieldRegisteredBy": "Logged by",
     "fieldCreatedAt": "Logged on",
-    "inCalendarShort": "On the calendar"
+    "inCalendarShort": "On the calendar",
+    "deleteDocTitle": "Delete document?"
   },
   "profileScreen": {
     "logoutConfirm": "Are you sure you want to log out?",
@@ -3439,7 +3440,8 @@
     "addEvent": "Add event",
     "offerSwap": "Offer swap",
     "requestSwap": "Request swap",
-    "requestVisit": "Request visit"
+    "requestVisit": "Request visit",
+    "registerHealthA11y": "Log health"
   },
   "activitiesNew": {
     "title": "New activity",
@@ -4683,6 +4685,9 @@
     "careRoutine": {
       "cell": "{day}, {leg} — {who}. Tap to change.",
       "swap": "Swap today's {leg} to the other caregiver"
+    },
+    "activities": {
+      "cardHint": "Tap to edit, long-press to remove"
     }
   },
   "error": {
@@ -4708,5 +4713,9 @@
     "ctaView": "View",
     "ctaReport": "Report",
     "ctaVote": "Vote"
+  },
+  "account": {
+    "termsOfUse": "Terms of Use",
+    "privacyPolicy": "Privacy Policy"
   }
 }

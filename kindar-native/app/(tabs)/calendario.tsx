@@ -293,7 +293,7 @@ export default function CalendarScreen() {
               <Text style={{ flex: 1, fontSize: font.sizes.sm, color: '#b45309', fontWeight: font.weights.medium }}>
                 {t('calendar.custodyChangeTomorrow', {
                   childNames: tomorrowSwapInfo.childName,
-                  parentName: tomorrowSwapInfo.isWithMeTomorrow ? t('home.you') : tomorrowSwapInfo.nextPerson,
+                  parentName: tomorrowSwapInfo.isWithMeTomorrow ? t('dashboard.you') : tomorrowSwapInfo.nextPerson,
                 })}
               </Text>
             </View>
@@ -610,7 +610,7 @@ export default function CalendarScreen() {
 
               const custodyResponsible = custody && members.find(m => m.userId === custody.responsibleId);
               const custodyHint = custody
-                ? t('calendarTab.hintCustody', { name: custody.responsibleId === userId ? t('home.you') : (custodyResponsible?.name || t('calendarTab.coparentLower')) })
+                ? t('calendarTab.hintCustody', { name: custody.responsibleId === userId ? t('dashboard.you') : (custodyResponsible?.name || t('calendarTab.coparentLower')) })
                 : '';
               const eventsHint = pills.length > 0
                 ? (pills.length === 1 ? t('calendarTab.hintEventsOne', { count: pills.length }) : t('calendarTab.hintEvents', { count: pills.length }))

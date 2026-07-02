@@ -3352,7 +3352,8 @@
     "fieldScore": "Note",
     "fieldRegisteredBy": "Erfasst von",
     "fieldCreatedAt": "Erfasst am",
-    "inCalendarShort": "Im Kalender"
+    "inCalendarShort": "Im Kalender",
+    "deleteDocTitle": "Dokument löschen?"
   },
   "profileScreen": {
     "logoutConfirm": "Möchtest du dich wirklich abmelden?",
@@ -3439,7 +3440,8 @@
     "addEvent": "Termin hinzufügen",
     "offerSwap": "Tausch anbieten",
     "requestSwap": "Tausch anfragen",
-    "requestVisit": "Besuch anfragen"
+    "requestVisit": "Besuch anfragen",
+    "registerHealthA11y": "Gesundheit erfassen"
   },
   "activitiesNew": {
     "title": "Neue Aktivität",
@@ -4683,6 +4685,9 @@
     "careRoutine": {
       "cell": "{day}, {leg} — {who}. Zum Ändern tippen.",
       "swap": "Heutiges {leg} an die andere Bezugsperson übergeben"
+    },
+    "activities": {
+      "cardHint": "Zum Bearbeiten tippen, zum Entfernen gedrückt halten"
     }
   },
   "error": {
@@ -4708,5 +4713,9 @@
     "ctaView": "Ansehen",
     "ctaReport": "Melden",
     "ctaVote": "Abstimmen"
+  },
+  "account": {
+    "termsOfUse": "Nutzungsbedingungen",
+    "privacyPolicy": "Datenschutzrichtlinie"
   }
 }
