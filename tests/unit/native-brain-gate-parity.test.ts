@@ -44,6 +44,7 @@ const BATTERY = [
   "gastei 89,90 no tênis do Martim ontem",
   "R$ 45 de uber pra escola",
   "paguei a consulta do Otto", // sem valor — gate não morde
+  "Paguei 250 na consulta do Otto e 89,90 de remédio na farmácia.", // colisão saúde×despesa (E2E 02/jul)
   // ruído
   "oi, tudo bem?",
   "quanto gastei esse mês?",
