@@ -18,7 +18,7 @@ export type IntakeSource = "document" | "audio" | "message" | "command";
 
 /** Tipo de documento resolvido pelo classificador. `unknown_document`
  *  dispara a pergunta de esclarecimento (nunca vira recibo por default). */
-export type DocType = "school_calendar" | "health_visit" | "routine_setup" | "unknown_document";
+export type DocType = "school_calendar" | "health_visit" | "custody_routine" | "routine_setup" | "unknown_document";
 
 /** Estados do intake — espelha o CHECK da migration 00126. */
 export type IntakeStatus =
@@ -55,6 +55,13 @@ export interface BrainChild {
   birthDate?: string;
 }
 
+/** Membro do grupo pro playbook resolver pessoas citadas na narrativa
+ *  ("a Fernanda", "EU") — NUNCA se inventa um responsável fora desta lista. */
+export interface GroupMemberRef {
+  id: string;
+  name: string;
+}
+
 /** Contexto que os estágios puros recebem (snapshot, sem I/O). */
 export interface PlaybookContext {
   groupId: string;
@@ -65,6 +72,9 @@ export interface PlaybookContext {
   children: BrainChild[];
   resolvedChildId: string | null; // já desambiguado, ou null
   schoolYearAnchor: number; // ano letivo inferido
+  /** Membros do grupo (playbook de guarda/rotina resolve pessoas citadas).
+   *  Opcional: escolar/saúde não usam; canais threadam p/ custody_routine. */
+  members?: GroupMemberRef[];
 }
 
 /** Saída do Understanding: o que o classificador+extração entenderam.
@@ -225,6 +235,84 @@ export interface HealthVisitPlan {
   examRequests?: ExamRequestSpec[];
 }
 
+/* ---- Guarda & Rotina (docType 'custody_routine') ---- */
+
+/** Pessoa citada na narrativa. `memberId` resolvido contra os membros do
+ *  grupo; null = pessoa EXTERNA ("a avó") — permitida só em leva/busca, e
+ *  mesmo assim como rótulo humano (a responsabilidade no app fica com um
+ *  membro). NUNCA se inventa um membro. */
+export interface PersonRef {
+  memberId: string | null;
+  label: string;
+}
+
+/** Exceção pontual de guarda ("ele fica comigo de 8 a 12"). Governança:
+ *  notifica-e-vale + Desfazer (decisão do dono 02/jul). */
+export interface CustodyExceptionItem {
+  kind: "custody_exception";
+  childIds: string[];
+  startDate: string; // YYYY-MM-DD
+  endDate: string;
+  responsible: PersonRef; // sempre membro (memberId != null)
+  reason: string | null;
+}
+
+/** Férias/recesso com um responsável. childIds null = família toda. */
+export interface VacationItem {
+  kind: "vacation";
+  childIds: string[] | null;
+  startDate: string;
+  endDate: string;
+  responsible: PersonRef; // sempre membro
+  notes: string | null;
+}
+
+/** Proposta de troca de dia — cai no fluxo BILATERAL existente (swap.ts):
+ *  o outro responsável aprova antes de materializar. */
+export interface SwapProposalItem {
+  kind: "swap_proposal";
+  childIds: string[];
+  originalDate: string;
+  proposedDate: string | null;
+  counterpart: PersonRef; // membro ≠ narrador
+  reason: string | null;
+}
+
+/** Troca pontual de leva/busca num dia ("quinta quem busca é a avó").
+ *  Pessoa externa vira rótulo; o responsável no app é o membro que combinou. */
+export interface LegOverrideItem {
+  kind: "leg_override";
+  childIds: string[];
+  date: string;
+  leg: "dropoff" | "pickup";
+  responsible: PersonRef; // memberId null = externo (rótulo)
+  time: string | null; // "HH:MM"
+  note: string | null;
+}
+
+/** Mudança PERMANENTE do padrão semanal ("a partir de agora segunda quem
+ *  leva é o pai"). Governança: PROPOSTA — só materializa com OK do outro. */
+export interface SlotChangeItem {
+  kind: "slot_change";
+  childIds: string[];
+  weekday: number; // 0=Dom .. 6=Sáb
+  leg: "dropoff" | "pickup";
+  responsible: PersonRef; // sempre membro
+  time: string | null;
+}
+
+export type CustodyRoutineItem =
+  | CustodyExceptionItem
+  | VacationItem
+  | SwapProposalItem
+  | LegOverrideItem
+  | SlotChangeItem;
+
+/** Plano de guarda/rotina: N itens extraídos de UMA narrativa. */
+export interface CustodyRoutinePlan {
+  items: CustodyRoutineItem[];
+}
+
 /** Plano declarativo: o playbook descreve, o service materializa. */
 export interface MaterializationPlan {
   docType: DocType;
@@ -234,6 +322,8 @@ export interface MaterializationPlan {
   /** Plano de saúde (docType 'health_visit'). Dispatch por docType decide qual
    *  materializar; não colide com activities (escolar). */
   health?: HealthVisitPlan;
+  /** Plano de guarda/rotina (docType 'custody_routine'). */
+  custody?: CustodyRoutinePlan;
   /** record_type pro fan-out de coordenação (Foundation Collab). */
   collabRecordType?: string;
 }

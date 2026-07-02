@@ -66,6 +66,15 @@ async function deliver(admin: AdminClient, row: OutboxRow): Promise<void> {
     const title = t("notifications.brain.healthVisitTitle", { child: childName });
     const body = t("notifications.brain.healthVisitBody", { count: medCount });
     await createNotificationWithPush(recipientId, "brain_health_visit", title, body, "/saude");
+  } else if (p.kind === "custody_routine") {
+    // Coordenação de GUARDA & ROTINA: o que valeu agora (exceção/férias/leva-
+    // busca — notifica-e-vale) + o que está PROPOSTO aguardando resposta
+    // (troca / mudança permanente). Detalhe no app (/calendario).
+    const applied = Number(p.applied_count) || 0;
+    const proposed = (Number(p.swap_proposal_count) || 0) + (Number(p.slot_proposal_count) || 0);
+    const title = t("notifications.brain.custodyRoutineTitle");
+    const body = t("notifications.brain.custodyRoutineBody", { applied, proposed });
+    await createNotificationWithPush(recipientId, "brain_custody_routine", title, body, "/calendario");
   } else {
     const count = Number(p.created_count) || 1;
     const title = t("notifications.brain.schoolCalendarTitle");

@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/i18n/provider";
-import { looksLikeExamText, looksLikeConsultText } from "@/lib/ai/brain/exam-text-gate";
+import { looksLikeExamText, looksLikeConsultText, looksLikeCustodyText } from "@/lib/ai/brain/exam-text-gate";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -258,6 +258,34 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     examCaptureRef.current = runExamCapture;
   }, [runExamCapture]);
 
+  /** PORTA ÚNICA: o servidor decide o playbook quando os gates regex não
+   *  mordem; devolve false pra cair no chat. `secondHint` = a mensagem tinha
+   *  DOIS assuntos ("saí da consulta E semana que vem fica comigo"). */
+  const routeNarrative = useCallback(async (text: string): Promise<boolean> => {
+    try {
+      const res = await fetch("/api/ai/assistant/narrative-route", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text }),
+      });
+      const data = await res.json().catch(() => ({ found: false }));
+      if (data?.found !== true || typeof data.docType !== "string") return false;
+      const endpoint =
+        data.docType === "health_visit"
+          ? "/api/ai/assistant/consult-text"
+          : data.docType === "custody_routine"
+            ? "/api/ai/assistant/custody-text"
+            : "/api/ai/assistant/exam-text";
+      const handled = await (examCaptureRef.current?.(text, undefined, endpoint) ?? Promise.resolve(false));
+      if (handled && typeof data.secondHint === "string" && data.secondHint) {
+        setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: data.secondHint, timestamp: new Date() }]);
+      }
+      return handled;
+    } catch {
+      return false; // porta única nunca bloqueia o chat
+    }
+  }, []);
+
   /* ---- Send message ---- */
   const sendMessage = useCallback(
     async (text: string) => {
@@ -301,6 +329,19 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         else if (looksLikeConsultText(userMsg.content)) {
           const handled = await runExamCapture(userMsg.content, undefined, "/api/ai/assistant/consult-text");
           if (handled) return;
+        }
+        // Guarda & rotina por texto ("semana que vem o Otto fica comigo…") —
+        // 3º da fila: nunca sequestra provas nem consulta. Flag OFF → chat.
+        else if (looksLikeCustodyText(userMsg.content)) {
+          const handled = await runExamCapture(userMsg.content, undefined, "/api/ai/assistant/custody-text");
+          if (handled) return;
+        }
+        // PORTA ÚNICA: nenhum gate regex mordeu, mas pode ser captura em tom
+        // natural. O servidor classifica (1 chamada barata; fora do beta/flag
+        // OFF → {found:false}) e o widget chama o endpoint do playbook certo.
+        else {
+          const routed = await routeNarrative(userMsg.content);
+          if (routed) return;
         }
 
         // Build messages for API (only role + content)
@@ -356,7 +397,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         setIsLoading(false);
       }
     },
-    [messages, groupId, isLoading, runExamCapture, childPick]
+    [messages, groupId, isLoading, runExamCapture, childPick, routeNarrative]
   );
 
   /* ---- Enviar imagem (Fase 2: o assistente VÊ a foto e roteia) ---- */
@@ -415,12 +456,13 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     [childPick, isLoading]
   );
 
-  /* ---- Confirmar/cancelar o intake reconhecido (provas OU consulta) ---- */
+  /* ---- Confirmar/cancelar o intake reconhecido (provas/consulta/guarda) ---- */
   const confirmPendingIntake = useCallback(async () => {
     const pi = pendingIntake;
     if (!pi || isLoading) return;
-    // Consulta médica (Playbook de Saúde) → copy de Saúde; escolar inalterado.
+    // Copy por playbook: saúde/guarda têm as suas; escolar inalterado.
     const isHealth = pi.doc === "health";
+    const isCustody = pi.doc === "custody";
     setPendingIntake(null);
     setUndoableIntake(null);
     setIsLoading(true);
@@ -440,12 +482,16 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
           id: uid(),
           role: "assistant",
           content: ok
-            ? isHealth
-              ? "✅ Pronto! Registrei a consulta em Saúde. Se precisar, é só tocar em Desfazer."
-              : `✅ Pronto! Adicionei ${pi.count === 1 ? "1 prova" : `${pi.count} provas`} no calendário escolar. Se precisar, é só tocar em Desfazer.`
-            : isHealth
-              ? "Não consegui registrar agora. Tente pela tela Saúde. 🙏"
-              : "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏",
+            ? isCustody
+              ? "✅ Pronto! Registrei as combinações — quem precisa aprovar já foi avisado. Se precisar, é só tocar em Desfazer."
+              : isHealth
+                ? "✅ Pronto! Registrei a consulta em Saúde. Se precisar, é só tocar em Desfazer."
+                : `✅ Pronto! Adicionei ${pi.count === 1 ? "1 prova" : `${pi.count} provas`} no calendário escolar. Se precisar, é só tocar em Desfazer.`
+            : isCustody
+              ? "Não consegui registrar agora. Tente pelo Calendário. 🙏"
+              : isHealth
+                ? "Não consegui registrar agora. Tente pela tela Saúde. 🙏"
+                : "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏",
           timestamp: new Date(),
         },
       ]);
@@ -455,9 +501,11 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         {
           id: uid(),
           role: "assistant",
-          content: isHealth
-            ? "Não consegui registrar agora. Tente pela tela Saúde. 🙏"
-            : "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏",
+          content: isCustody
+            ? "Não consegui registrar agora. Tente pelo Calendário. 🙏"
+            : isHealth
+              ? "Não consegui registrar agora. Tente pela tela Saúde. 🙏"
+              : "Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏",
           timestamp: new Date(),
         },
       ]);
@@ -476,6 +524,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     const ui = undoableIntake;
     if (!ui || isLoading) return;
     const isHealth = ui.doc === "health";
+    const isCustody = ui.doc === "custody";
     setUndoableIntake(null);
     setIsLoading(true);
     try {
@@ -486,7 +535,11 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
       const detached = typeof data?.detached === "number" ? data.detached : 0;
       let content: string;
       if (done && removed > 0) {
-        if (isHealth) {
+        if (isCustody) {
+          // Guarda/rotina: itens; `detached` = trocas JÁ aceitas (acordo fica).
+          content = `Desfeito — removi ${removed === 1 ? "1 combinação" : `${removed} combinações`} de guarda e rotina.`;
+          if (detached > 0) content += ` (${detached === 1 ? "1 troca já aceita" : `${detached} trocas já aceitas`} continua${detached === 1 ? "" : "m"} valendo.)`;
+        } else if (isHealth) {
           // Saúde: são REGISTROS (consulta/retorno/episódio/medicação), não provas.
           content = `Desfeito — removi ${removed === 1 ? "1 registro" : `${removed} registros`} da consulta.`;
           if (detached > 0) content += ` (${detached === 1 ? "1 registro foi alterado" : `${detached} registros foram alterados`} depois e continua${detached === 1 ? "" : "m"} em Saúde.)`;
@@ -497,9 +550,11 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
       } else if (done) {
         content = "Já estava desfeito — não havia nada a remover.";
       } else {
-        content = isHealth
-          ? "Não consegui desfazer agora. Você pode reverter em Saúde. 🙏"
-          : "Não consegui desfazer agora. Você pode reverter em Escola › Calendário. 🙏";
+        content = isCustody
+          ? "Não consegui desfazer agora. Você pode reverter pelo Calendário. 🙏"
+          : isHealth
+            ? "Não consegui desfazer agora. Você pode reverter em Saúde. 🙏"
+            : "Não consegui desfazer agora. Você pode reverter em Escola › Calendário. 🙏";
       }
       setMessages((prev) => [...prev, { id: uid(), role: "assistant", content, timestamp: new Date() }]);
     } catch {
@@ -508,9 +563,11 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         {
           id: uid(),
           role: "assistant",
-          content: isHealth
-            ? "Não consegui desfazer agora. Tente pela tela Saúde. 🙏"
-            : "Não consegui desfazer agora. Tente pela tela Escola › Calendário. 🙏",
+          content: isCustody
+            ? "Não consegui desfazer agora. Tente pelo Calendário. 🙏"
+            : isHealth
+              ? "Não consegui desfazer agora. Tente pela tela Saúde. 🙏"
+              : "Não consegui desfazer agora. Tente pela tela Escola › Calendário. 🙏",
           timestamp: new Date(),
         },
       ]);

@@ -13,9 +13,11 @@ import {
   SCHOOL_CALENDAR_TEXT_EXTRACTION,
   HEALTH_VISIT_EXTRACTION,
   HEALTH_VISIT_TEXT_EXTRACTION,
+  CUSTODY_ROUTINE_TEXT_EXTRACTION,
 } from "../../prompts/brain";
 import { schoolCalendarPlaybook } from "./playbooks/school-calendar";
 import { healthVisitPlaybook } from "./playbooks/health-visit";
+import { custodyRoutinePlaybook } from "./playbooks/custody-routine";
 
 // O playbook é puro; os prompts de extração vivem em prompts/brain.ts e são
 // injetados aqui (mantém o playbook sem string de prompt embutida). O de TEXTO
@@ -36,9 +38,19 @@ const healthVisit: Playbook = {
   textExtractionPrompt: HEALTH_VISIT_TEXT_EXTRACTION,
 } as Playbook;
 
+// Playbook de Guarda & Rotina (narrativa). REGISTRADO mas DORMENTE (mesmo
+// molde da saúde): só TEXTO/ÁUDIO (narrativa não é foto) — extractionPrompt
+// de visão fica vazio de propósito; a materialização (RPC) e o wiring dos
+// canais vêm nas fatias N2/N3, gateados por flag própria.
+const custodyRoutine: Playbook = {
+  ...custodyRoutinePlaybook,
+  textExtractionPrompt: CUSTODY_ROUTINE_TEXT_EXTRACTION,
+} as Playbook;
+
 const REGISTRY: Partial<Record<DocType, Playbook>> = {
   school_calendar: schoolCalendar,
   health_visit: healthVisit,
+  custody_routine: custodyRoutine,
 };
 
 /** Playbooks habilitados no A0 (ordem de tentativa de extração). Saúde ainda

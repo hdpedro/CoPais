@@ -51,6 +51,11 @@ export async function undoIntake(args: {
     if ((dt?.doc_type as string | undefined) === "health_visit") {
       return await undoHealthVisit(args);
     }
+    // GUARDA & ROTINA: a RPC lê a PRÓPRIA proveniência (sem arrays do client);
+    // acordo já aprovado NÃO se desfaz unilateralmente (fica, conta em kept).
+    if ((dt?.doc_type as string | undefined) === "custody_routine") {
+      return await undoCustodyRoutine(args);
+    }
 
     // 1. Artefatos ainda ativos (não detached/undone) deste intake.
     const { data: artifacts, error: artErr } = await supabase
@@ -191,6 +196,43 @@ async function purgeIntakeMedia(supabase: SupabaseServer, intakeId: string): Pro
  * posterior — exigiria hash round-trip por tipo, e o appointment_date TIMESTAMPTZ
  * (compõe data+hora) não distingue hora-nula de meio-dia no round-trip.
  */
+/** Undo de GUARDA & ROTINA: exceções/férias e leva/busca somem (o dia volta
+ *  ao padrão semanal); troca ainda pendente é cancelada; troca já APROVADA é
+ *  acordo bilateral — fica (a RPC conta em kept_agreements e a copy avisa). */
+async function undoCustodyRoutine(args: {
+  supabase: SupabaseServer;
+  intakeId: string;
+  actorUserId?: string;
+}): Promise<UndoResult> {
+  const { supabase, intakeId } = args;
+  try {
+    const { data: applied, error: rpcErr } = await supabase.rpc("brain_intake_apply_undo_custody", {
+      p_intake_id: intakeId,
+      p_actor_user_id: args.actorUserId ?? null,
+    });
+    if (rpcErr || (applied as { outcome?: string } | null)?.outcome !== "undone") {
+      await reportServerError(rpcErr ?? new Error("undo_not_applied"), {
+        filePath: FILE,
+        metadata: { step: "apply_undo_custody", intakeId },
+      });
+      return { kind: "error", message: "Falha ao desfazer." };
+    }
+    const removed = (applied as { removed: number }).removed;
+    const kept = (applied as { kept_agreements?: number }).kept_agreements ?? 0;
+
+    await purgeIntakeMedia(supabase, intakeId);
+
+    const uid = args.actorUserId ?? (await supabase.auth.getUser()).data.user?.id;
+    if (uid) captureServerEvent(uid, "brain_intake_undone", { intake_id: intakeId, doc_type: "custody_routine", removed, kept });
+
+    // `detached` transporta os acordos mantidos (a copy dos canais explica).
+    return { kind: "undone", removed, detached: kept, message: `${removed} item(ns) de guarda/rotina desfeito(s).` };
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "undo_custody", intakeId } });
+    return { kind: "error", message: "Não consegui desfazer agora. Tente de novo." };
+  }
+}
+
 async function undoHealthVisit(args: {
   supabase: SupabaseServer;
   intakeId: string;
