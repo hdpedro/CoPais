@@ -5,11 +5,22 @@
 /* Both the in-app Kindar IA (via /api/ai/transcribe) and the WhatsApp */
 /* bot (via lib/whatsapp/audio.ts) call this one function, so a voice  */
 /* note produces the SAME transcription on every surface — parity by   */
-/* construction. Uses Groq Whisper (whisper-large-v3), the same engine */
-/* the WhatsApp path has used since launch.                            */
+/* construction.                                                       */
+/*                                                                     */
+/* Motor primário: Groq Whisper (whisper-large-v3, mesmo desde o       */
+/* launch). FALLBACK: OpenAI whisper-1 — nasceu do incidente 02/jul,   */
+/* quando o console do Groq bloqueou o modelo no nível do PROJETO      */
+/* (403 model_permission_blocked_project) e o áudio do WhatsApp caiu   */
+/* inteiro. Config externa pode sumir a qualquer momento; a voz da     */
+/* família não pode cair junto. Falha dos DOIS → reportServerError     */
+/* (antes era console.error, invisível — app_errors ficava vazio).     */
 /* ------------------------------------------------------------------ */
 
 import Groq from "groq-sdk";
+import OpenAI from "openai";
+import { reportServerError } from "@/lib/error-tracking/report-server";
+
+const FILE = "src/lib/ai/transcribe.ts";
 
 /** Groq Whisper hard cap is 25MB per request. */
 export const MAX_AUDIO_BYTES = 25 * 1024 * 1024;
@@ -28,6 +39,12 @@ export interface TranscriptionResult {
   error?: TranscriptionErrorCode;
 }
 
+/** Normaliza a resposta dos SDKs (string com response_format:"text", ou {text}). */
+function extractText(transcription: unknown): string {
+  const raw = transcription as { text?: string } | string;
+  return (typeof raw === "string" ? raw : raw?.text || "").trim();
+}
+
 /**
  * Transcribe a raw audio buffer to text. Channel-agnostic: callers hand in
  * bytes + the source mime type and get back text (or a typed error). Never
@@ -39,9 +56,10 @@ export async function transcribeAudioBuffer(
   mimeType: string = "audio/ogg",
   opts?: { language?: string },
 ): Promise<TranscriptionResult> {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) {
-    console.error("[AI-TRANSCRIBE] GROQ_API_KEY not configured");
+  const groqKey = process.env.GROQ_API_KEY;
+  const openaiKey = process.env.OPENAI_API_KEY;
+  if (!groqKey && !openaiKey) {
+    console.error("[AI-TRANSCRIBE] no transcription API key configured");
     return { text: null, error: "transcription_unavailable" };
   }
 
@@ -53,41 +71,80 @@ export async function transcribeAudioBuffer(
     return { text: null, error: "audio_too_large" };
   }
 
-  try {
-    const type = mimeType || "audio/ogg";
-    const ext = extensionForMime(type);
-    // Copy into a fresh ArrayBuffer-backed view so it's a valid BlobPart
-    // (a Uint8Array<ArrayBufferLike> may be SharedArrayBuffer-backed).
-    const view = new Uint8Array(bytes);
-    const blob = new Blob([view], { type });
-    const file = new File([blob], `audio.${ext}`, { type });
+  const type = mimeType || "audio/ogg";
+  const ext = extensionForMime(type);
+  // Copy into a fresh ArrayBuffer-backed view so it's a valid BlobPart
+  // (a Uint8Array<ArrayBufferLike> may be SharedArrayBuffer-backed).
+  const view = new Uint8Array(bytes);
+  const blob = new Blob([view], { type });
+  const file = new File([blob], `audio.${ext}`, { type });
+  const language = opts?.language || "pt";
 
-    const groq = new Groq({ apiKey });
-    const transcription = await groq.audio.transcriptions.create({
-      file,
-      model: "whisper-large-v3",
-      language: opts?.language || "pt",
-      response_format: "text",
-    });
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const raw = transcription as any;
-    const text = (typeof raw === "string" ? raw : raw?.text || "").trim();
-
-    if (!text) {
-      console.log("[AI-TRANSCRIBE] Empty transcription");
-      return { text: null, error: "empty_transcription" };
+  let groqError: unknown = null;
+  if (groqKey) {
+    try {
+      const groq = new Groq({ apiKey: groqKey });
+      const transcription = await groq.audio.transcriptions.create({
+        file,
+        model: "whisper-large-v3",
+        language,
+        response_format: "text",
+      });
+      const text = extractText(transcription);
+      if (text) {
+        console.log(`[AI-TRANSCRIBE] Transcribed (${text.length} chars): ${text.slice(0, 80)}`);
+        return { text };
+      }
+      console.log("[AI-TRANSCRIBE] Empty transcription (groq)");
+      // vazio de verdade (silêncio?) não é erro de provedor — ainda assim
+      // vale a segunda opinião do fallback antes de desistir.
+    } catch (error) {
+      groqError = error;
+      console.error(
+        "[AI-TRANSCRIBE] groq error:",
+        error instanceof Error ? error.message : error,
+      );
     }
+  }
 
-    console.log(`[AI-TRANSCRIBE] Transcribed (${text.length} chars): ${text.slice(0, 80)}`);
-    return { text };
-  } catch (error) {
-    console.error(
-      "[AI-TRANSCRIBE] error:",
-      error instanceof Error ? error.message : error,
-    );
+  if (openaiKey) {
+    try {
+      const openai = new OpenAI({ apiKey: openaiKey });
+      const transcription = await openai.audio.transcriptions.create({
+        file,
+        model: "whisper-1",
+        language,
+        response_format: "text",
+      });
+      const text = extractText(transcription);
+      if (text) {
+        console.log(
+          `[AI-TRANSCRIBE] Transcribed via FALLBACK openai (${text.length} chars): ${text.slice(0, 80)}`,
+        );
+        return { text };
+      }
+      return { text: null, error: "empty_transcription" };
+    } catch (error) {
+      await reportServerError(error, {
+        filePath: FILE,
+        metadata: {
+          step: "transcribe_fallback_openai",
+          groq_error: groqError instanceof Error ? groqError.message.slice(0, 300) : String(groqError ?? "skipped"),
+        },
+      });
+      return { text: null, error: "transcription_failed" };
+    }
+  }
+
+  // Só Groq configurado e ele falhou/veio vazio.
+  if (groqError) {
+    await reportServerError(groqError, {
+      filePath: FILE,
+      metadata: { step: "transcribe_groq_no_fallback" },
+    });
     return { text: null, error: "transcription_failed" };
   }
+  return { text: null, error: "empty_transcription" };
 }
 
 /** Map an audio mime type to a file extension Whisper accepts. */

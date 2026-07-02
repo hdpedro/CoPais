@@ -7,6 +7,9 @@
 
 import { downloadMedia } from "./client";
 import { transcribeAudioBuffer } from "@/lib/ai/transcribe";
+import { reportServerError } from "@/lib/error-tracking/report-server";
+
+const FILE = "src/lib/whatsapp/audio.ts";
 
 /**
  * Download audio from WhatsApp and transcribe it.
@@ -24,10 +27,13 @@ export async function transcribeAudio(
     );
     return text;
   } catch (error) {
-    console.error(
-      "[WA-AUDIO] download error:",
-      error instanceof Error ? error.message : error,
-    );
+    // Falha de DOWNLOAD (a transcrição em si nunca lança — devolve typed
+    // error e reporta lá dentro). Incidente 02/jul: erro só em console =
+    // invisível; app_errors é onde a gente olha.
+    await reportServerError(error, {
+      filePath: FILE,
+      metadata: { step: "wa_audio_download", media_id: mediaId },
+    });
     return null;
   }
 }
