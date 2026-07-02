@@ -16,7 +16,7 @@
 /* por sanitizeRawTextForLog).                                           */
 /* ------------------------------------------------------------------ */
 
-import { randomUUID, createHash } from "crypto";
+import { randomUUID } from "crypto";
 import type { createClient } from "@/lib/supabase/server";
 import { compressImageForVision } from "@/lib/ai/image-utils";
 import { routeVisionRequest, routeTextRequest } from "@/lib/ai/router";
@@ -39,6 +39,12 @@ import {
   isFullHealthDuplicate,
   type ExistingHealthSnapshot,
 } from "@/lib/ai/brain/health-dedupe";
+import {
+  computeSourceSha256,
+  resolvePriorIntakeAction,
+  isUniqueViolation,
+  type PriorIntakeRow,
+} from "@/lib/ai/brain/intake-dedupe";
 import { timestamptzToBrazilDateKey } from "@/lib/calendar-utils";
 import { sanitizeForLogPreview } from "@/lib/ai/brain/sanitize-log";
 import { captureServerEvent } from "@/lib/posthog-server";
@@ -189,6 +195,81 @@ export interface CreateAndAnalyzeArgs {
   /** Playbook a usar. Default 'school_calendar'. O classificador passa
    *  'health_visit' quando a foto é de consulta médica. */
   docType?: DocType;
+  /** Hash do CONTEÚDO de origem (dedupe L1). Default = sha256 do buffer/texto.
+   *  Canais podem sobrescrever (ex.: áudio → hash dos bytes do áudio, não da
+   *  transcrição) pra deduplicar o reenvio do MESMO arquivo. */
+  sourceSha256?: string;
+}
+
+/** Colunas do intake anterior necessárias pro dedupe L1 (reuso da prévia). */
+const PRIOR_INTAKE_COLUMNS =
+  "id, status, created_at, confirmation_expires_at, plan, plan_hash, confirmation_token, doc_type, impacts";
+
+/**
+ * Dedupe L1 (conteúdo, por GRUPO — ver intake-dedupe.ts): o MESMO arquivo/
+ * texto reenviado — mesma pessoa, coparente ou retry — curto-circuita ANTES
+ * de criar intake ou gastar IA. `null` = sem anterior relevante, seguir.
+ *  - executado → "já registrado" (kind duplicate, aponta o existente)
+ *  - aguardando confirmação → devolve a MESMA prévia (reenvio idempotente)
+ *  - em voo fresco → "já processando" (kind already_processing)
+ */
+async function resolveSourceDuplicate(p: {
+  supabase: SupabaseServer;
+  groupId: string;
+  userId: string;
+  channel: IntakeChannel;
+  sourceSha256: string;
+  duplicateMessage: string;
+}): Promise<IntakeResult | null> {
+  const { data: prior } = await p.supabase
+    .from("brain_intakes")
+    .select(PRIOR_INTAKE_COLUMNS)
+    .eq("group_id", p.groupId)
+    .eq("source_sha256", p.sourceSha256)
+    .in("status", ["uploaded", "analyzing", "awaiting_confirmation", "executed"])
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  const resolved = resolvePriorIntakeAction((prior as PriorIntakeRow | null) ?? null, Date.now());
+  if (resolved.action === "proceed") return null;
+
+  captureServerEvent(p.userId, "brain_intake_source_duplicate", {
+    prior_intake_id: resolved.prior.id,
+    prior_status: resolved.prior.status,
+    action: resolved.action,
+    channel: p.channel,
+  });
+
+  if (resolved.action === "in_flight") {
+    return { kind: "already_processing", intakeId: resolved.prior.id };
+  }
+  if (resolved.action === "duplicate") {
+    return { kind: "duplicate", intakeId: resolved.prior.id, priorIntakeId: resolved.prior.id, message: p.duplicateMessage };
+  }
+
+  // reuse_preview — reconstrói a prévia do intake existente: MESMO plano,
+  // MESMO plan_hash e MESMO confirmation_token → confirmar continua válido
+  // e idempotente, não importa qual dos responsáveis toque no botão.
+  const row = resolved.prior;
+  const plan = row.plan as MaterializationPlan;
+  const { data: groupRow } = await p.supabase
+    .from("coparenting_groups")
+    .select("timezone")
+    .eq("id", p.groupId)
+    .single();
+  const timezone = safeTimezone((groupRow?.timezone as string | undefined) || DEFAULT_TIMEZONE);
+  const preview: IntakePreview = {
+    intakeId: row.id,
+    docType: ((row.doc_type as DocType | null) ?? plan.docType) as DocType,
+    confirmation: plan.confirmation,
+    plan,
+    impacts: (row.impacts as IntakePreview["impacts"] | null) ?? [],
+    priority: prioritize(plan, todayInTz(timezone)),
+    planHash: row.plan_hash as string,
+    confirmationToken: row.confirmation_token as string,
+  };
+  return { kind: "preview", preview };
 }
 
 /**
@@ -202,6 +283,20 @@ export async function createAndAnalyzeIntake(args: CreateAndAnalyzeArgs): Promis
   const { supabase, groupId, userId, channel, buffer, mime, children, requestedChildId } = args;
   const source = args.source ?? "document";
   try {
+    // Dedupe L1 (conteúdo): a MESMA foto reenviada — duplo toque, retry de
+    // conexão ou o coparente mandando o mesmo arquivo — resolve AQUI, antes
+    // de pergunta de criança, de criar intake e de gastar visão.
+    const sourceSha = args.sourceSha256 ?? computeSourceSha256(buffer);
+    const dup = await resolveSourceDuplicate({
+      supabase,
+      groupId,
+      userId,
+      channel,
+      sourceSha256: sourceSha,
+      duplicateMessage: "Essa foto já foi registrada no Kindar 🙂. Nada a adicionar.",
+    });
+    if (dup) return dup;
+
     const resolvedChildId =
       requestedChildId && children.some((c) => c.id === requestedChildId)
         ? requestedChildId
@@ -234,11 +329,26 @@ export async function createAndAnalyzeIntake(args: CreateAndAnalyzeArgs): Promis
         source,
         channel,
         status: "uploaded",
-        source_sha256: createHash("sha256").update(buffer).digest("hex"),
+        source_sha256: sourceSha,
       })
       .select("id")
       .single();
     if (insErr || !intake) {
+      // Corrida fechada no banco (índice UNIQUE parcial em voo): o outro envio
+      // simultâneo — nosso duplo toque OU o coparente — venceu; trata como o
+      // dedupe teria tratado (já processando / prévia existente / registrado).
+      if (isUniqueViolation(insErr as { code?: string | null })) {
+        const raced = await resolveSourceDuplicate({
+          supabase,
+          groupId,
+          userId,
+          channel,
+          sourceSha256: sourceSha,
+          duplicateMessage: "Essa foto já foi registrada no Kindar 🙂. Nada a adicionar.",
+        });
+        if (raced) return raced;
+        return { kind: "error", message: "Esse envio já está em processamento. Aguarde um instante. 🙂" };
+      }
       await reportServerError(insErr, { filePath: FILE, metadata: { step: "create_intake", groupId } });
       return { kind: "error", message: "Falha ao iniciar o processamento." };
     }
@@ -619,6 +729,10 @@ export interface CreateAndAnalyzeTextArgs {
   requestedChildId: string | null;
   /** Playbook a usar. Default 'school_calendar'. 'health_visit' p/ consulta. */
   docType?: DocType;
+  /** Hash do CONTEÚDO de origem (dedupe L1). Default = sha256 do texto.
+   *  Áudio pode passar o hash dos BYTES do áudio (reenvio do mesmo arquivo
+   *  deduplica mesmo que a transcrição varie uma vírgula). */
+  sourceSha256?: string;
 }
 
 /**
@@ -630,6 +744,19 @@ export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Prom
   const { supabase, groupId, userId, channel, text, children, requestedChildId } = args;
   const source = args.source ?? "message";
   try {
+    // Dedupe L1 (conteúdo): o MESMO texto/áudio reenviado — mesma pessoa,
+    // coparente ou retry — resolve AQUI, antes de pergunta/intake/IA.
+    const sourceSha = args.sourceSha256 ?? computeSourceSha256(text);
+    const dup = await resolveSourceDuplicate({
+      supabase,
+      groupId,
+      userId,
+      channel,
+      sourceSha256: sourceSha,
+      duplicateMessage: "Isso já foi registrado no Kindar 🙂. Nada a adicionar.",
+    });
+    if (dup) return dup;
+
     const resolvedChildId =
       requestedChildId && children.some((c) => c.id === requestedChildId)
         ? requestedChildId
@@ -658,11 +785,25 @@ export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Prom
         source,
         channel,
         status: "uploaded",
-        source_sha256: createHash("sha256").update(text).digest("hex"),
+        source_sha256: sourceSha,
       })
       .select("id")
       .single();
     if (insErr || !intake) {
+      // Corrida fechada no banco (índice UNIQUE parcial em voo) → trata como
+      // o dedupe teria tratado. Espelha createAndAnalyzeIntake.
+      if (isUniqueViolation(insErr as { code?: string | null })) {
+        const raced = await resolveSourceDuplicate({
+          supabase,
+          groupId,
+          userId,
+          channel,
+          sourceSha256: sourceSha,
+          duplicateMessage: "Isso já foi registrado no Kindar 🙂. Nada a adicionar.",
+        });
+        if (raced) return raced;
+        return { kind: "error", message: "Esse envio já está em processamento. Aguarde um instante. 🙂" };
+      }
       await reportServerError(insErr, { filePath: FILE, metadata: { step: "create_intake_text", groupId } });
       return { kind: "error", message: "Falha ao iniciar o processamento." };
     }

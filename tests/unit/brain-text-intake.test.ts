@@ -132,6 +132,8 @@ describe("createAndAnalyzeText — ambiguidade barra ANTES de criar o intake (ta
       for (const m of ["select", "update", "eq", "in", "gte", "lte", "order", "limit"]) chain[m] = () => chain;
       chain.insert = insert;
       chain.single = async () => ({ data: null, error: null });
+      // Dedupe L1 (conteúdo) consulta antes de tudo — sem anterior → proceed.
+      chain.maybeSingle = async () => ({ data: null, error: null });
       chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: [], error: null });
       return chain;
     }
