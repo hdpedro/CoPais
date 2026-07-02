@@ -91,7 +91,12 @@ export interface ExtractedIntent<P = unknown> {
 export type ImpactKind =
   | "same_day"
   | "tight_sequence"
-  // adiados (Épico A só usa os 2 acima):
+  // Memória da Família (Fase 3, M1) — retrospectivos, SEMPRE 'info':
+  | "last_visit_context"
+  | "followup_candidate"
+  | "expense_month_context"
+  | "busy_week_context"
+  // adiados (Épico A só usa os 2 do topo):
   | "activity_clash"
   | "custody_handoff"
   | "trip_overlap"

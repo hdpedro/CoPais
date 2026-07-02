@@ -17,6 +17,7 @@ import { reportServerError } from "@/lib/error-tracking/report-server";
 import { isBrainEnabledForGroup, isExpenseEnabled } from "@/lib/services/brain-flag";
 import { createAndAnalyzeText } from "@/lib/services/brain";
 import { buildExpensePreviewMessage } from "@/lib/ai/brain/expense-preview";
+import { getMemoryLines } from "@/lib/ai/brain/memory-lines";
 import type { BrainChild } from "@/lib/ai/brain/types";
 
 const FILE = "src/app/api/ai/assistant/expense-text/route.ts";
@@ -71,7 +72,7 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json(
         {
           content: expense
-            ? buildExpensePreviewMessage(expense, nameOf)
+            ? buildExpensePreviewMessage(expense, nameOf, { memoryLines: await getMemoryLines(result.preview.impacts, "") })
             : "💳 Organizei a despesa. Quer que eu registre?",
           intake: {
             id: result.preview.intakeId,

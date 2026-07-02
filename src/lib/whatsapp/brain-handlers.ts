@@ -18,6 +18,7 @@ import { looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLik
 import { buildCustodyPreviewMessage } from "@/lib/ai/brain/custody-preview";
 import { buildExpensePreviewMessage } from "@/lib/ai/brain/expense-preview";
 import { buildInvitePreviewMessage } from "@/lib/ai/brain/invite-preview";
+import { renderMemoryLines } from "@/lib/ai/brain/family-memory";
 import { undoIntake } from "@/lib/services/brain-undo";
 import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled, isEventInviteEnabled } from "@/lib/services/brain-flag";
 import { isPdfBuffer, renderPdfFirstPageToPng } from "@/lib/ai/brain/pdf-to-image";
@@ -798,9 +799,12 @@ async function sendBrainPreview(
     ? children.find((c) => c.id === (preview.plan.health?.appointment.childId ?? null))?.name ?? "seu filho(a)"
     : children.find((c) => c.id === (acts[0]?.childId ?? null))?.name ?? "seu filho(a)";
   const t = await getServerT("pt");
+  // Memória da Família (M1): linhas 💭 factuais entram antes do CTA — mesmo
+  // texto do app (renderMemoryLines compartilhado). Vazio com a flag OFF.
+  const memLines = renderMemoryLines(preview.impacts, childName.split(" ")[0], t);
   if (isInvite && preview.plan.invite) {
     const nameOf = (id: string) => children.find((c) => c.id === id)?.name.split(" ")[0] ?? "";
-    await sendTextMessage(phone, buildInvitePreviewMessage(preview.plan.invite, nameOf, { withCta: false }));
+    await sendTextMessage(phone, buildInvitePreviewMessage(preview.plan.invite, nameOf, { withCta: false, memoryLines: memLines }));
     await sendButtonMessage(phone, "Posso adicionar ao calendário?", [
       { id: "brain_confirm", title: "Confirmar" },
       { id: "brain_cancel", title: "Cancelar" },
@@ -808,7 +812,7 @@ async function sendBrainPreview(
   } else if (isExpense && preview.plan.expense) {
     // Despesas: copy PURA compartilhada com o app; confirma a cena inteira.
     const nameOf = (id: string) => children.find((c) => c.id === id)?.name.split(" ")[0] ?? "";
-    await sendTextMessage(phone, buildExpensePreviewMessage(preview.plan.expense, nameOf, { withCta: false }));
+    await sendTextMessage(phone, buildExpensePreviewMessage(preview.plan.expense, nameOf, { withCta: false, memoryLines: memLines }));
     await sendButtonMessage(phone, "Posso registrar no Kindar?", [
       { id: "brain_confirm", title: "Confirmar" },
       { id: "brain_cancel", title: "Cancelar" },
@@ -827,7 +831,8 @@ async function sendBrainPreview(
     ]);
   } else if (isHealth) {
     // Consulta: sem deseleção numerada (A0 confirma a cena inteira) → só 2 botões.
-    await sendTextMessage(phone, renderHealthPreview(preview, childName, { withCta: false }));
+    const healthMsg = renderHealthPreview(preview, childName, { withCta: false });
+    await sendTextMessage(phone, memLines.length ? `${healthMsg}\n${memLines.join("\n")}` : healthMsg);
     await sendButtonMessage(phone, "Posso registrar essa consulta no Kindar?", [
       { id: "brain_confirm", title: "Confirmar" },
       { id: "brain_cancel", title: "Cancelar" },

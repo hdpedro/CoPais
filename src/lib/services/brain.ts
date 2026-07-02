@@ -24,6 +24,9 @@ import type { AIChatMessage } from "@/lib/ai/core/types";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { getPlaybook } from "@/lib/ai/brain/understanding/registry";
 import { analyzeImpact, type ExistingOccurrence } from "@/lib/ai/brain/impact";
+import { analyzeRetroImpact } from "@/lib/ai/brain/family-memory";
+import { loadFamilyMemory } from "@/lib/services/brain-memory";
+import { isFamilyMemoryEnabled } from "@/lib/services/brain-flag";
 import { prioritize } from "@/lib/ai/brain/prioritize";
 import { dedupeWithinPlan, partitionAgainstExisting } from "@/lib/ai/brain/dedupe";
 import { resolveChildIdFromText } from "@/lib/ai/brain/child-match";
@@ -658,7 +661,19 @@ async function finalizeAnalysis(p: {
   }
 
   const plan: MaterializationPlan = { ...planned, activities: fresh };
-  const impacts = analyzeImpact(plan, existing);
+  let impacts = analyzeImpact(plan, existing);
+  // Memória da Família (Fase 3, M1): histórico vira contexto FACTUAL no
+  // preview. Flag OFF = nem busca; erro = non-fatal (memória enriquece,
+  // nunca bloqueia). Ponto único: foto/texto/áudio de TODOS os playbooks
+  // passam por aqui.
+  if (isFamilyMemoryEnabled()) {
+    try {
+      const memory = await loadFamilyMemory(supabase, sctx.groupId, docType, plan);
+      impacts = impacts.concat(analyzeRetroImpact(plan, memory));
+    } catch (err) {
+      await reportServerError(err, { filePath: FILE, metadata: { step: "family_memory", intakeId } });
+    }
+  }
   const priority = prioritize(plan, sctx.today);
 
   const planHash = computePlanHash({ plan, playbookVersion: playbook.playbookVersion, policyVersion: playbook.policyVersion });

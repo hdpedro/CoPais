@@ -22,6 +22,7 @@ import { classifyDocumentByVision } from "@/lib/ai/document-classifier";
 import { createAndAnalyzeIntake } from "@/lib/services/brain";
 import { buildHealthPreviewMessage } from "@/lib/ai/brain/health-preview";
 import { buildInvitePreviewMessage } from "@/lib/ai/brain/invite-preview";
+import { getMemoryLines } from "@/lib/ai/brain/memory-lines";
 import type { BrainChild } from "@/lib/ai/brain/types";
 
 const FILE = "src/app/api/ai/assistant/image/route.ts";
@@ -203,7 +204,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         const childName = children.find((c) => c.id === childId)?.name || "seu filho(a)";
         return NextResponse.json(
           {
-            content: health ? buildHealthPreviewMessage(health, childName) : "🩺 Organizei a consulta. Quer que eu registre?",
+            content: health
+              ? buildHealthPreviewMessage(health, childName, { memoryLines: await getMemoryLines(result.preview.impacts, childName) })
+              : "🩺 Organizei a consulta. Quer que eu registre?",
             intake: {
               id: result.preview.intakeId,
               planHash: result.preview.planHash,
@@ -277,7 +280,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
         return NextResponse.json(
           {
             content: invite
-              ? buildInvitePreviewMessage(invite, nameOf)
+              ? buildInvitePreviewMessage(invite, nameOf, {
+                  memoryLines: await getMemoryLines(result.preview.impacts, invite.childId ? nameOf(invite.childId) : ""),
+                })
               : "🎉 Organizei o convite. Quer que eu adicione ao calendário?",
             intake: {
               id: result.preview.intakeId,

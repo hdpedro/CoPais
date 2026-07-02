@@ -1,0 +1,30 @@
+{
+  "brain.impact.lastVisitContext": {
+    "pt": "Última consulta de {child} foi em {lastDate}{provider}.",
+    "en": "{child}'s last visit was on {lastDate}{provider}.",
+    "es": "La última consulta de {child} fue el {lastDate}{provider}.",
+    "fr": "La dernière consultation de {child} date du {lastDate}{provider}.",
+    "de": "Der letzte Termin von {child} war am {lastDate}{provider}."
+  },
+  "brain.impact.followupCandidate": {
+    "pt": "Há um retorno de {child} marcado para {date} — esta consulta pode ser ele.",
+    "en": "{child} has a follow-up scheduled for {date} — this visit may be it.",
+    "es": "{child} tiene un control programado para el {date} — esta consulta puede ser ese.",
+    "fr": "{child} a un suivi prévu le {date} — cette consultation en est peut-être un.",
+    "de": "Für {child} ist eine Nachkontrolle am {date} geplant — dieser Termin könnte sie sein."
+  },
+  "brain.impact.expenseMonthContext": {
+    "pt": "É a {n}ª despesa dessa categoria no mês (R$ {total} até agora).",
+    "en": "This is expense #{n} in this category this month (R$ {total} so far).",
+    "es": "Es el gasto n.º {n} de esta categoría en el mes (R$ {total} hasta ahora).",
+    "fr": "C'est la {n}ᵉ dépense de cette catégorie ce mois-ci (R$ {total} jusqu'ici).",
+    "de": "Das ist Ausgabe Nr. {n} in dieser Kategorie diesen Monat (bisher R$ {total})."
+  },
+  "brain.impact.busyWeekContext": {
+    "pt": "{child} já tem {count} compromissos nessa semana.",
+    "en": "{child} already has {count} commitments that week.",
+    "es": "{child} ya tiene {count} compromisos esa semana.",
+    "fr": "{child} a déjà {count} engagements cette semaine-là.",
+    "de": "{child} hat in dieser Woche bereits {count} Termine."
+  }
+}
