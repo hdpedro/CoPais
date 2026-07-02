@@ -18,9 +18,28 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { hashPhone, normalizePhone } from "@/lib/whatsapp/signature";
-import { sendAuthTemplate, sendTextMessage } from "@/lib/whatsapp/client";
-import { reportServerError } from "@/lib/error-tracking/report-server";
+import {
+  requestWhatsAppLinkService,
+  verifyWhatsAppLinkService,
+  type WaLinkErrorCode,
+  type WaVerifyErrorCode,
+} from "@/lib/services/whatsapp-link";
+
+// Mapeia o `code` do service compartilhado para o HTTP status que o Native
+// já esperava (paridade de contrato com o comportamento anterior).
+const REQUEST_STATUS: Record<WaLinkErrorCode, number> = {
+  invalid_phone: 400,
+  phone_taken: 409,
+  persist_failed: 500,
+  send_failed: 502,
+};
+const VERIFY_STATUS: Record<WaVerifyErrorCode, number> = {
+  invalid_otp_format: 400,
+  no_pending: 404,
+  wrong_code: 400,
+  expired: 400,
+  persist_failed: 500,
+};
 
 type Body =
   | { action: "status" }
@@ -64,6 +83,9 @@ export async function POST(req: NextRequest) {
       .select("id, phone_number, verified_at, is_active")
       .eq("user_id", userId)
       .eq("is_active", true)
+      .order("verified_at", { ascending: false, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(1)
       .maybeSingle();
     if (!link) return NextResponse.json({ status: "unlinked" });
     if (!link.verified_at) return NextResponse.json({ status: "pending", phone: link.phone_number });
@@ -72,94 +94,19 @@ export async function POST(req: NextRequest) {
 
   // ── request OTP ───────────────────────────────────────────────────────
   if (body.action === "request") {
-    const rawPhone = body.phone?.trim();
-    if (!rawPhone) return NextResponse.json({ error: "Numero obrigatorio" }, { status: 400 });
-    const phone = normalizePhone(rawPhone);
-    const hash = hashPhone(phone);
-    if (!/^\+\d{10,15}$/.test(phone)) {
-      return NextResponse.json({ error: "Formato invalido. Use +55DDNNNNNNNNN" }, { status: 400 });
+    const result = await requestWhatsAppLinkService(admin, userId, body.phone ?? "");
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: REQUEST_STATUS[result.code] });
     }
-
-    // Reject if linked to another user
-    const { data: existing } = await admin
-      .from("whatsapp_phone_links")
-      .select("id, user_id, verified_at")
-      .eq("phone_hash", hash)
-      .eq("is_active", true)
-      .maybeSingle();
-    if (existing && existing.user_id !== userId && existing.verified_at) {
-      return NextResponse.json({ error: "Este numero ja esta vinculado a outra conta" }, { status: 409 });
-    }
-
-    const otp = String(Math.floor(100000 + Math.random() * 900000));
-    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
-
-    if (existing && existing.user_id === userId) {
-      await admin
-        .from("whatsapp_phone_links")
-        .update({ verification_code: otp, verification_expires_at: expiresAt, verified_at: null })
-        .eq("id", existing.id);
-    } else {
-      await admin.from("whatsapp_phone_links").delete().eq("user_id", userId).is("verified_at", null);
-      await admin.from("whatsapp_phone_links").insert({
-        user_id: userId,
-        phone_number: phone,
-        phone_hash: hash,
-        verification_code: otp,
-        verification_expires_at: expiresAt,
-        is_active: true,
-        lgpd_consent_at: new Date().toISOString(),
-      });
-    }
-
-    const phoneWithout = phone.replace("+", "");
-    // Igual ao PWA: template de AUTENTICACAO se `WHATSAPP_OTP_TEMPLATE` setado
-    // (entrega fora da janela 24h); senao texto livre. Inerte ate a env existir.
-    const otpTemplate = process.env.WHATSAPP_OTP_TEMPLATE;
-    const otpTemplateLang = process.env.WHATSAPP_OTP_TEMPLATE_LANG || "pt_BR";
-    try {
-      if (otpTemplate) {
-        await sendAuthTemplate(phoneWithout, otpTemplate, otpTemplateLang, otp);
-      } else {
-        await sendTextMessage(
-          phoneWithout,
-          `Kindar - Codigo de verificacao: *${otp}*\n\nDigite este codigo no app para vincular seu WhatsApp.\n\nExpira em 10 minutos.`
-        );
-      }
-    } catch (err) {
-      reportServerError(err, { filePath: "src/app/api/native/whatsapp/route.ts" });
-      return NextResponse.json(
-        { error: "Nao foi possivel enviar o codigo. Verifique o numero." },
-        { status: 502 }
-      );
-    }
-
-    return NextResponse.json({ success: true, phone });
+    return NextResponse.json({ success: true, phone: result.phone });
   }
 
   // ── verify OTP ────────────────────────────────────────────────────────
   if (body.action === "verify") {
-    const otp = body.otp?.trim();
-    if (!otp || otp.length !== 6) return NextResponse.json({ error: "Codigo deve ter 6 digitos" }, { status: 400 });
-
-    const { data: link } = await admin
-      .from("whatsapp_phone_links")
-      .select("id, verification_code, verification_expires_at")
-      .eq("user_id", userId)
-      .eq("is_active", true)
-      .is("verified_at", null)
-      .maybeSingle();
-    if (!link) return NextResponse.json({ error: "Nenhuma vinculacao pendente encontrada" }, { status: 404 });
-    if (link.verification_code !== otp) return NextResponse.json({ error: "Codigo incorreto" }, { status: 400 });
-    if (new Date(link.verification_expires_at) < new Date()) {
-      return NextResponse.json({ error: "Codigo expirado. Solicite um novo." }, { status: 400 });
+    const result = await verifyWhatsAppLinkService(admin, userId, body.otp ?? "");
+    if (!result.ok) {
+      return NextResponse.json({ error: result.error }, { status: VERIFY_STATUS[result.code] });
     }
-
-    await admin
-      .from("whatsapp_phone_links")
-      .update({ verified_at: new Date().toISOString(), verification_code: null, verification_expires_at: null })
-      .eq("id", link.id);
-
     return NextResponse.json({ success: true });
   }
 
