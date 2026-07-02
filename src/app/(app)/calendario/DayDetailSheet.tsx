@@ -57,6 +57,9 @@ interface DayDetailSheetProps {
   groupId: string;
   currentUserId: string;
   isParent: boolean;
+  /** Guarda desligada (ex.: pais juntos) mostra o dia combinado explícito,
+   *  mas NÃO oferece troca — trocar dia é conceito da escala de guarda. */
+  swapAllowed?: boolean;
   pendingSwapForDay?: boolean;
   activities?: ActivityInfo[];
   memberNames?: Record<string, string>;
@@ -71,6 +74,7 @@ export default memo(function DayDetailSheet({
   groupId,
   currentUserId,
   isParent,
+  swapAllowed = true,
   pendingSwapForDay = false,
   activities = [],
   memberNames = {},
@@ -373,7 +377,7 @@ export default memo(function DayDetailSheet({
   const isOtherParentDay = dayInfo && dayInfo.userId !== currentUserId;
   const todayStr = getBrazilToday();
   const isFutureDate = dateKey >= todayStr;
-  const canRequestSwap = !!dayInfo && isFutureDate && !pendingSwapForDay;
+  const canRequestSwap = swapAllowed && !!dayInfo && isFutureDate && !pendingSwapForDay;
 
   // Determine the responsible person for an activity on this day
   // Priority: 1. day-level override → 2. permanent responsible_id → 3. custody (who has the child)
@@ -1369,7 +1373,7 @@ export default memo(function DayDetailSheet({
                 </button>
               )}
 
-              {!isParent && isOtherParentDay && isFutureDate && (
+              {swapAllowed && !isParent && isOtherParentDay && isFutureDate && (
                 <button
                   onClick={() => setShowSwapForm(true)}
                   className="w-full flex items-center gap-3 px-4 py-3.5 bg-blue-50 border border-blue-200 rounded-xl hover:bg-blue-100 transition-colors"

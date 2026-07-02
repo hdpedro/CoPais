@@ -252,6 +252,7 @@ export default memo(function CalendarClient({
         groupId={groupId}
         currentUserId={currentUserId}
         isParent={isParentWithCustody}
+        swapAllowed={custodyEnabled}
         pendingSwapForDay={pendingSwapDates.has(dayDetail.dateKey)}
         activities={activities[dayDetail.dateKey] || []}
         memberNames={memberNames}
