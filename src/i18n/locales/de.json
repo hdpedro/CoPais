@@ -3074,7 +3074,11 @@
     "impact": {
       "sameDay": "{child} hat {count} Prüfungen am {date}.",
       "tightSequence": "{child} hat an aufeinanderfolgenden Tagen Prüfungen ({date1} und {date2}) — prüfe die Vorbereitungszeit.",
-      "tightSequenceRun": "{child} hat an {count} Tagen hintereinander Prüfungen ({date1} bis {date2}) — Vorbereitungszeit prüfen."
+      "tightSequenceRun": "{child} hat an {count} Tagen hintereinander Prüfungen ({date1} bis {date2}) — Vorbereitungszeit prüfen.",
+      "lastVisitContext": "Der letzte Termin von {child} war am {lastDate}{provider}.",
+      "followupCandidate": "Für {child} ist eine Nachkontrolle am {date} geplant — dieser Termin könnte sie sein.",
+      "expenseMonthContext": "Das ist Ausgabe Nr. {n} in dieser Kategorie diesen Monat (bisher R$ {total}).",
+      "busyWeekContext": "{child} hat in dieser Woche bereits {count} Termine."
     },
     "result": {
       "undo": "Rückgängig",

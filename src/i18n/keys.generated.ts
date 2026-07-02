@@ -259,6 +259,10 @@ export type TranslationKey =
   | "brain.confirm.savedNotice"
   | "brain.duplicate.all"
   | "brain.error.generic"
+  | "brain.impact.busyWeekContext"
+  | "brain.impact.expenseMonthContext"
+  | "brain.impact.followupCandidate"
+  | "brain.impact.lastVisitContext"
   | "brain.impact.sameDay"
   | "brain.impact.tightSequence"
   | "brain.impact.tightSequenceRun"
@@ -3084,6 +3088,10 @@ export const TRANSLATION_KEYS = [
   "brain.confirm.savedNotice",
   "brain.duplicate.all",
   "brain.error.generic",
+  "brain.impact.busyWeekContext",
+  "brain.impact.expenseMonthContext",
+  "brain.impact.followupCandidate",
+  "brain.impact.lastVisitContext",
   "brain.impact.sameDay",
   "brain.impact.tightSequence",
   "brain.impact.tightSequenceRun",

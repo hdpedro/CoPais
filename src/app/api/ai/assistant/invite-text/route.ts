@@ -15,6 +15,7 @@ import { reportServerError } from "@/lib/error-tracking/report-server";
 import { isBrainEnabledForGroup, isEventInviteEnabled } from "@/lib/services/brain-flag";
 import { createAndAnalyzeText } from "@/lib/services/brain";
 import { buildInvitePreviewMessage } from "@/lib/ai/brain/invite-preview";
+import { getMemoryLines } from "@/lib/ai/brain/memory-lines";
 import type { BrainChild } from "@/lib/ai/brain/types";
 
 const FILE = "src/app/api/ai/assistant/invite-text/route.ts";
@@ -68,10 +69,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     if (result.kind === "preview") {
       const invite = result.preview.plan.invite;
       const nameOf = (id: string) => children.find((c) => c.id === id)?.name.split(" ")[0] ?? "";
+      const inviteChildName = invite?.childId ? nameOf(invite.childId) : "";
       return NextResponse.json(
         {
           content: invite
-            ? buildInvitePreviewMessage(invite, nameOf)
+            ? buildInvitePreviewMessage(invite, nameOf, {
+                memoryLines: await getMemoryLines(result.preview.impacts, inviteChildName),
+              })
             : "🎉 Organizei o convite. Quer que eu adicione ao calendário?",
           intake: {
             id: result.preview.intakeId,

@@ -3074,7 +3074,11 @@
     "impact": {
       "sameDay": "{child} has {count} exams on {date}.",
       "tightSequence": "{child} has exams on consecutive days ({date1} and {date2}) — check the prep time.",
-      "tightSequenceRun": "{child} has exams on {count} days in a row ({date1} to {date2}) — check the prep time."
+      "tightSequenceRun": "{child} has exams on {count} days in a row ({date1} to {date2}) — check the prep time.",
+      "lastVisitContext": "{child}'s last visit was on {lastDate}{provider}.",
+      "followupCandidate": "{child} has a follow-up scheduled for {date} — this visit may be it.",
+      "expenseMonthContext": "This is expense #{n} in this category this month (R$ {total} so far).",
+      "busyWeekContext": "{child} already has {count} commitments that week."
     },
     "result": {
       "undo": "Undo",

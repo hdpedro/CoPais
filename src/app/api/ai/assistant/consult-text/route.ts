@@ -17,6 +17,7 @@ import { reportServerError } from "@/lib/error-tracking/report-server";
 import { isBrainEnabledForGroup, isHealthVisitEnabled } from "@/lib/services/brain-flag";
 import { createAndAnalyzeText } from "@/lib/services/brain";
 import { buildHealthPreviewMessage } from "@/lib/ai/brain/health-preview";
+import { getMemoryLines } from "@/lib/ai/brain/memory-lines";
 import type { BrainChild } from "@/lib/ai/brain/types";
 
 const FILE = "src/app/api/ai/assistant/consult-text/route.ts";
@@ -73,7 +74,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       const childName = children.find((c) => c.id === childId)?.name || "seu filho(a)";
       return NextResponse.json(
         {
-          content: health ? buildHealthPreviewMessage(health, childName) : "🩺 Organizei a consulta. Quer que eu registre?",
+          content: health
+            ? buildHealthPreviewMessage(health, childName, { memoryLines: await getMemoryLines(result.preview.impacts, childName) })
+            : "🩺 Organizei a consulta. Quer que eu registre?",
           intake: {
             id: result.preview.intakeId,
             planHash: result.preview.planHash,

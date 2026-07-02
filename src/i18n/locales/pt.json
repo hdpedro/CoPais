@@ -3074,7 +3074,11 @@
     "impact": {
       "sameDay": "{child} tem {count} provas em {date}.",
       "tightSequence": "{child} tem provas em dias seguidos ({date1} e {date2}) — confira o tempo de preparo.",
-      "tightSequenceRun": "{child} tem provas em {count} dias seguidos ({date1} a {date2}) — confira o tempo de preparo."
+      "tightSequenceRun": "{child} tem provas em {count} dias seguidos ({date1} a {date2}) — confira o tempo de preparo.",
+      "lastVisitContext": "Última consulta de {child} foi em {lastDate}{provider}.",
+      "followupCandidate": "Há um retorno de {child} marcado para {date} — esta consulta pode ser ele.",
+      "expenseMonthContext": "É a {n}ª despesa dessa categoria no mês (R$ {total} até agora).",
+      "busyWeekContext": "{child} já tem {count} compromissos nessa semana."
     },
     "result": {
       "undo": "Desfazer",

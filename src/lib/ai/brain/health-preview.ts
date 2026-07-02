@@ -28,8 +28,13 @@ export function healthSummaryParts(health: HealthVisitPlan): string[] {
 }
 
 /** Mensagem do PREVIEW (pergunta se registra), pro chat do assistente. */
-export function buildHealthPreviewMessage(health: HealthVisitPlan, childName: string): string {
+export function buildHealthPreviewMessage(
+  health: HealthVisitPlan,
+  childName: string,
+  opts?: { memoryLines?: string[] },
+): string {
   const parts = healthSummaryParts(health);
   const detail = parts.length > 0 ? ` (${parts.join(", ")})` : "";
-  return `🩺 Organizei a consulta de ${childName}${detail}. Quer que eu registre no histórico de Saúde?`;
+  const mem = opts?.memoryLines?.length ? `\n${opts.memoryLines.join("\n")}\n` : " ";
+  return `🩺 Organizei a consulta de ${childName}${detail}.${mem}Quer que eu registre no histórico de Saúde?`;
 }

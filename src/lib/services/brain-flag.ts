@@ -58,6 +58,14 @@ export function isEventInviteEnabled(): boolean {
 }
 
 /**
+ * Memória da Família (Fase 3) habilitada? Liga o retro-impacto factual nos
+ * previews (histórico vira contexto). OFF = snapshot nem é buscado.
+ */
+export function isFamilyMemoryEnabled(): boolean {
+  return process.env.FEATURE_BRAIN_FAMILY_MEMORY === "true";
+}
+
+/**
  * Brain habilitado para o grupo? master env `&&` grupo.brain_beta_enabled.
  * Fail-closed: qualquer erro/ausência → false (não vaza acesso).
  */

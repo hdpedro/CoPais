@@ -22,7 +22,7 @@ function weekdayName(iso: string): string {
 export function buildInvitePreviewMessage(
   plan: EventInvitePlan,
   nameOf: (childId: string) => string,
-  opts?: { withCta?: boolean },
+  opts?: { withCta?: boolean; memoryLines?: string[] },
 ): string {
   const lines: string[] = [`🎉 ${plan.title}`];
 
@@ -43,6 +43,7 @@ export function buildInvitePreviewMessage(
   }
 
   let msg = lines.join("\n");
+  if (opts?.memoryLines?.length) msg += `\n${opts.memoryLines.join("\n")}`;
   if (opts?.withCta !== false) msg += `\nPosso adicionar ao calendário?`;
   return msg;
 }

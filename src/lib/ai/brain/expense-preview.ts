@@ -23,7 +23,7 @@ function ddmm(iso: string): string {
 export function buildExpensePreviewMessage(
   plan: ExpensePlan,
   nameOf: (childId: string) => string,
-  opts?: { withCta?: boolean },
+  opts?: { withCta?: boolean; memoryLines?: string[] },
 ): string {
   const lines = plan.items.map((it) => {
     const child = it.childId ? nameOf(it.childId) : "";
@@ -39,6 +39,7 @@ export function buildExpensePreviewMessage(
   if (payerOnly) {
     msg += `\n(Você disse que pagou sozinho — dá pra ajustar a divisão na tela Despesas.)`;
   }
+  if (opts?.memoryLines?.length) msg += `\n${opts.memoryLines.join("\n")}`;
   if (opts?.withCta !== false) msg += `\nPosso registrar?`;
   return msg;
 }
