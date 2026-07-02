@@ -2335,7 +2335,8 @@
     "inviteFillButton": "Envoyer la photo de l'invitation",
     "inviteFillBusy": "Lecture de l'invitation…",
     "inviteFillDone": "C'est prêt ! Vérifiez les champs et ajustez ce que vous voulez.",
-    "inviteFillFail": "Je n'ai pas pu lire cette invitation. Essayez une photo plus nette ou remplissez manuellement."
+    "inviteFillFail": "Je n'ai pas pu lire cette invitation. Essayez une photo plus nette ou remplissez manuellement.",
+    "inviteFillPdfButton": "Ou envoyez le PDF de l'invitation"
   },
   "inviteParser": {
     "title": "Ajouter depuis une invitation",

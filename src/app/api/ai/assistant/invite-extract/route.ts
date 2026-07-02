@@ -16,6 +16,7 @@ import { getActiveGroup } from "@/lib/group-utils";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { isBrainEnabledForGroup, isEventInviteEnabled } from "@/lib/services/brain-flag";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
+import { isPdfBuffer, renderPdfFirstPageToPng } from "@/lib/ai/brain/pdf-to-image";
 import { extractInvitePlanFromImage } from "@/lib/services/brain";
 import type { BrainChild } from "@/lib/ai/brain/types";
 
@@ -57,7 +58,13 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     const file = form.get("file") as File | null;
     if (!file) return NextResponse.json(NOT_FOUND, { status: 200 });
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    let buffer: Buffer = Buffer.from(await file.arrayBuffer());
+    // Convite em PDF (C4): rasteriza a 1ª página e segue como imagem.
+    if (isPdfBuffer(buffer)) {
+      const png = await renderPdfFirstPageToPng(buffer);
+      if (!png) return NextResponse.json(NOT_FOUND, { status: 200 });
+      buffer = png;
+    }
     const guard = validateImageUpload(buffer);
     if (!guard.ok || !guard.type) return NextResponse.json(NOT_FOUND, { status: 200 });
 

@@ -2311,7 +2311,8 @@
     "inviteFillButton": "Einladungsfoto senden",
     "inviteFillBusy": "Einladung wird gelesen…",
     "inviteFillDone": "Fertig! Prüfe die Felder und passe an, was du möchtest.",
-    "inviteFillFail": "Ich konnte die Einladung nicht lesen. Versuch ein schärferes Foto oder fülle manuell aus."
+    "inviteFillFail": "Ich konnte die Einladung nicht lesen. Versuch ein schärferes Foto oder fülle manuell aus.",
+    "inviteFillPdfButton": "Oder sende das Einladungs-PDF"
   },
   "inviteParser": {
     "title": "Von Einladung hinzufugen",

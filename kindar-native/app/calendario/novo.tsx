@@ -35,6 +35,7 @@ import {
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as ImagePicker from 'expo-image-picker';
+import * as DocumentPicker from 'expo-document-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from 'src/store/auth';
@@ -194,6 +195,23 @@ export default function NovoEventoScreen() {
     });
     if (picked.canceled || !picked.assets?.[0]) return;
     const a = picked.assets[0];
+    await uploadInviteAsset(a.uri, a.fileName || `convite-${Date.now()}.jpg`, a.mimeType || 'image/jpeg');
+  }
+
+  // Convite digital costuma chegar como PDF (C4): o servidor rasteriza a 1ª
+  // página e a extração segue idêntica à da foto.
+  async function fillFromInvitePdf() {
+    if (inviteBusy) return;
+    const picked = await DocumentPicker.getDocumentAsync({
+      type: 'application/pdf',
+      copyToCacheDirectory: true,
+    });
+    if (picked.canceled || !picked.assets?.[0]) return;
+    const a = picked.assets[0];
+    await uploadInviteAsset(a.uri, a.name || `convite-${Date.now()}.pdf`, a.mimeType || 'application/pdf');
+  }
+
+  async function uploadInviteAsset(uri: string, name: string, type: string) {
     setInviteBusy(true);
     setInviteNote(null);
     try {
@@ -202,11 +220,7 @@ export default function NovoEventoScreen() {
       if (!token) throw new Error('sessão expirada');
       const fd = new FormData();
       // RN FormData: {uri, name, type} vira o arquivo no multipart.
-      fd.append('file', {
-        uri: a.uri,
-        name: a.fileName || `convite-${Date.now()}.jpg`,
-        type: a.mimeType || 'image/jpeg',
-      } as unknown as Blob);
+      fd.append('file', { uri, name, type } as unknown as Blob);
       const res = await fetch(`${WEB_URL}/api/ai/assistant/invite-extract`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` }, // sem Content-Type manual: o RN põe o boundary
@@ -382,6 +396,16 @@ export default function NovoEventoScreen() {
                 : <Ionicons name="image-outline" size={18} color="#fff" />}
               <Text style={{ color: inviteBusy ? colors.textMuted : '#fff', fontWeight: '600', fontSize: font.sizes.sm }}>
                 {inviteBusy ? t('newForm.inviteFillBusy') : t('newForm.inviteFillButton')}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="invite-fill-pdf-button"
+              onPress={fillFromInvitePdf}
+              disabled={inviteBusy}
+              style={{ alignSelf: 'center', marginTop: spacing.sm, minHeight: 32, justifyContent: 'center' }}
+            >
+              <Text style={{ color: inviteBusy ? colors.textMuted : '#D4735A', fontSize: font.sizes.xs, fontWeight: '600' }}>
+                {t('newForm.inviteFillPdfButton')}
               </Text>
             </TouchableOpacity>
             {inviteNote === 'done' ? (

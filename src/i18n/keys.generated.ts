@@ -2113,6 +2113,7 @@ export type TranslationKey =
   | "newForm.inviteFillDone"
   | "newForm.inviteFillFail"
   | "newForm.inviteFillHint"
+  | "newForm.inviteFillPdfButton"
   | "newForm.inviteFillTitle"
   | "newForm.location"
   | "newForm.locationPlaceholder"
@@ -4937,6 +4938,7 @@ export const TRANSLATION_KEYS = [
   "newForm.inviteFillDone",
   "newForm.inviteFillFail",
   "newForm.inviteFillHint",
+  "newForm.inviteFillPdfButton",
   "newForm.inviteFillTitle",
   "newForm.location",
   "newForm.locationPlaceholder",

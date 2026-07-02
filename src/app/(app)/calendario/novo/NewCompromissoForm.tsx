@@ -906,7 +906,7 @@ export default function NewCompromissoForm({ children, members, groupId, initial
                     : "bg-[#D4735A]/10 text-[#D4735A] hover:bg-[#D4735A]/20"
                 }`}
               >
-                <input type="file" accept="image/*" className="hidden" onChange={handleInviteFile} disabled={inviteBusy} />
+                <input type="file" accept="image/*,application/pdf" className="hidden" onChange={handleInviteFile} disabled={inviteBusy} />
                 {inviteBusy ? t("newForm.inviteFillBusy") : t("newForm.inviteFillButton")}
               </label>
               {inviteNote === "done" && <p className="text-xs text-[#5B9E85]">{t("newForm.inviteFillDone")}</p>}

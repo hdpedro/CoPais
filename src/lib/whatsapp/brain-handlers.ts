@@ -20,6 +20,7 @@ import { buildExpensePreviewMessage } from "@/lib/ai/brain/expense-preview";
 import { buildInvitePreviewMessage } from "@/lib/ai/brain/invite-preview";
 import { undoIntake } from "@/lib/services/brain-undo";
 import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled, isEventInviteEnabled } from "@/lib/services/brain-flag";
+import { isPdfBuffer, renderPdfFirstPageToPng } from "@/lib/ai/brain/pdf-to-image";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { captureServerEvent } from "@/lib/posthog-server";
@@ -81,6 +82,19 @@ export async function handleCalendarImage(
  * garantiu o gate de beta. Todo throw é contido: o usuário SEMPRE recebe um
  * fechamento (nunca fica no "Analisando…" sem resposta).
  */
+/** Baixa a mídia (ou usa o buffer já baixado) e, se for PDF, rasteriza a 1ª
+ *  página (C4). Cobre também o RESUBMIT da pergunta de criança: o media_id
+ *  guardado pode ser um PDF, e reanalisar sem converter quebraria o guard.
+ *  PDF ilegível segue cru — o validateImageUpload gera a copy de erro. */
+async function resolveVisionBuffer(preBuffer: Buffer | undefined, mediaId: string): Promise<Buffer> {
+  const raw = preBuffer ?? (await downloadMedia(mediaId));
+  if (isPdfBuffer(raw)) {
+    const png = await renderPdfFirstPageToPng(raw);
+    if (png) return png;
+  }
+  return raw;
+}
+
 export async function analyzeCalendarPhoto(
   supabase: SupabaseClient,
   phone: string,
@@ -125,7 +139,7 @@ export async function analyzeCalendarPhoto(
       );
     }
 
-    const buffer = preBuffer ?? (await downloadMedia(mediaId));
+    const buffer = await resolveVisionBuffer(preBuffer, mediaId);
     const val = validateImageUpload(buffer);
     if (!val.ok || !val.type) {
       await sendTextMessage(
@@ -251,7 +265,7 @@ export async function analyzeConsultaPhoto(
         "🩺 Vou ler essa consulta pra organizar no histórico de Saúde — fica visível aos responsáveis do grupo. Analisando…",
       );
     }
-    const buffer = preBuffer ?? (await downloadMedia(mediaId));
+    const buffer = await resolveVisionBuffer(preBuffer, mediaId);
     const val = validateImageUpload(buffer);
     if (!val.ok || !val.type) {
       await sendTextMessage(phone, "Não consegui ler essa imagem. Tente uma foto nítida (JPG ou PNG). 🙏");
@@ -363,7 +377,7 @@ export async function analyzeInvitePhoto(
     if (!fromClassifier) {
       await sendTextMessage(phone, "🎉 Vou ler esse convite pra organizar no calendário da família. Analisando…");
     }
-    const buffer = preBuffer ?? (await downloadMedia(mediaId));
+    const buffer = await resolveVisionBuffer(preBuffer, mediaId);
     const val = validateImageUpload(buffer);
     if (!val.ok || !val.type) {
       await sendTextMessage(phone, "Não consegui ler essa imagem. Tente uma foto nítida (JPG ou PNG). 🙏");

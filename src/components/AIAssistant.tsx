@@ -987,7 +987,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
                   <input
                     ref={imageInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];

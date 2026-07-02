@@ -34,6 +34,13 @@
     "fr": "C'est prêt ! Vérifiez les champs et ajustez ce que vous voulez.",
     "de": "Fertig! Prüfe die Felder und passe an, was du möchtest."
   },
+  "newForm.inviteFillPdfButton": {
+    "pt": "Ou envie o PDF do convite",
+    "en": "Or send the invitation PDF",
+    "es": "O envía el PDF de la invitación",
+    "fr": "Ou envoyez le PDF de l'invitation",
+    "de": "Oder sende das Einladungs-PDF"
+  },
   "newForm.inviteFillFail": {
     "pt": "Não consegui ler esse convite. Tente uma foto mais nítida ou preencha manualmente.",
     "en": "I couldn't read that invitation. Try a sharper photo or fill it in manually.",

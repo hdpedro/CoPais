@@ -17,6 +17,7 @@ import { getActiveGroup } from "@/lib/group-utils";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { isBrainEnabledForGroup, isHealthVisitEnabled, isEventInviteEnabled } from "@/lib/services/brain-flag";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
+import { isPdfBuffer, renderPdfFirstPageToPng } from "@/lib/ai/brain/pdf-to-image";
 import { classifyDocumentByVision } from "@/lib/ai/document-classifier";
 import { createAndAnalyzeIntake } from "@/lib/services/brain";
 import { buildHealthPreviewMessage } from "@/lib/ai/brain/health-preview";
@@ -58,14 +59,25 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     // foto atribuindo a ela (paridade com o WhatsApp — sem reenviar/trocar tela).
     const requestedChildId = (form.get("child_id") as string | null) || null;
 
-    const buffer = Buffer.from(await file.arrayBuffer());
+    let buffer: Buffer = Buffer.from(await file.arrayBuffer());
+    // PDF (C4): rasteriza a 1ª página e segue como imagem — classificador e
+    // extração ficam idênticos ao caminho de foto.
+    if (isPdfBuffer(buffer)) {
+      const png = await renderPdfFirstPageToPng(buffer);
+      if (!png) {
+        return NextResponse.json(
+          { content: "Não consegui abrir esse PDF (máx. 8 MB) 🙏. Tente um print ou foto da página." },
+          { status: 200 },
+        );
+      }
+      buffer = png;
+    }
     const guard = validateImageUpload(buffer);
     if (!guard.ok || !guard.type) {
-      // PDF/tipos não suportados: orienta (por ora, só foto).
       const msg =
         guard.reason === "too_large"
           ? "Imagem muito grande (máx. 8 MB)."
-          : "Por enquanto eu leio FOTOS (JPEG, PNG ou WebP). Se for um PDF, tire um print ou foto da página e me mande. 🙏";
+          : "Eu leio fotos (JPEG, PNG, WebP) e PDF. Esse arquivo não parece nenhum desses — tente uma foto ou print da página. 🙏";
       return NextResponse.json({ content: msg }, { status: 200 });
     }
     const mime = guard.type;

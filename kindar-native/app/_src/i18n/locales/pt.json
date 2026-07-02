@@ -2311,7 +2311,8 @@
     "inviteFillButton": "Enviar foto do convite",
     "inviteFillBusy": "Lendo o convite…",
     "inviteFillDone": "Prontinho! Confira os campos e ajuste o que quiser.",
-    "inviteFillFail": "Não consegui ler esse convite. Tente uma foto mais nítida ou preencha manualmente."
+    "inviteFillFail": "Não consegui ler esse convite. Tente uma foto mais nítida ou preencha manualmente.",
+    "inviteFillPdfButton": "Ou envie o PDF do convite"
   },
   "inviteParser": {
     "title": "Adicionar via convite",

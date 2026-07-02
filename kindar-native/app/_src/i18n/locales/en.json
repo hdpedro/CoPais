@@ -2311,7 +2311,8 @@
     "inviteFillButton": "Send invitation photo",
     "inviteFillBusy": "Reading the invitation…",
     "inviteFillDone": "All set! Review the fields and adjust anything you like.",
-    "inviteFillFail": "I couldn't read that invitation. Try a sharper photo or fill it in manually."
+    "inviteFillFail": "I couldn't read that invitation. Try a sharper photo or fill it in manually.",
+    "inviteFillPdfButton": "Or send the invitation PDF"
   },
   "inviteParser": {
     "title": "Add from invite",
