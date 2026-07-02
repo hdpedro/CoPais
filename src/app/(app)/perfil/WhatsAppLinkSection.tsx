@@ -37,6 +37,8 @@ export default function WhatsAppLinkSection({
     const result = await requestWhatsAppLink(formData);
 
     if (result.error) {
+      // Limpa qualquer sucesso anterior — nunca mostrar erro + sucesso juntos.
+      setSuccess("");
       setError(result.error);
     } else {
       setPhone(result.phone || phoneInput);
@@ -57,6 +59,8 @@ export default function WhatsAppLinkSection({
     const result = await verifyWhatsAppOTP(formData);
 
     if (result.error) {
+      // Limpa qualquer sucesso anterior — nunca mostrar erro + sucesso juntos.
+      setSuccess("");
       setError(result.error);
     } else {
       setStatus("linked");
