@@ -33,12 +33,16 @@ describe("isPdfBuffer", () => {
 });
 
 describe("renderPdfFirstPageToPng", () => {
+  // Sob a suíte COMPLETA o cold start do pdfjs+@napi-rs/canvas disputa CPU com
+  // 128 arquivos e passa dos 5s default (quebrava o pre-push de forma
+  // intermitente). Timeout explícito só nos testes que renderizam de verdade.
+  const RENDER_TIMEOUT = 30_000;
   it("PDF de 1 página vira PNG", async () => {
     const png = await renderPdfFirstPageToPng(await makeInvitePdf());
     expect(png).not.toBeNull();
     expect(png!.subarray(0, 4).equals(PNG_MAGIC)).toBe(true);
     expect(png!.length).toBeGreaterThan(1000);
-  });
+  }, RENDER_TIMEOUT);
   it("não-PDF → null (guard de imagem decide a copy)", async () => {
     expect(await renderPdfFirstPageToPng(Buffer.from("nao sou pdf"))).toBeNull();
   });
@@ -55,5 +59,5 @@ describe("renderPdfFirstPageToPng", () => {
     doc.addPage([595, 842]);
     const blank = Buffer.from(await doc.save());
     expect(await renderPdfFirstPageToPng(blank)).toBeNull();
-  });
+  }, RENDER_TIMEOUT);
 });
