@@ -26,8 +26,13 @@ describe("parseNarrativeClassification", () => {
   });
 
   it("tipo inválido é descartado; sem intents válidas → none", () => {
-    const r = parseNarrativeClassification('{"intents":[{"type":"expense","confidence":0.9}]}');
+    const r = parseNarrativeClassification('{"intents":[{"type":"groceries","confidence":0.9}]}');
     expect(r.intents).toEqual([{ type: "none", confidence: 0 }]);
+  });
+
+  it("expense é tipo VÁLIDO da porta única (Fase 2)", () => {
+    const r = parseNarrativeClassification('{"intents":[{"type":"expense","confidence":0.85}]}');
+    expect(r.intents[0]).toEqual({ type: "expense", confidence: 0.85 });
   });
 
   it("confiança fora do range clampa; ausente vira 0", () => {

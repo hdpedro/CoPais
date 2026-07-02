@@ -438,7 +438,11 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
     //    caminho escolar é byte-idêntico; saúde/outros vêm do classificador (arg).
     const docType: DocType = args.docType ?? "school_calendar";
     const playbook = getPlaybook(docType);
-    if (!playbook) return { kind: "error", message: "Playbook indisponível." };
+    // Playbook só-texto (guarda, despesa) nunca chega aqui pelo caminho de
+    // foto — o guard cobre chamada errada sem quebrar o pipeline.
+    if (!playbook || !playbook.extractionPrompt) {
+      return { kind: "error", message: "Playbook indisponível." };
+    }
 
     // Normaliza o timezone do contexto (IANA válida) antes de planejar.
     const sctx: PlaybookContext = { ...ctx, timezone: safeTimezone(ctx.timezone) };
