@@ -5,7 +5,7 @@
 
 import { describe, it, expect } from "vitest";
 import { looksLikeCustodyText, looksLikeExamText, looksLikeConsultText } from "@/lib/ai/brain/exam-text-gate";
-import { buildCustodyPreviewMessage } from "@/lib/ai/brain/custody-preview";
+import { buildCustodyPreviewMessage, buildCustodyCoordinationBody } from "@/lib/ai/brain/custody-preview";
 import { renderCustodyExecuted, renderCustodyUndone } from "@/lib/whatsapp/brain-flow";
 import type { CustodyRoutinePlan } from "@/lib/ai/brain/types";
 
@@ -134,5 +134,92 @@ describe("buildCustodyPreviewMessage — uma linha humana por item", () => {
     const msg = buildCustodyPreviewMessage(plan, nameOf, 2);
     expect(msg).toContain("Férias: a família toda com Fernanda, 15/07 a 30/07");
     expect(msg).toContain("Otto fica com Henrique em 09/07 (quinta)");
+  });
+});
+
+/* ------------------------------------------------------------------ */
+/* Fatia R3: coordenação CONTEXTUAL — as mesmas linhas, ditas pro       */
+/* destinatário ("fica com você"), sem a cláusula do narrador.          */
+/* ------------------------------------------------------------------ */
+describe("buildCustodyCoordinationBody — R3 corpo pro destinatário", () => {
+  const OTTO = "child-otto";
+  const nameOf = (id: string) => (id === OTTO ? "Otto" : "");
+  const MAE = "u-mae";
+
+  function exception(over: Partial<Extract<CustodyRoutinePlan["items"][number], { kind: "custody_exception" }>> = {}) {
+    return {
+      kind: "custody_exception" as const,
+      childIds: [OTTO],
+      startDate: "2026-07-09",
+      endDate: "2026-07-09",
+      responsible: { memberId: "u-pai", label: "Henrique" },
+      reason: null,
+      ...over,
+    };
+  }
+
+  it("destinatária é a responsável → 'fica com você'; terceiro → nome intacto", () => {
+    const plan: CustodyRoutinePlan = {
+      items: [exception({ responsible: { memberId: MAE, label: "Fernanda" } })],
+    };
+    expect(buildCustodyCoordinationBody(plan, nameOf, 2, MAE)).toContain("Otto fica com você em 09/07");
+    expect(buildCustodyCoordinationBody(plan, nameOf, 2, "u-pai")).toContain("Otto fica com Fernanda em 09/07");
+  });
+
+  it("troca COM a destinatária vira frase dela ('você pode aceitar ou recusar'), nunca 'aceite de você'", () => {
+    const plan: CustodyRoutinePlan = {
+      items: [
+        {
+          kind: "swap_proposal",
+          childIds: [OTTO],
+          originalDate: "2026-07-11",
+          proposedDate: "2026-07-18",
+          counterpart: { memberId: MAE, label: "Fernanda" },
+          reason: null,
+        },
+      ],
+    };
+    const paraMae = buildCustodyCoordinationBody(plan, nameOf, 2, MAE);
+    expect(paraMae).toContain("Troca de dia com você (11/07 ⇄ 18/07) — você pode aceitar ou recusar no app");
+    expect(paraMae).not.toContain("de você");
+    const paraTerceiro = buildCustodyCoordinationBody(plan, nameOf, 2, "u-avo");
+    expect(paraTerceiro).toContain("aguarda o aceite de Fernanda");
+  });
+
+  it("externa em coordenação NÃO leva a cláusula do narrador (o 'você' de lá é outra pessoa)", () => {
+    const plan: CustodyRoutinePlan = {
+      items: [
+        {
+          kind: "leg_override",
+          childIds: [OTTO],
+          date: "2026-07-09",
+          leg: "pickup",
+          responsible: { memberId: null, label: "a avó Regina" },
+          time: "15:00",
+          note: null,
+        },
+      ],
+    };
+    const body = buildCustodyCoordinationBody(plan, nameOf, 2, MAE);
+    expect(body).toContain("quem busca Otto é a avó Regina às 15:00");
+    expect(body).not.toContain("no app o responsável é você");
+    // regressão: a PRÉVIA (pro narrador) mantém a cláusula
+    expect(buildCustodyPreviewMessage(plan, nameOf, 2)).toContain("no app o responsável é você");
+  });
+
+  it("cap de linhas com '… e mais N'; plano vazio → '' (worker cai no genérico)", () => {
+    const plan: CustodyRoutinePlan = {
+      items: [
+        exception({ startDate: "2026-07-06", endDate: "2026-07-06" }),
+        exception({ startDate: "2026-07-07", endDate: "2026-07-07" }),
+        exception({ startDate: "2026-07-08", endDate: "2026-07-08" }),
+        exception(),
+        exception({ startDate: "2026-07-10", endDate: "2026-07-10" }),
+      ],
+    };
+    const body = buildCustodyCoordinationBody(plan, nameOf, 2, MAE, 3);
+    expect(body.split("\n")).toHaveLength(4);
+    expect(body).toContain("… e mais 2");
+    expect(buildCustodyCoordinationBody({ items: [] }, nameOf, 2, MAE)).toBe("");
   });
 });

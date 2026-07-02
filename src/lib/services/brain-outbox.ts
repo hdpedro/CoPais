@@ -16,6 +16,8 @@ import { getUsersLocale } from "@/lib/locale-utils";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { captureServerEvent } from "@/lib/posthog-server";
 import { isDeadLettered, nextRetryDelayMs } from "@/lib/ai/brain/outbox-retry";
+import { buildCustodyCoordinationBody } from "@/lib/ai/brain/custody-preview";
+import type { MaterializationPlan } from "@/lib/ai/brain/types";
 
 const FILE = "src/lib/services/brain-outbox.ts";
 
@@ -42,6 +44,46 @@ async function childFirstName(admin: AdminClient, childId: string | undefined): 
   const { data } = await admin.from("children").select("full_name").eq("id", childId).single();
   const full = (data as { full_name?: string } | null)?.full_name ?? "";
   return full.split(" ")[0] || "seu filho(a)";
+}
+
+/** R3 — corpo contextual da coordenação de guarda: busca o plano do intake e
+ *  o transforma nas combinações em si, ditas PRO destinatário ("fica com
+ *  você"). As linhas nascem em pt (idioma do plano) → só substitui o corpo
+ *  genérico quando o destinatário lê pt. Qualquer falha → null (fail-open). */
+async function custodyContextualBody(
+  admin: AdminClient,
+  intakeId: string | undefined,
+  recipientId: string,
+  locale: string | undefined,
+): Promise<string | null> {
+  if (!intakeId) return null;
+  if (locale && !locale.startsWith("pt")) return null;
+  const { data: intake } = await admin
+    .from("brain_intakes")
+    .select("plan, group_id")
+    .eq("id", intakeId)
+    .single();
+  const row = intake as { plan?: MaterializationPlan | null; group_id?: string } | null;
+  const custody = row?.plan?.custody;
+  if (!custody || !row?.group_id) return null;
+
+  const { data: kids } = await admin
+    .from("children")
+    .select("id, full_name")
+    .eq("group_id", row.group_id);
+  const names = new Map(
+    ((kids ?? []) as Array<{ id: string; full_name: string | null }>).map((k) => [
+      k.id,
+      (k.full_name ?? "").split(" ")[0],
+    ]),
+  );
+  const body = buildCustodyCoordinationBody(
+    custody,
+    (id) => names.get(id) ?? "",
+    names.size,
+    recipientId,
+  );
+  return body || null;
 }
 
 /** Entrega um item. Lança em qualquer falha (o caller faz retry/DLQ). Localiza
@@ -73,7 +115,20 @@ async function deliver(admin: AdminClient, row: OutboxRow): Promise<void> {
     const applied = Number(p.applied_count) || 0;
     const proposed = (Number(p.swap_proposal_count) || 0) + (Number(p.slot_proposal_count) || 0);
     const title = t("notifications.brain.custodyRoutineTitle");
-    const body = t("notifications.brain.custodyRoutineBody", { applied, proposed });
+    let body = t("notifications.brain.custodyRoutineBody", { applied, proposed });
+    // R3: o corpo vira as combinações em si, ditas pro destinatário ("fica
+    // com você"). Falha/locale não-pt/plano vazio → corpo genérico acima.
+    try {
+      const contextual = await custodyContextualBody(
+        admin,
+        p.intake_id as string | undefined,
+        recipientId,
+        localeMap.get(recipientId),
+      );
+      if (contextual) body = contextual;
+    } catch {
+      // fail-open: a coordenação nunca deixa de sair por causa do contexto
+    }
     await createNotificationWithPush(recipientId, "brain_custody_routine", title, body, "/calendario");
   } else {
     const count = Number(p.created_count) || 1;
