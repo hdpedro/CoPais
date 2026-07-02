@@ -6,6 +6,7 @@
 import { describe, it, expect } from "vitest";
 import { looksLikeCustodyText, looksLikeExamText, looksLikeConsultText } from "@/lib/ai/brain/exam-text-gate";
 import { buildCustodyPreviewMessage } from "@/lib/ai/brain/custody-preview";
+import { renderCustodyExecuted, renderCustodyUndone } from "@/lib/whatsapp/brain-flow";
 import type { CustodyRoutinePlan } from "@/lib/ai/brain/types";
 
 describe("looksLikeCustodyText — gate conservador", () => {
@@ -83,6 +84,30 @@ describe("buildCustodyPreviewMessage — uma linha humana por item", () => {
     expect(msg).toContain("Troca de dia com Fernanda (11/07 ⇄ 18/07) — aguarda o aceite de Fernanda");
     expect(msg).toContain("Mudança fixa: toda segunda quem leva passa a ser Fernanda às 07:30 — aguarda o OK do coparente");
     expect(msg).toContain("Quem precisa aprovar será avisado");
+  });
+
+  it("withCta:false omite a pergunta final (WhatsApp anexa os botões)", () => {
+    const plan: CustodyRoutinePlan = {
+      items: [
+        {
+          kind: "custody_exception",
+          childIds: [OTTO],
+          startDate: "2026-07-09",
+          endDate: "2026-07-09",
+          responsible: { memberId: "u-pai", label: "Henrique" },
+          reason: null,
+        },
+      ],
+    };
+    const msg = buildCustodyPreviewMessage(plan, nameOf, 2, { withCta: false });
+    expect(msg).not.toContain("Posso registrar?");
+  });
+
+  it("renders do WhatsApp: executado + desfeito (acordo aceito fica de pé)", () => {
+    expect(renderCustodyExecuted()).toContain("quem precisa aprovar já foi avisado");
+    expect(renderCustodyUndone(2, 0)).toBe("Desfeito — removi 2 combinações de guarda e rotina.");
+    expect(renderCustodyUndone(1, 1)).toContain("1 troca já aceita continua valendo");
+    expect(renderCustodyUndone(0, 0)).toContain("Já estava desfeito");
   });
 
   it("férias família-toda e exceção de 1 dia com dia da semana", () => {

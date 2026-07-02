@@ -68,12 +68,16 @@ function itemLine(item: CustodyRoutineItem, nameOf: (id: string) => string, allC
   }
 }
 
-/** Mensagem de prévia completa (widget/WhatsApp anexam os botões). */
+/** Mensagem de prévia completa. `withCta:false` = sem a pergunta final (o
+ *  WhatsApp anexa a própria mensagem de botões; o widget usa o default). */
 export function buildCustodyPreviewMessage(
   plan: CustodyRoutinePlan,
   nameOf: (childId: string) => string,
   totalChildren: number,
+  opts?: { withCta?: boolean },
 ): string {
   const lines = plan.items.map((i) => itemLine(i, nameOf, totalChildren));
-  return `🗓️ Entendi essas combinações:\n${lines.join("\n")}\nPosso registrar? Quem precisa aprovar será avisado.`;
+  let msg = `🗓️ Entendi essas combinações:\n${lines.join("\n")}`;
+  if (opts?.withCta !== false) msg += `\nPosso registrar? Quem precisa aprovar será avisado.`;
+  return msg;
 }

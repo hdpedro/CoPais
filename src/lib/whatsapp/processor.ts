@@ -479,11 +479,15 @@ export async function processWhatsAppMessage(
 
   if (message.type === "text" && message.text) {
     // Escolar primeiro (byte-idêntico). Se não for captura de provas, tenta
-    // CONSULTA (gated OFF por padrão → no-op imediato; os gates são regex baratos
-    // e handleExamText só chama o LLM quando o gate passa).
+    // CONSULTA e depois GUARDA & ROTINA (ambas gated OFF por padrão → no-op
+    // imediato; os gates são regex baratos e handleExamText só chama o LLM
+    // quando o gate passa).
     let handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio);
     if (!handled) {
       handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio, undefined, "health_visit");
+    }
+    if (!handled) {
+      handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio, undefined, "custody_routine");
     }
     if (handled) {
       await logAIRequest({

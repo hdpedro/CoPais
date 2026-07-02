@@ -203,6 +203,25 @@ export function renderHealthUndone(removed: number): string {
   return `Desfeito — removi o registro da consulta do histórico de Saúde. Pode mandar de novo quando quiser.`;
 }
 
+/** Sucesso da narrativa de GUARDA & ROTINA (a prévia veio da copy pura
+ *  compartilhada buildCustodyPreviewMessage — mesmo texto do app). */
+export function renderCustodyExecuted(): string {
+  return `Pronto! Registrei as combinações — quem precisa aprovar já foi avisado. 🗓️\n\nSe quiser, responda *Desfazer* pra reverter.`;
+}
+
+/** Undo de guarda/rotina. `kept` = trocas JÁ aceitas (acordo fica de pé). */
+export function renderCustodyUndone(removed: number, kept: number): string {
+  if (removed === 0 && kept === 0) return `Já estava desfeito — não havia nada a remover.`;
+  let msg =
+    removed === 0
+      ? `Nada a remover por aqui.`
+      : `Desfeito — removi ${removed === 1 ? "1 combinação" : `${removed} combinações`} de guarda e rotina.`;
+  if (kept > 0) {
+    msg += ` ${kept === 1 ? "1 troca já aceita continua valendo" : `${kept} trocas já aceitas continuam valendo`} (acordo entre vocês).`;
+  }
+  return msg;
+}
+
 const ALL = /\b(confirmar|confirma|todas|todos|tudo|sim|pode|criar)\b/;
 const REMOVE = /\b(tirar|tira|remover|remove|excluir|exclui|menos|sem|n[aã]o)\b/;
 const KEEP = /\b(manter|mant[eé]m|s[oó]|somente|apenas|deixar|deixa)\b/;
