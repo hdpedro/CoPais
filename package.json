@@ -81,5 +81,9 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": "eslint --max-warnings 0 --no-warn-ignored"
+  },
+  "optionalDependencies": {
+    "@emnapi/core": "^1.11.1",
+    "@emnapi/runtime": "^1.11.1"
   }
 }
