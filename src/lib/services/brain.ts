@@ -24,7 +24,7 @@ import type { AIChatMessage } from "@/lib/ai/core/types";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { getPlaybook } from "@/lib/ai/brain/understanding/registry";
 import { analyzeImpact, type ExistingOccurrence } from "@/lib/ai/brain/impact";
-import { analyzeRetroImpact } from "@/lib/ai/brain/family-memory";
+import { analyzeRetroImpact, pickFollowupReturnId } from "@/lib/ai/brain/family-memory";
 import { loadFamilyMemory } from "@/lib/services/brain-memory";
 import { isFamilyMemoryEnabled } from "@/lib/services/brain-flag";
 import { prioritize } from "@/lib/ai/brain/prioritize";
@@ -1002,6 +1002,8 @@ async function confirmHealthVisit(args: {
   actorUserId?: string;
   recipientIds: string[];
   today: string;
+  /** Impactos persistidos na análise — M2 usa o followup_candidate. */
+  impacts?: IntakePreview["impacts"];
 }): Promise<IntakeResult> {
   const { supabase, intakeId, planHash, confirmationToken, savedPlan, actorId, recipientIds, today } = args;
   if (!savedPlan.health) {
@@ -1049,6 +1051,28 @@ async function confirmHealthVisit(args: {
     const createdCount = (result as { created_count: number }).created_count;
     captureServerEvent(actorId, "brain_intake_confirmed", { intake_id: intakeId, doc_type: "health_visit" });
     captureServerEvent(actorId, "brain_intake_executed", { intake_id: intakeId, doc_type: "health_visit", artifact_count: createdCount });
+    // M2 (Memória): esta consulta veio cumprir um retorno marcado? Fecha o
+    // laço APÓS o execute (RPC própria; não-atômico de propósito — falha
+    // aqui só deixa o retorno em aberto). Flag OFF ou RPC ausente = no-op.
+    if (isFamilyMemoryEnabled()) {
+      const returnId = pickFollowupReturnId(args.impacts);
+      if (returnId) {
+        try {
+          const { error: fulfillErr } = await supabase.rpc("brain_health_fulfill_return", {
+            p_intake_id: intakeId,
+            p_return_id: returnId,
+            p_actor_user_id: args.actorUserId ?? null,
+          });
+          if (fulfillErr) {
+            await reportServerError(fulfillErr, { filePath: FILE, metadata: { step: "fulfill_return", intakeId } });
+          } else {
+            captureServerEvent(actorId, "brain_return_fulfilled", { intake_id: intakeId, return_id: returnId });
+          }
+        } catch (err) {
+          await reportServerError(err, { filePath: FILE, metadata: { step: "fulfill_return", intakeId } });
+        }
+      }
+    }
     return { kind: "executed", intakeId, createdCount };
   }
 
@@ -1323,7 +1347,7 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
     // 1. Carrega o intake (RLS já restringe ao grupo do usuário).
     const { data: intake, error: loadErr } = await supabase
       .from("brain_intakes")
-      .select("group_id, child_id, plan, plan_hash, status, confirmation_expires_at")
+      .select("group_id, child_id, plan, plan_hash, status, confirmation_expires_at, impacts")
       .eq("id", intakeId)
       .single();
     if (loadErr || !intake) return { kind: "error", message: "Intake não encontrado." };
@@ -1354,6 +1378,7 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
       return await confirmHealthVisit({
         supabase, intakeId, planHash, confirmationToken, savedPlan,
         actorId, actorUserId: args.actorUserId, recipientIds, today,
+        impacts: (intake.impacts as IntakePreview["impacts"] | null) ?? [],
       });
     }
 
