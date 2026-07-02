@@ -31,6 +31,16 @@ export function isHealthVisitEnabled(): boolean {
 }
 
 /**
+ * Playbook de GUARDA & ROTINA (narrativa) habilitado? Interruptor PRÓPRIO
+ * (env FEATURE_BRAIN_CUSTODY_ROUTINE), mesmo molde da saúde. OFF por padrão
+ * (fail-closed): fica desligado até a migration 00137 estar em prod + o dono
+ * autorizar. Canais gateiam: isCustodyRoutineEnabled() && isBrainEnabledForGroup.
+ */
+export function isCustodyRoutineEnabled(): boolean {
+  return process.env.FEATURE_BRAIN_CUSTODY_ROUTINE === "true";
+}
+
+/**
  * Brain habilitado para o grupo? master env `&&` grupo.brain_beta_enabled.
  * Fail-closed: qualquer erro/ausência → false (não vaza acesso).
  */

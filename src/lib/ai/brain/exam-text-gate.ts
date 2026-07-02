@@ -26,6 +26,34 @@ export function looksLikeExamText(text: string): boolean {
  * decisão final; se não achar consulta, o canal cai no chat. PURO (regex).
  * Deve ser checado DEPOIS de looksLikeExamText (não sequestra captura de provas).
  */
+/**
+ * Um texto livre DESCREVE logística de guarda/rotina? Gate CONSERVADOR
+ * (3º da fila: roda DEPOIS de provas e consulta — não sequestra os outros).
+ * Âncora de guarda ("fica comigo", "troquei o sábado", "férias") OU de
+ * leva/busca ("quem busca é", "vou levar") + sinal de data/dia-da-semana.
+ * A extração por IA é a decisão final; se não achar, o canal cai no chat.
+ */
+export function looksLikeCustodyText(text: string): boolean {
+  const s = (text || "").toLowerCase().trim();
+  if (s.length < 8 || s.length > 800) return false;
+  if (/[?]\s*$/.test(s)) return false;
+  if (/^\s*(quando|qual|que dia|onde|como|por que|porque|quem foi|será que|pode|posso)\b/.test(s)) return false;
+  const custodyAnchor =
+    /\b(fica(m)? comigo|fica(m)? com (a|o|ele|ela|\w+)|guarda|troquei|trocar? o (dia|fim de semana|s[áa]bado|domingo)|troca de (dia|fim de semana)|revezamento|f[ée]rias)\b/.test(
+      s,
+    );
+  const legAnchor =
+    /\b(quem (leva|busca)|vou (levar|buscar)|vai (levar|buscar)|(leva|busca) (é|e) (a|o)?\s*\w+|a partir de (agora|segunda|ter[çc]a|quarta|quinta|sexta))\b/.test(
+      s,
+    );
+  if (!custodyAnchor && !legAnchor) return false;
+  const dateSignal =
+    /\b\d{1,2}\/\d{1,2}\b|\bdia\s+\d{1,2}\b|semana que vem|pr[óo]xima semana|amanh[ãa]|depois de amanh[ãa]|feriado|fim de semana|m[êe]s que vem|(segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(-feira)?\b|de \d{1,2} a \d{1,2}|at[ée] (o dia )?\d{1,2}/.test(
+      s,
+    );
+  return dateSignal;
+}
+
 export function looksLikeConsultText(text: string): boolean {
   const s = (text || "").toLowerCase().trim();
   if (s.length < 8 || s.length > 800) return false;
