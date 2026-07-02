@@ -59,6 +59,11 @@ export function looksLikeConsultText(text: string): boolean {
   if (s.length < 8 || s.length > 800) return false;
   if (/[?]\s*$/.test(s)) return false;
   if (/^\s*(quando|qual|que dia|onde|como|por que|porque|quem|será que|pode|posso|consigo|tem como)\b/.test(s)) return false;
+  // Pagamento com valor ("paguei 250 na consulta") é DESPESA, não registro
+  // clínico — deixa a frase chegar ao gate de despesa (4º da fila). Sem esta
+  // exclusão, "consulta"+"remédio" sequestrava e a extração de saúde
+  // rejeitava (unknown) — a despesa nunca chegava ao playbook dela (E2E 02/jul).
+  if (/\b(paguei|gastei|custou|desembolsei)\b/.test(s) && /\b\d{1,6}([.,]\d{1,2})?\b/.test(s)) return false;
   const medAnchor =
     /\b(consulta|m[ée]dic\w+|pediatra|dentista|receita|rem[ée]dio|medicamento|comprimido|xarope|dose|diagn[óo]stic\w+|retorno|alergia|antibi[óo]tico|prescri\w+|posologia)\b/.test(s);
   if (!medAnchor) return false;

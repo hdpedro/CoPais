@@ -8,7 +8,7 @@
 import { describe, it, expect } from "vitest";
 import { expensePlaybook } from "@/lib/ai/brain/understanding/playbooks/expense";
 import { getPlaybook, ENABLED_DOC_TYPES } from "@/lib/ai/brain/understanding/registry";
-import { looksLikeExpenseText } from "@/lib/ai/brain/exam-text-gate";
+import { looksLikeExpenseText, looksLikeConsultText } from "@/lib/ai/brain/exam-text-gate";
 import { isExpenseEnabled } from "@/lib/services/brain-flag";
 import type { PlaybookContext } from "@/lib/ai/brain/types";
 
@@ -103,8 +103,15 @@ describe("registro DORMENTE + gate + flag", () => {
     "gastei 89,90 no tênis do Martim ontem",
     "R$ 45 de uber pra escola",
     "a mensalidade custou 1200",
+    "Paguei 250 na consulta do Otto e 89,90 de remédio na farmácia.",
   ])("gate captura: %s", (s) => {
     expect(looksLikeExpenseText(s)).toBe(true);
+  });
+
+  it("frase de PAGAMENTO não é sequestrada pelo gate de consulta (E2E 02/jul)", () => {
+    expect(looksLikeConsultText("Paguei 250 na consulta do Otto e 89,90 de remédio na farmácia.")).toBe(false);
+    // registro clínico DE VERDADE segue capturado
+    expect(looksLikeConsultText("a pediatra passou antialérgico por 7 dias")).toBe(true);
   });
 
   it.each([
