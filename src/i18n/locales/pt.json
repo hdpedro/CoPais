@@ -2329,7 +2329,13 @@
     "saveActivity": "Salvar Atividade",
     "saveEvent": "Salvar Evento",
     "saveCustody": "Salvar Guarda",
-    "dateError": "A data de início não pode ser posterior à data de fim."
+    "dateError": "A data de início não pode ser posterior à data de fim.",
+    "inviteFillTitle": "Preencher com convite",
+    "inviteFillHint": "Tem o convite aí? Envie a foto e eu preencho os campos pra você.",
+    "inviteFillButton": "Enviar foto do convite",
+    "inviteFillBusy": "Lendo o convite…",
+    "inviteFillDone": "Prontinho! Confira os campos e ajuste o que quiser.",
+    "inviteFillFail": "Não consegui ler esse convite. Tente uma foto mais nítida ou preencha manualmente."
   },
   "inviteParser": {
     "title": "Adicionar via convite",

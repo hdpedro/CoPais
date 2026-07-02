@@ -57,6 +57,7 @@ import { captureServerEvent } from "@/lib/posthog-server";
 import type {
   BrainChild,
   DocType,
+  EventInvitePlan,
   GroupMemberRef,
   IntakeChannel,
   IntakePreview,
@@ -491,6 +492,63 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
     });
     await markFailed(supabase, intakeId, "analyze_exception");
     return { kind: "error", message: "Não consegui processar agora. Tente de novo em instantes." };
+  }
+}
+
+/**
+ * Extração PURA de convite (form-fill, C3): foto → EventInvitePlan, SEM
+ * intake, SEM storage, SEM side-effects. Serve o botão "Preencher com
+ * convite" do form Novo Evento (PWA + native): o form É a prévia e o
+ * próprio usuário materializa ao salvar. Criança ambígua não bloqueia —
+ * childId vem null e o form pergunta. Null = não parece convite legível.
+ */
+export async function extractInvitePlanFromImage(p: {
+  supabase: SupabaseServer;
+  groupId: string;
+  userId: string;
+  buffer: Buffer;
+  children: BrainChild[];
+}): Promise<EventInvitePlan | null> {
+  try {
+    const { data: groupRow } = await p.supabase
+      .from("coparenting_groups")
+      .select("timezone")
+      .eq("id", p.groupId)
+      .single();
+    const timezone = safeTimezone((groupRow?.timezone as string | undefined) || DEFAULT_TIMEZONE);
+    const today = todayInTz(timezone);
+    const playbook = getPlaybook("event_invite");
+    if (!playbook || !playbook.extractionPrompt) return null;
+    const sctx: PlaybookContext = {
+      groupId: p.groupId,
+      userId: p.userId,
+      channel: "pwa",
+      today,
+      timezone,
+      children: p.children,
+      resolvedChildId: p.children.length === 1 ? p.children[0].id : null,
+      schoolYearAnchor: Number(today.slice(0, 4)),
+    };
+    const { base64, mimeType } = await compressImageForVision(p.buffer);
+    const userPrompt = `${playbook.extractionPrompt.user}${visionReferenceSuffix("event_invite", sctx)}`;
+    const vision = await routeVisionRequest(
+      base64,
+      mimeType,
+      playbook.extractionPrompt.system,
+      userPrompt,
+      { temperature: 0.1, maxTokens: 4000 },
+    );
+    const raw = parseVisionJson(vision.text);
+    const data = playbook.parse(raw, sctx);
+    if (!data) return null;
+    const plan = playbook.plan(data, sctx);
+    return plan.invite ?? null;
+  } catch (err) {
+    await reportServerError(err, {
+      filePath: FILE,
+      metadata: { step: "extract_invite_form", groupId: p.groupId, note: sanitizeForLogPreview(String(err)) },
+    });
+    return null;
   }
 }
 

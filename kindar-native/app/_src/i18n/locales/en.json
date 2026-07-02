@@ -2305,7 +2305,13 @@
     "saveEvent": "Save Event",
     "saveCustody": "Save Custody",
     "dateError": "The start date cannot be after the end date.",
-    "headerTitle": "New Event"
+    "headerTitle": "New Event",
+    "inviteFillTitle": "Fill from invitation",
+    "inviteFillHint": "Got the invitation? Send a photo and I'll fill in the fields for you.",
+    "inviteFillButton": "Send invitation photo",
+    "inviteFillBusy": "Reading the invitation…",
+    "inviteFillDone": "All set! Review the fields and adjust anything you like.",
+    "inviteFillFail": "I couldn't read that invitation. Try a sharper photo or fill it in manually."
   },
   "inviteParser": {
     "title": "Add from invite",

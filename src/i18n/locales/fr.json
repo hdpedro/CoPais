@@ -2329,7 +2329,13 @@
     "saveActivity": "Enregistrer l'activite",
     "saveEvent": "Enregistrer l'evenement",
     "saveCustody": "Enregistrer la garde",
-    "dateError": "La date de debut ne peut pas etre posterieure a la date de fin."
+    "dateError": "La date de debut ne peut pas etre posterieure a la date de fin.",
+    "inviteFillTitle": "Remplir depuis l'invitation",
+    "inviteFillHint": "Vous avez l'invitation ? Envoyez une photo et je remplis les champs pour vous.",
+    "inviteFillButton": "Envoyer la photo de l'invitation",
+    "inviteFillBusy": "Lecture de l'invitation…",
+    "inviteFillDone": "C'est prêt ! Vérifiez les champs et ajustez ce que vous voulez.",
+    "inviteFillFail": "Je n'ai pas pu lire cette invitation. Essayez une photo plus nette ou remplissez manuellement."
   },
   "inviteParser": {
     "title": "Ajouter depuis une invitation",

@@ -2305,7 +2305,13 @@
     "saveEvent": "Ereignis speichern",
     "saveCustody": "Sorgerecht speichern",
     "dateError": "Das Startdatum darf nicht nach dem Enddatum liegen.",
-    "headerTitle": "Neuer Termin"
+    "headerTitle": "Neuer Termin",
+    "inviteFillTitle": "Mit Einladung ausfüllen",
+    "inviteFillHint": "Einladung zur Hand? Schick ein Foto und ich fülle die Felder für dich aus.",
+    "inviteFillButton": "Einladungsfoto senden",
+    "inviteFillBusy": "Einladung wird gelesen…",
+    "inviteFillDone": "Fertig! Prüfe die Felder und passe an, was du möchtest.",
+    "inviteFillFail": "Ich konnte die Einladung nicht lesen. Versuch ein schärferes Foto oder fülle manuell aus."
   },
   "inviteParser": {
     "title": "Von Einladung hinzufugen",

@@ -2108,6 +2108,12 @@ export type TranslationKey =
   | "newForm.frequency"
   | "newForm.image"
   | "newForm.imageHint"
+  | "newForm.inviteFillBusy"
+  | "newForm.inviteFillButton"
+  | "newForm.inviteFillDone"
+  | "newForm.inviteFillFail"
+  | "newForm.inviteFillHint"
+  | "newForm.inviteFillTitle"
   | "newForm.location"
   | "newForm.locationPlaceholder"
   | "newForm.notes"
@@ -4926,6 +4932,12 @@ export const TRANSLATION_KEYS = [
   "newForm.frequency",
   "newForm.image",
   "newForm.imageHint",
+  "newForm.inviteFillBusy",
+  "newForm.inviteFillButton",
+  "newForm.inviteFillDone",
+  "newForm.inviteFillFail",
+  "newForm.inviteFillHint",
+  "newForm.inviteFillTitle",
   "newForm.location",
   "newForm.locationPlaceholder",
   "newForm.notes",

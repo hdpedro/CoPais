@@ -34,6 +34,7 @@ import {
 } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import * as Haptics from 'expo-haptics';
+import * as ImagePicker from 'expo-image-picker';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from 'src/store/auth';
@@ -46,6 +47,20 @@ import { colors, spacing, radius, font } from 'src/design-system/tokens';
 
 interface ChildOption { id: string; full_name: string; }
 interface MemberOption { user_id: string; name: string; }
+
+const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL || 'https://kindar.com.br';
+
+/** Campos extraídos de uma foto de convite (form-fill do Brain, C3). */
+interface InvitePlanFields {
+  title?: unknown;
+  description?: unknown;
+  eventDate?: unknown;
+  endDate?: unknown;
+  timeStart?: unknown;
+  timeEnd?: unknown;
+  location?: unknown;
+  childId?: unknown;
+}
 
 // Custody colors — the PWA renders events tinted by `assigned_to`, using the
 // same palette as `colors.custody` (Lar A = sage, Lar B = terracota). For the
@@ -145,6 +160,103 @@ export default function NovoEventoScreen() {
     }
   }
 
+  // ── Preencher com convite (form-fill do Brain, C3) ────────────────────
+  // O servidor decide se o botão aparece (flag própria + beta do grupo).
+  // Extração é PURA: nada é criado — o usuário revisa e salva pelo form.
+  const [inviteEnabled, setInviteEnabled] = useState(false);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteNote, setInviteNote] = useState<'done' | 'fail' | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { data: session } = await supabase.auth.getSession();
+        const token = session.session?.access_token;
+        if (!token) return;
+        const res = await fetch(`${WEB_URL}/api/ai/assistant/invite-extract`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const d = await res.json().catch(() => null);
+        if (!cancelled && d?.enabled === true) setInviteEnabled(true);
+      } catch {
+        // Sem rede/flag → o botão simplesmente não aparece.
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  async function fillFromInvite() {
+    if (inviteBusy) return;
+    const picked = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      quality: 0.8,
+    });
+    if (picked.canceled || !picked.assets?.[0]) return;
+    const a = picked.assets[0];
+    setInviteBusy(true);
+    setInviteNote(null);
+    try {
+      const { data: session } = await supabase.auth.getSession();
+      const token = session.session?.access_token;
+      if (!token) throw new Error('sessão expirada');
+      const fd = new FormData();
+      // RN FormData: {uri, name, type} vira o arquivo no multipart.
+      fd.append('file', {
+        uri: a.uri,
+        name: a.fileName || `convite-${Date.now()}.jpg`,
+        type: a.mimeType || 'image/jpeg',
+      } as unknown as Blob);
+      const res = await fetch(`${WEB_URL}/api/ai/assistant/invite-extract`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }, // sem Content-Type manual: o RN põe o boundary
+        body: fd,
+      });
+      const data = await res.json().catch(() => null);
+      const plan: InvitePlanFields | null = data?.found === true && data.plan ? data.plan : null;
+      if (plan && typeof plan.title === 'string' && typeof plan.eventDate === 'string') {
+        setTitle(plan.title);
+        setDescription(typeof plan.description === 'string' ? plan.description : '');
+        setStartDateIso(plan.eventDate);
+        if (typeof plan.endDate === 'string' && plan.endDate) {
+          // Espelha o form: vários dias força dia inteiro.
+          setMultiDay(true);
+          setAllDay(true);
+          setEndDateIso(plan.endDate);
+          setStartTime(null);
+          setEndTime(null);
+        } else {
+          setMultiDay(false);
+          setEndDateIso(null);
+          if (typeof plan.timeStart === 'string' && plan.timeStart) {
+            setAllDay(false);
+            setStartTime(plan.timeStart);
+            setEndTime(typeof plan.timeEnd === 'string' ? plan.timeEnd : null);
+          } else {
+            setAllDay(true);
+            setStartTime(null);
+            setEndTime(null);
+          }
+        }
+        setLocation(typeof plan.location === 'string' ? plan.location : '');
+        if (typeof plan.childId === 'string' && children.some(c => c.id === plan.childId)) {
+          setSelectedChildId(plan.childId);
+        }
+        setErrors({});
+        setInviteNote('done');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      } else {
+        setInviteNote('fail');
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      }
+    } catch {
+      setInviteNote('fail');
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } finally {
+      setInviteBusy(false);
+    }
+  }
+
   // ── Validation ────────────────────────────────────────────────────────
   function validate(): boolean {
     const next: typeof errors = {};
@@ -240,6 +352,44 @@ export default function NovoEventoScreen() {
           }}>
             <Ionicons name="alert-circle" size={18} color={colors.error} />
             <Text style={{ color: colors.error, fontSize: font.sizes.sm, flex: 1 }}>{errors.general}</Text>
+          </View>
+        ) : null}
+
+        {/* ── Preencher com convite (form-fill do Brain, C3) ──── */}
+        {inviteEnabled ? (
+          <View style={{
+            backgroundColor: '#FBEFEC', borderColor: '#F3D9D2', borderWidth: 1,
+            borderRadius: radius.md, padding: spacing.md, marginBottom: spacing.lg,
+          }}>
+            <Text style={{ fontSize: font.sizes.sm, fontWeight: '700', color: '#2C2C2C', marginBottom: 2 }}>
+              🎉 {t('newForm.inviteFillTitle')}
+            </Text>
+            <Text style={{ fontSize: font.sizes.xs, color: colors.textMuted, marginBottom: spacing.sm }}>
+              {t('newForm.inviteFillHint')}
+            </Text>
+            <TouchableOpacity
+              testID="invite-fill-button"
+              onPress={fillFromInvite}
+              disabled={inviteBusy}
+              style={{
+                flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: spacing.sm,
+                backgroundColor: inviteBusy ? colors.bg : '#D4735A',
+                borderRadius: radius.md, paddingVertical: spacing.md, minHeight: 44,
+              }}
+            >
+              {inviteBusy
+                ? <ActivityIndicator size="small" color={colors.textMuted} />
+                : <Ionicons name="image-outline" size={18} color="#fff" />}
+              <Text style={{ color: inviteBusy ? colors.textMuted : '#fff', fontWeight: '600', fontSize: font.sizes.sm }}>
+                {inviteBusy ? t('newForm.inviteFillBusy') : t('newForm.inviteFillButton')}
+              </Text>
+            </TouchableOpacity>
+            {inviteNote === 'done' ? (
+              <Text style={{ fontSize: font.sizes.xs, color: '#5B9E85', marginTop: spacing.sm }}>{t('newForm.inviteFillDone')}</Text>
+            ) : null}
+            {inviteNote === 'fail' ? (
+              <Text style={{ fontSize: font.sizes.xs, color: colors.error, marginTop: spacing.sm }}>{t('newForm.inviteFillFail')}</Text>
+            ) : null}
           </View>
         ) : null}
 

@@ -1,0 +1,44 @@
+{
+  "newForm.inviteFillTitle": {
+    "pt": "Preencher com convite",
+    "en": "Fill from invitation",
+    "es": "Rellenar con invitación",
+    "fr": "Remplir depuis l'invitation",
+    "de": "Mit Einladung ausfüllen"
+  },
+  "newForm.inviteFillHint": {
+    "pt": "Tem o convite aí? Envie a foto e eu preencho os campos pra você.",
+    "en": "Got the invitation? Send a photo and I'll fill in the fields for you.",
+    "es": "¿Tienes la invitación? Envía una foto y completo los campos por ti.",
+    "fr": "Vous avez l'invitation ? Envoyez une photo et je remplis les champs pour vous.",
+    "de": "Einladung zur Hand? Schick ein Foto und ich fülle die Felder für dich aus."
+  },
+  "newForm.inviteFillButton": {
+    "pt": "Enviar foto do convite",
+    "en": "Send invitation photo",
+    "es": "Enviar foto de la invitación",
+    "fr": "Envoyer la photo de l'invitation",
+    "de": "Einladungsfoto senden"
+  },
+  "newForm.inviteFillBusy": {
+    "pt": "Lendo o convite…",
+    "en": "Reading the invitation…",
+    "es": "Leyendo la invitación…",
+    "fr": "Lecture de l'invitation…",
+    "de": "Einladung wird gelesen…"
+  },
+  "newForm.inviteFillDone": {
+    "pt": "Prontinho! Confira os campos e ajuste o que quiser.",
+    "en": "All set! Review the fields and adjust anything you like.",
+    "es": "¡Listo! Revisa los campos y ajusta lo que quieras.",
+    "fr": "C'est prêt ! Vérifiez les champs et ajustez ce que vous voulez.",
+    "de": "Fertig! Prüfe die Felder und passe an, was du möchtest."
+  },
+  "newForm.inviteFillFail": {
+    "pt": "Não consegui ler esse convite. Tente uma foto mais nítida ou preencha manualmente.",
+    "en": "I couldn't read that invitation. Try a sharper photo or fill it in manually.",
+    "es": "No pude leer esa invitación. Prueba con una foto más nítida o rellena manualmente.",
+    "fr": "Je n'ai pas pu lire cette invitation. Essayez une photo plus nette ou remplissez manuellement.",
+    "de": "Ich konnte die Einladung nicht lesen. Versuch ein schärferes Foto oder fülle manuell aus."
+  }
+}

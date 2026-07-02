@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/static-components */
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { createActivity } from "@/actions/activities";
 import { createEvent } from "@/actions/events";
 import { createCustodyEvent } from "@/actions/calendar";
@@ -41,6 +41,20 @@ interface CategoryDef {
   value: CategoryValue;
   label: string;
   icon: string;
+}
+
+/** Campos extraídos de uma foto de convite (form-fill do Brain, C3).
+ *  O form é a prévia: nada é criado até o usuário salvar. */
+interface InvitePrefill {
+  title: string;
+  description: string | null;
+  eventDate: string;
+  endDate: string | null;
+  timeStart: string | null;
+  timeEnd: string | null;
+  location: string | null;
+  childId: string | null;
+  allDay: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -146,6 +160,58 @@ export default function NewCompromissoForm({ children, members, groupId, initial
   const [multiDay, setMultiDay] = useState(false);
   const [eventResponsibleId, setEventResponsibleId] = useState<string>(members[0]?.user_id || "");
   const [showEventOtherResponsible, setShowEventOtherResponsible] = useState(false);
+
+  /* --- convite form-fill (C3) --------------------------------------- */
+  // Botão "Preencher com convite": o servidor decide se aparece (flag própria
+  // + beta do grupo). Prefill preenche via defaultValue + remount (prefillTick
+  // como key) porque os inputs do branch de evento são uncontrolled.
+  const [inviteEnabled, setInviteEnabled] = useState(false);
+  const [inviteBusy, setInviteBusy] = useState(false);
+  const [inviteNote, setInviteNote] = useState<"done" | "fail" | null>(null);
+  const [invitePrefill, setInvitePrefill] = useState<InvitePrefill | null>(null);
+  const [prefillTick, setPrefillTick] = useState(0);
+
+  useEffect(() => {
+    let alive = true;
+    fetch("/api/ai/assistant/invite-extract")
+      .then((r) => r.json())
+      .then((d) => {
+        if (alive && d?.enabled === true) setInviteEnabled(true);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  async function handleInviteFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permite escolher o mesmo arquivo de novo
+    if (!file || inviteBusy) return;
+    setInviteBusy(true);
+    setInviteNote(null);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/ai/assistant/invite-extract", { method: "POST", body: fd });
+      const data = await res.json().catch(() => null);
+      const plan = data?.found === true ? (data.plan as InvitePrefill | undefined) : undefined;
+      if (plan?.title && plan?.eventDate) {
+        setInvitePrefill(plan);
+        // Convite multi-dia espelha o form: vários dias força dia inteiro.
+        setMultiDay(!!plan.endDate);
+        setAllDay(!!plan.endDate || !plan.timeStart);
+        setPrefillTick((n) => n + 1);
+        setInviteNote("done");
+      } else {
+        setInviteNote("fail");
+      }
+    } catch {
+      setInviteNote("fail");
+    } finally {
+      setInviteBusy(false);
+    }
+  }
 
   /* --- custody state ----------------------------------------------- */
   const [hasTime, setHasTime] = useState(false);
@@ -408,6 +474,7 @@ export default function NewCompromissoForm({ children, members, groupId, initial
         <select
           name={mode === "dropdown-required" ? undefined : "childId"}
           value={mode === "dropdown-required" ? custodyChildId : undefined}
+          defaultValue={mode === "dropdown-optional" ? invitePrefill?.childId ?? "" : undefined}
           onChange={mode === "dropdown-required" ? (e) => setCustodyChildId(e.target.value) : undefined}
           required={mode === "dropdown-required"}
           className={`${inputClass} bg-white`}
@@ -823,7 +890,29 @@ export default function NewCompromissoForm({ children, members, groupId, initial
 
       {/* ========== EVENT FORM ========== */}
       {formType === "event" && (
-        <div className="space-y-3 animate-[fadeIn_200ms_ease-out]">
+        <div key={`ev-${prefillTick}`} className="space-y-3 animate-[fadeIn_200ms_ease-out]">
+
+          {/* --- Preencher com convite (form-fill do Brain, C3) --- */}
+          {inviteEnabled && (
+            <div className={sectionCard}>
+              <p className={sectionLabel}>
+                <span>{"\uD83C\uDF89"}</span> {t("newForm.inviteFillTitle")}
+              </p>
+              <p className="text-xs text-[#7A8C8B]">{t("newForm.inviteFillHint")}</p>
+              <label
+                className={`inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium cursor-pointer transition-all min-h-[44px] ${
+                  inviteBusy
+                    ? "bg-gray-100 text-[#7A8C8B]"
+                    : "bg-[#D4735A]/10 text-[#D4735A] hover:bg-[#D4735A]/20"
+                }`}
+              >
+                <input type="file" accept="image/*" className="hidden" onChange={handleInviteFile} disabled={inviteBusy} />
+                {inviteBusy ? t("newForm.inviteFillBusy") : t("newForm.inviteFillButton")}
+              </label>
+              {inviteNote === "done" && <p className="text-xs text-[#5B9E85]">{t("newForm.inviteFillDone")}</p>}
+              {inviteNote === "fail" && <p className="text-xs text-[#D4735A]">{t("newForm.inviteFillFail")}</p>}
+            </div>
+          )}
 
           {/* --- Title --- */}
           <div className={sectionCard}>
@@ -832,6 +921,7 @@ export default function NewCompromissoForm({ children, members, groupId, initial
             </p>
             <input
               name="title" required
+              defaultValue={invitePrefill?.title}
               placeholder={t("newForm.eventTitlePlaceholder")}
               className={inputClass}
             />
@@ -869,20 +959,20 @@ export default function NewCompromissoForm({ children, members, groupId, initial
                 <label className="block text-[11px] text-[#7A8C8B] mb-1">
                   {multiDay ? t("newForm.startDate") : t("newForm.date")} <span className="text-[#D4735A]">*</span>
                 </label>
-                <input name="eventDate" type="date" required defaultValue={defaultDateStr} className={inputClass} />
+                <input name="eventDate" type="date" required defaultValue={invitePrefill?.eventDate ?? defaultDateStr} className={inputClass} />
               </div>
               {multiDay && (
                 <div>
                   <label className="block text-[11px] text-[#7A8C8B] mb-1">
                     {t("newForm.endDate")} <span className="text-[#D4735A]">*</span>
                   </label>
-                  <input name="endDate" type="date" required defaultValue={defaultDateStr} className={inputClass} />
+                  <input name="endDate" type="date" required defaultValue={invitePrefill?.endDate ?? defaultDateStr} className={inputClass} />
                 </div>
               )}
               {!allDay && (
                 <div>
                   <label className="block text-[11px] text-[#7A8C8B] mb-1">{t("newForm.time")}</label>
-                  <input name="eventTime" type="time" className={inputClass} />
+                  <input name="eventTime" type="time" defaultValue={invitePrefill?.timeStart ?? undefined} className={inputClass} />
                 </div>
               )}
             </div>
@@ -917,15 +1007,17 @@ export default function NewCompromissoForm({ children, members, groupId, initial
             </p>
             <input
               name="location"
+              defaultValue={invitePrefill?.location ?? undefined}
               placeholder={t("newForm.eventLocationPlaceholder")}
               className={inputClass}
             />
           </div>
 
           {/* --- Description --- */}
-          <CollapsibleSection icon={"\uD83D\uDCDD"} title={t("newForm.description")}>
+          <CollapsibleSection icon={"\uD83D\uDCDD"} title={t("newForm.description")} defaultOpen={!!invitePrefill?.description}>
             <textarea
               name="description" rows={3}
+              defaultValue={invitePrefill?.description ?? undefined}
               placeholder={t("newForm.descriptionPlaceholder")}
               className={`${inputClass} resize-none`}
             />
