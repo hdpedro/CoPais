@@ -406,6 +406,9 @@ function visionReferenceSuffix(docType: DocType, sctx: PlaybookContext): string 
   if (docType === "health_visit") {
     return `\n\n(Referência: hoje é ${sctx.today}. Resolva datas relativas — retorno "em 1 mês", "em 15 dias" — contra a data da consulta ou, na falta, contra hoje; devolva em ISO "AAAA-MM-DD".)`;
   }
+  if (docType === "event_invite") {
+    return `\n\n(Referência: hoje é ${sctx.today}. Convite sem ano explícito = próxima ocorrência a partir de hoje; devolva datas em ISO "AAAA-MM-DD".)`;
+  }
   return `\n\nAno letivo de referência (use se o ano não aparecer na imagem): ${sctx.schoolYearAnchor}.`;
 }
 

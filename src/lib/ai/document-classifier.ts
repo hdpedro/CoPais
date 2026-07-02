@@ -23,6 +23,7 @@ export type DocumentType =
   | "attestation" // atestado
   | "exam" // exame/laudo médico (RESULTADO)
   | "school_calendar" // calendário/cronograma de provas da escola
+  | "event_invite" // convite (aniversário/festa/reunião/apresentação/campeonato)
   | "unknown";
 
 export interface DocumentClassification {
@@ -38,6 +39,7 @@ const VALID_TYPES: readonly string[] = [
   "attestation",
   "exam",
   "school_calendar",
+  "event_invite",
   "unknown",
 ];
 
@@ -52,9 +54,10 @@ Tipos possíveis:
 - "attestation": atestado médico.
 - "exam": RESULTADO ou laudo de um exame já realizado.
 - "school_calendar": calendário/cronograma escolar com DATAS de provas/avaliações/trabalhos.
+- "event_invite": CONVITE de evento de família — aniversário, festinha, festa junina, reunião de pais, apresentação, campeonato, formatura (arte de convite com data/hora/local).
 - "unknown": nada acima ou não dá pra ler.
 
-Regras: baseie-se no CONTEÚDO visual (uma tabela de datas e disciplinas = school_calendar; valores em R$ e itens = receipt). Seja conservador: se não tiver certeza, use confidence baixa (< 0.5). NUNCA invente.`;
+Regras: baseie-se no CONTEÚDO visual (uma tabela de datas e disciplinas = school_calendar; valores em R$ e itens = receipt; arte festiva com "convidamos"/data/local = event_invite). Seja conservador: se não tiver certeza, use confidence baixa (< 0.5). NUNCA invente.`;
 
 /** Parse PURO da resposta do modelo → classificação normalizada. Tolerante a
  *  cercas ```json, tipo inválido (→ unknown) e confidence ausente/ruim. */

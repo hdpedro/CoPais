@@ -56,7 +56,7 @@ import {
   downloadMedia,
 } from "./client";
 import { classifyDocumentByVision, classifyNarrative, type NarrativeIntentType } from "@/lib/ai/document-classifier";
-import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled, isEventInviteEnabled } from "@/lib/services/brain-flag";
 import { formatForWhatsApp, splitMessage } from "./formatter";
 import { processReceiptImage, processPrescriptionImage } from "./media";
 import { transcribeAudio } from "./audio";
@@ -73,6 +73,7 @@ function narrativeTypeEnabled(t: NarrativeIntentType): boolean {
   if (t === "health_visit") return isHealthVisitEnabled();
   if (t === "custody_routine") return isCustodyRoutineEnabled();
   if (t === "expense") return isExpenseEnabled();
+  if (t === "event_invite") return isEventInviteEnabled();
   return false;
 }
 
@@ -554,6 +555,9 @@ export async function processWhatsAppMessage(
     }
     if (!handled) {
       handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio, undefined, "expense");
+    }
+    if (!handled) {
+      handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio, undefined, "event_invite");
     }
     // PORTA ÚNICA (decisão do dono): os gates regex não morderam, mas a frase
     // pode ser captura em tom natural ("semana que vem ele fica comigo…").

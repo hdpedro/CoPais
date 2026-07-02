@@ -31,7 +31,7 @@ import { useAuth } from '../../store/auth';
 import { useAIModal } from '../../store/ai-modal';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 import {
-  looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLikeExpenseText,
+  looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLikeExpenseText, looksLikeInviteText,
   matchOneChildOption, endpointForDocType,
   type BrainIntakeRef, type CaptureResponse, type ChildOption,
 } from '../../lib/brain-capture';
@@ -214,6 +214,7 @@ export default function AIAssistantSheet() {
     const isHealth = pi.doc === 'health';
     const isCustody = pi.doc === 'custody';
     const isExpense = pi.doc === 'expense';
+    const isInvite = pi.doc === 'invite';
     setPendingIntake(null);
     setUndoable(null);
     setSending(true);
@@ -229,14 +230,18 @@ export default function AIAssistantSheet() {
       if (ok) setUndoable(pi);
       pushAssistant(
         ok
-          ? isExpense
+          ? isInvite
+            ? '✅ Pronto! Adicionei o evento ao calendário. Se precisar, é só tocar em Desfazer.'
+            : isExpense
             ? `✅ Pronto! Registrei ${pi.count === 1 ? 'a despesa' : `${pi.count} despesas`} em Despesas — quem divide aprova por lá. Se precisar, é só tocar em Desfazer.`
             : isCustody
               ? '✅ Pronto! Registrei as combinações — quem precisa aprovar já foi avisado. Se precisar, é só tocar em Desfazer.'
               : isHealth
                 ? '✅ Pronto! Registrei a consulta em Saúde. Se precisar, é só tocar em Desfazer.'
                 : `✅ Pronto! Adicionei ${pi.count === 1 ? '1 prova' : `${pi.count} provas`} no calendário escolar. Se precisar, é só tocar em Desfazer.`
-          : isExpense
+          : isInvite
+            ? 'Não consegui adicionar agora. Tente pelo Calendário. 🙏'
+            : isExpense
             ? 'Não consegui registrar agora. Tente pela tela Despesas. 🙏'
             : isCustody
               ? 'Não consegui registrar agora. Tente pelo Calendário. 🙏'
@@ -247,7 +252,9 @@ export default function AIAssistantSheet() {
       Haptics.notificationAsync(ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
     } catch {
       pushAssistant(
-        isExpense
+        isInvite
+          ? 'Não consegui adicionar agora. Tente pelo Calendário. 🙏'
+          : isExpense
           ? 'Não consegui registrar agora. Tente pela tela Despesas. 🙏'
           : isCustody
             ? 'Não consegui registrar agora. Tente pelo Calendário. 🙏'
@@ -271,6 +278,7 @@ export default function AIAssistantSheet() {
     const isHealth = ui.doc === 'health';
     const isCustody = ui.doc === 'custody';
     const isExpense = ui.doc === 'expense';
+    const isInvite = ui.doc === 'invite';
     setUndoable(null);
     setSending(true);
     try {
@@ -284,7 +292,9 @@ export default function AIAssistantSheet() {
       const detached = typeof data?.detached === 'number' ? data.detached : 0;
       let content: string;
       if (done && removed > 0) {
-        content = isExpense
+        content = isInvite
+          ? `Desfeito — removi ${removed === 1 ? 'o evento' : `${removed} eventos`} do calendário.`
+          : isExpense
           ? `Desfeito — removi ${removed === 1 ? '1 despesa' : `${removed} despesas`}.`
           : isCustody
             ? `Desfeito — removi ${removed === 1 ? '1 combinação' : `${removed} combinações`} de guarda e rotina.`
@@ -350,6 +360,8 @@ export default function AIAssistantSheet() {
         captured = await captureText(trimmed, undefined, '/api/ai/assistant/custody-text');
       } else if (looksLikeExpenseText(trimmed)) {
         captured = await captureText(trimmed, undefined, '/api/ai/assistant/expense-text');
+      } else if (looksLikeInviteText(trimmed)) {
+        captured = await captureText(trimmed, undefined, '/api/ai/assistant/invite-text');
       } else {
         captured = await routeNarrative(trimmed);
       }

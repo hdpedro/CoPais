@@ -11,6 +11,7 @@ import {
   looksLikeConsultText as pwaConsult,
   looksLikeCustodyText as pwaCustody,
   looksLikeExpenseText as pwaExpense,
+  looksLikeInviteText as pwaInvite,
 } from "@/lib/ai/brain/exam-text-gate";
 import { matchOneChildOption as pwaMatch } from "@/components/AIAssistant";
 import {
@@ -18,6 +19,7 @@ import {
   looksLikeConsultText as natConsult,
   looksLikeCustodyText as natCustody,
   looksLikeExpenseText as natExpense,
+  looksLikeInviteText as natInvite,
   matchOneChildOption as natMatch,
 } from "../../kindar-native/app/_src/lib/brain-capture";
 
@@ -45,6 +47,12 @@ const BATTERY = [
   "R$ 45 de uber pra escola",
   "paguei a consulta do Otto", // sem valor — gate não morde
   "Paguei 250 na consulta do Otto e 89,90 de remédio na farmácia.", // colisão saúde×despesa (E2E 02/jul)
+  // convites (C3)
+  "Chegou o convite do aniversário do Théo, sábado 12/07 no Buffet Alegria",
+  "reunião de pais dia 15/07 às 19h na escola",
+  "festa junina da escola sábado que vem",
+  "quando é o aniversário do Théo?", // pergunta — gate não morde
+  "o convite ficou lindo, obrigada!", // sem data — não morde
   // ruído
   "oi, tudo bem?",
   "quanto gastei esse mês?",
@@ -56,6 +64,7 @@ describe("paridade PWA ↔ native — gates do Brain", () => {
     expect(natConsult(s)).toBe(pwaConsult(s));
     expect(natCustody(s)).toBe(pwaCustody(s));
     expect(natExpense(s)).toBe(pwaExpense(s));
+    expect(natInvite(s)).toBe(pwaInvite(s));
   });
 });
 

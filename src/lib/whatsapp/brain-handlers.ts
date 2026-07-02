@@ -14,11 +14,12 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAndAnalyzeIntake, createAndAnalyzeText, confirmIntake } from "@/lib/services/brain";
-import { looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLikeExpenseText } from "@/lib/ai/brain/exam-text-gate";
+import { looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLikeExpenseText, looksLikeInviteText } from "@/lib/ai/brain/exam-text-gate";
 import { buildCustodyPreviewMessage } from "@/lib/ai/brain/custody-preview";
 import { buildExpensePreviewMessage } from "@/lib/ai/brain/expense-preview";
+import { buildInvitePreviewMessage } from "@/lib/ai/brain/invite-preview";
 import { undoIntake } from "@/lib/services/brain-undo";
-import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled, isEventInviteEnabled } from "@/lib/services/brain-flag";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { captureServerEvent } from "@/lib/posthog-server";
@@ -367,9 +368,14 @@ export async function handleBrainReply(
       const isHealth = brain.doc_type === "health_visit";
       const isCustody = brain.doc_type === "custody_routine";
       const isExpense = brain.doc_type === "expense";
+      const isInvite = brain.doc_type === "event_invite";
       const undoneMsg =
         r.kind === "undone"
-          ? isExpense
+          ? isInvite
+            ? r.removed > 0
+              ? `Desfeito — removi ${r.removed === 1 ? "o evento" : `${r.removed} eventos`} do calendário.`
+              : "Já estava desfeito — não havia nada a remover."
+            : isExpense
             ? renderExpenseUndone(r.removed, r.detached) // detached = já aprovadas
             : isCustody
               ? renderCustodyUndone(r.removed, r.detached) // detached = trocas já aceitas
@@ -476,9 +482,12 @@ async function confirmBrain(
     const isHealth = brain.doc_type === "health_visit";
     const isCustody = brain.doc_type === "custody_routine";
     const isExpense = brain.doc_type === "expense";
+    const isInvite = brain.doc_type === "event_invite";
     await sendTextMessage(
       phone,
-      isExpense
+      isInvite
+        ? "Pronto! Adicionei o evento ao calendário. 🎉"
+        : isExpense
         ? renderExpenseExecuted(r.createdCount)
         : isCustody
           ? renderCustodyExecuted()
@@ -490,7 +499,14 @@ async function confirmBrain(
     // Coordenação WhatsApp: avisa os coparentes (menos quem confirmou). Além
     // disso o outbox entrega a coordenação push (3d). Fire-and-forget. 'event'
     // = a pref event_reminders governa (não há kind de saúde dedicado).
-    if (isExpense) {
+    if (isInvite) {
+      await notifyGroupViaWhatsApp(
+        groupId,
+        userId,
+        `🎉 Convite adicionado ao calendário do Kindar — confira os detalhes por lá.`,
+        "event",
+      );
+    } else if (isExpense) {
       const n = r.createdCount === 1 ? "1 despesa registrada" : `${r.createdCount} despesas registradas`;
       await notifyGroupViaWhatsApp(
         groupId,
@@ -534,7 +550,9 @@ async function confirmBrain(
     await clearPendingAction(supabase, session.id);
     await sendTextMessage(
       phone,
-      brain.doc_type === "expense"
+      brain.doc_type === "event_invite"
+        ? "Esse convite já está sendo adicionado. 🙂"
+        : brain.doc_type === "expense"
         ? "Essas despesas já estão sendo registradas. 🙂"
         : brain.doc_type === "custody_routine"
           ? "Essas combinações já estão sendo registradas. 🙂"
@@ -662,12 +680,20 @@ async function sendBrainPreview(
   const isHealth = preview.plan.docType === "health_visit";
   const isCustody = preview.plan.docType === "custody_routine";
   const isExpense = preview.plan.docType === "expense";
+  const isInvite = preview.plan.docType === "event_invite";
   const acts = preview.plan.activities ?? [];
   const childName = isHealth
     ? children.find((c) => c.id === (preview.plan.health?.appointment.childId ?? null))?.name ?? "seu filho(a)"
     : children.find((c) => c.id === (acts[0]?.childId ?? null))?.name ?? "seu filho(a)";
   const t = await getServerT("pt");
-  if (isExpense && preview.plan.expense) {
+  if (isInvite && preview.plan.invite) {
+    const nameOf = (id: string) => children.find((c) => c.id === id)?.name.split(" ")[0] ?? "";
+    await sendTextMessage(phone, buildInvitePreviewMessage(preview.plan.invite, nameOf, { withCta: false }));
+    await sendButtonMessage(phone, "Posso adicionar ao calendário?", [
+      { id: "brain_confirm", title: "Confirmar" },
+      { id: "brain_cancel", title: "Cancelar" },
+    ]);
+  } else if (isExpense && preview.plan.expense) {
     // Despesas: copy PURA compartilhada com o app; confirma a cena inteira.
     const nameOf = (id: string) => children.find((c) => c.id === id)?.name.split(" ")[0] ?? "";
     await sendTextMessage(phone, buildExpensePreviewMessage(preview.plan.expense, nameOf, { withCta: false }));
@@ -715,7 +741,7 @@ async function sendBrainPreview(
           ? preview.plan.health?.medications?.length ?? 0
           : acts.length,
     phase: "preview",
-    doc_type: isExpense ? "expense" : isCustody ? "custody_routine" : isHealth ? "health_visit" : undefined,
+    doc_type: isInvite ? "event_invite" : isExpense ? "expense" : isCustody ? "custody_routine" : isHealth ? "health_visit" : undefined,
   });
 }
 
@@ -774,6 +800,7 @@ export async function handleExamText(
   const isHealth = docType === "health_visit";
   const isCustody = docType === "custody_routine";
   const isExpense = docType === "expense";
+  const isInvite = docType === "event_invite";
   // Gate por playbook: consulta usa looksLikeConsultText + o interruptor próprio
   // de saúde; guarda usa looksLikeCustodyText + o seu; despesa idem (todos OFF
   // por padrão → nunca disparam); provas seguem o gate escolar. skipGate pula
@@ -784,6 +811,8 @@ export async function handleExamText(
     if (!isCustodyRoutineEnabled() || (!skipGate && !looksLikeCustodyText(text))) return false;
   } else if (isExpense) {
     if (!isExpenseEnabled() || (!skipGate && !looksLikeExpenseText(text))) return false;
+  } else if (isInvite) {
+    if (!isEventInviteEnabled() || (!skipGate && !looksLikeInviteText(text))) return false;
   } else if (!skipGate && !looksLikeExamText(text)) {
     return false;
   }

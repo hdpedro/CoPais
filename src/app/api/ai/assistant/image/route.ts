@@ -15,11 +15,12 @@ import { resolveAuthenticatedUser } from "@/lib/api-auth";
 import { createClient } from "@/lib/supabase/server";
 import { getActiveGroup } from "@/lib/group-utils";
 import { reportServerError } from "@/lib/error-tracking/report-server";
-import { isBrainEnabledForGroup, isHealthVisitEnabled } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled, isEventInviteEnabled } from "@/lib/services/brain-flag";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
 import { classifyDocumentByVision } from "@/lib/ai/document-classifier";
 import { createAndAnalyzeIntake } from "@/lib/services/brain";
 import { buildHealthPreviewMessage } from "@/lib/ai/brain/health-preview";
+import { buildInvitePreviewMessage } from "@/lib/ai/brain/invite-preview";
 import type { BrainChild } from "@/lib/ai/brain/types";
 
 const FILE = "src/app/api/ai/assistant/image/route.ts";
@@ -224,10 +225,87 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ content: "Não consegui processar a consulta agora. Tente de novo em instantes. 🙏" }, { status: 200 });
     }
 
+    /** Processa a foto como CONVITE (aniversário/festa/reunião…) e devolve o
+     *  preview inline — ou os botões de criança. Espelha handleHealthVisit. */
+    async function handleEventInvite(): Promise<NextResponse> {
+      if (!isEventInviteEnabled() || !(await isBrainEnabledForGroup(supabase, group!.groupId))) {
+        return NextResponse.json(
+          { content: "🎉 Parece um convite! A leitura de convites ainda está chegando pra você." },
+          { status: 200 },
+        );
+      }
+      const { data: childRows } = await supabase
+        .from("children")
+        .select("id, full_name, birth_date")
+        .eq("group_id", group!.groupId);
+      const children: BrainChild[] = (childRows ?? []).map((c) => ({
+        id: c.id as string,
+        name: (c.full_name as string) ?? "",
+        birthDate: (c.birth_date as string | null) ?? undefined,
+      }));
+      if (children.length === 0) {
+        return NextResponse.json({ content: "🎉 É um convite! Cadastre uma criança no grupo antes de adicionar." }, { status: 200 });
+      }
+
+      const result = await createAndAnalyzeIntake({
+        supabase,
+        groupId: group!.groupId,
+        userId: auth!.id,
+        channel: "pwa",
+        buffer,
+        mime,
+        children,
+        requestedChildId,
+        docType: "event_invite",
+      });
+
+      if (result.kind === "preview") {
+        const invite = result.preview.plan.invite;
+        const nameOf = (id: string) => children.find((c) => c.id === id)?.name.split(" ")[0] ?? "";
+        return NextResponse.json(
+          {
+            content: invite
+              ? buildInvitePreviewMessage(invite, nameOf)
+              : "🎉 Organizei o convite. Quer que eu adicione ao calendário?",
+            intake: {
+              id: result.preview.intakeId,
+              planHash: result.preview.planHash,
+              confirmationToken: result.preview.confirmationToken,
+              count: 1,
+              // O widget usa `doc` pra falar de EVENTO no confirmar/desfazer.
+              doc: "invite",
+            },
+            link: "/calendario",
+          },
+          { status: 200 },
+        );
+      }
+      if (result.kind === "duplicate") {
+        return NextResponse.json({ content: result.message, link: "/calendario" }, { status: 200 });
+      }
+      if (result.kind === "needs_child_selection") {
+        return NextResponse.json(
+          {
+            content: "🎉 É um convite! De qual criança é? É só tocar no nome:",
+            childSelection: { doc: "invite", options: (result.options ?? children).map((c) => ({ id: c.id, name: c.name })) },
+          },
+          { status: 200 },
+        );
+      }
+      if (result.kind === "unknown_document") {
+        return NextResponse.json({ content: "Achei que fosse um convite, mas não consegui ler a data. Tente uma foto mais nítida. 🙂" }, { status: 200 });
+      }
+      return NextResponse.json({ content: "Não consegui processar o convite agora. Tente de novo em instantes. 🙏" }, { status: 200 });
+    }
+
     // 2º passo (criança escolhida): dispatcha pelo tipo que o widget devolveu.
-    // Sem `doc` → calendário (byte-idêntico); `doc=health` → consulta.
+    // Sem `doc` → calendário (byte-idêntico); `doc=health` → consulta;
+    // `doc=invite` → convite.
     if (requestedChildId) {
-      return (form.get("doc") as string | null) === "health" ? await handleHealthVisit() : await handleCalendar();
+      const doc = form.get("doc") as string | null;
+      if (doc === "health") return await handleHealthVisit();
+      if (doc === "invite") return await handleEventInvite();
+      return await handleCalendar();
     }
 
     // 1º passo: classificação por VISÃO — a MESMA do WhatsApp (cérebro único).
@@ -241,6 +319,11 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       cls.confidence >= 0.6
     ) {
       return await handleHealthVisit();
+    }
+    // Convite (aniversário/festa/reunião…) → evento no calendário. Flag OFF →
+    // cai no routeMessage abaixo (comportamento atual).
+    if (isEventInviteEnabled() && cls.type === "event_invite" && cls.confidence >= 0.6) {
+      return await handleEventInvite();
     }
 
     // Outros tipos → mensagem + link pra tela certa.

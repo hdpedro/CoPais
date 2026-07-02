@@ -76,6 +76,19 @@ export function looksLikeExpenseText(text: string): boolean {
   return amountSignal;
 }
 
+export function looksLikeInviteText(text: string): boolean {
+  const s = (text || "").toLowerCase().trim();
+  if (s.length < 8 || s.length > 800) return false;
+  if (/[?]\s*$/.test(s)) return false;
+  if (/^\s*(quando|qual|que dia|onde|como|por que|porque|quem|será que|pode|posso)\b/.test(s)) return false;
+  const occasionAnchor =
+    /\b(convite|convidamos|convidou|anivers[áa]rio|festinha|festa d[eo]|apresenta[çc][ãa]o|campeonato|formatura|reuni[ãa]o de pais|festa junina)\b/.test(s);
+  if (!occasionAnchor) return false;
+  const dateSignal =
+    /\b\d{1,2}\/\d{1,2}\b|\bdia\s+\d{1,2}\b|semana que vem|pr[óo]xim[oa]|amanh[ãa]|\b(segunda|ter[çc]a|quarta|quinta|sexta|s[áa]bado|domingo)(-feira)?\b|\b(jan|fev|mar[çc]|abr|mai|jun|jul|ago|set|out|nov|dez)/.test(s);
+  return dateSignal;
+}
+
 /* ---- resposta digitada a "de qual criança?" (espelho do PWA) ---- */
 
 export interface ChildOption {
@@ -121,5 +134,6 @@ export function endpointForDocType(docType: string): string {
   if (docType === "health_visit") return "/api/ai/assistant/consult-text";
   if (docType === "custody_routine") return "/api/ai/assistant/custody-text";
   if (docType === "expense") return "/api/ai/assistant/expense-text";
+  if (docType === "event_invite") return "/api/ai/assistant/invite-text";
   return "/api/ai/assistant/exam-text";
 }
