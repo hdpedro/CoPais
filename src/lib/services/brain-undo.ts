@@ -61,6 +61,11 @@ export async function undoIntake(args: {
     if ((dt?.doc_type as string | undefined) === "expense") {
       return await undoExpense(args);
     }
+    // CONVITES (C2): delete por proveniência (events não tem updated_at —
+    // sem detach de editado; a janela de undo é curta e o preview foi visto).
+    if ((dt?.doc_type as string | undefined) === "event_invite") {
+      return await undoEventInvite(args);
+    }
 
     // 1. Artefatos ainda ativos (não detached/undone) deste intake.
     const { data: artifacts, error: artErr } = await supabase
@@ -269,6 +274,39 @@ async function undoExpense(args: {
     return { kind: "undone", removed, detached: kept, message: `${removed} despesa(s) desfeita(s).` };
   } catch (err) {
     await reportServerError(err, { filePath: FILE, metadata: { step: "undo_expense", intakeId } });
+    return { kind: "error", message: "Não consegui desfazer agora. Tente de novo." };
+  }
+}
+
+/** Undo de CONVITES: a RPC deleta os eventos deste intake por proveniência. */
+async function undoEventInvite(args: {
+  supabase: SupabaseServer;
+  intakeId: string;
+  actorUserId?: string;
+}): Promise<UndoResult> {
+  const { supabase, intakeId } = args;
+  try {
+    const { data: applied, error: rpcErr } = await supabase.rpc("brain_intake_apply_undo_invite", {
+      p_intake_id: intakeId,
+      p_actor_user_id: args.actorUserId ?? null,
+    });
+    if (rpcErr || (applied as { outcome?: string } | null)?.outcome !== "undone") {
+      await reportServerError(rpcErr ?? new Error("undo_not_applied"), {
+        filePath: FILE,
+        metadata: { step: "apply_undo_invite", intakeId },
+      });
+      return { kind: "error", message: "Falha ao desfazer." };
+    }
+    const removed = (applied as { removed: number }).removed;
+
+    await purgeIntakeMedia(supabase, intakeId);
+
+    const uid = args.actorUserId ?? (await supabase.auth.getUser()).data.user?.id;
+    if (uid) captureServerEvent(uid, "brain_intake_undone", { intake_id: intakeId, doc_type: "event_invite", removed });
+
+    return { kind: "undone", removed, detached: 0, message: `${removed} evento(s) removido(s).` };
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "undo_invite", intakeId } });
     return { kind: "error", message: "Não consegui desfazer agora. Tente de novo." };
   }
 }

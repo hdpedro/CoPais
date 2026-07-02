@@ -2193,7 +2193,9 @@
       "custodyRoutineTitle": "Custodia y rutina actualizadas",
       "custodyRoutineBody": "{applied, plural, =0 {Sin cambios aplicados} one {1 cambio aplicado} other {# cambios aplicados}}{proposed, plural, =0 {} one { · 1 propuesta pendiente de respuesta} other { · # propuestas pendientes de respuesta}}. Toca para ver.",
       "expenseTitle": "Gasto registrado 💳",
-      "expenseBody": "{count, plural, one {1 gasto} other {# gastos}} — total R$ {total}. Toca para revisar y aprobar."
+      "expenseBody": "{count, plural, one {1 gasto} other {# gastos}} — total R$ {total}. Toca para revisar y aprobar.",
+      "inviteTitle": "Invitación en el calendario 🎉",
+      "inviteBody": "{event} — {date}. Toca para ver los detalles."
     }
   },
   "push": {
@@ -2327,7 +2329,14 @@
     "saveActivity": "Guardar Actividad",
     "saveEvent": "Guardar Evento",
     "saveCustody": "Guardar Custodia",
-    "dateError": "La fecha de inicio no puede ser posterior a la fecha de fin."
+    "dateError": "La fecha de inicio no puede ser posterior a la fecha de fin.",
+    "inviteFillTitle": "Rellenar con invitación",
+    "inviteFillHint": "¿Tienes la invitación? Envía una foto y completo los campos por ti.",
+    "inviteFillButton": "Enviar foto de la invitación",
+    "inviteFillBusy": "Leyendo la invitación…",
+    "inviteFillDone": "¡Listo! Revisa los campos y ajusta lo que quieras.",
+    "inviteFillFail": "No pude leer esa invitación. Prueba con una foto más nítida o rellena manualmente.",
+    "inviteFillPdfButton": "O envía el PDF de la invitación"
   },
   "inviteParser": {
     "title": "Agregar desde invitación",

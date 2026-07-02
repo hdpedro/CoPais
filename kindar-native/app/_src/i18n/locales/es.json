@@ -2305,7 +2305,14 @@
     "saveEvent": "Guardar Evento",
     "saveCustody": "Guardar Custodia",
     "dateError": "La fecha de inicio no puede ser posterior a la fecha de fin.",
-    "headerTitle": "Nuevo evento"
+    "headerTitle": "Nuevo evento",
+    "inviteFillTitle": "Rellenar con invitación",
+    "inviteFillHint": "¿Tienes la invitación? Envía una foto y completo los campos por ti.",
+    "inviteFillButton": "Enviar foto de la invitación",
+    "inviteFillBusy": "Leyendo la invitación…",
+    "inviteFillDone": "¡Listo! Revisa los campos y ajusta lo que quieras.",
+    "inviteFillFail": "No pude leer esa invitación. Prueba con una foto más nítida o rellena manualmente.",
+    "inviteFillPdfButton": "O envía el PDF de la invitación"
   },
   "inviteParser": {
     "title": "Agregar desde invitación",

@@ -13,6 +13,10 @@ const nextConfig: NextConfig = {
   // Stricter React mode for catching bugs early
   reactStrictMode: true,
 
+  // @napi-rs/canvas tem binário nativo (.node) — precisa ficar FORA do bundle
+  // do webpack e ser resolvido em runtime (rasterização de PDF dos Convites).
+  serverExternalPackages: ["@napi-rs/canvas"],
+
   // TODO: remove when @types/node + Next 16 typings line up. Today Next's
   // post-compile TS check flags FormData.get as missing in 3 legacy
   // routes (parse-invite, parse-prescription, parse-vaccines) — even

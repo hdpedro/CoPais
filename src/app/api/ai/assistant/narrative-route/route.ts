@@ -18,6 +18,7 @@ import {
   isHealthVisitEnabled,
   isCustodyRoutineEnabled,
   isExpenseEnabled,
+  isEventInviteEnabled,
 } from "@/lib/services/brain-flag";
 import { classifyNarrative, type NarrativeIntentType } from "@/lib/ai/document-classifier";
 
@@ -30,6 +31,7 @@ function typeEnabled(t: NarrativeIntentType): boolean {
   if (t === "health_visit") return isHealthVisitEnabled();
   if (t === "custody_routine") return isCustodyRoutineEnabled();
   if (t === "expense") return isExpenseEnabled();
+  if (t === "event_invite") return isEventInviteEnabled();
   return false;
 }
 
@@ -38,6 +40,7 @@ const HINT_LABEL: Partial<Record<NarrativeIntentType, string>> = {
   health_visit: "uma consulta médica",
   custody_routine: "uma combinação de guarda/rotina",
   expense: "uma despesa",
+  event_invite: "um convite/evento",
 };
 
 export async function POST(request: NextRequest): Promise<NextResponse> {

@@ -2193,7 +2193,9 @@
       "custodyRoutineTitle": "Guarda e rotina atualizadas",
       "custodyRoutineBody": "{applied, plural, =0 {Nenhuma mudança aplicada} one {1 mudança aplicada} other {# mudanças aplicadas}}{proposed, plural, =0 {} one { · 1 proposta aguardando resposta} other { · # propostas aguardando resposta}}. Toque para ver.",
       "expenseTitle": "Despesa registrada 💳",
-      "expenseBody": "{count, plural, one {1 despesa} other {# despesas}} — total R$ {total}. Toque para ver e aprovar."
+      "expenseBody": "{count, plural, one {1 despesa} other {# despesas}} — total R$ {total}. Toque para ver e aprovar.",
+      "inviteTitle": "Convite no calendário 🎉",
+      "inviteBody": "{event} — {date}. Toque para ver os detalhes."
     }
   },
   "push": {
@@ -2327,7 +2329,14 @@
     "saveActivity": "Salvar Atividade",
     "saveEvent": "Salvar Evento",
     "saveCustody": "Salvar Guarda",
-    "dateError": "A data de início não pode ser posterior à data de fim."
+    "dateError": "A data de início não pode ser posterior à data de fim.",
+    "inviteFillTitle": "Preencher com convite",
+    "inviteFillHint": "Tem o convite aí? Envie a foto e eu preencho os campos pra você.",
+    "inviteFillButton": "Enviar foto do convite",
+    "inviteFillBusy": "Lendo o convite…",
+    "inviteFillDone": "Prontinho! Confira os campos e ajuste o que quiser.",
+    "inviteFillFail": "Não consegui ler esse convite. Tente uma foto mais nítida ou preencha manualmente.",
+    "inviteFillPdfButton": "Ou envie o PDF do convite"
   },
   "inviteParser": {
     "title": "Adicionar via convite",

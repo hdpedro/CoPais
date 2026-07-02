@@ -138,6 +138,15 @@ async function deliver(admin: AdminClient, row: OutboxRow): Promise<void> {
     const title = t("notifications.brain.expenseTitle");
     const body = t("notifications.brain.expenseBody", { count, total: total.toFixed(2).replace(".", ",") });
     await createNotificationWithPush(recipientId, "brain_expense", title, body, "/despesas");
+  } else if (p.kind === "event_invite") {
+    // Coordenação de CONVITE: título do evento + data (dd/mm) — detalhe no
+    // calendário.
+    const evTitle = typeof p.title === "string" && p.title ? p.title : "Evento";
+    const d = typeof p.event_date === "string" ? p.event_date : "";
+    const when = d ? `${d.slice(8, 10)}/${d.slice(5, 7)}` : "";
+    const title = t("notifications.brain.inviteTitle");
+    const body = t("notifications.brain.inviteBody", { event: evTitle, date: when });
+    await createNotificationWithPush(recipientId, "brain_event_invite", title, body, "/calendario");
   } else {
     const count = Number(p.created_count) || 1;
     const title = t("notifications.brain.schoolCalendarTitle");

@@ -34,6 +34,7 @@ import {
   setSessionGroup,
   setGroupSelectionState,
   setReceiptStep,
+  type WASession,
 } from "./session";
 import { isCalendarIntent, isConsultIntent } from "./brain-flow";
 import {
@@ -41,6 +42,7 @@ import {
   analyzeCalendarPhoto,
   handleConsultaImage,
   analyzeConsultaPhoto,
+  analyzeInvitePhoto,
   handleBrainReply,
   handleChildSelectionReply,
   handleExamText,
@@ -56,7 +58,8 @@ import {
   downloadMedia,
 } from "./client";
 import { classifyDocumentByVision, classifyNarrative, type NarrativeIntentType } from "@/lib/ai/document-classifier";
-import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled, isEventInviteEnabled } from "@/lib/services/brain-flag";
+import { isPdfBuffer, renderPdfFirstPageToPng } from "@/lib/ai/brain/pdf-to-image";
 import { formatForWhatsApp, splitMessage } from "./formatter";
 import { processReceiptImage, processPrescriptionImage } from "./media";
 import { transcribeAudio } from "./audio";
@@ -73,7 +76,77 @@ function narrativeTypeEnabled(t: NarrativeIntentType): boolean {
   if (t === "health_visit") return isHealthVisitEnabled();
   if (t === "custody_routine") return isCustodyRoutineEnabled();
   if (t === "expense") return isExpenseEnabled();
+  if (t === "event_invite") return isEventInviteEnabled();
   return false;
+}
+
+/**
+ * Documento pelo WhatsApp (C4): PDF → rasteriza a 1ª página e roda o MESMO
+ * classificador de visão do fluxo de imagem — escolar/consulta/convite, cada
+ * um atrás da própria flag. Não-PDF (DOCX…), grupo fora do beta ou PDF
+ * ilegível → orientação de sempre (print/foto/texto). SEMPRE responde algo.
+ */
+async function handleDocumentMessage(
+  supabase: SupabaseClient,
+  phone: string,
+  userId: string,
+  groupId: string,
+  message: WAExtractedMessage,
+  session: WASession,
+  start: number,
+): Promise<void> {
+  const fallbackCopy =
+    "Ainda não consigo abrir esse documento por aqui 🙏. Tira um *print* ou uma *foto* da página e me manda — ou me conta por texto/áudio (ex: \"Martim tem prova de história dia 13\") — que eu organizo pra você!";
+  try {
+    const looksPdf = message.mediaMimeType === "application/pdf";
+    if (!message.mediaId || !looksPdf || !(await isBrainEnabledForGroup(supabase, groupId))) {
+      await sendTextMessage(phone, fallbackCopy);
+      return;
+    }
+    await sendTextMessage(phone, "Analisando o documento... 🔍");
+    const raw = await downloadMedia(message.mediaId);
+    const png = isPdfBuffer(raw) ? await renderPdfFirstPageToPng(raw) : null;
+    if (!png) {
+      await sendTextMessage(
+        phone,
+        "Não consegui abrir esse PDF (máx. 8 MB) 🙏. Tenta um print ou foto da página que eu leio na hora!",
+      );
+      return;
+    }
+    const cls = await classifyDocumentByVision(png, undefined);
+    let handled = false;
+    if (cls.type === "school_calendar" && cls.confidence >= 0.7) {
+      handled = await analyzeCalendarPhoto(
+        supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, png, true,
+      );
+    } else if (
+      isHealthVisitEnabled() &&
+      (cls.type === "medical_summary" || cls.type === "prescription") &&
+      cls.confidence >= 0.7
+    ) {
+      handled = await analyzeConsultaPhoto(
+        supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, png, true,
+      );
+    } else if (isEventInviteEnabled() && cls.type === "event_invite" && cls.confidence >= 0.7) {
+      handled = await analyzeInvitePhoto(
+        supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, png, true,
+      );
+    }
+    if (handled) {
+      await logAIRequest({
+        userId, groupId, provider: "vision", feature: "assistant_chat",
+        success: true, responseTimeMs: Date.now() - start,
+      });
+      return;
+    }
+    await sendTextMessage(
+      phone,
+      "Li a 1ª página do PDF mas não reconheci um calendário escolar, uma consulta ou um convite 🤔. Me conta por texto o que você quer registrar que eu organizo!",
+    );
+  } catch (e) {
+    console.error("[WA document] falhou; caindo na orientação padrão:", e);
+    await sendTextMessage(phone, fallbackCopy).catch(() => {});
+  }
 }
 
 /**
@@ -246,17 +319,10 @@ export async function processWhatsAppMessage(
     }
   }
 
-  // Documento (PDF, DOCX\u2026): ainda n\u00E3o lemos o arquivo \u2014 mas guiamos pro que
-  // FUNCIONA (foto/print, ou descri\u00E7\u00E3o por texto/\u00E1udio), em vez do gen\u00E9rico
-  // "N\u00E3o entendi" que ca\u00EDa no Step 7. Paridade com o assistente do app (que
-  // pede uma FOTO quando recebe PDF).
-  if (message.type === "document") {
-    await sendTextMessage(
-      phone,
-      "Ainda n\u00E3o consigo abrir PDF ou documento por aqui \uD83D\uDE4F. Tira um *print* ou uma *foto* da p\u00E1gina do calend\u00E1rio e me manda \u2014 ou me conta as provas por texto/\u00E1udio (ex: \"Martim tem prova de hist\u00F3ria dia 13\") \u2014 que eu organizo pra voc\u00EA!",
-    );
-    return;
-  }
+  // Documento: tratado no Step 5.5 (depois da identidade) \u2014 PDF agora tem
+  // caminho de verdade (C4): rasterizamos a 1\u00AA p\u00E1gina e rodamos o mesmo
+  // classificador de vis\u00E3o do fluxo de imagem. N\u00E3o-PDF segue a orienta\u00E7\u00E3o
+  // de print/foto/texto l\u00E1.
 
   if (message.type === "video" || message.type === "sticker" || message.type === "contacts") {
     if (message.type !== "sticker") {
@@ -555,6 +621,9 @@ export async function processWhatsAppMessage(
     if (!handled) {
       handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio, undefined, "expense");
     }
+    if (!handled) {
+      handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio, undefined, "event_invite");
+    }
     // PORTA ÚNICA (decisão do dono): os gates regex não morderam, mas a frase
     // pode ser captura em tom natural ("semana que vem ele fica comigo…").
     // 1 chamada LLM barata decide o playbook; none/confiança baixa → assistente.
@@ -572,6 +641,15 @@ export async function processWhatsAppMessage(
       });
       return;
     }
+  }
+
+  /* ================================================================ */
+  /* Step 5.5: Documento (C4 — PDF → 1ª página vira imagem)            */
+  /* ================================================================ */
+
+  if (message.type === "document") {
+    await handleDocumentMessage(supabase, phone, userId, groupId, message, session, start);
+    return;
   }
 
   /* ================================================================ */
@@ -651,6 +729,19 @@ export async function processWhatsAppMessage(
           ) {
             // Consulta/receita SEM legenda (gate OFF por padrão → nunca entra aqui).
             const handled = await analyzeConsultaPhoto(
+              supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, sharedBuffer, true,
+            );
+            if (handled) {
+              await logAIRequest({
+                userId, groupId, provider: "vision", feature: "assistant_chat",
+                success: true, responseTimeMs: Date.now() - start,
+              });
+              return;
+            }
+            // Cérebro rejeitou → cai no recibo (com buffer).
+          } else if (isEventInviteEnabled() && cls.type === "event_invite" && cls.confidence >= 0.7) {
+            // Convite SEM legenda (gate OFF por padrão → nunca entra aqui).
+            const handled = await analyzeInvitePhoto(
               supabase, phone, userId, groupId, message.mediaId, message.caption ?? null, session, sharedBuffer, true,
             );
             if (handled) {

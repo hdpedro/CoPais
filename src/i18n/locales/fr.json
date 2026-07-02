@@ -2193,7 +2193,9 @@
       "custodyRoutineTitle": "Garde et routine mises à jour",
       "custodyRoutineBody": "{applied, plural, =0 {Aucun changement appliqué} one {1 changement appliqué} other {# changements appliqués}}{proposed, plural, =0 {} one { · 1 proposition en attente de réponse} other { · # propositions en attente de réponse}}. Touchez pour voir.",
       "expenseTitle": "Dépense enregistrée 💳",
-      "expenseBody": "{count, plural, one {1 dépense} other {# dépenses}} — total R$ {total}. Touchez pour voir et approuver."
+      "expenseBody": "{count, plural, one {1 dépense} other {# dépenses}} — total R$ {total}. Touchez pour voir et approuver.",
+      "inviteTitle": "Invitation au calendrier 🎉",
+      "inviteBody": "{event} — {date}. Touchez pour voir les détails."
     }
   },
   "push": {
@@ -2327,7 +2329,14 @@
     "saveActivity": "Enregistrer l'activite",
     "saveEvent": "Enregistrer l'evenement",
     "saveCustody": "Enregistrer la garde",
-    "dateError": "La date de debut ne peut pas etre posterieure a la date de fin."
+    "dateError": "La date de debut ne peut pas etre posterieure a la date de fin.",
+    "inviteFillTitle": "Remplir depuis l'invitation",
+    "inviteFillHint": "Vous avez l'invitation ? Envoyez une photo et je remplis les champs pour vous.",
+    "inviteFillButton": "Envoyer la photo de l'invitation",
+    "inviteFillBusy": "Lecture de l'invitation…",
+    "inviteFillDone": "C'est prêt ! Vérifiez les champs et ajustez ce que vous voulez.",
+    "inviteFillFail": "Je n'ai pas pu lire cette invitation. Essayez une photo plus nette ou remplissez manuellement.",
+    "inviteFillPdfButton": "Ou envoyez le PDF de l'invitation"
   },
   "inviteParser": {
     "title": "Ajouter depuis une invitation",

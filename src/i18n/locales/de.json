@@ -2193,7 +2193,9 @@
       "custodyRoutineTitle": "Betreuung & Routine aktualisiert",
       "custodyRoutineBody": "{applied, plural, =0 {Keine Änderungen übernommen} one {1 Änderung übernommen} other {# Änderungen übernommen}}{proposed, plural, =0 {} one { · 1 Vorschlag wartet auf Antwort} other { · # Vorschläge warten auf Antwort}}. Zum Ansehen tippen.",
       "expenseTitle": "Ausgabe erfasst 💳",
-      "expenseBody": "{count, plural, one {1 Ausgabe} other {# Ausgaben}} — gesamt R$ {total}. Zum Prüfen und Freigeben tippen."
+      "expenseBody": "{count, plural, one {1 Ausgabe} other {# Ausgaben}} — gesamt R$ {total}. Zum Prüfen und Freigeben tippen.",
+      "inviteTitle": "Einladung im Kalender 🎉",
+      "inviteBody": "{event} — {date}. Zum Ansehen tippen."
     }
   },
   "push": {
@@ -2327,7 +2329,14 @@
     "saveActivity": "Aktivitat speichern",
     "saveEvent": "Ereignis speichern",
     "saveCustody": "Sorgerecht speichern",
-    "dateError": "Das Startdatum darf nicht nach dem Enddatum liegen."
+    "dateError": "Das Startdatum darf nicht nach dem Enddatum liegen.",
+    "inviteFillTitle": "Mit Einladung ausfüllen",
+    "inviteFillHint": "Einladung zur Hand? Schick ein Foto und ich fülle die Felder für dich aus.",
+    "inviteFillButton": "Einladungsfoto senden",
+    "inviteFillBusy": "Einladung wird gelesen…",
+    "inviteFillDone": "Fertig! Prüfe die Felder und passe an, was du möchtest.",
+    "inviteFillFail": "Ich konnte die Einladung nicht lesen. Versuch ein schärferes Foto oder fülle manuell aus.",
+    "inviteFillPdfButton": "Oder sende das Einladungs-PDF"
   },
   "inviteParser": {
     "title": "Von Einladung hinzufugen",

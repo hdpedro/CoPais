@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useI18n } from "@/i18n/provider";
-import { looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLikeExpenseText } from "@/lib/ai/brain/exam-text-gate";
+import { looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLikeExpenseText, looksLikeInviteText } from "@/lib/ai/brain/exam-text-gate";
 
 /* ------------------------------------------------------------------ */
 /* Types                                                               */
@@ -277,7 +277,9 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
             ? "/api/ai/assistant/custody-text"
             : data.docType === "expense"
               ? "/api/ai/assistant/expense-text"
-              : "/api/ai/assistant/exam-text";
+              : data.docType === "event_invite"
+                ? "/api/ai/assistant/invite-text"
+                : "/api/ai/assistant/exam-text";
       const handled = await (examCaptureRef.current?.(text, undefined, endpoint) ?? Promise.resolve(false));
       if (handled && typeof data.secondHint === "string" && data.secondHint) {
         setMessages((prev) => [...prev, { id: uid(), role: "assistant", content: data.secondHint, timestamp: new Date() }]);
@@ -342,6 +344,12 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         // Flag OFF → {found:false} → chat (e a tool de despesa do chat segue).
         else if (looksLikeExpenseText(userMsg.content)) {
           const handled = await runExamCapture(userMsg.content, undefined, "/api/ai/assistant/expense-text");
+          if (handled) return;
+        }
+        // Convite por texto ("aniversário do Théo sábado 12/07") — 5º da fila.
+        // Flag OFF → {found:false} → chat.
+        else if (looksLikeInviteText(userMsg.content)) {
+          const handled = await runExamCapture(userMsg.content, undefined, "/api/ai/assistant/invite-text");
           if (handled) return;
         }
         // PORTA ÚNICA: nenhum gate regex mordeu, mas pode ser captura em tom
@@ -472,6 +480,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     const isHealth = pi.doc === "health";
     const isCustody = pi.doc === "custody";
     const isExpense = pi.doc === "expense";
+    const isInvite = pi.doc === "invite";
     setPendingIntake(null);
     setUndoableIntake(null);
     setIsLoading(true);
@@ -491,14 +500,18 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
           id: uid(),
           role: "assistant",
           content: ok
-            ? isExpense
+            ? isInvite
+              ? "✅ Pronto! Adicionei o evento ao calendário. Se precisar, é só tocar em Desfazer."
+              : isExpense
               ? `✅ Pronto! Registrei ${pi.count === 1 ? "a despesa" : `${pi.count} despesas`} em Despesas — quem divide aprova por lá. Se precisar, é só tocar em Desfazer.`
               : isCustody
                 ? "✅ Pronto! Registrei as combinações — quem precisa aprovar já foi avisado. Se precisar, é só tocar em Desfazer."
                 : isHealth
                   ? "✅ Pronto! Registrei a consulta em Saúde. Se precisar, é só tocar em Desfazer."
                   : `✅ Pronto! Adicionei ${pi.count === 1 ? "1 prova" : `${pi.count} provas`} no calendário escolar. Se precisar, é só tocar em Desfazer.`
-            : isExpense
+            : isInvite
+              ? "Não consegui adicionar agora. Tente pelo Calendário. 🙏"
+              : isExpense
               ? "Não consegui registrar agora. Tente pela tela Despesas. 🙏"
               : isCustody
                 ? "Não consegui registrar agora. Tente pelo Calendário. 🙏"
@@ -514,7 +527,9 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         {
           id: uid(),
           role: "assistant",
-          content: isExpense
+          content: isInvite
+            ? "Não consegui adicionar agora. Tente pelo Calendário. 🙏"
+            : isExpense
             ? "Não consegui registrar agora. Tente pela tela Despesas. 🙏"
             : isCustody
               ? "Não consegui registrar agora. Tente pelo Calendário. 🙏"
@@ -541,6 +556,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
     const isHealth = ui.doc === "health";
     const isCustody = ui.doc === "custody";
     const isExpense = ui.doc === "expense";
+    const isInvite = ui.doc === "invite";
     setUndoableIntake(null);
     setIsLoading(true);
     try {
@@ -551,7 +567,10 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
       const detached = typeof data?.detached === "number" ? data.detached : 0;
       let content: string;
       if (done && removed > 0) {
-        if (isExpense) {
+        if (isInvite) {
+          // Convite: o(s) evento(s) do calendário criados por este intake.
+          content = `Desfeito — removi ${removed === 1 ? "o evento" : `${removed} eventos`} do calendário.`;
+        } else if (isExpense) {
           // Despesas: `detached` = já aprovadas/decididas (o coparente agiu — fica).
           content = `Desfeito — removi ${removed === 1 ? "1 despesa" : `${removed} despesas`}.`;
           if (detached > 0) content += ` (${detached === 1 ? "1 despesa já aprovada" : `${detached} despesas já aprovadas`} continua${detached === 1 ? "" : "m"} valendo.)`;
@@ -570,7 +589,9 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
       } else if (done) {
         content = "Já estava desfeito — não havia nada a remover.";
       } else {
-        content = isExpense
+        content = isInvite
+          ? "Não consegui desfazer agora. Você pode reverter pelo Calendário. 🙏"
+          : isExpense
           ? "Não consegui desfazer agora. Você pode reverter em Despesas. 🙏"
           : isCustody
             ? "Não consegui desfazer agora. Você pode reverter pelo Calendário. 🙏"
@@ -585,7 +606,9 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
         {
           id: uid(),
           role: "assistant",
-          content: isExpense
+          content: isInvite
+            ? "Não consegui desfazer agora. Tente pelo Calendário. 🙏"
+            : isExpense
             ? "Não consegui desfazer agora. Tente pela tela Despesas. 🙏"
             : isCustody
               ? "Não consegui desfazer agora. Tente pelo Calendário. 🙏"
@@ -964,7 +987,7 @@ export default function AIAssistant({ groupId, isMobile }: AIAssistantProps) {
                   <input
                     ref={imageInputRef}
                     type="file"
-                    accept="image/jpeg,image/png,image/webp"
+                    accept="image/jpeg,image/png,image/webp,application/pdf"
                     className="hidden"
                     onChange={(e) => {
                       const f = e.target.files?.[0];

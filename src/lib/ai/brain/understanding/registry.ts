@@ -15,11 +15,14 @@ import {
   HEALTH_VISIT_TEXT_EXTRACTION,
   CUSTODY_ROUTINE_TEXT_EXTRACTION,
   EXPENSE_TEXT_EXTRACTION,
+  EVENT_INVITE_EXTRACTION,
+  EVENT_INVITE_TEXT_EXTRACTION,
 } from "../../prompts/brain";
 import { schoolCalendarPlaybook } from "./playbooks/school-calendar";
 import { healthVisitPlaybook } from "./playbooks/health-visit";
 import { custodyRoutinePlaybook } from "./playbooks/custody-routine";
 import { expensePlaybook } from "./playbooks/expense";
+import { eventInvitePlaybook } from "./playbooks/event-invite";
 
 // O playbook é puro; os prompts de extração vivem em prompts/brain.ts e são
 // injetados aqui (mantém o playbook sem string de prompt embutida). O de TEXTO
@@ -58,11 +61,22 @@ const expense: Playbook = {
   textExtractionPrompt: EXPENSE_TEXT_EXTRACTION,
 } as Playbook;
 
+// Playbook de Convites (pedido do dono 02/jul). REGISTRADO mas DORMENTE:
+// aceita FOTO (convite fotografado) E texto; materialização (00142) e
+// canais/form-fill vêm nas fatias C2/C3, gateados por
+// FEATURE_BRAIN_EVENT_INVITE.
+const eventInvite: Playbook = {
+  ...eventInvitePlaybook,
+  extractionPrompt: EVENT_INVITE_EXTRACTION,
+  textExtractionPrompt: EVENT_INVITE_TEXT_EXTRACTION,
+} as Playbook;
+
 const REGISTRY: Partial<Record<DocType, Playbook>> = {
   school_calendar: schoolCalendar,
   health_visit: healthVisit,
   custody_routine: custodyRoutine,
   expense,
+  event_invite: eventInvite,
 };
 
 /** Playbooks habilitados no A0 (ordem de tentativa de extração). Saúde ainda

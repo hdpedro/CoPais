@@ -14,11 +14,13 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAndAnalyzeIntake, createAndAnalyzeText, confirmIntake } from "@/lib/services/brain";
-import { looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLikeExpenseText } from "@/lib/ai/brain/exam-text-gate";
+import { looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLikeExpenseText, looksLikeInviteText } from "@/lib/ai/brain/exam-text-gate";
 import { buildCustodyPreviewMessage } from "@/lib/ai/brain/custody-preview";
 import { buildExpensePreviewMessage } from "@/lib/ai/brain/expense-preview";
+import { buildInvitePreviewMessage } from "@/lib/ai/brain/invite-preview";
 import { undoIntake } from "@/lib/services/brain-undo";
-import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled, isEventInviteEnabled } from "@/lib/services/brain-flag";
+import { isPdfBuffer, renderPdfFirstPageToPng } from "@/lib/ai/brain/pdf-to-image";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { captureServerEvent } from "@/lib/posthog-server";
@@ -80,6 +82,19 @@ export async function handleCalendarImage(
  * garantiu o gate de beta. Todo throw é contido: o usuário SEMPRE recebe um
  * fechamento (nunca fica no "Analisando…" sem resposta).
  */
+/** Baixa a mídia (ou usa o buffer já baixado) e, se for PDF, rasteriza a 1ª
+ *  página (C4). Cobre também o RESUBMIT da pergunta de criança: o media_id
+ *  guardado pode ser um PDF, e reanalisar sem converter quebraria o guard.
+ *  PDF ilegível segue cru — o validateImageUpload gera a copy de erro. */
+async function resolveVisionBuffer(preBuffer: Buffer | undefined, mediaId: string): Promise<Buffer> {
+  const raw = preBuffer ?? (await downloadMedia(mediaId));
+  if (isPdfBuffer(raw)) {
+    const png = await renderPdfFirstPageToPng(raw);
+    if (png) return png;
+  }
+  return raw;
+}
+
 export async function analyzeCalendarPhoto(
   supabase: SupabaseClient,
   phone: string,
@@ -124,7 +139,7 @@ export async function analyzeCalendarPhoto(
       );
     }
 
-    const buffer = preBuffer ?? (await downloadMedia(mediaId));
+    const buffer = await resolveVisionBuffer(preBuffer, mediaId);
     const val = validateImageUpload(buffer);
     if (!val.ok || !val.type) {
       await sendTextMessage(
@@ -250,7 +265,7 @@ export async function analyzeConsultaPhoto(
         "🩺 Vou ler essa consulta pra organizar no histórico de Saúde — fica visível aos responsáveis do grupo. Analisando…",
       );
     }
-    const buffer = preBuffer ?? (await downloadMedia(mediaId));
+    const buffer = await resolveVisionBuffer(preBuffer, mediaId);
     const val = validateImageUpload(buffer);
     if (!val.ok || !val.type) {
       await sendTextMessage(phone, "Não consegui ler essa imagem. Tente uma foto nítida (JPG ou PNG). 🙏");
@@ -340,6 +355,102 @@ export async function handleConsultaImage(
 }
 
 /**
+ * Foto de CONVITE (aniversário, reunião de pais, apresentação, campeonato…) →
+ * análise. Espelho de analyzeConsultaPhoto pro playbook de Convites (C3).
+ * Entrada é o classificador de visão (sem rota por legenda). Gate próprio
+ * (isEventInviteEnabled, OFF) checado pelo caller. Usa createAndAnalyzeIntake
+ * docType='event_invite' → sendBrainPreview (ramifica pro cartão 🎉).
+ */
+export async function analyzeInvitePhoto(
+  supabase: SupabaseClient,
+  phone: string,
+  userId: string,
+  groupId: string,
+  mediaId: string,
+  caption: string | null,
+  session: WASession,
+  preBuffer?: Buffer,
+  fromClassifier = false,
+  forcedChildId?: string | null,
+): Promise<boolean> {
+  try {
+    if (!fromClassifier) {
+      await sendTextMessage(phone, "🎉 Vou ler esse convite pra organizar no calendário da família. Analisando…");
+    }
+    const buffer = await resolveVisionBuffer(preBuffer, mediaId);
+    const val = validateImageUpload(buffer);
+    if (!val.ok || !val.type) {
+      await sendTextMessage(phone, "Não consegui ler essa imagem. Tente uma foto nítida (JPG ou PNG). 🙏");
+      return true;
+    }
+    const { data: rows } = await supabase
+      .from("children")
+      .select("id, full_name, birth_date")
+      .eq("group_id", groupId);
+    const captionKids = (rows ?? []).map((r) => ({
+      id: r.id as string,
+      full_name: (r.full_name as string) ?? null,
+      birth_date: (r.birth_date as string) ?? null,
+    }));
+    if (captionKids.length === 0) {
+      await sendTextMessage(phone, "Você ainda não tem crianças cadastradas. Cadastre pelo app antes de enviar o convite. 🙏");
+      return true;
+    }
+    const children: BrainChild[] = captionKids.map((k) => ({ id: k.id, name: (k.full_name || "").split(" ")[0] || "criança" }));
+    const matched = captionKids.length > 1 ? matchChildFromCaption(caption ?? undefined, captionKids) : captionKids[0];
+    const requestedChildId = forcedChildId ?? matched?.id ?? null;
+
+    const result = await createAndAnalyzeIntake({
+      supabase,
+      groupId,
+      userId,
+      channel: "whatsapp",
+      source: "document",
+      buffer,
+      mime: val.type,
+      children,
+      requestedChildId,
+      docType: "event_invite",
+    });
+
+    switch (result.kind) {
+      case "preview": {
+        if (fromClassifier) {
+          await sendTextMessage(phone, "🎉 É um convite! Vou organizar pra adicionar ao calendário da família.");
+        }
+        await sendBrainPreview(supabase, phone, session, result.preview, children);
+        return true;
+      }
+      case "needs_child_selection":
+        await sendBrainChildQuestion(
+          supabase,
+          phone,
+          session,
+          result.options.map((o) => ({ id: o.id, name: o.name })),
+          { media_id: mediaId, doc_type: "event_invite" },
+        );
+        return true;
+      case "unknown_document":
+        if (fromClassifier) return false; // cai no recibo (sem dead-end)
+        await sendTextMessage(phone, "Isso não parece um convite. Se for, tente uma foto mais nítida. 🙂");
+        return true;
+      case "duplicate":
+        await sendTextMessage(phone, result.message);
+        return true;
+      default:
+        if (fromClassifier) return false;
+        await sendTextMessage(phone, "Não consegui processar agora. Tente de novo em instantes. 🙏");
+        return true;
+    }
+  } catch (err) {
+    await reportServerError(err, { filePath: FILE, metadata: { step: "analyzeInvitePhoto", groupId } });
+    if (fromClassifier) return false;
+    await sendTextMessage(phone, "Não consegui processar o convite agora. Reenvie a foto em instantes. 🙏");
+    return true;
+  }
+}
+
+/**
  * Resposta do usuário durante um fluxo do Brain (preview → confirmar/escolher/
  * cancelar; executed → desfazer). Retorna `true` se tratou; `false` para o
  * processor seguir processando a mensagem normalmente — o que EVITA sequestrar
@@ -367,9 +478,14 @@ export async function handleBrainReply(
       const isHealth = brain.doc_type === "health_visit";
       const isCustody = brain.doc_type === "custody_routine";
       const isExpense = brain.doc_type === "expense";
+      const isInvite = brain.doc_type === "event_invite";
       const undoneMsg =
         r.kind === "undone"
-          ? isExpense
+          ? isInvite
+            ? r.removed > 0
+              ? `Desfeito — removi ${r.removed === 1 ? "o evento" : `${r.removed} eventos`} do calendário.`
+              : "Já estava desfeito — não havia nada a remover."
+            : isExpense
             ? renderExpenseUndone(r.removed, r.detached) // detached = já aprovadas
             : isCustody
               ? renderCustodyUndone(r.removed, r.detached) // detached = trocas já aceitas
@@ -476,9 +592,12 @@ async function confirmBrain(
     const isHealth = brain.doc_type === "health_visit";
     const isCustody = brain.doc_type === "custody_routine";
     const isExpense = brain.doc_type === "expense";
+    const isInvite = brain.doc_type === "event_invite";
     await sendTextMessage(
       phone,
-      isExpense
+      isInvite
+        ? "Pronto! Adicionei o evento ao calendário. 🎉"
+        : isExpense
         ? renderExpenseExecuted(r.createdCount)
         : isCustody
           ? renderCustodyExecuted()
@@ -490,7 +609,14 @@ async function confirmBrain(
     // Coordenação WhatsApp: avisa os coparentes (menos quem confirmou). Além
     // disso o outbox entrega a coordenação push (3d). Fire-and-forget. 'event'
     // = a pref event_reminders governa (não há kind de saúde dedicado).
-    if (isExpense) {
+    if (isInvite) {
+      await notifyGroupViaWhatsApp(
+        groupId,
+        userId,
+        `🎉 Convite adicionado ao calendário do Kindar — confira os detalhes por lá.`,
+        "event",
+      );
+    } else if (isExpense) {
       const n = r.createdCount === 1 ? "1 despesa registrada" : `${r.createdCount} despesas registradas`;
       await notifyGroupViaWhatsApp(
         groupId,
@@ -534,7 +660,9 @@ async function confirmBrain(
     await clearPendingAction(supabase, session.id);
     await sendTextMessage(
       phone,
-      brain.doc_type === "expense"
+      brain.doc_type === "event_invite"
+        ? "Esse convite já está sendo adicionado. 🙂"
+        : brain.doc_type === "expense"
         ? "Essas despesas já estão sendo registradas. 🙂"
         : brain.doc_type === "custody_routine"
           ? "Essas combinações já estão sendo registradas. 🙂"
@@ -641,7 +769,9 @@ export async function handleChildSelectionReply(
   if (sel.media_id) {
     return sel.doc_type === "health_visit"
       ? analyzeConsultaPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId)
-      : analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
+      : sel.doc_type === "event_invite"
+        ? analyzeInvitePhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId)
+        : analyzeCalendarPhoto(supabase, phone, userId, groupId, sel.media_id, null, session, undefined, false, childId);
   }
   return false;
 }
@@ -662,12 +792,20 @@ async function sendBrainPreview(
   const isHealth = preview.plan.docType === "health_visit";
   const isCustody = preview.plan.docType === "custody_routine";
   const isExpense = preview.plan.docType === "expense";
+  const isInvite = preview.plan.docType === "event_invite";
   const acts = preview.plan.activities ?? [];
   const childName = isHealth
     ? children.find((c) => c.id === (preview.plan.health?.appointment.childId ?? null))?.name ?? "seu filho(a)"
     : children.find((c) => c.id === (acts[0]?.childId ?? null))?.name ?? "seu filho(a)";
   const t = await getServerT("pt");
-  if (isExpense && preview.plan.expense) {
+  if (isInvite && preview.plan.invite) {
+    const nameOf = (id: string) => children.find((c) => c.id === id)?.name.split(" ")[0] ?? "";
+    await sendTextMessage(phone, buildInvitePreviewMessage(preview.plan.invite, nameOf, { withCta: false }));
+    await sendButtonMessage(phone, "Posso adicionar ao calendário?", [
+      { id: "brain_confirm", title: "Confirmar" },
+      { id: "brain_cancel", title: "Cancelar" },
+    ]);
+  } else if (isExpense && preview.plan.expense) {
     // Despesas: copy PURA compartilhada com o app; confirma a cena inteira.
     const nameOf = (id: string) => children.find((c) => c.id === id)?.name.split(" ")[0] ?? "";
     await sendTextMessage(phone, buildExpensePreviewMessage(preview.plan.expense, nameOf, { withCta: false }));
@@ -715,7 +853,7 @@ async function sendBrainPreview(
           ? preview.plan.health?.medications?.length ?? 0
           : acts.length,
     phase: "preview",
-    doc_type: isExpense ? "expense" : isCustody ? "custody_routine" : isHealth ? "health_visit" : undefined,
+    doc_type: isInvite ? "event_invite" : isExpense ? "expense" : isCustody ? "custody_routine" : isHealth ? "health_visit" : undefined,
   });
 }
 
@@ -732,8 +870,9 @@ async function sendBrainChildQuestion(
     media_id: source.media_id,
     text: source.text,
     from_audio: source.from_audio,
-    // Só saúde precisa do marcador (ausente = escolar). Estreita o DocType.
-    doc_type: source.doc_type === "health_visit" ? "health_visit" : undefined,
+    // Marcador de playbook (ausente = escolar). Estreita o DocType: guarda e
+    // despesa pulam a pergunta de criança; saúde e convite passam por aqui.
+    doc_type: source.doc_type === "health_visit" ? "health_visit" : source.doc_type === "event_invite" ? "event_invite" : undefined,
     options,
   });
   if (options.length >= 2 && options.length <= 3) {
@@ -774,6 +913,7 @@ export async function handleExamText(
   const isHealth = docType === "health_visit";
   const isCustody = docType === "custody_routine";
   const isExpense = docType === "expense";
+  const isInvite = docType === "event_invite";
   // Gate por playbook: consulta usa looksLikeConsultText + o interruptor próprio
   // de saúde; guarda usa looksLikeCustodyText + o seu; despesa idem (todos OFF
   // por padrão → nunca disparam); provas seguem o gate escolar. skipGate pula
@@ -784,6 +924,8 @@ export async function handleExamText(
     if (!isCustodyRoutineEnabled() || (!skipGate && !looksLikeCustodyText(text))) return false;
   } else if (isExpense) {
     if (!isExpenseEnabled() || (!skipGate && !looksLikeExpenseText(text))) return false;
+  } else if (isInvite) {
+    if (!isEventInviteEnabled() || (!skipGate && !looksLikeInviteText(text))) return false;
   } else if (!skipGate && !looksLikeExamText(text)) {
     return false;
   }
