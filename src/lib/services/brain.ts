@@ -32,6 +32,14 @@ import { validatePlanForExecution } from "@/lib/ai/brain/validate-plan";
 import { buildSchoolLogPayloads, buildOutboxPayloads, selectActivitiesByIndex, applyActivityEdits, type ActivityEdit } from "@/lib/ai/brain/materialize-payload";
 import { buildHealthPayloads, buildHealthOutboxPayloads } from "@/lib/ai/brain/materialize-health-payload";
 import { validateHealthPlanForExecution } from "@/lib/ai/brain/validate-health-plan";
+import {
+  healthPlanProbe,
+  healthAppointmentKey,
+  healthMedicationKey,
+  isFullHealthDuplicate,
+  type ExistingHealthSnapshot,
+} from "@/lib/ai/brain/health-dedupe";
+import { timestamptzToBrazilDateKey } from "@/lib/calendar-utils";
 import { sanitizeForLogPreview } from "@/lib/ai/brain/sanitize-log";
 import { captureServerEvent } from "@/lib/posthog-server";
 import type {
@@ -115,6 +123,53 @@ async function loadExistingOccurrences(
     // calendário (aluno+data+título) além do impacto same_day.
     title: (row.title as string | null) ?? "",
   }));
+}
+
+/** Snapshot de SAÚDE escopado pro dedup de reenvio (espelho do escolar):
+ *  consultas/retornos do filho nas datas do plano + medicações nos inícios do
+ *  plano. appointment_date é TIMESTAMPTZ → a chave usa a DATA em BRT (mesma
+ *  conversão da grade do calendário). Registro desfeito é DELETADO → sai do
+ *  snapshot → desfazer e reenviar continua funcionando. */
+async function loadExistingHealthSnapshot(
+  supabase: SupabaseServer,
+  plan: NonNullable<MaterializationPlan["health"]>,
+): Promise<ExistingHealthSnapshot> {
+  const snapshot: ExistingHealthSnapshot = { appointmentKeys: new Set(), medicationKeys: new Set() };
+  const childId = plan.appointment.childId;
+  if (!childId) return snapshot;
+  const probe = healthPlanProbe(plan);
+  const apptDates = [...probe.appointmentDates].sort();
+  if (apptDates.length > 0) {
+    const { data } = await supabase
+      .from("medical_appointments")
+      .select("child_id, title, appointment_type, appointment_date")
+      .eq("child_id", childId)
+      .gte("appointment_date", `${apptDates[0]}T00:00:00-03:00`)
+      .lte("appointment_date", `${apptDates[apptDates.length - 1]}T23:59:59-03:00`);
+    for (const row of data ?? []) {
+      snapshot.appointmentKeys.add(
+        healthAppointmentKey(
+          row.child_id as string | null,
+          timestamptzToBrazilDateKey(row.appointment_date as string),
+          (row.appointment_type as string | null) ?? "",
+          (row.title as string | null) ?? "",
+        ),
+      );
+    }
+  }
+  if (probe.medicationStartDates.length > 0) {
+    const { data } = await supabase
+      .from("active_medications")
+      .select("child_id, name, start_date")
+      .eq("child_id", childId)
+      .in("start_date", probe.medicationStartDates);
+    for (const row of data ?? []) {
+      snapshot.medicationKeys.add(
+        healthMedicationKey(row.child_id as string | null, (row.name as string | null) ?? "", row.start_date as string),
+      );
+    }
+  }
+  return snapshot;
 }
 
 export interface CreateAndAnalyzeArgs {
@@ -369,6 +424,29 @@ async function finalizeAnalysis(p: {
 
   // 4. Plano + dedup intra-plano + dedup contra histórico + impacto + prioridade.
   const planned = playbook.plan(data, sctx);
+
+  // Dedup de SAÚDE contra o histórico (espelho do escolar abaixo): o MESMO
+  // relato reenviado não pode virar segunda consulta/retorno/medicação nem
+  // segunda notificação pro coparente. Só duplicata INTEGRAL bloqueia —
+  // qualquer componente novo segue pro preview (pode ser complemento).
+  if (planned.health) {
+    const existingHealth = await loadExistingHealthSnapshot(supabase, planned.health);
+    if (isFullHealthDuplicate(planned.health, existingHealth)) {
+      await supabase
+        .from("brain_intakes")
+        .update({ status: "failed", error: "duplicate", doc_type: docType, analysis_provider: provider, analyzed_at: new Date().toISOString() })
+        .eq("id", intakeId)
+        .eq("status", "analyzing");
+      captureServerEvent(userId, "brain_intake_duplicate_all", { intake_id: intakeId, doc_type: docType, count: 1 });
+      return {
+        kind: "duplicate",
+        intakeId,
+        priorIntakeId: intakeId,
+        message: "Essa consulta já está registrada no Kindar 🙂. Nada a adicionar.",
+      };
+    }
+  }
+
   const { unique, dropped } = dedupeWithinPlan(planned.activities ?? []);
   if (dropped.length > 0) {
     captureServerEvent(userId, "brain_intake_duplicate_detected", { intake_id: intakeId, dropped_count: dropped.length });
