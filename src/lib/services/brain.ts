@@ -34,6 +34,8 @@ import { buildHealthPayloads, buildHealthOutboxPayloads } from "@/lib/ai/brain/m
 import { validateHealthPlanForExecution } from "@/lib/ai/brain/validate-health-plan";
 import { buildCustodyPayloads, buildCustodyOutboxPayloads } from "@/lib/ai/brain/materialize-custody-payload";
 import { validateCustodyPlanForExecution } from "@/lib/ai/brain/validate-custody-plan";
+import { buildExpensePayloads, buildExpenseOutboxPayloads } from "@/lib/ai/brain/materialize-expense-payload";
+import { validateExpensePlanForExecution } from "@/lib/ai/brain/validate-expense-plan";
 import {
   healthPlanProbe,
   healthAppointmentKey,
@@ -438,7 +440,11 @@ export async function analyzeIntakeImage(args: AnalyzeIntakeArgs): Promise<Intak
     //    caminho escolar é byte-idêntico; saúde/outros vêm do classificador (arg).
     const docType: DocType = args.docType ?? "school_calendar";
     const playbook = getPlaybook(docType);
-    if (!playbook) return { kind: "error", message: "Playbook indisponível." };
+    // Playbook só-texto (guarda, despesa) nunca chega aqui pelo caminho de
+    // foto — o guard cobre chamada errada sem quebrar o pipeline.
+    if (!playbook || !playbook.extractionPrompt) {
+      return { kind: "error", message: "Playbook indisponível." };
+    }
 
     // Normaliza o timezone do contexto (IANA válida) antes de planejar.
     const sctx: PlaybookContext = { ...ctx, timezone: safeTimezone(ctx.timezone) };
@@ -670,6 +676,10 @@ function textReferenceSuffix(docType: DocType, sctx: PlaybookContext): string {
     const memberLine = memberNames.length > 0 ? ` Membros do grupo: ${memberNames.join(", ")}.` : "";
     return `(Referência: hoje é ${sctx.today}, ${weekday}. Resolva "semana que vem", "quinta" etc. contra isso, em ISO "AAAA-MM-DD".${memberLine} Crianças: ${sctx.children.map((c) => c.name).join(", ")}.)`;
   }
+  if (docType === "expense") {
+    const weekday = WEEKDAYS_PT[new Date(sctx.today + "T12:00:00").getDay()];
+    return `(Referência: hoje é ${sctx.today}, ${weekday}. Resolva "ontem", "sábado passado" etc. contra isso, em ISO "AAAA-MM-DD". Crianças: ${sctx.children.map((c) => c.name).join(", ")}.)`;
+  }
   return `(Referência: hoje é ${sctx.today}; ano letivo ${sctx.schoolYearAnchor}. Resolva datas relativas ou sem ano contra isso.)`;
 }
 
@@ -684,9 +694,14 @@ export async function analyzeIntakeText(args: AnalyzeIntakeTextArgs): Promise<In
   try {
     // Ambígua ANTES do begin_analysis (evita órfão em 'analyzing'). Ver
     // task_7d0ff951; createAndAnalyzeText já barra antes de criar o intake.
-    // GUARDA & ROTINA é do grupo (itens resolvem crianças internamente) —
-    // a pergunta de criança não se aplica.
-    if (args.docType !== "custody_routine" && ctx.resolvedChildId === null && ctx.children.length > 1) {
+    // GUARDA & ROTINA é do grupo e DESPESA tem criança opcional por item
+    // (itens resolvem internamente) — a pergunta de criança não se aplica.
+    if (
+      args.docType !== "custody_routine" &&
+      args.docType !== "expense" &&
+      ctx.resolvedChildId === null &&
+      ctx.children.length > 1
+    ) {
       return { kind: "needs_child_selection", intakeId, options: ctx.children };
     }
 
@@ -772,10 +787,13 @@ export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Prom
 
     // GUARDA & ROTINA é do GRUPO, não de uma criança: os itens resolvem as
     // crianças internamente ("o Otto fica comigo… e quinta a avó busca os
-    // dois") — a pergunta "de qual criança é?" não se aplica.
+    // dois") — a pergunta "de qual criança é?" não se aplica. DESPESA idem:
+    // criança é OPCIONAL por item (null = família) — perguntar bloquearia
+    // "paguei 300 no mercado", que não é de criança nenhuma.
+    const skipsChildQuestion = args.docType === "custody_routine" || args.docType === "expense";
     const isCustody = args.docType === "custody_routine";
 
-    const resolvedChildId = isCustody
+    const resolvedChildId = skipsChildQuestion
       ? null
       : requestedChildId && children.some((c) => c.id === requestedChildId)
         ? requestedChildId
@@ -787,7 +805,7 @@ export async function createAndAnalyzeText(args: CreateAndAnalyzeTextArgs): Prom
 
     // Ambígua: pergunta ANTES de criar o intake (sem órfão / sem duplicado).
     // Ver task_7d0ff951; espelha createAndAnalyzeIntake.
-    if (!isCustody && resolvedChildId === null && children.length > 1) {
+    if (!skipsChildQuestion && resolvedChildId === null && children.length > 1) {
       return { kind: "needs_child_selection", options: children };
     }
 
@@ -1058,6 +1076,82 @@ async function confirmCustodyRoutine(args: {
   return { kind: "stale_plan", intakeId, message: "A rotina mudou desde que preparei este plano. Quer revisar?" };
 }
 
+/** DESPESAS (Fase 2): INSERT na tabela expenses existente via RPC atômica.
+ *  paid_by = confirmador; status 'pending' (aprovação do módulo segue). */
+async function confirmExpense(args: {
+  supabase: SupabaseServer;
+  intakeId: string;
+  planHash: string;
+  confirmationToken: string;
+  savedPlan: MaterializationPlan;
+  actorId: string;
+  actorUserId?: string;
+  recipientIds: string[];
+}): Promise<IntakeResult> {
+  const { supabase, intakeId, planHash, confirmationToken, savedPlan, actorId, recipientIds } = args;
+  if (!savedPlan.expense) {
+    return { kind: "error", message: "Não há nada para confirmar neste item." };
+  }
+
+  const validation = validateExpensePlanForExecution(savedPlan.expense);
+  if (!validation.ok) {
+    await reportServerError(new Error("expense_plan_validation_failed"), {
+      filePath: FILE,
+      metadata: { step: "confirm_expense_validate", intakeId, reason: validation.reason },
+    });
+    return { kind: "error", message: "O plano tem itens inválidos. Revise antes de confirmar." };
+  }
+
+  const payloads = buildExpensePayloads(savedPlan.expense);
+  const totalAmount = Math.round(payloads.reduce((s, p) => s + p.amount, 0) * 100) / 100;
+  const outbox = buildExpenseOutboxPayloads({
+    intakeId,
+    recipientIds,
+    count: payloads.length,
+    totalAmount,
+  });
+
+  const { data: result, error: rpcErr } = await supabase.rpc("brain_intake_execute_expense_plan", {
+    p_intake_id: intakeId,
+    p_plan_hash: planHash,
+    p_token: confirmationToken,
+    p_expenses: payloads,
+    p_outbox: outbox,
+    p_actor_user_id: args.actorUserId ?? null,
+  });
+  if (rpcErr) {
+    await reportServerError(rpcErr, { filePath: FILE, metadata: { step: "execute_expense_plan", intakeId } });
+    return { kind: "error", message: "Falha ao confirmar. Tente de novo." };
+  }
+
+  const outcome = (result as { outcome?: string; created_count?: number } | null)?.outcome;
+  if (outcome === "executed") {
+    const createdCount = (result as { created_count: number }).created_count;
+    captureServerEvent(actorId, "brain_intake_confirmed", { intake_id: intakeId, doc_type: "expense" });
+    captureServerEvent(actorId, "brain_intake_executed", {
+      intake_id: intakeId,
+      doc_type: "expense",
+      artifact_count: createdCount,
+    });
+    return { kind: "executed", intakeId, createdCount };
+  }
+
+  const { data: fresh } = await supabase
+    .from("brain_intakes")
+    .select("status, confirmation_expires_at")
+    .eq("id", intakeId)
+    .single();
+  const freshStatus = fresh?.status as string | undefined;
+  if (freshStatus === "executed" || freshStatus === "executing") {
+    return { kind: "already_processing", intakeId };
+  }
+  const freshExpiry = fresh?.confirmation_expires_at as string | null | undefined;
+  if (freshExpiry && new Date(freshExpiry) <= new Date()) {
+    return { kind: "stale_plan", intakeId, message: "A confirmação expirou. Quer revisar o plano de novo?" };
+  }
+  return { kind: "stale_plan", intakeId, message: "Algo mudou desde que preparei este plano. Quer revisar?" };
+}
+
 /**
  * Confirma e materializa o plano. Revalida limites no app, monta os
  * payloads e chama a RPC atômica execute_plan (claim + materializa +
@@ -1112,6 +1206,15 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
     // proposta bilateral (swap_requests); permanente vira proposta OK-do-outro.
     if (savedPlan.docType === "custody_routine") {
       return await confirmCustodyRoutine({
+        supabase, intakeId, planHash, confirmationToken, savedPlan,
+        actorId, actorUserId: args.actorUserId, recipientIds,
+      });
+    }
+
+    // DESPESAS (Fase 2): INSERT em expenses (status pending — aprovação do
+    // módulo segue normal); coordenação via outbox.
+    if (savedPlan.docType === "expense") {
+      return await confirmExpense({
         supabase, intakeId, planHash, confirmationToken, savedPlan,
         actorId, actorUserId: args.actorUserId, recipientIds,
       });

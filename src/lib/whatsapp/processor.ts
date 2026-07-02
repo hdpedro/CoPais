@@ -56,7 +56,7 @@ import {
   downloadMedia,
 } from "./client";
 import { classifyDocumentByVision, classifyNarrative, type NarrativeIntentType } from "@/lib/ai/document-classifier";
-import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled } from "@/lib/services/brain-flag";
 import { formatForWhatsApp, splitMessage } from "./formatter";
 import { processReceiptImage, processPrescriptionImage } from "./media";
 import { transcribeAudio } from "./audio";
@@ -72,6 +72,7 @@ function narrativeTypeEnabled(t: NarrativeIntentType): boolean {
   if (t === "school_calendar") return true;
   if (t === "health_visit") return isHealthVisitEnabled();
   if (t === "custody_routine") return isCustodyRoutineEnabled();
+  if (t === "expense") return isExpenseEnabled();
   return false;
 }
 
@@ -550,6 +551,9 @@ export async function processWhatsAppMessage(
     }
     if (!handled) {
       handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio, undefined, "custody_routine");
+    }
+    if (!handled) {
+      handled = await handleExamText(supabase, phone, userId, groupId, message.text, session, fromAudio, undefined, "expense");
     }
     // PORTA ÚNICA (decisão do dono): os gates regex não morderam, mas a frase
     // pode ser captura em tom natural ("semana que vem ele fica comigo…").

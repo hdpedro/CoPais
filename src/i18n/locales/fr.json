@@ -2191,7 +2191,9 @@
       "healthVisitTitle": "🩺 Consultation de {child}",
       "healthVisitBody": "{count, plural, =0 {J'ai ajouté la consultation à l'historique Santé} one {J'ai ajouté la consultation et # médicament} other {J'ai ajouté la consultation et # médicaments}}. Touchez pour voir.",
       "custodyRoutineTitle": "Garde et routine mises à jour",
-      "custodyRoutineBody": "{applied, plural, =0 {Aucun changement appliqué} one {1 changement appliqué} other {# changements appliqués}}{proposed, plural, =0 {} one { · 1 proposition en attente de réponse} other { · # propositions en attente de réponse}}. Touchez pour voir."
+      "custodyRoutineBody": "{applied, plural, =0 {Aucun changement appliqué} one {1 changement appliqué} other {# changements appliqués}}{proposed, plural, =0 {} one { · 1 proposition en attente de réponse} other { · # propositions en attente de réponse}}. Touchez pour voir.",
+      "expenseTitle": "Dépense enregistrée 💳",
+      "expenseBody": "{count, plural, one {1 dépense} other {# dépenses}} — total R$ {total}. Touchez pour voir et approuver."
     }
   },
   "push": {

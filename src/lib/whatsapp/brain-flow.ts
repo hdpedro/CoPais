@@ -369,3 +369,21 @@ const CALENDAR_YES =
 export function isCalendarYes(reply: string): boolean {
   return CALENDAR_YES.test((reply || "").trim());
 }
+
+/** Confirmação de DESPESAS executadas (Fase 2 — mesma copy do widget). */
+export function renderExpenseExecuted(count: number): string {
+  return `Pronto! Registrei ${count === 1 ? "a despesa" : `${count} despesas`} em Despesas — quem divide aprova por lá. 💳\n\nSe quiser, responda *Desfazer* pra reverter.`;
+}
+
+/** Undo de despesas. `kept` = já aprovadas/decididas (o coparente agiu — fica). */
+export function renderExpenseUndone(removed: number, kept: number): string {
+  if (removed === 0 && kept === 0) return `Já estava desfeito — não havia nada a remover.`;
+  let msg =
+    removed === 0
+      ? `Nada a remover por aqui.`
+      : `Desfeito — removi ${removed === 1 ? "1 despesa" : `${removed} despesas`}.`;
+  if (kept > 0) {
+    msg += ` ${kept === 1 ? "1 despesa já aprovada continua valendo" : `${kept} despesas já aprovadas continuam valendo`} (decisão entre vocês).`;
+  }
+  return msg;
+}

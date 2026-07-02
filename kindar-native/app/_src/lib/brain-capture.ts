@@ -62,6 +62,17 @@ export function looksLikeCustodyText(text: string): boolean {
   return dateSignal;
 }
 
+export function looksLikeExpenseText(text: string): boolean {
+  const s = (text || "").toLowerCase().trim();
+  if (s.length < 6 || s.length > 800) return false;
+  if (/[?]\s*$/.test(s)) return false;
+  if (/^\s*(quando|qual|quanto|que dia|onde|como|por que|porque|quem|será que|pode|posso)\b/.test(s)) return false;
+  const payAnchor = /\b(paguei|gastei|comprei|custou|paguei|desembolsei|gasto de|despesa de)\b|r\$\s*\d/.test(s);
+  if (!payAnchor) return false;
+  const amountSignal = /\b\d{1,6}([.,]\d{1,2})?\b|\br\$\s*\d/.test(s);
+  return amountSignal;
+}
+
 /* ---- resposta digitada a "de qual criança?" (espelho do PWA) ---- */
 
 export interface ChildOption {
@@ -106,5 +117,6 @@ export interface CaptureResponse {
 export function endpointForDocType(docType: string): string {
   if (docType === "health_visit") return "/api/ai/assistant/consult-text";
   if (docType === "custody_routine") return "/api/ai/assistant/custody-text";
+  if (docType === "expense") return "/api/ai/assistant/expense-text";
   return "/api/ai/assistant/exam-text";
 }

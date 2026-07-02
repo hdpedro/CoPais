@@ -14,10 +14,11 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createAndAnalyzeIntake, createAndAnalyzeText, confirmIntake } from "@/lib/services/brain";
-import { looksLikeExamText, looksLikeConsultText, looksLikeCustodyText } from "@/lib/ai/brain/exam-text-gate";
+import { looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLikeExpenseText } from "@/lib/ai/brain/exam-text-gate";
 import { buildCustodyPreviewMessage } from "@/lib/ai/brain/custody-preview";
+import { buildExpensePreviewMessage } from "@/lib/ai/brain/expense-preview";
 import { undoIntake } from "@/lib/services/brain-undo";
-import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled } from "@/lib/services/brain-flag";
+import { isBrainEnabledForGroup, isHealthVisitEnabled, isCustodyRoutineEnabled, isExpenseEnabled } from "@/lib/services/brain-flag";
 import { validateImageUpload } from "@/lib/ai/brain/upload-guard";
 import { reportServerError } from "@/lib/error-tracking/report-server";
 import { captureServerEvent } from "@/lib/posthog-server";
@@ -42,6 +43,8 @@ import {
   renderHealthUndone,
   renderCustodyExecuted,
   renderCustodyUndone,
+  renderExpenseExecuted,
+  renderExpenseUndone,
   classifyBrainReply,
   isUndoReply,
   isDeclineUndoReply,
@@ -363,13 +366,16 @@ export async function handleBrainReply(
       await clearPendingAction(supabase, session.id);
       const isHealth = brain.doc_type === "health_visit";
       const isCustody = brain.doc_type === "custody_routine";
+      const isExpense = brain.doc_type === "expense";
       const undoneMsg =
         r.kind === "undone"
-          ? isCustody
-            ? renderCustodyUndone(r.removed, r.detached) // detached = trocas já aceitas
-            : isHealth
-              ? renderHealthUndone(r.removed)
-              : renderUndone(r.removed, r.detached)
+          ? isExpense
+            ? renderExpenseUndone(r.removed, r.detached) // detached = já aprovadas
+            : isCustody
+              ? renderCustodyUndone(r.removed, r.detached) // detached = trocas já aceitas
+              : isHealth
+                ? renderHealthUndone(r.removed)
+                : renderUndone(r.removed, r.detached)
           : "Não consegui desfazer agora. Tente pelo app. 🙏";
       await sendTextMessage(phone, undoneMsg);
       return true;
@@ -469,15 +475,30 @@ async function confirmBrain(
     await setBrainIntake(supabase, session.id, { ...brain, phase: "executed", created_count: r.createdCount, awaiting_selection: false });
     const isHealth = brain.doc_type === "health_visit";
     const isCustody = brain.doc_type === "custody_routine";
+    const isExpense = brain.doc_type === "expense";
     await sendTextMessage(
       phone,
-      isCustody ? renderCustodyExecuted() : isHealth ? renderHealthExecuted() : renderExecuted(r.createdCount),
+      isExpense
+        ? renderExpenseExecuted(r.createdCount)
+        : isCustody
+          ? renderCustodyExecuted()
+          : isHealth
+            ? renderHealthExecuted()
+            : renderExecuted(r.createdCount),
     );
     await sendButtonMessage(phone, "Precisa reverter?", [{ id: "brain_undo", title: "Desfazer" }]);
     // Coordenação WhatsApp: avisa os coparentes (menos quem confirmou). Além
     // disso o outbox entrega a coordenação push (3d). Fire-and-forget. 'event'
     // = a pref event_reminders governa (não há kind de saúde dedicado).
-    if (isCustody) {
+    if (isExpense) {
+      const n = r.createdCount === 1 ? "1 despesa registrada" : `${r.createdCount} despesas registradas`;
+      await notifyGroupViaWhatsApp(
+        groupId,
+        userId,
+        `💳 ${n} no Kindar — aprovação na tela Despesas.`,
+        "event",
+      );
+    } else if (isCustody) {
       await notifyGroupViaWhatsApp(
         groupId,
         userId,
@@ -513,11 +534,13 @@ async function confirmBrain(
     await clearPendingAction(supabase, session.id);
     await sendTextMessage(
       phone,
-      brain.doc_type === "custody_routine"
-        ? "Essas combinações já estão sendo registradas. 🙂"
-        : brain.doc_type === "health_visit"
-          ? "Essa consulta já está sendo registrada. 🙂"
-          : "Essas provas já estão sendo adicionadas. 🙂",
+      brain.doc_type === "expense"
+        ? "Essas despesas já estão sendo registradas. 🙂"
+        : brain.doc_type === "custody_routine"
+          ? "Essas combinações já estão sendo registradas. 🙂"
+          : brain.doc_type === "health_visit"
+            ? "Essa consulta já está sendo registrada. 🙂"
+            : "Essas provas já estão sendo adicionadas. 🙂",
     );
     return true;
   }
@@ -638,12 +661,21 @@ async function sendBrainPreview(
 ): Promise<void> {
   const isHealth = preview.plan.docType === "health_visit";
   const isCustody = preview.plan.docType === "custody_routine";
+  const isExpense = preview.plan.docType === "expense";
   const acts = preview.plan.activities ?? [];
   const childName = isHealth
     ? children.find((c) => c.id === (preview.plan.health?.appointment.childId ?? null))?.name ?? "seu filho(a)"
     : children.find((c) => c.id === (acts[0]?.childId ?? null))?.name ?? "seu filho(a)";
   const t = await getServerT("pt");
-  if (isCustody && preview.plan.custody) {
+  if (isExpense && preview.plan.expense) {
+    // Despesas: copy PURA compartilhada com o app; confirma a cena inteira.
+    const nameOf = (id: string) => children.find((c) => c.id === id)?.name.split(" ")[0] ?? "";
+    await sendTextMessage(phone, buildExpensePreviewMessage(preview.plan.expense, nameOf, { withCta: false }));
+    await sendButtonMessage(phone, "Posso registrar no Kindar?", [
+      { id: "brain_confirm", title: "Confirmar" },
+      { id: "brain_cancel", title: "Cancelar" },
+    ]);
+  } else if (isCustody && preview.plan.custody) {
     // Guarda & rotina: copy PURA compartilhada com o app (mesma prévia) — sem
     // deseleção numerada (confirma a cena inteira) → só 2 botões.
     const nameOf = (id: string) => children.find((c) => c.id === id)?.name ?? "";
@@ -674,14 +706,16 @@ async function sendBrainPreview(
     intake_id: preview.intakeId,
     plan_hash: preview.planHash,
     confirmation_token: preview.confirmationToken,
-    child_name: isCustody ? "família" : childName,
-    total: isCustody
-      ? preview.plan.custody?.items.length ?? 0
-      : isHealth
-        ? preview.plan.health?.medications?.length ?? 0
-        : acts.length,
+    child_name: isCustody || isExpense ? "família" : childName,
+    total: isExpense
+      ? preview.plan.expense?.items.length ?? 0
+      : isCustody
+        ? preview.plan.custody?.items.length ?? 0
+        : isHealth
+          ? preview.plan.health?.medications?.length ?? 0
+          : acts.length,
     phase: "preview",
-    doc_type: isCustody ? "custody_routine" : isHealth ? "health_visit" : undefined,
+    doc_type: isExpense ? "expense" : isCustody ? "custody_routine" : isHealth ? "health_visit" : undefined,
   });
 }
 
@@ -739,13 +773,17 @@ export async function handleExamText(
 ): Promise<boolean> {
   const isHealth = docType === "health_visit";
   const isCustody = docType === "custody_routine";
+  const isExpense = docType === "expense";
   // Gate por playbook: consulta usa looksLikeConsultText + o interruptor próprio
-  // de saúde; guarda usa looksLikeCustodyText + o seu (ambos OFF por padrão →
-  // nunca disparam); provas seguem o gate escolar. skipGate pula SÓ o regex.
+  // de saúde; guarda usa looksLikeCustodyText + o seu; despesa idem (todos OFF
+  // por padrão → nunca disparam); provas seguem o gate escolar. skipGate pula
+  // SÓ o regex.
   if (isHealth) {
     if (!isHealthVisitEnabled() || (!skipGate && !looksLikeConsultText(text))) return false;
   } else if (isCustody) {
     if (!isCustodyRoutineEnabled() || (!skipGate && !looksLikeCustodyText(text))) return false;
+  } else if (isExpense) {
+    if (!isExpenseEnabled() || (!skipGate && !looksLikeExpenseText(text))) return false;
   } else if (!skipGate && !looksLikeExamText(text)) {
     return false;
   }

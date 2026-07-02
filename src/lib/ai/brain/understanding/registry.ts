@@ -14,10 +14,12 @@ import {
   HEALTH_VISIT_EXTRACTION,
   HEALTH_VISIT_TEXT_EXTRACTION,
   CUSTODY_ROUTINE_TEXT_EXTRACTION,
+  EXPENSE_TEXT_EXTRACTION,
 } from "../../prompts/brain";
 import { schoolCalendarPlaybook } from "./playbooks/school-calendar";
 import { healthVisitPlaybook } from "./playbooks/health-visit";
 import { custodyRoutinePlaybook } from "./playbooks/custody-routine";
+import { expensePlaybook } from "./playbooks/expense";
 
 // O playbook é puro; os prompts de extração vivem em prompts/brain.ts e são
 // injetados aqui (mantém o playbook sem string de prompt embutida). O de TEXTO
@@ -47,10 +49,20 @@ const custodyRoutine: Playbook = {
   textExtractionPrompt: CUSTODY_ROUTINE_TEXT_EXTRACTION,
 } as Playbook;
 
+// Playbook de Despesas (Fase 2). REGISTRADO mas DORMENTE (mesmo molde):
+// só TEXTO/ÁUDIO por enquanto (comprovante por foto = fatia E4); a
+// materialização (RPC) e o wiring dos canais vêm nas fatias E2/E3,
+// gateados por FEATURE_BRAIN_EXPENSE.
+const expense: Playbook = {
+  ...expensePlaybook,
+  textExtractionPrompt: EXPENSE_TEXT_EXTRACTION,
+} as Playbook;
+
 const REGISTRY: Partial<Record<DocType, Playbook>> = {
   school_calendar: schoolCalendar,
   health_visit: healthVisit,
   custody_routine: custodyRoutine,
+  expense,
 };
 
 /** Playbooks habilitados no A0 (ordem de tentativa de extração). Saúde ainda

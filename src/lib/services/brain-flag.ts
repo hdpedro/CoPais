@@ -41,6 +41,15 @@ export function isCustodyRoutineEnabled(): boolean {
 }
 
 /**
+ * Playbook de DESPESAS (Fase 2) habilitado? Mesmo molde: env própria,
+ * OFF por padrão (fail-closed) até a migration + wiring + OK do dono.
+ * Canais gateiam: isExpenseEnabled() && isBrainEnabledForGroup.
+ */
+export function isExpenseEnabled(): boolean {
+  return process.env.FEATURE_BRAIN_EXPENSE === "true";
+}
+
+/**
  * Brain habilitado para o grupo? master env `&&` grupo.brain_beta_enabled.
  * Fail-closed: qualquer erro/ausência → false (não vaza acesso).
  */

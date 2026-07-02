@@ -18,7 +18,7 @@ export type IntakeSource = "document" | "audio" | "message" | "command";
 
 /** Tipo de documento resolvido pelo classificador. `unknown_document`
  *  dispara a pergunta de esclarecimento (nunca vira recibo por default). */
-export type DocType = "school_calendar" | "health_visit" | "custody_routine" | "routine_setup" | "unknown_document";
+export type DocType = "school_calendar" | "health_visit" | "custody_routine" | "expense" | "routine_setup" | "unknown_document";
 
 /** Estados do intake — espelha o CHECK da migration 00126. */
 export type IntakeStatus =
@@ -313,6 +313,33 @@ export interface CustodyRoutinePlan {
   items: CustodyRoutineItem[];
 }
 
+/* ---- Playbook de DESPESAS (Fase 2 — "paguei 250 na consulta do Otto") ---- */
+
+/** Categorias = enum `expense_category` do banco (00001). */
+export type ExpenseCategory =
+  | "education" | "health" | "food" | "clothing"
+  | "transport" | "leisure" | "housing" | "other";
+
+/** Como a pessoa DISSE que divide (v1: informativo — a materialização usa o
+ *  split padrão do grupo e o preview declara isso com honestidade). */
+export type ExpenseSplitHint = "default" | "payer_only" | null;
+
+export interface ExpenseItem {
+  description: string;
+  /** Valor em reais (BRL). O parse NUNCA inventa: sem valor claro → item cai. */
+  amount: number;
+  category: ExpenseCategory;
+  childId: string | null; // null = família/sem criança específica
+  expenseDate: string; // YYYY-MM-DD (relativo→absoluto no parse)
+  splitHint: ExpenseSplitHint;
+}
+
+/** Plano de despesas: N itens de UMA narrativa (MAX pequeno; despesa é 1:1
+ *  na prática — "paguei X e Y" vira 2 itens). */
+export interface ExpensePlan {
+  items: ExpenseItem[];
+}
+
 /** Plano declarativo: o playbook descreve, o service materializa. */
 export interface MaterializationPlan {
   docType: DocType;
@@ -324,6 +351,8 @@ export interface MaterializationPlan {
   health?: HealthVisitPlan;
   /** Plano de guarda/rotina (docType 'custody_routine'). */
   custody?: CustodyRoutinePlan;
+  /** Plano de despesas (docType 'expense'). */
+  expense?: ExpensePlan;
   /** record_type pro fan-out de coordenação (Foundation Collab). */
   collabRecordType?: string;
 }
@@ -338,7 +367,9 @@ export interface Playbook<P = unknown> {
   /** Versões pro plan_hash canônico (rastreabilidade da confirmação). */
   playbookVersion: number;
   policyVersion: number;
-  extractionPrompt: { system: string; user: string };
+  /** Extração a partir de IMAGEM. Ausente = playbook só aceita texto/áudio
+   *  (guarda, despesa) — o caminho de foto nunca resolve esses docTypes. */
+  extractionPrompt?: { system: string; user: string };
   /** Extração a partir de TEXTO (assistente/áudio transcrito) — mesmo schema
    *  da visão, o `parse` é o mesmo. Ausente = playbook só aceita imagem. */
   textExtractionPrompt?: { system: string; user: string };

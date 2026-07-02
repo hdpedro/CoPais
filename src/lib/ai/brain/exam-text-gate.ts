@@ -70,3 +70,21 @@ export function looksLikeConsultText(text: string): boolean {
     (s.match(/\b(consulta|m[ée]dic\w+|pediatra|receita|rem[ée]dio|medicamento|dose|diagn[óo]stic\w+|retorno|alergia|sintoma|febre|dor|tomar|exame)\b/g) || []).length >= 2;
   return freqDoseSignal || dateSignal || secondMed;
 }
+
+/**
+ * Um texto livre DESCREVE um gasto feito? Gate CONSERVADOR (4º da fila:
+ * roda DEPOIS de provas, consulta e guarda — não sequestra os outros).
+ * Âncora de pagamento ("paguei", "gastei", "comprei", "custou", "R$") +
+ * um VALOR numérico, sem ser pergunta. A extração por IA é a decisão
+ * final; se não achar despesa, o canal cai no chat. PURO (regex).
+ */
+export function looksLikeExpenseText(text: string): boolean {
+  const s = (text || "").toLowerCase().trim();
+  if (s.length < 6 || s.length > 800) return false;
+  if (/[?]\s*$/.test(s)) return false;
+  if (/^\s*(quando|qual|quanto|que dia|onde|como|por que|porque|quem|será que|pode|posso)\b/.test(s)) return false;
+  const payAnchor = /\b(paguei|gastei|comprei|custou|paguei|desembolsei|gasto de|despesa de)\b|r\$\s*\d/.test(s);
+  if (!payAnchor) return false;
+  const amountSignal = /\b\d{1,6}([.,]\d{1,2})?\b|\br\$\s*\d/.test(s);
+  return amountSignal;
+}

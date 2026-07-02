@@ -31,7 +31,7 @@ import { useAuth } from '../../store/auth';
 import { useAIModal } from '../../store/ai-modal';
 import { colors, spacing, radius, font, shadows } from '../../design-system/tokens';
 import {
-  looksLikeExamText, looksLikeConsultText, looksLikeCustodyText,
+  looksLikeExamText, looksLikeConsultText, looksLikeCustodyText, looksLikeExpenseText,
   matchOneChildOption, endpointForDocType,
   type BrainIntakeRef, type CaptureResponse, type ChildOption,
 } from '../../lib/brain-capture';
@@ -213,6 +213,7 @@ export default function AIAssistantSheet() {
     if (!pi || sending) return;
     const isHealth = pi.doc === 'health';
     const isCustody = pi.doc === 'custody';
+    const isExpense = pi.doc === 'expense';
     setPendingIntake(null);
     setUndoable(null);
     setSending(true);
@@ -228,25 +229,31 @@ export default function AIAssistantSheet() {
       if (ok) setUndoable(pi);
       pushAssistant(
         ok
-          ? isCustody
-            ? '✅ Pronto! Registrei as combinações — quem precisa aprovar já foi avisado. Se precisar, é só tocar em Desfazer.'
-            : isHealth
-              ? '✅ Pronto! Registrei a consulta em Saúde. Se precisar, é só tocar em Desfazer.'
-              : `✅ Pronto! Adicionei ${pi.count === 1 ? '1 prova' : `${pi.count} provas`} no calendário escolar. Se precisar, é só tocar em Desfazer.`
+          ? isExpense
+            ? `✅ Pronto! Registrei ${pi.count === 1 ? 'a despesa' : `${pi.count} despesas`} em Despesas — quem divide aprova por lá. Se precisar, é só tocar em Desfazer.`
+            : isCustody
+              ? '✅ Pronto! Registrei as combinações — quem precisa aprovar já foi avisado. Se precisar, é só tocar em Desfazer.'
+              : isHealth
+                ? '✅ Pronto! Registrei a consulta em Saúde. Se precisar, é só tocar em Desfazer.'
+                : `✅ Pronto! Adicionei ${pi.count === 1 ? '1 prova' : `${pi.count} provas`} no calendário escolar. Se precisar, é só tocar em Desfazer.`
+          : isExpense
+            ? 'Não consegui registrar agora. Tente pela tela Despesas. 🙏'
+            : isCustody
+              ? 'Não consegui registrar agora. Tente pelo Calendário. 🙏'
+              : isHealth
+                ? 'Não consegui registrar agora. Tente pela tela Saúde. 🙏'
+                : 'Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏',
+      );
+      Haptics.notificationAsync(ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
+    } catch {
+      pushAssistant(
+        isExpense
+          ? 'Não consegui registrar agora. Tente pela tela Despesas. 🙏'
           : isCustody
             ? 'Não consegui registrar agora. Tente pelo Calendário. 🙏'
             : isHealth
               ? 'Não consegui registrar agora. Tente pela tela Saúde. 🙏'
               : 'Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏',
-      );
-      Haptics.notificationAsync(ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error);
-    } catch {
-      pushAssistant(
-        isCustody
-          ? 'Não consegui registrar agora. Tente pelo Calendário. 🙏'
-          : isHealth
-            ? 'Não consegui registrar agora. Tente pela tela Saúde. 🙏'
-            : 'Não consegui adicionar agora. Tente pela tela Escola › Calendário. 🙏',
       );
     } finally {
       setSending(false);
@@ -263,6 +270,7 @@ export default function AIAssistantSheet() {
     if (!ui || sending) return;
     const isHealth = ui.doc === 'health';
     const isCustody = ui.doc === 'custody';
+    const isExpense = ui.doc === 'expense';
     setUndoable(null);
     setSending(true);
     try {
@@ -276,13 +284,18 @@ export default function AIAssistantSheet() {
       const detached = typeof data?.detached === 'number' ? data.detached : 0;
       let content: string;
       if (done && removed > 0) {
-        content = isCustody
-          ? `Desfeito — removi ${removed === 1 ? '1 combinação' : `${removed} combinações`} de guarda e rotina.`
-          : isHealth
-            ? 'Desfeito — removi o registro da consulta.'
-            : `Desfeito — removi ${removed === 1 ? '1 prova' : `${removed} provas`} do calendário.`;
+        content = isExpense
+          ? `Desfeito — removi ${removed === 1 ? '1 despesa' : `${removed} despesas`}.`
+          : isCustody
+            ? `Desfeito — removi ${removed === 1 ? '1 combinação' : `${removed} combinações`} de guarda e rotina.`
+            : isHealth
+              ? 'Desfeito — removi o registro da consulta.'
+              : `Desfeito — removi ${removed === 1 ? '1 prova' : `${removed} provas`} do calendário.`;
         if (isCustody && detached > 0) {
           content += ` (${detached === 1 ? '1 troca já aceita continua' : `${detached} trocas já aceitas continuam`} valendo.)`;
+        }
+        if (isExpense && detached > 0) {
+          content += ` (${detached === 1 ? '1 despesa já aprovada continua' : `${detached} despesas já aprovadas continuam`} valendo.)`;
         }
       } else if (done) {
         content = 'Já estava desfeito. 🙂';
@@ -335,6 +348,8 @@ export default function AIAssistantSheet() {
         captured = await captureText(trimmed, undefined, '/api/ai/assistant/consult-text');
       } else if (looksLikeCustodyText(trimmed)) {
         captured = await captureText(trimmed, undefined, '/api/ai/assistant/custody-text');
+      } else if (looksLikeExpenseText(trimmed)) {
+        captured = await captureText(trimmed, undefined, '/api/ai/assistant/expense-text');
       } else {
         captured = await routeNarrative(trimmed);
       }
