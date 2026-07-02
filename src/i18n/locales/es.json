@@ -2188,7 +2188,9 @@
       "examReminderTitle": "🎒 Prueba mañana",
       "examReminderBody": "Mañana: {exam}. ¿Qué tal repasar hoy?",
       "healthVisitTitle": "🩺 Consulta de {child}",
-      "healthVisitBody": "{count, plural, =0 {Agregué la consulta al historial de Salud} one {Agregué la consulta y # medicamento} other {Agregué la consulta y # medicamentos}}. Toca para ver."
+      "healthVisitBody": "{count, plural, =0 {Agregué la consulta al historial de Salud} one {Agregué la consulta y # medicamento} other {Agregué la consulta y # medicamentos}}. Toca para ver.",
+      "custodyRoutineTitle": "Custodia y rutina actualizadas",
+      "custodyRoutineBody": "{applied, plural, =0 {Sin cambios aplicados} one {1 cambio aplicado} other {# cambios aplicados}}{proposed, plural, =0 {} one { · 1 propuesta pendiente de respuesta} other { · # propuestas pendientes de respuesta}}. Toca para ver."
     }
   },
   "push": {

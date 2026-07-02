@@ -32,6 +32,8 @@ import { validatePlanForExecution } from "@/lib/ai/brain/validate-plan";
 import { buildSchoolLogPayloads, buildOutboxPayloads, selectActivitiesByIndex, applyActivityEdits, type ActivityEdit } from "@/lib/ai/brain/materialize-payload";
 import { buildHealthPayloads, buildHealthOutboxPayloads } from "@/lib/ai/brain/materialize-health-payload";
 import { validateHealthPlanForExecution } from "@/lib/ai/brain/validate-health-plan";
+import { buildCustodyPayloads, buildCustodyOutboxPayloads } from "@/lib/ai/brain/materialize-custody-payload";
+import { validateCustodyPlanForExecution } from "@/lib/ai/brain/validate-custody-plan";
 import {
   healthPlanProbe,
   healthAppointmentKey,
@@ -939,6 +941,91 @@ async function confirmHealthVisit(args: {
 }
 
 /**
+ * Confirma o plano de GUARDA & ROTINA: revalida, monta payloads com o
+ * roteamento de governança (exceção/férias/leva-busca materializam;
+ * troca vira swap_request pendente; permanente vira proposta) e chama a
+ * RPC atômica execute_custody_plan. Ator explícito p/ WhatsApp.
+ */
+async function confirmCustodyRoutine(args: {
+  supabase: SupabaseServer;
+  intakeId: string;
+  planHash: string;
+  confirmationToken: string;
+  savedPlan: MaterializationPlan;
+  actorId: string;
+  actorUserId?: string;
+  recipientIds: string[];
+}): Promise<IntakeResult> {
+  const { supabase, intakeId, planHash, confirmationToken, savedPlan, actorId, recipientIds } = args;
+  if (!savedPlan.custody) {
+    return { kind: "error", message: "Não há nada para confirmar neste item." };
+  }
+
+  const validation = validateCustodyPlanForExecution(savedPlan.custody);
+  if (!validation.ok) {
+    await reportServerError(new Error("custody_plan_validation_failed"), {
+      filePath: FILE,
+      metadata: { step: "confirm_custody_validate", intakeId, reason: validation.reason },
+    });
+    return { kind: "error", message: "O plano tem itens inválidos. Revise antes de confirmar." };
+  }
+
+  const payloads = buildCustodyPayloads(savedPlan.custody, actorId);
+  const outbox = buildCustodyOutboxPayloads({
+    intakeId,
+    recipientIds,
+    appliedCount: payloads.custodyEvents.length + payloads.legOverrides.length,
+    swapProposalCount: payloads.swapRequests.length,
+    slotProposalCount: payloads.slotProposals.length,
+  });
+
+  const { data: result, error: rpcErr } = await supabase.rpc("brain_intake_execute_custody_plan", {
+    p_intake_id: intakeId,
+    p_plan_hash: planHash,
+    p_token: confirmationToken,
+    p_custody_events: payloads.custodyEvents,
+    p_leg_overrides: payloads.legOverrides,
+    p_swap_requests: payloads.swapRequests,
+    p_slot_proposals: payloads.slotProposals,
+    p_outbox: outbox,
+    p_actor_user_id: args.actorUserId ?? null,
+  });
+  if (rpcErr) {
+    await reportServerError(rpcErr, { filePath: FILE, metadata: { step: "execute_custody_plan", intakeId } });
+    return { kind: "error", message: "Falha ao confirmar. Tente de novo." };
+  }
+
+  const outcome = (result as { outcome?: string; created_count?: number } | null)?.outcome;
+  if (outcome === "executed") {
+    const createdCount = (result as { created_count: number }).created_count;
+    captureServerEvent(actorId, "brain_intake_confirmed", { intake_id: intakeId, doc_type: "custody_routine" });
+    captureServerEvent(actorId, "brain_intake_executed", {
+      intake_id: intakeId,
+      doc_type: "custody_routine",
+      artifact_count: createdCount,
+      proposed_count: (result as { proposed_count?: number }).proposed_count ?? 0,
+    });
+    return { kind: "executed", intakeId, createdCount };
+  }
+
+  // not_claimed → relê o estado atual pra classificar (igual saúde/escolar).
+  const { data: fresh } = await supabase
+    .from("brain_intakes")
+    .select("status, confirmation_expires_at")
+    .eq("id", intakeId)
+    .single();
+  const freshStatus = fresh?.status as string | undefined;
+  if (freshStatus === "executed" || freshStatus === "executing") {
+    return { kind: "already_processing", intakeId };
+  }
+  const freshExpiry = fresh?.confirmation_expires_at as string | null | undefined;
+  if (freshExpiry && new Date(freshExpiry) <= new Date()) {
+    return { kind: "stale_plan", intakeId, message: "A confirmação expirou. Quer revisar o plano de novo?" };
+  }
+  return { kind: "stale_plan", intakeId, message: "A rotina mudou desde que preparei este plano. Quer revisar?" };
+}
+
+/**
  * Confirma e materializa o plano. Revalida limites no app, monta os
  * payloads e chama a RPC atômica execute_plan (claim + materializa +
  * outbox + proveniência + executed numa transação). O confirmador sai do
@@ -985,6 +1072,15 @@ export async function confirmIntake(args: ConfirmIntakeArgs): Promise<IntakeResu
       return await confirmHealthVisit({
         supabase, intakeId, planHash, confirmationToken, savedPlan,
         actorId, actorUserId: args.actorUserId, recipientIds, today,
+      });
+    }
+
+    // GUARDA & ROTINA: exceções/férias/leva-busca materializam; troca vira
+    // proposta bilateral (swap_requests); permanente vira proposta OK-do-outro.
+    if (savedPlan.docType === "custody_routine") {
+      return await confirmCustodyRoutine({
+        supabase, intakeId, planHash, confirmationToken, savedPlan,
+        actorId, actorUserId: args.actorUserId, recipientIds,
       });
     }
 
