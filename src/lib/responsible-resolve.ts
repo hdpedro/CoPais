@@ -70,8 +70,10 @@ export interface ResolveResponsibleInput {
 }
 
 /** Tipos de guarda que representam intenção EXPLÍCITA (vencem a rotina
- *  mesmo em together/single). */
-const EXPLICIT_CUSTODY = new Set(["swap", "exception", "vacation"]);
+ *  mesmo em together/single). Exportado: o calendário usa a MESMA lista pra
+ *  mostrar dias combinados quando a escala está desligada (custody_enabled
+ *  false — ex.: pais que moram juntos). */
+export const EXPLICIT_CUSTODY = new Set(["swap", "exception", "vacation"]);
 
 /**
  * Vencedor da guarda no dia considerando eventos da criança E da família

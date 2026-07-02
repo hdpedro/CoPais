@@ -106,6 +106,30 @@ describe("buildCustodyMap — swap precedence (Angelino bug 2026-04-27)", () => 
   });
 });
 
+describe("buildCustodyMap — exceção pontual (Kindar Brain, E2E guarda 2026-07-02)", () => {
+  it("exception vence regular no mesmo dia e propaga custodyType pro label", () => {
+    const events = [
+      ev({ start_date: "2026-07-01", end_date: "2026-07-05", responsible_user_id: "user-b", custody_type: "regular" }),
+      ev({ start_date: "2026-07-03", end_date: "2026-07-03", responsible_user_id: "user-a", custody_type: "exception" }),
+    ];
+    const map = buildCustodyMap(events, COLORS);
+    expect(map.get("2026-07-03")?.userId).toBe("user-a");
+    expect(map.get("2026-07-03")?.custodyType).toBe("exception");
+    expect(map.get("2026-07-02")?.userId).toBe("user-b");
+  });
+
+  it("mapa SÓ com explícitos (guarda desligada → query filtra) renderiza o dia combinado", () => {
+    // Grupo "moram juntos" (custody_enabled=false): o servidor manda apenas
+    // exceção/férias/troca. O dia combinado precisa aparecer mesmo sem escala.
+    const events = [
+      ev({ start_date: "2026-07-03", end_date: "2026-07-03", responsible_user_id: "user-a", custody_type: "exception" }),
+    ];
+    const map = buildCustodyMap(events, COLORS);
+    expect(map.get("2026-07-03")?.userName).toBe("Angelino");
+    expect(map.size).toBe(1);
+  });
+});
+
 describe("computeSwapBalance — saldo só conta após swap real (Angelino bug 2026-04-27)", () => {
   it("counts +1 for the new owner and -1 for the original owner when swap covers a regular day", () => {
     const events = [
